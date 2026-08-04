@@ -53,7 +53,7 @@ describe('GetDashboardStatsUseCase', () => {
       actor: { userId: 'u1', tenantId: null, role: 'AM', branchId: null, inspectorId: null },
     });
 
-    expect(repository.getStats).toHaveBeenCalledWith(undefined, true);
+    expect(repository.getStats).toHaveBeenCalledWith(undefined, true, undefined, undefined);
     expect(result).toEqual(mockStats);
   });
 
@@ -62,7 +62,7 @@ describe('GetDashboardStatsUseCase', () => {
       actor: { userId: 'u2', tenantId: null, role: 'OP', branchId: null, inspectorId: null },
     });
 
-    expect(repository.getStats).toHaveBeenCalledWith(undefined, true);
+    expect(repository.getStats).toHaveBeenCalledWith(undefined, true, undefined, undefined);
   });
 
   it('should delegate to repository with tenantId and breakdowns=false for CL_ADMIN role', async () => {
@@ -70,7 +70,7 @@ describe('GetDashboardStatsUseCase', () => {
       actor: { userId: 'u3', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null },
     });
 
-    expect(repository.getStats).toHaveBeenCalledWith('tenant-1', false);
+    expect(repository.getStats).toHaveBeenCalledWith('tenant-1', false, undefined, undefined);
   });
 
   // Fail-closed. `getStats` builds its filter as `tenantId ? { tenant_id } : {}`,
@@ -95,7 +95,7 @@ describe('GetDashboardStatsUseCase', () => {
       actor: { userId: 'u4', tenantId: 'tenant-2', role: 'CL_USER', branchId: 'b1', inspectorId: null },
     });
 
-    expect(repository.getStats).toHaveBeenCalledWith('tenant-2', false);
+    expect(repository.getStats).toHaveBeenCalledWith('tenant-2', false, undefined, undefined);
   });
 
   it('should throw ForbiddenError for INSP role', async () => {

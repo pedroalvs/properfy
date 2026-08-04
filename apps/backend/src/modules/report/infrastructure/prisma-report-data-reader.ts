@@ -146,7 +146,7 @@ export class PrismaReportDataReader implements IReportDataReader {
   async getFinancialRows(filters: ReportDataFilters): Promise<Record<string, unknown>[]> {
     const where: Prisma.FinancialEntryWhereInput = {
       status: 'APPROVED',
-      effective_at: this.sydneyTimestampRange(filters),
+      effective_at: this.timestampRange(filters),
     };
     if (filters.tenantId) where.tenant_id = filters.tenantId;
     // An agency never sees the platform↔inspector leg. The type allowlist alone is
@@ -274,14 +274,16 @@ export class PrismaReportDataReader implements IReportDataReader {
   }
 
   /**
-   * Inclusive [fromDate 00:00 Sydney, toDate+1 00:00 Sydney) instant range — for real
-   * timestamp columns (created_at, done_checked_at, effective_at). Sydney day boundaries
-   * keep evening events on the operator's calendar day.
+   * Inclusive [fromDate 00:00, toDate+1 00:00) instant range in the report's
+   * timezone — for real timestamp columns (created_at, done_checked_at,
+   * effective_at). The requester's day boundaries keep evening events on
+   * their calendar day; defaults to the platform timezone.
    */
-  private sydneyTimestampRange(filters: ReportDataFilters): { gte: Date; lt: Date } {
+  private timestampRange(filters: ReportDataFilters): { gte: Date; lt: Date } {
+    const tz = filters.timezone ?? PLATFORM_TIMEZONE;
     return {
-      gte: parseDateInTimezone(filters.fromDate, PLATFORM_TIMEZONE),
-      lt: parseDateInTimezone(nextCivilDay(filters.toDate), PLATFORM_TIMEZONE),
+      gte: parseDateInTimezone(filters.fromDate, tz),
+      lt: parseDateInTimezone(nextCivilDay(filters.toDate), tz),
     };
   }
 
@@ -295,10 +297,10 @@ export class PrismaReportDataReader implements IReportDataReader {
     // Sydney day boundaries; the scheduled axis filters the @db.Date column directly.
     switch (filters.dateAxis) {
       case 'CREATED':
-        where.created_at = this.sydneyTimestampRange(filters);
+        where.created_at = this.timestampRange(filters);
         break;
       case 'COMPLETED':
-        where.done_checked_at = this.sydneyTimestampRange(filters); // nullable → excludes not-yet-completed rows
+        where.done_checked_at = this.timestampRange(filters); // nullable → excludes not-yet-completed rows
         break;
       case 'SCHEDULED':
       default:

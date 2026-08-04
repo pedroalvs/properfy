@@ -33,6 +33,7 @@ export class GetAnalyticsHeatmapUseCase {
       startDate: query.startDate,
       endDate: query.endDate,
       tenantId,
+      timezone: actor.timezone,
     });
   }
 }

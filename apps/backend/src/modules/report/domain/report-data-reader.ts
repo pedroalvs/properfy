@@ -11,6 +11,12 @@ export interface ReportDataFilters {
   /** Agency scope (SaaS tenant). */
   tenantId?: string;
   /**
+   * IANA timezone anchoring timestamp-axis day boundaries: the agency's for
+   * agency-scoped runs, the requester's for platform runs. Defaults to the
+   * platform timezone.
+   */
+  timezone?: string;
+  /**
    * The run belongs to an agency rather than an operator. Narrows what the rows
    * may contain: the Financial report drops the platform↔inspector leg and the
    * Performance report drops the inspector's personal email.

@@ -86,11 +86,13 @@ export class PrismaDashboardRepository implements DashboardRepository {
     tenantId?: string,
     includeInspectorBreakdowns = false,
     now: Date = new Date(),
+    timezone?: string,
   ): Promise<DashboardStatsOutput> {
     const tenantFilter = tenantId ? { tenant_id: tenantId } : {};
 
-    // Every window below is a Sydney civil window, not a server-local one.
-    const today = civilDateInTimezone(now, PLATFORM_TIMEZONE);
+    // Every window below is a civil window in the actor's effective timezone,
+    // not a server-local one.
+    const today = civilDateInTimezone(now, timezone ?? PLATFORM_TIMEZONE);
     const weekStart = mondayOf(today);
     const week = this.civilDateRange(weekStart, addCivilDays(weekStart, 6));
     const tomorrow = this.civilDateRange(nextCivilDay(today), nextCivilDay(today));

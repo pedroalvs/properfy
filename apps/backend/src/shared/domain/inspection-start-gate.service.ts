@@ -13,17 +13,22 @@
  * appointment visible-but-unexecutable until the 45-day overdue sweep cancelled
  * it. The time slot remains an expectation shown to the inspector, not a gate.
  *
- * The scheduled date is a civil date in the platform timezone (Sydney), so the
- * gate opens at Sydney midnight — which is a different UTC instant depending on
- * whether the date falls in AEDT (UTC+11) or AEST (UTC+10).
+ * The scheduled date is a civil date in the appointment's AGENCY timezone, so
+ * the gate opens at that agency's local midnight (a property of the
+ * appointment, not of the viewing inspector). Defaults to the platform
+ * timezone when no agency timezone is supplied.
  */
 import { formatCivilDate, PLATFORM_TIMEZONE, zonedWallTimeToUtc } from '@properfy/shared';
 
 export class InspectionStartGateService {
-  isStartAllowed(scheduledDate: Date, now: Date): { allowed: boolean; reason?: string } {
+  isStartAllowed(
+    scheduledDate: Date,
+    now: Date,
+    timezone: string = PLATFORM_TIMEZONE,
+  ): { allowed: boolean; reason?: string } {
     // `scheduledDate` is a @db.Date pinned to UTC midnight; take its civil date.
     const civilDate = scheduledDate.toISOString().slice(0, 10);
-    const dayOpens = zonedWallTimeToUtc(civilDate, '00:00', PLATFORM_TIMEZONE);
+    const dayOpens = zonedWallTimeToUtc(civilDate, '00:00', timezone);
 
     if (now.getTime() < dayOpens.getTime()) {
       // This reason reaches the inspector verbatim: it travels in the error

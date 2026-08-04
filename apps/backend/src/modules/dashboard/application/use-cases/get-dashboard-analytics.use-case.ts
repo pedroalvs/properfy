@@ -74,6 +74,7 @@ export class GetDashboardAnalyticsUseCase {
       granularity,
       includeRevenue,
       tenantId,
+      timezone: actor.timezone,
     });
   }
 }

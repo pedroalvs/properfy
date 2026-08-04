@@ -564,6 +564,12 @@ describe('CreateAppointmentUseCase', () => {
 
   // Past date prevention
   describe('past date prevention', () => {
+    beforeEach(() => {
+      // The past-date check is anchored to the appointment's agency timezone,
+      // so it now runs AFTER tenant/branch resolution — the branch must resolve.
+      vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+    });
+
     it('should reject past scheduledDate for CL_ADMIN', async () => {
       await expect(
         useCase.execute({
@@ -610,6 +616,29 @@ describe('CreateAppointmentUseCase', () => {
       });
 
       expect(result.status).toBe('DRAFT');
+      vi.useRealTimers();
+    });
+
+    it('validates against the AGENCY timezone, not the platform default', async () => {
+      // Frozen at 12:00 UTC: the civil date is 2027-01-16 in Pacific/Kiritimati
+      // (UTC+14) but still 2027-01-15 in Sydney — so 2027-01-15 is a PAST date
+      // for a Kiritimati agency while remaining valid for a Sydney one.
+      vi.useFakeTimers({ now: new Date('2027-01-15T12:00:00.000Z') });
+      const uc = new CreateAppointmentUseCase(
+        appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo,
+        pricingRuleRepo, createPropertyUseCase, auditService, new AuthorizationService(auditService),
+        undefined, undefined, undefined, undefined, undefined, undefined,
+        { getTenantTimezone: vi.fn().mockResolvedValue('Pacific/Kiritimati') },
+      );
+      vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+
+      await expect(
+        uc.execute({
+          ...baseInput,
+          scheduledDate: '2027-01-15',
+          actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+        }),
+      ).rejects.toThrow(AppointmentDateInPastError);
       vi.useRealTimers();
     });
   });

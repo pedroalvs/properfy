@@ -73,6 +73,6 @@ export class GetDashboardStatsUseCase {
 
     const includeInspectorBreakdowns = ['AM', 'OP'].includes(actor.role);
 
-    return this.repository.getStats(tenantId, includeInspectorBreakdowns);
+    return this.repository.getStats(tenantId, includeInspectorBreakdowns, undefined, actor.timezone);
   }
 }

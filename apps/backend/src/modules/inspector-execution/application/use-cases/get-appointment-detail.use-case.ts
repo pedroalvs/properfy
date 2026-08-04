@@ -193,7 +193,11 @@ export class GetAppointmentDetailUseCase {
     if (appointment.status === 'SCHEDULED') {
       const st = await this.serviceTypeReader.findById(appointment.serviceTypeId);
       const flowType = st?.flowType ?? 'ROUTINE';
-      const todayCivil = civilDateInTimezone(new Date(), PLATFORM_TIMEZONE);
+      // T-1 visibility is a rule of the appointment: use its AGENCY timezone.
+      const todayCivil = civilDateInTimezone(
+        new Date(),
+        (await this.tenantRepo.findById(appointment.tenantId))?.timezone ?? PLATFORM_TIMEZONE,
+      );
       const isVisible = this.t1Service.isVisibleForInspector(
         flowType,
         appointment.rentalTenantConfirmationStatus,
