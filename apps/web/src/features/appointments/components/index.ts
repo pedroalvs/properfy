@@ -12,7 +12,6 @@ export { AppointmentTransitionActions } from './AppointmentTransitionActions';
 export { StatusTransitionDialog } from './StatusTransitionDialog';
 export { AppointmentDetailDrawer } from './AppointmentDetailDrawer';
 export { RentalTenantConfirmationChip } from './RentalTenantConfirmationChip';
-export { PropertySearch } from './PropertySearch';
 export { PricingPreview } from './PricingPreview';
 export { AppointmentBoardCard } from './AppointmentBoardCard';
 export { AppointmentBoardColumn } from './AppointmentBoardColumn';

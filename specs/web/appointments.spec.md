@@ -328,7 +328,7 @@ GET /v1/appointments?status=&serviceType=&branchId=&inspectorId=&dateFrom=&dateT
 
 **Components used:**
 - `BranchSelect` – dropdown scoped to user's tenant (or all for OP/AM)
-- `PropertySearch` – combobox with async search + "Create new" option
+- ~~`PropertySearch` – combobox with async search + "Create new" option~~ — **not built**; the form uses `SelectInput` (see the removal note under `PropertySearch` below)
 - `ServiceTypeSelect` – dropdown
 - `DatePicker` – calendar picker (min: today)
 - `TimeSlotSelect` – dropdown of predefined slots
@@ -380,7 +380,8 @@ POST /v1/appointments → Appointment
 | Restrictions | No | Max 1000 chars |
 | Notes | No | Max 1000 chars |
 
-**Inline property creation:**
+**Inline property creation:** — **NOT BUILT** (depended on `PropertySearch`, which was removed; see its note below)
+
 When user clicks "Create new property" in PropertySearch:
 - Opens `PropertyCreateInlineModal`
 - On success, auto-selects new property in the combobox
@@ -672,7 +673,13 @@ interface AppointmentFiltersBarProps {
 
 ---
 
-### `PropertySearch`
+### `PropertySearch` — REMOVED
+
+> **Removed (2026-08).** This component was never wired into the appointment
+> form: the create drawer selects a property with `SelectInput`, and the async
+> combobox described here had no consumer other than a barrel export. The dead
+> code was deleted; the spec is kept as the record of what was designed. The
+> "Create new property" inline flow below was likewise never built.
 
 ```typescript
 interface PropertySearchProps {
