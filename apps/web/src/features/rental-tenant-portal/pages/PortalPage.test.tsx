@@ -559,4 +559,131 @@ describe('PortalPage', () => {
       expect(screen.getByText('Server Error')).toBeInTheDocument();
     });
   });
+
+  describe('satisfaction survey branch', () => {
+    const DONE_APPOINTMENT = {
+      ...MOCK_PORTAL_DATA.appointment,
+      status: 'DONE',
+    };
+
+    function doneData(survey?: unknown) {
+      return {
+        ...MOCK_PORTAL_DATA,
+        appointment: DONE_APPOINTMENT,
+        ...(survey === undefined ? {} : { survey }),
+      };
+    }
+
+    it('renders the survey once the inspection is done and unrated', async () => {
+      mockGet.mockResolvedValue({
+        data: doneData({
+          eligible: true,
+          submitted: false,
+          rating: null,
+          comment: null,
+          submittedAt: null,
+          inspectorName: 'James Roberts',
+        }),
+      });
+
+      renderPortal();
+
+      expect(await screen.findByText(/how did we go/i)).toBeInTheDocument();
+      expect(screen.getByRole('radiogroup')).toBeInTheDocument();
+      // The old dead-end must be gone, not merely pushed below the fold.
+      expect(screen.queryByText(/no further actions are available/i)).not.toBeInTheDocument();
+    });
+
+    it('renders the read-only receipt once a rating exists', async () => {
+      mockGet.mockResolvedValue({
+        data: doneData({
+          eligible: false,
+          submitted: true,
+          rating: 4,
+          comment: 'On time and thorough.',
+          submittedAt: '2026-08-03T10:00:00.000Z',
+          inspectorName: 'James Roberts',
+        }),
+      });
+
+      renderPortal();
+
+      expect(await screen.findByText(/thanks for your feedback/i)).toBeInTheDocument();
+      expect(screen.getByText(/on time and thorough/i)).toBeInTheDocument();
+      expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+    });
+
+    it('keeps the legacy terminal view when the payload carries no survey block', async () => {
+      // Regression guard for a frontend deployed ahead of the API: the absent key
+      // must degrade to today's behaviour, not to a broken survey screen.
+      mockGet.mockResolvedValue({ data: doneData(undefined) });
+
+      renderPortal();
+
+      expect(await screen.findByText(/no further actions are available/i)).toBeInTheDocument();
+      expect(screen.queryByText(/how did we go/i)).not.toBeInTheDocument();
+    });
+
+    it('keeps the legacy terminal view when the survey is not offered', async () => {
+      mockGet.mockResolvedValue({
+        data: doneData({
+          eligible: false,
+          submitted: false,
+          rating: null,
+          comment: null,
+          submittedAt: null,
+          inspectorName: null,
+        }),
+      });
+
+      renderPortal();
+
+      expect(await screen.findByText(/no further actions are available/i)).toBeInTheDocument();
+    });
+
+    it('never leaks the survey into a pre-inspection portal', async () => {
+      mockGet.mockResolvedValue({
+        data: {
+          ...MOCK_PORTAL_DATA,
+          survey: { eligible: true, submitted: false, rating: null, comment: null, submittedAt: null, inspectorName: 'X' },
+        },
+      });
+
+      renderPortal();
+
+      expect(await screen.findByText(/your response/i)).toBeInTheDocument();
+      expect(screen.queryByText(/how did we go/i)).not.toBeInTheDocument();
+    });
+
+    it('posts the rating and refetches so the receipt comes from the server', async () => {
+      const user = userEvent.setup();
+      mockGet.mockResolvedValue({
+        data: doneData({
+          eligible: true,
+          submitted: false,
+          rating: null,
+          comment: null,
+          submittedAt: null,
+          inspectorName: 'James Roberts',
+        }),
+      });
+      mockPost.mockResolvedValue({
+        data: { rating: 5, comment: null, submittedAt: '2026-08-03T10:00:00.000Z', alreadySubmitted: false },
+      });
+
+      renderPortal();
+
+      await user.click((await screen.findAllByRole('radio'))[4]!);
+      await user.click(screen.getByRole('button', { name: /submit rating/i }));
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalledWith(
+          '/v1/rental-tenant-portal/test-token/survey',
+          expect.objectContaining({ body: { rating: 5 } }),
+        );
+      });
+      // Two GETs: the initial load plus the invalidation-driven refetch.
+      await waitFor(() => expect(mockGet.mock.calls.length).toBeGreaterThan(1));
+    });
+  });
 });

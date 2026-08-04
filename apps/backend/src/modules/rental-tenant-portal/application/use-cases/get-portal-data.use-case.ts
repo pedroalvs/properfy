@@ -7,6 +7,8 @@ import type { IServiceTypeRepository } from '../../../service-type/domain/servic
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-portal-activity.entity';
 import { PortalAppointmentInactiveError } from '../../domain/rental-tenant-portal.errors';
+import type { ISatisfactionSurveyRepository } from '../../../satisfaction-survey/domain/satisfaction-survey.repository';
+import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 
 export interface GetPortalDataInput {
   tokenId: string;
@@ -27,6 +29,11 @@ export class GetPortalDataUseCase {
     private readonly propertyRepo: IPropertyRepository,
     private readonly serviceTypeRepo: IServiceTypeRepository,
     private readonly tenantRepo: ITenantRepository,
+    // Optional so existing six-argument construction keeps working: a deployment
+    // that has not wired these degrades to the pre-survey payload instead of
+    // throwing on every portal view.
+    private readonly surveyRepo?: ISatisfactionSurveyRepository,
+    private readonly inspectorRepo?: Pick<IInspectorRepository, 'findById'>,
   ) {}
 
   async execute(input: GetPortalDataInput) {
@@ -71,7 +78,10 @@ export class GetPortalDataUseCase {
     });
     await this.activityRepo.save(activity);
 
-    // 5. Return structured portal data
+    // 5. Satisfaction survey, only once the inspection has actually happened.
+    const survey = await this.loadSurvey(appointment, input.isReadOnly);
+
+    // 6. Return structured portal data
     const isExpired = input.tokenStatus === 'EXPIRED';
     return {
       token: {
@@ -139,6 +149,41 @@ export class GetPortalDataUseCase {
         name: tenant?.name ?? null,
         timezone: PLATFORM_TIMEZONE,
       },
+      ...(survey ? { survey } : {}),
+    };
+  }
+
+  /**
+   * Builds the survey block, or returns `undefined` so the key is omitted.
+   *
+   * Omission is meaningful: the portal keeps its existing terminal view when
+   * there is no block, which is also what happens on a deployment predating this
+   * feature. Returning a block with `eligible: false` for every SCHEDULED
+   * appointment would cost a query on the busiest path in the portal to say
+   * nothing.
+   */
+  private async loadSurvey(
+    appointment: { id: string; status: string; inspectorId: string | null },
+    isReadOnly: boolean,
+  ) {
+    if (!this.surveyRepo || appointment.status !== 'DONE') {
+      return undefined;
+    }
+
+    const existing = await this.surveyRepo.findByAppointmentId(appointment.id);
+    const inspectorName =
+      appointment.inspectorId && this.inspectorRepo
+        ? ((await this.inspectorRepo.findById(appointment.inspectorId))?.name ?? null)
+        : null;
+
+    return {
+      eligible: !existing && !isReadOnly && !!appointment.inspectorId,
+      submitted: !!existing,
+      // The tenant's own answer, echoed back to the person who gave it.
+      rating: existing?.rating ?? null,
+      comment: existing?.comment ?? null,
+      submittedAt: existing?.submittedAt.toISOString() ?? null,
+      inspectorName,
     };
   }
 

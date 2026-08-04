@@ -168,6 +168,8 @@ import { PrismaRentalTenantPortalActivityRepository } from '../modules/rental-te
 import { TokenService } from '../modules/rental-tenant-portal/domain/token.service';
 import { MintPortalTokenService } from '../modules/rental-tenant-portal/domain/mint-portal-token.service';
 import { GetPortalDataUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-portal-data.use-case';
+import { PrismaSatisfactionSurveyRepository } from '../modules/satisfaction-survey/infrastructure/prisma-satisfaction-survey.repository';
+import { SubmitSatisfactionSurveyUseCase } from '../modules/satisfaction-survey/application/use-cases/submit-satisfaction-survey.use-case';
 import { ConfirmAppointmentUseCase } from '../modules/rental-tenant-portal/application/use-cases/confirm-appointment.use-case';
 import { UpdateContactUseCase } from '../modules/rental-tenant-portal/application/use-cases/update-contact.use-case';
 import { ReportUnavailabilityUseCase } from '../modules/rental-tenant-portal/application/use-cases/report-unavailability.use-case';
@@ -804,7 +806,10 @@ export function createContainer(logger: Logger): AppContainer {
     idempotencyService, confirmationCycleService,
   );
 
-  const getPortalDataUseCase = new GetPortalDataUseCase(rentalTenantPortalTokenRepo, rentalTenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo);
+  const satisfactionSurveyRepo = new PrismaSatisfactionSurveyRepository(prisma);
+  const submitSatisfactionSurveyUseCase = new SubmitSatisfactionSurveyUseCase(satisfactionSurveyRepo, appointmentRepo, rentalTenantPortalActivityRepo, auditService);
+
+  const getPortalDataUseCase = new GetPortalDataUseCase(rentalTenantPortalTokenRepo, rentalTenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo, satisfactionSurveyRepo, inspectorRepo);
   const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(rentalTenantPortalActivityRepo, appointmentRepo, auditService, notifyOnRentalTenantPortalActionHandler, domainEventBus, rentalTenantPortalTokenRepo, confirmationCycleService);
   const updateContactUseCase = new UpdateContactUseCase(rentalTenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
   const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(rentalTenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, env.TENANT_PORTAL_BASE_URL, createNotificationUseCase, confirmationCycleService, prisma, logger);
@@ -1511,6 +1516,7 @@ export function createContainer(logger: Logger): AppContainer {
       listPortalActivitiesUseCase,
       getAvailableGroupsUseCase,
       joinGroupUseCase,
+      submitSatisfactionSurveyUseCase,
       tokenRepo: rentalTenantPortalTokenRepo,
       tokenService,
       jwtService,

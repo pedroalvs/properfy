@@ -18546,6 +18546,43 @@
                         "timezone"
                       ],
                       "additionalProperties": false
+                    },
+                    "survey": {
+                      "type": "object",
+                      "properties": {
+                        "eligible": {
+                          "type": "boolean"
+                        },
+                        "submitted": {
+                          "type": "boolean"
+                        },
+                        "rating": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "comment": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "inspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "eligible",
+                        "submitted",
+                        "rating",
+                        "comment",
+                        "submittedAt",
+                        "inspectorName"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
@@ -18687,6 +18724,80 @@
                   "required": [
                     "rentalTenantConfirmationStatus",
                     "confirmedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/rental-tenant-portal/{token}/survey": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rating": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "comment": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "rating"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "token",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rating": {
+                      "type": "integer"
+                    },
+                    "comment": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "submittedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "alreadySubmitted": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "rating",
+                    "comment",
+                    "submittedAt",
+                    "alreadySubmitted"
                   ],
                   "additionalProperties": false
                 }

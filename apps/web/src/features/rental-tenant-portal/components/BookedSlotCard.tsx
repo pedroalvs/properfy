@@ -5,17 +5,19 @@ interface BookedSlotCardProps {
   appointment: PortalAppointment;
   /** Renders the "Change time" link when provided. */
   onChangeTime?: () => void;
+  /** Overline above the date. Reads "Inspected on" once the job is done. */
+  label?: string;
 }
 
 /**
  * Hero block of the portal: the booked date/time in a coral highlight box
  * with the "Change time" entry point.
  */
-export function BookedSlotCard({ appointment, onChangeTime }: BookedSlotCardProps) {
+export function BookedSlotCard({ appointment, onChangeTime, label = 'Booked for' }: BookedSlotCardProps) {
   return (
     <div className="text-center">
       <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
-        Booked for
+        {label}
       </p>
       <div className="mt-2 rounded-xl border border-[color-mix(in_srgb,var(--color-real-estate)_45%,white)] bg-[color-mix(in_srgb,var(--color-real-estate)_12%,white)] px-4 py-4">
         <p className="text-sm font-bold text-secondary">

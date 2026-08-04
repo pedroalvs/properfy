@@ -8027,6 +8027,15 @@ export interface paths {
                                 name: string | null;
                                 timezone: string;
                             };
+                            survey?: {
+                                eligible: boolean;
+                                submitted: boolean;
+                                rating: number | null;
+                                comment: string | null;
+                                /** Format: date-time */
+                                submittedAt: string | null;
+                                inspectorName: string | null;
+                            };
                         };
                     };
                 };
@@ -8092,6 +8101,56 @@ export interface paths {
                             rentalTenantConfirmationStatus: "CONFIRMED";
                             /** Format: date-time */
                             confirmedAt: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rental-tenant-portal/{token}/survey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        rating: number;
+                        comment?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            rating: number;
+                            comment: string | null;
+                            /** Format: date-time */
+                            submittedAt: string;
+                            alreadySubmitted: boolean;
                         };
                     };
                 };

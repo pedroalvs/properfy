@@ -199,6 +199,7 @@ export function createMockContainer(
       listPortalActivitiesUseCase: { execute: vi.fn() },
       getAvailableGroupsUseCase: { execute: vi.fn() },
       joinGroupUseCase: { execute: vi.fn() },
+      submitSatisfactionSurveyUseCase: { execute: vi.fn() },
       tokenRepo: {
         findByTokenHash: vi.fn(),
         findActiveByAppointmentId: vi.fn(),

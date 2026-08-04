@@ -575,4 +575,114 @@ describe('GetPortalDataUseCase', () => {
       timezone: 'Australia/Sydney',
     });
   });
+
+  describe('satisfaction survey block', () => {
+    let surveyRepo: { findByAppointmentId: ReturnType<typeof vi.fn>; submit: ReturnType<typeof vi.fn>; findByInspectorId: ReturnType<typeof vi.fn> };
+    let inspectorRepo: { findById: ReturnType<typeof vi.fn> };
+
+    function makeSurveyUseCase() {
+      return new GetPortalDataUseCase(
+        tokenRepo,
+        activityRepo,
+        appointmentRepo,
+        propertyRepo,
+        serviceTypeRepo,
+        tenantRepo,
+        surveyRepo as never,
+        inspectorRepo as never,
+      );
+    }
+
+    beforeEach(() => {
+      surveyRepo = { findByAppointmentId: vi.fn().mockResolvedValue(null), submit: vi.fn(), findByInspectorId: vi.fn() };
+      inspectorRepo = { findById: vi.fn().mockResolvedValue({ id: 'inspector-1', name: 'James Roberts' }) };
+      vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+      vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+      vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
+    });
+
+    it('offers the survey on a DONE inspection that has not been rated', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'DONE', inspectorId: 'inspector-1' }),
+      );
+
+      const result = await makeSurveyUseCase().execute(makeInput());
+
+      expect(result.survey).toEqual({
+        eligible: true,
+        submitted: false,
+        rating: null,
+        comment: null,
+        submittedAt: null,
+        inspectorName: 'James Roberts',
+      });
+    });
+
+    it('echoes the tenant their own submitted answer', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'DONE', inspectorId: 'inspector-1' }),
+      );
+      surveyRepo.findByAppointmentId.mockResolvedValue({
+        rating: 4,
+        comment: 'On time and thorough.',
+        submittedAt: new Date('2026-08-03T10:00:00.000Z'),
+      });
+
+      const result = await makeSurveyUseCase().execute(makeInput());
+
+      expect(result.survey).toMatchObject({
+        eligible: false,
+        submitted: true,
+        rating: 4,
+        comment: 'On time and thorough.',
+        submittedAt: '2026-08-03T10:00:00.000Z',
+      });
+    });
+
+    it('omits the block entirely — and issues no survey query — when the inspection is not DONE', async () => {
+      // The portal payload is the hot path: every tenant hitting their link runs
+      // this. A survey lookup on a SCHEDULED appointment would be a round-trip
+      // spent to learn nothing.
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      const result = await makeSurveyUseCase().execute(makeInput());
+
+      expect(result.survey).toBeUndefined();
+      expect(surveyRepo.findByAppointmentId).not.toHaveBeenCalled();
+    });
+
+    it('is not eligible when the token is read-only', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'DONE', inspectorId: 'inspector-1' }),
+      );
+
+      const result = await makeSurveyUseCase().execute(makeInput({ isReadOnly: true }));
+
+      expect(result.survey).toMatchObject({ eligible: false, submitted: false });
+    });
+
+    it('is not eligible when the inspection has no inspector to rate', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'DONE', inspectorId: null }),
+      );
+
+      const result = await makeSurveyUseCase().execute(makeInput());
+
+      expect(result.survey).toMatchObject({ eligible: false, inspectorName: null });
+      expect(inspectorRepo.findById).not.toHaveBeenCalled();
+    });
+
+    it('omits the block when the survey dependency is not wired', async () => {
+      // Existing six-argument construction must keep working unchanged, so a
+      // deployment that has not wired the survey repo degrades to today's behaviour
+      // rather than throwing on every portal view.
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'DONE', inspectorId: 'inspector-1' }),
+      );
+
+      const result = await useCase.execute(makeInput());
+
+      expect(result.survey).toBeUndefined();
+    });
+  });
 });
