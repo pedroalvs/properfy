@@ -236,6 +236,18 @@ const PORTAL_LINK_HTML = tenantEmailHtml(
   CLOSING_PARAGRAPHS,
 );
 
+const SATISFACTION_SURVEY_HTML = tenantEmailHtml(
+  `<p>Your <strong>${SERVICE_LABEL}</strong>` +
+  '{{#if appointmentCode}} <strong>#{{appointmentCode}}</strong>{{/if}}' +
+  '{{#if propertyAddress}} at <strong>{{propertyAddress}}</strong>{{/if}}' +
+  '{{#if scheduledDate}} on <strong>{{scheduledDate}}</strong>{{/if}} has been completed' +
+  '{{#if inspectorName}} by <strong>{{inspectorName}}</strong>{{/if}}.</p>' +
+  '<p>Would you take a moment to tell us how it went? It only takes a few seconds.</p>' +
+  `<p><a href="{{surveyLink}}" target="_blank" style="${EMAIL_LINK_STYLE}">Rate your inspection</a></p>` +
+  `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Please note:</strong> your inspector only sees the rating — never your name or comments.</p>` +
+  CLOSING_PARAGRAPHS,
+);
+
 // ── System EMAIL bodies (Properfy-branded light layout) ─────────────────────
 
 const PASSWORD_RESET_HTML = renderSystemEmailHtml({
@@ -534,5 +546,13 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     channel: 'SMS',
     subject: null,
     body: 'Properfy: inspection on {{scheduledDate}}. Manage it here: {{confirmationLink}}',
+  },
+  // ── Satisfaction survey (fired when the inspection is marked DONE) ────────
+  {
+    code: 'INSPECTION_SATISFACTION_SURVEY',
+    channel: 'EMAIL',
+    subject: 'How did your inspection go?',
+    body: `Your inspection has been completed. Tell us how it went: {{surveyLink}}`,
+    bodyHtml: SATISFACTION_SURVEY_HTML,
   },
 ];
