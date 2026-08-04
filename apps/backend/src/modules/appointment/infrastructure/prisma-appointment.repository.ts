@@ -220,6 +220,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         row.property?.rent_amount != null ? Number(row.property.rent_amount) : null,
       branchName: row.branch?.name ?? '',
       serviceTypeName: row.service_type?.name ?? '',
+      serviceTypeFlowType: (row.service_type?.flow_type ?? 'ROUTINE') as ServiceTypeFlowType,
       inspectorName: row.inspector?.name ?? null,
       tenantName: (row as any).tenant?.name ?? '',
       tenantAppointmentCodePrefix,
@@ -443,9 +444,15 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     });
   }
 
-  async deleteContactsByAppointmentId(appointmentId: string): Promise<void> {
+  async deleteContactsByAppointmentId(appointmentId: string, tenantId?: string): Promise<void> {
+    // appointment_contacts has no tenant_id of its own; the scope travels
+    // through the appointment relation. Optional and last, per the repository
+    // idiom, so no existing call site shifts.
     await this.prisma.appointmentContact.deleteMany({
-      where: { appointment_id: appointmentId },
+      where: {
+        appointment_id: appointmentId,
+        ...(tenantId ? { appointment: { tenant_id: tenantId } } : {}),
+      },
     });
   }
 
@@ -749,6 +756,15 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     return row ? mapToEntity(row) : null;
   }
 
+  /**
+   * **Deliberately cross-tenant.** Called only by the nightly
+   * `appointment.reject-unconfirmed` worker, which has no actor and must sweep
+   * every agency in one pass — the absence of a `tenant_id` filter here is the
+   * contract, not an oversight, and must not be "fixed" by adding one.
+   *
+   * Contrast `createAppointmentFlowTypeReader`, which is request-scoped and
+   * therefore does scope by tenant.
+   */
   async findUnconfirmedForDate(date: Date): Promise<AppointmentEntity[]> {
     // scheduled_date is a @db.Date pinned to UTC midnight; callers must pass
     // UTC midnight of the *Sydney* civil date they are targeting.

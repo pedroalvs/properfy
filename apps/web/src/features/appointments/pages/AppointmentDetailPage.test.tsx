@@ -32,6 +32,7 @@ let mockUserRole = 'AM';
 // Owning agency's occupant-contact switch, applied to the `awaiting` fixture so a
 // test can flip it without duplicating the whole appointment.
 let mockRentalTenantNotificationsEnabled = true;
+let mockFlowType: string | null = 'ROUTINE';
 let mockHasPrimaryContact = true;
 let mockClUserPermissions: string[] = [];
 
@@ -133,6 +134,7 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
           doneCheckedByUserId: null,
           doneCheckedAt: null,
           rentalTenantNotificationsEnabled: mockRentalTenantNotificationsEnabled,
+          flowType: mockFlowType,
           createdAt: '2026-03-01T10:00:00Z',
           updatedAt: '2026-03-01T10:00:00Z',
         },
@@ -874,5 +876,91 @@ describe('Tenant Availability action', () => {
 
     expect(screen.getByRole('heading', { name: /set tenant availability/i })).toBeInTheDocument();
     expect(screen.queryByLabelText(/also mark tenant as unavailable/i)).toBeNull();
+  });
+});
+
+// INGOING/OUTGOING inspections have no occupant at all, so the occupant-facing
+// actions are unavailable for a different reason than "we cannot reach them".
+describe('AppointmentDetailPage — service types with no occupant', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserRole = 'AM';
+    mockFlowType = 'INGOING';
+  });
+
+  afterEach(() => {
+    mockFlowType = 'ROUTINE';
+    mockRentalTenantNotificationsEnabled = true;
+  });
+
+  it.each(['INGOING', 'OUTGOING'])('disables Send Portal Link for %s with a reason', (flowType) => {
+    mockFlowType = flowType;
+    renderPage('/appointments/awaiting');
+
+    const button = screen.getByTestId('send-portal-link-button');
+    const explanation = screen.getByText(/have no tenant to notify/i);
+
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-describedby', 'send-portal-link-disabled-hint');
+    expect(explanation).toHaveAttribute('id', 'send-portal-link-disabled-hint');
+    expect(explanation).toBeVisible();
+  });
+
+  // "There is no occupant" is a truer explanation than "the agency blocked us",
+  // so it must win when both are true.
+  it('outranks the agency-blocked reason', () => {
+    mockRentalTenantNotificationsEnabled = false;
+    renderPage('/appointments/awaiting');
+
+    expect(screen.getByText(/have no tenant to notify/i)).toBeVisible();
+    expect(screen.queryByText(/blocked for this agency/i)).not.toBeInTheDocument();
+  });
+
+  it('leaves Copy Portal Link enabled, since it dispatches nothing', () => {
+    renderPage('/appointments/awaiting');
+    expect(screen.getByTestId('copy-portal-link-button')).not.toBeDisabled();
+  });
+
+  it('shows the flow type beside the status so the reason is visible at a glance', () => {
+    renderPage('/appointments/awaiting');
+    expect(screen.getByText('Ingoing')).toBeInTheDocument();
+  });
+
+  it('keeps Send Portal Link enabled for ROUTINE', () => {
+    mockFlowType = 'ROUTINE';
+    renderPage('/appointments/awaiting');
+    expect(screen.getByTestId('send-portal-link-button')).not.toBeDisabled();
+  });
+
+  // Fail open: an older payload without the field must behave exactly as before.
+  it('keeps Send Portal Link enabled when flowType is absent', () => {
+    mockFlowType = null;
+    renderPage('/appointments/awaiting');
+    expect(screen.getByTestId('send-portal-link-button')).not.toBeDisabled();
+  });
+
+  // Every occupant-specific action must go, not just the portal link: recording
+  // availability or marking "unavailable" for an appointment with no occupant is
+  // recording an answer nobody gave.
+  it.each(['INGOING', 'OUTGOING'])('hides Force Confirm for %s', (flowType) => {
+    mockFlowType = flowType;
+    mockClUserPermissions = ['force_confirmation'];
+    renderPage('/appointments/awaiting');
+
+    expect(screen.queryByTestId('force-confirm-button')).not.toBeInTheDocument();
+  });
+
+  it.each(['INGOING', 'OUTGOING'])('hides Tenant Availability for %s', (flowType) => {
+    mockFlowType = flowType;
+    renderPage('/appointments/awaiting');
+
+    expect(screen.queryByTestId('set-tenant-availability-button')).not.toBeInTheDocument();
+  });
+
+  it('keeps Tenant Availability for ROUTINE', () => {
+    mockFlowType = 'ROUTINE';
+    renderPage('/appointments/awaiting');
+
+    expect(screen.getByTestId('set-tenant-availability-button')).toBeInTheDocument();
   });
 });

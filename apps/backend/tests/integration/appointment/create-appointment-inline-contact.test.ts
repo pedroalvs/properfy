@@ -216,16 +216,49 @@ describe('POST /v1/appointments — inline contact idempotency (feature 021)', (
     expect(primaries).toHaveLength(1);
   });
 
-  it('400: empty contacts array returns APPOINTMENT_CONTACTS_REQUIRED error', async () => {
+  // Contacts are no longer required for any service type. These assert the real
+  // route behaviour rather than mocking the use case into rejecting — the old
+  // version forced the rejection itself, so it would have stayed green even
+  // after the schema started accepting an empty array.
+  it('201: empty contacts array is accepted and forwarded to the use case', async () => {
     mockJwtVerify.mockResolvedValue(clAdminContext);
-    mockCreateAppointmentExecute.mockRejectedValue(
-      new ValidationError('APPOINTMENT_CONTACTS_REQUIRED', 'At least one contact is required'),
-    );
+    mockCreateAppointmentExecute.mockResolvedValue(makeAppointmentResult([]));
 
     const res = await supertest(app.server)
       .post('/v1/appointments')
       .set('Authorization', 'Bearer token')
       .send({ ...basePayload, contacts: [] });
+
+    expect(res.status).toBe(201);
+    expect(mockCreateAppointmentExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ contacts: [] }),
+    );
+  });
+
+  it('201: neither contact nor contacts is accepted', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+    mockCreateAppointmentExecute.mockResolvedValue(makeAppointmentResult([]));
+
+    const res = await supertest(app.server)
+      .post('/v1/appointments')
+      .set('Authorization', 'Bearer token')
+      .send(basePayload);
+
+    expect(res.status).toBe(201);
+  });
+
+  // Only the "not neither" half was relaxed — the two shapes remain exclusive.
+  it('400: providing both contact and contacts is still rejected', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/appointments')
+      .set('Authorization', 'Bearer token')
+      .send({
+        ...basePayload,
+        contact: { rentalTenantName: 'Legacy Jane' },
+        contacts: [{ contactId: EXISTING_CONTACT_ID, role: 'RENTAL_TENANT', isPrimary: true }],
+      });
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');

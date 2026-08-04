@@ -108,16 +108,23 @@ describe('real sample agency export', () => {
     }
   });
 
-  it('most rows have a complete primary contact — one known gap (row 13, no phone)', () => {
-    // This is exactly the scenario the resolver's CONTACT_INCOMPLETE warning
-    // exists for: row 13 has no phone number in the source spreadsheet. It
-    // will be reported as a per-row warning in the preview and still
-    // imports — just without a contact attached to the appointment.
-    const incomplete = rawRows
+  it('most rows carry all three contact fields — one known gap (row 13, no phone)', () => {
+    const missingAField = rawRows
       .map((raw, i) => ({ rowNumber: i + 2, contact: normalizeImportRow(raw, IMPORT_DAY).normalized.primaryContact }))
       .filter(({ contact }) => !contact.name || !contact.email || !contact.phone);
 
-    expect(incomplete.map((r) => r.rowNumber)).toEqual([13]);
-    expect(rawRows.length - incomplete.length).toBe(46);
+    expect(missingAField.map((r) => r.rowNumber)).toEqual([13]);
+    expect(rawRows.length - missingAField.length).toBe(46);
+  });
+
+  // Row 13 is the case that motivated relaxing the gate: it has a name and an
+  // email, just no phone. Under the old "all three or nothing" rule the whole
+  // contact was discarded; now it imports with the channel it does have.
+  it('every row has a name and at least one channel, so none is dropped', () => {
+    const unusable = rawRows
+      .map((raw, i) => ({ rowNumber: i + 2, contact: normalizeImportRow(raw, IMPORT_DAY).normalized.primaryContact }))
+      .filter(({ contact }) => !contact.name || (!contact.email && !contact.phone));
+
+    expect(unusable).toEqual([]);
   });
 });

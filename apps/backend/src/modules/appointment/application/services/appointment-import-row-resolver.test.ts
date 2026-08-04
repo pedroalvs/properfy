@@ -288,32 +288,71 @@ describe('AppointmentImportRowResolver.resolve', () => {
   });
 
   describe('contact resolution', () => {
-    it('warns and leaves contact null when the contact is incomplete, but still allows the row to import', async () => {
+    // A contact needs a name and at least one channel — not all three. The
+    // engine has always accepted a single-channel contact (ContactNoChannelError
+    // only fires when name, email, phone AND additionalChannels are all empty),
+    // so demanding all three silently discarded usable data.
+    it('creates a contact from name + email when the phone is missing', async () => {
       const repos = buildRepos();
       repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());
       repos.pricingRuleRepo.findAll.mockResolvedValue([buildPricingRule()]);
       repos.propertyRepo.findManyByNormalizedAddressKeys.mockResolvedValue([buildProperty()]);
+      repos.contactRepo.findManyActiveByEmailsOrPhones.mockResolvedValue([]);
       const resolver = buildResolver(repos);
       const { rows } = await resolver.resolve([baseRawRow({ primaryContactPhone: null })], CTX);
-      expect(rows[0]!.contact).toBeNull();
+      expect(rows[0]!.contact).toEqual(expect.objectContaining({
+        resolution: 'new',
+        primaryPhone: null,
+      }));
       expect(rows[0]!.importable).toBe(true);
-      expect(rows[0]!.severity).toBe('warning');
-      expect(rows[0]!.issues).toEqual(expect.arrayContaining([
-        expect.objectContaining({ code: 'CONTACT_INCOMPLETE', severity: 'warning' }),
-      ]));
+      expect(rows[0]!.issues.map((i) => i.code)).not.toContain('CONTACT_INCOMPLETE');
     });
 
-    it('warns that extra channels were not applied either when the incomplete primary contact still has secondary channels', async () => {
+    it('creates a contact from name + phone when the email is missing', async () => {
+      const repos = buildRepos();
+      repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());
+      repos.pricingRuleRepo.findAll.mockResolvedValue([buildPricingRule()]);
+      repos.propertyRepo.findManyByNormalizedAddressKeys.mockResolvedValue([buildProperty()]);
+      repos.contactRepo.findManyActiveByEmailsOrPhones.mockResolvedValue([]);
+      const resolver = buildResolver(repos);
+      const { rows } = await resolver.resolve([baseRawRow({ primaryContactEmail: null })], CTX);
+      expect(rows[0]!.contact).toEqual(expect.objectContaining({
+        resolution: 'new',
+        primaryEmail: null,
+      }));
+      expect(rows[0]!.importable).toBe(true);
+    });
+
+    it('leaves contact null when there is no channel at all, and says nothing about it being "incomplete"', async () => {
       const repos = buildRepos();
       repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());
       repos.pricingRuleRepo.findAll.mockResolvedValue([buildPricingRule()]);
       repos.propertyRepo.findManyByNormalizedAddressKeys.mockResolvedValue([buildProperty()]);
       const resolver = buildResolver(repos);
-      const { rows } = await resolver.resolve([baseRawRow({ primaryContactPhone: null, secondaryEmail: 'second@example.com' })], CTX);
+      const { rows } = await resolver.resolve(
+        [baseRawRow({ primaryContactEmail: null, primaryContactPhone: null })],
+        CTX,
+      );
+      expect(rows[0]!.contact).toBeNull();
+      expect(rows[0]!.importable).toBe(true);
+      expect(rows[0]!.issues.map((i) => i.code)).not.toContain('CONTACT_INCOMPLETE');
+    });
+
+    // Still reported: those channels are operator-supplied data with nowhere to
+    // land, which is a real loss rather than a rule being enforced.
+    it('warns that extra channels were not applied when no contact could be built at all', async () => {
+      const repos = buildRepos();
+      repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());
+      repos.pricingRuleRepo.findAll.mockResolvedValue([buildPricingRule()]);
+      repos.propertyRepo.findManyByNormalizedAddressKeys.mockResolvedValue([buildProperty()]);
+      const resolver = buildResolver(repos);
+      const { rows } = await resolver.resolve(
+        [baseRawRow({ primaryContactName: null, primaryContactEmail: null, primaryContactPhone: null, secondaryEmail: 'second@example.com' })],
+        CTX,
+      );
       expect(rows[0]!.contact).toBeNull();
       expect(rows[0]!.importable).toBe(true);
       expect(rows[0]!.issues).toEqual(expect.arrayContaining([
-        expect.objectContaining({ code: 'CONTACT_INCOMPLETE', severity: 'warning' }),
         expect.objectContaining({ code: 'CONTACT_CHANNELS_NOT_APPLIED', severity: 'warning' }),
       ]));
     });

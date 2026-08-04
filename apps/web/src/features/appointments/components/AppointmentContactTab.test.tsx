@@ -167,4 +167,29 @@ describe('AppointmentContactTab', () => {
     // plus more from the access restrictions section
     expect(dashes.length).toBeGreaterThanOrEqual(2);
   });
+
+  // An appointment with no contact is legitimate for every service type. The
+  // unconditional legacy fallback used to render a card of three em-dashes
+  // badged "Tenant / Primary" \u2014 a person who does not exist.
+  it('shows an empty state instead of a phantom contact when there are none', () => {
+    const apt: AppointmentDetail = {
+      ...MOCK_APPOINTMENT,
+      contacts: [],
+      contactName: '',
+      contactEmail: null,
+      contactPhone: null,
+    };
+    render(<AppointmentContactTab appointment={apt} />);
+
+    expect(screen.getByText(/no contacts recorded/i)).toBeInTheDocument();
+    expect(screen.queryByText('Primary')).not.toBeInTheDocument();
+  });
+
+  it('still renders the legacy flat contact when one is present', () => {
+    const apt: AppointmentDetail = { ...MOCK_APPOINTMENT, contacts: [] };
+    render(<AppointmentContactTab appointment={apt} />);
+
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+    expect(screen.queryByText(/no contacts recorded/i)).not.toBeInTheDocument();
+  });
 });

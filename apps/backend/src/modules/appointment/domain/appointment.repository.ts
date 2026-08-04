@@ -73,6 +73,8 @@ export interface AppointmentWithRelations {
   propertyRentAmount?: number | null;
   branchName?: string;
   serviceTypeName?: string;
+  /** Service type flow (ROUTINE | INGOING | OUTGOING). Drives occupant-notification suppression and the UI's occupant-facing actions. */
+  serviceTypeFlowType?: ServiceTypeFlowType;
   inspectorName?: string | null;
   /** Tenant (agency) name — the "client" surfaced in the map detail panel (025 §FR-451). */
   tenantName?: string;
@@ -220,7 +222,8 @@ export interface IAppointmentRepository {
     }>,
   ): Promise<void>;
   /** Delete all contact junction rows for an appointment (used by contact replacement flow). */
-  deleteContactsByAppointmentId(appointmentId: string): Promise<void>;
+  /** `tenantId` scopes the delete through the appointment relation (defence in depth). */
+  deleteContactsByAppointmentId(appointmentId: string, tenantId?: string): Promise<void>;
   /** Insert a restriction for an appointment that has none yet (create flow). */
   saveRestriction(restriction: AppointmentRestrictionEntity): Promise<void>;
   /**

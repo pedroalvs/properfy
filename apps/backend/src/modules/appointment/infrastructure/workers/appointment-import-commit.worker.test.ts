@@ -146,13 +146,13 @@ describe('AppointmentImportCommitWorker', () => {
     ]);
   });
 
-  it('creates the appointment with no contacts when the row has no contact (CONTACT_INCOMPLETE is a warning, not a blocker)', async () => {
+  it('creates the appointment with no contacts when the row has no contact', async () => {
     const deps = buildDeps();
     deps.importRepo.findById.mockResolvedValue(buildRecord());
     deps.resolver.resolve.mockResolvedValue({
       rows: [readyRow({
-        severity: 'warning', contact: null,
-        issues: [{ field: 'contact', code: 'CONTACT_INCOMPLETE', severity: 'warning', message: 'Primary contact is incomplete' }],
+        severity: 'ready', contact: null,
+        issues: [],
       })],
     });
     const worker = buildWorker(deps);

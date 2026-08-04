@@ -192,16 +192,22 @@ export function AppointmentFormDrawer({
               role: c.role ?? ('RENTAL_TENANT' as AppointmentContactRole),
               isPrimary: c.isPrimary ?? false,
             }))
-          : [
-              {
-                key: crypto.randomUUID(),
-                name: appointment.contactName ?? '',
-                email: appointment.contactEmail ?? '',
-                phone: formatAuPhone(appointment.contactPhone ?? ''),
-                role: 'RENTAL_TENANT' as AppointmentContactRole,
-                isPrimary: true,
-              },
-            ];
+          // Only synthesize a row from the legacy flat fields when they actually
+          // hold something. An appointment with no contacts is now legitimate,
+          // and seeding a blank row would put a phantom person in the form that
+          // the operator has to notice and delete before saving.
+          : appointment.contactName
+            ? [
+                {
+                  key: crypto.randomUUID(),
+                  name: appointment.contactName,
+                  email: appointment.contactEmail ?? '',
+                  phone: formatAuPhone(appointment.contactPhone ?? ''),
+                  role: 'RENTAL_TENANT' as AppointmentContactRole,
+                  isPrimary: true,
+                },
+              ]
+            : [];
 
       const operatorRestriction = (appointment.restrictions ?? []).find(
         (r) => r.source !== RestrictionSource.RENTAL_TENANT_PORTAL,
@@ -383,10 +389,12 @@ export function AppointmentFormDrawer({
   const removeContact = useCallback((key: string) => {
     setForm((prev) => {
       const updated = prev.contacts.filter((c) => c.key !== key);
-      // If we removed the primary, make the first one primary
+      // If we removed the primary, make the first one primary.
+      // Spread rather than rebuilding field by field: the explicit version
+      // dropped contactId, contactType, company, notes and additionalChannels,
+      // so promoting a survivor silently unlinked it from its registry row.
       if (updated.length > 0 && !updated.some((c) => c.isPrimary)) {
-        const first = updated[0]!;
-        updated[0] = { key: first.key, name: first.name, email: first.email, phone: first.phone, role: first.role, isPrimary: true };
+        updated[0] = { ...updated[0]!, isPrimary: true };
       }
       return { ...prev, contacts: updated };
     });
@@ -770,8 +778,9 @@ export function AppointmentFormDrawer({
                                   Primary
                                 </span>
                               </label>
-                              {form.contacts.length > 1 && (
-                                <button
+                              {/* The last row is removable too — an appointment
+                                  with no contact is valid for every service type. */}
+                              <button
                                   type="button"
                                   onClick={() => removeContact(contact.key)}
                                   className="text-error hover:text-error/80 text-sm font-medium"
@@ -779,7 +788,6 @@ export function AppointmentFormDrawer({
                                 >
                                   <i className="mdi mdi-close-circle-outline text-lg" aria-hidden="true" />
                                 </button>
-                              )}
                             </div>
                           </div>
 
@@ -983,6 +991,12 @@ export function AppointmentFormDrawer({
                         </div>
                       );
                     })}
+                    {form.contacts.length === 0 && (
+                      <p className="text-text-secondary text-sm mb-3">
+                        No contacts. The occupant will not receive any notification for this
+                        appointment.
+                      </p>
+                    )}
                     <Button variant="secondary" onClick={addContact}>
                       <i className="mdi mdi-plus" aria-hidden="true" />
                       Add Contact

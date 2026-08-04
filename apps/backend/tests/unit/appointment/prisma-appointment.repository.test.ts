@@ -167,6 +167,31 @@ describe('PrismaAppointmentRepository date filters', () => {
       }),
     );
   });
+  // The unconfirmed sweep rejects everything it returns, with reason
+  // TENANT_NO_RESPONSE. INGOING/OUTGOING never ask for a confirmation, so their
+  // status stays PENDING forever and an unfiltered sweep auto-rejects them the
+  // night before — now systematically, since they are published on creation.
+  //
+  // The filter exists (43416c1a) but nothing pinned it: every other test mocks
+  // findUnconfirmedForDate, so dropping it from the query would leave the suite
+  // green. This asserts the clause itself.
+  it('sweeps only service types that actually require a confirmation', async () => {
+    findMany.mockResolvedValue([]);
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findUnconfirmedForDate(new Date('2026-08-04T00:00:00.000Z'));
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          service_type: {
+            flow_type: 'ROUTINE',
+            requires_rental_tenant_confirmation: true,
+          },
+        }),
+      }),
+    );
+  });
 });
 
 describe('PrismaAppointmentRepository property total area', () => {
@@ -558,5 +583,87 @@ describe('PrismaAppointmentRepository.replaceRestrictions', () => {
     expect($transaction).toHaveBeenCalledTimes(1);
     expect($transaction.mock.calls[0][0]).toEqual([{ op: 'delete' }]);
     expect(create).not.toHaveBeenCalled();
+  });
+
+});
+
+// The route tests for flowType mock the use case, so nothing exercised the step
+// that actually reads it: the findById mapper. It selected service_type.flow_type
+// and then dropped it on the floor for a long time — the same class of silent
+// omission as an undeclared response-schema field.
+describe('PrismaAppointmentRepository — service type flow mapping', () => {
+  const findFirst = vi.fn();
+  const prisma = { appointment: { findFirst } } as any;
+
+  function row(flowType: string | null) {
+    return {
+      id: 'appt-1', tenant_id: 'tenant-1', branch_id: 'branch-1', property_id: 'property-1',
+      service_type_id: 'st-1', inspector_id: null, service_group_id: null, status: 'DRAFT',
+      scheduled_date: new Date('2027-01-01'), time_slot_start: '09:00', time_slot_end: '11:00',
+      key_required: false, meeting_location: null, key_location: null,
+      rental_tenant_confirmation_status: 'PENDING', price_amount: 150, payout_amount: 80,
+      pricing_rule_snapshot_json: {}, notes: null, observation: null, custom_fields_json: null,
+      reason: null, rejection_reason_code: null, created_by_user_id: 'u1',
+      done_marked_by_user_id: null, done_checked_by_user_id: null, done_checked_at: null,
+      created_at: new Date(), updated_at: new Date(), deleted_at: null,
+      contacts: [], restrictions: [], portal_tokens: [],
+      property: { property_code: 'P-1', street: '1 St', suburb: 'Sydney', state: 'NSW', postcode: '2000', lat: null, lng: null },
+      tenant: { name: 'Agency', appointment_code_prefix: 'INS' },
+      branch: { name: 'Main' },
+      service_type: flowType === null ? null : { name: 'Svc', flow_type: flowType },
+      inspector: null, service_group: null,
+    };
+  }
+
+  it.each(['INGOING', 'OUTGOING', 'ROUTINE'])('maps service_type.flow_type %s onto the DTO', async (flowType) => {
+    findFirst.mockResolvedValue(row(flowType));
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const result = await repo.findById('appt-1', 'tenant-1');
+
+    expect(result?.serviceTypeFlowType).toBe(flowType);
+  });
+
+  // Defaulting rather than leaving it undefined keeps the consumer's fail-open
+  // predicate meaningful: ROUTINE means "notify", which is the safe direction.
+  it('defaults to ROUTINE when the relation is missing', async () => {
+    findFirst.mockResolvedValue(row(null));
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const result = await repo.findById('appt-1', 'tenant-1');
+
+    expect(result?.serviceTypeFlowType).toBe('ROUTINE');
+  });
+});
+
+describe('PrismaAppointmentRepository.deleteContactsByAppointmentId', () => {
+  const deleteMany = vi.fn();
+  const prisma = { appointmentContact: { deleteMany } } as any;
+
+  beforeEach(() => {
+    deleteMany.mockReset();
+    deleteMany.mockResolvedValue({ count: 0 });
+  });
+
+  // appointment_contacts carries no tenant_id of its own — it is scoped through
+  // the appointment. Defence in depth: the use case has already resolved the
+  // appointment in the actor's tenant, so an unscoped delete would only fire on
+  // an id mix-up, which is exactly when it must not wipe another agency's rows.
+  it('scopes the delete to the owning tenant via the appointment relation', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.deleteContactsByAppointmentId('appt-1', 'tenant-1');
+
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: { appointment_id: 'appt-1', appointment: { tenant_id: 'tenant-1' } },
+    });
+  });
+
+  it('falls back to the appointment id alone when no tenant is given', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.deleteContactsByAppointmentId('appt-1');
+
+    expect(deleteMany).toHaveBeenCalledWith({ where: { appointment_id: 'appt-1' } });
   });
 });

@@ -56,28 +56,39 @@ export function AppointmentContactTab({ appointment }: AppointmentContactTabProp
     (r) => r.availableSlotsJson?.length,
   )?.availableSlotsJson;
 
-  // Use new contacts array if available, fall back to legacy single contact
+  // Use the contacts array; fall back to the legacy single contact only when it
+  // actually holds a name. An appointment can legitimately have no contact at
+  // all, and the unconditional fallback rendered a card of three em-dashes
+  // badged "Tenant / Primary" — a person who does not exist.
   const contacts: AppointmentContactEntry[] =
     appointment.contacts && appointment.contacts.length > 0
       ? appointment.contacts
-      : [
-          {
-            contactId: null,
-            role: 'RENTAL_TENANT' as AppointmentContactEntry['role'],
-            isPrimary: true,
-            snapshotName: appointment.contactName,
-            snapshotEmail: appointment.contactEmail,
-            snapshotPhone: appointment.contactPhone,
-          },
-        ];
+      : appointment.contactName
+        ? [
+            {
+              contactId: null,
+              role: 'RENTAL_TENANT' as AppointmentContactEntry['role'],
+              isPrimary: true,
+              snapshotName: appointment.contactName,
+              snapshotEmail: appointment.contactEmail,
+              snapshotPhone: appointment.contactPhone,
+            },
+          ]
+        : [];
 
   return (
     <div className="flex flex-col gap-6">
       <FormSection title="Contact Information">
         <div className="flex flex-col gap-2">
-          {contacts.map((contact, idx) => (
-            <ContactRow key={contact.id ?? `contact-${idx}`} contact={contact} />
-          ))}
+          {contacts.length === 0 ? (
+            <p className="text-text-secondary text-sm">
+              No contacts recorded for this appointment.
+            </p>
+          ) : (
+            contacts.map((contact, idx) => (
+              <ContactRow key={contact.id ?? `contact-${idx}`} contact={contact} />
+            ))
+          )}
         </div>
       </FormSection>
 

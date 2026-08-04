@@ -158,6 +158,38 @@ describe('GET /v1/appointments/:id — enriched detail response (T017)', () => {
     expect(res.body.data.keyLocation).toBe('Lockbox at front door');
   });
 
+  // appointmentResponseSchema IS the Fastify response schema, so an undeclared
+  // field is stripped in silence — the use case would return flowType and the
+  // client would simply never see it, with nothing failing anywhere.
+  it.each(['INGOING', 'OUTGOING', 'ROUTINE'])(
+    '200: flowType %s survives the response serializer',
+    async (flowType) => {
+      mockJwtVerify.mockResolvedValue(opContext);
+      mockGetAppointmentExecute.mockResolvedValue(makeAppointmentResult({ flowType }));
+
+      const res = await supertest(app.server)
+        .get(`/v1/appointments/${APPOINTMENT_ID}`)
+        .set('Authorization', 'Bearer token');
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.flowType).toBe(flowType);
+    },
+  );
+
+  // A value added to the DB enum before this schema is redeployed must not turn
+  // a read into a 500 after the write already committed — hence z.string().
+  it('200: an unknown flowType is passed through rather than rejected', async () => {
+    mockJwtVerify.mockResolvedValue(opContext);
+    mockGetAppointmentExecute.mockResolvedValue(makeAppointmentResult({ flowType: 'FUTURE_FLOW' }));
+
+    const res = await supertest(app.server)
+      .get(`/v1/appointments/${APPOINTMENT_ID}`)
+      .set('Authorization', 'Bearer token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.flowType).toBe('FUTURE_FLOW');
+  });
+
   it('200: legacy junction row (contactId = null) returns snapshot data without liveContact', async () => {
     mockJwtVerify.mockResolvedValue(opContext);
     mockGetAppointmentExecute.mockResolvedValue(makeAppointmentResult({
