@@ -14,8 +14,13 @@ vi.mock('../../src/shared/infrastructure/queue', () => ({
 vi.mock('../../src/shared/infrastructure/prisma', () => ({
   prisma: {
     $queryRawUnsafe: vi.fn().mockResolvedValue([]),
+    // Per-tenant tick: claim insert returns 1 row (claim won).
+    $executeRaw: vi.fn().mockResolvedValue(1),
     property: {
       findMany: vi.fn().mockResolvedValue([]),
+    },
+    tenant: {
+      findMany: vi.fn().mockResolvedValue([{ id: 'tenant-1', timezone: 'Australia/Sydney' }]),
     },
   },
 }));
@@ -148,8 +153,10 @@ describe('registerWorkers', () => {
     expect(mockSchedule).toHaveBeenCalledTimes(16);
     expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('notification.sms-delivery-poll', '*/10 * * * *', {}, sydneyTz);
-    expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-reminders', '0 18 * * *', {}, sydneyTz);
-    expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-escalations', '0 18 * * *', {}, sydneyTz);
+    // Per-agency civil-day jobs run as hourly ticks; the agency-local target
+    // hour lives in the handler (TenantCronTick), not in the cron expression.
+    expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-reminders', '0 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('notification.dispatch-escalations', '0 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('auth.cleanup-sessions', '0 2 * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('auth.check-key-expiry', '0 3 * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('report.expire-files', '0 3 * * *', {}, sydneyTz);
@@ -157,10 +164,9 @@ describe('registerWorkers', () => {
     expect(mockSchedule).toHaveBeenCalledWith('rental-tenant-portal.expire-tokens', '*/15 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('inspection-execution.notify-not-started', '0 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('audit.retention', '30 3 * * *', {}, sydneyTz);
-    expect(mockSchedule).toHaveBeenCalledWith('appointment.reject-unconfirmed', '0 19 * * *', {}, sydneyTz);
-    // Just after Sydney midnight: the cutoff is a civil date (today minus
-    // OVERDUE_AGE_DAYS), so a record becomes eligible the moment the date rolls over.
-    expect(mockSchedule).toHaveBeenCalledWith('appointment.cancel-overdue', '10 0 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('appointment.reject-unconfirmed', '0 * * * *', {}, sydneyTz);
+    // Hourly at minute 10: fires when each agency's local midnight has passed.
+    expect(mockSchedule).toHaveBeenCalledWith('appointment.cancel-overdue', '10 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('service-group.cancel-empty', '20 0 * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('appointment.import.sweep-abandoned', '0 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('system.dlq-monitor', '*/5 * * * *', {}, sydneyTz);
@@ -230,7 +236,10 @@ describe('registerWorkers', () => {
     );
   });
 
-  it('notification.dispatch-reminders handler calls dispatchRemindersUseCase.execute and logs result', async () => {
+  it('notification.dispatch-reminders handler fans out per claimed timezone group', async () => {
+    // 10:00Z = 20:00 Sydney — past the 18:00 local target, so the mocked
+    // Sydney tenant is claimed.
+    vi.useFakeTimers({ now: new Date('2026-06-15T10:00:00.000Z') });
     mockDispatchRemindersExecute.mockResolvedValueOnce({ dispatched: 3, skipped: 2 });
 
     await callRegister();
@@ -240,17 +249,33 @@ describe('registerWorkers', () => {
     await handler(fakeJob);
 
     expect(mockDispatchRemindersExecute).toHaveBeenCalledOnce();
+    expect(mockDispatchRemindersExecute).toHaveBeenCalledWith(expect.any(Date), {
+      timezone: 'Australia/Sydney',
+      todayCivil: '2026-06-15',
+      tenantIds: ['tenant-1'],
+    });
     expect(mockLogger.info).toHaveBeenCalledWith(
-      { jobId: 'job-reminders' },
-      'Processing notification.dispatch-reminders job',
-    );
-    expect(mockLogger.info).toHaveBeenCalledWith(
-      { jobId: 'job-reminders', dispatched: 3, skipped: 2 },
+      { jobId: 'job-reminders', groups: 1, dispatched: 3, skipped: 2 },
       'Dispatch reminders completed',
     );
+    vi.useRealTimers();
   });
 
-  it('notification.dispatch-escalations handler calls dispatchEscalationsUseCase.execute and logs result', async () => {
+  it('notification.dispatch-reminders handler is a no-op before the local target hour', async () => {
+    // 04:00Z = 14:00 Sydney — before 18:00, nothing is claimed.
+    vi.useFakeTimers({ now: new Date('2026-06-15T04:00:00.000Z') });
+
+    await callRegister();
+
+    const handler = mockWork.mock.calls.find((c: any) => c[0] === 'notification.dispatch-reminders')![1];
+    await handler({ id: 'job-reminders' });
+
+    expect(mockDispatchRemindersExecute).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('notification.dispatch-escalations handler fans out per claimed timezone group', async () => {
+    vi.useFakeTimers({ now: new Date('2026-06-15T10:00:00.000Z') });
     mockDispatchEscalationsExecute.mockResolvedValueOnce({ pmEscalations: 2, smsAlerts: 1, skipped: 3 });
 
     await callRegister();
@@ -260,14 +285,16 @@ describe('registerWorkers', () => {
     await handler(fakeJob);
 
     expect(mockDispatchEscalationsExecute).toHaveBeenCalledOnce();
+    expect(mockDispatchEscalationsExecute).toHaveBeenCalledWith(expect.any(Date), {
+      timezone: 'Australia/Sydney',
+      todayCivil: '2026-06-15',
+      tenantIds: ['tenant-1'],
+    });
     expect(mockLogger.info).toHaveBeenCalledWith(
-      { jobId: 'job-escalations' },
-      'Processing notification.dispatch-escalations job',
-    );
-    expect(mockLogger.info).toHaveBeenCalledWith(
-      { jobId: 'job-escalations', pmEscalations: 2, smsAlerts: 1, skipped: 3 },
+      { jobId: 'job-escalations', groups: 1, pmEscalations: 2, smsAlerts: 1, skipped: 3 },
       'Dispatch escalations completed',
     );
+    vi.useRealTimers();
   });
 
   it('propagates errors from report use case for pg-boss retry handling', async () => {

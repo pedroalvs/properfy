@@ -258,7 +258,7 @@ export interface IAppointmentRepository {
     appointmentId: string,
     restriction: AppointmentRestrictionEntity | null,
   ): Promise<void>;
-  findScheduledOnDate(date: Date): Promise<AppointmentWithRelations[]>;
+  findScheduledOnDate(date: Date, tenantIds?: string[]): Promise<AppointmentWithRelations[]>;
   findDuplicateForImport(
     propertyId: string,
     serviceTypeId: string,
@@ -274,7 +274,7 @@ export interface IAppointmentRepository {
    *  - status NOT IN ('DONE', 'CANCELLED', 'REJECTED')
    *  - deletedAt IS NULL
    */
-  findUnconfirmedForDate(date: Date): Promise<AppointmentEntity[]>;
+  findUnconfirmedForDate(date: Date, tenantIds?: string[]): Promise<AppointmentEntity[]>;
 
   /**
    * Find appointments still awaiting execution that have been stalled longer than
@@ -292,5 +292,5 @@ export interface IAppointmentRepository {
    * Capped by `limit` so a large historical backlog drains over several runs
    * instead of holding one job open.
    */
-  findOverdueForAutoCancel(createdBefore: Date, limit: number): Promise<AppointmentEntity[]>;
+  findOverdueForAutoCancel(createdBefore: Date, limit: number, tenantIds?: string[]): Promise<AppointmentEntity[]>;
 }
