@@ -1,0 +1,154 @@
+/*
+ * Load reveal for the signed-out brand pane ("The Round").
+ *
+ * One orchestrated sequence when the screen opens (~1.5s), then nothing — this is a
+ * screen operators hit every morning, so ambient motion would wear out fast. Written by
+ * hand because apps/web carries no animation library, and deliberately kept in plain CSS
+ * rather than tailwind.config.ts: that file must stay byte-identical to apps/pwa's
+ * (src/__tests__/tailwind-config-parity.test.ts) and the PWA has no such surface.
+ *
+ * The pane's gradient is NOT animated. Fading the background in produces a white flash
+ * on first paint, which is exactly the moment we are trying to make feel considered.
+ */
+
+@keyframes auth-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes auth-draw-in {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes auth-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes auth-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/*
+ * `both` on every layer: `backwards` holds the from-state through the delay (otherwise
+ * each layer flashes at full opacity before its turn) and `forwards` holds the end state.
+ */
+.auth-pane-reveal .auth-reveal-structure,
+.auth-pane-reveal .auth-reveal-context,
+.auth-pane-reveal .auth-reveal-stops > *,
+.auth-pane-reveal .auth-reveal-labels > *,
+.auth-pane-reveal .auth-reveal-lockup {
+  animation-duration: 400ms;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+.auth-pane-reveal .auth-reveal-structure {
+  animation-name: auth-fade-in;
+  animation-delay: 120ms;
+}
+
+.auth-pane-reveal .auth-reveal-context {
+  animation-name: auth-fade-in;
+  animation-delay: 260ms;
+}
+
+.auth-pane-reveal .auth-reveal-route {
+  stroke-dasharray: 1;
+  animation: auth-draw-in 900ms ease-out 380ms both;
+}
+
+/*
+ * Pins scale around themselves, not the SVG origin. Without `fill-box` the transform
+ * origin is the viewBox corner and the pins fly in from off-canvas.
+ */
+.auth-pane-reveal .auth-reveal-stops > * {
+  animation-name: auth-pop-in;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.auth-pane-reveal .auth-reveal-labels > * {
+  animation-name: auth-fade-in;
+}
+
+/* The round is walked in order, so it arrives in order. */
+.auth-pane-reveal .auth-reveal-stops > *:nth-child(1) {
+  animation-delay: 900ms;
+}
+.auth-pane-reveal .auth-reveal-stops > *:nth-child(2) {
+  animation-delay: 990ms;
+}
+.auth-pane-reveal .auth-reveal-stops > *:nth-child(3) {
+  animation-delay: 1080ms;
+}
+.auth-pane-reveal .auth-reveal-stops > *:nth-child(4) {
+  animation-delay: 1170ms;
+}
+.auth-pane-reveal .auth-reveal-stops > *:nth-child(5) {
+  animation-delay: 1260ms;
+}
+
+.auth-pane-reveal .auth-reveal-labels > *:nth-child(1) {
+  animation-delay: 1000ms;
+}
+.auth-pane-reveal .auth-reveal-labels > *:nth-child(2) {
+  animation-delay: 1090ms;
+}
+.auth-pane-reveal .auth-reveal-labels > *:nth-child(3) {
+  animation-delay: 1180ms;
+}
+.auth-pane-reveal .auth-reveal-labels > *:nth-child(4) {
+  animation-delay: 1270ms;
+}
+.auth-pane-reveal .auth-reveal-labels > *:nth-child(5) {
+  animation-delay: 1360ms;
+}
+
+.auth-pane-reveal .auth-reveal-lockup {
+  animation-name: auth-rise-in;
+  animation-duration: 500ms;
+  animation-delay: 1100ms;
+}
+
+/*
+ * The route's resting state is `stroke-dashoffset: 1` — fully retracted, invisible.
+ * Cancelling the animation alone would therefore hide the artwork entirely for anyone
+ * who asked for less motion, so the end state has to be restated here, not just the
+ * animation cancelled. Same reason `opacity` and `transform` are pinned.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .auth-pane-reveal .auth-reveal-structure,
+  .auth-pane-reveal .auth-reveal-context,
+  .auth-pane-reveal .auth-reveal-route,
+  .auth-pane-reveal .auth-reveal-stops > *,
+  .auth-pane-reveal .auth-reveal-labels > *,
+  .auth-pane-reveal .auth-reveal-lockup {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+}
