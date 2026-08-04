@@ -308,7 +308,7 @@ apps/web/
    was missed for a long time because a `<li onClick>` looks finished on screen
    and there is no lint rule here to catch it (no `eslint-plugin-jsx-a11y`, no
    `axe`) — only tests will.
-   - **Listbox / combobox** (`FilterSelect`, `FilterMultiSelect`, `PropertySearch`,
+   - **Listbox / combobox** (`FilterSelect`, `FilterMultiSelect`,
      `AddressLookupInput`, `SelectInput`, `ContactAutocomplete`): options are `<li>`
      and cannot hold focus, so focus stays on the trigger/input and the active
      option travels via `aria-activedescendant` — never `tabIndex={0}` per option,

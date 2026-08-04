@@ -206,7 +206,7 @@ export function AddressLookupInput({
           onBlur={() => {
             // Without this the floating label stays in its focused style after
             // Escape-then-Tab: the keydown early-returns while closed, so
-            // nothing else resets `focused`. PropertySearch has the same guard.
+            // nothing else resets `focused`. FilterSelect has the same guard.
             if (!open) setFocused(false);
           }}
           onKeyDown={handleKeyDown}
