@@ -7,6 +7,7 @@ import type {
   AppointmentListItem,
 } from '../../domain/appointment.repository';
 import { AppointmentCodeFormatter } from '../../domain/appointment-code.formatter';
+import { requireTenantScope } from '../../../../shared/domain/require-tenant-scope';
 
 export interface ListAppointmentsInput {
   filters: {
@@ -117,10 +118,13 @@ export class ListAppointmentsUseCase {
     // tenant-scoped role and coerced its (null) tenantId via `!`, silently
     // dropping the query filter and returning the full cross-tenant set
     // regardless of `?tenantId=`.
+    // `requireTenantScope` throws rather than returning undefined for a pinned
+    // role with no tenant: `buildWhere` applies `tenant_id` behind a truthiness
+    // check, so undefined would mean "no filter" and return every tenant's rows.
     const tenantId: string | undefined =
       actor.role === 'AM' || actor.role === 'OP'
         ? filters.tenantId
-        : actor.tenantId ?? undefined;
+        : requireTenantScope(actor, 'appointment.list');
 
     // When the search term looks like an appointment code — either fully
     // formatted ("INS-0042") or the bare number the operator reads off the

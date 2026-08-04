@@ -73,6 +73,23 @@ describe('GetDashboardStatsUseCase', () => {
     expect(repository.getStats).toHaveBeenCalledWith('tenant-1', false);
   });
 
+  // Fail-closed. `getStats` builds its filter as `tenantId ? { tenant_id } : {}`,
+  // so a pinned actor with no tenant used to widen the stats to the whole
+  // platform instead of narrowing them — the failure mode of a missing scope
+  // was maximum exposure.
+  it.each(['CL_ADMIN', 'CL_USER'] as const)(
+    'refuses to build stats at all when %s carries no tenant',
+    async (role) => {
+      await expect(
+        useCase.execute({
+          actor: { userId: 'u9', tenantId: null, role, branchId: null, inspectorId: null },
+        }),
+      ).rejects.toThrow(/not linked to an agency/i);
+
+      expect(repository.getStats).not.toHaveBeenCalled();
+    },
+  );
+
   it('should delegate to repository with tenantId and breakdowns=false for CL_USER role', async () => {
     await useCase.execute({
       actor: { userId: 'u4', tenantId: 'tenant-2', role: 'CL_USER', branchId: 'b1', inspectorId: null },
