@@ -123,4 +123,45 @@ describe('BulkResendReminderUseCase — per-day idempotency key', () => {
       expect(out.results[0].status).toBe('ERROR');
     });
   });
+
+  // generate-portal-token returns four outcomes; everything except
+  // NO_PRIMARY_CONTACT used to fall through to SENT — and got written into the
+  // 36h idempotency cache, so the operator was told it went out AND a retry that
+  // day was suppressed.
+  describe('non-dispatched outcomes are not reported as SENT', () => {
+    it('reports DISPATCH_FAILED as ERROR and does not cache it', async () => {
+      const mocks = makeMocks();
+      (mocks.generatePortalToken.execute as ReturnType<typeof vi.fn>).mockResolvedValue({
+        token: 't', expiresAt: new Date(), dispatched: false, reason: 'DISPATCH_FAILED',
+      });
+      const uc = new BulkResendReminderUseCase(mocks.generatePortalToken, mocks.idempotency);
+
+      const out = await uc.execute({ appointmentIds: ['appt-1'], actor });
+
+      expect(out.results[0]?.status).toBe('ERROR');
+      expect(mocks.idempotency.set).not.toHaveBeenCalled();
+    });
+
+    it('reports NOTIFY_DISABLED as NOT_APPLICABLE rather than SENT', async () => {
+      const mocks = makeMocks();
+      (mocks.generatePortalToken.execute as ReturnType<typeof vi.fn>).mockResolvedValue({
+        token: 't', expiresAt: new Date(), dispatched: false, reason: 'NOTIFY_DISABLED',
+      });
+      const uc = new BulkResendReminderUseCase(mocks.generatePortalToken, mocks.idempotency);
+
+      const out = await uc.execute({ appointmentIds: ['appt-1'], actor });
+
+      expect(out.results[0]?.status).toBe('NOT_APPLICABLE');
+    });
+
+    it('still reports a real dispatch as SENT and caches it', async () => {
+      const mocks = makeMocks();
+      const uc = new BulkResendReminderUseCase(mocks.generatePortalToken, mocks.idempotency);
+
+      const out = await uc.execute({ appointmentIds: ['appt-1'], actor });
+
+      expect(out.results[0]?.status).toBe('SENT');
+      expect(mocks.idempotency.set).toHaveBeenCalledTimes(1);
+    });
+  });
 });

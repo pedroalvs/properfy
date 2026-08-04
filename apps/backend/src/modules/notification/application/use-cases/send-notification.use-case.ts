@@ -119,7 +119,10 @@ export interface SendNotificationDeps {
    * not appointment-scoped. Optional so existing wiring keeps working; absent
    * means "never suppress", which is the fail-open direction.
    */
-  getAppointmentFlowType?: (appointmentId: string | null | undefined) => Promise<string | null>;
+  getAppointmentFlowType?: (
+    appointmentId: string | null | undefined,
+    tenantId: string | null,
+  ) => Promise<string | null>;
   /**
    * Resolves the branch contact a suppressed occupant message is mirrored to.
    * Reports WHY it could not (appointment gone vs branch has no contact email) so the
@@ -154,7 +157,10 @@ export class SendNotificationUseCase {
   private readonly logger: Logger;
   private readonly metrics: MetricsCollector;
   private readonly getTenantSettings: (tenantId: string | null) => Promise<Record<string, unknown>>;
-  private readonly getAppointmentFlowType?: (appointmentId: string | null | undefined) => Promise<string | null>;
+  private readonly getAppointmentFlowType?: (
+    appointmentId: string | null | undefined,
+    tenantId: string | null,
+  ) => Promise<string | null>;
   private readonly getAgencyForwardRecipient: AgencyForwardRecipientReader;
   private readonly forwardNotification: (input: ForwardNotificationInput) => Promise<void>;
   private readonly htmlSanitizer?: IHtmlSanitizerService;
@@ -486,7 +492,10 @@ export class SendNotificationUseCase {
     // tenants still receives the content to relay; here there is nobody to relay
     // it to, so forwarding would be pure noise.
     if (this.getAppointmentFlowType && isWithheldForNonNotifyingFlow(notification.templateCode)) {
-      const flowType = await this.getAppointmentFlowType(notification.appointmentId);
+      const flowType = await this.getAppointmentFlowType(
+        notification.appointmentId,
+        notification.tenantId,
+      );
       if (suppressesOccupantNotifications(flowType)) {
         notification.status = 'SKIPPED_OPT_OUT';
         notification.failureReason = FLOW_TYPE_NO_OCCUPANT_CODE;
