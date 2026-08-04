@@ -10634,8 +10634,7 @@
                           "additionalProperties": false
                         }
                       ]
-                    },
-                    "minItems": 1
+                    }
                   },
                   "appCredentialIds": {
                     "type": "array",
@@ -12363,8 +12362,7 @@
                           "additionalProperties": false
                         }
                       ]
-                    },
-                    "minItems": 1
+                    }
                   },
                   "appCredentialIds": {
                     "type": "array",
@@ -13430,6 +13428,7 @@
                                   "NO_PRIMARY_CONTACT",
                                   "IDEMPOTENT_REPLAY",
                                   "TENANT_NOTIFICATIONS_BLOCKED",
+                                  "NOT_APPLICABLE",
                                   "ERROR"
                                 ]
                               },
