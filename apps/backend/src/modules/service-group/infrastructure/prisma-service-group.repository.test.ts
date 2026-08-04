@@ -121,6 +121,37 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     );
   });
 
+  // `properties[]` is positional — the PWA card shows properties[0] as THE
+  // address of the offer. Without an explicit order Postgres may hand back the
+  // rows differently between requests, so the same offer would advertise a
+  // different street on each refresh and disagree with its own detail sheet.
+  it('orders the appointments relation deterministically in both marketplace queries', async () => {
+    const queryRaw = vi.fn().mockResolvedValue([{ id: 'sg-1' }]);
+    const findMany = vi.fn().mockResolvedValue([]);
+    const findUnique = vi.fn().mockResolvedValue(null);
+    const repo = new PrismaServiceGroupRepository({
+      $queryRaw: queryRaw,
+      serviceGroup: { findMany, findUnique },
+    } as any);
+
+    await repo.findPublishedForInspector('inspector-1', ['st-1'], [], {
+      page: 1,
+      pageSize: 20,
+      sortOrder: 'asc',
+    });
+    await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], []);
+
+    const expectedOrder = expect.objectContaining({
+      include: expect.objectContaining({
+        appointments: expect.objectContaining({
+          orderBy: { appointment_number: 'asc' },
+        }),
+      }),
+    });
+    expect(findMany).toHaveBeenCalledWith(expectedOrder);
+    expect(findUnique).toHaveBeenCalledWith(expectedOrder);
+  });
+
   it('maps one properties entry per appointment, with suburb joined to state', async () => {
     const queryRaw = vi.fn().mockResolvedValue([{ id: 'sg-1' }]);
     const findMany = vi.fn().mockResolvedValue([

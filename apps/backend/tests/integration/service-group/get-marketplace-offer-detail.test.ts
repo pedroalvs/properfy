@@ -151,6 +151,36 @@ describe('GET /v1/marketplace/offers/:groupId (detail — suburb rename)', () =>
 
   // Undeclared fields are stripped by the serializer, so the type icon in the
   // group detail sheet only works if propertyType survives the wire.
+  // Soft-deleted properties are blanked rather than dropped; those empty/null
+  // values must survive the response serializer, which is exactly where a
+  // required-but-unmapped field turns into a post-commit 500.
+  it('should serialize a blanked soft-deleted appointment without dropping it', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    mockGetMarketplaceOfferDetailExecute.mockResolvedValueOnce({
+      ...mockOfferDetail,
+      appointments: [
+        mockOfferDetail.appointments[0],
+        {
+          ...mockOfferDetail.appointments[1],
+          street: '',
+          coordinates: null,
+          propertyType: null,
+        },
+      ],
+    });
+
+    const res = await supertest(app.server)
+      .get(`/v1/marketplace/offers/${GROUP_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    const appointments = res.body.data?.appointments as Array<Record<string, unknown>>;
+    expect(appointments).toHaveLength(2);
+    expect(appointments[1]['street']).toBe('');
+    expect(appointments[1]['propertyType']).toBeNull();
+    expect(appointments[1]['coordinates']).toBeNull();
+  });
+
   it('should serialize per-appointment propertyType (group detail type icon)', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
     mockGetMarketplaceOfferDetailExecute.mockResolvedValueOnce(mockOfferDetail);

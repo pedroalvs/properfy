@@ -663,6 +663,11 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
           // advertised a bigger job and a bigger payout than the detail view
           // it opened into.
           where: { deleted_at: null },
+          // Postgres gives no row order without this, and `properties[]` is
+          // positional: the card shows properties[0] as THE address. An
+          // unordered relation lets the same offer show a different street on
+          // each refresh, and disagree with the detail sheet.
+          orderBy: { appointment_number: 'asc' },
           select: {
             payout_amount: true,
             tenant_id: true,
@@ -804,6 +809,9 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         service_type: { select: { name: true } },
         appointments: {
           where: { deleted_at: null },
+          // Same ordering as the list query, so the detail sheet lists jobs in
+          // the order the card's address preview implied.
+          orderBy: { appointment_number: 'asc' },
           select: {
             id: true,
             appointment_number: true,

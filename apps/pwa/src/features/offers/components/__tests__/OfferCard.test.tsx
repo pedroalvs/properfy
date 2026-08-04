@@ -112,8 +112,16 @@ describe('OfferCard', () => {
       ...baseOffer,
       properties: [{ street: '1 A St', suburb: 'Brunswick VIC', propertyType: null }],
     };
-    render(<OfferCard offer={offer} state="IDLE" onAccept={onAccept} />);
+    const { container } = render(<OfferCard offer={offer} state="IDLE" onAccept={onAccept} />);
     expect(screen.queryByTestId('property-type-icon')).toBeNull();
+    // The chip keeps a neutral glyph so it does not collapse to bare text.
+    expect(container.querySelector('.mdi-home-outline')).not.toBeNull();
+  });
+
+  it('renders no countdown when priorityExpiresAt is absent from the payload', () => {
+    const { priorityExpiresAt: _omitted, ...withoutExpiry } = baseOffer;
+    render(<OfferCard offer={withoutExpiry} state="IDLE" onAccept={onAccept} />);
+    expect(screen.queryByTestId('priority-countdown')).toBeNull();
   });
 
   it('shows Accept button for IDLE state', () => {

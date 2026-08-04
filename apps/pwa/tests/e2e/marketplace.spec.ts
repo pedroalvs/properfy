@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 /**
  * The offers list is served as `{ data, pagination }` (see
@@ -99,7 +100,7 @@ test.describe('Marketplace', () => {
     });
   });
 
-  async function stubOffers(page: import('@playwright/test').Page, offers: unknown[]) {
+  async function stubOffers(page: Page, offers: unknown[]) {
     await page.route('**/v1/marketplace/offers*', async (route) => {
       await route.fulfill({
         status: 200,

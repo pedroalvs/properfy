@@ -156,6 +156,8 @@ describe('GroupDetailBottomSheet', () => {
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
     expect(screen.getByTestId('appointment-address')).toHaveTextContent('Bondi NSW');
     expect(screen.queryByText(/Ocean St/)).toBeNull();
+    // No type to show either — the icon must be absent, not a stray default.
+    expect(screen.queryByTestId('appointment-property-type-icon')).toBeNull();
   });
 
   it('renders a property-type icon per job', () => {

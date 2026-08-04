@@ -60,6 +60,9 @@ const marketplaceOffer = {
   properties: [
     { street: '12 Ocean St', suburb: 'Surry Hills NSW', propertyType: 'APARTMENT' },
     { street: '3 Beach Rd', suburb: 'Redfern NSW', propertyType: 'HOUSE' },
+    // Soft-deleted property: blanked, but kept so the array length still
+    // matches appointmentCount.
+    { street: '', suburb: '', propertyType: null },
   ],
 };
 
@@ -129,6 +132,9 @@ describe('GET /v1/marketplace/offers', () => {
     expect(res.body.data[0].properties).toEqual([
       { street: '12 Ocean St', suburb: 'Surry Hills NSW', propertyType: 'APARTMENT' },
       { street: '3 Beach Rd', suburb: 'Redfern NSW', propertyType: 'HOUSE' },
+      // The blanked entry must survive serialization rather than being dropped
+      // or rejected — nullable/empty values are where the serializer bites.
+      { street: '', suburb: '', propertyType: null },
     ]);
     // suburbs stays on the contract — the map view and the blank-street fallback read it.
     expect(res.body.data[0].suburbs).toEqual(['Surry Hills', 'Redfern']);
