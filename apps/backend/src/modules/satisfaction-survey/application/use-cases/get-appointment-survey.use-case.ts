@@ -52,10 +52,17 @@ export class GetAppointmentSurveyUseCase {
     }
 
     // Enforces tenant isolation before we ever touch the survey table.
-    const appointment = await this.appointmentRepo.findById(appointmentId, tenantScope);
-    if (!appointment) return null;
+    const result = await this.appointmentRepo.findById(appointmentId, tenantScope);
+    if (!result) return null;
 
-    const survey = await this.surveyRepo.findByAppointmentId(appointmentId);
+    // The appointment's own tenant, not `tenantScope` — the latter is null for
+    // AM/OP, and the repository now refuses an unscoped read outright. Reading
+    // it off the row we just proved this caller may see keeps both roles working
+    // without ever widening the query.
+    const survey = await this.surveyRepo.findByAppointmentId(
+      appointmentId,
+      result.appointment.tenantId,
+    );
     if (!survey) return null;
 
     return {
