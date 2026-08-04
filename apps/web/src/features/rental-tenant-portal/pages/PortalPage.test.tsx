@@ -494,6 +494,63 @@ describe('PortalPage', () => {
     });
   });
 
+  describe('add to calendar', () => {
+    const CONFIRMED = {
+      ...MOCK_PORTAL_DATA,
+      appointment: {
+        ...MOCK_PORTAL_DATA.appointment,
+        rentalTenantConfirmationStatus: 'CONFIRMED',
+      },
+    };
+
+    it('offers the calendar actions once the inspection is confirmed', async () => {
+      mockGet.mockResolvedValue({ data: CONFIRMED });
+      renderPortal();
+
+      expect(
+        await screen.findByRole('button', { name: /download/i }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /google calendar/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /outlook/i })).toBeInTheDocument();
+    });
+
+    it('does not offer them while the response is still pending', async () => {
+      mockGet.mockResolvedValue({ data: MOCK_PORTAL_DATA });
+      renderPortal();
+
+      await screen.findByText('Details');
+      expect(screen.queryByRole('button', { name: /download/i })).toBeNull();
+    });
+
+    it('keeps offering them after the confirmation cutoff has passed', async () => {
+      // Past cutoff the "Attendance Confirmed" card stops rendering and the page
+      // switches to urgent mode. The slot is still booked — often for tomorrow —
+      // so the calendar block must not inherit that card's gate.
+      mockGet.mockResolvedValue({
+        data: {
+          ...CONFIRMED,
+          token: { status: 'ACTIVE', isReadOnly: false, isPastConfirmCutoff: true },
+        },
+      });
+      renderPortal();
+
+      expect(
+        await screen.findByRole('button', { name: /download/i }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/attendance confirmed/i)).toBeNull();
+    });
+
+    it('does not offer them once the appointment is rejected', async () => {
+      mockGet.mockResolvedValue({
+        data: { ...CONFIRMED, appointment: { ...CONFIRMED.appointment, status: 'REJECTED' } },
+      });
+      renderPortal();
+
+      await screen.findByText(/will not go ahead/i);
+      expect(screen.queryByRole('button', { name: /download/i })).toBeNull();
+    });
+  });
+
   it('shows generic error state for unknown API errors', async () => {
     mockGet.mockResolvedValue({ data: undefined, error: new ApiError(500, 'Server error') });
     renderPortal();
