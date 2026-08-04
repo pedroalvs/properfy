@@ -253,31 +253,92 @@ describe('PrismaDashboardRepository', () => {
     });
   });
 
-  // ─── computeAlertLevel ───────────────────────────────────────────────────
+  // ─── Alert thresholds per window ─────────────────────────────────────────
 
-  describe('computeAlertLevel (via tomorrowByInspector rows)', () => {
+  /**
+   * Each list is classified by the thresholds that match its own window.
+   *
+   * This used to be wrong in a way that made the feature dead: only the
+   * "tomorrow" list carried an alert level, and it was classified with the
+   * WEEKLY thresholds (15/18) despite being a ONE-DAY count. An inspector would
+   * have needed 15 inspections in a single day to turn amber, so the dot was
+   * permanently grey — while the two genuinely weekly lists carried no alert at
+   * all.
+   */
+  describe('alert thresholds per window', () => {
     const inspectorId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
-    async function getAlertLevel(count: number): Promise<'yellow' | 'red' | null> {
+    async function alertsFor(counts: { tomorrow: number; scheduledWeek: number; confirmedWeek: number }) {
+      const row = (count: number) => [{ inspector_id: inspectorId, _count: { _all: count } }];
+
       (prisma.appointment.groupBy as ReturnType<typeof vi.fn>)
         .mockReset()
         .mockResolvedValueOnce([]) // status counts
-        .mockResolvedValueOnce([{ inspector_id: inspectorId, _count: { _all: count } }]) // tomorrow
-        .mockResolvedValueOnce([]) // scheduledThisWeek
-        .mockResolvedValueOnce([]); // confirmedThisWeek
+        .mockResolvedValueOnce(row(counts.tomorrow))
+        .mockResolvedValueOnce(row(counts.scheduledWeek))
+        .mockResolvedValueOnce(row(counts.confirmedWeek));
 
       (prisma.inspector.findMany as ReturnType<typeof vi.fn>)
         .mockResolvedValue([{ id: inspectorId, name: 'Alice' }]);
 
-      const result = await repo.getStats(undefined, true);
-      return result.inspectorBreakdowns!.tomorrowByInspector[0]?.alertLevel ?? null;
+      const breakdowns = (await repo.getStats(undefined, true)).inspectorBreakdowns!;
+      return {
+        tomorrow: breakdowns.tomorrowByInspector[0]?.alertLevel ?? null,
+        scheduledWeek: breakdowns.scheduledThisWeekByInspector[0]?.alertLevel ?? null,
+        confirmedWeek: breakdowns.confirmedThisWeekByInspector[0]?.alertLevel ?? null,
+      };
     }
 
-    it('14 -> null', async () => { expect(await getAlertLevel(14)).toBeNull(); });
-    it('15 -> yellow', async () => { expect(await getAlertLevel(15)).toBe('yellow'); });
-    it('17 -> yellow', async () => { expect(await getAlertLevel(17)).toBe('yellow'); });
-    it('18 -> red', async () => { expect(await getAlertLevel(18)).toBe('red'); });
-    it('25 -> red', async () => { expect(await getAlertLevel(25)).toBe('red'); });
+    describe('tomorrow — a single day, so daily thresholds (3/4)', () => {
+      it.each([
+        [0, null],
+        [2, null],
+        [3, 'yellow'],
+        [4, 'red'],
+        [9, 'red'],
+      ])('%i inspections -> %s', async (count, expected) => {
+        const alerts = await alertsFor({ tomorrow: count as number, scheduledWeek: 0, confirmedWeek: 0 });
+        expect(alerts.tomorrow).toBe(expected);
+      });
+    });
+
+    describe('the weekly lists — seven days, so weekly thresholds (15/18)', () => {
+      it.each([
+        [14, null],
+        [15, 'yellow'],
+        [17, 'yellow'],
+        [18, 'red'],
+        [40, 'red'],
+      ])('%i inspections -> %s on both weekly lists', async (count, expected) => {
+        const alerts = await alertsFor({
+          tomorrow: 0,
+          scheduledWeek: count as number,
+          confirmedWeek: count as number,
+        });
+        expect(alerts.scheduledWeek).toBe(expected);
+        expect(alerts.confirmedWeek).toBe(expected);
+      });
+    });
+
+    /**
+     * The guard against re-introducing the bug by copying a neighbouring call
+     * site: the SAME count must read differently on a daily list than on a
+     * weekly one, within one `getStats` call.
+     */
+    it('reads the same count differently depending on the window', async () => {
+      const alerts = await alertsFor({ tomorrow: 4, scheduledWeek: 4, confirmedWeek: 4 });
+
+      expect(alerts.tomorrow).toBe('red');
+      expect(alerts.scheduledWeek).toBeNull();
+      expect(alerts.confirmedWeek).toBeNull();
+    });
+
+    it('never leaves a weekly list unclassified the way it used to', async () => {
+      const alerts = await alertsFor({ tomorrow: 0, scheduledWeek: 20, confirmedWeek: 16 });
+
+      expect(alerts.scheduledWeek).toBe('red');
+      expect(alerts.confirmedWeek).toBe('yellow');
+    });
   });
 
   // ─── Inspector name resolution ────────────────────────────────────────────

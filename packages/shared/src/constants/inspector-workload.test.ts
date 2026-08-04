@@ -57,4 +57,28 @@ describe('workloadAlertLevel', () => {
     expect(workloadAlertLevel(18)).toBe('red');
     expect(workloadAlertLevel(40)).toBe('red');
   });
+
+  it('classifies a daily count against the daily thresholds when asked to', () => {
+    expect(workloadAlertLevel(0, DAILY_WORKLOAD_THRESHOLDS)).toBeNull();
+    expect(workloadAlertLevel(2, DAILY_WORKLOAD_THRESHOLDS)).toBeNull();
+    expect(workloadAlertLevel(3, DAILY_WORKLOAD_THRESHOLDS)).toBe('yellow');
+    expect(workloadAlertLevel(4, DAILY_WORKLOAD_THRESHOLDS)).toBe('red');
+    expect(workloadAlertLevel(9, DAILY_WORKLOAD_THRESHOLDS)).toBe('red');
+  });
+
+  /**
+   * The regression guard for the dashboard bug this parameter exists to fix: a
+   * one-day count of 4 is an overloaded day, but measured against the weekly
+   * thresholds it reads as no alert at all. Before the parameter existed the
+   * dashboard's "Tomorrow" card could only ever take the second reading, so it
+   * never fired.
+   */
+  it('gives the same count opposite verdicts under each threshold set', () => {
+    expect(workloadAlertLevel(4)).toBeNull();
+    expect(workloadAlertLevel(4, DAILY_WORKLOAD_THRESHOLDS)).toBe('red');
+  });
+
+  it('defaults to the weekly thresholds when none are passed', () => {
+    expect(workloadAlertLevel(15)).toBe(workloadAlertLevel(15, WEEKLY_WORKLOAD_THRESHOLDS));
+  });
 });
