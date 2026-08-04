@@ -2,6 +2,7 @@ import type { AuthContext } from '@properfy/shared';
 import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { AppointmentImportPreviewResponse, ImportFileIssue } from '@properfy/shared';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import type { ITenantTimezoneLookup } from '../../../../shared/application/tenant-timezone';
 import { ValidationError, ForbiddenError } from '../../../../shared/domain/errors';
 import type { IAppointmentImportRepository } from '../../domain/appointment-import.repository';
 import { AppointmentImportEntity } from '../../domain/appointment-import.entity';
@@ -54,6 +55,8 @@ export class PreviewAppointmentImportUseCase {
     private readonly resolver: AppointmentImportRowResolver,
     private readonly geocodeVerifier: IImportGeocodeVerifier,
     private readonly authorizationService: AuthorizationService,
+    /** Cached tenants.timezone lookup; absent → platform-timezone validation. */
+    private readonly tenantTimezoneLookup?: ITenantTimezoneLookup,
   ) {}
 
   async execute(input: PreviewAppointmentImportInput): Promise<PreviewAppointmentImportOutput> {
@@ -136,7 +139,9 @@ export class PreviewAppointmentImportUseCase {
       : 'text/csv';
     await this.storageService.upload(fileKey, fileBuffer, contentType);
 
-    const tz = PLATFORM_TIMEZONE;
+    // Past-date checks are anchored to the importing agency's timezone.
+    const tz =
+      (await this.tenantTimezoneLookup?.getTenantTimezone(tenantId)) ?? PLATFORM_TIMEZONE;
     const { rows } = await this.resolver.resolve(rawRows, {
       tenantId,
       branchId,

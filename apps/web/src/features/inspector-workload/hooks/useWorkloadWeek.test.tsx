@@ -4,6 +4,13 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useWorkloadWeek } from './useWorkloadWeek';
 
+// The component resolves "today"/instants in the user's effective timezone;
+// pin it to the platform default so these tests stay deterministic.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
+
 /**
  * Pinning the process timezone to Sydney is the point of this file, not a
  * detail — the same reasoning as `useAnalyticsPeriod.test.ts`. A week derived

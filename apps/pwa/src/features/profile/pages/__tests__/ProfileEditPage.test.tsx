@@ -6,6 +6,7 @@ import { ProfileEditPage } from '../ProfileEditPage';
 const mockUseAuth = vi.fn();
 const mockMutateInspectorSelf = vi.fn();
 const mockMutateAvailability = vi.fn();
+const mockMutateTimezone = vi.fn();
 const mockUsePrompt = vi.fn();
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -41,6 +42,14 @@ vi.mock('../../hooks/useInspectorAvailabilityTemplate', () => ({
   useInspectorAvailabilityTemplate: () => ({ data: undefined, isLoading: false }),
 }));
 
+vi.mock('../../hooks/useUpdateMyTimezone', () => ({
+  useUpdateMyTimezone: () => ({
+    mutateAsync: mockMutateTimezone,
+    isPending: false,
+    isError: false,
+  }),
+}));
+
 vi.mock('@/lib/use-unsaved-changes-prompt', () => ({
   useUnsavedChangesPrompt: (isDirty: boolean) => mockUsePrompt(isDirty),
 }));
@@ -57,6 +66,8 @@ const MOCK_USER = {
   totpEnabled: false,
   lastLoginAt: null,
   inspectorPhotoUrl: null,
+  timezone: 'Australia/Brisbane',
+  personalTimezone: 'Australia/Brisbane',
 };
 
 describe('ProfileEditPage', () => {
@@ -141,5 +152,85 @@ describe('ProfileEditPage — AU phone mask and validation', () => {
   it('shows the local placeholder', () => {
     renderWithProviders(<ProfileEditPage />);
     expect(screen.getByPlaceholderText('0412 345 678')).toBeInTheDocument();
+  });
+});
+
+describe('ProfileEditPage — Timezone section', () => {
+  const mockRefreshUser = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({ user: MOCK_USER, logout: vi.fn(), refreshUser: mockRefreshUser });
+    mockUsePrompt.mockImplementation(() => {});
+  });
+
+  it('renders the picker prefilled from the personal timezone', () => {
+    renderWithProviders(<ProfileEditPage />);
+    expect(screen.getByTestId('timezone-picker-trigger')).toHaveTextContent(/Brisbane \(GMT\+\d+\)/);
+    // Not dirty on mount, so no save button.
+    expect(screen.queryByRole('button', { name: /save timezone/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the placeholder when no personal timezone is set', () => {
+    mockUseAuth.mockReturnValue({
+      user: { ...MOCK_USER, personalTimezone: null },
+      logout: vi.fn(),
+      refreshUser: mockRefreshUser,
+    });
+    renderWithProviders(<ProfileEditPage />);
+    expect(screen.getByTestId('timezone-picker-trigger')).toHaveTextContent('Platform default (Sydney)');
+  });
+
+  it('marks the page dirty and saves the selected timezone', async () => {
+    mockMutateTimezone.mockResolvedValue({});
+    mockRefreshUser.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileEditPage />);
+
+    await user.click(screen.getByTestId('timezone-picker-trigger'));
+    await user.type(screen.getByLabelText('Search timezones'), 'perth');
+    await user.click(screen.getByTestId('timezone-option-Australia/Perth'));
+
+    // Dirty tracking feeds the unsaved-changes prompt.
+    expect(mockUsePrompt).toHaveBeenLastCalledWith(true);
+
+    await user.click(screen.getByRole('button', { name: /save timezone/i }));
+
+    expect(mockMutateTimezone).toHaveBeenCalledWith({ timezone: 'Australia/Perth' });
+    expect(mockRefreshUser).toHaveBeenCalled();
+    expect(await screen.findByText('Saved successfully')).toBeInTheDocument();
+  });
+
+  it('clears back to the platform default and PATCHes null', async () => {
+    mockMutateTimezone.mockResolvedValue({});
+    mockRefreshUser.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileEditPage />);
+
+    await user.click(screen.getByTestId('timezone-picker-trigger'));
+    await user.click(screen.getByTestId('timezone-option-clear'));
+
+    // Changing to empty is a change too — dirty and savable.
+    expect(mockUsePrompt).toHaveBeenLastCalledWith(true);
+
+    await user.click(screen.getByRole('button', { name: /save timezone/i }));
+
+    expect(mockMutateTimezone).toHaveBeenCalledWith({ timezone: null });
+    expect(mockRefreshUser).toHaveBeenCalled();
+    expect(await screen.findByText('Saved successfully')).toBeInTheDocument();
+  });
+
+  it('shows the mutation error when saving fails', async () => {
+    mockMutateTimezone.mockRejectedValue(new Error('Invalid timezone'));
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileEditPage />);
+
+    await user.click(screen.getByTestId('timezone-picker-trigger'));
+    await user.type(screen.getByLabelText('Search timezones'), 'perth');
+    await user.click(screen.getByTestId('timezone-option-Australia/Perth'));
+    await user.click(screen.getByRole('button', { name: /save timezone/i }));
+
+    expect(await screen.findByText('Invalid timezone')).toBeInTheDocument();
+    expect(mockRefreshUser).not.toHaveBeenCalled();
   });
 });

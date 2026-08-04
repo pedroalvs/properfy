@@ -10,7 +10,7 @@ import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
 import { UserNotFoundError } from '../../../src/modules/user/domain/user-management.errors';
 import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
-import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import type { AuthContext } from '@properfy/shared';
 
 function makeUser(
@@ -163,6 +163,8 @@ describe('UpdateUserUseCase', () => {
     expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-1', {
       name: 'Updated Name',
       role: 'CL_ADMIN',
+      // Role change into the CL_* family auto-clears any personal timezone.
+      timezone: null,
     });
   });
 
@@ -334,5 +336,119 @@ describe('UpdateUserUseCase', () => {
     expect(
       (result as Record<string, unknown>)['passwordHash'],
     ).toBeUndefined();
+  });
+
+  describe('timezone', () => {
+    it('allows AM to set the timezone of an internal user', async () => {
+      const internalUser = makeUser({ role: 'OP', tenantId: null, branchId: null });
+      vi.mocked(userManagementRepo.findByIdAndTenantId)
+        .mockResolvedValueOnce(internalUser)
+        .mockResolvedValueOnce(internalUser);
+
+      await useCase.execute({
+        tenantId: null,
+        userId: 'user-1',
+        data: { timezone: 'Pacific/Auckland' },
+        actor: amActor,
+      });
+
+      expect(userManagementRepo.update).toHaveBeenCalledWith(
+        'user-1',
+        null,
+        expect.objectContaining({ timezone: 'Pacific/Auckland' }),
+      );
+    });
+
+    it('allows AM to clear the timezone with null', async () => {
+      const internalUser = makeUser({ role: 'OP', tenantId: null, branchId: null });
+      vi.mocked(userManagementRepo.findByIdAndTenantId)
+        .mockResolvedValueOnce(internalUser)
+        .mockResolvedValueOnce(internalUser);
+
+      await useCase.execute({
+        tenantId: null,
+        userId: 'user-1',
+        data: { timezone: null },
+        actor: amActor,
+      });
+
+      expect(userManagementRepo.update).toHaveBeenCalledWith(
+        'user-1',
+        null,
+        expect.objectContaining({ timezone: null }),
+      );
+    });
+
+    it('allows clearing (null) a stale timezone on a CL_* target', async () => {
+      const clUser = makeUser({ role: 'CL_USER', timezone: 'Pacific/Auckland' });
+      vi.mocked(userManagementRepo.findByIdAndTenantId)
+        .mockResolvedValueOnce(clUser)
+        .mockResolvedValueOnce(clUser);
+
+      await useCase.execute({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        data: { timezone: null },
+        actor: amActor,
+      });
+
+      expect(userManagementRepo.update).toHaveBeenCalledWith(
+        'user-1',
+        'tenant-1',
+        expect.objectContaining({ timezone: null }),
+      );
+    });
+
+    it('auto-clears a stale personal timezone when the role changes to a CL_* role', async () => {
+      // A CL_* row should never carry users.timezone; if one does (legacy data),
+      // any role change into the CL_* family scrubs it.
+      const clAdmin = makeUser({ role: 'CL_ADMIN', timezone: 'Pacific/Auckland' });
+      vi.mocked(userManagementRepo.findByIdAndTenantId)
+        .mockResolvedValueOnce(clAdmin)
+        .mockResolvedValueOnce(clAdmin);
+
+      await useCase.execute({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        data: { role: 'CL_USER' },
+        actor: amActor,
+      });
+
+      expect(userManagementRepo.update).toHaveBeenCalledWith(
+        'user-1',
+        'tenant-1',
+        expect.objectContaining({ role: 'CL_USER', timezone: null }),
+      );
+    });
+
+    it('rejects a timezone write when the target is an agency (CL_*) user', async () => {
+      const clUser = makeUser({ role: 'CL_USER' });
+      vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(clUser);
+
+      await expect(
+        useCase.execute({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          data: { timezone: 'Pacific/Auckland' },
+          actor: amActor,
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(userManagementRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects an invalid IANA identifier', async () => {
+      const internalUser = makeUser({ role: 'OP', tenantId: null, branchId: null });
+      vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(internalUser);
+
+      await expect(
+        useCase.execute({
+          tenantId: null,
+          userId: 'user-1',
+          data: { timezone: 'Sydney' },
+          actor: amActor,
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(userManagementRepo.update).not.toHaveBeenCalled();
+    });
   });
 });

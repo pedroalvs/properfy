@@ -1,11 +1,11 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import {
-  PLATFORM_TIMEZONE,
   PROPERTY_TYPE_LABELS,
   addCivilDays,
   todayInTzDateString,
 } from '@properfy/shared';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
 import { formatCurrency } from '@/lib/format-currency';
 import {
@@ -25,7 +25,7 @@ interface OfferCardProps {
 /**
  * Which of TODAY / TOMORROW (if either) an offer's date falls on.
  *
- * Both answers come from ONE reading of the platform-timezone day. Reading it
+ * Both answers come from ONE reading of the effective-timezone day. Reading it
  * twice lets midnight roll over between the two calls, which drops the badge a
  * render early — the date is no longer today, and is no longer the new anchor
  * plus one either.
@@ -33,9 +33,9 @@ interface OfferCardProps {
  * `addCivilDays` keeps the arithmetic device-independent: it anchors on the
  * timezone's own calendar day and advances in UTC, which has no DST.
  */
-function relativeDayLabel(dateStr: string): 'TODAY' | 'TOMORROW' | null {
+function relativeDayLabel(dateStr: string, timeZone: string): 'TODAY' | 'TOMORROW' | null {
   const day = dateStr.slice(0, 10);
-  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+  const today = todayInTzDateString(timeZone);
   if (day === today) return 'TODAY';
   return day === addCivilDays(today, 1) ? 'TOMORROW' : null;
 }
@@ -67,7 +67,8 @@ const stateLabels: Partial<Record<OfferAcceptState, { label: string; className: 
 };
 
 export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onViewDetail }: OfferCardProps) {
-  const dayLabel = relativeDayLabel(offer.scheduledDate);
+  const timeZone = useEffectiveTimezone();
+  const dayLabel = relativeDayLabel(offer.scheduledDate, timeZone);
   const resolved = stateLabels[state];
   const [faded, setFaded] = useState(false);
   // `priorityExpiresAt` is optional: the backend does not send it today, so an

@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ServiceGroupStatus } from '@properfy/shared';
 import { getPublishBlockReason } from './publish-block-reason';
 
-// 2026-05-01T00:00:00Z is 2026-05-01 10:00 in Sydney, the timezone the shared
-// validator resolves "today" in. Only Date is faked so timers stay real.
+// 2026-05-01T00:00:00Z is 2026-05-01 10:00 in Sydney, the timezone these tests
+// pass as `timeZone`. Only Date is faked so timers stay real.
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-05-01T00:00:00Z'));
@@ -15,6 +15,7 @@ afterEach(() => {
 
 const base = {
   status: ServiceGroupStatus.DRAFT,
+  timeZone: 'Australia/Sydney',
   appointmentCount: 2,
   scheduledDate: '2026-06-01',
   timeWindow: '09:00-12:00',

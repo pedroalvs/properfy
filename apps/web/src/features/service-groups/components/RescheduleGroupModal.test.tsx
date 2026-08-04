@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { RescheduleGroupModal } from './RescheduleGroupModal';
 import type { ServiceGroupAppointment, ServiceGroupDetail } from '../types';
 
+
 const mockReschedule = vi.fn();
 vi.mock('../hooks/useRescheduleServiceGroup', () => ({
   useRescheduleServiceGroup: () => ({ reschedule: mockReschedule, isRescheduling: false }),

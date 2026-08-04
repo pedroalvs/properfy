@@ -147,7 +147,9 @@ export class GetPortalDataUseCase {
         contacts.find((c) => c.role === 'PROPERTY_MANAGER')?.effectiveName ?? null,
       tenant: {
         name: tenant?.name ?? null,
-        timezone: PLATFORM_TIMEZONE,
+        // Agency timezone: consumed by the portal's add-to-calendar links, and
+        // consistent with mint-portal-token's cutoff computation.
+        timezone: tenant?.timezone ?? PLATFORM_TIMEZONE,
       },
       ...(survey ? { survey } : {}),
     };

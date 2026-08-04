@@ -13,6 +13,13 @@ import { MemoryRouter } from 'react-router-dom';
 import { MapBulkReturnToPoolForm } from './MapBulkReturnToPoolForm';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 
+// The component resolves "today"/instants in the user's effective timezone;
+// pin it to the platform default so these tests stay deterministic.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
+
 const mutateAsync = vi.fn();
 vi.mock('../hooks/useBulkReopenForReschedule', () => ({
   useBulkReopenForReschedule: () => ({ mutateAsync, isPending: false }),

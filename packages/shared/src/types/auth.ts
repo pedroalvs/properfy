@@ -17,6 +17,14 @@ export interface AuthContext {
   role: UserRole;
   branchId: string | null;
   inspectorId: string | null;
+  /**
+   * Effective IANA timezone for this principal, resolved per request (never a
+   * JWT claim, so agency/user changes apply immediately): agency timezone for
+   * CL_* roles, personal users.timezone for AM/OP/INSP, platform default
+   * otherwise. Optional because token verification alone cannot resolve it;
+   * the auth middleware fills it before handlers run.
+   */
+  timezone?: string;
   /** CL_USER permission flags from tenant settings. Empty array for non-CL_USER roles. */
   clUserPermissions?: string[];
   /** API-key scopes for machine principals. Absent for JWT (human) principals. */

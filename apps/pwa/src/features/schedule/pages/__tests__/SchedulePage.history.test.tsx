@@ -17,6 +17,11 @@ vi.mock('@/app/useInstallPrompt', () => ({
   useInstallPrompt: () => ({ isIosSafariEligible: false, canInstall: false }),
 }));
 
+// Rendered without an AuthProvider; pin the effective timezone to Sydney.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
 vi.mock('../../components/ScheduleOfflineBanner', () => ({
   ScheduleOfflineBanner: () => null,
 }));

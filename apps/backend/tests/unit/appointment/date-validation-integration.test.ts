@@ -53,7 +53,9 @@ function makeAppointmentRepo(overrides: Partial<IAppointmentRepository> = {}): I
 
 describe('CreateAppointmentUseCase — TZ-aware date validation', () => {
   function makeUseCase() {
-    const branchRepo = { findById: vi.fn().mockResolvedValue({ branch: { id: 'br-1', tenantId: 'tenant-1', status: 'ACTIVE' } }) };
+    // The agency-timezone anchor moved validation AFTER branch resolution, so
+    // the branch mock must be entity-shaped (isActive) for the check to run.
+    const branchRepo = { findById: vi.fn().mockResolvedValue({ id: 'br-1', tenantId: 'tenant-1', status: 'ACTIVE', isActive: () => true }) };
     const propertyRepo = { findById: vi.fn().mockResolvedValue({ property: { id: 'prop-1', tenantId: 'tenant-1', latitude: 0, longitude: 0, addressString: '' } }) };
     const serviceTypeRepo = { findById: vi.fn().mockResolvedValue({ id: 'svc-1', tenantId: 'tenant-1', status: 'ACTIVE' }) };
     const pricingRuleRepo = { findAll: vi.fn().mockResolvedValue({ items: [], total: 0 }) };

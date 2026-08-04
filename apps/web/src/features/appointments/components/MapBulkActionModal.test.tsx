@@ -15,6 +15,13 @@ import { MemoryRouter } from 'react-router-dom';
 import { MapBulkActionModal } from './MapBulkActionModal';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 
+// The component resolves "today"/instants in the user's effective timezone;
+// pin it to the platform default so these tests stay deterministic.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
+
 // Shared handle so a test can assert the cancel payload, not just the UI.
 const bulkCancelMock = vi.hoisted(() => vi.fn());
 

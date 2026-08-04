@@ -31,9 +31,9 @@ export class GetInspectorWorkloadUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions to view inspector workload');
     }
 
-    // "Now" is a Sydney civil date, not a server-local one: near midnight the two
-    // disagree, and the wrong one silently reports the neighbouring week.
-    const today = civilDateInTimezone(input.now ?? new Date(), PLATFORM_TIMEZONE);
+    // "Now" is the actor's civil date, not a server-local one: near midnight the
+    // two disagree, and the wrong one silently reports the neighbouring week.
+    const today = civilDateInTimezone(input.now ?? new Date(), actor.timezone ?? PLATFORM_TIMEZONE);
     const weekStart = query.weekStart ?? mondayOf(today);
 
     return this.repository.getWorkload({ weekStart });

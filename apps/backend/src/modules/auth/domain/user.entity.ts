@@ -9,6 +9,12 @@ export interface UserProps {
   name: string;
   email: string;
   phone: string | null;
+  /**
+   * Personal IANA timezone. Only meaningful for cross-tenant roles (AM/OP/INSP);
+   * CL_* users always inherit the agency timezone. Optional so existing
+   * factories keep working; defaults to null (= platform default).
+   */
+  timezone?: string | null;
   status: UserStatus;
   passwordHash: string;
   totpSecret: string | null;
@@ -28,6 +34,7 @@ export class UserEntity extends BaseEntity {
   readonly name: string;
   readonly email: string;
   readonly phone: string | null;
+  readonly timezone: string | null;
   status: UserStatus;
   readonly passwordHash: string;
   readonly totpSecret: string | null;
@@ -45,6 +52,7 @@ export class UserEntity extends BaseEntity {
     this.name = props.name;
     this.email = props.email;
     this.phone = props.phone;
+    this.timezone = props.timezone ?? null;
     this.status = props.status;
     this.passwordHash = props.passwordHash;
     this.totpSecret = props.totpSecret;

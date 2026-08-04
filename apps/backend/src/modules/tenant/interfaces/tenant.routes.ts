@@ -10,6 +10,8 @@ import {
   listTenantsQuerySchema,
   listBranchesQuerySchema,
   tenantResponseSchema,
+  tenantLogoResponseSchema,
+  tenantLogoDeleteResponseSchema,
   branchResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
@@ -21,6 +23,8 @@ import type { CreateTenantUseCase } from '../application/use-cases/create-tenant
 import type { GetTenantUseCase } from '../application/use-cases/get-tenant.use-case';
 import type { ListTenantsUseCase } from '../application/use-cases/list-tenants.use-case';
 import type { UpdateTenantUseCase } from '../application/use-cases/update-tenant.use-case';
+import type { UploadTenantLogoUseCase } from '../application/use-cases/upload-tenant-logo.use-case';
+import type { DeleteTenantLogoUseCase } from '../application/use-cases/delete-tenant-logo.use-case';
 import type { ActivateTenantUseCase } from '../application/use-cases/activate-tenant.use-case';
 import type { DeactivateTenantUseCase } from '../application/use-cases/deactivate-tenant.use-case';
 import type { CreateBranchUseCase } from '../application/use-cases/create-branch.use-case';
@@ -36,6 +40,8 @@ export interface TenantRouteContainer {
   getTenantUseCase: GetTenantUseCase;
   listTenantsUseCase: ListTenantsUseCase;
   updateTenantUseCase: UpdateTenantUseCase;
+  uploadTenantLogoUseCase: UploadTenantLogoUseCase;
+  deleteTenantLogoUseCase: DeleteTenantLogoUseCase;
   activateTenantUseCase: ActivateTenantUseCase;
   deactivateTenantUseCase: DeactivateTenantUseCase;
   createBranchUseCase: CreateBranchUseCase;
@@ -175,6 +181,71 @@ export async function registerTenantRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/tenants/:tenantId/branding/logo — multipart upload, replaces any previous logo
+  app.post(
+    '/v1/tenants/:tenantId/branding/logo',
+    {
+      preHandler: authenticate,
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: '1 minute',
+        },
+      },
+      schema: {
+        params: tenantIdParam,
+        // No body schema: multipart is parsed manually below, mirroring
+        // /v1/appointments/import/preview.
+        response: { 200: successResponseSchema(tenantLogoResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = tenantIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError('Invalid tenant ID', params.error.errors);
+
+      let fileBuffer: Buffer | undefined;
+      for await (const part of request.parts()) {
+        if (part.type === 'file' && !fileBuffer) {
+          fileBuffer = await part.toBuffer();
+        }
+      }
+      if (!fileBuffer || fileBuffer.length === 0) {
+        throw new ValidationError('Logo file is required');
+      }
+
+      const result = await container.uploadTenantLogoUseCase.execute({
+        tenantId: params.data.tenantId,
+        fileBuffer,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // DELETE /v1/tenants/:tenantId/branding/logo
+  app.delete(
+    '/v1/tenants/:tenantId/branding/logo',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: tenantIdParam,
+        response: { 200: successResponseSchema(tenantLogoDeleteResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = tenantIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError('Invalid tenant ID', params.error.errors);
+
+      await container.deleteTenantLogoUseCase.execute({
+        tenantId: params.data.tenantId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success({ deleted: true as const }));
     },
   );
 

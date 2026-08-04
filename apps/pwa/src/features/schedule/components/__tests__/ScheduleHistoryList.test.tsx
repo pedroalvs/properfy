@@ -8,6 +8,11 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
+// AppointmentCard reads the effective timezone; rendered without an AuthProvider.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
 const makeItem = (overrides: Partial<HistoryItem> = {}): HistoryItem => ({
   id: '00000000-0000-0000-0000-000000000001',
   appointmentCode: 'INS-0001',

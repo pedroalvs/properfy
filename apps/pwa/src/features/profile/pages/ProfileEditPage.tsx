@@ -5,6 +5,8 @@ import { TopBar } from '@/components/shell/TopBar';
 import { AvatarUploader } from '../components/AvatarUploader';
 import { EditableAvailabilityGrid } from '../components/EditableAvailabilityGrid';
 import { useUpdateInspectorSelf } from '../hooks/useUpdateInspectorSelf';
+import { useUpdateMyTimezone } from '../hooks/useUpdateMyTimezone';
+import { TimezonePicker } from '@/components/ui/TimezonePicker';
 import { useInspectorAvailabilityTemplate } from '../hooks/useInspectorAvailabilityTemplate';
 import { useUnsavedChangesPrompt } from '@/lib/use-unsaved-changes-prompt';
 
@@ -13,12 +15,19 @@ export function ProfileEditPage() {
   const { data: availability } = useInspectorAvailabilityTemplate();
   const { mutateAsync: updateSelf, isPending: isSavingPhone } = useUpdateInspectorSelf();
 
+  const { mutateAsync: updateTimezone, isPending: isSavingTimezone } = useUpdateMyTimezone();
+
   const [phone, setPhone] = useState(formatAuPhone(user?.phone ?? ''));
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [phoneSuccess, setPhoneSuccess] = useState(false);
 
+  const [timezone, setTimezone] = useState(user?.personalTimezone ?? '');
+  const [timezoneError, setTimezoneError] = useState<string | null>(null);
+  const [timezoneSuccess, setTimezoneSuccess] = useState(false);
+
   const isPhoneDirty = phone !== formatAuPhone(user?.phone ?? '');
-  const isAnyDirty = isPhoneDirty;
+  const isTimezoneDirty = timezone !== (user?.personalTimezone ?? '');
+  const isAnyDirty = isPhoneDirty || isTimezoneDirty;
 
   useUnsavedChangesPrompt(isAnyDirty);
 
@@ -49,6 +58,26 @@ export function ProfileEditPage() {
       setPhoneError(err instanceof Error ? err.message : 'Failed to save');
     }
   }, [phone, updateSelf, refreshUser]);
+
+  const handleTimezoneChange = useCallback((next: string) => {
+    setTimezone(next);
+    setTimezoneError(null);
+    setTimezoneSuccess(false);
+  }, []);
+
+  const handleSaveTimezone = useCallback(async () => {
+    setTimezoneError(null);
+    setTimezoneSuccess(false);
+    try {
+      // Empty string means "back to the platform default" — the API models it as null.
+      await updateTimezone({ timezone: timezone === '' ? null : timezone });
+      await refreshUser();
+      setTimezoneSuccess(true);
+      setTimeout(() => setTimezoneSuccess(false), 3000);
+    } catch (err) {
+      setTimezoneError(err instanceof Error ? err.message : 'Failed to save');
+    }
+  }, [timezone, updateTimezone, refreshUser]);
 
   if (!user) return null;
 
@@ -105,6 +134,36 @@ export function ProfileEditPage() {
                 className="w-full rounded-2xl bg-real-estate py-2.5 text-sm font-bold text-white disabled:opacity-50"
               >
                 {isSavingPhone ? 'Saving…' : 'Save phone'}
+              </button>
+            )}
+          </div>
+        </section>
+
+        {/* Timezone section */}
+        <section className="rounded-[24px] border border-white/70 bg-white/92 p-6 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Timezone</p>
+          <div className="mt-4 flex flex-col gap-3">
+            <TimezonePicker
+              id="edit-timezone"
+              aria-label="Timezone"
+              value={timezone || null}
+              onChange={handleTimezoneChange}
+              placeholder="Platform default (Sydney)"
+              allowClear
+            />
+            <p className="text-xs text-text-muted">
+              Your schedule and offers are shown in this timezone.
+            </p>
+            {timezoneError && <p className="text-xs text-error">{timezoneError}</p>}
+            {timezoneSuccess && <p className="text-xs text-success">Saved successfully</p>}
+            {isTimezoneDirty && (
+              <button
+                type="button"
+                onClick={handleSaveTimezone}
+                disabled={isSavingTimezone}
+                className="w-full rounded-2xl bg-real-estate py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {isSavingTimezone ? 'Saving…' : 'Save timezone'}
               </button>
             )}
           </div>

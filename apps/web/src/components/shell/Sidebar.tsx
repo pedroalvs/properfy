@@ -25,11 +25,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  // Dashboard is the cluster's single sidebar entry — Analytics and Inspector
+  // Workload are reached from the dashboard screens' own header actions, with
+  // the same role gating as their route guards.
   { icon: 'mdi-view-dashboard-outline', label: 'Dashboard', to: '/dashboard' },
-  { icon: 'mdi-chart-line', label: 'Analytics', to: '/analytics', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER] },
-  // Narrower than Analytics on purpose — inspectors are cross-tenant, so the
-  // capacity view only makes sense platform-wide.
-  { icon: 'mdi-account-clock-outline', label: 'Workload', to: '/inspector-workload', roles: [UserRole.AM, UserRole.OP] },
   // Map-first navigation: the map is the single entry point for appointments
   // and service groups. The lists are reached from the map's "List view"
   // toggle (appointments mode -> /appointments, groups mode -> /service-groups).

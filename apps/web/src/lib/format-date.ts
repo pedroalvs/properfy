@@ -17,15 +17,40 @@
  *
  * Passing an instant to `formatCivilDate` reads its UTC day, which in Sydney is
  * the PREVIOUS day for roughly ten hours out of every day.
+ *
+ * The two instant formatters are thin wrappers that resolve in the signed-in
+ * user's effective timezone (published by `AuthProvider` via
+ * `@/lib/display-timezone`) instead of the platform default. Civil/wall-time
+ * formatters carry no timezone and are re-exported untouched.
  */
+import {
+  formatInstantDate as sharedFormatInstantDate,
+  formatInstantDateTime as sharedFormatInstantDateTime,
+} from '@properfy/shared';
+import { getDisplayTimezone } from '@/lib/display-timezone';
+
 export {
   formatCivilDate,
   formatWallTime,
   formatWallTimeRange,
   formatWallTimeWindow,
-  formatInstantDate,
-  formatInstantDateTime,
 } from '@properfy/shared';
+
+/** The day an instant falls on, rendered in the user's effective timezone. */
+export function formatInstantDate(
+  value: string | Date | null | undefined,
+  timeZone: string = getDisplayTimezone(),
+): string {
+  return sharedFormatInstantDate(value, timeZone);
+}
+
+/** An instant with its time of day, rendered in the user's effective timezone. */
+export function formatInstantDateTime(
+  value: string | Date | null | undefined,
+  timeZone: string = getDisplayTimezone(),
+): string {
+  return sharedFormatInstantDateTime(value, timeZone);
+}
 
 /**
  * A `Date` as `YYYY-MM-DD` in the browser's local timezone.

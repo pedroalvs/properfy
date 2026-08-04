@@ -17,26 +17,28 @@ import { useInstallPrompt } from '@/app/useInstallPrompt';
 import { useScheduleMonth } from '../hooks/useScheduleMonth';
 import { useScheduleDay } from '../hooks/useScheduleDay';
 import { useScheduleHistory, type HistoryPeriod } from '../hooks/useScheduleHistory';
-import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
+import { todayInTzDateString } from '@properfy/shared';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { isScheduleRisk, formatScheduleDate } from '../lib/time-slot';
 
 type Tab = 'upcoming' | 'history';
 
 export function SchedulePage() {
   const [searchParams] = useSearchParams();
-  const sydneyToday = useMemo(() => todayInTzDateString(PLATFORM_TIMEZONE), []);
+  const timeZone = useEffectiveTimezone();
+  const effectiveToday = useMemo(() => todayInTzDateString(timeZone), [timeZone]);
   const initialDate = useMemo(() => {
     const param = searchParams.get('date');
     if (param) return param;
-    return sydneyToday;
-  }, [searchParams, sydneyToday]);
+    return effectiveToday;
+  }, [searchParams, effectiveToday]);
   const [selectedDate, setSelectedDate] = useState(initialDate);
 
   const [tab, setTab] = useState<Tab>('upcoming');
   const { isIosSafariEligible, canInstall } = useInstallPrompt();
 
   const { data, isLoading, isError, error, refetch } = useScheduleMonth();
-  const today = data?.today ?? sydneyToday;
+  const today = data?.today ?? effectiveToday;
   const days = useMemo(() => data?.days.map((day) => day.date) ?? [today], [data?.days, today]);
   const dayAppointments = useScheduleDay(data?.appointments, selectedDate);
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('24m');

@@ -42,6 +42,7 @@ const VALID_CREATE_DATA: UserFormData = {
   role: 'CL_USER',
   status: '',
   branchId: '',
+  timezone: '',
   password: 'Test@1234',
   confirmPassword: 'Test@1234',
 };
@@ -149,5 +150,45 @@ describe('useUserSave', () => {
 
     expect(saveResult?.success).toBe(true);
     expect(mockPost).toHaveBeenCalledWith('/v1/users', { body: expect.any(Object) });
+  });
+
+  it('sends the personal timezone on internal-scope create and omits it when unset', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserSave(undefined, 'internal'), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_CREATE_DATA, role: 'OP', timezone: 'Australia/Perth' });
+    });
+    expect(mockPost.mock.calls[0]![1].body).toMatchObject({ timezone: 'Australia/Perth' });
+
+    mockPost.mockClear();
+    await act(async () => {
+      await result.current.save({ ...VALID_CREATE_DATA, role: 'OP' });
+    });
+    expect(mockPost.mock.calls[0]![1].body).not.toHaveProperty('timezone');
+  });
+
+  it('sends timezone null when cleared on internal-scope edit', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserSave(undefined, 'internal'), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_CREATE_DATA, role: 'OP', timezone: '' }, 'usr-01');
+    });
+
+    expect(mockPatch).toHaveBeenCalledWith('/v1/users/usr-01', {
+      body: expect.objectContaining({ timezone: null }),
+    });
+  });
+
+  it('never sends timezone for tenant-scope users', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_CREATE_DATA, timezone: 'Australia/Perth' }, 'usr-01');
+    });
+
+    expect(mockPatch.mock.calls[0]![1].body).not.toHaveProperty('timezone');
   });
 });

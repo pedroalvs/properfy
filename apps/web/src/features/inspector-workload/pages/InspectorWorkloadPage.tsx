@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -23,12 +24,21 @@ import { WorkloadMatrix } from '../components/WorkloadMatrix';
  * both enforce that.
  */
 export function InspectorWorkloadPage() {
+  const navigate = useNavigate();
   const week = useWorkloadWeek();
   const { workload, isLoading, isError, refetch } = useInspectorWorkload(week.weekStart);
 
   return (
     <div>
-      <PageHeader title="Inspector Workload">
+      {/* No role gate on the actions: the route is AM/OP-only and both roles
+          pass the guards of /dashboard and /analytics. */}
+      <PageHeader
+        title="Inspector Workload"
+        secondaryActions={[
+          { label: 'Dashboard', icon: 'mdi-view-dashboard-outline', onClick: () => navigate('/dashboard') },
+          { label: 'Analytics', icon: 'mdi-chart-line', onClick: () => navigate('/analytics') },
+        ]}
+      >
         <WeekSelector week={week} />
       </PageHeader>
 

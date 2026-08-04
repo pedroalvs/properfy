@@ -71,6 +71,8 @@ export function RescheduleGroupModal({
     setError(null);
   }, [open, currentDate, currentStart, currentEnd]);
 
+  // Service groups are cross-tenant constructs: the backend validates their
+  // schedule in the PLATFORM timezone, so the client guard matches it exactly.
   const today = todayInTzDateString(PLATFORM_TIMEZONE);
   const newWindow = startTime && endTime ? `${startTime}-${endTime}` : '';
   const dateChanged = scheduledDate !== '' && scheduledDate !== currentDate;

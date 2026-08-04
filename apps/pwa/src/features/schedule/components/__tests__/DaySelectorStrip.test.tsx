@@ -3,6 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { DaySelectorStrip } from '../DaySelectorStrip';
 import { renderWithProviders } from '@/test-utils';
 
+// Rendered without an AuthProvider; pin the effective timezone to Sydney.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
 describe('DaySelectorStrip', () => {
   const days = ['2026-03-18', '2026-03-19', '2026-03-20'];
   const onDaySelect = vi.fn();

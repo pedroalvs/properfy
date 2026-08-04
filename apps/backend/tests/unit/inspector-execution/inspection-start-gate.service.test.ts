@@ -122,5 +122,14 @@ describe('InspectionStartGateService', () => {
         true,
       );
     });
+
+    it('opens at the AGENCY timezone midnight when one is supplied', () => {
+      // 2026-03-20T11:30:00Z is already 2026-03-21 00:30 in Auckland (UTC+13,
+      // NZDT) but still 22:30 on the 20th in Sydney (UTC+11). The gate must
+      // follow the agency's local midnight, not the platform's.
+      const at = new Date('2026-03-20T11:30:00.000Z');
+      expect(service.isStartAllowed(scheduledDate, at, 'Pacific/Auckland').allowed).toBe(true);
+      expect(service.isStartAllowed(scheduledDate, at, 'Australia/Sydney').allowed).toBe(false);
+    });
   });
 });

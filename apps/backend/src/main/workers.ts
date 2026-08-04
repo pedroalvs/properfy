@@ -28,6 +28,8 @@ import type { CancelEmptyGroupsWorker } from '../modules/service-group/infrastru
 import type { Logger } from '../shared/infrastructure/logger';
 import { DlqMonitor } from '../shared/infrastructure/dlq-monitor';
 import { prisma } from '../shared/infrastructure/prisma';
+import { TenantCronTick } from '../shared/application/tenant-cron-tick';
+import { PrismaCronJobRunRepository } from '../shared/infrastructure/prisma-cron-job-run.repository';
 
 function withJobMetrics<T extends { id: string; data: Record<string, unknown> }>(
   queue: string,
@@ -134,18 +136,60 @@ export async function registerWorkers(
     );
   }));
 
-  await boss.schedule('notification.dispatch-reminders', '0 18 * * *', {}, SYDNEY_TZ);
+  // Per-agency civil-day jobs run as HOURLY ticks: each tick claims the
+  // agencies whose local wall-clock has reached the target hour (exactly once
+  // per agency-local day via the cron_job_runs PK; `>=` gives same-day
+  // catch-up after missed ticks and DST-skipped hours) and fans the use case
+  // out per timezone group. `boss.schedule` upserts by name, so redeploys
+  // replace the old daily Sydney cron under the same queue name.
+  const tenantCronTick = new TenantCronTick(
+    () =>
+      prisma.tenant.findMany({
+        where: { status: 'ACTIVE', deleted_at: null },
+        select: { id: true, timezone: true },
+      }),
+    new PrismaCronJobRunRepository(prisma),
+  );
+
+  await boss.schedule('notification.dispatch-reminders', '0 * * * *', {}, SYDNEY_TZ);
   await boss.work('notification.dispatch-reminders', withJobMetrics('notification.dispatch-reminders', async (job) => {
-    logger.info({ jobId: job.id }, 'Processing notification.dispatch-reminders job');
-    const result = await dispatchRemindersUseCase.execute(new Date());
-    logger.info({ jobId: job.id, dispatched: result.dispatched, skipped: result.skipped }, 'Dispatch reminders completed');
+    // 18:00 agency-local. runDue releases a failed group's claims and rethrows
+    // so the pg-boss retry re-claims exactly the unserved groups.
+    let dispatched = 0;
+    let skipped = 0;
+    const groups = await tenantCronTick.runDue('notification.dispatch-reminders', 18, async (group) => {
+      const result = await dispatchRemindersUseCase.execute(new Date(), {
+        timezone: group.timezone,
+        todayCivil: group.todayCivil,
+        tenantIds: group.tenantIds,
+      });
+      dispatched += result.dispatched;
+      skipped += result.skipped;
+    });
+    if (groups.length > 0) {
+      logger.info({ jobId: job.id, groups: groups.length, dispatched, skipped }, 'Dispatch reminders completed');
+    }
   }));
 
-  await boss.schedule('notification.dispatch-escalations', '0 18 * * *', {}, SYDNEY_TZ);
+  await boss.schedule('notification.dispatch-escalations', '0 * * * *', {}, SYDNEY_TZ);
   await boss.work('notification.dispatch-escalations', withJobMetrics('notification.dispatch-escalations', async (job) => {
-    logger.info({ jobId: job.id }, 'Processing notification.dispatch-escalations job');
-    const result = await dispatchEscalationsUseCase.execute(new Date());
-    logger.info({ jobId: job.id, pmEscalations: result.pmEscalations, smsAlerts: result.smsAlerts, skipped: result.skipped }, 'Dispatch escalations completed');
+    // 18:00 agency-local.
+    let pmEscalations = 0;
+    let smsAlerts = 0;
+    let skipped = 0;
+    const groups = await tenantCronTick.runDue('notification.dispatch-escalations', 18, async (group) => {
+      const result = await dispatchEscalationsUseCase.execute(new Date(), {
+        timezone: group.timezone,
+        todayCivil: group.todayCivil,
+        tenantIds: group.tenantIds,
+      });
+      pmEscalations += result.pmEscalations;
+      smsAlerts += result.smsAlerts;
+      skipped += result.skipped;
+    });
+    if (groups.length > 0) {
+      logger.info({ jobId: job.id, groups: groups.length, pmEscalations, smsAlerts, skipped }, 'Dispatch escalations completed');
+    }
   }));
 
   await boss.schedule('auth.cleanup-sessions', '0 2 * * *', {}, SYDNEY_TZ);
@@ -224,6 +268,9 @@ export async function registerWorkers(
   await boss.schedule('audit.retention', '30 3 * * *', {}, SYDNEY_TZ);
   await boss.work('audit.retention', withJobMetrics('audit.retention', async (job) => {
     logger.info({ jobId: job.id }, 'Processing audit.retention job');
+    // Piggyback: prune claimed cron_job_runs rows past any conceivable rerun
+    // window (the per-tenant tick dedupe only needs the current local date).
+    await prisma.$executeRaw`DELETE FROM "cron_job_runs" WHERE "created_at" < now() - interval '60 days'`;
     const result = await auditRetentionWorker.execute();
     logger.info(
       {
@@ -239,38 +286,51 @@ export async function registerWorkers(
     );
   }));
 
-  // Reject unconfirmed appointments — daily at 19:00 Sydney
-  await boss.schedule('appointment.reject-unconfirmed', '0 19 * * *', {}, SYDNEY_TZ);
+  // Reject unconfirmed appointments — 19:00 agency-local via the hourly tick.
+  await boss.schedule('appointment.reject-unconfirmed', '0 * * * *', {}, SYDNEY_TZ);
   await boss.work('appointment.reject-unconfirmed', withJobMetrics('appointment.reject-unconfirmed', async (job) => {
-    logger.info({ jobId: job.id }, 'Processing appointment.reject-unconfirmed job');
-    const result = await rejectUnconfirmedWorker.execute();
-    logger.info(
-      {
-        jobId: job.id,
-        rejectedCount: result.rejectedCount,
-        groupsClosedCount: result.groupsClosedCount,
-        groupsUpdatedCount: result.groupsUpdatedCount,
-      },
-      'Unconfirmed appointment rejection completed',
-    );
+    let rejectedCount = 0;
+    let groupsClosedCount = 0;
+    let groupsUpdatedCount = 0;
+    const groups = await tenantCronTick.runDue('appointment.reject-unconfirmed', 19, async (group) => {
+      const result = await rejectUnconfirmedWorker.execute({
+        timezone: group.timezone,
+        todayCivil: group.todayCivil,
+        tenantIds: group.tenantIds,
+      });
+      rejectedCount += result.rejectedCount;
+      groupsClosedCount += result.groupsClosedCount;
+      groupsUpdatedCount += result.groupsUpdatedCount;
+    });
+    if (groups.length > 0) {
+      logger.info(
+        { jobId: job.id, groups: groups.length, rejectedCount, groupsClosedCount, groupsUpdatedCount },
+        'Unconfirmed appointment rejection completed',
+      );
+    }
   }));
 
-  // Auto-cancel appointments stalled past the overdue age — daily just after Sydney
-  // midnight, since the cutoff is a civil date (today minus OVERDUE_AGE_DAYS): a record
-  // becomes eligible the moment the civil date rolls over.
-  await boss.schedule('appointment.cancel-overdue', '10 0 * * *', {}, SYDNEY_TZ);
+  // Auto-cancel appointments stalled past the overdue age — runs when each
+  // agency's local midnight arrives (hour 0 via the hourly tick). The 45-day
+  // age cutoff itself stays platform-anchored; only the run moment and the
+  // tenant scoping are agency-local.
+  await boss.schedule('appointment.cancel-overdue', '10 * * * *', {}, SYDNEY_TZ);
   await boss.work('appointment.cancel-overdue', withJobMetrics('appointment.cancel-overdue', async (job) => {
-    logger.info({ jobId: job.id }, 'Processing appointment.cancel-overdue job');
-    const result = await cancelOverdueWorker.execute();
-    logger.info(
-      {
-        jobId: job.id,
-        cancelledCount: result.cancelledCount,
-        failedCount: result.failedCount,
-        batchCapped: result.batchCapped,
-      },
-      'Overdue appointment cancellation completed',
-    );
+    let cancelledCount = 0;
+    let failedCount = 0;
+    let batchCapped = false;
+    const groups = await tenantCronTick.runDue('appointment.cancel-overdue', 0, async (group) => {
+      const result = await cancelOverdueWorker.execute({ tenantIds: group.tenantIds });
+      cancelledCount += result.cancelledCount;
+      failedCount += result.failedCount;
+      batchCapped = batchCapped || result.batchCapped;
+    });
+    if (groups.length > 0) {
+      logger.info(
+        { jobId: job.id, groups: groups.length, cancelledCount, failedCount, batchCapped },
+        'Overdue appointment cancellation completed',
+      );
+    }
   }));
 
   // Backstop sweep for released groups left with nothing to execute. Runs after the

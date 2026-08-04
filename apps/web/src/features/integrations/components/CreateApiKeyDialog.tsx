@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { PLATFORM_TIMEZONE, endOfCivilDayInTz } from '@properfy/shared';
+import { endOfCivilDayInTz } from '@properfy/shared';
 import type { ApiKeyCreated, ApiKeyScope } from '@properfy/shared';
 
 import { Button } from '@/components/ui';
@@ -9,6 +9,7 @@ import { DateInput } from '@/components/forms/DateInput';
 import { SecretValue } from '@/components/ui/SecretValue';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useCreateApiKey } from '../hooks/useApiKeys';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 
 import { FY_KEY_ROLE, FY_SCOPE } from './fyKey';
 
@@ -23,6 +24,7 @@ interface CreateApiKeyDialogProps {
  * restricted to the Fy agent surface, there is no general machine principal.
  */
 export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
+  const effectiveTimezone = useEffectiveTimezone();
   const { showError } = useSnackbar();
   const createKey = useCreateApiKey();
 
@@ -49,8 +51,8 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
         name: name.trim(),
         role: FY_KEY_ROLE,
         scopes,
-        // Sydney end-of-day, regardless of where the operator is located.
-        expiresAt: expiresAt ? endOfCivilDayInTz(expiresAt, PLATFORM_TIMEZONE).toISOString() : null,
+        // End-of-day in the user's effective timezone, wherever they are located.
+        expiresAt: expiresAt ? endOfCivilDayInTz(expiresAt, effectiveTimezone).toISOString() : null,
       });
       reset();
       onClose();

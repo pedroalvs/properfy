@@ -62,6 +62,8 @@ export function MapGroupCreateModal({
     { status: 'ACTIVE' },
   );
 
+  // Service groups are cross-tenant constructs: the backend validates their
+  // schedule in the PLATFORM timezone, so the client guard matches it exactly.
   const today = todayInTzDateString(PLATFORM_TIMEZONE);
   const minStartTime = useMemo(() => scheduledDate === today ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined, [scheduledDate, today]);
 

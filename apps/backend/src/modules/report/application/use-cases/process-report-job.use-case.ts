@@ -29,6 +29,16 @@ export class ProcessReportJobUseCase {
     private readonly dataReader: IReportDataReader,
     private readonly notificationSender?: ReportNotificationSender,
     private readonly userReader?: ReportUserReader,
+    /**
+     * Resolves the report's day-boundary timezone at generation time: agency
+     * timezone for agency-scoped runs, the requester's personal timezone for
+     * platform runs. Absent → platform timezone.
+     */
+    private readonly timezoneResolver?: (report: {
+      agencyScoped: boolean;
+      tenantId: string | null;
+      requestedByUserId: string;
+    }) => Promise<string>,
   ) {}
 
   async execute(reportId: string): Promise<void> {
@@ -55,6 +65,15 @@ export class ProcessReportJobUseCase {
         ...(report.filtersJson as unknown as ReportDataFilters),
         ...(report.agencyScoped ? { tenantId: report.tenantId! } : {}),
         agencyScoped: report.agencyScoped,
+        ...(this.timezoneResolver
+          ? {
+              timezone: await this.timezoneResolver({
+                agencyScoped: report.agencyScoped,
+                tenantId: report.tenantId,
+                requestedByUserId: report.requestedByUserId,
+              }),
+            }
+          : {}),
       };
 
       // 4. Dispatch to the reader for the report type

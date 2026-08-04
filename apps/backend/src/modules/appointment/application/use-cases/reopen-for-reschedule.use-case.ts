@@ -8,6 +8,7 @@ import type { ConfirmationCycleService } from '../services/confirmation-cycle.se
 import { DomainError } from '../../../../shared/domain/errors';
 import { AppointmentNotFoundError, AppointmentDateInPastError, AppointmentTimeInPastError } from '../../domain/appointment.errors';
 import { validateEditedSchedule, PLATFORM_TIMEZONE } from '@properfy/shared';
+import type { ITenantTimezoneLookup } from '../../../../shared/application/tenant-timezone';
 
 export class AppointmentNotScheduledError extends DomainError {
   constructor(currentStatus: string) {
@@ -60,6 +61,8 @@ export class ReopenForRescheduleUseCase {
     /** 028 — optional. When wired, supersedes the current confirmation cycle on reopen. */
     private readonly cycleService?: ConfirmationCycleService,
     private readonly prisma?: PrismaClient,
+    /** Cached tenants.timezone lookup; absent → platform-timezone validation. */
+    private readonly tenantTimezoneLookup?: ITenantTimezoneLookup,
   ) {}
 
   async execute(input: ReopenForRescheduleInput): Promise<ReopenForRescheduleOutput> {
@@ -94,8 +97,11 @@ export class ReopenForRescheduleUseCase {
       throw new AppointmentNotScheduledError(appointment.status);
     }
 
-    // 3b. TZ-aware past-date/time validation for the new schedule (R7: falls back to UTC).
-    const tz = PLATFORM_TIMEZONE;
+    // 3b. TZ-aware past-date/time validation for the new schedule, anchored to
+    // the appointment's AGENCY timezone (not the actor's).
+    const tz =
+      (await this.tenantTimezoneLookup?.getTenantTimezone(appointment.tenantId)) ??
+      PLATFORM_TIMEZONE;
     const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
     const scheduleCheck = validateEditedSchedule({
       existingDate: existingDateStr,

@@ -20,6 +20,13 @@ vi.mock('@/services/api', () => ({
 import { api } from '@/services/api';
 import { MarkInvoicePaidModal } from '../MarkInvoicePaidModal';
 
+// The component resolves "today"/instants in the user's effective timezone;
+// pin it to the platform default so these tests stay deterministic.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
+
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
 
 const INVOICE_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';

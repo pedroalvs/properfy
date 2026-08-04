@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/hooks/useAuth';
@@ -109,6 +109,17 @@ describe('TenantDetailPage', () => {
       expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument();
     });
     expect(screen.getByRole('tab', { name: 'Branches' })).toBeInTheDocument();
+  });
+
+  it('renders the Email Logo tab and shows the section when selected', async () => {
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Email Logo' })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Email Logo' }));
+    await waitFor(() => {
+      expect(screen.getByText('No logo uploaded yet.')).toBeInTheDocument();
+    });
   });
 
   it('renders tenant detail rows in overview tab', async () => {

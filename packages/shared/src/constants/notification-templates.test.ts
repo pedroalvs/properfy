@@ -196,6 +196,37 @@ describe('TENANT_NOTICE_FORWARDED_AGENCY template', () => {
   });
 });
 
+describe('agencyLogoUrl variable', () => {
+  it('is an allowed variable with sample data', () => {
+    expect(ALLOWED_VARIABLES).toContain('agencyLogoUrl');
+    expect(SAMPLE_DATA.agencyLogoUrl.trim().length).toBeGreaterThan(0);
+    expect(SAMPLE_DATA.agencyLogoUrl).toMatch(/^https:\/\//);
+  });
+
+  it('is offered exactly where properfyLogoUrl is', () => {
+    // Both logos are injected by the same payload builders, so a code that can
+    // render one can render the other. A code listing only one of them would
+    // either strip the missing logo from the outgoing payload (renders empty)
+    // or offer a variable its payload never carries.
+    let comparedCodes = 0;
+    for (const [code, spec] of Object.entries(TEMPLATE_VARIABLES)) {
+      const declared = [...spec.required, ...spec.optional];
+      expect({ code, has: declared.includes('agencyLogoUrl') }).toEqual({
+        code,
+        has: declared.includes('properfyLogoUrl'),
+      });
+      if (declared.includes('properfyLogoUrl')) comparedCodes += 1;
+    }
+    expect(comparedCodes).toBeGreaterThanOrEqual(13);
+  });
+
+  it('stays optional everywhere — a tenant without a logo must not lose the send', () => {
+    for (const spec of Object.values(TEMPLATE_VARIABLES)) {
+      expect(spec.required).not.toContain('agencyLogoUrl');
+    }
+  });
+});
+
 describe('PASSWORD_RESET template', () => {
   it('is platform-only, not tenant-customizable', () => {
     expect(PLATFORM_ONLY_TEMPLATE_CODES).toContain('PASSWORD_RESET');

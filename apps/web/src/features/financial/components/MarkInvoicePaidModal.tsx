@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { PLATFORM_TIMEZONE, zonedWallTimeToUtc } from '@properfy/shared';
+import { zonedWallTimeToUtc } from '@properfy/shared';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
@@ -38,18 +39,17 @@ interface BatchResponseData {
 }
 
 /**
- * Produce a `YYYY-MM-DDTHH:mm` string of the CURRENT SYDNEY WALL TIME for
- * the masked DateTimeInput. The platform is Sydney-only: the value the
- * operator sees and edits is Sydney wall time, and on submit it is converted
- * back to UTC via `zonedWallTimeToUtc` — so the round-trip is offset-safe
- * regardless of the operator's location. (Supersedes Bug B-7, which was about
- * the earlier UTC-vs-local mismatch.)
+ * Produce a `YYYY-MM-DDTHH:mm` string of the current wall time in `timeZone`
+ * (the user's effective timezone) for the masked DateTimeInput. On submit it
+ * is converted back to UTC via `zonedWallTimeToUtc` in the same timezone — so
+ * the round-trip is offset-safe regardless of the operator's location.
+ * (Supersedes Bug B-7, which was about the earlier UTC-vs-local mismatch.)
  */
-function defaultPaidAt(): string {
+function defaultPaidAt(timeZone: string): string {
   // en-CA formats as YYYY-MM-DD; combined with hour12:false this yields the
   // canonical `YYYY-MM-DDTHH:mm` shape the field round-trips.
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: PLATFORM_TIMEZONE,
+    timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -79,8 +79,9 @@ export function MarkInvoicePaidModal({
   invoiceIds,
   onSuccess,
 }: MarkInvoicePaidModalProps) {
+  const effectiveTimezone = useEffectiveTimezone();
   const [form, setForm] = useState<FormState>({
-    paidAt: defaultPaidAt(),
+    paidAt: defaultPaidAt(effectiveTimezone),
     paymentReference: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -93,10 +94,10 @@ export function MarkInvoicePaidModal({
 
   useEffect(() => {
     if (open) {
-      setForm({ paidAt: defaultPaidAt(), paymentReference: '' });
+      setForm({ paidAt: defaultPaidAt(effectiveTimezone), paymentReference: '' });
       setErrors({});
     }
-  }, [open]);
+  }, [open, effectiveTimezone]);
 
   const updateField = useCallback(<K extends keyof FormState>(field: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -128,9 +129,9 @@ export function MarkInvoicePaidModal({
 
     setIsSubmitting(true);
     try {
-      // The datetime-local value is Sydney wall time — convert to UTC explicitly.
+      // The datetime-local value is effective-timezone wall time — convert to UTC explicitly.
       const [paidDate, paidTime] = form.paidAt.split('T') as [string, string];
-      const paidAtIso = zonedWallTimeToUtc(paidDate, paidTime, PLATFORM_TIMEZONE).toISOString();
+      const paidAtIso = zonedWallTimeToUtc(paidDate, paidTime, effectiveTimezone).toISOString();
       const reference = form.paymentReference.trim();
       const body: { paidAt: string; paymentReference?: string } = { paidAt: paidAtIso };
       if (reference) body.paymentReference = reference;
@@ -183,6 +184,7 @@ export function MarkInvoicePaidModal({
     }
   }, [
     form,
+    effectiveTimezone,
     invoiceIds,
     isBatch,
     onClose,

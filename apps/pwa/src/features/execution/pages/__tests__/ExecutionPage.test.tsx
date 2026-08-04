@@ -9,6 +9,11 @@ vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
 }));
 
+// Rendered without an AuthProvider; pin the effective timezone to Sydney.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom') as Record<string, unknown>;
   return {

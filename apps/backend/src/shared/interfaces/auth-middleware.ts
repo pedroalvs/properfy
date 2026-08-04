@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import type { AuthContext } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, type AuthContext } from '@properfy/shared';
 import { UnauthorizedError } from '../domain/errors';
 
 // This module sets up the auth middleware. The actual JWT verification
@@ -9,11 +9,23 @@ import { UnauthorizedError } from '../domain/errors';
 export type JwtVerifier = (token: string) => Promise<AuthContext>;
 export type TenantActiveChecker = (tenantId: string) => Promise<boolean>;
 export type ClUserPermissionsResolver = (tenantId: string) => Promise<string[]>;
+export type EffectiveTimezoneResolver = (ctx: AuthContext) => Promise<string>;
+
+// Composition-root default: route modules construct their own middleware
+// instances (23 sites), so the resolver is registered once at boot instead of
+// being threaded through every route container. An explicit `resolveTimezone`
+// argument always wins (tests, special cases).
+let defaultTimezoneResolver: EffectiveTimezoneResolver | null = null;
+
+export function setDefaultTimezoneResolver(resolver: EffectiveTimezoneResolver | null): void {
+  defaultTimezoneResolver = resolver;
+}
 
 export function createAuthMiddleware(
   verifyJwt: JwtVerifier,
   checkTenantActive?: TenantActiveChecker,
   resolveClUserPermissions?: ClUserPermissionsResolver,
+  resolveTimezone?: EffectiveTimezoneResolver,
 ) {
   return async function authenticate(
     request: FastifyRequest,
@@ -47,6 +59,17 @@ export function createAuthMiddleware(
 
       if (ctx.role === 'CL_USER' && resolveClUserPermissions) {
         ctx.clUserPermissions = await resolveClUserPermissions(ctx.tenantId);
+      }
+    }
+
+    const timezoneResolver = resolveTimezone ?? defaultTimezoneResolver;
+    if (timezoneResolver) {
+      try {
+        ctx.timezone = await timezoneResolver(ctx);
+      } catch {
+        // Timezone is not a security boundary — degrade to the platform
+        // default rather than failing the request on a lookup error.
+        ctx.timezone = PLATFORM_TIMEZONE;
       }
     }
 

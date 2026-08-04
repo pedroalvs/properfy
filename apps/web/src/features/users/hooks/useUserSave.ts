@@ -86,6 +86,9 @@ export function useUserSave(
           phone: data.phone || undefined,
           role: data.role || undefined,
           branchId: scope === 'internal' ? undefined : (data.branchId || undefined),
+          // Personal timezone is internal-scope only (CL_* inherit the agency's;
+          // the backend rejects it for those targets). Cleared -> explicit null.
+          ...(scope === 'internal' ? { timezone: data.timezone || null } : {}),
         };
         const path = scope === 'internal' ? `/v1/users/${userId}` : `/v1/tenants/${tenantId}/users/${userId}`;
         const { error } = await api.PATCH(path as any, { body: payload as any });
@@ -98,6 +101,8 @@ export function useUserSave(
           phone: data.phone || undefined,
           role: data.role || undefined,
           branchId: scope === 'internal' ? undefined : (data.branchId || undefined),
+          // On create an unset timezone is simply omitted (platform default).
+          ...(scope === 'internal' && data.timezone ? { timezone: data.timezone } : {}),
         };
         const path = scope === 'internal' ? '/v1/users' : `/v1/tenants/${tenantId}/users`;
         const { error } = await api.POST(path as any, { body: payload as any });

@@ -73,6 +73,13 @@ vi.mock('../hooks/useContactSearch', () => ({
 
 import { BulkEditModal } from './BulkEditModal';
 
+// The component resolves "today"/instants in the user's effective timezone;
+// pin it to the platform default so these tests stay deterministic.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
+
 function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
   return {
     id: 'apt-1',

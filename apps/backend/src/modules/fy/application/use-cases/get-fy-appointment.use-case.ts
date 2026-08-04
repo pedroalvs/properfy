@@ -52,7 +52,7 @@ export class GetFyAppointmentUseCase {
       agency: {
         id: appointment.tenantId,
         name: agency?.name ?? result.tenantName ?? '',
-        timezone: PLATFORM_TIMEZONE,
+        timezone: agency?.timezone ?? PLATFORM_TIMEZONE,
       },
       contact: contact
         ? {

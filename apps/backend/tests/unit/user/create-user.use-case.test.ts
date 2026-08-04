@@ -502,4 +502,56 @@ describe('CreateUserUseCase', () => {
       (result as Record<string, unknown>)['totpSecret'],
     ).toBeUndefined();
   });
+
+  describe('timezone', () => {
+    it('persists the personal timezone for an internal (OP) user', async () => {
+      vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
+
+      await useCase.execute({
+        tenantId: null,
+        name: 'New OP',
+        email: 'op@example.com',
+        password: 'StrongPass1!',
+        role: 'OP',
+        timezone: 'Australia/Perth',
+        actor: amActor,
+      });
+
+      const saved = vi.mocked(userManagementRepo.save).mock.calls[0]![0];
+      expect(saved.timezone).toBe('Australia/Perth');
+    });
+
+    it('rejects a timezone for a CL_* role', async () => {
+      vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
+
+      await expect(
+        useCase.execute({
+          tenantId: 'tenant-1',
+          name: 'New CL',
+          email: 'cl@example.com',
+          password: 'StrongPass1!',
+          role: 'CL_USER',
+          timezone: 'Australia/Perth',
+          actor: amActor,
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(userManagementRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects an invalid IANA identifier', async () => {
+      vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
+
+      await expect(
+        useCase.execute({
+          tenantId: null,
+          name: 'New OP',
+          email: 'op2@example.com',
+          password: 'StrongPass1!',
+          role: 'OP',
+          timezone: 'Sydney',
+          actor: amActor,
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+    });
+  });
 });
