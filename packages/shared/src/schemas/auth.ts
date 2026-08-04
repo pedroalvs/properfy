@@ -40,9 +40,10 @@ export type RefreshInput = z.infer<typeof refreshSchema>;
 
 // Self-service profile update (PATCH /v1/me). Timezone only for now; scoped to
 // cross-tenant roles (AM/OP/INSP) — CL_* users inherit the agency timezone and
-// the use case rejects this call for them.
+// the use case rejects this call for them. `null` clears the personal timezone
+// back to the platform default.
 export const updateMeSchema = z.object({
-  timezone: ianaTimezoneSchema,
+  timezone: ianaTimezoneSchema.nullable(),
 });
 export type UpdateMeInput = z.infer<typeof updateMeSchema>;
 

@@ -80,6 +80,20 @@ describe('UpdateMyTimezoneUseCase', () => {
     },
   );
 
+  it('clears the personal timezone with null', async () => {
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser({ role: 'OP', timezone: 'Pacific/Auckland' }));
+
+    await useCase.execute({ userId: 'user-1', timezone: null });
+
+    expect(userRepo.updateTimezone).toHaveBeenCalledWith('user-1', null);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        before: expect.objectContaining({ timezone: 'Pacific/Auckland' }),
+        after: expect.objectContaining({ timezone: null }),
+      }),
+    );
+  });
+
   it('rejects an invalid IANA identifier', async () => {
     vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
 

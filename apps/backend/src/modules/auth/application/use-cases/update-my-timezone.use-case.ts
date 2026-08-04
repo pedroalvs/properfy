@@ -9,7 +9,8 @@ import type { IUserRepository } from '../../domain/user.repository';
 
 export interface UpdateMyTimezoneInput {
   userId: string;
-  timezone: string;
+  /** null clears the personal timezone back to the platform default. */
+  timezone: string | null;
 }
 
 /**
@@ -39,15 +40,19 @@ export class UpdateMyTimezoneUseCase {
     }
 
     // Validate here as well as in the route schema so non-route callers cannot
-    // store an invalid IANA identifier.
-    const parsed = ianaTimezoneSchema.safeParse(input.timezone);
-    if (!parsed.success) {
-      throw new ValidationError('Invalid timezone', [
-        { field: 'timezone', message: 'Must be a valid IANA timezone identifier' },
-      ]);
+    // store an invalid IANA identifier. null clears back to the platform default.
+    let timezone: string | null = null;
+    if (input.timezone !== null) {
+      const parsed = ianaTimezoneSchema.safeParse(input.timezone);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid timezone', [
+          { field: 'timezone', message: 'Must be a valid IANA timezone identifier' },
+        ]);
+      }
+      timezone = parsed.data;
     }
 
-    await this.userRepo.updateTimezone(userId, parsed.data);
+    await this.userRepo.updateTimezone(userId, timezone);
 
     this.auditService.log({
       action: 'user.timezone_updated',
@@ -56,7 +61,7 @@ export class UpdateMyTimezoneUseCase {
       entityType: 'User',
       entityId: userId,
       before: { timezone: user.timezone },
-      after: { timezone: parsed.data },
+      after: { timezone },
     });
   }
 }

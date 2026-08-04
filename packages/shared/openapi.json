@@ -328,7 +328,8 @@
                   "timezone": {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 60
+                    "maxLength": 60,
+                    "nullable": true
                   }
                 },
                 "required": [
@@ -2841,6 +2842,11 @@
                   "phone": {
                     "type": "string",
                     "maxLength": 30
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
                   }
                 },
                 "required": [
@@ -3255,6 +3261,11 @@
                   "phone": {
                     "type": "string",
                     "maxLength": 30
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
                   }
                 },
                 "required": [

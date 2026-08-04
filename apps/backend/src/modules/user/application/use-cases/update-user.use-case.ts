@@ -138,10 +138,15 @@ export class UpdateUserUseCase {
     }
 
     // Timezone: only cross-tenant users carry a personal timezone; agency
-    // (CL_*) users strictly inherit the agency timezone.
+    // (CL_*) users strictly inherit the agency timezone. Setting a value on a
+    // CL_* target is rejected, but CLEARING (null) is allowed so a demotion to
+    // CL_* can drop a stale personal timezone in the same request.
     if (data.timezone !== undefined) {
       const effectiveRole = targetRole ?? user.role;
-      if (effectiveRole === 'CL_ADMIN' || effectiveRole === 'CL_USER') {
+      if (
+        data.timezone !== null &&
+        (effectiveRole === 'CL_ADMIN' || effectiveRole === 'CL_USER')
+      ) {
         throw new ValidationError('Agency users inherit the agency timezone', [
           { field: 'timezone', message: 'Agency users inherit the agency timezone' },
         ]);
@@ -161,7 +166,13 @@ export class UpdateUserUseCase {
       if (data.phone !== undefined) updateData.phone = data.phone;
       if (data.branchId !== undefined) updateData.branchId = data.branchId;
       if (data.role !== undefined) updateData.role = data.role;
-      if (data.timezone !== undefined) updateData.timezone = data.timezone;
+      if (data.timezone !== undefined) {
+        updateData.timezone = data.timezone;
+      } else if (data.role === 'CL_ADMIN' || data.role === 'CL_USER') {
+        // Demotion to an agency role auto-clears any stale personal timezone,
+        // preserving the "CL_* users carry no personal timezone" invariant.
+        updateData.timezone = null;
+      }
     } else {
       // CL_ADMIN can only update name, phone, branchId (role stripped)
       if (data.name !== undefined) updateData.name = data.name;

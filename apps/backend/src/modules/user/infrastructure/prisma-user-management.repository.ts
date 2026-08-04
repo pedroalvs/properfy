@@ -123,6 +123,7 @@ export class PrismaUserManagementRepository
         name: user.name,
         email: user.email,
         phone: user.phone,
+        timezone: user.timezone,
         status: user.status as PrismaUserStatus,
         password_hash: user.passwordHash,
         totp_secret: user.totpSecret,

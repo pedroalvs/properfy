@@ -18,6 +18,9 @@ export const createUserSchema = z.object({
   role: z.enum(['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP']),
   branchId: z.string().uuid().optional(),
   phone: auPhoneSchema.optional(),
+  // Personal timezone at creation. Cross-tenant roles only — the use case
+  // rejects it for CL_* roles, which strictly inherit the agency timezone.
+  timezone: ianaTimezoneSchema.optional(),
 });
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 

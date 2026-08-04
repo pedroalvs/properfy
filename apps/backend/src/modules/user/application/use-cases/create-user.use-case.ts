@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import type { AuthContext } from '@properfy/shared';
+import { ianaTimezoneSchema } from '@properfy/shared';
 import type { IUserManagementRepository } from '../../domain/user-management.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
@@ -29,6 +30,8 @@ export interface CreateUserInput {
   role: string;
   branchId?: string | null;
   phone?: string | null;
+  /** Personal timezone. Cross-tenant roles only — rejected for CL_* roles. */
+  timezone?: string;
   actor: AuthContext;
 }
 
@@ -77,6 +80,23 @@ export class CreateUserUseCase {
         'AUTH_FORBIDDEN',
         'Inspector accounts are managed through the Inspector module',
       );
+    }
+
+    // Timezone: only cross-tenant users carry a personal timezone; agency
+    // (CL_*) users strictly inherit the agency timezone. Cheap input check up
+    // front, duplicated from the route schema so non-route callers cannot
+    // bypass it.
+    if (input.timezone !== undefined) {
+      if (role === 'CL_ADMIN' || role === 'CL_USER') {
+        throw new ValidationError('Agency users inherit the agency timezone', [
+          { field: 'timezone', message: 'Agency users inherit the agency timezone' },
+        ]);
+      }
+      if (!ianaTimezoneSchema.safeParse(input.timezone).success) {
+        throw new ValidationError('Invalid timezone', [
+          { field: 'timezone', message: 'Must be a valid IANA timezone identifier' },
+        ]);
+      }
     }
 
     if (isInternalRole) {
@@ -136,6 +156,7 @@ export class CreateUserUseCase {
 
     // Create user entity
     const now = new Date();
+
     const user = new UserEntity({
       id: crypto.randomUUID(),
       tenantId: tenantId ?? null,
@@ -144,6 +165,7 @@ export class CreateUserUseCase {
       name,
       email,
       phone: phone ?? null,
+      timezone: input.timezone ?? null,
       status: 'ACTIVE',
       passwordHash,
       totpSecret: null,

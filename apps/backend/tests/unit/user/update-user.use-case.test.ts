@@ -163,6 +163,8 @@ describe('UpdateUserUseCase', () => {
     expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-1', {
       name: 'Updated Name',
       role: 'CL_ADMIN',
+      // Role change into the CL_* family auto-clears any personal timezone.
+      timezone: null,
     });
   });
 
@@ -374,6 +376,48 @@ describe('UpdateUserUseCase', () => {
         'user-1',
         null,
         expect.objectContaining({ timezone: null }),
+      );
+    });
+
+    it('allows clearing (null) a stale timezone on a CL_* target', async () => {
+      const clUser = makeUser({ role: 'CL_USER', timezone: 'Pacific/Auckland' });
+      vi.mocked(userManagementRepo.findByIdAndTenantId)
+        .mockResolvedValueOnce(clUser)
+        .mockResolvedValueOnce(clUser);
+
+      await useCase.execute({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        data: { timezone: null },
+        actor: amActor,
+      });
+
+      expect(userManagementRepo.update).toHaveBeenCalledWith(
+        'user-1',
+        'tenant-1',
+        expect.objectContaining({ timezone: null }),
+      );
+    });
+
+    it('auto-clears a stale personal timezone when the role changes to a CL_* role', async () => {
+      // A CL_* row should never carry users.timezone; if one does (legacy data),
+      // any role change into the CL_* family scrubs it.
+      const clAdmin = makeUser({ role: 'CL_ADMIN', timezone: 'Pacific/Auckland' });
+      vi.mocked(userManagementRepo.findByIdAndTenantId)
+        .mockResolvedValueOnce(clAdmin)
+        .mockResolvedValueOnce(clAdmin);
+
+      await useCase.execute({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        data: { role: 'CL_USER' },
+        actor: amActor,
+      });
+
+      expect(userManagementRepo.update).toHaveBeenCalledWith(
+        'user-1',
+        'tenant-1',
+        expect.objectContaining({ role: 'CL_USER', timezone: null }),
       );
     });
 
