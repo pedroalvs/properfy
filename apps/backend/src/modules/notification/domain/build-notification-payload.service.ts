@@ -130,6 +130,9 @@ export class BuildNotificationPayloadService {
       rescheduleLink,
       branchName: ctx.branchName ?? '',
       properfyLogoUrl: PROPERFY_LOGO_URL,
+      // Written only by the dedicated tenant logo upload endpoint; '' for a
+      // tenant without a logo, so templates guard with {{#if agencyLogoUrl}}.
+      agencyLogoUrl: typeof settings.logoUrl === 'string' ? settings.logoUrl : '',
       serviceTypeName: ctx.serviceTypeName ?? '',
       // `appointment.reason` is the free-text reason of the last sensitive
       // transition. Both variables below read it, but each is declared by exactly
