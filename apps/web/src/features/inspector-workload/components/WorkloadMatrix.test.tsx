@@ -104,6 +104,34 @@ describe('WorkloadMatrix', () => {
     expect(screen.getByText('Inactive')).toBeInTheDocument();
   });
 
+  /**
+   * Busy and overloaded days use the status palette (warning / error tints) so a heavy
+   * day reads as a state at a glance; days under the busy threshold keep the neutral
+   * sequential wash. Rule unchanged — only the colours moved to the status palette.
+   */
+  it('tints busy days with the warning colour and overloaded days with the error colour', () => {
+    renderMatrix([
+      {
+        inspectorId: ALICE,
+        inspectorName: 'Alice',
+        isActive: true,
+        days: [3, 4, 1, 0, 0, 0, 0],
+        total: 8,
+        level: 'normal' as const,
+      },
+    ]);
+
+    expect(screen.getByTitle('Alice — Mon 27 Jul: 3 inspections (Busy)')).toHaveStyle({
+      backgroundColor: 'rgba(251, 140, 0, 0.2)',
+    });
+    expect(screen.getByTitle('Alice — Tue 28 Jul: 4 inspections (Overloaded)')).toHaveStyle({
+      backgroundColor: 'rgba(255, 82, 82, 0.25)',
+    });
+    expect(screen.getByTitle('Alice — Wed 29 Jul: 1 inspections (Normal)')).toHaveStyle({
+      backgroundColor: 'rgba(33, 86, 110, 0.12)',
+    });
+  });
+
   it('shows a legend describing the daily bands', () => {
     renderMatrix();
 

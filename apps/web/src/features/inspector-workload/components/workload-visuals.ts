@@ -21,22 +21,35 @@ export function dayLevel(count: number, thresholds: Thresholds): WorkloadLevel {
   return 'normal';
 }
 
+/** Design tokens `--color-warning` / `--color-error` (apps/web/CLAUDE.md §4), as hex
+ *  because `withAlpha` needs channel values the CSS variables can't provide. */
+const WARNING_HEX = '#FB8C00';
+const ERROR_HEX = '#FF5252';
+
 /**
- * Matrix cells encode **magnitude**, so they use one hue at stepped alpha —
- * never the status palette, which is reserved for state. The printed count is
- * what actually carries the value; the wash only makes the shape of a heavy week
- * visible at a glance.
+ * Busy and overloaded days carry the status palette (warning / error tints) so a
+ * heavy day reads as a state at a glance; below the busy threshold the cell keeps
+ * the neutral sequential wash for magnitude. The printed count still carries the
+ * value — colour is never the only signal (level word lives in the cell title).
  *
- * Steps are keyed to the daily thresholds so the ramp and the legend describe
- * the same bands.
+ * Bands are keyed to the daily thresholds so the cells and the legend describe
+ * the same rule.
  */
 export function cellStyle(count: number, thresholds: Thresholds): { backgroundColor: string } {
   if (count === 0) return { backgroundColor: 'transparent' };
 
   const level = dayLevel(count, thresholds);
-  const alpha = level === 'overloaded' ? 0.55 : level === 'busy' ? 0.3 : 0.12;
-  return { backgroundColor: withAlpha(SEQUENTIAL_HUE, alpha) };
+  if (level === 'overloaded') return { backgroundColor: withAlpha(ERROR_HEX, 0.25) };
+  if (level === 'busy') return { backgroundColor: withAlpha(WARNING_HEX, 0.2) };
+  return { backgroundColor: withAlpha(SEQUENTIAL_HUE, 0.12) };
 }
+
+/** Legend swatches must show exactly what the cells show. */
+export const DAY_LEVEL_SWATCH: Record<WorkloadLevel, string> = {
+  normal: withAlpha(SEQUENTIAL_HUE, 0.12),
+  busy: withAlpha(WARNING_HEX, 0.2),
+  overloaded: withAlpha(ERROR_HEX, 0.25),
+};
 
 /** `#21566E` + alpha → `rgba(...)`. Avoids the Tailwind `/opacity` scale, which
  *  does not cover the steps this ramp needs (see tailwind token memo). */
