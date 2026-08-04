@@ -160,6 +160,17 @@ export const activateSchema = z.object({
 });
 export type ActivateInput = z.infer<typeof activateSchema>;
 
+// Tenant email logo (upload response; the upload request itself is multipart)
+export const tenantLogoResponseSchema = z.object({
+  logoUrl: z.string().url(),
+});
+export type TenantLogoResponse = z.infer<typeof tenantLogoResponseSchema>;
+
+export const tenantLogoDeleteResponseSchema = z.object({
+  deleted: z.literal(true),
+});
+export type TenantLogoDeleteResponse = z.infer<typeof tenantLogoDeleteResponseSchema>;
+
 // Create branch
 export const createBranchSchema = z.object({
   name: z.string().min(1).max(200).trim(),
