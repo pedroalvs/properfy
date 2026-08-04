@@ -187,6 +187,10 @@ import type { RentalTenantPortalRouteContainer } from '../modules/rental-tenant-
 import { PrismaInspectionExecutionRepository } from '../modules/inspector-execution/infrastructure/prisma-inspection-execution.repository';
 import { PrismaIdempotencyService } from '../modules/inspector-execution/infrastructure/prisma-idempotency.service';
 import { StubStorageService } from '../modules/inspector-execution/infrastructure/stub-storage.service';
+import { SupabaseBrandingStorageService } from '../modules/tenant/infrastructure/supabase-branding-storage.service';
+import { StubBrandingStorageService } from '../modules/tenant/infrastructure/stub-branding-storage.service';
+import { UploadTenantLogoUseCase } from '../modules/tenant/application/use-cases/upload-tenant-logo.use-case';
+import { DeleteTenantLogoUseCase } from '../modules/tenant/application/use-cases/delete-tenant-logo.use-case';
 import { SupabaseStorageService } from '../modules/inspector-execution/infrastructure/supabase-storage.service';
 import { PrismaServiceTypeReader } from '../modules/inspector-execution/infrastructure/prisma-service-type-reader';
 import { PrismaContactReader } from '../modules/inspector-execution/infrastructure/prisma-contact-reader';
@@ -544,10 +548,29 @@ export function createContainer(logger: Logger): AppContainer {
   // Domain event bus (single instance shared across modules)
   const domainEventBus = new DomainEventBus();
 
+  // Tenant branding storage: public bucket, so uploads need the public URL base.
+  // The stub is only legitimate where S3 itself is stubbed (local dev, tests);
+  // S3 configured but no public URL base would 200 the upload and persist a
+  // fabricated stub URL into real outbound emails — warn loudly instead of
+  // failing silently.
+  if (s3Client && !env.SUPABASE_STORAGE_PUBLIC_URL) {
+    logger.warn(
+      'SUPABASE_STORAGE_PUBLIC_URL is not set: tenant logo uploads will use the stub ' +
+        'branding storage and persist non-working logo URLs. Set it to ' +
+        'https://<project>.supabase.co/storage/v1/object/public to enable real uploads.',
+    );
+  }
+  const brandingStorageService =
+    s3Client && env.SUPABASE_STORAGE_PUBLIC_URL
+      ? new SupabaseBrandingStorageService(s3Client, env.SUPABASE_STORAGE_PUBLIC_URL)
+      : new StubBrandingStorageService();
+
   // Tenant use cases
   const getTenantUseCase = new GetTenantUseCase(tenantRepo);
   const listTenantsUseCase = new ListTenantsUseCase(tenantRepo, branchRepo, authorizationService);
   const updateTenantUseCase = new UpdateTenantUseCase(tenantRepo, auditService, domainEventBus);
+  const uploadTenantLogoUseCase = new UploadTenantLogoUseCase(tenantRepo, brandingStorageService, auditService, logger);
+  const deleteTenantLogoUseCase = new DeleteTenantLogoUseCase(tenantRepo, brandingStorageService, auditService, logger);
   const activateTenantUseCase = new ActivateTenantUseCase(tenantRepo, auditService, authorizationService, domainEventBus);
   const deactivateTenantUseCase = new DeactivateTenantUseCase(tenantRepo, appointmentChecker, auditService, authorizationService, domainEventBus);
   const createBranchUseCase = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus);
@@ -1371,6 +1394,8 @@ export function createContainer(logger: Logger): AppContainer {
       getTenantUseCase,
       listTenantsUseCase,
       updateTenantUseCase,
+      uploadTenantLogoUseCase,
+      deleteTenantLogoUseCase,
       activateTenantUseCase,
       deactivateTenantUseCase,
       createBranchUseCase,

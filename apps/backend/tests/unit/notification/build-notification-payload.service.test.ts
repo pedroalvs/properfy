@@ -249,6 +249,27 @@ describe('BuildNotificationPayloadService', () => {
     expect(result.properfyLogoUrl).toMatch(/^https:\/\//);
   });
 
+  it('exposes agencyLogoUrl from the tenant settings when a logo was uploaded', () => {
+    const tenant = makeTenant({
+      settingsJson: { logoUrl: 'https://cdn.example.com/tenant-branding/tenants/t1/branding/logo.png' },
+    });
+    const result = svc.build(baseCtx({ tenant }));
+    expect(result.agencyLogoUrl).toBe(
+      'https://cdn.example.com/tenant-branding/tenants/t1/branding/logo.png',
+    );
+  });
+
+  it('agencyLogoUrl is empty string for a tenant without a logo', () => {
+    const result = svc.build(baseCtx());
+    expect(result.agencyLogoUrl).toBe('');
+  });
+
+  it('agencyLogoUrl ignores a non-string logoUrl setting', () => {
+    const tenant = makeTenant({ settingsJson: { logoUrl: 42 } });
+    const result = svc.build(baseCtx({ tenant }));
+    expect(result.agencyLogoUrl).toBe('');
+  });
+
   it('exposes serviceTypeName from context', () => {
     const result = svc.build(baseCtx({ serviceTypeName: 'Routine inspection' }));
     expect(result.serviceTypeName).toBe('Routine inspection');

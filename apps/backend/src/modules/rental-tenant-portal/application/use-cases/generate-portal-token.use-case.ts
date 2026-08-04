@@ -357,6 +357,8 @@ export class GeneratePortalTokenUseCase {
         agencyName: tenant.name,
         agencyPhone: typeof tenantSettings.contactPhone === 'string' ? tenantSettings.contactPhone : '',
         properfyLogoUrl: PROPERFY_LOGO_URL,
+        agencyLogoUrl:
+          typeof tenantSettings.logoUrl === 'string' ? tenantSettings.logoUrl : '',
         serviceTypeName: result.serviceTypeName ?? '',
       };
 
