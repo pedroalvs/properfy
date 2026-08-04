@@ -178,6 +178,9 @@ export function FilterMultiSelect({
     }
   };
 
+  /** Single source for the pair: the label's padding and the clear's render. */
+  const showClear = value.length > 0 && !disabled;
+
   const optionClass = (index: number, isSelected: boolean) => {
     if (index === activeIndex) {
       return isSelected ? filterOptionHighlightedActive : filterOptionHighlighted;
@@ -197,10 +200,7 @@ export function FilterMultiSelect({
       <button
         ref={triggerRef}
         type="button"
-        className={`flex w-full items-center justify-between px-3 py-[7px] text-sm ${
-          // Room for the clear button, which overlays the trigger's right edge.
-          value.length > 0 && !disabled ? 'pr-9' : ''
-        }`}
+        className="flex w-full items-center justify-between px-3 py-[7px] text-sm"
         onClick={() => {
           if (disabled) return;
           if (open) closeMenu();
@@ -219,19 +219,24 @@ export function FilterMultiSelect({
         aria-disabled={disabled}
         disabled={disabled}
       >
-        <span className={triggerSummary ? 'text-text-primary' : 'text-text-muted'}>
+        <span
+          className={`${triggerSummary ? 'text-text-primary' : 'text-text-muted'} ${
+            // On the label, not the trigger — see FilterSelect for why padding
+            // the trigger pushes the chevron under the clear.
+            showClear ? 'pr-9' : ''
+          }`}
+        >
           {triggerSummary ?? (showFloatingLabel ? placeholder || '' : label)}
         </span>
         <i className={`mdi mdi-menu-down ${filterIcon} transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {/*
-        A sibling of the trigger, not a child: interactive content nested in a
-        <button> is invalid HTML and cannot take focus, which is why the clear
-        affordance used to be keyboard-unreachable. Overlaid on the trigger's
-        right edge so the chevron stays inside the trigger and clickable.
+        A sibling of the trigger, not a child — see FilterSelect for the full
+        rationale and the geometry constraint that keeps this button clear of
+        the chevron's 12–28px band.
       */}
-      {value.length > 0 && !disabled && (
+      {showClear && (
         <button
           type="button"
           className={`absolute right-7 top-1/2 -translate-y-1/2 ${filterClearButton}`}

@@ -297,6 +297,39 @@ describe('FilterSelect clear button', () => {
     expect(trigger()).toHaveFocus();
   });
 
+  // Every other clear test starts with the menu closed, so `closeMenu()` in the
+  // handler was unpinned: deleting it left all tests green while leaving a
+  // stranded listbox over an emptied filter, with a stale activedescendant.
+  // The outside-click listener cannot save it — the clear is inside the
+  // container it watches.
+  it('closes an open menu when cleared with the mouse', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<FilterSelect label="Status" value="active" onChange={onChange} options={options} />);
+
+    await user.click(trigger());
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    await user.click(clear());
+
+    expect(onChange).toHaveBeenCalledWith('');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(trigger()).toHaveFocus();
+  });
+
+  // Guards against refocusing from an effect on `value`: that would also pass
+  // the test above, but would yank focus into this filter whenever an external
+  // "clear all filters" reset emptied it.
+  it('does not grab focus when the value is emptied without interaction', () => {
+    const { rerender } = render(
+      <FilterSelect label="Status" value="active" onChange={() => {}} options={options} />,
+    );
+
+    rerender(<FilterSelect label="Status" value="" onChange={() => {}} options={options} />);
+
+    expect(trigger()).not.toHaveFocus();
+  });
+
   it('does not open the menu when cleared', async () => {
     const user = userEvent.setup();
     render(<FilterSelect label="Status" value="active" onChange={() => {}} options={options} />);

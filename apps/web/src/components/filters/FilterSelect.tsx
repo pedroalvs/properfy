@@ -148,6 +148,9 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
     listRef.current?.children[activeIndex]?.scrollIntoView?.({ block: 'nearest' });
   }, [open, activeIndex]);
 
+  /** Single source for the pair: the label's padding and the clear's render. */
+  const showClear = value !== '';
+
   const optionClass = (index: number, isSelected: boolean) => {
     if (index === activeIndex) {
       return isSelected ? filterOptionHighlightedActive : filterOptionHighlighted;
@@ -163,10 +166,7 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
       <button
         ref={triggerRef}
         type="button"
-        className={`flex w-full items-center justify-between px-3 py-[7px] text-sm ${
-          // Room for the clear button, which overlays the trigger's right edge.
-          value !== '' ? 'pr-9' : ''
-        }`}
+        className="flex w-full items-center justify-between px-3 py-[7px] text-sm"
         onClick={() => {
           if (open) closeMenu();
           else openMenu();
@@ -182,7 +182,16 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
         aria-controls={open ? listboxId : undefined}
         aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
       >
-        <span className={selectedLabel ? 'text-text-primary' : 'text-text-muted'}>
+        <span
+          className={`${selectedLabel ? 'text-text-primary' : 'text-text-muted'} ${
+            // Keeps the label out from under the clear button. This padding
+            // must sit on the label, NOT on the trigger: the chevron is the
+            // trigger's last flex item, so padding the trigger moves the
+            // chevron left instead of making room beside it — which is how it
+            // ended up under the clear and stealing its clicks.
+            showClear ? 'pr-9' : ''
+          }`}
+        >
           {selectedLabel ?? (showFloatingLabel ? placeholder || '' : label)}
         </span>
         <i className={`mdi mdi-menu-down ${filterIcon} transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -191,10 +200,16 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
       {/*
         A sibling of the trigger, not a child: interactive content nested in a
         <button> is invalid HTML and cannot take focus, which is why the clear
-        affordance used to be keyboard-unreachable. Overlaid on the trigger's
-        right edge so the chevron stays inside the trigger and clickable.
+        affordance used to be keyboard-unreachable.
+
+        Geometry constraint: the chevron occupies 12–28px from the right edge
+        (the trigger's own px-3). `right-7` puts this button's right edge at
+        28px, immediately beside it, so the two never overlap. Any change to
+        `right-7`, to the trigger's padding, or to the clear's size has to
+        preserve that — an overlap silently turns chevron clicks into
+        filter-wiping clear clicks, and jsdom cannot see it.
       */}
-      {value !== '' && (
+      {showClear && (
         <button
           type="button"
           className={`absolute right-7 top-1/2 -translate-y-1/2 ${filterClearButton}`}

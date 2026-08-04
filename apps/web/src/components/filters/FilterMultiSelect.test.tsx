@@ -324,6 +324,25 @@ describe('FilterMultiSelect clear button', () => {
     expect(trigger()).toHaveFocus();
   });
 
+  // The multi-select menu deliberately stays open across toggles, so a
+  // stranded listbox is likelier here than in the single-select.
+  it('closes an open menu when cleared with the mouse', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <FilterMultiSelect label="Type" value={['OWNER']} onChange={onChange} options={options} />,
+    );
+
+    await user.click(trigger());
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    await user.click(clear());
+
+    expect(onChange).toHaveBeenCalledWith([]);
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(trigger()).toHaveFocus();
+  });
+
   it('stays hidden while disabled', () => {
     render(
       <FilterMultiSelect
