@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
-import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
+import { todayInTzDateString } from '@properfy/shared';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { parseScheduleDate } from '../lib/time-slot';
 
 interface DaySelectorStripProps {
@@ -10,11 +11,11 @@ interface DaySelectorStripProps {
   urgentDays?: Set<string>;
 }
 
-function formatDayLabel(dateStr: string): { weekday: string; day: string; isToday: boolean } {
+function formatDayLabel(dateStr: string, timeZone: string): { weekday: string; day: string; isToday: boolean } {
   const date = parseScheduleDate(dateStr);
-  // Compared in the platform timezone, like every other today-check in the app;
-  // a device-local comparison highlights the wrong day abroad.
-  const isToday = dateStr === todayInTzDateString(PLATFORM_TIMEZONE);
+  // Compared in the inspector's effective timezone, like every other
+  // today-check in the app; a device-local comparison highlights the wrong day.
+  const isToday = dateStr === todayInTzDateString(timeZone);
 
   return {
     weekday: isToday ? 'Today' : date.toLocaleDateString('en-AU', { weekday: 'short' }),
@@ -24,6 +25,7 @@ function formatDayLabel(dateStr: string): { weekday: string; day: string; isToda
 }
 
 export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentCounts, urgentDays }: DaySelectorStripProps) {
+  const timeZone = useEffectiveTimezone();
   const scrollRef = useRef<HTMLDivElement>(null);
   const todayRef = useRef<HTMLButtonElement>(null);
   const selectedRef = useRef<HTMLButtonElement>(null);
@@ -42,7 +44,7 @@ export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentC
       data-testid="day-selector-strip"
     >
       {days.map((dateStr) => {
-        const { weekday, day, isToday } = formatDayLabel(dateStr);
+        const { weekday, day, isToday } = formatDayLabel(dateStr, timeZone);
         const isSelected = dateStr === selectedDate;
         const count = appointmentCounts?.[dateStr] ?? 0;
 

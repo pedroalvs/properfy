@@ -5,6 +5,11 @@ import { renderWithProviders } from '@/test-utils';
 import { AppointmentStatus, RentalTenantConfirmationStatus, ServiceTypeFlowType } from '@properfy/shared';
 import type { InspectorAppointment } from '../../types';
 
+// Rendered without an AuthProvider; pin the effective timezone to Sydney.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');

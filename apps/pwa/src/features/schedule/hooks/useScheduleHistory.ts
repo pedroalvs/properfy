@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiGet } from '@/hooks/useApiQuery';
 import type { ServiceTypeFlowType } from '@properfy/shared';
-import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
+import { todayInTzDateString } from '@properfy/shared';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 
 export type HistoryPeriod = '30d' | '90d' | '12m' | '24m';
 
@@ -40,9 +41,10 @@ function minusMonthsClamped(date: Date, months: number): void {
   date.setUTCDate(Math.min(day, lastDay));
 }
 
-export function buildDateRange(period: HistoryPeriod): { from: string; to: string } {
-  // Range is anchored to the Sydney civil day, independent of the device timezone.
-  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+export function buildDateRange(period: HistoryPeriod, timeZone: string): { from: string; to: string } {
+  // Range is anchored to the inspector's effective civil day, independent of
+  // the device timezone.
+  const today = todayInTzDateString(timeZone);
   const from = new Date(`${today}T00:00:00.000Z`);
   switch (period) {
     case '30d':
@@ -74,7 +76,8 @@ const PAGE_SIZE = 50;
  * two years of history on page mount.
  */
 export function useScheduleHistory(period: HistoryPeriod = '24m', enabled = true) {
-  const { from, to } = buildDateRange(period);
+  const timeZone = useEffectiveTimezone();
+  const { from, to } = buildDateRange(period, timeZone);
   const query = useInfiniteQuery<RawPaginatedResponse, Error>({
     queryKey: ['inspector', 'schedule', 'history', { from, to }],
     queryFn: ({ pageParam }) =>

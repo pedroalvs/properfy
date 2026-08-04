@@ -1,5 +1,6 @@
 import { useInspectorMe } from '../hooks/useInspectorMe';
-import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
+import { todayInTzDateString } from '@properfy/shared';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { formatCivilDate } from '@/lib/format-date';
 
 /** Local calendar day of a Date, as YYYY-MM-DD. */
@@ -21,13 +22,13 @@ function formatDate(value: string | null | undefined): string {
   return formatCivilDate(value) || '—';
 }
 
-function ExpiryBadge({ expiry }: { expiry: string | null }) {
+function ExpiryBadge({ expiry, timeZone }: { expiry: string | null; timeZone: string }) {
   if (!expiry) return <span className="text-xs text-text-muted">No expiry set</span>;
 
   // Compared as calendar days, not instants. `new Date('2026-03-18')` is UTC
   // midnight, which is 10-11am Sydney, so comparing it against `new Date()`
   // flipped the badge to "Expired" mid-morning ON the expiry day.
-  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+  const today = todayInTzDateString(timeZone);
   const expiryDay = expiry.slice(0, 10);
   const isExpired = expiryDay < today;
   const soonCutoff = new Date(`${today}T12:00:00`);
@@ -59,6 +60,7 @@ function ExpiryBadge({ expiry }: { expiry: string | null }) {
 
 export function InspectorDetailsCard() {
   const { data, isLoading, isError } = useInspectorMe();
+  const timeZone = useEffectiveTimezone();
 
   if (isLoading) {
     return (
@@ -116,7 +118,7 @@ export function InspectorDetailsCard() {
               ) : (
                 <span className="text-xs text-text-muted">Not uploaded</span>
               )}
-              <ExpiryBadge expiry={inspector.insuranceExpiresAt} />
+              <ExpiryBadge expiry={inspector.insuranceExpiresAt} timeZone={timeZone} />
             </div>
           </div>
 
@@ -135,7 +137,7 @@ export function InspectorDetailsCard() {
               ) : (
                 <span className="text-xs text-text-muted">Not uploaded</span>
               )}
-              <ExpiryBadge expiry={inspector.policeCheckExpiresAt} />
+              <ExpiryBadge expiry={inspector.policeCheckExpiresAt} timeZone={timeZone} />
             </div>
           </div>
         </div>

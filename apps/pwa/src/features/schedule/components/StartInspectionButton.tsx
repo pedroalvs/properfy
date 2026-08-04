@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
+import { todayInTzDateString } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 
 interface StartInspectionButtonProps {
   appointmentId: string;
@@ -15,9 +16,11 @@ interface StartInspectionButtonProps {
  * not arrived yet blocks the start. The time slot is an expectation shown to the
  * inspector, not a gate.
  */
-function getGateState(scheduledDate: string): { enabled: boolean; label: string; sublabel?: string } {
-  // All gating is anchored to Sydney civil time, never the device timezone.
-  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+function getGateState(scheduledDate: string, timeZone: string): { enabled: boolean; label: string; sublabel?: string } {
+  // Anchored to the inspector's effective timezone, never the device timezone.
+  // This client-side gate is advisory only — the authoritative "can start"
+  // check runs server-side in the appointment's agency timezone.
+  const today = todayInTzDateString(timeZone);
   const date = scheduledDate.slice(0, 10);
 
   if (date > today) {
@@ -33,13 +36,14 @@ export function StartInspectionButton({
   resume = false,
 }: StartInspectionButtonProps) {
   const navigate = useNavigate();
-  const [gateState, setGateState] = useState(() => getGateState(scheduledDate));
+  const timeZone = useEffectiveTimezone();
+  const [gateState, setGateState] = useState(() => getGateState(scheduledDate, timeZone));
 
   const updateState = useCallback(() => {
-    setGateState(getGateState(scheduledDate));
-  }, [scheduledDate]);
+    setGateState(getGateState(scheduledDate, timeZone));
+  }, [scheduledDate, timeZone]);
 
-  // Keeps the button in sync so it opens at Sydney midnight without a refresh.
+  // Keeps the button in sync so it opens at the timezone's midnight without a refresh.
   useEffect(() => {
     if (resume) return;
     const interval = setInterval(updateState, 5_000);

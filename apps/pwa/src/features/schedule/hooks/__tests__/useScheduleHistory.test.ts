@@ -9,6 +9,11 @@ vi.mock('@/hooks/useApiQuery', () => ({
   apiGet: (...args: unknown[]) => mockApiGet(...args),
 }));
 
+// Rendered without an AuthProvider; pin the effective timezone to Sydney.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const Wrapper = ({ children }: { children: React.ReactNode }) =>
@@ -157,12 +162,12 @@ describe('buildDateRange', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2028-02-28T15:00:00Z'));
     // 12 months back from Feb 29 2028 → Feb 2027 has 28 days → clamp to 2027-02-28.
-    expect(buildDateRange('12m')).toEqual({ from: '2027-02-28', to: '2028-02-29' });
+    expect(buildDateRange('12m', 'Australia/Sydney')).toEqual({ from: '2027-02-28', to: '2028-02-29' });
   });
 
   it('subtracts calendar days for day-based periods', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-07-15T02:00:00Z')); // Sydney today = 2026-07-15
-    expect(buildDateRange('30d')).toEqual({ from: '2026-06-15', to: '2026-07-15' });
+    expect(buildDateRange('30d', 'Australia/Sydney')).toEqual({ from: '2026-06-15', to: '2026-07-15' });
   });
 });
