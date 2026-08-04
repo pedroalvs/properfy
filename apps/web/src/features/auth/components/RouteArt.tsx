@@ -6,9 +6,9 @@
  * `aria-hidden` and the form sheet beside it already names the product, so nothing here
  * is titled or described.
  *
- * The viewBox is portrait to match the 39.5%-wide, full-height pane, and the caller
- * slices it rather than fitting it — the round should read large and get cropped by the
- * pane edge, not shrink into a column.
+ * The viewBox is portrait to match the 39.5%-wide, full-height pane, and the caller fits
+ * it with `meet` rather than cropping it, so every stop survives every pane height. See
+ * BLEED below for how the field still reaches the pane edges under a fitted scale.
  *
  * The route is a single `<path>` with `pathLength="1"`, which is what lets the load
  * reveal animate `stroke-dashoffset` from 1 to 0 without knowing the curve's real
@@ -63,17 +63,21 @@ const CONTEXT_ROADS = [
 ];
 
 /**
- * Inks. Tints of --color-secondary rather than the token itself: on the pale pane every
- * layer has to sit at a different depth, and the token is only one of those depths.
- * Written as raw rgb() because Tailwind's opacity scale is guarded by
- * src/__tests__/opacity-scale.test.ts and these values are not on it.
+ * Inks. Every layer sits at a different depth on the pale pane, so each needs its own
+ * alpha — but the colour itself stays the brand token, and the alpha rides on SVG's
+ * own `stroke-opacity` / `fill-opacity`. Baking the token's RGB into an `rgb(… / …)`
+ * literal would leave the artwork on the old brand colour the day a token changes,
+ * while the parts that do reference the variable move — a silent split.
+ *
+ * These are SVG presentation attributes, not Tailwind classes, so the guarded opacity
+ * scale in src/__tests__/opacity-scale.test.ts does not apply to them.
  */
 const INK = {
-  grid: 'rgb(33 86 110 / 0.10)',
-  context: 'rgb(33 86 110 / 0.16)',
-  route: 'rgb(33 86 110 / 0.55)',
-  halo: 'rgb(243 122 118 / 0.26)',
-  label: 'rgb(33 86 110 / 0.78)',
+  grid: { color: 'var(--color-secondary)', opacity: 0.1 },
+  context: { color: 'var(--color-secondary)', opacity: 0.16 },
+  route: { color: 'var(--color-secondary)', opacity: 0.55 },
+  halo: { color: 'var(--color-real-estate)', opacity: 0.26 },
+  label: { color: 'var(--color-secondary)', opacity: 0.78 },
 };
 
 const GRID_STEP = 65;
@@ -114,7 +118,13 @@ export function RouteArt({ className }: { className?: string }) {
       aria-hidden="true"
       focusable="false"
     >
-      <g data-testid="route-grid" className="auth-reveal-structure" stroke={INK.grid} strokeWidth={1}>
+      <g
+        data-testid="route-grid"
+        className="auth-reveal-structure"
+        stroke={INK.grid.color}
+        strokeOpacity={INK.grid.opacity}
+        strokeWidth={1}
+      >
         {verticals.map((x) => (
           <line key={`v${x}`} x1={x} y1={-BLEED} x2={x} y2={VIEW_H + BLEED} />
         ))}
@@ -126,7 +136,8 @@ export function RouteArt({ className }: { className?: string }) {
       <g
         className="auth-reveal-context"
         fill="none"
-        stroke={INK.context}
+        stroke={INK.context.color}
+        strokeOpacity={INK.context.opacity}
         strokeWidth={2}
         strokeLinecap="round"
       >
@@ -141,7 +152,8 @@ export function RouteArt({ className }: { className?: string }) {
         d={ROUTE_PATH}
         pathLength={1}
         fill="none"
-        stroke={INK.route}
+        stroke={INK.route.color}
+        strokeOpacity={INK.route.opacity}
         strokeWidth={2.5}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -150,7 +162,15 @@ export function RouteArt({ className }: { className?: string }) {
       <g className="auth-reveal-stops">
         {ROUTE_STOPS.map((stop) => (
           <g key={stop.name} data-testid="route-stop">
-            <circle cx={stop.x} cy={stop.y} r={11} fill="none" stroke={INK.halo} strokeWidth={1.5} />
+            <circle
+              cx={stop.x}
+              cy={stop.y}
+              r={11}
+              fill="none"
+              stroke={INK.halo.color}
+              strokeOpacity={INK.halo.opacity}
+              strokeWidth={1.5}
+            />
             <circle cx={stop.x} cy={stop.y} r={5} fill="var(--color-real-estate)" />
           </g>
         ))}
@@ -174,7 +194,8 @@ export function RouteArt({ className }: { className?: string }) {
               x={stop.labelX}
               y={stop.y + 12 + (stop.labelDy ?? 0)}
               textAnchor={stop.anchor}
-              fill={INK.label}
+              fill={INK.label.color}
+              fillOpacity={INK.label.opacity}
               fontSize={15}
               fontWeight={600}
             >

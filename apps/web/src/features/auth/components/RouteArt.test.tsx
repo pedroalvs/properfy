@@ -29,6 +29,18 @@ describe('RouteArt', () => {
   });
 
   /**
+   * The pane's width is fixed but its height is not, so its aspect ratio moves with the
+   * window. Under `slice` the first and last stops fall off the canvas on a short one —
+   * a regression that looks like a deliberate crop rather than a bug, which is why it
+   * needs a test rather than an eye.
+   */
+  it('fits the whole round into the pane instead of cropping it', () => {
+    render(<RouteArt />);
+
+    expect(screen.getByTestId('route-art')).toHaveAttribute('preserveAspectRatio', 'xMidYMid meet');
+  });
+
+  /**
    * The load reveal animates `stroke-dashoffset` from 1 to 0. Without `pathLength="1"`
    * that offset is measured in user units, so the route would render fully drawn from
    * the first frame and the signature moment would silently disappear.
