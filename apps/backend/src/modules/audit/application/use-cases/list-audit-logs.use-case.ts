@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { assertTenantScope } from '../../../../shared/domain/require-tenant-scope';
 import type { IAuditLogRepository, AuditLogFilters, PaginationParams } from '../../domain/audit-log.repository';
 import type { IPiiFieldMappingRepository } from '../../domain/pii-field-mapping.repository';
 import { maskEmail, maskPhone, maskName, type AuditReaderRole } from '../../domain/pii-read-mask';
@@ -87,9 +88,17 @@ export class ListAuditLogsUseCase {
       repoFilters.tenantId = actor.tenantId;
     }
 
-    // CL_ADMIN always scoped to own tenant, ignoring any tenantId from filters
+    // CL_ADMIN always scoped to own tenant, ignoring any tenantId from filters.
+    // The `!` this used to carry asserted away a real possibility: it wrote
+    // `null` into the filter, and the repository applies `tenant_id` behind a
+    // truthiness check, so the audit log would have come back unscoped.
+    //
+    // `assertTenantScope` rather than `requireTenantScope`: this is already
+    // inside a role branch, and its non-optional `string` return means the
+    // value cannot silently become "unfiltered" if the role classification is
+    // ever edited.
     if (actor.role === 'CL_ADMIN') {
-      repoFilters.tenantId = actor.tenantId!;
+      repoFilters.tenantId = assertTenantScope(actor, 'audit.list');
     }
 
     const options = { includeArchived };

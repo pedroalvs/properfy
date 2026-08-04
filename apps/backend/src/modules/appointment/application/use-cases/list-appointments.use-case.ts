@@ -7,6 +7,7 @@ import type {
   AppointmentListItem,
 } from '../../domain/appointment.repository';
 import { AppointmentCodeFormatter } from '../../domain/appointment-code.formatter';
+import { requireTenantScope } from '../../../../shared/domain/require-tenant-scope';
 
 export interface ListAppointmentsInput {
   filters: {
@@ -109,18 +110,24 @@ export class ListAppointmentsUseCase {
 
     // Resolve tenantId. AM and OP are both cross-tenant per CLAUDE.md §6 —
     // their JWT carries `tenantId: null`, and the `filters.tenantId` query
-    // param (when provided) narrows the result set. Tenant-scoped roles
-    // (CL_ADMIN, CL_USER, INSP) are pinned to their JWT tenantId and any
-    // filter they pass is ignored (defense-in-depth).
+    // param (when provided) narrows the result set. CL_ADMIN and CL_USER are
+    // pinned to their JWT tenantId and any filter they pass is ignored
+    // (defense-in-depth). INSP is NOT tenant-pinned despite older comments
+    // saying so: inspector users are created with `tenantId: null` and are
+    // scoped by `inspectorId`. They cannot reach this line — `assertRoles`
+    // above excludes them.
     //
     // Bug C-B2 (QA 2026-04-20): the previous branch treated OP like a
     // tenant-scoped role and coerced its (null) tenantId via `!`, silently
     // dropping the query filter and returning the full cross-tenant set
     // regardless of `?tenantId=`.
+    // `requireTenantScope` throws rather than returning undefined for a pinned
+    // role with no tenant: `buildWhere` applies `tenant_id` behind a truthiness
+    // check, so undefined would mean "no filter" and return every tenant's rows.
     const tenantId: string | undefined =
       actor.role === 'AM' || actor.role === 'OP'
         ? filters.tenantId
-        : actor.tenantId ?? undefined;
+        : requireTenantScope(actor, 'appointment.list');
 
     // When the search term looks like an appointment code — either fully
     // formatted ("INS-0042") or the bare number the operator reads off the
