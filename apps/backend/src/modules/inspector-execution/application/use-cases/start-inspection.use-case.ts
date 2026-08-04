@@ -20,6 +20,7 @@ import {
 } from '../../domain/inspection-execution.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IServiceTypeReader } from '../../domain/service-type-reader';
+import type { ITenantTimezoneLookup } from '../../../../shared/application/tenant-timezone';
 
 export interface StartInspectionInput {
   appointmentId: string;
@@ -49,6 +50,8 @@ export class StartInspectionUseCase {
     private readonly auditService: AuditService,
     private readonly serviceTypeReader: IServiceTypeReader,
     private readonly authorizationService?: AuthorizationService,
+    /** Cached tenants.timezone lookup; absent → platform-timezone gates. */
+    private readonly tenantTimezoneLookup?: ITenantTimezoneLookup,
   ) {}
 
   async execute(input: StartInspectionInput): Promise<StartInspectionOutput> {
@@ -85,8 +88,13 @@ export class StartInspectionUseCase {
       throw new ExecutionAppointmentNotFoundError();
     }
 
-    // 4. Apply T-1 rule (centralized in repository)
-    const todayCivil = civilDateInTimezone(new Date(), PLATFORM_TIMEZONE);
+    // 4. Apply T-1 rule (centralized in repository). "Today" is the civil date
+    // in the appointment's AGENCY timezone — the T-1 window and the start gate
+    // are properties of the appointment, not of the viewing inspector.
+    const agencyTz =
+      (await this.tenantTimezoneLookup?.getTenantTimezone(appointment.tenantId)) ??
+      PLATFORM_TIMEZONE;
+    const todayCivil = civilDateInTimezone(new Date(), agencyTz);
     const isVisible = await this.appointmentRepo.isAppointmentVisibleForInspector(
       appointmentId,
       todayCivil,
@@ -114,8 +122,13 @@ export class StartInspectionUseCase {
       throw new ExecutionT1BlockedError();
     }
 
-    // 4c. Apply the start gate: open from the scheduled day onwards, no upper bound.
-    const gateCheck = this.startGateService.isStartAllowed(appointment.scheduledDate, new Date());
+    // 4c. Apply the start gate: open from the scheduled day onwards, no upper
+    // bound, at the agency's local midnight.
+    const gateCheck = this.startGateService.isStartAllowed(
+      appointment.scheduledDate,
+      new Date(),
+      agencyTz,
+    );
     if (!gateCheck.allowed) {
       throw new ExecutionTimeWindowError(gateCheck.reason ?? 'Inspection day has not started yet');
     }

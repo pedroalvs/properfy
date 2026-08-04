@@ -6,6 +6,7 @@ import {
   ValidationError,
 } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { ITenantTimezoneLookup } from '../../../../shared/application/tenant-timezone';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
@@ -184,6 +185,8 @@ export class CreateAppointmentUseCase {
      * directly rather than going through the HTTP route.
      */
     private readonly autoGroupService?: AutoGroupIngoingOutgoingService,
+    /** Cached tenants.timezone lookup; absent → platform-timezone validation. */
+    private readonly tenantTimezoneLookup?: ITenantTimezoneLookup,
   ) {}
 
   async execute(input: CreateAppointmentInput): Promise<CreateAppointmentOutput> {
@@ -200,22 +203,6 @@ export class CreateAppointmentUseCase {
 
     // 1b. CL_USER must have create_appointments permission
     this.authorizationService.assertClUserPermission(actor, 'create_appointments');
-
-    // 1c. Past-date/time validation anchored to the platform timezone (Sydney) —
-    // fail fast before expensive repo lookups.
-    // DATE_IN_PAST always throws, regardless of skipTimeInPastCheck — only
-    // the time-of-day outcome is ever bypassed (see the flag's doc comment).
-    {
-      const tz = PLATFORM_TIMEZONE;
-      const scheduleCheck = validateNewSchedule({ date: input.scheduledDate, timeSlot: input.timeSlotStart, tz });
-      if (!scheduleCheck.ok) {
-        if (scheduleCheck.code === 'TIME_IN_PAST') {
-          if (!input.skipTimeInPastCheck) throw new AppointmentTimeInPastError();
-        } else {
-          throw new AppointmentDateInPastError();
-        }
-      }
-    }
 
     // 2. Resolve tenantId and validate branch. AM/OP are cross-tenant.
     let tenantId: string;
@@ -238,6 +225,24 @@ export class CreateAppointmentUseCase {
       }
       if (!branch.isActive()) {
         throw new AppointmentBranchInactiveError();
+      }
+    }
+
+    // 3b. Past-date/time validation anchored to the appointment's AGENCY
+    // timezone (not the actor's): the schedule is a civil date in the agency's
+    // business day, so all actors must agree on whether it is valid.
+    // DATE_IN_PAST always throws, regardless of skipTimeInPastCheck — only
+    // the time-of-day outcome is ever bypassed (see the flag's doc comment).
+    {
+      const tz =
+        (await this.tenantTimezoneLookup?.getTenantTimezone(tenantId)) ?? PLATFORM_TIMEZONE;
+      const scheduleCheck = validateNewSchedule({ date: input.scheduledDate, timeSlot: input.timeSlotStart, tz });
+      if (!scheduleCheck.ok) {
+        if (scheduleCheck.code === 'TIME_IN_PAST') {
+          if (!input.skipTimeInPastCheck) throw new AppointmentTimeInPastError();
+        } else {
+          throw new AppointmentDateInPastError();
+        }
       }
     }
 

@@ -78,6 +78,9 @@ export class CreateServiceGroupUseCase {
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'SYS'], { action: 'service_group.create', entityType: 'ServiceGroup' });
 
     // 1b. TZ-aware past-date/time validation (R7: falls back to UTC when tz absent).
+    // Service groups are cross-tenant (region-scoped) marketplace constructs whose
+    // members may span agencies, so their schedule validation stays anchored to
+    // the platform timezone (documented carve-out of the per-agency timezone work).
     const tz = PLATFORM_TIMEZONE;
     const scheduleCheck = validateNewSchedule({ date: input.scheduledDate, timeSlot: input.timeWindow, tz });
     if (!scheduleCheck.ok) {

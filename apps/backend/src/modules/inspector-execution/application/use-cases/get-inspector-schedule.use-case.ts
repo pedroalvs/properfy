@@ -97,7 +97,10 @@ export class GetInspectorScheduleUseCase {
       return this.executeRange(input, actor.inspectorId);
     }
 
-    const todayStr = civilDateInTimezone(new Date(), PLATFORM_TIMEZONE);
+    // View default + T-1 listing filter run in the inspector's effective
+    // timezone; the authoritative T-1/start enforcement happens per-appointment
+    // in the AGENCY timezone at start time (start-inspection).
+    const todayStr = civilDateInTimezone(new Date(), actor.timezone ?? PLATFORM_TIMEZONE);
     const targetDateStr = input.date ?? todayStr;
 
     // T-1 filtering is centralized inside findVisibleForInspector
@@ -206,7 +209,7 @@ export class GetInspectorScheduleUseCase {
       throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
     }
 
-    const todayStr = civilDateInTimezone(new Date(), PLATFORM_TIMEZONE);
+    const todayStr = civilDateInTimezone(new Date(), actor.timezone ?? PLATFORM_TIMEZONE);
     const todayCivilUtc = new Date(`${todayStr}T00:00:00.000Z`);
     const monthEnd = new Date(todayCivilUtc);
     monthEnd.setUTCDate(monthEnd.getUTCDate() + 30);

@@ -2,6 +2,7 @@ import { type AuthContext, type AppointmentContactRole, type AppointmentCustomFi
 import { PLATFORM_TIMEZONE, ServiceGroupStatus } from '@properfy/shared';
 import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { ITenantTimezoneLookup } from '../../../../shared/application/tenant-timezone';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import { ContactEntity } from '../../../contact/domain/contact.entity';
@@ -158,6 +159,8 @@ export class UpdateAppointmentUseCase {
     private readonly onAdminRescheduleHandler?: OnAdminRescheduleHandler,
     /** Optional. When wired, validates a grouped appointment's new time slot against its group's time window. */
     private readonly serviceGroupRepo?: IServiceGroupRepository,
+    /** Cached tenants.timezone lookup; absent → platform-timezone validation. */
+    private readonly tenantTimezoneLookup?: ITenantTimezoneLookup,
   ) {}
 
   async execute(input: UpdateAppointmentInput): Promise<UpdateAppointmentOutput> {
@@ -303,7 +306,10 @@ export class UpdateAppointmentUseCase {
     // TZ-aware past-date/time validation for date or time changes. Falls back to UTC (R7).
     // `validateEditedSchedule` accepts a bare HH:mm start (it splits on '-', a no-op here).
     if (data.scheduledDate !== undefined || timeChanged) {
-      const tz = PLATFORM_TIMEZONE;
+      // Anchored to the appointment's AGENCY timezone (not the actor's).
+      const tz =
+        (await this.tenantTimezoneLookup?.getTenantTimezone(appointment.tenantId)) ??
+        PLATFORM_TIMEZONE;
       const existingDateStr = appointment.scheduledDate.toISOString().slice(0, 10);
       const scheduleCheck = validateEditedSchedule({
         existingDate: existingDateStr,

@@ -1,5 +1,6 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { prisma } from '../shared/infrastructure/prisma';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { Logger } from '../shared/infrastructure/logger';
 import { metrics } from '../shared/infrastructure/metrics';
 import { getEnv } from './env';
@@ -360,6 +361,7 @@ import { ChangeGroupScheduleUseCase } from '../modules/service-group/application
 import { createApiKeyAuthMiddleware } from '../shared/interfaces/api-key-auth-middleware';
 import { createAuthMiddleware, setDefaultTimezoneResolver } from '../shared/interfaces/auth-middleware';
 import { createEffectiveTimezoneResolver } from '../shared/infrastructure/effective-timezone-resolver';
+import { CachedTenantTimezoneLookup } from '../shared/infrastructure/cached-tenant-timezone.lookup';
 
 // Appointment module
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
@@ -480,15 +482,10 @@ export function createContainer(logger: Logger): AppContainer {
   // Effective-timezone resolution for every auth middleware instance: route
   // modules build their own middleware, so the resolver is registered once
   // here (composition root) instead of threaded through each route container.
+  const tenantTimezoneLookup = new CachedTenantTimezoneLookup(prisma);
   setDefaultTimezoneResolver(
     createEffectiveTimezoneResolver({
-      getTenantTimezone: async (tenantId) => {
-        const tenant = await prisma.tenant.findUnique({
-          where: { id: tenantId },
-          select: { timezone: true },
-        });
-        return tenant?.timezone;
-      },
+      getTenantTimezone: (tenantId) => tenantTimezoneLookup.getTenantTimezone(tenantId),
       getUserTimezone: async (userId) => {
         const user = await prisma.user.findUnique({
           where: { id: userId },
@@ -801,6 +798,7 @@ export function createContainer(logger: Logger): AppContainer {
     rentalTenantPortalTokenRepo,
     confirmationCycleService,
     prisma,
+    tenantTimezoneLookup,
   );
 
   // Notification payload helpers — no constructor deps, safe to create here
@@ -834,6 +832,7 @@ export function createContainer(logger: Logger): AppContainer {
     undefined, appCredentialRepo,
     confirmationCycleService, rentalTenantPortalTokenRepo, notifyOnAdminRescheduleHandler,
     new PrismaServiceGroupRepository(prisma),
+    tenantTimezoneLookup,
   );
 
   const bulkEditAppointmentsUseCase = new BulkEditAppointmentsUseCase(
@@ -932,9 +931,11 @@ export function createContainer(logger: Logger): AppContainer {
   const getAppointmentDetailUseCase = new GetAppointmentDetailUseCase(
     appointmentRepo, inspectionExecutionRepo, serviceTypeReaderForExec, authorizationService, tenantRepo, appCredentialRepo,
     contactReaderForExec, logger,
+    tenantTimezoneLookup,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
     appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, serviceTypeReaderForExec, authorizationService,
+    tenantTimezoneLookup,
   );
   const finishInspectionUseCase = new FinishInspectionUseCase(
     inspectionExecutionRepo, idempotencyService,
@@ -1002,6 +1003,7 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
     createPropertyUseCase, auditService, authorizationService, tenantRepo, contactRepo,
     undefined, idempotencyService, appCredentialRepo, autoGroupIngoingOutgoingService,
+    tenantTimezoneLookup,
   );
   const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
   const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
@@ -1153,6 +1155,16 @@ export function createContainer(logger: Logger): AppContainer {
     reportDataReader,
     createNotificationUseCase,
     userManagementRepo,
+    async (r) => {
+      if (r.agencyScoped && r.tenantId) {
+        return (await tenantTimezoneLookup.getTenantTimezone(r.tenantId)) ?? PLATFORM_TIMEZONE;
+      }
+      const requester = await prisma.user.findUnique({
+        where: { id: r.requestedByUserId },
+        select: { timezone: true },
+      });
+      return requester?.timezone ?? PLATFORM_TIMEZONE;
+    },
   );
 
   // Notification providers and services (notificationRepo + notificationTemplateRepo created above)
@@ -1317,6 +1329,7 @@ export function createContainer(logger: Logger): AppContainer {
   const previewAppointmentImportUseCase = new PreviewAppointmentImportUseCase(
     appointmentImportRepo, reportStorageService, branchRepo, appointmentImportRowResolver,
     appointmentImportGeocodeVerifier, authorizationService,
+    tenantTimezoneLookup,
   );
   const commitAppointmentImportUseCase = new CommitAppointmentImportUseCase(
     appointmentImportRepo, importJobQueue, authorizationService, idempotencyService,
