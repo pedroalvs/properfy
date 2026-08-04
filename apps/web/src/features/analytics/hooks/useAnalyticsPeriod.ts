@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { PLATFORM_TIMEZONE, addCivilDays, todayInTzDateString } from '@properfy/shared';
 import { useUrlFilters } from '@/hooks/useUrlFilters';
 
 /** Presets the segmented control offers, plus the escape hatch to explicit dates. */
@@ -17,37 +18,42 @@ export const ANALYTICS_FILTER_SCHEMA = {
   endDate: { type: 'string' as const, default: '' },
 };
 
-function toCivilDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
 /**
- * Resolves a preset to a civil-date range.
+ * Resolves a preset to a civil-date range, anchored to `PLATFORM_TIMEZONE`.
  *
- * Uses the browser's local calendar, which for this product is Sydney — the
- * platform is single-timezone and operators work in it. The server re-resolves
- * the same strings against `PLATFORM_TIMEZONE`, so the boundary that counts is
- * always the server's.
+ * All arithmetic is civil-date **string** math. Building a `Date` from local
+ * calendar components and then reading `toISOString()` off it mixes two clocks:
+ * local midnight in Sydney is the previous day in UTC, so every boundary lands
+ * one day early — `this-month` on 15 July resolves to 30 June → 14 July. The
+ * bug is invisible on a UTC or Americas machine, which is precisely why it
+ * survived the first round of tests.
+ *
+ * @param today Civil date (YYYY-MM-DD) to resolve against; defaults to today in
+ *   the platform timezone. A string, not a `Date`, so there is no instant left
+ *   to misinterpret.
  */
-export function resolvePreset(preset: PeriodPreset, today: Date = new Date()): { startDate: string; endDate: string } {
-  const endDate = toCivilDate(today);
+export function resolvePreset(
+  preset: PeriodPreset,
+  today: string = todayInTzDateString(PLATFORM_TIMEZONE),
+): { startDate: string; endDate: string } {
+  const endDate = today;
 
   if (preset === 'last-30') {
-    const start = new Date(today);
-    start.setDate(start.getDate() - 29);
-    return { startDate: toCivilDate(start), endDate };
+    // Inclusive of both ends: 30 days total, so step back 29.
+    return { startDate: addCivilDays(today, -29), endDate };
   }
 
   if (preset === 'this-quarter') {
-    const quarterStartMonth = Math.floor(today.getMonth() / 3) * 3;
+    const month = Number(today.slice(5, 7));
+    const quarterStartMonth = Math.floor((month - 1) / 3) * 3 + 1;
     return {
-      startDate: toCivilDate(new Date(today.getFullYear(), quarterStartMonth, 1)),
+      startDate: `${today.slice(0, 4)}-${String(quarterStartMonth).padStart(2, '0')}-01`,
       endDate,
     };
   }
 
   // 'this-month' — and the fallback for 'custom' before dates are entered.
-  return { startDate: toCivilDate(new Date(today.getFullYear(), today.getMonth(), 1)), endDate };
+  return { startDate: `${today.slice(0, 7)}-01`, endDate };
 }
 
 export interface AnalyticsPeriod {

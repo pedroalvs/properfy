@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type mapboxgl from 'mapbox-gl';
 import type { AnalyticsHeatmapResponse } from '@properfy/shared';
 import { MapContainer } from '@/components/map/MapContainer';
-import { computeBounds } from '@/lib/map-bounds';
+import { computeBounds, isSinglePointBounds } from '@/lib/map-bounds';
 import { HEATMAP_RAMP, SEQUENTIAL_HUE } from './charts/theme';
 
 interface RegionHeatmapProps {
@@ -38,7 +38,10 @@ function toGeoJson(points: AnalyticsHeatmapResponse['points']): GeoJSON.FeatureC
  */
 export function RegionHeatmap({ heatmap, isLoading }: RegionHeatmapProps) {
   const mapRef = useRef<mapboxgl.Map | null>(null);
-  const points = heatmap?.points ?? [];
+  // Memoised because it feeds the deps of `handleMapReady` and the sync effect
+  // below: while `heatmap` is undefined, `?? []` would mint a fresh array
+  // identity every render (apps/web/CLAUDE.md §13.11).
+  const points = useMemo(() => heatmap?.points ?? [], [heatmap]);
 
   const render = useCallback((map: mapboxgl.Map, data: AnalyticsHeatmapResponse['points']) => {
     const geojson = toGeoJson(data);
@@ -74,7 +77,14 @@ export function RegionHeatmap({ heatmap, isLoading }: RegionHeatmapProps) {
     const bounds = computeBounds(
       data.map((point) => ({ latitude: point.lat, longitude: point.lng })),
     );
-    if (bounds) {
+    if (!bounds) return;
+    // A single suburb yields degenerate bounds (sw === ne), which `fitBounds`
+    // treats as a hint rather than a box — `map-bounds.ts` says to fly there
+    // instead, and `AppointmentMapPage` already branches this way.
+    if (isSinglePointBounds(bounds)) {
+      const [[lng, lat]] = bounds as [[number, number], [number, number]];
+      map.flyTo({ center: [lng, lat], zoom: 11, duration: 0 });
+    } else {
       map.fitBounds(bounds, { padding: 48, maxZoom: 12, duration: 0 });
     }
   }, []);

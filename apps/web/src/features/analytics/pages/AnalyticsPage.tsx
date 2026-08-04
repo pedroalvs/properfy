@@ -19,9 +19,11 @@ import { RegionHeatmap } from '../components/RegionHeatmap';
  * the standing indicators stacked beside it, three mid-size panels below, and
  * the heatmap full width at the foot.
  *
- * Scoped the same way the dashboard is — AM/OP see every agency, CL_ADMIN and
- * CL_USER see their own — so there is no role guard on the route. Revenue is
- * the one gated figure and the server nulls it rather than denying the screen.
+ * All four business roles pass the route guard (AM, OP, CL_ADMIN, CL_USER);
+ * INSP and TNT are denied there. Within that set the scoping is per-tenant and
+ * server-side — AM/OP see every agency, CL_ADMIN and CL_USER their own. Revenue
+ * is the one gated figure, and the server nulls it rather than denying the
+ * screen, so a CL_USER without `view_financials` still gets the other panels.
  */
 export function AnalyticsPage() {
   const period = useAnalyticsPeriod();

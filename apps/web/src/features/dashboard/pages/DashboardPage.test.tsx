@@ -26,6 +26,18 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
+vi.mock('@/hooks/usePermissions', () => ({
+  usePermissions: () => ({
+    role: mockRole,
+    hasRole: (...roles: string[]) => roles.includes(mockRole),
+    canPerform: () => true,
+    hasClUserFlag: () => true,
+  }),
+}));
+
+// Mutable so a test can put an inspector on /dashboard, which is unguarded.
+let mockRole = 'AM';
+
 import { DashboardPage } from './DashboardPage';
 
 const BASE_STATS = {
@@ -235,11 +247,25 @@ describe('DashboardPage', () => {
 });
 
 describe('DashboardPage — Analytics entry point', () => {
-  it('offers an Analytics action in the page header', () => {
+  beforeEach(() => {
+    mockRole = 'AM';
+  });
+
+  it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('offers the Analytics action to %s', (role) => {
+    mockRole = role;
     renderPage();
     // PageHeader renders a CTA twice (desktop button + mobile FAB) for the
     // primary action; secondary actions render once, but query defensively.
     expect(screen.getAllByRole('button', { name: /analytics/i }).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('hides the action from INSP, who lands on the unguarded dashboard', () => {
+    // /analytics is AuthGuard-gated; offering the button here would bounce an
+    // inspector straight back with a permission toast. The Sidebar already
+    // hides its equivalent entry for the same reason.
+    mockRole = 'INSP';
+    renderPage();
+    expect(screen.queryByRole('button', { name: /analytics/i })).not.toBeInTheDocument();
   });
 
   it('navigates to /analytics when the action is clicked', async () => {

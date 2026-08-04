@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { DashboardAnalyticsResponse } from '@properfy/shared';
 import { ChartCard } from './charts/ChartCard';
 import { SEQUENTIAL_HUE } from './charts/theme';
@@ -23,7 +24,10 @@ function formatDuration(minutes: number): string {
  * screen reader), and avoids a chart library's tick collisions on long names.
  */
 export function AvgExecutionBars({ avgExecutionMinutes }: AvgExecutionBarsProps) {
-  const rows = avgExecutionMinutes.filter((row) => row.avgMinutes !== null);
+  const rows = useMemo(
+    () => avgExecutionMinutes.filter((row) => row.avgMinutes !== null),
+    [avgExecutionMinutes],
+  );
   const longest = Math.max(...rows.map((row) => row.avgMinutes ?? 0), 1);
 
   return (
