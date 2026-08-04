@@ -113,6 +113,32 @@ describe('useAppointmentBoard', () => {
     }
   });
 
+  // The board renders the Suburb and Confirmation Email controls (it does not
+  // hide them), so they have to actually reach the API — otherwise the operator
+  // sets a filter that silently does nothing and the board's counts disagree
+  // with the list they deep-linked from.
+  it('forwards the suburb and confirmation-email filters to every column', () => {
+    renderHook(() => useAppointmentBoard(), {
+      wrapper: wrapper(['/appointments/board?suburb=Bondi&confirmationStatus=not_sent']),
+    });
+
+    const byStatus = paramsByStatus();
+    expect(Object.keys(byStatus)).toHaveLength(BOARD_COLUMN_STATUSES.length);
+    for (const params of Object.values(byStatus)) {
+      expect(params.suburb).toBe('Bondi');
+      expect(params.confirmationStatus).toBe('not_sent');
+    }
+  });
+
+  it('omits the suburb and confirmation-email params when unset', () => {
+    renderHook(() => useAppointmentBoard(), { wrapper: wrapper(['/appointments/board']) });
+
+    for (const params of Object.values(paramsByStatus())) {
+      expect(params.suburb).toBeUndefined();
+      expect(params.confirmationStatus).toBeUndefined();
+    }
+  });
+
   it('starts each column at the standard page size', () => {
     renderHook(() => useAppointmentBoard(), { wrapper: wrapper(['/appointments/board']) });
 

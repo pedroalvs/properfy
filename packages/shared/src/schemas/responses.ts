@@ -327,6 +327,13 @@ export const appointmentResponseSchema = z.object({
   /** List endpoint alias for the formatted appointment code. */
   code: z.string().optional(),
   propertyAddress: z.string().optional(),
+  /**
+   * The property's own code (e.g. "ACME-PROP-0007") — distinct from `code`, which
+   * is the appointment code. Returned by both the list and detail endpoints.
+   * Must stay declared here — this schema is the Fastify response schema, and an
+   * undeclared field is silently stripped on serialization.
+   */
+  propertyCode: z.string().nullable().optional(),
   contactName: z.string().optional(),
   contactPhone: z.string().nullable().optional(),
   contactEmail: z.string().nullable().optional(),
@@ -380,6 +387,29 @@ export const appointmentResponseSchema = z.object({
   inspector: z.unknown().nullable().optional(),
   branch: z.unknown().optional(),
 });
+
+/**
+ * Distinct suburbs across the appointments the actor may see, feeding the
+ * appointments-list Suburb filter. Sourced from properties that actually have a
+ * live appointment, so every option the operator can pick returns rows.
+ */
+export const appointmentSuburbsResponseSchema = z.object({
+  suburbs: z.array(z.string()),
+});
+export type AppointmentSuburbsResponse = z.infer<typeof appointmentSuburbsResponseSchema>;
+
+/**
+ * Synchronous XLSX export of the current appointments-list filter set. Base64 in
+ * the standard JSON envelope for the same reason as the agency financial export:
+ * it keeps the typed OpenAPI client and skips a storage round-trip for a bounded,
+ * on-demand file. Unbounded history belongs in the async report module instead.
+ */
+export const appointmentExportResponseSchema = z.object({
+  filename: z.string(),
+  contentType: z.string(),
+  contentBase64: z.string(),
+});
+export type AppointmentExportResponse = z.infer<typeof appointmentExportResponseSchema>;
 
 export const forceManualConfirmationResponseSchema = z.object({
   id: z.string().uuid(),

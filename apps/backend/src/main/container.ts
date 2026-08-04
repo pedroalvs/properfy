@@ -352,6 +352,8 @@ import { PrismaAppointmentRepository } from '../modules/appointment/infrastructu
 import { CreateAppointmentUseCase } from '../modules/appointment/application/use-cases/create-appointment.use-case';
 import { GetAppointmentUseCase } from '../modules/appointment/application/use-cases/get-appointment.use-case';
 import { ListAppointmentsUseCase } from '../modules/appointment/application/use-cases/list-appointments.use-case';
+import { ListAppointmentSuburbsUseCase } from '../modules/appointment/application/use-cases/list-appointment-suburbs.use-case';
+import { ExportAppointmentsUseCase } from '../modules/appointment/application/use-cases/export-appointments.use-case';
 import { UpdateAppointmentUseCase } from '../modules/appointment/application/use-cases/update-appointment.use-case';
 import { ExecuteStatusTransitionUseCase } from '../modules/appointment/application/use-cases/execute-status-transition.use-case';
 import { PerformCrossCheckUseCase } from '../modules/appointment/application/use-cases/perform-cross-check.use-case';
@@ -706,6 +708,9 @@ export function createContainer(logger: Logger): AppContainer {
   // the INGOING/OUTGOING auto-group step needs create/publish, which need serviceGroupRepo.
   const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService, appCredentialRepo);
   const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService);
+  const listAppointmentSuburbsUseCase = new ListAppointmentSuburbsUseCase(appointmentRepo, authorizationService);
+  // exportAppointmentsUseCase is constructed AFTER the report module below —
+  // it reuses that module's XLSX generator.
   // updateAppointmentUseCase is constructed AFTER the notification handlers below —
   // schedule edits need confirmationCycleService + portal token repo + reschedule notifier.
   const deleteAppointmentUseCase = new DeleteAppointmentUseCase(appointmentRepo, auditService, authorizationService);
@@ -1068,6 +1073,8 @@ export function createContainer(logger: Logger): AppContainer {
   const xlsxGenerator = new ExcelJsXlsxGenerator();
   // 031 — agency financial statement export reuses the report XLSX generator.
   const exportAgencyFinancialUseCase = new ExportAgencyFinancialUseCase(financialEntryRepo, tenantRepo, xlsxGenerator);
+  // Appointments-list "Generate Excel" — same generator, same filters as the list.
+  const exportAppointmentsUseCase = new ExportAppointmentsUseCase(appointmentRepo, xlsxGenerator, authorizationService);
   const reportDataReader = new PrismaReportDataReader(prisma);
   const reportJobQueue = env.ENABLE_JOB_QUEUE === 'true'
     ? new PgBossJobQueue()
@@ -1413,6 +1420,8 @@ export function createContainer(logger: Logger): AppContainer {
       createAppointmentUseCase,
       getAppointmentUseCase,
       listAppointmentsUseCase,
+      listAppointmentSuburbsUseCase,
+      exportAppointmentsUseCase,
       updateAppointmentUseCase,
       executeStatusTransitionUseCase,
       performCrossCheckUseCase,

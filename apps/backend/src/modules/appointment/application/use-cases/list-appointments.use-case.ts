@@ -7,7 +7,7 @@ import type {
   AppointmentListItem,
 } from '../../domain/appointment.repository';
 import { AppointmentCodeFormatter } from '../../domain/appointment-code.formatter';
-import { requireTenantScope } from '../../../../shared/domain/require-tenant-scope';
+import { APPOINTMENT_LIST_ROLES, resolveAppointmentListTenantScope } from '../appointment-list-scope';
 
 export interface ListAppointmentsInput {
   filters: {
@@ -27,6 +27,7 @@ export interface ListAppointmentsInput {
     timeFrom?: string;
     timeTo?: string;
     contactSearch?: string;
+    suburb?: string;
     hasRentalTenantNote?: boolean;
     confirmationStatus?: string;
     serviceGroupId?: string;
@@ -69,6 +70,14 @@ export interface ListAppointmentsOutput {
     appointmentCode: string;
     code: string;
     propertyAddress: string;
+    /** The property's own code (e.g. "ACME-PROP-0007"), distinct from `code`. */
+    propertyCode: string;
+    /** Free-text reason recorded on the last sensitive transition. */
+    reason: string | null;
+    /** Structured reason code; set when the appointment was CANCELLED. */
+    cancellationReasonCode: string | null;
+    /** Structured reason code; set when the appointment was REJECTED. */
+    rejectionReasonCode: string | null;
     contactName: string;
     contactPhone: string | null;
     contactEmail: string | null;
@@ -106,28 +115,12 @@ export class ListAppointmentsUseCase {
     const { filters, pagination, actor } = input;
 
     // RBAC: only AM, OP, CL_ADMIN, CL_USER can list appointments
-    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN', 'CL_USER'], { action: 'appointment.list', entityType: 'Appointment' });
+    this.authorizationService.assertRoles(actor, [...APPOINTMENT_LIST_ROLES], { action: 'appointment.list', entityType: 'Appointment' });
 
-    // Resolve tenantId. AM and OP are both cross-tenant per CLAUDE.md §6 —
-    // their JWT carries `tenantId: null`, and the `filters.tenantId` query
-    // param (when provided) narrows the result set. CL_ADMIN and CL_USER are
-    // pinned to their JWT tenantId and any filter they pass is ignored
-    // (defense-in-depth). INSP is NOT tenant-pinned despite older comments
-    // saying so: inspector users are created with `tenantId: null` and are
-    // scoped by `inspectorId`. They cannot reach this line — `assertRoles`
-    // above excludes them.
-    //
-    // Bug C-B2 (QA 2026-04-20): the previous branch treated OP like a
-    // tenant-scoped role and coerced its (null) tenantId via `!`, silently
-    // dropping the query filter and returning the full cross-tenant set
-    // regardless of `?tenantId=`.
-    // `requireTenantScope` throws rather than returning undefined for a pinned
-    // role with no tenant: `buildWhere` applies `tenant_id` behind a truthiness
-    // check, so undefined would mean "no filter" and return every tenant's rows.
-    const tenantId: string | undefined =
-      actor.role === 'AM' || actor.role === 'OP'
-        ? filters.tenantId
-        : requireTenantScope(actor, 'appointment.list');
+    // Shared with the suburbs and export use cases so the three read paths
+    // cannot drift — see `resolveAppointmentListTenantScope` for why the
+    // pinned case must throw rather than fall through to "no filter".
+    const tenantId = resolveAppointmentListTenantScope(actor, filters.tenantId);
 
     // When the search term looks like an appointment code — either fully
     // formatted ("INS-0042") or the bare number the operator reads off the
@@ -155,6 +148,7 @@ export class ListAppointmentsUseCase {
       timeFrom: filters.timeFrom,
       timeTo: filters.timeTo,
       contactSearch: filters.contactSearch,
+      suburb: filters.suburb,
       hasRentalTenantNote: filters.hasRentalTenantNote,
       confirmationStatus: filters.confirmationStatus,
       serviceGroupId: filters.serviceGroupId,
@@ -199,6 +193,10 @@ export class ListAppointmentsUseCase {
         appointmentCode,
         code: appointmentCode,
         propertyAddress: item.propertyAddress,
+        propertyCode: item.propertyCode,
+        reason: item.appointment.reason,
+        cancellationReasonCode: item.appointment.cancellationReasonCode,
+        rejectionReasonCode: item.appointment.rejectionReasonCode,
         contactName: item.contact?.effectiveName ?? '',
         contactPhone: item.contact?.effectivePhone ?? null,
         contactEmail: item.contact?.effectiveEmail ?? null,

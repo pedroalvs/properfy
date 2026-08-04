@@ -32,6 +32,12 @@ export interface AppointmentFilters {
   timeTo?: string;
   /** Search in appointment_contacts snapshot fields (name, email, phone). */
   contactSearch?: string;
+  /**
+   * Exact (case-insensitive) match on the property's suburb. A closed-list
+   * filter fed by `findDistinctSuburbs` — free-text suburb matching is already
+   * covered by `search`.
+   */
+  suburb?: string;
   /** When true, only appointments with non-empty rental_tenant_note; when false, only those without. */
   hasRentalTenantNote?: boolean;
   /** Filter by rental_tenant_confirmation_status enum value. */
@@ -175,6 +181,16 @@ export interface IAppointmentRepository {
    */
   isAppointmentVisibleForInspector(appointmentId: string, todayCivil: string): Promise<boolean>;
   count(filters: AppointmentFilters): Promise<number>;
+  /**
+   * Distinct suburbs of the properties that carry at least one live (non
+   * soft-deleted) appointment, sorted ascending — the option list for the
+   * appointments-list Suburb filter. Sourced from appointment-bearing
+   * properties rather than all properties, so every option returns rows.
+   *
+   * `tenantId` undefined means cross-tenant (AM/OP only); callers must resolve
+   * it through `resolveAppointmentListTenantScope`, never pass a raw query param.
+   */
+  findDistinctSuburbs(tenantId?: string): Promise<string[]>;
   save(appointment: AppointmentEntity): Promise<void>;
   update(
     id: string,

@@ -79,6 +79,7 @@ export {
   LEGACY_EMAIL_SENDING_SETTING_KEY,
   TENANT_NOTIFICATIONS_BLOCKED_CODE,
 } from './rental-tenant-notifications';
+export { formatReasonCodeLabel } from './reason-code-label';
 export {
   suppressesOccupantNotifications,
   isWithheldForNonNotifyingFlow,

@@ -2,6 +2,7 @@ import { DataTable, type DataTableColumn, type DataTablePagination } from '@/com
 import { RowActions } from '@/components/data/RowActions';
 import { BooleanIcon } from '@/components/ui/BooleanIcon';
 import { Tooltip } from '@/components/ui/Tooltip';
+import { formatReasonCodeLabel } from '@properfy/shared';
 import { formatCivilDate } from '@/lib/format-date';
 import { formatTenantNoteTooltip } from '../lib/tenant-note';
 import { AppointmentStatusChip } from './AppointmentStatusChip';
@@ -21,6 +22,12 @@ interface AppointmentTableProps {
    * so the column would repeat their own name on every row.
    */
   showAgency?: boolean;
+  /**
+   * Adds the Service Type / Property Code / Cancellation Reason columns. Opt-in
+   * per page via `TableSwitch` rather than always-on — the default view is
+   * already 12 columns wide.
+   */
+  showExtraColumns?: boolean;
 }
 
 export function AppointmentTable({
@@ -32,6 +39,7 @@ export function AppointmentTable({
   selectedIds,
   onSelectionChange,
   showAgency = false,
+  showExtraColumns = false,
 }: AppointmentTableProps) {
   const selectable = selectedIds !== undefined && onSelectionChange !== undefined;
 
@@ -170,6 +178,55 @@ export function AppointmentTable({
       width: '160px',
       render: (row) => <>{row.inspectorName ?? '—'}</>,
     },
+    // Opt-in columns. The default view already carries 12; these three matter to
+    // some workflows but would push the table into horizontal scroll for everyone.
+    ...(showExtraColumns
+      ? ([
+          {
+            key: 'serviceTypeName',
+            label: 'Service Type',
+            width: '170px',
+            sortable: true,
+            render: (row) => <>{row.serviceTypeName || '—'}</>,
+          },
+          {
+            key: 'propertyCode',
+            label: 'Property Code',
+            width: '160px',
+            sortable: true,
+            render: (row) =>
+              row.propertyCode ? (
+                <span className="font-mono text-sm text-text-secondary">{row.propertyCode}</span>
+              ) : (
+                <>—</>
+              ),
+          },
+          {
+            key: 'cancellationReasonCode',
+            label: 'Cancellation Reason',
+            width: '190px',
+            sortable: true,
+            render: (row) => {
+              // A CANCELLED row carries a cancellation code, a REJECTED one a
+              // rejection code — both are "why this never happened", so one
+              // column serves both rather than two mostly-empty ones.
+              const label = formatReasonCodeLabel(
+                row.cancellationReasonCode ?? row.rejectionReasonCode,
+              );
+              if (!label) return <>—</>;
+              // The free text is often a sentence; it belongs in a tooltip
+              // rather than blowing out the column width.
+              return row.reason ? (
+                <Tooltip label={row.reason}>
+                  <span className="underline decoration-dotted underline-offset-2">{label}</span>
+                </Tooltip>
+              ) : (
+                <>{label}</>
+              );
+            },
+          },
+        ] satisfies DataTableColumn<Appointment>[])
+      : []),
     {
       key: 'serviceGroupCode',
       label: 'Group',
