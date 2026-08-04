@@ -9,6 +9,7 @@ const mockLoginExecute = vi.fn();
 const mockRefreshExecute = vi.fn();
 const mockLogoutExecute = vi.fn();
 const mockGetMeExecute = vi.fn();
+const mockUpdateMyTimezoneExecute = vi.fn();
 const mockChangePasswordExecute = vi.fn();
 const mockRevokeSessionExecute = vi.fn();
 const mockJwtVerify = vi.fn();
@@ -23,6 +24,7 @@ vi.mock('../../../src/main/container', () => ({
       refreshTokenUseCase: { execute: mockRefreshExecute },
       logoutUseCase: { execute: mockLogoutExecute },
       getMeUseCase: { execute: mockGetMeExecute },
+      updateMyTimezoneUseCase: { execute: mockUpdateMyTimezoneExecute },
       changePasswordUseCase: { execute: mockChangePasswordExecute },
       revokeSessionUseCase: { execute: mockRevokeSessionExecute },
       jwtService: {
@@ -186,6 +188,64 @@ describe('POST /v1/auth/logout', () => {
   });
 });
 
+describe('PATCH /v1/me', () => {
+  const mePayload = {
+    id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    name: 'Test User',
+    email: 'test@example.com',
+    role: 'AM',
+    tenantId: null,
+    branchId: null,
+    inspectorId: null,
+    totpEnabled: false,
+    phone: null,
+    status: 'ACTIVE',
+    lastLoginAt: null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    timezone: 'Pacific/Auckland',
+    personalTimezone: 'Pacific/Auckland',
+  };
+
+  it('updates the personal timezone and returns the refreshed profile', async () => {
+    mockJwtVerify.mockResolvedValueOnce({
+      userId: 'user-1',
+      tenantId: null,
+      role: 'AM',
+      branchId: null,
+      inspectorId: null,
+    });
+    mockUpdateMyTimezoneExecute.mockResolvedValueOnce(undefined);
+    mockGetMeExecute.mockResolvedValueOnce(mePayload);
+
+    const res = await supertest(app.server)
+      .patch('/v1/me')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ timezone: 'Pacific/Auckland' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.timezone).toBe('Pacific/Auckland');
+    expect(mockUpdateMyTimezoneExecute).toHaveBeenCalledWith({
+      userId: 'user-1',
+      timezone: 'Pacific/Auckland',
+    });
+  });
+
+  it('rejects an invalid timezone with 400 before reaching the use case', async () => {
+    // Fastify schema validation runs BEFORE the auth preHandler, so no JWT
+    // verify result is enqueued here — an unconsumed mockResolvedValueOnce
+    // would pollute the queue for later tests.
+    mockUpdateMyTimezoneExecute.mockClear();
+
+    const res = await supertest(app.server)
+      .patch('/v1/me')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ timezone: 'Sydney' });
+
+    expect(res.status).toBe(400);
+    expect(mockUpdateMyTimezoneExecute).not.toHaveBeenCalled();
+  });
+});
+
 describe('GET /v1/me', () => {
   it('should return 401 without auth token', async () => {
     const res = await supertest(app.server).get('/v1/me');
@@ -213,6 +273,8 @@ describe('GET /v1/me', () => {
       status: 'ACTIVE',
       lastLoginAt: '2026-03-17T10:00:00.000Z',
       createdAt: '2026-01-01T00:00:00.000Z',
+      timezone: 'Australia/Sydney',
+      personalTimezone: null,
     });
 
     const res = await supertest(app.server)

@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import {
   appointmentCodePrefixSchema,
+  ianaTimezoneSchema,
   normalizeRentalTenantNotificationSettings,
   PLATFORM_TIMEZONE,
 } from '@properfy/shared';
@@ -21,6 +22,8 @@ export interface CreateTenantInput {
   legalName: string;
   currency: string;
   appointmentCodePrefix: string;
+  /** Agency IANA timezone; defaults to the platform timezone when omitted. */
+  timezone?: string;
   settings?: Record<string, unknown>;
   actor: AuthContext;
 }
@@ -48,8 +51,18 @@ export class CreateTenantUseCase {
 
   async execute(input: CreateTenantInput): Promise<CreateTenantOutput> {
     const { name, legalName, currency, settings, actor } = input;
-    // Platform is Sydney-only: the timezone field is frozen regardless of input.
-    const timezone = PLATFORM_TIMEZONE;
+    // Validate here as well as in the route schema so non-route callers cannot
+    // store an invalid IANA identifier.
+    let timezone = PLATFORM_TIMEZONE;
+    if (input.timezone !== undefined) {
+      const timezoneResult = ianaTimezoneSchema.safeParse(input.timezone);
+      if (!timezoneResult.success) {
+        throw new ValidationError('Invalid timezone', [
+          { field: 'timezone', message: 'Must be a valid IANA timezone identifier' },
+        ]);
+      }
+      timezone = timezoneResult.data;
+    }
     // Validate AND normalize here (not only in the shared route schema) so
     // non-route callers get a deterministic validation error and can't bypass
     // the "3-4 alphanumeric, uppercased, globally unique" contract.

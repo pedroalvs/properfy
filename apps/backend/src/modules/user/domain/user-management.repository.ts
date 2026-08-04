@@ -42,6 +42,8 @@ export interface IUserManagementRepository {
       branchId: string | null;
       role: string;
       status: string;
+      /** Personal timezone (cross-tenant roles only; CL_* targets are rejected upstream). */
+      timezone: string | null;
       /** Kept in sync when an inspector's email — their login identity — changes. */
       email: string;
       deletedAt: Date | null;

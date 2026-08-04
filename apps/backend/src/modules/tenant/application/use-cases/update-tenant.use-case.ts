@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { AuthContext } from '@properfy/shared';
 import {
   appointmentCodePrefixSchema,
+  ianaTimezoneSchema,
   normalizeRentalTenantNotificationSettings,
 } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
@@ -59,6 +60,8 @@ export interface UpdateTenantInput {
     legalName?: string;
     currency?: string;
     appointmentCodePrefix?: string;
+    /** Agency IANA timezone. Editable by AM, and by CL_ADMIN on their own tenant. */
+    timezone?: string;
     settings?: Record<string, unknown>;
   };
   actor: AuthContext;
@@ -107,11 +110,13 @@ export class UpdateTenantUseCase {
           throw new ValidationError('Invalid settings value', fields);
         }
       }
-      // Keep the top-level appointmentCodePrefix (CL_ADMIN/OP may set it); other
-      // top-level fields (legalName, currency) remain AM-only; timezone is frozen platform-wide.
+      // Keep the top-level appointmentCodePrefix and timezone (CL_ADMIN may set
+      // both on their own tenant — the agency timezone is inherited by all its
+      // users); other top-level fields (legalName, currency) remain AM-only.
       data = {
         name: data.name,
         appointmentCodePrefix: data.appointmentCodePrefix,
+        timezone: data.timezone,
         settings: filteredSettings,
       };
     } else {
@@ -178,11 +183,19 @@ export class UpdateTenantUseCase {
       settingsJson: tenant.settingsJson,
     };
 
+    // Validate before the update payload so non-route callers cannot store an
+    // invalid IANA identifier.
+    if (data.timezone !== undefined && !ianaTimezoneSchema.safeParse(data.timezone).success) {
+      throw new ValidationError('Invalid timezone', [
+        { field: 'timezone', message: 'Must be a valid IANA timezone identifier' },
+      ]);
+    }
+
     // Build update payload
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.legalName !== undefined) updateData.legalName = data.legalName;
-    // timezone is frozen to the platform timezone (Sydney-only); updates are ignored.
+    if (data.timezone !== undefined) updateData.timezone = data.timezone;
     if (data.currency !== undefined) updateData.currency = data.currency;
     if (normalizedAppointmentCodePrefix !== undefined)
       updateData.appointmentCodePrefix = normalizedAppointmentCodePrefix;

@@ -11,6 +11,7 @@ function mapToEntity(row: {
   name: string;
   email: string;
   phone: string | null;
+  timezone: string | null;
   status: string;
   password_hash: string;
   totp_secret: string | null;
@@ -30,6 +31,7 @@ function mapToEntity(row: {
     name: row.name,
     email: row.email,
     phone: row.phone,
+    timezone: row.timezone,
     status: row.status as UserEntity['status'],
     passwordHash: row.password_hash,
     totpSecret: row.totp_secret,
@@ -71,6 +73,7 @@ export class PrismaUserRepository implements IUserRepository {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        timezone: user.timezone,
         status: user.status as PrismaUserStatus,
         password_hash: user.passwordHash,
         totp_secret: user.totpSecret,
@@ -83,6 +86,7 @@ export class PrismaUserRepository implements IUserRepository {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        timezone: user.timezone,
         status: user.status as PrismaUserStatus,
         password_hash: user.passwordHash,
         totp_secret: user.totpSecret,
@@ -132,6 +136,13 @@ export class PrismaUserRepository implements IUserRepository {
         },
       });
     }
+  }
+
+  async updateTimezone(userId: string, timezone: string | null): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { timezone },
+    });
   }
 
   async updatePassword(userId: string, passwordHash: string): Promise<void> {

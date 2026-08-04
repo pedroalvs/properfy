@@ -279,6 +279,8 @@ export interface paths {
                             /** Format: uuid */
                             inspectorId?: string | null;
                             inspectorPhotoUrl?: string | null;
+                            timezone: string;
+                            personalTimezone: string | null;
                             clUserPermissions?: string[];
                         };
                     };
@@ -290,7 +292,53 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        timezone: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            name: string;
+                            email: string;
+                            role: string;
+                            /** Format: uuid */
+                            tenantId: string | null;
+                            /** Format: uuid */
+                            branchId: string | null;
+                            totpEnabled: boolean;
+                            phone: string | null;
+                            status: string;
+                            lastLoginAt: (string) | null;
+                            createdAt: string;
+                            /** Format: uuid */
+                            inspectorId?: string | null;
+                            inspectorPhotoUrl?: string | null;
+                            timezone: string;
+                            personalTimezone: string | null;
+                            clUserPermissions?: string[];
+                        };
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/v1/auth/change-password": {
@@ -653,6 +701,7 @@ export interface paths {
                         /** @default AUD */
                         currency?: string;
                         appointmentCodePrefix: string;
+                        timezone?: string;
                         settings?: {
                             /**
                              * @default MONTHLY
@@ -720,7 +769,6 @@ export interface paths {
                                     headerText?: string;
                                 };
                             };
-                            timezone?: string;
                             /** @default 19 */
                             portalCutoffHour?: number;
                             /** @default 1 */
@@ -836,6 +884,7 @@ export interface paths {
                         legalName?: string;
                         currency?: string;
                         appointmentCodePrefix?: string;
+                        timezone?: string;
                         settings?: {
                             /**
                              * @default MONTHLY
@@ -903,7 +952,6 @@ export interface paths {
                                     headerText?: string;
                                 };
                             };
-                            timezone?: string;
                             /** @default 19 */
                             portalCutoffHour?: number;
                             /** @default 1 */
@@ -1510,6 +1558,7 @@ export interface paths {
                                 email: string;
                                 phone: string | null;
                                 status: string;
+                                timezone?: string | null;
                                 totpEnabled?: boolean;
                                 lastLoginAt?: (string) | null;
                                 createdAt: string;
@@ -1548,6 +1597,7 @@ export interface paths {
                         /** Format: uuid */
                         branchId?: string;
                         phone?: string;
+                        timezone?: string;
                     };
                 };
             };
@@ -1571,6 +1621,7 @@ export interface paths {
                                 email: string;
                                 phone: string | null;
                                 status: string;
+                                timezone?: string | null;
                                 totpEnabled?: boolean;
                                 lastLoginAt?: (string) | null;
                                 createdAt: string;
@@ -1630,6 +1681,7 @@ export interface paths {
                                 email: string;
                                 phone: string | null;
                                 status: string;
+                                timezone?: string | null;
                                 totpEnabled?: boolean;
                                 lastLoginAt?: (string) | null;
                                 createdAt: string;
@@ -1666,6 +1718,7 @@ export interface paths {
                         /** Format: uuid */
                         branchId?: string;
                         phone?: string;
+                        timezone?: string;
                     };
                 };
             };
@@ -1689,6 +1742,7 @@ export interface paths {
                                 email: string;
                                 phone: string | null;
                                 status: string;
+                                timezone?: string | null;
                                 totpEnabled?: boolean;
                                 lastLoginAt?: (string) | null;
                                 createdAt: string;
@@ -1743,6 +1797,7 @@ export interface paths {
                                 email: string;
                                 phone: string | null;
                                 status: string;
+                                timezone?: string | null;
                                 totpEnabled?: boolean;
                                 lastLoginAt?: (string) | null;
                                 createdAt: string;
@@ -1777,6 +1832,7 @@ export interface paths {
                         branchId?: string | null;
                         /** @enum {string} */
                         role?: "AM" | "OP" | "CL_ADMIN" | "CL_USER" | "INSP";
+                        timezone?: string | null;
                     };
                 };
             };
@@ -1800,6 +1856,7 @@ export interface paths {
                                 email: string;
                                 phone: string | null;
                                 status: string;
+                                timezone?: string | null;
                                 totpEnabled?: boolean;
                                 lastLoginAt?: (string) | null;
                                 createdAt: string;
@@ -1849,6 +1906,7 @@ export interface paths {
                                 email: string;
                                 phone: string | null;
                                 status: string;
+                                timezone?: string | null;
                                 totpEnabled?: boolean;
                                 lastLoginAt?: (string) | null;
                                 createdAt: string;
@@ -1882,6 +1940,7 @@ export interface paths {
                         branchId?: string | null;
                         /** @enum {string} */
                         role?: "AM" | "OP" | "CL_ADMIN" | "CL_USER" | "INSP";
+                        timezone?: string | null;
                     };
                 };
             };
@@ -1905,6 +1964,7 @@ export interface paths {
                                 email: string;
                                 phone: string | null;
                                 status: string;
+                                timezone?: string | null;
                                 totpEnabled?: boolean;
                                 lastLoginAt?: (string) | null;
                                 createdAt: string;

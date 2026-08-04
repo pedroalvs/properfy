@@ -1,5 +1,6 @@
 import type { IUserRepository } from '../../domain/user.repository';
 import type { UserRole, UserStatus } from '@properfy/shared';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import { UnauthorizedError } from '../../../../shared/domain/errors';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import type { IStorageService } from '../../../inspector-execution/domain/storage.service';
@@ -26,6 +27,10 @@ export interface GetMeOutput {
   // 031 — CL_USER granular permission flags (tenant-cohort) so the web can
   // mirror server-side gating (e.g. `view_financials`) for nav/route visibility.
   clUserPermissions?: string[];
+  /** Effective timezone: agency timezone for CL_*, personal/platform for AM/OP/INSP. */
+  timezone: string;
+  /** Raw users.timezone. Always null for CL_* roles (strict inheritance). */
+  personalTimezone: string | null;
 }
 
 export class GetMeUseCase {
@@ -61,10 +66,19 @@ export class GetMeUseCase {
     }
 
     let clUserPermissions: string[] | undefined;
-    if (user.role === 'CL_USER' && user.tenantId) {
+    let timezone = PLATFORM_TIMEZONE;
+    let personalTimezone: string | null = null;
+    if ((user.role === 'CL_USER' || user.role === 'CL_ADMIN') && user.tenantId) {
+      // CL_* strictly inherit the agency timezone; a stray users.timezone is ignored.
       const tenant = await this.tenantRepo.findById(user.tenantId);
-      // settingsJson is untyped JSON — normalize to a string[] before returning.
-      clUserPermissions = normalizeClUserPermissions(tenant?.settingsJson?.clUserPermissions);
+      timezone = tenant?.timezone ?? PLATFORM_TIMEZONE;
+      if (user.role === 'CL_USER') {
+        // settingsJson is untyped JSON — normalize to a string[] before returning.
+        clUserPermissions = normalizeClUserPermissions(tenant?.settingsJson?.clUserPermissions);
+      }
+    } else {
+      personalTimezone = user.timezone;
+      timezone = user.timezone ?? PLATFORM_TIMEZONE;
     }
 
     return {
@@ -82,6 +96,8 @@ export class GetMeUseCase {
       inspectorId,
       inspectorPhotoUrl,
       clUserPermissions,
+      timezone,
+      personalTimezone,
     };
   }
 }
