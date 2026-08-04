@@ -235,6 +235,25 @@ describe('PrismaAppointmentRepository.findDistinctSuburbs', () => {
     expect(suburbs).toEqual(['Bondi']);
   });
 
+  // A blank option in the dropdown carries value '' — the same sentinel the
+  // "All" entry uses — so picking it would silently clear the filter.
+  it('omits blank suburbs', async () => {
+    const { tenantId, userId } = await seedTenant(harness.prisma, 'Agency A');
+    const branchId = await getBranchId(harness.prisma, tenantId);
+    const serviceTypeId = await seedServiceType(harness.prisma);
+
+    const named = await seedProperty(harness.prisma, tenantId, branchId, 'Bondi');
+    await seedAppointment(harness.prisma, {
+      tenantId, branchId, propertyId: named, serviceTypeId, userId,
+    });
+    const blank = await seedProperty(harness.prisma, tenantId, branchId, '');
+    await seedAppointment(harness.prisma, {
+      tenantId, branchId, propertyId: blank, serviceTypeId, userId,
+    });
+
+    expect(await repo.findDistinctSuburbs(tenantId)).toEqual(['Bondi']);
+  });
+
   it('omits properties with no appointments at all', async () => {
     const { tenantId, userId } = await seedTenant(harness.prisma, 'Agency A');
     const branchId = await getBranchId(harness.prisma, tenantId);

@@ -300,16 +300,24 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   }
 
   async findDistinctSuburbs(tenantId?: string): Promise<string[]> {
-    const rows = await this.prisma.property.findMany({
+    // `groupBy`, not `findMany({ distinct })`: on Prisma 5 without the
+    // `nativeDistinct` preview flag (this schema declares no previewFeatures),
+    // `distinct` is applied in the query engine — the database would return
+    // every matching property row and dedup in memory. A cross-tenant AM/OP
+    // call would drag back one row per appointment-bearing property on the
+    // platform. `groupBy` emits a real GROUP BY.
+    const rows = await this.prisma.property.groupBy({
+      by: ['suburb'],
       where: {
         ...(tenantId ? { tenant_id: tenantId } : {}),
         deleted_at: null,
         // Only suburbs that actually have a live appointment, so every option
         // the operator picks comes back with rows.
         appointments: { some: { deleted_at: null } },
+        // A blank suburb would render an unreadable option whose value collides
+        // with the dropdown's "All" sentinel ('').
+        suburb: { not: '' },
       },
-      distinct: ['suburb'],
-      select: { suburb: true },
       orderBy: { suburb: 'asc' },
     });
     return rows.map((row) => row.suburb);
