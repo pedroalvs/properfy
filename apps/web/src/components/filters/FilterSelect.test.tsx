@@ -238,3 +238,105 @@ describe('FilterSelect keyboard navigation', () => {
     expect(highlighted.className).not.toBe(selected.className);
   });
 });
+
+/**
+ * The clear (×) affordance. It used to be a `span role="button" tabIndex={-1}`
+ * nested inside the trigger `<button>`: unreachable by keyboard, and invalid
+ * HTML (interactive content inside a button).
+ */
+describe('FilterSelect clear button', () => {
+  const trigger = () => screen.getByRole('button', { name: 'Status' });
+  const clear = () => screen.getByRole('button', { name: 'Clear Status' });
+
+  it('is absent until there is something to clear', () => {
+    render(<FilterSelect label="Status" value="" onChange={() => {}} options={options} />);
+    expect(screen.queryByRole('button', { name: 'Clear Status' })).not.toBeInTheDocument();
+  });
+
+  it('is a real button outside the trigger, not interactive content nested in one', () => {
+    render(<FilterSelect label="Status" value="active" onChange={() => {}} options={options} />);
+
+    expect(clear().tagName).toBe('BUTTON');
+    // Nesting is what made it both invalid HTML and unfocusable.
+    expect(trigger().contains(clear())).toBe(false);
+  });
+
+  it('is reachable with Tab straight after the trigger', async () => {
+    const user = userEvent.setup();
+    render(<FilterSelect label="Status" value="active" onChange={() => {}} options={options} />);
+    trigger().focus();
+
+    await user.tab();
+
+    expect(clear()).toHaveFocus();
+  });
+
+  it('clears on Enter', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<FilterSelect label="Status" value="active" onChange={onChange} options={options} />);
+    clear().focus();
+
+    await user.keyboard('{Enter}');
+
+    expect(onChange).toHaveBeenCalledWith('');
+  });
+
+  // Clearing removes the button that had focus, so without this focus falls to
+  // <body> and the keyboard user loses their place in the filter bar.
+  it('returns focus to the trigger after clearing', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <FilterSelect label="Status" value="active" onChange={() => {}} options={options} />,
+    );
+    clear().focus();
+
+    await user.keyboard('{Enter}');
+    rerender(<FilterSelect label="Status" value="" onChange={() => {}} options={options} />);
+
+    expect(trigger()).toHaveFocus();
+  });
+
+  // Every other clear test starts with the menu closed, so `closeMenu()` in the
+  // handler was unpinned: deleting it left all tests green while leaving a
+  // stranded listbox over an emptied filter, with a stale activedescendant.
+  // The outside-click listener cannot save it — the clear is inside the
+  // container it watches.
+  it('closes an open menu when cleared with the mouse', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<FilterSelect label="Status" value="active" onChange={onChange} options={options} />);
+
+    await user.click(trigger());
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    await user.click(clear());
+
+    expect(onChange).toHaveBeenCalledWith('');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(trigger()).toHaveFocus();
+  });
+
+  // Guards against refocusing from an effect on `value`: that would also pass
+  // the test above, but would yank focus into this filter whenever an external
+  // "clear all filters" reset emptied it.
+  it('does not grab focus when the value is emptied without interaction', () => {
+    const { rerender } = render(
+      <FilterSelect label="Status" value="active" onChange={() => {}} options={options} />,
+    );
+
+    rerender(<FilterSelect label="Status" value="" onChange={() => {}} options={options} />);
+
+    expect(trigger()).not.toHaveFocus();
+  });
+
+  it('does not open the menu when cleared', async () => {
+    const user = userEvent.setup();
+    render(<FilterSelect label="Status" value="active" onChange={() => {}} options={options} />);
+    clear().focus();
+
+    await user.keyboard('{Enter}');
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+});

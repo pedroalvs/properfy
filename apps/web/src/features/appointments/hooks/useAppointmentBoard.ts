@@ -3,7 +3,7 @@ import { OVERDUE_ELIGIBLE_STATUSES, type AppointmentStatus } from '@properfy/sha
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import { useUrlFilters } from '@/hooks/useUrlFilters';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
-import { APPOINTMENT_FILTER_SCHEMA } from './useAppointmentList';
+import { APPOINTMENT_FILTER_SCHEMA, toAppointmentListParams } from './useAppointmentList';
 import type { Appointment, AppointmentFiltersState } from '../types';
 
 /**
@@ -75,21 +75,19 @@ export interface UseAppointmentBoardReturn {
   refetchAll: () => void;
 }
 
-/** Shared filter params sent by every column (each adds its own `status`). */
+/**
+ * Shared filter params sent by every column (each adds its own `status`).
+ *
+ * Derived from the list's `toAppointmentListParams` rather than re-listing the
+ * fields, so a filter added to the list reaches the board automatically. It was
+ * a hand-rolled copy before, and the Suburb / Confirmation Email controls
+ * shipped rendering on the board while silently sending nothing.
+ */
 function buildSharedParams(filters: AppointmentFiltersState): ListParams {
-  return {
-    rentalTenantConfirmationStatus: filters.rentalTenantConfirmationStatus || undefined,
-    tenantId: filters.tenantId || undefined,
-    branchId: filters.branchId || undefined,
-    inspectorId: filters.inspectorId || undefined,
-    serviceTypeId: filters.serviceTypeId || undefined,
-    search: filters.search || undefined,
-    fromDate: filters.startDate || undefined,
-    toDate: filters.endDate || undefined,
-    overdueOnly: filters.overdueOnly ? 'true' : undefined,
-    // `showCancelled` is intentionally omitted: the backend only applies it when
-    // no explicit status filter is present, and every column always sends one.
-  };
+  const { showCancelled: _showCancelled, ...shared } = toAppointmentListParams(filters);
+  // `showCancelled` is intentionally dropped: the backend only applies it when
+  // no explicit status filter is present, and every column always sends one.
+  return shared;
 }
 
 /**

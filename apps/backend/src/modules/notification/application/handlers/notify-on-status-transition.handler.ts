@@ -36,6 +36,10 @@ const STATUS_TRANSITION_TEMPLATE_CODES = [
   'INSPECTION_NOTICE',
   'INSPECTION_NOTICE_SMS',
   'INSPECTION_CANCELLED',
+  // Retired as a send, retained as history. Nothing writes this code any more, but rows
+  // written before it was retired are still the latest announcement for those
+  // appointments. Dropping it here would hide them from the occurrence dedupe and let a
+  // replay of an already-announced cancellation through.
   'INSPECTION_CANCELLED_SMS',
 ] as const;
 
@@ -370,7 +374,10 @@ export class NotifyOnStatusTransitionHandler {
       });
     }
 
-    if (recipientPhone) {
+    // SMS only for the inspection notice. INSPECTION_CANCELLED_SMS was retired with the
+    // other occupant-action twins, so a cancellation is email-only — while the notice,
+    // which is the occupant's FIRST word that anyone is coming, keeps both channels.
+    if (recipientPhone && input.targetStatus === 'SCHEDULED') {
       const smsCode = `${emailCode}_SMS` as string;
       await this.createNotification.execute({
         tenantId: appointment.tenantId,

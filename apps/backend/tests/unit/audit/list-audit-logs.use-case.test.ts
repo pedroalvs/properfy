@@ -127,6 +127,22 @@ describe('ListAuditLogsUseCase', () => {
 
   // GAP-002: CL_ADMIN audit log read access
   describe('CL_ADMIN access', () => {
+    // Fail-closed. This scoping used to be written `actor.tenantId!`, which
+    // asserted away a real possibility: it wrote `null` into the filter, and
+    // the repository applies `tenant_id` behind a truthiness check, so the
+    // audit log of every tenant would have come back.
+    it('refuses to list at all when CL_ADMIN carries no tenant', async () => {
+      await expect(
+        useCase.execute({
+          filters: {},
+          pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
+          actor: { ...clAdminActor, tenantId: null },
+        }),
+      ).rejects.toMatchObject({ code: 'TENANT_SCOPE_REQUIRED' });
+
+      expect(repo.findAll).not.toHaveBeenCalled();
+    });
+
     it('should allow CL_ADMIN to view audit logs', async () => {
       const result = await useCase.execute({
         filters: {},

@@ -18,8 +18,14 @@ export const filterLabelFocused =
 
 export const filterIcon = 'text-text-muted text-base opacity-75';
 
+/**
+ * The clear (×). `focus-visible` ring is explicit rather than inherited: the
+ * container's `focus-within` ring looks identical whether the trigger or this
+ * button holds focus, so without it a keyboard user cannot tell which of the
+ * two they are on — they differ only by the UA default outline.
+ */
 export const filterClearButton =
-  'inline-flex items-center justify-center h-5 w-5 rounded-full text-text-muted hover:text-text-primary opacity-60 hover:opacity-100 transition-opacity scale-75';
+  'inline-flex items-center justify-center h-5 w-5 rounded-full text-text-muted hover:text-text-primary opacity-60 hover:opacity-100 transition-opacity scale-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
 
 export const filterDropdown =
   'absolute left-0 top-full z-50 mt-1 max-h-60 w-full overflow-auto overscroll-contain rounded bg-card-bg shadow-lg border border-black/10';

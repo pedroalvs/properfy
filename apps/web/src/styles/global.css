@@ -1,4 +1,5 @@
 @import './tokens.css';
+@import './auth-pane.css';
 @import '@mdi/font/css/materialdesignicons.css';
 
 @tailwind base;

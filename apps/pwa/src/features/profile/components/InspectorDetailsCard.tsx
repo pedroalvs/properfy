@@ -1,5 +1,4 @@
-import { useDetailQuery } from '@/hooks/useApiQuery';
-import { useAuth } from '@/hooks/useAuth';
+import { useInspectorMe } from '../hooks/useInspectorMe';
 import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
 import { formatCivilDate } from '@/lib/format-date';
 
@@ -8,19 +7,6 @@ function toIsoDay(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${m}-${d}`;
-}
-
-interface InspectorDetail {
-  id: string;
-  fullName: string | null;
-  abn: string | null;
-  dateOfBirth: string | null;
-  insuranceFileKey: string | null;
-  insuranceExpiresAt: string | null;
-  policeCheckFileKey: string | null;
-  policeCheckExpiresAt: string | null;
-  insuranceMetaJson: { fileName?: string | null } | null;
-  policeCheckMetaJson: { fileName?: string | null } | null;
 }
 
 /**
@@ -72,17 +58,7 @@ function ExpiryBadge({ expiry }: { expiry: string | null }) {
 }
 
 export function InspectorDetailsCard() {
-  const { user } = useAuth();
-  const { data, isLoading, isError } = useDetailQuery<InspectorDetail>(
-    ['inspector', 'me', user?.id],
-    '/v1/inspectors/me',
-    {
-      enabled: !!user,
-      staleTime: 5 * 60 * 1000,
-      gcTime: 24 * 60 * 60 * 1000,
-      refetchOnWindowFocus: false,
-    },
-  );
+  const { data, isLoading, isError } = useInspectorMe();
 
   if (isLoading) {
     return (

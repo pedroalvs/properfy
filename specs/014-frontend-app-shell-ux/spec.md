@@ -253,7 +253,13 @@ All FRs below are `Status: IMPLEMENTED, Source: code` unless otherwise noted.
 - **FR-016**: FilterBar MUST render its children in a responsive grid (1 column mobile, 2 sm, 3 md, 4 lg/xl) with consistent gap spacing.
 - **FR-017**: All filter inputs MUST use shadow-based borders (not standard HTML borders) with floating labels, matching the legacy Vuetify outlined dense visual style.
 - **FR-018**: FilterInput (search) MUST debounce onChange by 300ms and show a clear button when the field has a value.
-- **FR-019**: The platform MUST provide FilterSelect, FilterAutocomplete, FilterDateRange, and FilterBoolean components with consistent visual styling.
+- **FR-019**: The platform MUST provide FilterSelect, ~~FilterAutocomplete~~, FilterDateRange, and FilterBoolean components with consistent visual styling.
+  > **Amended 2026-08.** `FilterAutocomplete` was **deleted** (PR #1057): it had the
+  > same keyboard-inoperability defect as the other filter widgets and zero
+  > production consumers — only a barrel export referenced it. This clause no
+  > longer applies to it. The shipped set is `FilterSelect`, `FilterMultiSelect`,
+  > `FilterSegmented`, `FilterDateRange`, `FilterTimeRange`, `FilterBoolean` and
+  > `FilterInput`. Do not reimplement `FilterAutocomplete` from this line.
 - **FR-019a** (Feedback Round 2026-04-13 item 10, NEW, pending planning): On every list page that uses `ListFilterTableTemplate`, the search FilterInput MUST be the **first** child of the FilterBar. The FilterBar row itself MUST remain **sticky at the top of the scroll container** as the operator scrolls the table — so the search input stays reachable without scrolling back up. Specific list pages (e.g., Appointments, feature 006 US6) inherit this rule without re-stating it.
 - **FR-019b** (Feedback Round 2026-04-13 item 11, NEW, pending planning): On any list page where a row exposes both a "view" (eye) and an "edit" (pencil) action that open the same destination, the row MUST expose only the "view" action. The "edit" capability MUST move inside the drawer/modal as a secondary affordance. This applies transversally to every list page in the admin UI. The exception is a list page whose view and edit destinations are genuinely different (rare, must be justified per-spec).
 - **FR-019c** (Feedback Round 2026-04-13 item 12, NEW, pending planning): Every import-data screen (property import, appointment import, future import surfaces) MUST expose a "Download template" affordance next to the file-upload control. The template file is a static XLSX/CSV committed under a known path (e.g., `apps/web/public/templates/<entity>-import-template.xlsx`), with columns matching the importer's accepted column set. A one-line caption near the download link MUST describe the file's purpose. Individual import specs (003, 006) point at this pattern and add their column list.

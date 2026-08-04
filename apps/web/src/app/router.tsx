@@ -20,6 +20,8 @@ const Loadable = (Component: any) => (props: any) => (
 const LoginPage = Loadable(lazyRetry(() => import('@/features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage }))));
 const ForgotPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage }))));
 const ResetPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage }))));
+const AnalyticsPage = Loadable(lazyRetry(() => import('@/features/analytics/pages/AnalyticsPage').then(m => ({ default: m.AnalyticsPage }))));
+const InspectorWorkloadPage = Loadable(lazyRetry(() => import('@/features/inspector-workload/pages/InspectorWorkloadPage').then(m => ({ default: m.InspectorWorkloadPage }))));
 const AppointmentListPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentListPage').then(m => ({ default: m.AppointmentListPage }))));
 const AppointmentDetailPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentDetailPage').then(m => ({ default: m.AppointmentDetailPage }))));
 const AppointmentBoardPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentBoardPage').then(m => ({ default: m.AppointmentBoardPage }))));
@@ -126,6 +128,28 @@ export const routes: RouteObject[] = [
         children: [
           { index: true, element: <Navigate to="/dashboard" replace /> },
           { path: 'dashboard', element: <DashboardPage /> },
+          // Access matches the dashboard's four business roles; the chart bundle
+          // is behind this route's lazy chunk so the dashboard never pays for it.
+          {
+            path: 'analytics',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER]}>
+                <AnalyticsPage />
+              </AuthGuard>
+            ),
+          },
+          // AM/OP only, unlike Analytics above: inspectors are cross-tenant, so
+          // an agency-scoped workload would show only that agency's slice of an
+          // inspector's week and the capacity thresholds could not be read
+          // against it. The use case enforces the same set server-side.
+          {
+            path: 'inspector-workload',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+                <InspectorWorkloadPage />
+              </AuthGuard>
+            ),
+          },
           {
             path: 'appointments',
             element: (

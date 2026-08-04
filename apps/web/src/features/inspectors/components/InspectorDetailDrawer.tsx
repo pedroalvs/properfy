@@ -6,6 +6,7 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Textarea } from '@/components/forms/Textarea';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { TabsNav } from '@/components/layout/TabsNav';
+import { InspectorRatingsTab } from './InspectorRatingsTab';
 import { useAuth } from '@/hooks/useAuth';
 import { useInspectorDetail } from '../hooks/useInspectorDetail';
 import { useInspectorDeactivate } from '../hooks/useInspectorDeactivate';
@@ -14,7 +15,7 @@ import { InspectorResetPasswordDialog } from './InspectorResetPasswordDialog';
 import { InspectorDetailSections } from './InspectorDetailSections';
 import { InspectorAvailabilityTab } from './InspectorAvailabilityTab';
 
-type DrawerTab = 'details' | 'availability';
+type DrawerTab = 'details' | 'availability' | 'ratings';
 
 interface InspectorDetailDrawerProps {
   inspectorId: string | null;
@@ -58,9 +59,14 @@ export function InspectorDetailDrawer({
   // API refuses it for a deactivated inspector (INSPECTOR_DEACTIVATED).
   const canResetPassword = isAmOp && inspector?.status === 'ACTIVE';
 
+  const ratingsTab = {
+    id: 'ratings',
+    label: 'Ratings',
+    ...(inspector && inspector.ratingCount > 0 ? { badge: inspector.ratingCount } : {}),
+  };
   const tabs = isAmOp
-    ? [{ id: 'details', label: 'Details' }, { id: 'availability', label: 'Availability' }]
-    : [{ id: 'details', label: 'Details' }];
+    ? [{ id: 'details', label: 'Details' }, { id: 'availability', label: 'Availability' }, ratingsTab]
+    : [{ id: 'details', label: 'Details' }, ratingsTab];
 
   const handleEdit = useCallback(() => {
     if (onEdit && inspectorId) {
@@ -140,10 +146,14 @@ export function InspectorDetailDrawer({
                 onChange={(id) => setActiveTab(id as DrawerTab)}
               />
               <div className="flex-1 overflow-y-auto px-6 py-4">
-                {activeTab === 'details' ? (
-                  <InspectorDetailSections inspector={inspector} />
-                ) : (
-                  <InspectorAvailabilityTab inspectorId={inspector.id} />
+                {activeTab === 'details' && <InspectorDetailSections inspector={inspector} />}
+                {activeTab === 'availability' && <InspectorAvailabilityTab inspectorId={inspector.id} />}
+                {activeTab === 'ratings' && (
+                  <InspectorRatingsTab
+                    inspectorId={inspector.id}
+                    ratingAvg={inspector.ratingAvg}
+                    ratingCount={inspector.ratingCount}
+                  />
                 )}
               </div>
             </>

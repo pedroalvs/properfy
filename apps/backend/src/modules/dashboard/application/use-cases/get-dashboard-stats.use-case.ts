@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { requireTenantScope } from '../../../../shared/domain/require-tenant-scope';
 import type { DashboardRepository } from '../../domain/dashboard.repository';
 
 export interface InspectorDayCount {
@@ -65,9 +66,10 @@ export class GetDashboardStatsUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions to view dashboard stats');
     }
 
-    const tenantId = ['CL_ADMIN', 'CL_USER'].includes(actor.role)
-      ? actor.tenantId ?? undefined
-      : undefined;
+    // Throws for a pinned role with no tenant — `getStats` builds its filter as
+    // `tenantId ? { tenant_id } : {}`, so undefined would widen the stats to
+    // the whole platform instead of narrowing them to the agency.
+    const tenantId = requireTenantScope(actor, 'dashboard.stats');
 
     const includeInspectorBreakdowns = ['AM', 'OP'].includes(actor.role);
 

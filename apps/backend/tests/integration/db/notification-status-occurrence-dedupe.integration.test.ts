@@ -163,15 +163,15 @@ describe('status-change notification dedupe — real DB', () => {
       appointmentId, tenantId, previousStatus: 'CANCELLED', targetStatus: 'SCHEDULED',
     });
 
-    // The fixture contact has both an email and a phone, so every announcement
-    // is delivered on both channels. What this test guards is the number of
-    // ANNOUNCEMENTS, not of rows: a cancellation between two notices must let
-    // the second notice through even though its date is unchanged.
+    // The fixture contact has both an email and a phone. The notice is delivered on
+    // both channels; the cancellation is email-only, since INSPECTION_CANCELLED_SMS
+    // was retired. What this test guards is the number of ANNOUNCEMENTS, not of rows:
+    // a cancellation between two notices must let the second notice through even
+    // though its date is unchanged.
     expect(await templateCodesFor(appointmentId)).toEqual([
       'INSPECTION_NOTICE',
       'INSPECTION_NOTICE_SMS',
       'INSPECTION_CANCELLED',
-      'INSPECTION_CANCELLED_SMS',
       'INSPECTION_NOTICE',
       'INSPECTION_NOTICE_SMS',
     ]);

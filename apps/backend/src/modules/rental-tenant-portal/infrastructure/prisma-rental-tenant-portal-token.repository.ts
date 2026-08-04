@@ -127,6 +127,47 @@ export class PrismaRentalTenantPortalTokenRepository implements IRentalTenantPor
   }
 
   // Cross-tenant: background job processes all tenants to expire stale portal tokens
+  async findLatestExtendableByAppointmentId(
+    appointmentId: string,
+  ): Promise<RentalTenantPortalTokenEntity | null> {
+    const row = await this.prisma.rentalTenantPortalToken.findFirst({
+      // REVOKED and SUPERSEDED are excluded on purpose: the portal middleware
+      // rejects both with 410, so a revived one could never be opened.
+      where: { appointment_id: appointmentId, status: { in: ['ACTIVE', 'EXPIRED'] } },
+      orderBy: { created_at: 'desc' },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
+  async extendExpiryAndReactivate(
+    id: string,
+    appointmentId: string,
+    notBefore: Date,
+  ): Promise<boolean> {
+    // One conditional UPDATE, never read-modify-write: `expire-tokens.worker`
+    // runs on a schedule and could flip this row to EXPIRED between a read and a
+    // write, which we would then overwrite with a stale status.
+    //
+    // GREATEST makes the statement idempotent under replay — a second DONE
+    // transition can only ever push the deadline out, never pull it in.
+    //
+    // Prisma cannot express GREATEST or a conditional column update, hence raw
+    // SQL. Parameters are interpolated by Prisma.sql, never string-concatenated.
+    const updated = await this.prisma.$executeRaw`
+      UPDATE rental_tenant_portal_tokens
+         SET expires_at = GREATEST(expires_at, ${notBefore}),
+             status = CASE
+               WHEN status = 'EXPIRED' THEN 'ACTIVE'::"RentalTenantPortalTokenStatus"
+               ELSE status
+             END,
+             updated_at = now()
+       WHERE id = ${id}
+         AND appointment_id = ${appointmentId}
+         AND status IN ('ACTIVE', 'EXPIRED')
+    `;
+    return updated > 0;
+  }
+
   async expireActiveTokens(): Promise<number> {
     const result = await this.prisma.rentalTenantPortalToken.updateMany({
       where: {

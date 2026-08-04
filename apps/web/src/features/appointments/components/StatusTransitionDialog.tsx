@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { CancellationReasonCode, RejectionReasonCode } from '@properfy/shared';
+import { CancellationReasonCode, RejectionReasonCode, formatReasonCodeLabel } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
@@ -14,16 +14,15 @@ import { Checkbox } from '@/components/forms/Checkbox';
  */
 const SYSTEM_ONLY_CANCELLATION_CODES: CancellationReasonCode[] = [CancellationReasonCode.EXPIRED];
 
+// Labels come from the shared humanizer so the dialog, the appointments table's
+// Cancellation Reason column and the XLSX export always read a code the same way.
 const CANCELLATION_OPTIONS = Object.values(CancellationReasonCode)
   .filter((code) => !SYSTEM_ONLY_CANCELLATION_CODES.includes(code))
-  .map((code) => ({
-    value: code,
-    label: code.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-  }));
+  .map((code) => ({ value: code, label: formatReasonCodeLabel(code) }));
 
 const REJECTION_OPTIONS = Object.values(RejectionReasonCode).map((code) => ({
   value: code,
-  label: code.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+  label: formatReasonCodeLabel(code),
 }));
 
 export interface StatusTransitionConfirmPayload {

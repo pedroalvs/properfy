@@ -1,31 +1,39 @@
 import type { ReactNode } from 'react';
-import { SkylineArt } from './SkylineArt';
+import { RouteArt } from './RouteArt';
 
 const BRAND_TAGLINE = 'Inspection operations for Australian agencies.';
 
 /**
- * Brand pane: stacked lockup over a line-art skyline, on a cool tint of the brand
- * navy. Decorative in full — the form sheet next to it already names the product —
- * so it is hidden from assistive tech and dropped entirely below `lg`.
+ * Brand pane: the day's inspection round drawn as a map, with the lockup set against it.
+ * Decorative in full — the form sheet next to it already names the product — so it is
+ * hidden from assistive tech and dropped entirely below `lg`.
  *
- * The skyline overflows the pane by 10% on each side; see SkylineArt for why.
+ * The lockup sits bottom-left rather than centred so it reads as the map's caption and
+ * leaves the upper two thirds — where the round actually runs — uncovered.
+ *
+ * `auth-pane-reveal` is what arms the load sequence in styles/auth-pane.css; the layer
+ * classes inside RouteArt are inert without it.
  */
 function AuthBrandPane() {
   return (
     <div
       data-testid="auth-brand-pane"
       aria-hidden="true"
-      className="absolute inset-y-0 left-0 hidden w-[39.5%] overflow-hidden bg-[linear-gradient(155deg,var(--color-auth-pane-from),var(--color-auth-pane-to))] lg:block"
+      className="auth-pane-reveal absolute inset-y-0 left-0 hidden w-[39.5%] overflow-hidden bg-[linear-gradient(155deg,var(--color-auth-pane-from),var(--color-auth-pane-to))] lg:block"
     >
-      <div className="absolute left-0 top-[37%] flex w-full -translate-y-1/2 flex-col items-center px-8">
-        <img src="/images/properfy-icon.png" alt="" className="w-[14%] min-w-[62px]" />
-        <img src="/images/properfy-wordmark.png" alt="" className="mt-4 w-[33%] min-w-[150px]" />
-        <p className="mt-2 max-w-[78%] text-balance text-center font-poppins text-sm font-semibold leading-relaxed text-secondary/60">
+      <RouteArt className="absolute inset-0 h-full w-full" />
+
+      <div className="auth-reveal-lockup absolute bottom-0 left-0 flex flex-col items-start px-10 pb-12">
+        {/*
+         * The asset is the full lockup on a generous transparent margin — roughly half
+         * its height is padding — so it is set larger than its optical size to land at
+         * about 24px of actual ink. Same reason PortalLayout sizes it the way it does.
+         */}
+        <img src="/images/properfy-logo-red.png" alt="" className="-ml-2 h-12 w-auto" />
+        <p className="mt-1 max-w-[280px] text-balance font-poppins text-sm font-semibold leading-relaxed text-secondary/60">
           {BRAND_TAGLINE}
         </p>
       </div>
-
-      <SkylineArt className="absolute bottom-0 left-[-10%] w-[120%] text-secondary" />
     </div>
   );
 }
@@ -53,9 +61,9 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
         <div className="mx-auto w-full max-w-[420px] lg:mx-0 lg:ml-[22%] lg:w-[57%] lg:max-w-none">
           {/* Below lg the pane is gone, so the sheet carries the brand itself. */}
           <img
-            src="/images/properfy-wordmark.png"
+            src="/images/properfy-logo-red.png"
             alt="Properfy"
-            className="mb-10 h-6 w-auto lg:hidden"
+            className="-ml-2 mb-8 h-10 w-auto lg:hidden"
           />
 
           <h1 className="font-poppins text-[30px] font-bold leading-tight tracking-tight text-secondary sm:text-[34px]">

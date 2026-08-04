@@ -50,6 +50,9 @@ export const SENSITIVE_PAYLOAD_KEYS = [
   'resetToken',
   'confirmationLink',
   'rescheduleLink',
+  // Carries a live portal token, exactly like confirmationLink. Omitting it here
+  // would leave a working link in payload_json forever after the send.
+  'surveyLink',
   'inviteToken',
 ] as const;
 

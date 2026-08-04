@@ -26,6 +26,10 @@ export function useInspectorDetail(id: string | null): UseInspectorDetailReturn 
       serviceTypes: Array.isArray(raw.serviceTypesJson) ? raw.serviceTypesJson : [],
       regionsCount: regionIds.length,
       serviceTypesCount: Array.isArray(raw.serviceTypesJson) ? raw.serviceTypesJson.length : 0,
+      // null, not 0, for an unrated inspector — see Inspector.ratingAvg.
+      ratingAvg: raw.rating?.average ?? null,
+      ratingCount: raw.rating?.responseCount ?? 0,
+      completedCount: raw.rating?.doneServicesCount ?? 0,
       fullName: raw.fullName ?? null,
       abn: raw.abn ?? null,
       dateOfBirth: raw.dateOfBirth ?? null,

@@ -522,7 +522,8 @@ function useRetryGeocoding(id: string) {
   });
 }
 
-// Search hook (used by PropertySearch combobox in appointments)
+// Search hook — NOTE: the PropertySearch combobox it was written for was
+// never wired up and has been removed; this hook shape is unimplemented.
 function usePropertySearch(query: string, branchId: string | null) {
   return useQuery({
     queryKey: ['properties', 'search', query, branchId],

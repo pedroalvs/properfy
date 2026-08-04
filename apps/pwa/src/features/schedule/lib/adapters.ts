@@ -48,6 +48,7 @@ export function mapInspectorAppointmentDetail(
   return {
     id: detail.id,
     appointmentCode: detail.appointmentCode,
+    propertyCode: detail.propertyCode,
     propertyAddress: detail.propertyAddress,
     suburb: detail.suburb,
     scheduledDate: detail.scheduledDate,
@@ -85,6 +86,7 @@ export function mapInspectorScheduleMonthItem(item: InspectorScheduleMonthItem):
   return {
     id: item.id,
     appointmentCode: item.appointmentCode,
+    propertyCode: item.propertyCode,
     propertyAddress: item.propertyAddress,
     suburb: item.suburb,
     scheduledDate: item.scheduledDate,

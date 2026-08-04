@@ -71,6 +71,86 @@ describe('AppointmentTable', () => {
     expect(screen.getByText('Branch')).toBeInTheDocument();
   });
 
+  describe('additional columns', () => {
+    // Opt-in via TableSwitch: the default view is already 12 columns wide.
+    it('are hidden by default', () => {
+      render(<AppointmentTable data={[makeAppointment()]} />);
+      expect(screen.queryByText('Service Type')).not.toBeInTheDocument();
+      expect(screen.queryByText('Property Code')).not.toBeInTheDocument();
+      expect(screen.queryByText('Cancellation Reason')).not.toBeInTheDocument();
+    });
+
+    it('render when showExtraColumns is set', () => {
+      render(
+        <AppointmentTable
+          data={[makeAppointment({ propertyCode: 'ACME-PROP-0007' })]}
+          showExtraColumns
+        />,
+      );
+      expect(screen.getByText('Service Type')).toBeInTheDocument();
+      expect(screen.getByText('Property Code')).toBeInTheDocument();
+      expect(screen.getByText('Cancellation Reason')).toBeInTheDocument();
+      expect(cellUnder('Service Type')).toHaveTextContent('Move-in Inspection');
+      expect(cellUnder('Property Code')).toHaveTextContent('ACME-PROP-0007');
+    });
+
+    it('falls back to a dash when the property has no code', () => {
+      render(<AppointmentTable data={[makeAppointment({ propertyCode: null })]} showExtraColumns />);
+      expect(cellUnder('Property Code')).toHaveTextContent('—');
+    });
+
+    it('humanizes the cancellation reason code', () => {
+      render(
+        <AppointmentTable
+          data={[makeAppointment({
+            status: AppointmentStatus.CANCELLED,
+            cancellationReasonCode: 'CLIENT_REQUEST',
+          })]}
+          showExtraColumns
+        />,
+      );
+      expect(cellUnder('Cancellation Reason')).toHaveTextContent('Client Request');
+    });
+
+    // One column covers both terminal states — a REJECTED row has no
+    // cancellation code, and leaving it blank would read as "no reason given".
+    it('falls back to the rejection reason code for a REJECTED row', () => {
+      render(
+        <AppointmentTable
+          data={[makeAppointment({
+            status: AppointmentStatus.REJECTED,
+            cancellationReasonCode: null,
+            rejectionReasonCode: 'TENANT_DECLINED',
+          })]}
+          showExtraColumns
+        />,
+      );
+      expect(cellUnder('Cancellation Reason')).toHaveTextContent('Tenant Declined');
+    });
+
+    it('shows a dash when neither reason code is set', () => {
+      render(<AppointmentTable data={[makeAppointment()]} showExtraColumns />);
+      expect(cellUnder('Cancellation Reason')).toHaveTextContent('—');
+    });
+
+    it('exposes the free-text reason as a tooltip on the code', async () => {
+      const user = userEvent.setup();
+      render(
+        <AppointmentTable
+          data={[makeAppointment({
+            status: AppointmentStatus.CANCELLED,
+            cancellationReasonCode: 'CLIENT_REQUEST',
+            reason: 'Tenant moved out early',
+          })]}
+          showExtraColumns
+        />,
+      );
+
+      await user.hover(screen.getByText('Client Request'));
+      expect(await screen.findByText('Tenant moved out early')).toBeInTheDocument();
+    });
+  });
+
   describe('Agency column', () => {
     // Agency is AM/OP-only: a client user is pinned to a single agency, so the
     // column would repeat their own name on every row.

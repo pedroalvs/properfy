@@ -7,6 +7,8 @@ import { createMockContainer } from '../../helpers/mock-container';
 const mockCreateAppointmentExecute = vi.fn();
 const mockGetAppointmentExecute = vi.fn();
 const mockListAppointmentsExecute = vi.fn();
+const mockListAppointmentSuburbsExecute = vi.fn();
+const mockExportAppointmentsExecute = vi.fn();
 const mockUpdateAppointmentExecute = vi.fn();
 const mockExecuteStatusTransitionExecute = vi.fn();
 const mockPerformCrossCheckExecute = vi.fn();
@@ -28,6 +30,8 @@ vi.mock('../../../src/main/container', () => ({
       createAppointmentUseCase: { execute: mockCreateAppointmentExecute },
       getAppointmentUseCase: { execute: mockGetAppointmentExecute },
       listAppointmentsUseCase: { execute: mockListAppointmentsExecute },
+      listAppointmentSuburbsUseCase: { execute: mockListAppointmentSuburbsExecute },
+      exportAppointmentsUseCase: { execute: mockExportAppointmentsExecute },
       updateAppointmentUseCase: { execute: mockUpdateAppointmentExecute },
       executeStatusTransitionUseCase: { execute: mockExecuteStatusTransitionExecute },
       performCrossCheckUseCase: { execute: mockPerformCrossCheckExecute },
@@ -220,6 +224,60 @@ describe('GET /v1/appointments', () => {
     expect(res.body.data[0].propertyTotalAreaM2).toBe(82.5);
   });
 
+  it('should keep propertyCode and the reason fields through response serialization', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    // Same trap as propertyTotalAreaM2 above: the "additional columns" table
+    // switch renders Property Code and Cancellation Reason, so both must survive
+    // appointmentResponseSchema rather than being silently stripped.
+    mockListAppointmentsExecute.mockResolvedValueOnce({
+      data: [{
+        ...appointmentResult,
+        propertyCode: 'ACME-PROP-0007',
+        reason: 'Tenant moved out early',
+        cancellationReasonCode: 'CLIENT_REQUEST',
+        rejectionReasonCode: null,
+      }],
+      total: 1,
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/appointments')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].propertyCode).toBe('ACME-PROP-0007');
+    expect(res.body.data[0].reason).toBe('Tenant moved out early');
+    expect(res.body.data[0].cancellationReasonCode).toBe('CLIENT_REQUEST');
+  });
+
+  it('should accept the suburb filter and forward it to the use case', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockListAppointmentsExecute.mockResolvedValueOnce({ data: [], total: 0 });
+
+    const res = await supertest(app.server)
+      .get('/v1/appointments?suburb=Bondi')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(mockListAppointmentsExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: expect.objectContaining({ suburb: 'Bondi' }) }),
+    );
+  });
+
+  it('should accept the confirmationStatus (email sent) filter', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockListAppointmentsExecute.mockResolvedValueOnce({ data: [], total: 0 });
+
+    const res = await supertest(app.server)
+      .get('/v1/appointments?confirmationStatus=not_sent')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(mockListAppointmentsExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ filters: expect.objectContaining({ confirmationStatus: 'not_sent' }) }),
+    );
+  });
+
   it('should return 400 with invalid query params (invalid status)', async () => {
     mockJwtVerify.mockResolvedValueOnce(clAdminContext);
 
@@ -229,6 +287,88 @@ describe('GET /v1/appointments', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('GET /v1/appointments/suburbs', () => {
+  it('should return 200 with the distinct suburb list', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockListAppointmentSuburbsExecute.mockResolvedValueOnce({ suburbs: ['Bondi', 'Newtown'] });
+
+    const res = await supertest(app.server)
+      .get('/v1/appointments/suburbs')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.suburbs).toEqual(['Bondi', 'Newtown']);
+  });
+
+  // Static route must win over /v1/appointments/:appointmentId — otherwise
+  // "suburbs" is parsed as an appointment id and this 400s on the uuid check.
+  it('should not be swallowed by the :appointmentId route', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockListAppointmentSuburbsExecute.mockResolvedValueOnce({ suburbs: [] });
+
+    const res = await supertest(app.server)
+      .get('/v1/appointments/suburbs')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(mockGetAppointmentExecute).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /v1/appointments/export', () => {
+  it('should return 200 with a base64 xlsx payload', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockExportAppointmentsExecute.mockResolvedValueOnce({
+      filename: 'appointments-2026-08-03.xlsx',
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      contentBase64: Buffer.from('fake-xlsx').toString('base64'),
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/appointments/export')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.filename).toBe('appointments-2026-08-03.xlsx');
+    expect(Buffer.from(res.body.data.contentBase64, 'base64').toString()).toBe('fake-xlsx');
+  });
+
+  it('should forward the same filters the list honours', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockExportAppointmentsExecute.mockResolvedValueOnce({
+      filename: 'appointments-2026-08-03.xlsx',
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      contentBase64: '',
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/appointments/export?suburb=Bondi&status=DONE&confirmationStatus=sent')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(mockExportAppointmentsExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: expect.objectContaining({
+          suburb: 'Bondi',
+          status: ['DONE'],
+          confirmationStatus: 'sent',
+        }),
+      }),
+    );
+  });
+
+  it('should return 400 with invalid query params', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+
+    const res = await supertest(app.server)
+      .get('/v1/appointments/export?status=INVALID_STATUS')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(400);
+    expect(mockExportAppointmentsExecute).not.toHaveBeenCalled();
   });
 });
 

@@ -43,6 +43,9 @@ function makeInspector(overrides: Partial<InspectorDetail> = {}): InspectorDetai
     status: InspectorStatus.ACTIVE,
     regionsCount: 3,
     serviceTypesCount: 5,
+    ratingAvg: 4.8,
+    ratingCount: 12,
+    completedCount: 245,
     regionIds: ['region-1', 'region-2', 'region-3'],
     serviceTypes: [
       { serviceTypeId: '123e4567-e89b-12d3-a456-426614174000', certified: false },

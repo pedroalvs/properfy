@@ -79,6 +79,7 @@ describe('GET /v1/inspector/schedule', () => {
           keyRequired: false,
           meetingLocation: null,
           executionStatus: 'NOT_STARTED',
+          propertyCode: 'ACM-PROP-0007',
         },
       ],
     };
@@ -93,6 +94,38 @@ describe('GET /v1/inspector/schedule', () => {
     expect(res.body.data.date).toBe('2026-03-16');
     expect(res.body.data.appointments).toHaveLength(1);
     expect(res.body.data.appointments[0].scheduledDate).toBe('2026-03-16');
+  });
+
+  // Undeclared response fields are stripped silently, so the realty code the
+  // PWA card renders (doc §7.3) has to be proven on the wire, not just in the
+  // use-case output.
+  it('serializes the property (realty) code on schedule items', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    mockGetInspectorScheduleExecute.mockResolvedValueOnce({
+      date: '2026-03-16',
+      appointments: [
+        {
+          id: APPOINTMENT_ID,
+          status: 'SCHEDULED',
+          scheduledDate: '2026-03-16',
+          timeSlotStart: '09:00', timeSlotEnd: '10:00',
+          serviceTypeId: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44',
+          propertyId: 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
+          rentalTenantConfirmationStatus: 'CONFIRMED',
+          keyRequired: false,
+          meetingLocation: null,
+          executionStatus: 'NOT_STARTED',
+          propertyCode: 'ACM-PROP-0007',
+        },
+      ],
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/inspector/schedule')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.appointments[0].propertyCode).toBe('ACM-PROP-0007');
   });
 
   it('should return 401 without auth token', async () => {
@@ -189,6 +222,7 @@ describe('GET /v1/inspector/appointments/:appointmentId', () => {
       contact: null,
       restrictions: [],
       execution: null,
+      propertyCode: 'ACM-PROP-0007',
     };
     mockGetAppointmentDetailExecute.mockResolvedValueOnce(detailResult);
 
@@ -198,6 +232,8 @@ describe('GET /v1/inspector/appointments/:appointmentId', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(APPOINTMENT_ID);
+    // doc §7.4 "Realty codes" — must survive the response serializer.
+    expect(res.body.data.propertyCode).toBe('ACM-PROP-0007');
   });
 
   it('should return 401 without auth token', async () => {

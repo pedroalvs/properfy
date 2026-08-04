@@ -10,12 +10,16 @@ import { TwoFactorSection } from '../components/TwoFactorSection';
 import { SessionsSection } from '../components/SessionsSection';
 import { InstallAppCard } from '../components/InstallAppCard';
 import { Button } from '@/components/ui/Button';
+import { useInspectorMe } from '../hooks/useInspectorMe';
 import { useInspectorAvailabilityTemplate } from '../hooks/useInspectorAvailabilityTemplate';
 
 export function ProfilePage() {
   const { user, logout } = useAuth();
   const { data: availability } = useInspectorAvailabilityTemplate();
   const [totpEnabled, setTotpEnabled] = useState(user?.totpEnabled ?? false);
+  // Same query key and options as InspectorDetailsCard, so the two consumers
+  // share one request rather than issuing two.
+  const { data: inspectorMe, isLoading: isInspectorLoading } = useInspectorMe();
 
   if (!user) return null;
 
@@ -54,6 +58,11 @@ export function ProfilePage() {
           totpEnabled={totpEnabled}
           lastLoginAt={user.lastLoginAt}
           photoUrl={user.inspectorPhotoUrl}
+          showStats={user.role === 'INSP'}
+          ratingAvg={inspectorMe?.data?.rating?.average ?? null}
+          ratingCount={inspectorMe?.data?.rating?.responseCount ?? 0}
+          completedCount={inspectorMe?.data?.rating?.doneServicesCount ?? 0}
+          ratingLoading={isInspectorLoading}
         />
 
         {/* Inspector details (read-only) */}

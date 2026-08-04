@@ -20,6 +20,11 @@ export interface ScheduleAppointmentItem {
   id: string;
   /** Formatted appointment code (e.g. "INS-0042"). */
   appointmentCode: string;
+  /**
+   * Property (realty) code — PREFIX-PROP-0001. A different identifier from
+   * `appointmentCode`: doc §7.3 asks the schedule to show both.
+   */
+  propertyCode?: string;
   status: string;
   scheduledDate: string;
   timeSlotStart: string;
@@ -324,6 +329,7 @@ export class GetInspectorScheduleUseCase {
     return {
       id: appt.id,
       appointmentCode: `${codePrefix}-${codePadded}`,
+      propertyCode: item.propertyCode,
       status: appt.status,
       scheduledDate: scheduledDateOverride ?? appt.scheduledDate.toISOString().split('T')[0]!,
       timeSlotStart: appt.timeSlotStart,

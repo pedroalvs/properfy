@@ -78,6 +78,29 @@ export interface PortalData {
   /** Display name of the PROPERTY_MANAGER contact, when one is linked. */
   propertyManager?: string | null;
   tenant?: PortalTenantInfo;
+  /**
+   * Post-execution satisfaction survey.
+   *
+   * Optional on purpose: the API emits it only when the inspection is DONE, and
+   * a deployment predating the feature omits it entirely. A missing block means
+   * "nothing to rate" — never "not eligible yet".
+   */
+  survey?: PortalSurvey;
+}
+
+export interface PortalSurvey {
+  eligible: boolean;
+  submitted: boolean;
+  /** The tenant's own answer, echoed back to them. */
+  rating: number | null;
+  comment: string | null;
+  submittedAt: string | null;
+  inspectorName: string | null;
+}
+
+export interface SubmitSurveyInput {
+  rating: number;
+  comment?: string;
 }
 
 export interface ConfirmInput {

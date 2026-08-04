@@ -36,8 +36,8 @@ interface MapMarkerProps {
   disabled?: boolean;
   /**
    * Pixel offset applied to the drawn marker, leaving its coordinate alone.
-   * Used to pull markers apart when two of them would be drawn on top of each
-   * other — see `computeMarkerOffsets` on the appointments map.
+   * Used to pull apart markers that share a coordinate, which no zoom level
+   * could separate — see `computeMarkerOffsets` on the appointments map.
    *
    * Goes through Mapbox's own `setOffset`, which it folds into the positioning
    * transform it already writes on the element. Setting `style.transform`

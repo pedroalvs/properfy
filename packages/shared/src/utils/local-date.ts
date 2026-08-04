@@ -33,6 +33,18 @@ export function addCivilDays(dateStr: string, delta: number): string {
 }
 
 /**
+ * The Monday on or before a civil date — the week anchor the whole platform uses.
+ *
+ * Also pure UTC string math. Deriving the weekday with `new Date(y, m, d)` would
+ * read the *server's* timezone and land on the wrong day for any server west of
+ * Sydney, which is exactly the drift the dashboard repository shipped with.
+ */
+export function mondayOf(dateStr: string): string {
+  const daysSinceMonday = (new Date(`${dateStr}T00:00:00.000Z`).getUTCDay() + 6) % 7;
+  return addCivilDays(dateStr, -daysSinceMonday);
+}
+
+/**
  * Returns the current time as HH:mm in the given IANA timezone.
  */
 export function currentTimeInTzHHmm(tz: string): string {

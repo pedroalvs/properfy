@@ -29,11 +29,32 @@ describe('AuthLayout', () => {
     expect(screen.getByTestId('auth-brand-pane')).toHaveAttribute('aria-hidden', 'true');
   });
 
+  /**
+   * The pane now carries a wordmark of its own. This is the test that fails if anyone
+   * gives it an `alt`, which would make a screen reader read the brand twice over.
+   */
   it('exposes exactly one brand image to assistive tech, on the compact lockup', () => {
     renderLayout();
 
     const images = screen.getAllByRole('img');
     expect(images).toHaveLength(1);
     expect(images[0]).toHaveAccessibleName('Properfy');
+  });
+
+  it('draws the round inside the brand pane', () => {
+    renderLayout();
+
+    expect(screen.getByTestId('auth-brand-pane')).toContainElement(screen.getByTestId('route-art'));
+  });
+
+  /**
+   * `auth-pane-reveal` is the hook every rule in styles/auth-pane.css is scoped under,
+   * including the reduced-motion guard. Drop the class and the artwork renders in its
+   * resting state — a fully retracted route, i.e. nothing.
+   */
+  it('arms the load reveal on the pane', () => {
+    renderLayout();
+
+    expect(screen.getByTestId('auth-brand-pane')).toHaveClass('auth-pane-reveal');
   });
 });

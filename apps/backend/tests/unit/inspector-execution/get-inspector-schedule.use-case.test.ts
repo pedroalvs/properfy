@@ -158,6 +158,14 @@ describe('GetInspectorScheduleUseCase', () => {
     expect(result.appointments[0].scheduledDate).toBe('2026-03-21');
   });
 
+  it('should expose the property (realty) code on single-day schedule items', async () => {
+    vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([makeAppointment()]);
+
+    const result = await useCase.execute({ date: '2026-03-21', actor: inspActor });
+
+    expect(result.appointments[0].propertyCode).toBe('PROP-001');
+  });
+
   it('should return empty appointments array when no visible appointments exist', async () => {
     vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([]);
 
@@ -271,6 +279,9 @@ describe('GetInspectorScheduleUseCase', () => {
       flowType: ServiceTypeFlowType.ROUTINE,
       agencyName: 'Test Agency',
       executionStatus: 'FINISHED',
+      // "Realty code" in doc §7.3 — the property's own code, distinct from the
+      // appointment code the card already shows.
+      propertyCode: 'PROP-001',
     });
   });
 

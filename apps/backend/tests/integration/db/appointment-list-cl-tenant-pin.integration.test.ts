@@ -26,16 +26,13 @@
  * honouring the filter resolves too, so a throw-based assertion can never
  * observe the regression this file exists to catch.
  *
- * Known gap, deliberately not covered here: a CL_* actor whose context carries
- * a null `tenantId` gets an unscoped cross-tenant list, because `buildWhere`
- * applies `tenant_id` behind a falsy check while the use case passes
- * `actor.tenantId ?? undefined`. No API path can produce such a context —
- * `create-user`'s agency-tenant guard rejects an agency user without a tenant,
- * `update-user` never writes `tenant_id`, and API keys are restricted to
- * AM/OP — so this is a fail-open default rather than a live hole. Closing it
- * belongs in the use case, not the repository: `buildWhere` cannot tell a
- * legitimately unscoped AM/OP list from a pinned actor with a missing tenant,
- * because the role lives in the caller. Tracked separately.
+ * The last case covers what used to be an open gap: a CL_* actor whose context
+ * carried a null `tenantId` received an unscoped cross-tenant list, because
+ * `buildWhere` applies `tenant_id` behind a truthiness check while the use case
+ * passed `actor.tenantId ?? undefined`. `requireTenantScope` now fails closed
+ * there. It is enforced in the use case rather than the repository because
+ * `buildWhere` cannot tell a legitimately unscoped AM/OP listing from a pinned
+ * actor whose tenant went missing — the role lives in the caller.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -171,6 +168,28 @@ describe('CL_* tenant pinning on the appointments list (real DB)', () => {
     expect(ids).toContain(fixtureA!.appointmentId);
     expect(total).toBe(1);
   });
+
+  /**
+   * Fail-closed. This is the case that used to be impossible to write: before
+   * `requireTenantScope`, a pinned actor with no tenant produced no `tenant_id`
+   * predicate at all, so this call returned BOTH tenants' rows. The failure
+   * mode of a missing scope was maximum exposure, which is why a 403 is the
+   * right answer even though no API path can currently produce this context.
+   */
+  it.each(['CL_ADMIN', 'CL_USER'] as const)(
+    'refuses to list at all when %s carries no tenant, instead of listing everything',
+    async (role) => {
+      await expect(
+        listAs({
+          userId: fixtureA!.userId,
+          tenantId: null,
+          role,
+          branchId: null,
+          inspectorId: null,
+        }),
+      ).rejects.toMatchObject({ code: 'TENANT_SCOPE_REQUIRED' });
+    },
+  );
 
   // The pin must survive every other filter too: narrowing by something else
   // must not become a way to widen the tenant scope.

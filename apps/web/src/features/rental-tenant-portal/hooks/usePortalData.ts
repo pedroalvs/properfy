@@ -8,6 +8,7 @@ import type {
   ReportUnavailabilityInput,
   AvailableGroupsData,
   JoinGroupInput,
+  SubmitSurveyInput,
 } from '../types';
 
 function portalQueryKey(token: string) {
@@ -90,6 +91,25 @@ export function useAvailableGroups(token: string, enabled: boolean) {
     queryFn: () => portalGet<AvailableGroupsData>(`/v1/rental-tenant-portal/${token}/available-groups`),
     enabled: !!token && enabled,
     retry: false,
+  });
+}
+
+/**
+ * Submits the satisfaction rating.
+ *
+ * The POST response is deliberately discarded: invalidating the portal query is
+ * what promotes the UI to the thank-you card. That makes the idempotent
+ * "already submitted" case converge on the same render for free — the server
+ * payload decides what the tenant sees, not local state.
+ */
+export function useSubmitSurvey(token: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<unknown, ApiError, SubmitSurveyInput>({
+    mutationFn: (data) => portalPost(`/v1/rental-tenant-portal/${token}/survey`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: portalQueryKey(token) });
+    },
   });
 }
 

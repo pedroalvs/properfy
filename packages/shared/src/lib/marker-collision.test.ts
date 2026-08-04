@@ -1,177 +1,102 @@
 import { describe, it, expect } from 'vitest';
-import { resolveMarkerCollisions, type ScreenPoint } from './marker-collision';
+import { resolveCoincidentMarkerOffsets } from './marker-collision';
+import type { PointLike } from './plottable-point';
 
 const D = 36;
 
-/** Where each marker actually ends up once its offset is applied. */
-function finalPositions(points: ScreenPoint[], diameter = D): ScreenPoint[] {
-  const offsets = resolveMarkerCollisions(points, diameter);
-  return points.map((p, i) => ({ x: p.x + offsets[i]![0], y: p.y + offsets[i]![1] }));
+/** A Sydney-ish coordinate, so the fixtures stay inside plottable range. */
+function at(latitude: number, longitude: number): PointLike {
+  return { latitude, longitude };
 }
 
-function distance(a: ScreenPoint, b: ScreenPoint): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-/** The whole point of the module: no drawn pin may overlap another. */
-function expectNoOverlap(points: ScreenPoint[], diameter = D) {
-  const placed = finalPositions(points, diameter).filter((p) => Number.isFinite(p.x));
-  for (let i = 0; i < placed.length; i += 1) {
-    for (let j = i + 1; j < placed.length; j += 1) {
-      expect(distance(placed[i]!, placed[j]!)).toBeGreaterThanOrEqual(diameter - 1e-6);
-    }
-  }
-}
-
-describe('resolveMarkerCollisions', () => {
-  it('leaves well-separated markers untouched', () => {
-    const points = [
-      { x: 0, y: 0 },
-      { x: 500, y: 500 },
-      { x: 1000, y: 0 },
-    ];
-    expect(resolveMarkerCollisions(points, D)).toEqual([
+describe('resolveCoincidentMarkerOffsets', () => {
+  it('leaves distinct coordinates alone, however close they are', () => {
+    // ~10m apart: these project on top of each other when zoomed out, and the
+    // previous proximity-based rule pulled them into a row at those zooms. They
+    // must now stay on their true positions — zooming in separates them.
+    const points = [at(-33.8688, 151.2093), at(-33.86889, 151.20939), at(-33.9, 151.3)];
+    expect(resolveCoincidentMarkerOffsets(points, D)).toEqual([
       [0, 0],
       [0, 0],
       [0, 0],
     ]);
   });
 
-  it('leaves markers exactly one diameter apart untouched — touching is not overlapping', () => {
-    const points = [
-      { x: 0, y: 0 },
-      { x: D, y: 0 },
-    ];
-    expect(resolveMarkerCollisions(points, D)).toEqual([
+  it('splits two markers on the same coordinate into a touching horizontal pair', () => {
+    const points = [at(-33.8688, 151.2093), at(-33.8688, 151.2093)];
+    expect(resolveCoincidentMarkerOffsets(points, D)).toEqual([
+      [-D / 2, 0],
+      [D / 2, 0],
+    ]);
+  });
+
+  it('lays three markers on the same coordinate out as a centred row', () => {
+    const points = [at(-33.8, 151.2), at(-33.8, 151.2), at(-33.8, 151.2)];
+    expect(resolveCoincidentMarkerOffsets(points, D)).toEqual([
+      [-D, 0],
       [0, 0],
+      [D, 0],
+    ]);
+  });
+
+  it('offsets each coincident group independently and index-aligned', () => {
+    const points = [
+      at(-33.8, 151.2), // group A
+      at(-34.0, 151.0), // lone
+      at(-33.8, 151.2), // group A
+      at(-34.5, 150.5), // group B
+      at(-34.5, 150.5), // group B
+    ];
+    expect(resolveCoincidentMarkerOffsets(points, D)).toEqual([
+      [-D / 2, 0],
       [0, 0],
+      [D / 2, 0],
+      [-D / 2, 0],
+      [D / 2, 0],
     ]);
   });
 
-  it('splits two identical points into a touching horizontal pair', () => {
-    const points = [
-      { x: 100, y: 100 },
-      { x: 100, y: 100 },
-    ];
-    const placed = finalPositions(points);
-
-    // Centred on the shared point, one diameter between centres.
-    expect(placed).toEqual([
-      { x: 100 - D / 2, y: 100 },
-      { x: 100 + D / 2, y: 100 },
-    ]);
-    expect(distance(placed[0]!, placed[1]!)).toBeCloseTo(D, 6);
-  });
-
-  it('lays three identical points out as a centred row', () => {
-    const points = [
-      { x: 50, y: 20 },
-      { x: 50, y: 20 },
-      { x: 50, y: 20 },
-    ];
-    expect(finalPositions(points)).toEqual([
-      { x: 50 - D, y: 20 },
-      { x: 50, y: 20 },
-      { x: 50 + D, y: 20 },
+  it('treats coordinates equal to six decimals as the same spot', () => {
+    // Geocoding the same address twice, plus float noise from the JSON
+    // round-trip: ~1cm apart is the same pin position at every zoom.
+    const points = [at(-33.868800000001, 151.2093), at(-33.8688, 151.209300000002)];
+    expect(resolveCoincidentMarkerOffsets(points, D)).toEqual([
+      [-D / 2, 0],
+      [D / 2, 0],
     ]);
   });
 
-  it('pushes partially overlapping markers apart to exactly one diameter', () => {
-    // 10px apart — the 36px circles overlap heavily.
-    const points = [
-      { x: 0, y: 0 },
-      { x: 10, y: 0 },
+  it('gives unplottable coordinates a zero offset and keeps them out of the layout', () => {
+    const points: PointLike[] = [
+      at(-33.8688, 151.2093),
+      { latitude: null, longitude: 151.2093 },
+      at(Number.NaN, 151.2093),
+      at(91, 200),
+      at(-33.8688, 151.2093),
     ];
-    const placed = finalPositions(points);
-    expect(distance(placed[0]!, placed[1]!)).toBeCloseTo(D, 6);
-    expectNoOverlap(points);
-  });
-
-  it('merges clusters whose rows would collide after being laid out', () => {
-    // Two pairs 40px apart: neither pair collides with the other initially, but
-    // laying each out as its own row spreads them into each other. Without the
-    // re-check pass this returns overlapping positions.
-    const points = [
-      { x: 0, y: 0 },
-      { x: 0, y: 0 },
-      { x: 40, y: 0 },
-      { x: 40, y: 0 },
-    ];
-    expectNoOverlap(points);
-    expect(new Set(finalPositions(points).map((p) => p.x)).size).toBe(4);
-  });
-
-  it('keeps a dense pile fully separated', () => {
-    const points = Array.from({ length: 8 }, () => ({ x: 200, y: 200 }));
-    expectNoOverlap(points);
-  });
-
-  it('separates a mixed field of piles and loners', () => {
-    const points = [
-      { x: 0, y: 0 },
-      { x: 0, y: 0 },
-      { x: 3, y: 2 },
-      { x: 400, y: 400 },
-      { x: 402, y: 401 },
-      { x: 900, y: 10 },
-    ];
-    expectNoOverlap(points);
-  });
-
-  it('ignores non-finite points and gives them a zero offset', () => {
-    // Map.project() returns MAX_VALUE for points behind a pitched camera.
-    const points = [
-      { x: 100, y: 100 },
-      { x: Number.MAX_VALUE, y: Number.MAX_VALUE },
-      { x: Number.NaN, y: 0 },
-    ];
-    const offsets = resolveMarkerCollisions(points, D);
+    const offsets = resolveCoincidentMarkerOffsets(points, D);
     expect(offsets[1]).toEqual([0, 0]);
     expect(offsets[2]).toEqual([0, 0]);
-    // The lone finite point had nothing to collide with.
-    expect(offsets[0]).toEqual([0, 0]);
+    expect(offsets[3]).toEqual([0, 0]);
+    // The two real pins still pair up despite the junk between them.
+    expect(offsets[0]).toEqual([-D / 2, 0]);
+    expect(offsets[4]).toEqual([D / 2, 0]);
   });
 
-  // Number.isFinite(Number.MAX_VALUE) is true, so a plain finiteness check lets
-  // the occlusion sentinel through. A lone sentinel hides that — every distance
-  // to it overflows to Infinity — but two of them sit a few pixels apart and
-  // would cluster with each other.
-  it('does not cluster two occluded points with each other', () => {
-    const points = [
-      { x: Number.MAX_VALUE, y: 0 },
-      { x: Number.MAX_VALUE, y: 5 },
-    ];
-    expect(resolveMarkerCollisions(points, D)).toEqual([
-      [0, 0],
-      [0, 0],
-    ]);
-  });
-
-  it('does not let a non-finite point drag a real one out of place', () => {
-    const points = [
-      { x: 10, y: 10 },
-      { x: 10, y: 10 },
-      { x: Number.POSITIVE_INFINITY, y: 5 },
-    ];
-    const offsets = resolveMarkerCollisions(points, D);
-    expect(offsets[2]).toEqual([0, 0]);
-    expect(distance(
-      { x: 10 + offsets[0]![0], y: 10 + offsets[0]![1] },
-      { x: 10 + offsets[1]![0], y: 10 + offsets[1]![1] },
-    )).toBeCloseTo(D, 6);
+  it('returns a fresh tuple per marker so callers cannot alias one offset', () => {
+    const offsets = resolveCoincidentMarkerOffsets([at(-33.8, 151.2), at(-34, 151)], D);
+    expect(offsets[0]).not.toBe(offsets[1]);
   });
 
   it('is deterministic and index-aligned', () => {
-    const points = [
-      { x: 5, y: 5 },
-      { x: 5, y: 5 },
-      { x: 6, y: 5 },
-    ];
-    expect(resolveMarkerCollisions(points, D)).toEqual(resolveMarkerCollisions(points, D));
-    expect(resolveMarkerCollisions(points, D)).toHaveLength(points.length);
+    const points = [at(-33.8, 151.2), at(-33.8, 151.2), at(-33.9, 151.2)];
+    expect(resolveCoincidentMarkerOffsets(points, D)).toEqual(
+      resolveCoincidentMarkerOffsets(points, D),
+    );
+    expect(resolveCoincidentMarkerOffsets(points, D)).toHaveLength(points.length);
   });
 
   it('returns an empty result for no points', () => {
-    expect(resolveMarkerCollisions([], D)).toEqual([]);
+    expect(resolveCoincidentMarkerOffsets([], D)).toEqual([]);
   });
 });

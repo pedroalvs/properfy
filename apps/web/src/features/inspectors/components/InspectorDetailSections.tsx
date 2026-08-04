@@ -5,6 +5,7 @@ import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { useInspectorDocumentDownload } from '../hooks/useInspectorDocumentDownload';
 import type { InspectorDetail } from '../types';
 import { formatAuPhone } from '@/lib/phone-mask';
+import { StarRating } from '@/components/ui/StarRating';
 
 interface InspectorDetailSectionsProps {
   inspector: InspectorDetail;
@@ -78,6 +79,17 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Compact summary here as well as the Ratings tab: it rides on the detail
+          payload already fetched, so it costs no extra request and answers the
+          common question without a tab switch. */}
+      <FormSection title="Rating">
+        <DetailRow
+          label="Rating"
+          value={<StarRating value={inspector.ratingAvg} count={inspector.ratingCount} size="md" showValue />}
+        />
+        <DetailRow label="Completed" value={`${inspector.completedCount} inspections`} />
+      </FormSection>
+
       <FormSection title="Personal Details">
         <DetailRow label="Name" value={inspector.name} />
         <DetailRow label="Full Name" value={inspector.fullName} />

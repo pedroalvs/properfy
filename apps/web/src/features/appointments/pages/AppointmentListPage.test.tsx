@@ -237,6 +237,50 @@ describe('AppointmentListPage', () => {
     expect(screen.getByText('Code')).toBeInTheDocument();
   });
 
+  describe('additional columns switch', () => {
+    it('hides the extra columns until the switch is turned on', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      expect(screen.queryByText('Property Code')).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('switch', { name: 'Show additional columns' }));
+
+      expect(screen.getByText('Property Code')).toBeInTheDocument();
+      expect(screen.getByText('Cancellation Reason')).toBeInTheDocument();
+      // "Service Type" is also a filter-bar label, so scope to the table header.
+      const tableHeader = document.querySelector('table thead') as HTMLElement;
+      expect(within(tableHeader).getByText('Service Type')).toBeInTheDocument();
+    });
+  });
+
+  describe('Generate Excel', () => {
+    it('renders the export action', () => {
+      renderPage();
+      // PageHeader can render a duplicate CTA for the mobile layout.
+      expect(screen.getAllByText('Generate Excel').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('exports the CURRENT filter set, not the visible page', async () => {
+      const user = userEvent.setup();
+      renderPage(['/appointments?suburb=Bondi&confirmationStatus=not_sent']);
+
+      mockGet.mockResolvedValue({
+        data: { data: { filename: 'a.xlsx', contentType: 'application/xlsx', contentBase64: '' } },
+      });
+
+      await user.click(screen.getAllByText('Generate Excel')[0]!);
+
+      await waitFor(() => {
+        expect(mockGet).toHaveBeenCalledWith('/v1/appointments/export', expect.anything());
+      });
+      const exportCall = mockGet.mock.calls.find((c) => c[0] === '/v1/appointments/export');
+      const query = exportCall?.[1]?.params?.query as Record<string, unknown>;
+      expect(query).toMatchObject({ suburb: 'Bondi', confirmationStatus: 'not_sent' });
+      expect(query.page).toBeUndefined();
+    });
+  });
+
   // `/appointments/new` redirects here with `?new=1` instead of rendering a
   // second, drifting copy of the create form.
   describe('?new=1 deep link', () => {
