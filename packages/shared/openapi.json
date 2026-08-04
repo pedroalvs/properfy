@@ -7154,6 +7154,27 @@
                         },
                         "insuranceMetaJson": {},
                         "policeCheckMetaJson": {},
+                        "rating": {
+                          "type": "object",
+                          "properties": {
+                            "average": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "responseCount": {
+                              "type": "integer"
+                            },
+                            "doneServicesCount": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "average",
+                            "responseCount",
+                            "doneServicesCount"
+                          ],
+                          "additionalProperties": false
+                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -7370,6 +7391,27 @@
                           },
                           "insuranceMetaJson": {},
                           "policeCheckMetaJson": {},
+                          "rating": {
+                            "type": "object",
+                            "properties": {
+                              "average": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "responseCount": {
+                                "type": "integer"
+                              },
+                              "doneServicesCount": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "average",
+                              "responseCount",
+                              "doneServicesCount"
+                            ],
+                            "additionalProperties": false
+                          },
                           "createdAt": {
                             "anyOf": [
                               {
@@ -7532,6 +7574,27 @@
                         },
                         "insuranceMetaJson": {},
                         "policeCheckMetaJson": {},
+                        "rating": {
+                          "type": "object",
+                          "properties": {
+                            "average": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "responseCount": {
+                              "type": "integer"
+                            },
+                            "doneServicesCount": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "average",
+                            "responseCount",
+                            "doneServicesCount"
+                          ],
+                          "additionalProperties": false
+                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -7809,6 +7872,27 @@
                         },
                         "insuranceMetaJson": {},
                         "policeCheckMetaJson": {},
+                        "rating": {
+                          "type": "object",
+                          "properties": {
+                            "average": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "responseCount": {
+                              "type": "integer"
+                            },
+                            "doneServicesCount": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "average",
+                            "responseCount",
+                            "doneServicesCount"
+                          ],
+                          "additionalProperties": false
+                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -7840,6 +7924,138 @@
                         "status",
                         "createdAt",
                         "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspectors/{inspectorId}/surveys": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "sortBy",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            },
+            "in": "query",
+            "name": "sortOrder",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "rating": {
+                                "type": "integer"
+                              },
+                              "comment": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "submittedAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ]
+                              },
+                              "appointmentCode": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "rating",
+                              "comment",
+                              "submittedAt",
+                              "appointmentCode"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "data",
+                        "total",
+                        "page",
+                        "pageSize"
                       ],
                       "additionalProperties": false
                     }
@@ -19270,6 +19486,69 @@
                         "expiresAt"
                       ],
                       "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/appointments/{appointmentId}/survey": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "appointmentId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rating": {
+                          "type": "integer"
+                        },
+                        "comment": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "rating",
+                        "comment",
+                        "submittedAt"
+                      ],
+                      "additionalProperties": false,
+                      "nullable": true
                     }
                   },
                   "required": [

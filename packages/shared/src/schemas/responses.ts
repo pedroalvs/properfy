@@ -252,6 +252,20 @@ export const inspectorResponseSchema = z.object({
   photoStorageKey: z.string().nullable().optional(),
   insuranceMetaJson: z.unknown().optional(),
   policeCheckMetaJson: z.unknown().optional(),
+  /**
+   * Aggregate reputation. Optional so payloads from a deployment predating the
+   * satisfaction survey still parse.
+   *
+   * `average` is null — never 0 — when there are no responses: a zero would read
+   * as a terrible score and would sort above real ratings.
+   */
+  rating: z
+    .object({
+      average: z.number().nullable(),
+      responseCount: z.number().int(),
+      doneServicesCount: z.number().int(),
+    })
+    .optional(),
   createdAt: instantStr(),
   updatedAt: instantStr(),
 });
@@ -1153,6 +1167,38 @@ export type UserResponse = z.infer<typeof userResponseSchema>;
 export type PropertyResponse = z.infer<typeof propertyResponseSchema>;
 export type ServiceTypeResponse = z.infer<typeof serviceTypeResponseSchema>;
 export type PricingRuleResponse = z.infer<typeof pricingRuleResponseSchema>;
+/**
+ * One satisfaction response, as shown to an operator or the owning agency.
+ *
+ * Deliberately carries no respondent name, IP, user agent or raw identifier —
+ * the type is what keeps the anonymity rule from eroding. The inspection is
+ * named by its human code.
+ */
+export const inspectorSurveyItemSchema = z.object({
+  rating: z.number().int(),
+  comment: z.string().nullable(),
+  submittedAt: instantStr(),
+  appointmentCode: z.string(),
+});
+
+export const inspectorSurveysResponseSchema = z.object({
+  data: z.array(inspectorSurveyItemSchema),
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+});
+
+export const appointmentSurveyResponseSchema = z
+  .object({
+    rating: z.number().int(),
+    comment: z.string().nullable(),
+    submittedAt: instantStr(),
+  })
+  .nullable();
+
+export type InspectorSurveyItem = z.infer<typeof inspectorSurveyItemSchema>;
+export type InspectorSurveysResponse = z.infer<typeof inspectorSurveysResponseSchema>;
+export type AppointmentSurveyResponse = z.infer<typeof appointmentSurveyResponseSchema>;
 export type InspectorResponse = z.infer<typeof inspectorResponseSchema>;
 export type AvailabilitySlotResponse = z.infer<typeof availabilitySlotResponseSchema>;
 export type AppointmentResponse = z.infer<typeof appointmentResponseSchema>;

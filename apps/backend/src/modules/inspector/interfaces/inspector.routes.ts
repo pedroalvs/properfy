@@ -17,12 +17,15 @@ import {
   inspectorSelfUpdateSchema,
   availabilityTemplateSchema,
   inspectorAvailabilityResponseSchema,
+  inspectorSurveysResponseSchema,
+  paginationSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ForbiddenError, ValidationError } from '../../../shared/domain/errors';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { CreateInspectorUseCase } from '../application/use-cases/create-inspector.use-case';
 import type { GetInspectorUseCase } from '../application/use-cases/get-inspector.use-case';
+import type { ListInspectorSurveysUseCase } from '../../satisfaction-survey/application/use-cases/list-inspector-surveys.use-case';
 import type { ListInspectorsUseCase } from '../application/use-cases/list-inspectors.use-case';
 import type { UpdateInspectorUseCase } from '../application/use-cases/update-inspector.use-case';
 import type { CreateAvailabilitySlotUseCase } from '../application/use-cases/create-availability-slot.use-case';
@@ -46,6 +49,7 @@ export interface InspectorRouteContainer {
   createInspectorUseCase: CreateInspectorUseCase;
   getInspectorUseCase: GetInspectorUseCase;
   listInspectorsUseCase: ListInspectorsUseCase;
+  listInspectorSurveysUseCase: ListInspectorSurveysUseCase;
   updateInspectorUseCase: UpdateInspectorUseCase;
   createAvailabilitySlotUseCase: CreateAvailabilitySlotUseCase;
   listAvailabilitySlotsUseCase: ListAvailabilitySlotsUseCase;
@@ -150,6 +154,40 @@ export async function registerInspectorRoutes(
         );
       const result = await container.getInspectorUseCase.execute({
         inspectorId: params.data.inspectorId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/inspectors/:inspectorId/surveys
+  //
+  // The guarded half of the rating feature: AM/OP see every response, an agency
+  // sees only its own, and an inspector is refused outright — including for its
+  // own id, so a rating can never be traced back to who gave it.
+  app.get(
+    '/v1/inspectors/:inspectorId/surveys',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ inspectorId: z.string().uuid() }),
+        querystring: paginationSchema,
+        response: { 200: successResponseSchema(inspectorSurveysResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = inspectorIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid inspector ID', params.error.errors);
+      }
+      const query = paginationSchema.safeParse(request.query);
+      if (!query.success) {
+        throw new ValidationError('Invalid pagination parameters', query.error.errors);
+      }
+
+      const result = await container.listInspectorSurveysUseCase.execute({
+        inspectorId: params.data.inspectorId,
+        pagination: { page: query.data.page, pageSize: query.data.pageSize },
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

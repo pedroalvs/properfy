@@ -3041,6 +3041,11 @@ export interface paths {
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
+                                rating?: {
+                                    average: number | null;
+                                    responseCount: number;
+                                    doneServicesCount: number;
+                                };
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -3141,6 +3146,11 @@ export interface paths {
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
+                                rating?: {
+                                    average: number | null;
+                                    responseCount: number;
+                                    doneServicesCount: number;
+                                };
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3202,6 +3212,11 @@ export interface paths {
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
+                                rating?: {
+                                    average: number | null;
+                                    responseCount: number;
+                                    doneServicesCount: number;
+                                };
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3298,6 +3313,11 @@ export interface paths {
                                 photoStorageKey?: string | null;
                                 insuranceMetaJson?: unknown;
                                 policeCheckMetaJson?: unknown;
+                                rating?: {
+                                    average: number | null;
+                                    responseCount: number;
+                                    doneServicesCount: number;
+                                };
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3306,6 +3326,60 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/v1/inspectors/{inspectorId}/surveys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: string;
+                    sortOrder?: "asc" | "desc";
+                };
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                data: {
+                                    rating: number;
+                                    comment: string | null;
+                                    submittedAt: string;
+                                    appointmentCode: string;
+                                }[];
+                                total: number;
+                                page: number;
+                                pageSize: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/availability-slots": {
@@ -8426,6 +8500,49 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/{appointmentId}/survey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                rating: number;
+                                comment: string | null;
+                                submittedAt: string;
+                            } | null;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;

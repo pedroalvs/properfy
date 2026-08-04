@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { SatisfactionSurveyEntity } from '../domain/satisfaction-survey.entity';
+import { AppointmentCodeFormatter } from '../../appointment/domain/appointment-code.formatter';
 import type {
   FindSurveysResult,
   ISatisfactionSurveyRepository,
@@ -115,10 +116,24 @@ export class PrismaSatisfactionSurveyRepository implements ISatisfactionSurveyRe
         orderBy: { submitted_at: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: {
+          appointment: {
+            select: { appointment_number: true, tenant: { select: { appointment_code_prefix: true } } },
+          },
+        },
       }),
       this.prisma.satisfactionSurvey.count({ where }),
     ]);
 
-    return { surveys: rows.map(mapToEntity), total };
+    return {
+      surveys: rows.map((row) => ({
+        survey: mapToEntity(row),
+        appointmentCode: AppointmentCodeFormatter.formatParts(
+          row.appointment.appointment_number,
+          row.appointment.tenant.appointment_code_prefix,
+        ),
+      })),
+      total,
+    };
   }
 }
