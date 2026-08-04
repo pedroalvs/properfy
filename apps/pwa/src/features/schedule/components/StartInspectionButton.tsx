@@ -18,8 +18,12 @@ interface StartInspectionButtonProps {
  */
 function getGateState(scheduledDate: string, timeZone: string): { enabled: boolean; label: string; sublabel?: string } {
   // Anchored to the inspector's effective timezone, never the device timezone.
-  // This client-side gate is advisory only — the authoritative "can start"
-  // check runs server-side in the appointment's agency timezone.
+  // The disable below is a hard client gate evaluated in the INSPECTOR's
+  // timezone, while the authoritative server gate uses the AGENCY's: in the
+  // window between the two midnights the button stays disabled although the
+  // server would already allow the start. That mismatch is the safe direction
+  // (we never offer a start the server would reject) and lasts at most a few
+  // hours for extreme offsets.
   const today = todayInTzDateString(timeZone);
   const date = scheduledDate.slice(0, 10);
 

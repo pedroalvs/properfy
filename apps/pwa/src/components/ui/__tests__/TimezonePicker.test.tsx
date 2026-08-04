@@ -67,6 +67,27 @@ describe('TimezonePicker', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('renders a pinned clear row when allowClear and selects the empty value', async () => {
+    const user = userEvent.setup();
+    render(<TimezonePicker value="Australia/Sydney" onChange={onChange} allowClear />);
+    await user.click(screen.getByTestId('timezone-picker-trigger'));
+
+    const clearRow = screen.getByTestId('timezone-option-clear');
+    expect(clearRow).toHaveTextContent('Platform default (Sydney)');
+
+    await user.click(clearRow);
+
+    expect(onChange).toHaveBeenCalledWith('');
+    expect(screen.queryByTestId('timezone-picker-overlay')).not.toBeInTheDocument();
+  });
+
+  it('does not render the clear row by default', async () => {
+    const user = userEvent.setup();
+    render(<TimezonePicker value={null} onChange={onChange} />);
+    await user.click(screen.getByTestId('timezone-picker-trigger'));
+    expect(screen.queryByTestId('timezone-option-clear')).not.toBeInTheDocument();
+  });
+
   it('does not open when disabled', async () => {
     const user = userEvent.setup();
     render(<TimezonePicker value={null} onChange={onChange} disabled />);

@@ -39,6 +39,19 @@ describe('useUpdateMyTimezone', () => {
     expect(mockApiPatch).toHaveBeenCalledWith('/v1/me', { body: { timezone: 'Australia/Perth' } });
   });
 
+  it('sends null to clear back to the platform default', async () => {
+    mockApiPatch.mockResolvedValue({ data: {}, error: undefined });
+    const { result } = renderHook(() => useUpdateMyTimezone(), {
+      wrapper: makeWrapper(makeClient()),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({ timezone: null });
+    });
+
+    expect(mockApiPatch).toHaveBeenCalledWith('/v1/me', { body: { timezone: null } });
+  });
+
   it('invalidates queries on success so day-derived views recompute', async () => {
     mockApiPatch.mockResolvedValue({ data: {}, error: undefined });
     const client = makeClient();

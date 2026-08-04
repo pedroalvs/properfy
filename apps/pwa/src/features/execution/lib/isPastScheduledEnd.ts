@@ -10,6 +10,11 @@ function toMinutes(hhmm: string): number {
  * timezone (the inspector's effective timezone): a previous civil date, or
  * today with the current time past `timeSlotEnd`. Display/advisory only — the
  * authoritative gate is server-side in the appointment's agency timezone.
+ *
+ * Known approximation: `timeSlotEnd` is agency wall time but is compared
+ * against the clock in `timeZone` (the inspector's), so for a cross-timezone
+ * inspector the advisory fires early or late by the offset between the two
+ * zones. Display-only; the schedule payload carries no agency timezone.
  */
 export function isPastScheduledEnd(
   scheduledDate: string,

@@ -8,11 +8,16 @@ import {
 interface TimezonePickerProps {
   /** Selected IANA identifier, or null/'' when nothing is selected. */
   value: string | null;
+  /** Receives the IANA id, or '' when the clear row is picked (allowClear). */
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
   id?: string;
   'aria-label'?: string;
+  /** Renders a pinned first row that clears the selection (onChange('')). */
+  allowClear?: boolean;
+  /** Label for the clear row. */
+  clearLabel?: string;
 }
 
 /** `City (GMT+x)` label for a picker option. */
@@ -39,6 +44,8 @@ export function TimezonePicker({
   disabled = false,
   id,
   'aria-label': ariaLabel,
+  allowClear = false,
+  clearLabel = 'Platform default (Sydney)',
 }: TimezonePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -89,6 +96,16 @@ export function TimezonePicker({
     document.addEventListener('keydown', handleKeyDown, true);
     return () => document.removeEventListener('keydown', handleKeyDown, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // Lock body scroll while the full-screen overlay is open.
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
   }, [isOpen]);
 
   return (
@@ -144,15 +161,32 @@ export function TimezonePicker({
             />
           </div>
 
-          <div className="flex-1 overflow-y-auto pb-safe-b">
+          <div className="flex-1 overflow-y-auto pb-safe-b" role="listbox" aria-label="Timezones">
+            {allowClear && (
+              <button
+                type="button"
+                role="option"
+                aria-selected={!value}
+                onClick={() => handleSelect('')}
+                className="flex min-h-[44px] w-full items-center justify-between gap-3 border-b border-black/5 px-4 py-2.5 text-left"
+                data-testid="timezone-option-clear"
+              >
+                <span className={`truncate text-sm ${!value ? 'font-bold text-real-estate' : 'text-text-primary'}`}>
+                  {clearLabel}
+                </span>
+                {!value && (
+                  <i className="mdi mdi-check shrink-0 text-base text-real-estate" aria-hidden="true" />
+                )}
+              </button>
+            )}
             {groups.length === 0 && (
               <p className="px-4 py-6 text-center text-sm text-text-muted">No timezones match</p>
             )}
             {groups.map((group) => (
               <div key={group.region}>
                 <div
+                  role="presentation"
                   className="bg-slate-50 px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted"
-                  aria-hidden="true"
                 >
                   {group.region}
                 </div>
@@ -162,9 +196,10 @@ export function TimezonePicker({
                     <button
                       key={option.value}
                       type="button"
+                      role="option"
                       onClick={() => handleSelect(option.value)}
                       className="flex min-h-[44px] w-full items-center justify-between gap-3 px-4 py-2.5 text-left"
-                      aria-pressed={isSelected}
+                      aria-selected={isSelected}
                       data-testid={`timezone-option-${option.value}`}
                     >
                       <span

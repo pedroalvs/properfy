@@ -68,9 +68,9 @@ export function ProfileEditPage() {
   const handleSaveTimezone = useCallback(async () => {
     setTimezoneError(null);
     setTimezoneSuccess(false);
-    if (!timezone) return;
     try {
-      await updateTimezone({ timezone });
+      // Empty string means "back to the platform default" — the API models it as null.
+      await updateTimezone({ timezone: timezone === '' ? null : timezone });
       await refreshUser();
       setTimezoneSuccess(true);
       setTimeout(() => setTimezoneSuccess(false), 3000);
@@ -149,6 +149,7 @@ export function ProfileEditPage() {
               value={timezone || null}
               onChange={handleTimezoneChange}
               placeholder="Platform default (Sydney)"
+              allowClear
             />
             <p className="text-xs text-text-muted">
               Your schedule and offers are shown in this timezone.
@@ -159,7 +160,7 @@ export function ProfileEditPage() {
               <button
                 type="button"
                 onClick={handleSaveTimezone}
-                disabled={isSavingTimezone || !timezone}
+                disabled={isSavingTimezone}
                 className="w-full rounded-2xl bg-real-estate py-2.5 text-sm font-bold text-white disabled:opacity-50"
               >
                 {isSavingTimezone ? 'Saving…' : 'Save timezone'}

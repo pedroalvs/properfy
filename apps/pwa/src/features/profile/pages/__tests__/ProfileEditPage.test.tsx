@@ -201,6 +201,25 @@ describe('ProfileEditPage — Timezone section', () => {
     expect(await screen.findByText('Saved successfully')).toBeInTheDocument();
   });
 
+  it('clears back to the platform default and PATCHes null', async () => {
+    mockMutateTimezone.mockResolvedValue({});
+    mockRefreshUser.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileEditPage />);
+
+    await user.click(screen.getByTestId('timezone-picker-trigger'));
+    await user.click(screen.getByTestId('timezone-option-clear'));
+
+    // Changing to empty is a change too — dirty and savable.
+    expect(mockUsePrompt).toHaveBeenLastCalledWith(true);
+
+    await user.click(screen.getByRole('button', { name: /save timezone/i }));
+
+    expect(mockMutateTimezone).toHaveBeenCalledWith({ timezone: null });
+    expect(mockRefreshUser).toHaveBeenCalled();
+    expect(await screen.findByText('Saved successfully')).toBeInTheDocument();
+  });
+
   it('shows the mutation error when saving fails', async () => {
     mockMutateTimezone.mockRejectedValue(new Error('Invalid timezone'));
     const user = userEvent.setup();
