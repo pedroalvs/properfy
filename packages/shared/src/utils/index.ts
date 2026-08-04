@@ -79,3 +79,8 @@ export {
   LEGACY_EMAIL_SENDING_SETTING_KEY,
   TENANT_NOTIFICATIONS_BLOCKED_CODE,
 } from './rental-tenant-notifications';
+export {
+  suppressesOccupantNotifications,
+  isWithheldForNonNotifyingFlow,
+  FLOW_TYPE_NO_OCCUPANT_CODE,
+} from './non-notifying-flow-types';

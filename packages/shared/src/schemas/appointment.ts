@@ -395,6 +395,10 @@ export const bulkResendReminderResultStatusSchema = z.enum([
   // status rather than ERROR: it is an expected outcome of a deliberate setting,
   // and a selection can legitimately mix blocked and unblocked agencies.
   'TENANT_NOTIFICATIONS_BLOCKED',
+  // Nothing was dispatched and nothing went wrong: the caller asked not to
+  // notify, or the service type has no occupant to notify. Distinct from ERROR
+  // (a real failure) and from SENT (a lie).
+  'NOT_APPLICABLE',
   'ERROR',
 ]);
 export type BulkResendReminderResultStatus = z.infer<typeof bulkResendReminderResultStatusSchema>;

@@ -167,6 +167,31 @@ describe('PrismaAppointmentRepository date filters', () => {
       }),
     );
   });
+  // The unconfirmed sweep rejects everything it returns, with reason
+  // TENANT_NO_RESPONSE. INGOING/OUTGOING never ask for a confirmation, so their
+  // status stays PENDING forever and an unfiltered sweep auto-rejects them the
+  // night before — now systematically, since they are published on creation.
+  //
+  // The filter exists (43416c1a) but nothing pinned it: every other test mocks
+  // findUnconfirmedForDate, so dropping it from the query would leave the suite
+  // green. This asserts the clause itself.
+  it('sweeps only service types that actually require a confirmation', async () => {
+    findMany.mockResolvedValue([]);
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findUnconfirmedForDate(new Date('2026-08-04T00:00:00.000Z'));
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          service_type: {
+            flow_type: 'ROUTINE',
+            requires_rental_tenant_confirmation: true,
+          },
+        }),
+      }),
+    );
+  });
 });
 
 describe('PrismaAppointmentRepository property total area', () => {
@@ -559,6 +584,7 @@ describe('PrismaAppointmentRepository.replaceRestrictions', () => {
     expect($transaction.mock.calls[0][0]).toEqual([{ op: 'delete' }]);
     expect(create).not.toHaveBeenCalled();
   });
+
 });
 
 describe('PrismaAppointmentRepository.deleteContactsByAppointmentId', () => {
