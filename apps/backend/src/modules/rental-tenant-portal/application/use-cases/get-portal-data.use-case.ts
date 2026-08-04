@@ -163,14 +163,14 @@ export class GetPortalDataUseCase {
    * nothing.
    */
   private async loadSurvey(
-    appointment: { id: string; status: string; inspectorId: string | null },
+    appointment: { id: string; status: string; inspectorId: string | null; tenantId: string },
     isReadOnly: boolean,
   ) {
     if (!this.surveyRepo || appointment.status !== 'DONE') {
       return undefined;
     }
 
-    const existing = await this.surveyRepo.findByAppointmentId(appointment.id);
+    const existing = await this.surveyRepo.findByAppointmentId(appointment.id, appointment.tenantId);
     const inspectorName =
       appointment.inspectorId && this.inspectorRepo
         ? ((await this.inspectorRepo.findById(appointment.inspectorId))?.name ?? null)
