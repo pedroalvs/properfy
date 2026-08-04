@@ -71,10 +71,11 @@ export class UploadTenantLogoUseCase {
       // Passed the signature sniff but does not decode — corrupt image.
       throw new LogoFileInvalidError();
     }
-    if (
-      (dimensions.width ?? 0) > MAX_LOGO_DIMENSION_PX ||
-      (dimensions.height ?? 0) > MAX_LOGO_DIMENSION_PX
-    ) {
+    // Fail closed: undecodable dimensions must not bypass the cap.
+    if (dimensions.width === undefined || dimensions.height === undefined) {
+      throw new LogoFileInvalidError();
+    }
+    if (dimensions.width > MAX_LOGO_DIMENSION_PX || dimensions.height > MAX_LOGO_DIMENSION_PX) {
       throw new LogoDimensionsExceededError(MAX_LOGO_DIMENSION_PX);
     }
 
