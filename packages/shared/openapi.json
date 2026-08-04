@@ -10634,8 +10634,7 @@
                           "additionalProperties": false
                         }
                       ]
-                    },
-                    "minItems": 1
+                    }
                   },
                   "appCredentialIds": {
                     "type": "array",
@@ -12363,8 +12362,7 @@
                           "additionalProperties": false
                         }
                       ]
-                    },
-                    "minItems": 1
+                    }
                   },
                   "appCredentialIds": {
                     "type": "array",
@@ -13430,6 +13428,7 @@
                                   "NO_PRIMARY_CONTACT",
                                   "IDEMPOTENT_REPLAY",
                                   "TENANT_NOTIFICATIONS_BLOCKED",
+                                  "NOT_APPLICABLE",
                                   "ERROR"
                                 ]
                               },
@@ -17151,6 +17150,34 @@
                             ],
                             "additionalProperties": false,
                             "nullable": true
+                          },
+                          "properties": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "street": {
+                                  "type": "string"
+                                },
+                                "suburb": {
+                                  "type": "string"
+                                },
+                                "propertyType": {
+                                  "type": "string",
+                                  "enum": [
+                                    "APARTMENT",
+                                    "HOUSE"
+                                  ],
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "street",
+                                "suburb",
+                                "propertyType"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -17165,7 +17192,8 @@
                           "suburbs",
                           "payoutEstimate",
                           "appointmentCount",
-                          "centroid"
+                          "centroid",
+                          "properties"
                         ],
                         "additionalProperties": false
                       }
@@ -17286,6 +17314,34 @@
                           "additionalProperties": false,
                           "nullable": true
                         },
+                        "properties": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "street": {
+                                "type": "string"
+                              },
+                              "suburb": {
+                                "type": "string"
+                              },
+                              "propertyType": {
+                                "type": "string",
+                                "enum": [
+                                  "APARTMENT",
+                                  "HOUSE"
+                                ],
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "street",
+                              "suburb",
+                              "propertyType"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
                         "addresses": {
                           "type": "array",
                           "items": {
@@ -17358,6 +17414,14 @@
                                 ],
                                 "additionalProperties": false,
                                 "nullable": true
+                              },
+                              "propertyType": {
+                                "type": "string",
+                                "enum": [
+                                  "APARTMENT",
+                                  "HOUSE"
+                                ],
+                                "nullable": true
                               }
                             },
                             "required": [
@@ -17372,7 +17436,8 @@
                               "timeSlotStart",
                               "timeSlotEnd",
                               "street",
-                              "coordinates"
+                              "coordinates",
+                              "propertyType"
                             ],
                             "additionalProperties": false
                           }
@@ -17391,6 +17456,7 @@
                         "payoutEstimate",
                         "appointmentCount",
                         "centroid",
+                        "properties",
                         "addresses",
                         "keyRequired",
                         "notes",
@@ -18950,6 +19016,9 @@
                               "appointmentCode": {
                                 "type": "string"
                               },
+                              "propertyCode": {
+                                "type": "string"
+                              },
                               "status": {
                                 "type": "string",
                                 "enum": [
@@ -19053,6 +19122,9 @@
                                 "type": "string"
                               },
                               "appointmentCode": {
+                                "type": "string"
+                              },
+                              "propertyCode": {
                                 "type": "string"
                               },
                               "status": {
@@ -19262,6 +19334,9 @@
                                   "appointmentCode": {
                                     "type": "string"
                                   },
+                                  "propertyCode": {
+                                    "type": "string"
+                                  },
                                   "status": {
                                     "type": "string"
                                   },
@@ -19348,6 +19423,9 @@
                                 "type": "string"
                               },
                               "appointmentCode": {
+                                "type": "string"
+                              },
+                              "propertyCode": {
                                 "type": "string"
                               },
                               "status": {
@@ -19539,6 +19617,9 @@
                         "propertyId": {
                           "type": "string",
                           "format": "uuid"
+                        },
+                        "propertyCode": {
+                          "type": "string"
                         },
                         "propertyAddress": {
                           "type": "string"
@@ -20502,6 +20583,34 @@
                             ],
                             "additionalProperties": false,
                             "nullable": true
+                          },
+                          "properties": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "street": {
+                                  "type": "string"
+                                },
+                                "suburb": {
+                                  "type": "string"
+                                },
+                                "propertyType": {
+                                  "type": "string",
+                                  "enum": [
+                                    "APARTMENT",
+                                    "HOUSE"
+                                  ],
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "street",
+                                "suburb",
+                                "propertyType"
+                              ],
+                              "additionalProperties": false
+                            }
                           }
                         },
                         "required": [
@@ -20516,7 +20625,8 @@
                           "suburbs",
                           "payoutEstimate",
                           "appointmentCount",
-                          "centroid"
+                          "centroid",
+                          "properties"
                         ],
                         "additionalProperties": false
                       }

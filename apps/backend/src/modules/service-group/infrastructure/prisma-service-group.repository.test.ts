@@ -92,6 +92,146 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     );
   });
 
+  it('selects street and type so the offer card can show a full address and an icon', async () => {
+    const queryRaw = vi.fn().mockResolvedValue([{ id: 'sg-1' }]);
+    const findMany = vi.fn().mockResolvedValue([]);
+    const repo = new PrismaServiceGroupRepository({
+      $queryRaw: queryRaw,
+      serviceGroup: { findMany },
+    } as any);
+
+    await repo.findPublishedForInspector('inspector-1', ['st-1'], [], {
+      page: 1,
+      pageSize: 20,
+      sortOrder: 'asc',
+    });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          appointments: expect.objectContaining({
+            select: expect.objectContaining({
+              property: {
+                select: expect.objectContaining({ street: true, type: true }),
+              },
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('maps one properties entry per appointment, with suburb joined to state', async () => {
+    const queryRaw = vi.fn().mockResolvedValue([{ id: 'sg-1' }]);
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        id: 'sg-1',
+        group_number: 7,
+        scheduled_date: new Date('2026-05-01'),
+        time_window: '08:00-12:00',
+        service_type: { name: 'Routine' },
+        appointments: [
+          {
+            payout_amount: 50,
+            tenant_id: 'tenant-1',
+            tenant: { name: 'Agency A' },
+            property: {
+              street: '10 Main St',
+              suburb: 'Bondi',
+              state: 'NSW',
+              type: 'APARTMENT',
+              deleted_at: null,
+            },
+          },
+          {
+            payout_amount: 50,
+            tenant_id: 'tenant-1',
+            tenant: { name: 'Agency A' },
+            property: {
+              street: '20 Beach Rd',
+              suburb: 'Coogee',
+              state: 'NSW',
+              type: 'HOUSE',
+              deleted_at: null,
+            },
+          },
+        ],
+      },
+    ]);
+    const repo = new PrismaServiceGroupRepository({
+      $queryRaw: queryRaw,
+      serviceGroup: { findMany },
+    } as any);
+
+    const result = await repo.findPublishedForInspector('inspector-1', ['st-1'], [], {
+      page: 1,
+      pageSize: 20,
+      sortOrder: 'asc',
+    });
+
+    expect(result[0]!.properties).toEqual([
+      { street: '10 Main St', suburb: 'Bondi NSW', propertyType: 'APARTMENT' },
+      { street: '20 Beach Rd', suburb: 'Coogee NSW', propertyType: 'HOUSE' },
+    ]);
+  });
+
+  it('blanks a soft-deleted property but keeps its slot, so properties matches appointmentCount', async () => {
+    const queryRaw = vi.fn().mockResolvedValue([{ id: 'sg-1' }]);
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        id: 'sg-1',
+        group_number: 7,
+        scheduled_date: new Date('2026-05-01'),
+        time_window: '08:00-12:00',
+        service_type: { name: 'Routine' },
+        appointments: [
+          {
+            payout_amount: 50,
+            tenant_id: 'tenant-1',
+            tenant: { name: 'Agency A' },
+            property: {
+              street: '10 Main St',
+              suburb: 'Bondi',
+              state: 'NSW',
+              type: 'APARTMENT',
+              deleted_at: null,
+            },
+          },
+          {
+            payout_amount: 50,
+            tenant_id: 'tenant-1',
+            tenant: { name: 'Agency A' },
+            // Never expose location data from a soft-deleted property — same
+            // rule the offer-detail mapper applies to `street`.
+            property: {
+              street: '99 Secret Ln',
+              suburb: 'Manly',
+              state: 'NSW',
+              type: 'HOUSE',
+              deleted_at: new Date('2026-04-01'),
+            },
+          },
+        ],
+      },
+    ]);
+    const repo = new PrismaServiceGroupRepository({
+      $queryRaw: queryRaw,
+      serviceGroup: { findMany },
+    } as any);
+
+    const result = await repo.findPublishedForInspector('inspector-1', ['st-1'], [], {
+      page: 1,
+      pageSize: 20,
+      sortOrder: 'asc',
+    });
+
+    expect(result[0]!.properties).toEqual([
+      { street: '10 Main St', suburb: 'Bondi NSW', propertyType: 'APARTMENT' },
+      { street: '', suburb: '', propertyType: null },
+    ]);
+    expect(result[0]!.properties).toHaveLength(result[0]!.appointmentCount);
+  });
+
   it('returns empty when spatial query finds no eligible groups', async () => {
     const queryRaw = vi.fn().mockResolvedValue([]);
     const findMany = vi.fn();
@@ -487,6 +627,7 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
           suburb: 'Harris Park',
           state: 'NSW',
           street: '1 Main St',
+          type: 'APARTMENT',
           lat: -33.8,
           lng: 151.0,
         }),
@@ -495,6 +636,7 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
           suburb: 'Sydney',
           state: 'NSW',
           street: '99 Secret Lane',
+          type: 'HOUSE',
           lat: -33.0,
           lng: 152.0,
         }),
@@ -516,6 +658,10 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
     // The per-appointment suburb stays visible — that is the documented rule,
     // and this test must not be read as changing it.
     expect(detail?.appointments[1]!.suburb).toBe('Sydney NSW');
+    // propertyType follows `street`, not `suburb`: it describes the property
+    // itself, so a soft-deleted one reveals nothing.
+    expect(detail?.appointments[0]!.propertyType).toBe('APARTMENT');
+    expect(detail?.appointments[1]!.propertyType).toBeNull();
   });
 
   it('derives the offer detail centroid from real coordinates too', async () => {

@@ -50,6 +50,10 @@ function makeOfferDetail(overrides: Partial<MarketplaceOfferDetail> = {}): Marke
     appointmentCount: 5,
     centroid: { lat: -33.87, lng: 151.21 },
     addresses: ['10 Main St, Sydney', '20 Beach Rd, Bondi'],
+    properties: [
+      { street: '10 Main St', suburb: 'Sydney NSW', propertyType: 'APARTMENT' },
+      { street: '20 Beach Rd', suburb: 'Bondi NSW', propertyType: 'HOUSE' },
+    ],
     keyRequired: true,
     notes: 'Ring the doorbell',
     appointments: [
@@ -66,6 +70,7 @@ function makeOfferDetail(overrides: Partial<MarketplaceOfferDetail> = {}): Marke
         tenantName: 'Acme Realty',
         timeSlotStart: '08:00',
         timeSlotEnd: '09:00',
+        propertyType: 'APARTMENT',
       },
       {
         id: '00000000-0000-0000-0000-00000000a002',
@@ -80,6 +85,7 @@ function makeOfferDetail(overrides: Partial<MarketplaceOfferDetail> = {}): Marke
         tenantName: 'Acme Realty',
         timeSlotStart: '10:00',
         timeSlotEnd: '11:00',
+        propertyType: 'HOUSE',
       },
     ],
     ...overrides,
@@ -168,6 +174,10 @@ describe('GetMarketplaceOfferDetailUseCase', () => {
     expect(result.appointments[1].coordinates).toBeNull();
     expect(result.appointments[0].street).toBe('10 Main St');
     expect(result.appointments[1].street).toBe('20 Beach Rd');
+
+    // Drives the per-job property-type icon in the group detail sheet.
+    expect(result.appointments[0].propertyType).toBe('APARTMENT');
+    expect(result.appointments[1].propertyType).toBe('HOUSE');
 
     // Serializer guard (PR #59 lesson): every appointment in the use-case
     // output must satisfy the shared response schema, or Fastify's response

@@ -1,7 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
-import type { IServiceGroupRepository, PaginationParams } from '../../domain/service-group.repository';
+import type { IServiceGroupRepository, MarketplaceOfferProperty, PaginationParams } from '../../domain/service-group.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import { InspectorInactiveError } from '../../domain/service-group.errors';
 
@@ -25,6 +25,7 @@ export interface MarketplaceOfferOutput {
   payoutEstimate: number | null;
   appointmentCount: number;
   centroid: { lat: number; lng: number } | null;
+  properties: MarketplaceOfferProperty[];
 }
 
 export interface GetMarketplaceOffersOutput {
@@ -86,6 +87,7 @@ export class GetMarketplaceOffersUseCase {
         payoutEstimate: offer.payoutEstimate,
         appointmentCount: offer.appointmentCount,
         centroid: offer.centroid,
+        properties: offer.properties,
       })),
       total,
     };

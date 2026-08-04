@@ -96,6 +96,16 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
           >
             {appointment.appointmentCode}
           </span>
+          {/* Realty code (doc §7.3) — a different identifier from the service code. */}
+          {appointment.propertyCode && (
+            <span
+              className="shrink-0 rounded bg-black/[0.05] px-1.5 py-0.5 text-[11px] font-semibold text-text-muted"
+              data-testid="property-code"
+              title="Property code"
+            >
+              {appointment.propertyCode}
+            </span>
+          )}
           <span className="text-sm font-bold text-text-primary">{appointment.serviceTypeName}</span>
           <span
             className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"

@@ -11,11 +11,12 @@ import type {
   ServiceGroupMapAppointment,
   GroupAppointmentConfirmationRow,
   MarketplaceOffer,
+  MarketplaceOfferProperty,
   MarketplaceOfferDetail,
   PortalEligibleGroupMember,
   PortalWindowReservation,
 } from '../domain/service-group.repository';
-import type { ServiceGroupStatus } from '@properfy/shared';
+import type { PropertyType, ServiceGroupStatus } from '@properfy/shared';
 import { computeCentroid, isRentalTenantNotificationsEnabled } from '@properfy/shared';
 import { ADDABLE_GROUP_STATUSES, TERMINAL_GROUP_STATUSES } from '../domain/service-group.validator';
 import { computeWindowAvailability } from '../domain/portal-slot-capacity';
@@ -107,6 +108,36 @@ function liveProperties<T extends { property?: { deleted_at?: Date | null } | nu
   appointments: T[],
 ): T[] {
   return appointments.filter((a) => a.property != null && a.property.deleted_at == null);
+}
+
+/**
+ * One entry per appointment — including those whose property is missing or
+ * soft-deleted, which come back blanked rather than dropped. Keeping the arity
+ * equal to `appointmentCount` is what lets the PWA card say "+N more addresses"
+ * without a second count; it filters the blanks itself when picking one to show.
+ * Suburb is joined with state to match the offer-detail mapper.
+ */
+function deriveOfferProperties(
+  appointments: Array<{
+    property?: {
+      street?: string | null;
+      suburb?: string | null;
+      state?: string | null;
+      type?: PropertyType | null;
+      deleted_at?: Date | null;
+    } | null;
+  }>,
+): MarketplaceOfferProperty[] {
+  return appointments.map((a) => {
+    const property = a.property;
+    const isLive = property != null && property.deleted_at == null;
+    if (!isLive) return { street: '', suburb: '', propertyType: null };
+    return {
+      street: property.street ?? '',
+      suburb: [property.suburb, property.state].filter(Boolean).join(' '),
+      propertyType: property.type ?? null,
+    };
+  });
 }
 
 /** Distinct suburbs of a group's live properties, in first-seen order. */
@@ -631,8 +662,19 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             tenant: { select: { name: true } },
             // lat/lng feed the offer's map pin; without them the centroid had
             // to be guessed from the suburb name. See deriveOfferCentroid.
+            // `street`/`type` are what the offer card renders as a full address
+            // plus a property-type icon (doc §7.2) — the list used to fetch the
+            // suburb alone and the card could only show suburbs.
             property: {
-              select: { suburb: true, state: true, lat: true, lng: true, deleted_at: true },
+              select: {
+                street: true,
+                suburb: true,
+                state: true,
+                type: true,
+                lat: true,
+                lng: true,
+                deleted_at: true,
+              },
             },
           },
         },
@@ -666,6 +708,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         payoutEstimate,
         appointmentCount: appts.length,
         centroid: deriveOfferCentroid(appts),
+        properties: deriveOfferProperties(appts),
       };
     });
   }
@@ -765,7 +808,15 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
             tenant_id: true,
             tenant: { select: { name: true, appointment_code_prefix: true } },
             property: {
-              select: { deleted_at: true, suburb: true, state: true, street: true, lat: true, lng: true },
+              select: {
+                deleted_at: true,
+                suburb: true,
+                state: true,
+                street: true,
+                type: true,
+                lat: true,
+                lng: true,
+              },
             },
           },
         },
@@ -826,6 +877,10 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       keyRequired,
       notes: groupNotes,
       centroid: deriveOfferCentroid(appts),
+      // Detail inherits the list contract, so it owes the same array. Cheap here
+      // (the rows are already loaded) and it keeps a client that hydrates a card
+      // from the detail response rendering the same address line.
+      properties: deriveOfferProperties(appts),
       appointments: appts.map((a) => {
         const p = a.property;
         const suburb = p ? [p.suburb, p.state].filter(Boolean).join(' ') : '';
@@ -848,6 +903,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
           tenantName: a.tenant?.name ?? '',
           timeSlotStart: a.time_slot_start,
           timeSlotEnd: a.time_slot_end,
+          // Blanked for a soft-deleted property, same rule as `street` above.
+          propertyType: p?.deleted_at == null ? (p?.type ?? null) : null,
         };
       }),
     };

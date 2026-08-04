@@ -57,6 +57,10 @@ const marketplaceOffer = {
   payoutEstimate: null,
   appointmentCount: 5,
   centroid: null,
+  properties: [
+    { street: '12 Ocean St', suburb: 'Surry Hills NSW', propertyType: 'APARTMENT' },
+    { street: '3 Beach Rd', suburb: 'Redfern NSW', propertyType: 'HOUSE' },
+  ],
 };
 
 const acceptedOffer = {
@@ -105,6 +109,29 @@ describe('GET /v1/marketplace/offers', () => {
       total: 1,
       totalPages: 1,
     });
+  });
+
+  // The response schema is what Fastify serializes against, and an undeclared
+  // field is dropped without a word. The offer card reads `properties` straight
+  // off the list payload, so it has to survive the wire, not just the use case.
+  it('serializes the per-appointment properties (street, suburb, type) to the wire', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    mockGetMarketplaceOffersExecute.mockResolvedValueOnce({
+      data: [marketplaceOffer],
+      total: 1,
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/marketplace/offers?page=1&pageSize=10')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].properties).toEqual([
+      { street: '12 Ocean St', suburb: 'Surry Hills NSW', propertyType: 'APARTMENT' },
+      { street: '3 Beach Rd', suburb: 'Redfern NSW', propertyType: 'HOUSE' },
+    ]);
+    // suburbs stays on the contract — the map view and the blank-street fallback read it.
+    expect(res.body.data[0].suburbs).toEqual(['Surry Hills', 'Redfern']);
   });
 
   it('should return 401 without auth token', async () => {

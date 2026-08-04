@@ -12,6 +12,9 @@ import {
   appointmentResponseSchema,
   inspectorEarningsSummaryResponseSchema,
   marketplaceOfferDetailAppointmentSchema,
+  marketplaceOfferResponseSchema,
+  inspectorScheduleItemSchema,
+  inspectorScheduleMonthItemSchema,
   invoiceResponseSchema,
   inspectorResponseSchema,
   startInspectionResponseSchema,
@@ -652,6 +655,21 @@ describe('inspectorAppointmentDetailResponseSchema — customFields', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('retains propertyCode — the realty code shown on the detail page', () => {
+    const result = inspectorAppointmentDetailResponseSchema.safeParse({
+      ...validBase,
+      propertyCode: 'ACM-PROP-0007',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.propertyCode).toBe('ACM-PROP-0007');
+  });
+
+  it('still parses when propertyCode is absent', () => {
+    const result = inspectorAppointmentDetailResponseSchema.safeParse(validBase);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.propertyCode).toBeUndefined();
+  });
 });
 
 describe('inspectorAppointmentDetailResponseSchema — jobDetails.tenantContacts enrichment', () => {
@@ -820,6 +838,7 @@ describe('marketplaceOfferDetailAppointmentSchema — coordinates / street', () 
     timeSlotEnd: '09:00',
     street: '123 Ocean St',
     coordinates: { lat: -33.8908, lng: 151.2743 },
+    propertyType: 'HOUSE',
   };
 
   it('accepts coordinates as {lat,lng} and retains them', () => {
@@ -858,12 +877,158 @@ describe('marketplaceOfferDetailAppointmentSchema — coordinates / street', () 
     expect(marketplaceOfferDetailAppointmentSchema.safeParse(rest).success).toBe(false);
   });
 
+  it('rejects a missing propertyType field', () => {
+    const { propertyType: _propertyType, ...rest } = validBase;
+    expect(marketplaceOfferDetailAppointmentSchema.safeParse(rest).success).toBe(false);
+  });
+
   it('rejects non-numeric coordinates', () => {
     const result = marketplaceOfferDetailAppointmentSchema.safeParse({
       ...validBase,
       coordinates: { lat: '-33.89', lng: 151.27 },
     });
     expect(result.success).toBe(false);
+  });
+
+  it('retains propertyType so the PWA can render a per-job type icon', () => {
+    const result = marketplaceOfferDetailAppointmentSchema.safeParse({
+      ...validBase,
+      propertyType: 'APARTMENT',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.propertyType).toBe('APARTMENT');
+  });
+
+  it('accepts propertyType null (property missing or soft-deleted)', () => {
+    const result = marketplaceOfferDetailAppointmentSchema.safeParse({
+      ...validBase,
+      propertyType: null,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.propertyType).toBeNull();
+  });
+
+  it('rejects a propertyType outside the PropertyType enum', () => {
+    const result = marketplaceOfferDetailAppointmentSchema.safeParse({
+      ...validBase,
+      propertyType: 'TOWNHOUSE',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('marketplaceOfferResponseSchema — properties[]', () => {
+  const validBase = {
+    groupId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee301',
+    groupNumber: 42,
+    code: '42',
+    tenantName: 'Acme Realty',
+    serviceTypeName: 'Ingoing - Apartments up to 3 Beds',
+    groupSize: 2,
+    scheduledDate: '2026-08-10',
+    timeWindow: '09:00-12:00',
+    suburbs: ['Bondi NSW', 'Coogee NSW'],
+    payoutEstimate: 159.88,
+    appointmentCount: 2,
+    centroid: { lat: -33.8908, lng: 151.2743 },
+    properties: [
+      { street: '12 Ocean St', suburb: 'Bondi NSW', propertyType: 'APARTMENT' },
+      { street: '3 Beach Rd', suburb: 'Coogee NSW', propertyType: 'HOUSE' },
+    ],
+  };
+
+  /**
+   * The offer card renders a full street address and a property-type icon straight
+   * from the LIST payload — no drill-down request. These fields must stay declared
+   * here: this schema is the Fastify response schema, and an undeclared field is
+   * silently stripped on serialization.
+   */
+  it('retains the per-appointment street, suburb and propertyType', () => {
+    const result = marketplaceOfferResponseSchema.safeParse(validBase);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.properties).toEqual([
+        { street: '12 Ocean St', suburb: 'Bondi NSW', propertyType: 'APARTMENT' },
+        { street: '3 Beach Rd', suburb: 'Coogee NSW', propertyType: 'HOUSE' },
+      ]);
+    }
+  });
+
+  it('accepts a blank street and null propertyType (soft-deleted property)', () => {
+    const result = marketplaceOfferResponseSchema.safeParse({
+      ...validBase,
+      properties: [{ street: '', suburb: 'Bondi NSW', propertyType: null }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts an empty properties array', () => {
+    const result = marketplaceOfferResponseSchema.safeParse({ ...validBase, properties: [] });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a missing properties field', () => {
+    const { properties: _properties, ...rest } = validBase;
+    expect(marketplaceOfferResponseSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it('rejects a propertyType outside the PropertyType enum', () => {
+    const result = marketplaceOfferResponseSchema.safeParse({
+      ...validBase,
+      properties: [{ street: '12 Ocean St', suburb: 'Bondi NSW', propertyType: 'TOWNHOUSE' }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('keeps suburbs alongside properties (map view and blank-street fallback)', () => {
+    const result = marketplaceOfferResponseSchema.safeParse(validBase);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.suburbs).toEqual(['Bondi NSW', 'Coogee NSW']);
+  });
+});
+
+describe('inspector schedule schemas — propertyCode (realty code)', () => {
+  const validItemBase = {
+    id: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee401',
+    appointmentCode: 'INS-1001',
+    status: 'SCHEDULED',
+    scheduledDate: '2026-08-10',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '12:00',
+    serviceTypeId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee402',
+    propertyId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee403',
+    rentalTenantConfirmationStatus: 'PENDING',
+    keyRequired: false,
+    meetingLocation: null,
+    executionStatus: 'NOT_STARTED',
+  };
+
+  it('retains propertyCode on a schedule item', () => {
+    const result = inspectorScheduleItemSchema.safeParse({
+      ...validItemBase,
+      propertyCode: 'ACM-PROP-0007',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.propertyCode).toBe('ACM-PROP-0007');
+  });
+
+  it('still parses a schedule item without propertyCode (legacy property)', () => {
+    const result = inspectorScheduleItemSchema.safeParse(validItemBase);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.propertyCode).toBeUndefined();
+  });
+
+  it('retains propertyCode on a month item', () => {
+    const result = inspectorScheduleMonthItemSchema.safeParse({
+      ...validItemBase,
+      propertyAddress: '12 Ocean St',
+      suburb: 'Bondi NSW',
+      serviceTypeName: 'Routine inspection',
+      flowType: 'ROUTINE',
+      propertyCode: 'ACM-PROP-0007',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.propertyCode).toBe('ACM-PROP-0007');
   });
 });
 
