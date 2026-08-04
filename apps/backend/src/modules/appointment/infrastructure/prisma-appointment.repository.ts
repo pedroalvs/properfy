@@ -749,6 +749,15 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     return row ? mapToEntity(row) : null;
   }
 
+  /**
+   * **Deliberately cross-tenant.** Called only by the nightly
+   * `appointment.reject-unconfirmed` worker, which has no actor and must sweep
+   * every agency in one pass — the absence of a `tenant_id` filter here is the
+   * contract, not an oversight, and must not be "fixed" by adding one.
+   *
+   * Contrast `createAppointmentFlowTypeReader`, which is request-scoped and
+   * therefore does scope by tenant.
+   */
   async findUnconfirmedForDate(date: Date): Promise<AppointmentEntity[]> {
     // scheduled_date is a @db.Date pinned to UTC midnight; callers must pass
     // UTC midnight of the *Sydney* civil date they are targeting.
