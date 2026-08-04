@@ -233,3 +233,28 @@ describe('DashboardPage', () => {
     });
   });
 });
+
+describe('DashboardPage — Analytics entry point', () => {
+  it('offers an Analytics action in the page header', () => {
+    renderPage();
+    // PageHeader renders a CTA twice (desktop button + mobile FAB) for the
+    // primary action; secondary actions render once, but query defensively.
+    expect(screen.getAllByRole('button', { name: /analytics/i }).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('navigates to /analytics when the action is clicked', async () => {
+    const user = userEvent.setup();
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <DashboardPage />
+        <LocationDisplay />
+      </Wrapper>,
+    );
+
+    await user.click(screen.getAllByRole('button', { name: /analytics/i })[0]!);
+    await waitFor(() => {
+      expect(screen.getByTestId('location-display')).toHaveTextContent('/analytics');
+    });
+  });
+});

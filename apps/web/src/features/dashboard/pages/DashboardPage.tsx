@@ -20,7 +20,16 @@ export function DashboardPage() {
 
   return (
     <div>
-      <PageHeader title="Dashboard" />
+      <PageHeader
+        title="Dashboard"
+        secondaryActions={[
+          {
+            label: 'Analytics',
+            icon: 'mdi-chart-line',
+            onClick: () => navigate('/analytics'),
+          },
+        ]}
+      />
 
       <IntegrationWarnings />
 
