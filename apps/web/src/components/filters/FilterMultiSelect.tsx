@@ -62,6 +62,7 @@ export function FilterMultiSelect({
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const reactId = useId();
   const listboxId = `${reactId}-listbox`;
   const optionId = (index: number) => `${listboxId}-option-${index}`;
@@ -177,6 +178,9 @@ export function FilterMultiSelect({
     }
   };
 
+  /** Single source for the pair: the label's padding and the clear's render. */
+  const showClear = value.length > 0 && !disabled;
+
   const optionClass = (index: number, isSelected: boolean) => {
     if (index === activeIndex) {
       return isSelected ? filterOptionHighlightedActive : filterOptionHighlighted;
@@ -194,6 +198,7 @@ export function FilterMultiSelect({
         <span className={focused || open ? filterLabelFocused : filterLabel}>{label}</span>
       )}
       <button
+        ref={triggerRef}
         type="button"
         className="flex w-full items-center justify-between px-3 py-[7px] text-sm"
         onClick={() => {
@@ -214,29 +219,39 @@ export function FilterMultiSelect({
         aria-disabled={disabled}
         disabled={disabled}
       >
-        <span className={triggerSummary ? 'text-text-primary' : 'text-text-muted'}>
+        <span
+          className={`${triggerSummary ? 'text-text-primary' : 'text-text-muted'} ${
+            // On the label, not the trigger — see FilterSelect for why padding
+            // the trigger pushes the chevron under the clear.
+            showClear ? 'pr-9' : ''
+          }`}
+        >
           {triggerSummary ?? (showFloatingLabel ? placeholder || '' : label)}
         </span>
-        <div className="flex items-center gap-1">
-          {value.length > 0 && !disabled && (
-            <span
-              role="button"
-              tabIndex={-1}
-              onClick={(e) => {
-                e.stopPropagation();
-                onChange([]);
-                closeMenu();
-                setFocused(false);
-              }}
-              className={filterClearButton}
-              aria-label={`Clear ${label}`}
-            >
-              <i className="mdi mdi-close text-sm" />
-            </span>
-          )}
-          <i className={`mdi mdi-menu-down ${filterIcon} transition-transform ${open ? 'rotate-180' : ''}`} />
-        </div>
+        <i className={`mdi mdi-menu-down ${filterIcon} transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
+
+      {/*
+        A sibling of the trigger, not a child — see FilterSelect for the full
+        rationale and the geometry constraint that keeps this button clear of
+        the chevron's 12–28px band.
+      */}
+      {showClear && (
+        <button
+          type="button"
+          className={`absolute right-7 top-1/2 -translate-y-1/2 ${filterClearButton}`}
+          onClick={() => {
+            onChange([]);
+            closeMenu();
+            // The button unmounts as the selection clears; without this, focus
+            // falls to <body> and the keyboard user loses their place.
+            triggerRef.current?.focus();
+          }}
+          aria-label={`Clear ${label}`}
+        >
+          <i className="mdi mdi-close text-sm" />
+        </button>
+      )}
 
       {open && !disabled && (
         <ul

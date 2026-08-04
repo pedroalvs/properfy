@@ -117,11 +117,9 @@ export class ListAppointmentsUseCase {
     // RBAC: only AM, OP, CL_ADMIN, CL_USER can list appointments
     this.authorizationService.assertRoles(actor, [...APPOINTMENT_LIST_ROLES], { action: 'appointment.list', entityType: 'Appointment' });
 
-    // Bug C-B2 (QA 2026-04-20): an earlier version of this branch treated OP
-    // like a tenant-scoped role and coerced its (null) tenantId via `!`,
-    // silently dropping the query filter and returning the full cross-tenant
-    // set regardless of `?tenantId=`. The rule now lives in one place, shared
-    // with the suburbs and export use cases.
+    // Shared with the suburbs and export use cases so the three read paths
+    // cannot drift — see `resolveAppointmentListTenantScope` for why the
+    // pinned case must throw rather than fall through to "no filter".
     const tenantId = resolveAppointmentListTenantScope(actor, filters.tenantId);
 
     // When the search term looks like an appointment code — either fully

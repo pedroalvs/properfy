@@ -6,6 +6,7 @@ import { buildAddressLabel } from '@/lib/address';
 import { ApiError } from '@/lib/api-error';
 import { PortalLayout } from '../components/PortalLayout';
 import { PortalErrorState } from '../components/PortalErrorState';
+import { AddToCalendarActions } from '../components/AddToCalendarActions';
 import { AppointmentInfoCard } from '../components/AppointmentInfoCard';
 import { BookedSlotCard } from '../components/BookedSlotCard';
 import { ChangeTimeSheet } from '../components/ChangeTimeSheet';
@@ -293,6 +294,20 @@ export function PortalPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/*
+          Gated independently of the "Attendance Confirmed" card above, which also
+          requires !isPastConfirmCutoff. Confirmed + past cutoff is the eve-of-inspection
+          case, where saving the slot to a calendar matters most. CANCELLED short-circuits
+          before this point; REJECTED means the slot is no longer held.
+        */}
+        {alreadyConfirmed && !isTerminal && !isRejected && (
+          <AddToCalendarActions
+            appointment={appointment}
+            agencyName={data.tenant?.name}
+            timezone={data.tenant?.timezone}
+          />
         )}
 
         {alreadyUnavailable && !isTerminal && (
