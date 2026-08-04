@@ -387,16 +387,37 @@ describe('NotifyOnStatusTransitionHandler', () => {
       notifyRentalTenant: true,
     });
 
-    // Agency + tenant email + tenant SMS
-    expect(createNotification.execute).toHaveBeenCalledTimes(3);
+    // Agency + tenant email. No SMS leg: INSPECTION_CANCELLED_SMS was retired, and the
+    // fixture contact carries a phone precisely so this would catch a resurrected leg.
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED_AGENCY' }),
     );
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED', channel: 'EMAIL' }),
     );
+    const channels = createNotification.execute.mock.calls.map((c: any[]) => c[0].channel);
+    expect(channels).not.toContain('SMS');
+  });
+
+  // The SMS leg is shared between the notice and the cancellation, so the two halves of
+  // the gate need pinning independently: removing the `targetStatus === 'SCHEDULED'`
+  // condition brings the retired cancellation SMS back, and deleting the leg outright
+  // silently drops the notice SMS, which is the occupant's first word that anyone is
+  // coming at all.
+  it('keeps the SMS leg for the inspection notice', async () => {
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+
     expect(createNotification.execute).toHaveBeenCalledWith(
-      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED_SMS', channel: 'SMS' }),
+      expect.objectContaining({ templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL' }),
+    );
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS' }),
     );
   });
 
@@ -692,7 +713,8 @@ describe('NotifyOnStatusTransitionHandler', () => {
       notifyRentalTenant: true,
     });
 
-    expect(createNotification.execute).toHaveBeenCalledTimes(2);
+    // The occupant's email only — the agency leg has no recipient without a branch.
+    expect(createNotification.execute).toHaveBeenCalledOnce();
     expect(createNotification.execute).not.toHaveBeenCalledWith(
       expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED_AGENCY' }),
     );
@@ -738,9 +760,6 @@ describe('NotifyOnStatusTransitionHandler', () => {
 
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED', channel: 'EMAIL' }),
-    );
-    expect(createNotification.execute).toHaveBeenCalledWith(
-      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED_SMS', channel: 'SMS' }),
     );
     // Contained, but not invisible.
     expect(metricsCollector.incrementNotificationHandlerErrorCount).toHaveBeenCalled();
@@ -1041,6 +1060,33 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
     );
   });
 
+  // INSPECTION_CANCELLED_SMS is retired as a send but retained in the history array the
+  // dedupe reads. For appointments cancelled before the retirement, the SMS leg was
+  // written last and so is the latest row: dropping the code from that array would make
+  // the announcement invisible and re-cancel-notify people who were already told.
+  it('still recognises a pre-retirement cancellation SMS as the last announcement', async () => {
+    notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
+      makeSentNotification('INSPECTION_CANCELLED_SMS', {
+        scheduledDate: '01/04/2026',
+        timeSlot: '09:00-12:00',
+      }),
+    );
+
+    const handler = makeHandler();
+    await handler.execute({
+      appointmentId: 'appt-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'CANCELLED',
+      notifyRentalTenant: true,
+    });
+
+    // The agency leg is unconditional and still fires; the occupant's is the replay.
+    expect(createNotification.execute).toHaveBeenCalledTimes(1);
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED_AGENCY' }),
+    );
+  });
+
   it('skips when the last announcement was the same notice with the same date and slot', async () => {
     notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(
       makeSentNotification('INSPECTION_NOTICE', NOTICE_PAYLOAD),
@@ -1240,9 +1286,9 @@ describe('NotifyOnStatusTransitionHandler occurrence dedupe', () => {
       notifyRentalTenant: true,
     });
 
-    // Agency notice + both tenant legs: a notice followed by a cancellation is a
+    // Agency notice + the tenant's email: a notice followed by a cancellation is a
     // genuine state change, not a replay.
-    expect(createNotification.execute).toHaveBeenCalledTimes(3);
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({ templateCode: 'INSPECTION_CANCELLED' }),
     );

@@ -497,30 +497,10 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     subject: null,
     body: 'Properfy: Inspection at {{propertyAddress}} on {{scheduledDate}}. Confirm at {{confirmationLink}}',
   },
-  {
-    code: 'INSPECTION_CONFIRMED_SMS',
-    channel: 'SMS',
-    subject: null,
-    body: 'Properfy: Hi {{rentalTenantName}}, your inspection on {{scheduledDate}} has been confirmed.',
-  },
-  {
-    code: 'INSPECTION_RESCHEDULED_SMS',
-    channel: 'SMS',
-    subject: null,
-    body: 'Properfy: Hi {{rentalTenantName}}, your inspection on {{scheduledDate}} has been rescheduled. New details will follow.',
-  },
-  {
-    code: 'INSPECTION_CANCELLED_SMS',
-    channel: 'SMS',
-    subject: null,
-    body: 'Properfy: Hi {{rentalTenantName}}, the inspection on {{scheduledDate}} has been cancelled.',
-  },
-  {
-    code: 'INSPECTION_UNAVAILABILITY_REPORTED_SMS',
-    channel: 'SMS',
-    subject: null,
-    body: 'Properfy: Hi {{rentalTenantName}}, we received your unavailability report for {{scheduledDate}}. We will be in touch.',
-  },
+  // The confirmed / rescheduled / cancelled / unavailability-reported SMS twins were
+  // retired: each restated an email the occupant was already receiving, for an action
+  // they had just taken themselves. Their dispatch legs went with them, and
+  // `<ts>_remove_occupant_sms_templates` deletes the rows the seeder had already written.
   // ── Portal link (operator-triggered, not mandatory) ──────────────────────
   {
     code: 'TENANT_PORTAL_LINK',

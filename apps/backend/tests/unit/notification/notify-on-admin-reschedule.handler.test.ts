@@ -130,7 +130,10 @@ describe('NotifyOnAdminRescheduleHandler', () => {
     );
   });
 
-  it('notifies on both channels when the contact has an email and a phone', async () => {
+  // Email-only: INSPECTION_RESCHEDULED_SMS was retired with the other three
+  // occupant-action twins. The email carries the new date and a fresh portal link,
+  // neither of which fits an SMS worth sending.
+  it('notifies by email only, even when the contact has a phone', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
       contact: makeContact(),
@@ -140,16 +143,13 @@ describe('NotifyOnAdminRescheduleHandler', () => {
 
     await makeHandler().execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' });
 
-    expect(createNotification.execute).toHaveBeenCalledTimes(2);
+    expect(createNotification.execute).toHaveBeenCalledOnce();
     expect(createNotification.execute).toHaveBeenCalledWith(
       expect.objectContaining({ templateCode: 'INSPECTION_RESCHEDULED', channel: 'EMAIL' }),
     );
-    expect(createNotification.execute).toHaveBeenCalledWith(
-      expect.objectContaining({ templateCode: 'INSPECTION_RESCHEDULED_SMS', channel: 'SMS' }),
-    );
   });
 
-  it('mints the portal token once so both legs carry the same link', async () => {
+  it('mints the portal token once per reschedule', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
       contact: makeContact(),
@@ -174,11 +174,11 @@ describe('NotifyOnAdminRescheduleHandler', () => {
     await handler.execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' });
     await handler.execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' });
 
-    // Two runs x two channel legs.
-    expect(createNotification.execute).toHaveBeenCalledTimes(4);
+    // Two runs, one email leg each.
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
   });
 
-  it('sends only SMS when the contact has no email', async () => {
+  it('sends nothing when the contact has a phone but no email', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
       contact: makeContact({ snapshotEmail: null }),
@@ -188,13 +188,7 @@ describe('NotifyOnAdminRescheduleHandler', () => {
 
     await makeHandler().execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' });
 
-    expect(createNotification.execute).toHaveBeenCalledWith(
-      expect.objectContaining({
-        templateCode: 'INSPECTION_RESCHEDULED_SMS',
-        channel: 'SMS',
-        recipient: '+61400000000',
-      }),
-    );
+    expect(createNotification.execute).not.toHaveBeenCalled();
   });
 
   it('still sends the email when portal token mint fails (links render empty)', async () => {

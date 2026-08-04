@@ -7,7 +7,6 @@ import type { AppointmentCodeFormatter } from '../../../appointment/domain/appoi
 import type { CreateNotificationUseCase } from '../use-cases/create-notification.use-case';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { MetricsCollector } from '../../../../shared/infrastructure/metrics';
-import type { NotificationChannel } from '@properfy/shared';
 
 /**
  * Notifies the rental tenant when an operator edits date/time of a SCHEDULED
@@ -95,33 +94,18 @@ export class NotifyOnAdminRescheduleHandler {
     };
 
     const recipientEmail = contact.effectiveEmail;
-    const recipientPhone = contact.effectivePhone;
+    // No email: skip silently. INSPECTION_RESCHEDULED_SMS was retired, so a phone
+    // number alone no longer reaches the occupant from here — the new date and the
+    // fresh portal link both live in the email.
+    if (!recipientEmail) return;
 
-    // Independent legs: a tenant with both an email and a phone gets both.
-    // Email first, sharing the single portal token minted above — minting again
-    // per leg would revoke the link the first message already carried.
-    if (recipientEmail) {
-      await this.createNotification.execute({
-        tenantId: appointment.tenantId,
-        appointmentId: appointment.id,
-        recipient: recipientEmail,
-        channel: 'EMAIL',
-        templateCode: emailCode,
-        payloadJson: this.buildNotificationPayload.build(payloadCtx),
-      });
-    }
-
-    if (recipientPhone) {
-      const smsCode = `${emailCode}_SMS`;
-      await this.createNotification.execute({
-        tenantId: appointment.tenantId,
-        appointmentId: appointment.id,
-        recipient: recipientPhone,
-        channel: 'SMS' as NotificationChannel,
-        templateCode: smsCode,
-        payloadJson: this.buildNotificationPayload.build({ ...payloadCtx, templateCode: smsCode }),
-      });
-    }
-    // No email and no phone: skip silently
+    await this.createNotification.execute({
+      tenantId: appointment.tenantId,
+      appointmentId: appointment.id,
+      recipient: recipientEmail,
+      channel: 'EMAIL',
+      templateCode: emailCode,
+      payloadJson: this.buildNotificationPayload.build(payloadCtx),
+    });
   }
 }

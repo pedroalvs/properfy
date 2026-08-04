@@ -12,11 +12,29 @@ export interface DispatchRemindersOutput {
   skipped: number;
 }
 
-const REMINDER_WINDOWS: Array<[number, string]> = [
-  [7, 'REMINDER_7_DAYS'],
-  [5, 'REMINDER_5_DAYS'],
-  [3, 'REMINDER_3_DAYS'],
-];
+/**
+ * Confirmation states that count as "the occupant has answered".
+ *
+ * UNAVAILABLE is in here alongside CONFIRMED: someone who replied "I can't make it" has
+ * responded just as definitively as someone who said yes, and chasing them about a slot
+ * they already declined is the same noise. PENDING and NO_RESPONSE are the states this
+ * chase exists for.
+ */
+const ANSWERED_CONFIRMATION_STATUSES: readonly string[] = ['CONFIRMED', 'UNAVAILABLE'];
+
+/**
+ * The three reminder windows, counted back from the scheduled date.
+ *
+ * 7 and 5 days are chasers — they exist to get an answer out of an occupant who has not
+ * given one, so they stop the moment one arrives. 3 days is a heads-up and goes out
+ * regardless of the answer: someone who confirmed three weeks ago still needs telling
+ * that a stranger is coming on Thursday.
+ */
+const REMINDER_WINDOWS = [
+  { offsetDays: 7, templateCode: 'REMINDER_7_DAYS', onlyWhenUnanswered: true },
+  { offsetDays: 5, templateCode: 'REMINDER_5_DAYS', onlyWhenUnanswered: true },
+  { offsetDays: 3, templateCode: 'REMINDER_3_DAYS', onlyWhenUnanswered: false },
+] as const;
 
 export class DispatchRemindersUseCase {
   constructor(
@@ -36,12 +54,23 @@ export class DispatchRemindersUseCase {
 
     // "Today" is the Sydney civil date; the repo expects UTC midnight of that civil date.
     const todayCivil = civilDateInTimezone(now, PLATFORM_TIMEZONE);
-    for (const [offsetDays, templateCode] of REMINDER_WINDOWS) {
+    for (const { offsetDays, templateCode, onlyWhenUnanswered } of REMINDER_WINDOWS) {
       const targetDate = new Date(`${todayCivil}T00:00:00.000Z`);
       targetDate.setUTCDate(targetDate.getUTCDate() + offsetDays);
       const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate);
 
       for (const { appointment, contact, propertyAddress, serviceTypeName } of appointments) {
+        // Before anything else, so a chased-and-answered appointment costs no dedupe
+        // lookups. Mirrors the gate in dispatch-escalations, which runs on the same
+        // daily schedule and must not disagree with this one about who has answered.
+        if (
+          onlyWhenUnanswered &&
+          ANSWERED_CONFIRMATION_STATUSES.includes(appointment.rentalTenantConfirmationStatus)
+        ) {
+          skipped++;
+          continue;
+        }
+
         const effectiveEmail = contact?.effectiveEmail;
         const effectivePhone = contact?.effectivePhone;
 
