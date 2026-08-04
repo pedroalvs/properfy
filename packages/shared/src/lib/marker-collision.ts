@@ -29,6 +29,11 @@ export type MarkerOffset = [number, number];
  * below the width of a pin at maximum zoom. Rounding rather than comparing
  * exactly absorbs the float noise a coordinate picks up crossing the API, which
  * would otherwise leave two pins for one address stacked on top of each other.
+ *
+ * Bucketing, not clustering: two values either side of a bucket edge still get
+ * different keys. That leaves the pre-existing pin-under-pin at odds a
+ * single geocode and one storage round-trip do not realistically reach, and it
+ * is cheaper to accept than to check neighbouring buckets for.
  */
 const COINCIDENT_PRECISION = 6;
 

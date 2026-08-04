@@ -15,6 +15,7 @@ const spies = vi.hoisted(() => ({
   deferLoad: false,
   setOffset: vi.fn(),
   markers: [] as Array<{
+    el: HTMLElement;
     coords: [number, number] | null;
     offset: [number, number];
     alive: boolean;
@@ -58,7 +59,7 @@ vi.mock('mapbox-gl', () => {
     private record: (typeof spies.markers)[number];
     constructor(opts: { element: HTMLElement }) {
       this.el = opts.element;
-      this.record = { coords: null, offset: [0, 0], alive: false };
+      this.record = { el: this.el, coords: null, offset: [0, 0], alive: false };
       spies.markers.push(this.record);
     }
     setLngLat(coords: [number, number]) {
@@ -317,6 +318,34 @@ describe('OffersMapView — overlapping pins', () => {
       [0, 0],
       [0, 0],
     ]);
+  });
+
+  // The offers list is refetched periodically and carries no ordering
+  // guarantee, so a row laid out in array order would let two pins at one
+  // centroid swap sides on any refetch.
+  it('orders a coincident row by id, whatever order the offers arrive in', async () => {
+    const offerA = makeOffer({ groupId: 'group-a', centroid: SAME });
+    const offerB = makeOffer({ groupId: 'group-b', centroid: { ...SAME } });
+
+    /** Offset drawn for each group id, read off the live marker elements. */
+    function offsetsByGroup() {
+      return Object.fromEntries(
+        spies.markers
+          .filter((m) => m.alive)
+          .map((m) => [m.el.getAttribute('data-group-id'), m.offset]),
+      );
+    }
+
+    const first = render(<OffersMapView offers={[offerA, offerB]} onSelectOffer={vi.fn()} />);
+    await waitForPins('map-pin', 2);
+    const byId = offsetsByGroup();
+    first.unmount();
+    spies.markers.length = 0;
+
+    render(<OffersMapView offers={[offerB, offerA]} onSelectOffer={vi.fn()} />);
+    await waitForPins('map-pin', 2);
+    expect(offsetsByGroup()).toEqual(byId);
+    expect(byId['group-a']).toEqual([-18, 0]);
   });
 
   // Coincident pins can never be separated by the camera, so their offset must

@@ -125,8 +125,15 @@ function isValidCoordinate(coordinates: { lat: number; lng: number } | null): co
   return isPlottablePoint({ latitude: coordinates.lat, longitude: coordinates.lng });
 }
 
-/** A marker plus the coordinate it stands for, so offsets can be recomputed. */
+/**
+ * A marker plus the coordinate it stands for, so offsets can be recomputed.
+ *
+ * `id` is the group or appointment the pin belongs to: it orders the pins in a
+ * coincident row, so the periodic offers refetch handing back the same pins in
+ * a different order cannot swap two of them around.
+ */
 interface PlacedMarker {
+  id: string;
   marker: any;
   lng: number;
   lat: number;
@@ -150,11 +157,15 @@ interface PlacedMarker {
  */
 function applyCollisionOffsets(placed: PlacedMarker[]): void {
   if (placed.length === 0) return;
+  // Sorted by id so the row does not depend on the order the API happened to
+  // return the offers in — otherwise a refetch could swap two pins that share
+  // a centroid and make them jump past each other for no reason.
+  const ordered = [...placed].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const offsets = resolveCoincidentMarkerOffsets(
-    placed.map((p) => ({ latitude: p.lat, longitude: p.lng })),
+    ordered.map((p) => ({ latitude: p.lat, longitude: p.lng })),
     PIN_DIAMETER_PX,
   );
-  placed.forEach((p, index) => p.marker.setOffset(offsets[index]));
+  ordered.forEach((p, index) => p.marker.setOffset(offsets[index]));
 }
 
 export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: OffersMapViewProps) {
@@ -300,7 +311,12 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       const marker = new mapboxgl.Marker({ element: el })
         .setLngLat([offer.centroid.lng, offer.centroid.lat])
         .addTo(map);
-      markersRef.current.push({ marker, lng: offer.centroid.lng, lat: offer.centroid.lat });
+      markersRef.current.push({
+        id: offer.groupId,
+        marker,
+        lng: offer.centroid.lng,
+        lat: offer.centroid.lat,
+      });
     }
   }
 
@@ -317,6 +333,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
         .setLngLat([appointment.coordinates.lng, appointment.coordinates.lat])
         .addTo(map);
       markersRef.current.push({
+        id: appointment.id,
         marker,
         lng: appointment.coordinates.lng,
         lat: appointment.coordinates.lat,
