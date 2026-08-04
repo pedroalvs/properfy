@@ -1,9 +1,11 @@
+import { UserRole } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardStats } from '../hooks';
 import { DashboardSummaryCards, RecentAppointmentsList, PendingActionsCard, StatCard, InspectorBreakdownSection } from '../components';
 import { IntegrationWarnings } from '../components/IntegrationWarnings';
+import { usePermissions } from '@/hooks/usePermissions';
 
 function computeTomorrowLabel(): string {
   const tomorrow = new Date();
@@ -16,11 +18,25 @@ function computeTomorrowLabel(): string {
 export function DashboardPage() {
   const navigate = useNavigate();
   const { stats, isLoading } = useDashboardStats();
+  const { hasRole } = usePermissions();
   const tomorrowLabel = computeTomorrowLabel();
+
+  // /dashboard is unguarded and INSP lands here, but /analytics is guarded to
+  // the four business roles. Offering the button to an inspector would bounce
+  // them straight back with a permission toast — the Sidebar already hides the
+  // equivalent entry for exactly this reason.
+  const canViewAnalytics = hasRole(UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER);
 
   return (
     <div>
-      <PageHeader title="Dashboard" />
+      <PageHeader
+        title="Dashboard"
+        secondaryActions={
+          canViewAnalytics
+            ? [{ label: 'Analytics', icon: 'mdi-chart-line', onClick: () => navigate('/analytics') }]
+            : undefined
+        }
+      />
 
       <IntegrationWarnings />
 
