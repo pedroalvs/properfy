@@ -15,6 +15,17 @@
 --
 -- Expand-only: adds an index, changes no data and no existing column, so it is
 -- safe to apply ahead of the code that uses it.
+--
+-- Note: CREATE INDEX CONCURRENTLY is NOT possible here — Prisma Migrate wraps
+-- each migration in a transaction (E25001 on prisma 5.22) and Postgres rejects
+-- CONCURRENTLY inside one ("cannot run inside a transaction block"). The plain
+-- CREATE INDEX briefly blocks writes to appointments, which is acceptable: the
+-- table is small and this runs in the Fly release_command phase, before the new
+-- version takes traffic. Same reasoning as
+-- 20260730114607_add_appointment_status_created_at_index, which added the other
+-- cross-tenant index on this table. If appointments ever grows to millions of
+-- rows, create future indexes manually with CONCURRENTLY and mark the migration
+-- applied via `prisma migrate resolve`.
 
 CREATE INDEX IF NOT EXISTS "appointments_scheduled_date_inspector_id_idx"
   ON "appointments" ("scheduled_date", "inspector_id");
