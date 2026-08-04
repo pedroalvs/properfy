@@ -429,6 +429,8 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   serviceTypeName: z.string().nullable(),
   flowType: z.string(),
   propertyId: z.string().uuid(),
+  // Property (realty) code — PREFIX-PROP-0001. Optional: legacy rows may predate it.
+  propertyCode: z.string().optional(),
   propertyAddress: z.string(),
   suburb: z.string(),
   propertyLatitude: z.number().nullable(),
@@ -557,6 +559,18 @@ export const serviceGroupResponseSchema = z.object({
 
 const centroidSchema = z.object({ lat: z.number(), lng: z.number() }).nullable();
 
+/**
+ * One property behind an offer, carried on the LIST payload so the offer card can
+ * render a full street address and a property-type icon without a drill-down
+ * request. `street` is '' and `propertyType` null when the property is missing or
+ * soft-deleted — the same blanking rule the offer-detail mapper applies.
+ */
+const marketplaceOfferPropertySchema = z.object({
+  street: z.string(),
+  suburb: z.string(),
+  propertyType: z.enum(PROPERTY_TYPE_VALUES).nullable(),
+});
+
 export const marketplaceOfferResponseSchema = z.object({
   groupId: z.string().uuid(),
   // Sequential human-friendly group code (pure numeric). Always present — both
@@ -568,11 +582,17 @@ export const marketplaceOfferResponseSchema = z.object({
   groupSize: z.number(),
   scheduledDate: civilDateStr(),
   timeWindow: z.string(),
+  // Deduped "<suburb> <state>" labels. Kept alongside `properties` — the map view
+  // reads it, and it is the fallback when every street is blank.
   suburbs: z.array(z.string()),
   payoutEstimate: z.number().nullable(),
   appointmentCount: z.number(),
   centroid: centroidSchema,
+  properties: z.array(marketplaceOfferPropertySchema),
 });
+
+export type MarketplaceOfferProperty = z.infer<typeof marketplaceOfferPropertySchema>;
+export type MarketplaceOffer = z.infer<typeof marketplaceOfferResponseSchema>;
 
 export const marketplaceOfferDetailAppointmentSchema = z.object({
   id: z.string().uuid(),
@@ -592,6 +612,9 @@ export const marketplaceOfferDetailAppointmentSchema = z.object({
   // Property lat/lng for the PWA map group drill-down; null while geocoding is
   // pending/failed (the map skips those pins).
   coordinates: centroidSchema,
+  // Drives the per-job type icon in the group detail sheet; null when the property
+  // is missing or soft-deleted.
+  propertyType: z.enum(PROPERTY_TYPE_VALUES).nullable(),
 });
 
 export const marketplaceOfferDetailResponseSchema = marketplaceOfferResponseSchema.extend({
@@ -729,6 +752,8 @@ export const portalActivitiesResponseSchema = z.object({
 export const inspectorScheduleItemSchema = z.object({
   id: z.string(),
   appointmentCode: z.string().optional(),
+  // Property (realty) code — PREFIX-PROP-0001. Optional: legacy rows may predate it.
+  propertyCode: z.string().optional(),
   status: z.string(),
   scheduledDate: civilDateStr(),
   timeSlotStart: z.string().regex(HHMM_REGEX),

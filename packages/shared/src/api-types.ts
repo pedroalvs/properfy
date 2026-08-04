@@ -7152,6 +7152,12 @@ export interface paths {
                                     lat: number;
                                     lng: number;
                                 } | null;
+                                properties: {
+                                    street: string;
+                                    suburb: string;
+                                    /** @enum {string|null} */
+                                    propertyType: "APARTMENT" | "HOUSE" | null;
+                                }[];
                             }[];
                             pagination: {
                                 page: number;
@@ -7214,6 +7220,12 @@ export interface paths {
                                     lat: number;
                                     lng: number;
                                 } | null;
+                                properties: {
+                                    street: string;
+                                    suburb: string;
+                                    /** @enum {string|null} */
+                                    propertyType: "APARTMENT" | "HOUSE" | null;
+                                }[];
                                 addresses: string[];
                                 keyRequired: boolean;
                                 notes: string | null;
@@ -7234,6 +7246,8 @@ export interface paths {
                                         lat: number;
                                         lng: number;
                                     } | null;
+                                    /** @enum {string|null} */
+                                    propertyType: "APARTMENT" | "HOUSE" | null;
                                 }[];
                             };
                         };
@@ -8342,6 +8356,7 @@ export interface paths {
                                 appointments: {
                                     id: string;
                                     appointmentCode: string;
+                                    propertyCode?: string;
                                     /** @enum {string} */
                                     status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                                     scheduledDate: string;
@@ -8367,6 +8382,7 @@ export interface paths {
                                 overdueAppointments: {
                                     id: string;
                                     appointmentCode: string;
+                                    propertyCode?: string;
                                     /** @enum {string} */
                                     status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                                     scheduledDate: string;
@@ -8438,6 +8454,7 @@ export interface paths {
                                 appointments: {
                                     id: string;
                                     appointmentCode?: string;
+                                    propertyCode?: string;
                                     status: string;
                                     scheduledDate: string;
                                     timeSlotStart: string;
@@ -8458,6 +8475,7 @@ export interface paths {
                             data: {
                                 id: string;
                                 appointmentCode: string;
+                                propertyCode?: string;
                                 /** @enum {string} */
                                 status: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                                 scheduledDate: string;
@@ -8537,6 +8555,7 @@ export interface paths {
                                 flowType: string;
                                 /** Format: uuid */
                                 propertyId: string;
+                                propertyCode?: string;
                                 propertyAddress: string;
                                 suburb: string;
                                 propertyLatitude: number | null;
@@ -8906,6 +8925,12 @@ export interface paths {
                                     lat: number;
                                     lng: number;
                                 } | null;
+                                properties: {
+                                    street: string;
+                                    suburb: string;
+                                    /** @enum {string|null} */
+                                    propertyType: "APARTMENT" | "HOUSE" | null;
+                                }[];
                             }[];
                             pagination: {
                                 page: number;

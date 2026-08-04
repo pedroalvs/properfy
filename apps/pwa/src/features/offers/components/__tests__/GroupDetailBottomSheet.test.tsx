@@ -39,6 +39,10 @@ const mockDetail: MarketplaceOfferDetail = {
   appointmentCount: 2,
   centroid: null,
   addresses: ['123 Ocean St, Bondi NSW', '45 Beach Rd, Manly NSW'],
+  properties: [
+    { street: '123 Ocean St', suburb: 'Bondi NSW', propertyType: 'APARTMENT' },
+    { street: '45 Beach Rd', suburb: 'Manly NSW', propertyType: 'HOUSE' },
+  ],
   keyRequired: false,
   notes: null,
   appointments: [
@@ -53,6 +57,9 @@ const mockDetail: MarketplaceOfferDetail = {
       tenantName: 'Acme Realty',
       timeSlotStart: '08:00',
       timeSlotEnd: '09:00',
+      street: '123 Ocean St',
+      coordinates: null,
+      propertyType: 'APARTMENT',
     },
     {
       id: '00000000-0000-0000-0000-000000000012',
@@ -65,6 +72,9 @@ const mockDetail: MarketplaceOfferDetail = {
       tenantName: 'Globex Property',
       timeSlotStart: '11:30',
       timeSlotEnd: '12:30',
+      street: '45 Beach Rd',
+      coordinates: null,
+      propertyType: 'HOUSE',
     },
   ],
 };
@@ -96,8 +106,9 @@ describe('GroupDetailBottomSheet', () => {
   it('renders appointment rows from detail data', () => {
     mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
-    expect(screen.getByText('Bondi NSW')).toBeInTheDocument();
-    expect(screen.getByText('Manly NSW')).toBeInTheDocument();
+    // The suburb now travels with the street on one address line.
+    expect(screen.getByText(/Bondi NSW/)).toBeInTheDocument();
+    expect(screen.getByText(/Manly NSW/)).toBeInTheDocument();
   });
 
   it('does not render the group code badge in the header', () => {
@@ -121,11 +132,61 @@ describe('GroupDetailBottomSheet', () => {
     payouts.forEach((el) => expect(el.textContent).toMatch(/\$150/));
   });
 
-  it('does not render raw street-level address text', () => {
+  /**
+   * This assertion used to be its exact inverse: the sheet deliberately withheld
+   * street-level text even though `street` was already in the payload. Client
+   * scope doc §7.2 asks the offer detail for "Endereços e roteiro", so the
+   * addresses are now shown. Inspectors see them before accepting, by design.
+   */
+  it('renders the full street address for each job', () => {
     mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    const addresses = screen.getAllByTestId('appointment-address');
+    expect(addresses).toHaveLength(2);
+    expect(addresses[0]).toHaveTextContent('123 Ocean St, Bondi NSW');
+    expect(addresses[1]).toHaveTextContent('45 Beach Rd, Manly NSW');
+  });
+
+  it('falls back to the suburb when a job has no street (soft-deleted property)', () => {
+    const detail = {
+      ...mockDetail,
+      appointments: [{ ...mockDetail.appointments[0]!, street: '', propertyType: null }],
+    };
+    mockUseDetail.mockReturnValue({ data: detail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    expect(screen.getByTestId('appointment-address')).toHaveTextContent('Bondi NSW');
     expect(screen.queryByText(/Ocean St/)).toBeNull();
-    expect(screen.queryByText(/Beach Rd/)).toBeNull();
+    // No type to show either — the icon must be absent, not a stray default.
+    expect(screen.queryByTestId('appointment-property-type-icon')).toBeNull();
+  });
+
+  it('renders a property-type icon per job', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    const icons = screen.getAllByTestId('appointment-property-type-icon');
+    expect(icons).toHaveLength(2);
+    expect(icons[0]).toHaveAttribute('aria-label', 'Apartment');
+    expect(icons[1]).toHaveAttribute('aria-label', 'House');
+  });
+
+  // Doc §7.2: the offer detail shows the group's total value.
+  it('shows the group total pinned above the accept action', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} onAccept={vi.fn()} />);
+    expect(screen.getByTestId('group-total-payout')).toHaveTextContent('$300');
+  });
+
+  it('shows the group total even when the sheet is read-only (no accept handler)', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    expect(screen.getByTestId('group-total-payout')).toHaveTextContent('$300');
+    expect(screen.queryByTestId('accept-group-btn')).toBeNull();
+  });
+
+  it('renders a dash for the total when no payout is known', () => {
+    mockUseDetail.mockReturnValue({ data: { ...mockDetail, payoutEstimate: null }, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    expect(screen.getByTestId('group-total-payout')).toHaveTextContent('\u2014');
   });
 
   it('calls onClose when close button is pressed', async () => {

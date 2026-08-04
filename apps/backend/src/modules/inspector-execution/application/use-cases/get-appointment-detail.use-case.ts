@@ -90,6 +90,8 @@ export interface AppointmentDetailOutput {
   serviceTypeName: string | null;
   flowType: string;
   propertyId: string;
+  /** Property (realty) code — PREFIX-PROP-0001; doc §7.4 shows it on the detail page. */
+  propertyCode?: string;
   propertyAddress: string;
   suburb: string;
   propertyLatitude: number | null;
@@ -247,6 +249,7 @@ export class GetAppointmentDetailUseCase {
       serviceTypeName: result.serviceTypeName ?? serviceType?.name ?? null,
       flowType: serviceType?.flowType ?? 'ROUTINE',
       propertyId: appointment.propertyId,
+      propertyCode: result.propertyCode,
       propertyAddress: result.propertyAddress ?? '',
       suburb: result.propertySuburb ?? '',
       propertyLatitude: result.propertyLatitude ?? null,

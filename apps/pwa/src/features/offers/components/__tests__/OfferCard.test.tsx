@@ -17,6 +17,12 @@ const baseOffer: MarketplaceOffer = {
   suburbs: ['Brunswick', 'Fitzroy'],
   payoutEstimate: null,
   appointmentCount: 3,
+  centroid: null,
+  properties: [
+    { street: '12 Ocean St', suburb: 'Brunswick VIC', propertyType: 'APARTMENT' },
+    { street: '3 Beach Rd', suburb: 'Fitzroy VIC', propertyType: 'HOUSE' },
+    { street: '7 Hill St', suburb: 'Fitzroy VIC', propertyType: 'HOUSE' },
+  ],
 };
 
 describe('OfferCard', () => {
@@ -38,6 +44,84 @@ describe('OfferCard', () => {
     expect(screen.getByText('Acme Realty')).toBeInTheDocument();
     expect(screen.getByText('3 inspections')).toBeInTheDocument();
     expect(screen.getByText('#1057')).toBeInTheDocument();
+  });
+
+  // Doc §7.2: the offer card shows a full street address, not just a suburb.
+  it('renders the first full street address', () => {
+    render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
+    expect(screen.getByTestId('offer-address')).toHaveTextContent('12 Ocean St, Brunswick VIC');
+  });
+
+  it('summarises the remaining addresses of a multi-property group', () => {
+    render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
+    expect(screen.getByTestId('offer-address-more')).toHaveTextContent('+2 more addresses');
+  });
+
+  it('omits the "+N more" line for a single-property group', () => {
+    const offer: MarketplaceOffer = {
+      ...baseOffer,
+      appointmentCount: 1,
+      properties: [{ street: '12 Ocean St', suburb: 'Brunswick VIC', propertyType: 'HOUSE' }],
+    };
+    render(<OfferCard offer={offer} state="IDLE" onAccept={onAccept} />);
+    expect(screen.getByTestId('offer-address')).toHaveTextContent('12 Ocean St, Brunswick VIC');
+    expect(screen.queryByTestId('offer-address-more')).toBeNull();
+  });
+
+  it('uses the singular noun for exactly one remaining address', () => {
+    const offer: MarketplaceOffer = {
+      ...baseOffer,
+      appointmentCount: 2,
+      properties: baseOffer.properties.slice(0, 2),
+    };
+    render(<OfferCard offer={offer} state="IDLE" onAccept={onAccept} />);
+    expect(screen.getByTestId('offer-address-more')).toHaveTextContent('+1 more address');
+  });
+
+  it('falls back to the suburb list when no property has a street', () => {
+    const offer: MarketplaceOffer = {
+      ...baseOffer,
+      properties: [{ street: '', suburb: '', propertyType: null }],
+    };
+    render(<OfferCard offer={offer} state="IDLE" onAccept={onAccept} />);
+    expect(screen.getByTestId('offer-address')).toHaveTextContent('Brunswick · Fitzroy');
+    expect(screen.queryByTestId('offer-address-more')).toBeNull();
+  });
+
+  it('renders one property-type icon per distinct type in the group', () => {
+    render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
+    const icons = screen.getAllByTestId('property-type-icon');
+    expect(icons).toHaveLength(2);
+    expect(icons[0]).toHaveAttribute('aria-label', 'Apartment');
+    expect(icons[1]).toHaveAttribute('aria-label', 'House');
+  });
+
+  it('renders a single icon when every property shares a type', () => {
+    const offer: MarketplaceOffer = {
+      ...baseOffer,
+      properties: baseOffer.properties.slice(1),
+    };
+    render(<OfferCard offer={offer} state="IDLE" onAccept={onAccept} />);
+    const icons = screen.getAllByTestId('property-type-icon');
+    expect(icons).toHaveLength(1);
+    expect(icons[0]).toHaveAttribute('aria-label', 'House');
+  });
+
+  it('renders no type icon when the group carries no property type', () => {
+    const offer: MarketplaceOffer = {
+      ...baseOffer,
+      properties: [{ street: '1 A St', suburb: 'Brunswick VIC', propertyType: null }],
+    };
+    const { container } = render(<OfferCard offer={offer} state="IDLE" onAccept={onAccept} />);
+    expect(screen.queryByTestId('property-type-icon')).toBeNull();
+    // The chip keeps a neutral glyph so it does not collapse to bare text.
+    expect(container.querySelector('.mdi-home-outline')).not.toBeNull();
+  });
+
+  it('renders no countdown when priorityExpiresAt is absent from the payload', () => {
+    const { priorityExpiresAt: _omitted, ...withoutExpiry } = baseOffer;
+    render(<OfferCard offer={withoutExpiry} state="IDLE" onAccept={onAccept} />);
+    expect(screen.queryByTestId('priority-countdown')).toBeNull();
   });
 
   it('shows Accept button for IDLE state', () => {
