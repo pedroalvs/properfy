@@ -10,7 +10,7 @@ import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
 import { UserNotFoundError } from '../../../src/modules/user/domain/user-management.errors';
 import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
-import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import type { AuthContext } from '@properfy/shared';
 
 function makeUser(
@@ -334,5 +334,77 @@ describe('UpdateUserUseCase', () => {
     expect(
       (result as Record<string, unknown>)['passwordHash'],
     ).toBeUndefined();
+  });
+
+  describe('timezone', () => {
+    it('allows AM to set the timezone of an internal user', async () => {
+      const internalUser = makeUser({ role: 'OP', tenantId: null, branchId: null });
+      vi.mocked(userManagementRepo.findByIdAndTenantId)
+        .mockResolvedValueOnce(internalUser)
+        .mockResolvedValueOnce(internalUser);
+
+      await useCase.execute({
+        tenantId: null,
+        userId: 'user-1',
+        data: { timezone: 'Pacific/Auckland' },
+        actor: amActor,
+      });
+
+      expect(userManagementRepo.update).toHaveBeenCalledWith(
+        'user-1',
+        null,
+        expect.objectContaining({ timezone: 'Pacific/Auckland' }),
+      );
+    });
+
+    it('allows AM to clear the timezone with null', async () => {
+      const internalUser = makeUser({ role: 'OP', tenantId: null, branchId: null });
+      vi.mocked(userManagementRepo.findByIdAndTenantId)
+        .mockResolvedValueOnce(internalUser)
+        .mockResolvedValueOnce(internalUser);
+
+      await useCase.execute({
+        tenantId: null,
+        userId: 'user-1',
+        data: { timezone: null },
+        actor: amActor,
+      });
+
+      expect(userManagementRepo.update).toHaveBeenCalledWith(
+        'user-1',
+        null,
+        expect.objectContaining({ timezone: null }),
+      );
+    });
+
+    it('rejects a timezone write when the target is an agency (CL_*) user', async () => {
+      const clUser = makeUser({ role: 'CL_USER' });
+      vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(clUser);
+
+      await expect(
+        useCase.execute({
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          data: { timezone: 'Pacific/Auckland' },
+          actor: amActor,
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(userManagementRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects an invalid IANA identifier', async () => {
+      const internalUser = makeUser({ role: 'OP', tenantId: null, branchId: null });
+      vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(internalUser);
+
+      await expect(
+        useCase.execute({
+          tenantId: null,
+          userId: 'user-1',
+          data: { timezone: 'Sydney' },
+          actor: amActor,
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(userManagementRepo.update).not.toHaveBeenCalled();
+    });
   });
 });

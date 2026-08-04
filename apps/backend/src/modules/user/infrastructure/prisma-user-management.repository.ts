@@ -143,6 +143,7 @@ export class PrismaUserManagementRepository
       branchId: string | null;
       role: string;
       status: string;
+      timezone: string | null;
       email: string;
       deletedAt: Date | null;
     }>,
@@ -150,6 +151,7 @@ export class PrismaUserManagementRepository
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData['name'] = data.name;
     if (data.phone !== undefined) updateData['phone'] = data.phone;
+    if (data.timezone !== undefined) updateData['timezone'] = data.timezone;
     if (data.branchId !== undefined) updateData['branch_id'] = data.branchId;
     if (data.role !== undefined) updateData['role'] = data.role;
     if (data.status !== undefined) updateData['status'] = data.status;

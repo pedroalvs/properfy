@@ -10,9 +10,11 @@ import type { SetupTotpUseCase } from '../application/use-cases/setup-totp.use-c
 import type { ConfirmTotpUseCase } from '../application/use-cases/confirm-totp.use-case';
 import type { RequestPasswordResetUseCase } from '../application/use-cases/request-password-reset.use-case';
 import type { ConsumePasswordResetUseCase } from '../application/use-cases/consume-password-reset.use-case';
+import type { UpdateMyTimezoneUseCase } from '../application/use-cases/update-my-timezone.use-case';
 import {
   loginSchema,
   refreshSchema,
+  updateMeSchema,
   changePasswordSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
@@ -30,6 +32,7 @@ export interface AuthRouteContainer {
   refreshTokenUseCase: RefreshTokenUseCase;
   logoutUseCase: LogoutUseCase;
   getMeUseCase: GetMeUseCase;
+  updateMyTimezoneUseCase: UpdateMyTimezoneUseCase;
   changePasswordUseCase: ChangePasswordUseCase;
   revokeSessionUseCase: RevokeSessionUseCase;
   listSessionsUseCase: ListSessionsUseCase;
@@ -124,6 +127,29 @@ export async function registerAuthRoutes(
     '/v1/me',
     { preHandler: authenticate, schema: { response: { 200: meResponseSchema } } },
     async (request, reply) => {
+      const result = await container.getMeUseCase.execute(request.authContext!.userId);
+      return reply.status(200).send(result);
+    },
+  );
+
+  // PATCH /v1/me — self-service profile update (personal timezone only).
+  // Cross-tenant roles (AM/OP/INSP); CL_* users are rejected by the use case
+  // because they strictly inherit the agency timezone.
+  app.patch(
+    '/v1/me',
+    {
+      preHandler: authenticate,
+      schema: { body: updateMeSchema, response: { 200: meResponseSchema } },
+    },
+    async (request, reply) => {
+      const parsed = updateMeSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      await container.updateMyTimezoneUseCase.execute({
+        userId: request.authContext!.userId,
+        timezone: parsed.data.timezone,
+      });
       const result = await container.getMeUseCase.execute(request.authContext!.userId);
       return reply.status(200).send(result);
     },

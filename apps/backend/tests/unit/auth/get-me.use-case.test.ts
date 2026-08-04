@@ -139,6 +139,9 @@ describe('GetMeUseCase', () => {
       createdAt: new Date('2024-01-01').toISOString(),
       inspectorId: null,
       inspectorPhotoUrl: null,
+      clUserPermissions: undefined,
+      timezone: 'Australia/Sydney',
+      personalTimezone: null,
     });
   });
 
@@ -282,10 +285,53 @@ describe('GetMeUseCase', () => {
   it('should not resolve clUserPermissions for non-CL_USER roles', async () => {
     const user = makeUser({ role: 'CL_ADMIN', tenantId: 'tenant-1' });
     vi.mocked(userRepo.findById).mockResolvedValue(user);
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenantHelper());
 
     const result = await useCase.execute('user-1');
 
-    expect(tenantRepo.findById).not.toHaveBeenCalled();
     expect(result.clUserPermissions).toBeUndefined();
   });
+
+  describe('timezone fields', () => {
+    it('returns the agency timezone as effective for CL_ADMIN, with null personalTimezone', async () => {
+      const user = makeUser({ role: 'CL_ADMIN', tenantId: 'tenant-1', timezone: 'Europe/London' });
+      vi.mocked(userRepo.findById).mockResolvedValue(user);
+      vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenantHelper('Australia/Perth'));
+
+      const result = await useCase.execute('user-1');
+
+      expect(result.timezone).toBe('Australia/Perth');
+      // Strict inheritance: a stray users.timezone value is never exposed for CL_*.
+      expect(result.personalTimezone).toBeNull();
+    });
+
+    it('returns the personal timezone as effective for AM', async () => {
+      const user = makeUser({ role: 'AM', tenantId: null, timezone: 'Pacific/Auckland' });
+      vi.mocked(userRepo.findById).mockResolvedValue(user);
+
+      const result = await useCase.execute('user-1');
+
+      expect(result.timezone).toBe('Pacific/Auckland');
+      expect(result.personalTimezone).toBe('Pacific/Auckland');
+      expect(tenantRepo.findById).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the platform timezone when nothing is set', async () => {
+      const user = makeUser({ role: 'OP', tenantId: null, timezone: null });
+      vi.mocked(userRepo.findById).mockResolvedValue(user);
+
+      const result = await useCase.execute('user-1');
+
+      expect(result.timezone).toBe('Australia/Sydney');
+      expect(result.personalTimezone).toBeNull();
+    });
+  });
 });
+
+function makeTenantHelper(timezone = 'Australia/Sydney'): TenantEntity {
+  return new TenantEntity({
+    id: 'tenant-1', name: 'Acme', legalName: 'Acme Pty', timezone,
+    currency: 'AUD', settingsJson: {}, status: 'ACTIVE',
+    createdAt: new Date('2024-01-01'), updatedAt: new Date('2024-01-01'), deletedAt: null,
+  });
+}

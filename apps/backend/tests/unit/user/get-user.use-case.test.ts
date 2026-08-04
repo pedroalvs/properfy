@@ -88,6 +88,7 @@ describe('GetUserUseCase', () => {
       tenantId: 'tenant-1',
       branchId: null,
       phone: null,
+      timezone: null,
       status: 'ACTIVE',
       createdAt: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-01'),

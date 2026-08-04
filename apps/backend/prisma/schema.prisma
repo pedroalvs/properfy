@@ -189,9 +189,26 @@ model Tenant {
   contacts               Contact[]
   app_credentials        AppCredential[]
   satisfaction_surveys   SatisfactionSurvey[]
+  cron_job_runs          CronJobRun[]
 
   @@index([status])
   @@map("tenants")
+}
+
+// Exactly-once ledger for per-agency civil-day cron work. The hourly tick
+// workers INSERT ... ON CONFLICT DO NOTHING against the primary key and only
+// run the job when the insert lands, which absorbs DST-repeated local hours
+// and missed-tick catch-up runs.
+model CronJobRun {
+  job_name   String   @db.VarChar(100)
+  tenant_id  String
+  local_date DateTime @db.Date
+  created_at DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenant_id], references: [id])
+
+  @@id([job_name, tenant_id, local_date])
+  @@map("cron_job_runs")
 }
 
 model Branch {
@@ -236,6 +253,9 @@ model User {
   name               String     @db.VarChar(200)
   email              String     @db.VarChar(254)
   phone              String?    @db.VarChar(20)
+  // Personal IANA timezone. Only meaningful for cross-tenant roles (AM/OP/INSP);
+  // CL_* users always inherit the agency (tenant) timezone. NULL = platform default.
+  timezone           String?    @db.VarChar(60)
   status             UserStatus @default(ACTIVE)
   password_hash      String
   // Encrypted at rest: stores AES-256-GCM ciphertext of the TOTP secret

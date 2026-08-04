@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { paginationSchema } from './pagination';
 import { branchAddressSchema } from './address';
 import { normalizeRentalTenantNotificationSettings } from '../utils/rental-tenant-notifications';
+import { ianaTimezoneSchema } from '../utils/timezone';
 
 // Email template override sub-schema
 const emailTemplateOverrideSchema = z.object({
@@ -73,9 +74,6 @@ export const tenantSettingsSchema = z.object({
     cancelled: shortEmailTemplateOverrideSchema.optional(),
   }).strict().optional(),
 
-  // Settings-level timezone override
-  timezone: z.string().max(60).optional(),
-
   // Portal cutoff settings
   portalCutoffHour: z.number().int().min(0).max(23).default(19),
   portalCutoffDaysBefore: z.number().int().min(0).max(7).default(1),
@@ -134,6 +132,9 @@ export const createTenantSchema = z.object({
   currency: z.string().length(3).default('AUD'),
   // Required: every agency must have a unique appointment-code prefix.
   appointmentCodePrefix: appointmentCodePrefixSchema,
+  // Agency timezone: governs civil-day business rules (reminders, validation)
+  // for the agency and is inherited by all its CL_* users.
+  timezone: ianaTimezoneSchema.optional(),
   settings: createTenantSettingsSchema.optional(),
 });
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
@@ -144,6 +145,7 @@ export const updateTenantSchema = z.object({
   legalName: z.string().min(1).max(200).trim().optional(),
   currency: z.string().length(3).optional(),
   appointmentCodePrefix: appointmentCodePrefixSchema.optional(),
+  timezone: ianaTimezoneSchema.optional(),
   settings: tenantSettingsSchema.partial().optional(),
 });
 export type UpdateTenantInput = z.infer<typeof updateTenantSchema>;

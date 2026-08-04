@@ -1,4 +1,5 @@
 import type { AuthContext } from '@properfy/shared';
+import { ianaTimezoneSchema } from '@properfy/shared';
 import type { IUserManagementRepository } from '../../domain/user-management.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
@@ -17,6 +18,8 @@ export interface UpdateUserInput {
     phone?: string | null;
     branchId?: string | null;
     role?: string;
+    /** Personal timezone. Cross-tenant targets only — rejected for CL_* users. */
+    timezone?: string | null;
   };
   actor: AuthContext;
 }
@@ -29,6 +32,7 @@ export interface UpdateUserOutput {
   tenantId: string | null;
   branchId: string | null;
   phone: string | null;
+  timezone: string | null;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -133,6 +137,22 @@ export class UpdateUserUseCase {
       throw new ValidationError('Agency users require an agency context');
     }
 
+    // Timezone: only cross-tenant users carry a personal timezone; agency
+    // (CL_*) users strictly inherit the agency timezone.
+    if (data.timezone !== undefined) {
+      const effectiveRole = targetRole ?? user.role;
+      if (effectiveRole === 'CL_ADMIN' || effectiveRole === 'CL_USER') {
+        throw new ValidationError('Agency users inherit the agency timezone', [
+          { field: 'timezone', message: 'Agency users inherit the agency timezone' },
+        ]);
+      }
+      if (data.timezone !== null && !ianaTimezoneSchema.safeParse(data.timezone).success) {
+        throw new ValidationError('Invalid timezone', [
+          { field: 'timezone', message: 'Must be a valid IANA timezone identifier' },
+        ]);
+      }
+    }
+
     // Build update data based on role
     const updateData: Record<string, unknown> = {};
     if (actor.role === 'AM' || actor.role === 'OP') {
@@ -141,6 +161,7 @@ export class UpdateUserUseCase {
       if (data.phone !== undefined) updateData.phone = data.phone;
       if (data.branchId !== undefined) updateData.branchId = data.branchId;
       if (data.role !== undefined) updateData.role = data.role;
+      if (data.timezone !== undefined) updateData.timezone = data.timezone;
     } else {
       // CL_ADMIN can only update name, phone, branchId (role stripped)
       if (data.name !== undefined) updateData.name = data.name;
@@ -169,6 +190,7 @@ export class UpdateUserUseCase {
       phone: user.phone,
       branchId: user.branchId,
       role: user.role,
+      timezone: user.timezone,
     };
 
     await this.userManagementRepo.update(userId, tenantId, updateData as Parameters<IUserManagementRepository['update']>[2]);
@@ -199,6 +221,7 @@ export class UpdateUserUseCase {
       tenantId: updatedUser!.tenantId,
       branchId: updatedUser!.branchId,
       phone: updatedUser!.phone,
+      timezone: updatedUser!.timezone,
       status: updatedUser!.status,
       createdAt: updatedUser!.createdAt,
       updatedAt: updatedUser!.updatedAt,

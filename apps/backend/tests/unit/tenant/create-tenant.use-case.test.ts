@@ -85,6 +85,53 @@ describe('CreateTenantUseCase', () => {
     );
   });
 
+  it('persists the requested agency timezone', async () => {
+    vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      name: 'Brazil Agency',
+      legalName: 'Brazil Agency Pty Ltd',
+      timezone: 'America/Sao_Paulo',
+      currency: 'BRL',
+      appointmentCodePrefix: 'BRA',
+      actor: makeActor(),
+    });
+
+    expect(result.timezone).toBe('America/Sao_Paulo');
+    const saved = vi.mocked(tenantRepo.save).mock.calls[0]![0];
+    expect(saved.timezone).toBe('America/Sao_Paulo');
+  });
+
+  it('defaults the timezone to the platform timezone when omitted', async () => {
+    vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
+
+    const result = await useCase.execute({
+      name: 'Default TZ Agency',
+      legalName: 'Default TZ Agency Pty Ltd',
+      currency: 'AUD',
+      appointmentCodePrefix: 'DTZ',
+      actor: makeActor(),
+    });
+
+    expect(result.timezone).toBe('Australia/Sydney');
+  });
+
+  it('rejects an invalid timezone with a ValidationError (non-route caller)', async () => {
+    vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({
+        name: 'Bad TZ Agency',
+        legalName: 'Bad TZ Agency Pty Ltd',
+        timezone: 'Sydney',
+        currency: 'AUD',
+        appointmentCodePrefix: 'BTZ',
+        actor: makeActor(),
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(tenantRepo.save).not.toHaveBeenCalled();
+  });
+
   it('should emit tenant.created.v1 domain event after successful creation', async () => {
     vi.mocked(tenantRepo.findByLegalName).mockResolvedValue(null);
 

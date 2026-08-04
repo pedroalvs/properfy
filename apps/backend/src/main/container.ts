@@ -13,6 +13,7 @@ import { LoginUseCase } from '../modules/auth/application/use-cases/login.use-ca
 import { RefreshTokenUseCase } from '../modules/auth/application/use-cases/refresh-token.use-case';
 import { LogoutUseCase } from '../modules/auth/application/use-cases/logout.use-case';
 import { GetMeUseCase } from '../modules/auth/application/use-cases/get-me.use-case';
+import { UpdateMyTimezoneUseCase } from '../modules/auth/application/use-cases/update-my-timezone.use-case';
 import { ChangePasswordUseCase } from '../modules/auth/application/use-cases/change-password.use-case';
 import { RevokeSessionUseCase } from '../modules/auth/application/use-cases/revoke-session.use-case';
 import { ListSessionsUseCase } from '../modules/auth/application/use-cases/list-sessions.use-case';
@@ -353,7 +354,8 @@ import { NotifyOnGroupInspectorChangeSubscriber } from '../modules/notification/
 import { ChangeGroupInspectorUseCase } from '../modules/service-group/application/use-cases/change-group-inspector.use-case';
 import { ChangeGroupScheduleUseCase } from '../modules/service-group/application/use-cases/change-group-schedule.use-case';
 import { createApiKeyAuthMiddleware } from '../shared/interfaces/api-key-auth-middleware';
-import { createAuthMiddleware } from '../shared/interfaces/auth-middleware';
+import { createAuthMiddleware, setDefaultTimezoneResolver } from '../shared/interfaces/auth-middleware';
+import { createEffectiveTimezoneResolver } from '../shared/infrastructure/effective-timezone-resolver';
 
 // Appointment module
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
@@ -470,6 +472,29 @@ export interface AppContainer {
 
 export function createContainer(logger: Logger): AppContainer {
   const env = getEnv();
+
+  // Effective-timezone resolution for every auth middleware instance: route
+  // modules build their own middleware, so the resolver is registered once
+  // here (composition root) instead of threaded through each route container.
+  setDefaultTimezoneResolver(
+    createEffectiveTimezoneResolver({
+      getTenantTimezone: async (tenantId) => {
+        const tenant = await prisma.tenant.findUnique({
+          where: { id: tenantId },
+          select: { timezone: true },
+        });
+        return tenant?.timezone;
+      },
+      getUserTimezone: async (userId) => {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { timezone: true },
+        });
+        return user?.timezone;
+      },
+    }),
+  );
+
   const auditLogRepo = new PrismaAuditLogRepository(prisma);
   const auditService = new PersistentAuditService(auditLogRepo, logger);
   // Feature 020: retention + preservation + PII registry repositories
@@ -533,6 +558,7 @@ export function createContainer(logger: Logger): AppContainer {
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo);
   const logoutUseCase = new LogoutUseCase(sessionRepo, auditService);
   const getMeUseCase = new GetMeUseCase(userRepo, inspectorRepo, storageService, tenantRepo);
+  const updateMyTimezoneUseCase = new UpdateMyTimezoneUseCase(userRepo, auditService);
   const passwordHistoryRepo = new PrismaPasswordHistoryRepository(prisma);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo);
   const revokeSessionUseCase = new RevokeSessionUseCase(sessionRepo, auditService);
@@ -1356,6 +1382,7 @@ export function createContainer(logger: Logger): AppContainer {
       refreshTokenUseCase,
       logoutUseCase,
       getMeUseCase,
+      updateMyTimezoneUseCase,
       changePasswordUseCase,
       revokeSessionUseCase,
       listSessionsUseCase,

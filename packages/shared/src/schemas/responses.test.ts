@@ -284,6 +284,8 @@ describe('meResponseSchema', () => {
     status: 'ACTIVE',
     lastLoginAt: '2026-03-17T10:00:00.000Z',
     createdAt: '2026-01-01T00:00:00.000Z',
+    timezone: 'Australia/Sydney',
+    personalTimezone: null,
   };
 
   it('should accept valid me response with all fields', () => {

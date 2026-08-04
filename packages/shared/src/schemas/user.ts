@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { auPhoneSchema } from './phone';
 import { paginationSchema } from './pagination';
+import { ianaTimezoneSchema } from '../utils/timezone';
 
 // Create user — password rules same as changePasswordSchema in auth.ts
 export const createUserSchema = z.object({
@@ -26,6 +27,10 @@ export const updateUserSchema = z.object({
   phone: auPhoneSchema.optional(),
   branchId: z.string().uuid().nullable().optional(),
   role: z.enum(['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP']).optional(),
+  // Personal timezone. Only meaningful for cross-tenant roles (AM/OP/INSP);
+  // the use case rejects it for CL_* targets, which inherit the agency timezone.
+  // null clears the override back to the platform default.
+  timezone: ianaTimezoneSchema.nullable().optional(),
 });
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 

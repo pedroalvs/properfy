@@ -282,6 +282,13 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "personalTimezone": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "clUserPermissions": {
                       "type": "array",
                       "items": {
@@ -300,7 +307,140 @@
                     "phone",
                     "status",
                     "lastLoginAt",
-                    "createdAt"
+                    "createdAt",
+                    "timezone",
+                    "personalTimezone"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "timezone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  }
+                },
+                "required": [
+                  "timezone"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string"
+                    },
+                    "tenantId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "branchId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "totpEnabled": {
+                      "type": "boolean"
+                    },
+                    "phone": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "lastLoginAt": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      ],
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      ]
+                    },
+                    "inspectorId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "nullable": true
+                    },
+                    "inspectorPhotoUrl": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "personalTimezone": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "clUserPermissions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "email",
+                    "role",
+                    "tenantId",
+                    "branchId",
+                    "totpEnabled",
+                    "phone",
+                    "status",
+                    "lastLoginAt",
+                    "createdAt",
+                    "timezone",
+                    "personalTimezone"
                   ],
                   "additionalProperties": false
                 }
@@ -657,6 +797,11 @@
                     "type": "string",
                     "pattern": "^[A-Za-z0-9]{3,4}$"
                   },
+                  "timezone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
                   "settings": {
                     "type": "object",
                     "properties": {
@@ -874,10 +1019,6 @@
                           }
                         },
                         "additionalProperties": false
-                      },
-                      "timezone": {
-                        "type": "string",
-                        "maxLength": 60
                       },
                       "portalCutoffHour": {
                         "type": "integer",
@@ -1310,6 +1451,11 @@
                     "type": "string",
                     "pattern": "^[A-Za-z0-9]{3,4}$"
                   },
+                  "timezone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
                   "settings": {
                     "type": "object",
                     "properties": {
@@ -1527,10 +1673,6 @@
                           }
                         },
                         "additionalProperties": false
-                      },
-                      "timezone": {
-                        "type": "string",
-                        "maxLength": 60
                       },
                       "portalCutoffHour": {
                         "type": "integer",
@@ -2765,6 +2907,10 @@
                         "status": {
                           "type": "string"
                         },
+                        "timezone": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "totpEnabled": {
                           "type": "boolean"
                         },
@@ -2961,6 +3107,10 @@
                           },
                           "status": {
                             "type": "string"
+                          },
+                          "timezone": {
+                            "type": "string",
+                            "nullable": true
                           },
                           "totpEnabled": {
                             "type": "boolean"
@@ -3160,6 +3310,10 @@
                         "status": {
                           "type": "string"
                         },
+                        "timezone": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "totpEnabled": {
                           "type": "boolean"
                         },
@@ -3348,6 +3502,10 @@
                           "status": {
                             "type": "string"
                           },
+                          "timezone": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "totpEnabled": {
                             "type": "boolean"
                           },
@@ -3500,6 +3658,10 @@
                         "status": {
                           "type": "string"
                         },
+                        "timezone": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "totpEnabled": {
                           "type": "boolean"
                         },
@@ -3592,6 +3754,12 @@
                       "CL_USER",
                       "INSP"
                     ]
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "nullable": true
                   }
                 },
                 "additionalProperties": false
@@ -3659,6 +3827,10 @@
                         },
                         "status": {
                           "type": "string"
+                        },
+                        "timezone": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "totpEnabled": {
                           "type": "boolean"
@@ -3777,6 +3949,10 @@
                         "status": {
                           "type": "string"
                         },
+                        "timezone": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "totpEnabled": {
                           "type": "boolean"
                         },
@@ -3869,6 +4045,12 @@
                       "CL_USER",
                       "INSP"
                     ]
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "nullable": true
                   }
                 },
                 "additionalProperties": false
@@ -3927,6 +4109,10 @@
                         },
                         "status": {
                           "type": "string"
+                        },
+                        "timezone": {
+                          "type": "string",
+                          "nullable": true
                         },
                         "totpEnabled": {
                           "type": "boolean"

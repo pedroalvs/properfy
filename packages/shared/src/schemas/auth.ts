@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ianaTimezoneSchema } from '../utils/timezone';
 
 /**
  * Canonical password policy shared across backend validation and the web/PWA
@@ -36,6 +37,14 @@ export const refreshSchema = z.object({
   refreshToken: z.string().min(1),
 });
 export type RefreshInput = z.infer<typeof refreshSchema>;
+
+// Self-service profile update (PATCH /v1/me). Timezone only for now; scoped to
+// cross-tenant roles (AM/OP/INSP) — CL_* users inherit the agency timezone and
+// the use case rejects this call for them.
+export const updateMeSchema = z.object({
+  timezone: ianaTimezoneSchema,
+});
+export type UpdateMeInput = z.infer<typeof updateMeSchema>;
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),

@@ -116,6 +116,11 @@ export const meResponseSchema = z.object({
   createdAt: instantStr(),
   inspectorId: z.string().uuid().nullable().optional(),
   inspectorPhotoUrl: z.string().nullable().optional(),
+  // Effective timezone for this user: agency timezone for CL_* roles, personal
+  // (users.timezone) or platform default for AM/OP/INSP.
+  timezone: z.string(),
+  // Raw users.timezone. Null when unset or for CL_* roles (which always inherit).
+  personalTimezone: z.string().nullable(),
   // 031 — CL_USER granular permission flags (tenant-cohort), so the web can
   // mirror server-side gating (e.g. `view_financials`) for nav visibility.
   clUserPermissions: z.array(z.string()).optional(),
@@ -161,6 +166,9 @@ export const userResponseSchema = z.object({
   email: z.string(),
   phone: z.string().nullable(),
   status: z.string(),
+  // Personal timezone (users.timezone). Null = platform default; always null
+  // for CL_* roles, which inherit the agency timezone.
+  timezone: z.string().nullable().optional(),
   totpEnabled: z.boolean().optional(),
   lastLoginAt: instantStrNullable().optional(),
   createdAt: instantStr(),
