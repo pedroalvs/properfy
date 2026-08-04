@@ -8,6 +8,8 @@ import {
 } from '../lib/calendar';
 import type { PortalAppointment } from '../types';
 
+const REVOKE_DELAY_MS = 1000;
+
 interface AddToCalendarActionsProps {
   appointment: PortalAppointment;
   /** Agency (tenant) display name, used in the event title and description. */
@@ -64,7 +66,11 @@ export function AddToCalendarActions({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Deferred: older iOS Safari can abort the download if the object URL is torn down
+    // before it has read the blob, and this portal is opened from an SMS link, so the
+    // audience is mostly mobile Safari. Chromium/Firefox snapshot it synchronously and
+    // are unaffected either way.
+    setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS);
   };
 
   return (

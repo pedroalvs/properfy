@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Mock } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AddToCalendarActions } from './AddToCalendarActions';
 import type { PortalAppointment } from '../types';
@@ -124,8 +124,13 @@ describe('AddToCalendarActions', () => {
 
     expect(clicked).toHaveLength(1);
     expect(clicked[0]?.download).toBe('inspection-ACM-PROP-0007.ics');
-    // The object URL must be released, or the blob is pinned for the page's lifetime.
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+
+    // Revocation is deferred so older iOS Safari can finish reading the blob, but it
+    // must still happen — otherwise the blob is pinned for the page's lifetime.
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    await waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url'), {
+      timeout: 3000,
+    });
   });
 
   it('falls back to the appointment id when the property has no code', async () => {
