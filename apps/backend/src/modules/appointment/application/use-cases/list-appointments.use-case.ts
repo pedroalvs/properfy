@@ -110,9 +110,12 @@ export class ListAppointmentsUseCase {
 
     // Resolve tenantId. AM and OP are both cross-tenant per CLAUDE.md §6 —
     // their JWT carries `tenantId: null`, and the `filters.tenantId` query
-    // param (when provided) narrows the result set. Tenant-scoped roles
-    // (CL_ADMIN, CL_USER, INSP) are pinned to their JWT tenantId and any
-    // filter they pass is ignored (defense-in-depth).
+    // param (when provided) narrows the result set. CL_ADMIN and CL_USER are
+    // pinned to their JWT tenantId and any filter they pass is ignored
+    // (defense-in-depth). INSP is NOT tenant-pinned despite older comments
+    // saying so: inspector users are created with `tenantId: null` and are
+    // scoped by `inspectorId`. They cannot reach this line — `assertRoles`
+    // above excludes them.
     //
     // Bug C-B2 (QA 2026-04-20): the previous branch treated OP like a
     // tenant-scoped role and coerced its (null) tenantId via `!`, silently

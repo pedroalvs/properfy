@@ -138,7 +138,7 @@ describe('ListAuditLogsUseCase', () => {
           pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
           actor: { ...clAdminActor, tenantId: null },
         }),
-      ).rejects.toThrow(/not linked to an agency/i);
+      ).rejects.toMatchObject({ code: 'TENANT_SCOPE_REQUIRED' });
 
       expect(repo.findAll).not.toHaveBeenCalled();
     });

@@ -187,7 +187,7 @@ describe('CL_* tenant pinning on the appointments list (real DB)', () => {
           branchId: null,
           inspectorId: null,
         }),
-      ).rejects.toThrow(/not linked to an agency/i);
+      ).rejects.toMatchObject({ code: 'TENANT_SCOPE_REQUIRED' });
     },
   );
 

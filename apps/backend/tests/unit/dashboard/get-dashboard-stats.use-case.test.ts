@@ -84,7 +84,7 @@ describe('GetDashboardStatsUseCase', () => {
         useCase.execute({
           actor: { userId: 'u9', tenantId: null, role, branchId: null, inspectorId: null },
         }),
-      ).rejects.toThrow(/not linked to an agency/i);
+      ).rejects.toMatchObject({ code: 'TENANT_SCOPE_REQUIRED' });
 
       expect(repository.getStats).not.toHaveBeenCalled();
     },
