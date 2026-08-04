@@ -557,8 +557,8 @@ describe('NotifyOnStatusTransitionHandler', () => {
   });
 
   it('still tells the agency when the appointment has no contact at all', async () => {
-    // Import creates appointments with no contact on purpose (CONTACT_INCOMPLETE is
-    // a warning, not an error — see appointment-import-commit.worker.ts). Those are
+    // Import creates appointments with no contact on purpose (contacts are
+    // optional — see appointment-import-commit.worker.ts). Those are
     // precisely the ones nobody accepts and the overdue sweep cancels, so skipping
     // the agency here would lose the notice in this feature's own core scenario.
     appointmentRepo.findById.mockResolvedValue({

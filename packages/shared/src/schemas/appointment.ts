@@ -125,9 +125,11 @@ export const createAppointmentSchema = z.object({
   (data) => {
     const hasLegacy = data.contact !== undefined;
     const hasNew = data.contacts !== undefined;
-    return (hasLegacy || hasNew) && !(hasLegacy && hasNew);
+    // Both absent is fine — a contact is no longer required for any service
+    // type. Both present is still ambiguous. Mirrors the update refine below.
+    return !(hasLegacy && hasNew);
   },
-  { message: 'Must provide either contact (legacy) or contacts (array), but not both and not neither', path: ['contacts'] },
+  { message: 'Cannot provide both contact (legacy) and contacts (array)', path: ['contacts'] },
 ).refine(
   (data) => isTimeRangeOrdered(data.timeSlotStart, data.timeSlotEnd),
   { message: TIME_RANGE_MESSAGE, path: ['timeSlotEnd'] },

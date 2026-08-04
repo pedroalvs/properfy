@@ -1840,5 +1840,72 @@ describe('UpdateAppointmentUseCase', () => {
       expect(contactRepo.save).toHaveBeenCalledTimes(1);
       expect(appointmentRepo.saveContact).toHaveBeenCalled();
     });
+
+    // Contacts stopped being mandatory: `contacts: []` now means "clear them
+    // all", which the code after the removed guard already implemented — it
+    // deletes the junction rows and then loops over zero entries.
+    it('clears every contact when given an empty array', async () => {
+      const contactRepo = makeContactRepo([]);
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ tenantId }),
+      );
+      (appointmentRepo as any).deleteContactsByAppointmentId = vi.fn();
+
+      const uc = new UpdateAppointmentUseCase(
+        appointmentRepo,
+        auditService,
+        new AuthorizationService(auditService),
+        undefined,
+        contactRepo as any,
+      );
+
+      await expect(
+        uc.execute({ appointmentId, data: { contacts: [] }, actor: makeActor() }),
+      ).resolves.toBeDefined();
+
+      expect(appointmentRepo.deleteContactsByAppointmentId).toHaveBeenCalledWith(appointmentId, tenantId);
+      expect(appointmentRepo.saveContact).not.toHaveBeenCalled();
+      expect(contactRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  // CodeRabbit #1072: `contacts: []` made the delete reachable, and it runs
+  // before the app-credential step. Validating credentials late meant a bad id
+  // returned an error with the appointment's contacts already deleted.
+  describe('write ordering', () => {
+    const tenantId = 'tenant-1';
+    const appointmentId = 'appt-1';
+
+    it('rejects an invalid app credential without deleting the contacts', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ tenantId }),
+      );
+      (appointmentRepo as any).deleteContactsByAppointmentId = vi.fn();
+      const appCredentialRepo = {
+        findByIds: vi.fn().mockResolvedValue([]),
+        replaceAppointmentLinks: vi.fn(),
+      } as any;
+
+      const uc = new UpdateAppointmentUseCase(
+        appointmentRepo,
+        auditService,
+        new AuthorizationService(auditService),
+        undefined,
+        undefined,
+        undefined,
+        appCredentialRepo,
+      );
+
+      await expect(
+        uc.execute({
+          appointmentId,
+          data: { contacts: [], appCredentialIds: ['cred-does-not-exist'] },
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow('App credential cred-does-not-exist not found');
+
+      expect(appointmentRepo.deleteContactsByAppointmentId).not.toHaveBeenCalled();
+      expect(appCredentialRepo.replaceAppointmentLinks).not.toHaveBeenCalled();
+    });
   });
 });

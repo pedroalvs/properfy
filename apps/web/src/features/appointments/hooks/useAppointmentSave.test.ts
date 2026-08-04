@@ -84,15 +84,12 @@ describe('useAppointmentSave', () => {
     expect(Object.keys(errors)).toHaveLength(0);
   });
 
-  it('validate flags invalid email format', () => {
-    const wrapper = createQueryWrapper();
-    const { result } = renderHook(() => useAppointmentSave(), { wrapper });
-    const errors = result.current.validate(
-      { ...VALID_CREATE_DATA, contactEmail: 'not-an-email' },
-      'create',
-    );
-    expect(errors.contactEmail).toBeDefined();
-  });
+  // Removed: "validate flags invalid email format".
+  // It drove the flat `contactEmail` field, which is hydration-only — no input
+  // is bound to it — and was only reachable because the legacy `contact`
+  // payload was built unconditionally. With that payload gone the path is dead.
+  // Invalid inline contact emails are still surfaced on the right row, via the
+  // server round-trip; see the `contacts.0.inline.primaryEmail` case below.
 
   it('validate returns no errors for valid edit form (partial data fine)', () => {
     const wrapper = createQueryWrapper();
@@ -128,11 +125,11 @@ describe('useAppointmentSave', () => {
         timeSlotStart: VALID_CREATE_DATA.timeSlotStart,
         timeSlotEnd: VALID_CREATE_DATA.timeSlotEnd,
         keyRequired: VALID_CREATE_DATA.keyRequired,
-        contact: {
-          rentalTenantName: VALID_CREATE_DATA.contactName,
-          primaryEmail: VALID_CREATE_DATA.contactEmail,
-          primaryPhone: VALID_CREATE_DATA.contactPhone,
-        },
+        // The flat contactName/Email/Phone fields are hydration-only — nothing
+        // in the UI writes them — so an empty `contacts` means the operator
+        // entered none, and resurrecting a legacy `contact` from stale flat
+        // fields would put a phantom person back on the appointment.
+        contacts: [],
       },
     });
   });
@@ -157,11 +154,7 @@ describe('useAppointmentSave', () => {
         keyLocation: null,
         notes: null,
         observation: null,
-        contact: {
-          rentalTenantName: VALID_CREATE_DATA.contactName,
-          primaryEmail: VALID_CREATE_DATA.contactEmail,
-          primaryPhone: VALID_CREATE_DATA.contactPhone,
-        },
+        contacts: [],
         customFields: [],
         appCredentialIds: [],
       },
