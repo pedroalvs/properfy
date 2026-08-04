@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { assertTenantScope } from '../../../../shared/domain/require-tenant-scope';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { ISatisfactionSurveyRepository } from '../../domain/satisfaction-survey.repository';
 
@@ -42,13 +43,8 @@ export class GetAppointmentSurveyUseCase {
 
     let tenantScope: string | null = null;
     if (TENANT_PINNED_ROLES.includes(actor.role)) {
-      // Fail closed — a null scope means "no filter" at the repository.
-      // `shared/domain/require-tenant-scope.ts` (PR #1080) now does exactly this
-      // on develop; swap to it when this stack rebases onto a base that has it.
-      if (!actor.tenantId) {
-        throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-      }
-      tenantScope = actor.tenantId;
+      // Fail closed via the shared helper — see list-inspector-surveys.
+      tenantScope = assertTenantScope(actor, 'appointment.survey.read');
     }
 
     // Enforces tenant isolation before we ever touch the survey table.

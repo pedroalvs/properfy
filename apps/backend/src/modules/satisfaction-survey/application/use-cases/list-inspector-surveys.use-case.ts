@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { assertTenantScope } from '../../../../shared/domain/require-tenant-scope';
 import type { ISatisfactionSurveyRepository } from '../../domain/satisfaction-survey.repository';
 
 export interface ListInspectorSurveysInput {
@@ -51,16 +52,10 @@ export class ListInspectorSurveysUseCase {
 
     let tenantScope: string | null = null;
     if (TENANT_PINNED_ROLES.includes(actor.role)) {
-      // Fail closed. The repository applies the tenant filter only when this is
-      // truthy, so a null scope here would silently widen the read to every
-      // agency's responses.
-      //
-      // `shared/domain/require-tenant-scope.ts` (PR #1080) now does exactly this
-      // on develop; swap to it when this stack rebases onto a base that has it.
-      if (!actor.tenantId) {
-        throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
-      }
-      tenantScope = actor.tenantId;
+      // Fail closed via the shared helper: it returns a non-optional string, so
+      // the scope cannot be assigned into an optional filter and silently become
+      // "unfiltered" — which for this read would mean every agency's responses.
+      tenantScope = assertTenantScope(actor, 'inspector.surveys.list');
     }
 
     const { surveys, total } = await this.surveyRepo.findByInspectorId(
