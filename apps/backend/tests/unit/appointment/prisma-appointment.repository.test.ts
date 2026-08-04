@@ -586,3 +586,52 @@ describe('PrismaAppointmentRepository.replaceRestrictions', () => {
   });
 
 });
+
+// The route tests for flowType mock the use case, so nothing exercised the step
+// that actually reads it: the findById mapper. It selected service_type.flow_type
+// and then dropped it on the floor for a long time — the same class of silent
+// omission as an undeclared response-schema field.
+describe('PrismaAppointmentRepository — service type flow mapping', () => {
+  const findFirst = vi.fn();
+  const prisma = { appointment: { findFirst } } as any;
+
+  function row(flowType: string | null) {
+    return {
+      id: 'appt-1', tenant_id: 'tenant-1', branch_id: 'branch-1', property_id: 'property-1',
+      service_type_id: 'st-1', inspector_id: null, service_group_id: null, status: 'DRAFT',
+      scheduled_date: new Date('2027-01-01'), time_slot_start: '09:00', time_slot_end: '11:00',
+      key_required: false, meeting_location: null, key_location: null,
+      rental_tenant_confirmation_status: 'PENDING', price_amount: 150, payout_amount: 80,
+      pricing_rule_snapshot_json: {}, notes: null, observation: null, custom_fields_json: null,
+      reason: null, rejection_reason_code: null, created_by_user_id: 'u1',
+      done_marked_by_user_id: null, done_checked_by_user_id: null, done_checked_at: null,
+      created_at: new Date(), updated_at: new Date(), deleted_at: null,
+      contacts: [], restrictions: [], portal_tokens: [],
+      property: { property_code: 'P-1', street: '1 St', suburb: 'Sydney', state: 'NSW', postcode: '2000', lat: null, lng: null },
+      tenant: { name: 'Agency', appointment_code_prefix: 'INS' },
+      branch: { name: 'Main' },
+      service_type: flowType === null ? null : { name: 'Svc', flow_type: flowType },
+      inspector: null, service_group: null,
+    };
+  }
+
+  it.each(['INGOING', 'OUTGOING', 'ROUTINE'])('maps service_type.flow_type %s onto the DTO', async (flowType) => {
+    findFirst.mockResolvedValue(row(flowType));
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const result = await repo.findById('appt-1', 'tenant-1');
+
+    expect(result?.serviceTypeFlowType).toBe(flowType);
+  });
+
+  // Defaulting rather than leaving it undefined keeps the consumer's fail-open
+  // predicate meaningful: ROUTINE means "notify", which is the safe direction.
+  it('defaults to ROUTINE when the relation is missing', async () => {
+    findFirst.mockResolvedValue(row(null));
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const result = await repo.findById('appt-1', 'tenant-1');
+
+    expect(result?.serviceTypeFlowType).toBe('ROUTINE');
+  });
+});

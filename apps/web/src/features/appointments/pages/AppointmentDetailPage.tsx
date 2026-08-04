@@ -167,9 +167,13 @@ export function AppointmentDetailPage() {
   // Recording what the tenant said is data entry, so the agency admin may do it
   // too. Declining on their behalf is not: every `→ REJECTED` edge in the state
   // machine admits only AM/OP/SYS, so the checkbox is gated separately below.
+  // Same gate as force-confirmation: recording the availability an occupant
+  // offered, or marking them unavailable, is recording an answer nobody gave
+  // when the service type has no occupant in the first place.
   const canSetTenantAvailability = !!appointment &&
+    !hasNoOccupant &&
     (isPrivileged || user?.role === UserRole.CL_ADMIN);
-  const canMarkTenantUnavailable = !!appointment && isPrivileged && (
+  const canMarkTenantUnavailable = !!appointment && isPrivileged && !hasNoOccupant && (
     appointment.status === AppointmentStatus.AWAITING_INSPECTOR
     || appointment.status === AppointmentStatus.SCHEDULED
   );

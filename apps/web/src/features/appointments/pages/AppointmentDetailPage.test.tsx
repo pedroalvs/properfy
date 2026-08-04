@@ -938,4 +938,29 @@ describe('AppointmentDetailPage — service types with no occupant', () => {
     renderPage('/appointments/awaiting');
     expect(screen.getByTestId('send-portal-link-button')).not.toBeDisabled();
   });
+
+  // Every occupant-specific action must go, not just the portal link: recording
+  // availability or marking "unavailable" for an appointment with no occupant is
+  // recording an answer nobody gave.
+  it.each(['INGOING', 'OUTGOING'])('hides Force Confirm for %s', (flowType) => {
+    mockFlowType = flowType;
+    mockClUserPermissions = ['force_confirmation'];
+    renderPage('/appointments/awaiting');
+
+    expect(screen.queryByTestId('force-confirm-button')).not.toBeInTheDocument();
+  });
+
+  it.each(['INGOING', 'OUTGOING'])('hides Tenant Availability for %s', (flowType) => {
+    mockFlowType = flowType;
+    renderPage('/appointments/awaiting');
+
+    expect(screen.queryByTestId('set-tenant-availability-button')).not.toBeInTheDocument();
+  });
+
+  it('keeps Tenant Availability for ROUTINE', () => {
+    mockFlowType = 'ROUTINE';
+    renderPage('/appointments/awaiting');
+
+    expect(screen.getByTestId('set-tenant-availability-button')).toBeInTheDocument();
+  });
 });
