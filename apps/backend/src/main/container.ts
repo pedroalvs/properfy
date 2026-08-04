@@ -170,6 +170,7 @@ import { MintPortalTokenService } from '../modules/rental-tenant-portal/domain/m
 import { GetPortalDataUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-portal-data.use-case';
 import { PrismaSatisfactionSurveyRepository } from '../modules/satisfaction-survey/infrastructure/prisma-satisfaction-survey.repository';
 import { SubmitSatisfactionSurveyUseCase } from '../modules/satisfaction-survey/application/use-cases/submit-satisfaction-survey.use-case';
+import { InviteSurveyOnDoneSubscriber } from '../modules/satisfaction-survey/application/subscribers/invite-survey-on-done.subscriber';
 import { ConfirmAppointmentUseCase } from '../modules/rental-tenant-portal/application/use-cases/confirm-appointment.use-case';
 import { UpdateContactUseCase } from '../modules/rental-tenant-portal/application/use-cases/update-contact.use-case';
 import { ReportUnavailabilityUseCase } from '../modules/rental-tenant-portal/application/use-cases/report-unavailability.use-case';
@@ -1237,6 +1238,18 @@ export function createContainer(logger: Logger): AppContainer {
   new NotifyOnGroupInspectorChangeSubscriber(serviceGroupRepo, inspectorRepo, createNotificationUseCase, logger).register(domainEventBus);
 
   new CancelEmptyGroupOnTransitionSubscriber(cancelEmptyGroupService, logger).register(domainEventBus);
+
+  // Satisfaction survey: extends the tenant's existing portal token and invites
+  // them to rate the inspection once it is marked DONE. Requires the portal token
+  // encrypter — without it the raw token cannot be recovered and no link can be
+  // sent, so the subscriber is simply not registered.
+  if (portalTokenEncrypter) {
+    new InviteSurveyOnDoneSubscriber(
+      appointmentRepo, rentalTenantPortalTokenRepo, satisfactionSurveyRepo, notificationRepo,
+      tenantRepo, portalTokenEncrypter, buildNotificationPayload, appointmentCodeFormatter,
+      createNotificationUseCase, env.TENANT_PORTAL_BASE_URL, logger,
+    ).register(domainEventBus);
+  }
 
   const appointmentImportRowResolver = new AppointmentImportRowResolver(
     propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,

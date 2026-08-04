@@ -29,4 +29,23 @@ export interface IRentalTenantPortalTokenRepository {
   releaseClaim(id: string, appointmentId: string): Promise<void>;
   revokeAllForAppointment(appointmentId: string): Promise<void>;
   expireActiveTokens(): Promise<number>;
+  /**
+   * Newest token for the appointment whose life can still be extended.
+   *
+   * Narrowed to ACTIVE and EXPIRED: a REVOKED or SUPERSEDED token is rejected by
+   * the portal middleware (410), so extending one would hand the tenant a link
+   * that can never be opened.
+   */
+  findLatestExtendableByAppointmentId(appointmentId: string): Promise<RentalTenantPortalTokenEntity | null>;
+  /**
+   * Pushes `expires_at` out to at least `notBefore` and revives an EXPIRED token.
+   *
+   * Must be a single conditional statement, never read-modify-write: the
+   * expire-tokens worker runs concurrently and would otherwise be overwritten
+   * with a stale status. `confirm_cutoff_at` is deliberately untouched, so
+   * reviving the token does not reopen confirmation.
+   *
+   * Returns whether a row actually matched.
+   */
+  extendExpiryAndReactivate(id: string, appointmentId: string, notBefore: Date): Promise<boolean>;
 }

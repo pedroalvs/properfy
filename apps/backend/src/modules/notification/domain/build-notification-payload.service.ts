@@ -105,8 +105,12 @@ export class BuildNotificationPayloadService {
     // has a distinct destination — it points at the portal itself, where the
     // tenant can still change to another available time.
     const rescheduleLink = confirmationLink;
+    // Same token, same destination: the portal decides what to show from the
+    // appointment status, so a DONE appointment renders the survey.
+    const surveyLink = confirmationLink;
 
     const allVars: Record<string, string> = {
+      surveyLink,
       // Conditional, not `?? ''`: leaving the key ABSENT is what preserves the
       // required-variable guard below. A template that requires rentalTenantName
       // still throws when there is no contact, while one that lists it as

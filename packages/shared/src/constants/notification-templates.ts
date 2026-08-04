@@ -35,6 +35,7 @@ export const MANDATORY_TEMPLATE_CODES = [
   'REPORT_READY',
   'REPORT_FAILED',
   'TENANT_PORTAL_LINK',
+  'INSPECTION_SATISFACTION_SURVEY',
 ] as const;
 
 export type MandatoryTemplateCode = (typeof MANDATORY_TEMPLATE_CODES)[number];
@@ -83,6 +84,7 @@ export const TEMPLATE_CODE_LABELS: Record<MandatoryTemplateCode, string> = {
   REPORT_READY: 'Report Ready',
   REPORT_FAILED: 'Report Failed',
   TENANT_PORTAL_LINK: 'Tenant Portal Link',
+  INSPECTION_SATISFACTION_SURVEY: 'Satisfaction Survey',
 };
 
 /**
@@ -189,6 +191,7 @@ export const TEMPLATE_TARGETS: Record<
   REPORT_READY: 'USER_ACCOUNT',
   REPORT_FAILED: 'USER_ACCOUNT',
   TENANT_PORTAL_LINK: 'RENTAL_TENANT',
+  INSPECTION_SATISFACTION_SURVEY: 'RENTAL_TENANT',
   PASSWORD_RESET: 'USER_ACCOUNT',
   INSPECTION_STUCK_ALERT: 'PLATFORM_OPS',
   INSPECTOR_GROUP_ASSIGNED: 'INSPECTOR',
@@ -254,6 +257,10 @@ export const DEFAULT_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClass>
   REPORT_READY: 'OPERATIONAL',
   REPORT_FAILED: 'OPERATIONAL',
   TENANT_PORTAL_LINK: 'OPERATIONAL',
+  // Deliberately OPERATIONAL rather than protected/TRANSACTIONAL: a feedback
+  // request is not an appointment action the recipient must receive regardless
+  // of opt-out, so it stays consent-checked.
+  INSPECTION_SATISFACTION_SURVEY: 'OPERATIONAL',
 };
 
 export function isProtectedTemplateCode(templateCode: string): boolean {
@@ -422,6 +429,13 @@ export const TEMPLATE_VARIABLES: Record<
     required: ['scheduledDate', 'confirmationLink'],
     optional: ['rentalTenantName', 'rescheduleLink', 'propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'serviceTypeName'],
   },
+  INSPECTION_SATISFACTION_SURVEY: {
+    // Only the link is required. `BuildNotificationPayloadService` throws
+    // MissingRequiredVariableError on a missing required key and loses the send
+    // outright, so anything the copy can survive without stays optional.
+    required: ['surveyLink'],
+    optional: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot', 'inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'serviceTypeName'],
+  },
   PASSWORD_RESET: {
     required: ['userName', 'resetLink'],
     optional: [],
@@ -433,6 +447,7 @@ export const TEMPLATE_VARIABLES: Record<
 // ---------------------------------------------------------------------------
 
 export const ALLOWED_VARIABLES = [
+  'surveyLink',
   'rentalTenantName',
   'propertyAddress',
   'scheduledDate',
@@ -472,6 +487,7 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   scheduledDate: formatCivilDate('2026-04-15'),
   timeSlot: formatWallTimeRange('09:00', '12:00'),
   inspectorName: 'Jane Doe',
+  surveyLink: 'https://app.properfy.com/portal/abc123',
   confirmationLink: 'https://app.properfy.com/portal/abc123',
   rescheduleLink: 'https://app.properfy.com/portal/abc123',
   agencyName: 'ABC Realty',
