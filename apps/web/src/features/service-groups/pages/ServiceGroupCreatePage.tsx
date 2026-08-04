@@ -278,6 +278,8 @@ export function ServiceGroupCreatePage() {
                 <DateInput
                   value={scheduledDate}
                   onChange={setScheduledDate}
+                  // Service groups are validated server-side in the PLATFORM timezone
+                  // (cross-tenant carve-out), so the client guard matches it exactly.
                   min={todayInTzDateString(PLATFORM_TIMEZONE)}
                   aria-label="Scheduled Date"
                 />

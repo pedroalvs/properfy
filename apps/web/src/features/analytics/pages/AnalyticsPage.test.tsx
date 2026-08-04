@@ -6,6 +6,13 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import type { DashboardAnalyticsResponse } from '@properfy/shared';
 import { AnalyticsPage } from './AnalyticsPage';
 
+// The component resolves "today"/instants in the user's effective timezone;
+// pin it to the platform default so these tests stay deterministic.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
+
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000', mapboxToken: 'pk.test' } }));
 
 // Mutable so the header cross-nav tests can walk through the four guarded roles.

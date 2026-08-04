@@ -3,6 +3,7 @@ export { TextInput } from './TextInput';
 export { Textarea } from './Textarea';
 export { SelectInput } from './SelectInput';
 export type { SelectOption } from './SelectInput';
+export { TimezoneSelect } from './TimezoneSelect';
 export { DateInput } from './DateInput';
 export { TimeInput } from './TimeInput';
 export { TimeRangeInput } from './TimeRangeInput';

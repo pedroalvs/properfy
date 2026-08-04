@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MapGroupCreateModal } from './MapGroupCreateModal';
 import { api } from '@/services/api';
 
+
 // Stable references so individual tests can assert on showError/showSuccess calls.
 // Vitest allows mock-prefixed variables to be referenced inside vi.mock() factories.
 const mockShowSuccess = vi.fn();

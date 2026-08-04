@@ -72,6 +72,7 @@ function renderDrawer(props: Partial<Parameters<typeof UserFormDrawer>[0]> = {})
       onClose={props.onClose ?? vi.fn()}
       userId={props.userId ?? undefined}
       onSaved={props.onSaved ?? vi.fn()}
+      scope={props.scope ?? undefined}
     />,
     { wrapper: createWrapper() },
   );
@@ -102,6 +103,21 @@ describe('UserFormDrawer', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Maria Test');
     expect(screen.getByLabelText('Email')).toHaveValue('maria@test.com');
     expect(screen.getByLabelText('Phone')).toHaveValue('11777777777');
+  });
+
+  it('shows an editable timezone combobox for internal scope', () => {
+    renderDrawer({ scope: 'internal' });
+    expect(screen.getByText('Preferences')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Timezone' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Leave empty to use the platform default (Australia/Sydney).'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows a read-only inherited timezone row for tenant scope', () => {
+    renderDrawer();
+    expect(screen.getByText('Inherited from the agency')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Timezone' })).not.toBeInTheDocument();
   });
 
   it('shows an inline AU phone error when an invalid phone is blurred', () => {

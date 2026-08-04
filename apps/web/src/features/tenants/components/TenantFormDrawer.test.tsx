@@ -136,7 +136,7 @@ describe('TenantFormDrawer', () => {
     expect(screen.getByText('New Agency')).toBeInTheDocument();
   });
 
-  it('renders form fields for name, legal name, currency, notes (timezone is fixed to Sydney)', () => {
+  it('renders form fields for name, legal name, timezone, currency, notes', () => {
     const Wrapper = createWrapper();
     render(
       <Wrapper>
@@ -145,7 +145,9 @@ describe('TenantFormDrawer', () => {
     );
     expect(screen.getByLabelText('Name')).toBeInTheDocument();
     expect(screen.getByLabelText('Legal Name')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Timezone')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Timezone')).toBeInTheDocument();
+    // Sydney is pre-selected so existing agencies keep their default.
+    expect((screen.getByLabelText('Timezone') as HTMLInputElement).value).toMatch(/^Sydney/);
     expect(screen.getByLabelText('Currency')).toBeInTheDocument();
     expect(screen.getByLabelText('Appointment code prefix')).toBeInTheDocument();
     expect(screen.getByLabelText('Notes')).toBeInTheDocument();
@@ -218,6 +220,33 @@ describe('TenantFormDrawer – submit behavior', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('Agency created successfully'),
     );
     expect(onSaved).toHaveBeenCalledOnce();
+  });
+
+  it('includes the selected timezone in the create payload', async () => {
+    const user = userEvent.setup();
+    mockPost.mockResolvedValueOnce({ data: { id: 'ten-1' }, error: undefined });
+
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    await fillRequiredFields(user);
+    const timezoneInput = screen.getByLabelText('Timezone');
+    await user.click(timezoneInput);
+    await user.keyboard('perth');
+    await user.click(screen.getByRole('option', { name: /^Perth/ }));
+    await user.click(screen.getByRole('button', { name: 'Create Agency' }));
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalled());
+    expect(mockPost).toHaveBeenCalledWith(
+      '/v1/tenants',
+      expect.objectContaining({
+        body: expect.objectContaining({ timezone: 'Australia/Perth' }),
+      }),
+    );
   });
 
   it('shows error snackbar and does not call onSaved when save fails', async () => {

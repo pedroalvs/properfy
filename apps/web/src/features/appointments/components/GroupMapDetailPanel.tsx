@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
 import { formatCivilDate , formatWallTimeRange } from '@/lib/format-date';
-import { ServiceGroupStatus, type UserRole } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, ServiceGroupStatus, type UserRole } from '@properfy/shared';
 import { getPublishBlockReason } from '@/features/service-groups/lib/publish-block-reason';
 
 const PUBLISH_BLOCK_REASON_ID = 'group-map-publish-block-reason';
@@ -140,6 +140,7 @@ export function GroupMapDetailPanel({
   const publishBlockReason = showPublish
     ? getPublishBlockReason({
         status: group.status,
+        timeZone: PLATFORM_TIMEZONE,
         appointmentCount: group.groupSize,
         scheduledDate: group.scheduledDate,
         timeWindow: group.timeWindow,
