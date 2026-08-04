@@ -61,8 +61,14 @@ export class DispatchRemindersUseCase {
 
       for (const { appointment, contact, propertyAddress, serviceTypeName } of appointments) {
         // Before anything else, so a chased-and-answered appointment costs no dedupe
-        // lookups. Mirrors the gate in dispatch-escalations, which runs on the same
-        // daily schedule and must not disagree with this one about who has answered.
+        // lookups.
+        //
+        // Note this is deliberately BROADER than the T-2 gate in dispatch-escalations,
+        // which skips CONFIRMED only. An UNAVAILABLE occupant is spared these chasers
+        // but can still receive the escalation's TENANT_SMS_ALERT. That is reachable
+        // only if the portal "No" fails to auto-reject the appointment, so it is left
+        // alone here rather than widened by a change nobody asked for — but the two
+        // gates are not the same rule, and a future change to one should look at both.
         if (
           onlyWhenUnanswered &&
           ANSWERED_CONFIRMATION_STATUSES.includes(appointment.rentalTenantConfirmationStatus)

@@ -65,6 +65,16 @@ export class NotifyOnAdminRescheduleHandler {
     const tenant = await this.tenantRepo.findById(appointment.tenantId);
     if (!tenant) return;
 
+    const recipientEmail = contact.effectiveEmail;
+    // No email: stop here. INSPECTION_RESCHEDULED_SMS was retired, so a phone number
+    // alone no longer reaches the occupant from here — the new date and the fresh
+    // portal link both live in the email.
+    //
+    // Deliberately BEFORE the mint below: `mint` calls revokeAndSave, so minting for
+    // a contact we cannot email would revoke whatever link they still hold and hand
+    // the replacement to nobody.
+    if (!recipientEmail) return;
+
     const property = await this.propertyRepo.findById(appointment.propertyId, appointment.tenantId);
 
     // Mint a portal token so confirmationLink/rescheduleLink reflect the new date.
@@ -92,12 +102,6 @@ export class NotifyOnAdminRescheduleHandler {
       portalBaseUrl: this.rentalTenantPortalBaseUrl,
       appointmentCodeFormatter: this.appointmentCodeFormatter,
     };
-
-    const recipientEmail = contact.effectiveEmail;
-    // No email: skip silently. INSPECTION_RESCHEDULED_SMS was retired, so a phone
-    // number alone no longer reaches the occupant from here — the new date and the
-    // fresh portal link both live in the email.
-    if (!recipientEmail) return;
 
     await this.createNotification.execute({
       tenantId: appointment.tenantId,

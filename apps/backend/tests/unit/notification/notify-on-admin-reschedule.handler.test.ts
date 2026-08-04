@@ -191,6 +191,22 @@ describe('NotifyOnAdminRescheduleHandler', () => {
     expect(createNotification.execute).not.toHaveBeenCalled();
   });
 
+  // `mint` calls revokeAndSave, so minting for a contact we cannot email would revoke
+  // whatever link they still hold and give the replacement to nobody. The guard has to
+  // sit ABOVE the mint, not merely above the send.
+  it('does not mint a portal token for a contact it cannot email', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: makeContact({ snapshotEmail: null }),
+      restrictions: [],
+    });
+    tenantRepo.findById.mockResolvedValue(makeTenant());
+
+    await makeHandler().execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' });
+
+    expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
+  });
+
   it('still sends the email when portal token mint fails (links render empty)', async () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: makeAppointment(),
