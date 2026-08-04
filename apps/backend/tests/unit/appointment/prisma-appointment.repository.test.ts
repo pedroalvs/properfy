@@ -560,3 +560,35 @@ describe('PrismaAppointmentRepository.replaceRestrictions', () => {
     expect(create).not.toHaveBeenCalled();
   });
 });
+
+describe('PrismaAppointmentRepository.deleteContactsByAppointmentId', () => {
+  const deleteMany = vi.fn();
+  const prisma = { appointmentContact: { deleteMany } } as any;
+
+  beforeEach(() => {
+    deleteMany.mockReset();
+    deleteMany.mockResolvedValue({ count: 0 });
+  });
+
+  // appointment_contacts carries no tenant_id of its own — it is scoped through
+  // the appointment. Defence in depth: the use case has already resolved the
+  // appointment in the actor's tenant, so an unscoped delete would only fire on
+  // an id mix-up, which is exactly when it must not wipe another agency's rows.
+  it('scopes the delete to the owning tenant via the appointment relation', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.deleteContactsByAppointmentId('appt-1', 'tenant-1');
+
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: { appointment_id: 'appt-1', appointment: { tenant_id: 'tenant-1' } },
+    });
+  });
+
+  it('falls back to the appointment id alone when no tenant is given', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.deleteContactsByAppointmentId('appt-1');
+
+    expect(deleteMany).toHaveBeenCalledWith({ where: { appointment_id: 'appt-1' } });
+  });
+});
