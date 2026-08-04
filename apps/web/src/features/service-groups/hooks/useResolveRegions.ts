@@ -3,6 +3,12 @@ import { api } from '@/services/api';
 
 export interface ResolvedRegionItem {
   regionId: string;
+  /**
+   * Sequential region code. Also the server's tie-break when several overlapping
+   * regions match the same appointments (lowest wins), so the order this list
+   * arrives in is meaningful rather than incidental.
+   */
+  regionNumber: number;
   regionName: string;
   color: string;
   matchedAppointmentCount: number;

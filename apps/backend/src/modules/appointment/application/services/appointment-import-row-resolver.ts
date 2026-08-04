@@ -264,19 +264,20 @@ export class AppointmentImportRowResolver {
     contactByPhone: Map<string, ContactEntity>,
   ): ResolvedImportRow['contact'] {
     const { name, email, phone } = normalized.primaryContact;
-    if (!name || !email || !phone) {
-      // Not required to import — the row still creates an appointment,
-      // just without a contact attached (the engine supports this; see
-      // CreateAppointmentUseCase's `contacts` array, which defaults to
-      // empty). Surfaced as a warning so the operator can still fix the
-      // sheet and re-import if they want the contact.
-      issues.push(warningIssue('contact', 'CONTACT_INCOMPLETE', 'Primary contact is incomplete (missing name, email, or phone) — will import without a contact'));
-      // With no contact at all being created, any secondary/tertiary/
-      // quaternary email or phone on the sheet has nothing to attach to —
-      // call that out explicitly rather than silently dropping it.
+    // A name plus at least one channel is enough. Requiring all three used to
+    // discard perfectly usable rows — a sheet with names and emails but no
+    // phone column imported every appointment with no contact at all. The
+    // engine has always accepted a single-channel contact: ContactNoChannelError
+    // only fires when name, email, phone AND additionalChannels are all empty.
+    //
+    // Contacts are not required to import, so falling through here is not an
+    // error and is no longer even a warning — there is no rule left to breach.
+    if (!name || (!email && !phone)) {
+      // The extra channels are different: they are operator-supplied data with
+      // nowhere to land, so dropping them silently would be a real loss.
       if (normalized.additionalChannelCandidates.length > 0) {
         issues.push(warningIssue('contact', 'CONTACT_CHANNELS_NOT_APPLIED',
-          'Primary contact is incomplete, so the extra channels from the sheet were not applied either'));
+          'No contact could be built for this row, so the extra channels from the sheet were not applied'));
       }
       return null;
     }
@@ -286,8 +287,12 @@ export class AppointmentImportRowResolver {
     // collision means "same email/phone, different person data": the global
     // unique indexes forbid creating a duplicate row for that channel, so the
     // appointment keeps the sheet data as its snapshot with no registry link.
-    const candidates = [contactByEmail.get(email), contactByPhone.get(phone)]
-      .filter((c): c is ContactEntity => c !== undefined);
+    // Guarded because a partial contact carries a null channel, and the maps are
+    // keyed only by non-null values — looking up null would be meaningless.
+    const candidates = [
+      email ? contactByEmail.get(email) : undefined,
+      phone ? contactByPhone.get(phone) : undefined,
+    ].filter((c): c is ContactEntity => c !== undefined);
     const identical = candidates.find((c) => isIdenticalContact(c, { name, email, phone }));
     const hasExtraChannels = normalized.additionalChannelCandidates.length > 0;
     if (identical) {

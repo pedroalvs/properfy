@@ -51,6 +51,8 @@ export type ResolveRegionsInput = z.infer<typeof resolveRegionsSchema>;
 
 export const resolvedRegionItemSchema = z.object({
   regionId: z.string().uuid(),
+  /** Sequential region code — the display identity, and the overlap tie-break (lowest wins). */
+  regionNumber: z.number().int(),
   regionName: z.string(),
   color: z.string(),
   matchedAppointmentCount: z.number(),

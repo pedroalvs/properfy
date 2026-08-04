@@ -261,7 +261,7 @@ export class NotifyOnStatusTransitionHandler {
 
     if (isCancellation) {
       // Deliberately BEFORE the contact guard. Import creates appointments with
-      // no contact at all (CONTACT_INCOMPLETE is a warning, not an error — see
+      // no contact at all (contacts are optional on import — see
       // appointment-import-commit.worker.ts), and those are exactly the ones
       // nobody accepts and the overdue sweep cancels. Skipping the agency there
       // would lose the notice in this feature's core scenario. The agency

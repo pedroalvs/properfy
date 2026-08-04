@@ -15,6 +15,7 @@ function toSnakeCase(s: string): string {
 interface RegionRow {
   id: string;
   tenant_id: string | null;
+  region_number: number;
   name: string;
   geojson: unknown;
   color: string;
@@ -28,6 +29,7 @@ function mapToEntity(row: RegionRow): ServiceRegionEntity {
   return new ServiceRegionEntity({
     id: row.id,
     tenantId: row.tenant_id,
+    regionNumber: row.region_number,
     name: row.name,
     geojson: (row.geojson as Record<string, unknown>) ?? {},
     color: row.color,
@@ -85,7 +87,9 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
 
   async save(region: ServiceRegionEntity): Promise<void> {
     const geojsonStr = JSON.stringify(region.geojson);
-    await this.prisma.$executeRaw`
+    // region_number is omitted so the sequence default assigns it, then read
+    // back onto the entity — the caller would otherwise report the placeholder 0.
+    const rows = await this.prisma.$queryRaw<Array<{ region_number: number }>>`
       INSERT INTO service_regions (id, tenant_id, name, geom, geojson, color, status, created_by_user_id, created_at, updated_at)
       VALUES (
         ${region.id},
@@ -99,7 +103,9 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
         NOW(),
         NOW()
       )
+      RETURNING region_number
     `;
+    if (rows[0]) region.regionNumber = rows[0].region_number;
   }
 
   async update(
@@ -171,9 +177,9 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     // region (`sr.tenant_id` is ownership/label only). Client isolation is
     // enforced downstream by the inspector→client denylist, not by region scope.
     const rows = await this.prisma.$queryRaw<
-      Array<{ region_id: string; region_name: string; color: string; matched_appointment_ids: string[] }>
+      Array<{ region_id: string; region_number: number; region_name: string; color: string; matched_appointment_ids: string[] }>
     >`
-      SELECT sr.id AS region_id, sr.name AS region_name, sr.color,
+      SELECT sr.id AS region_id, sr.region_number, sr.name AS region_name, sr.color,
              array_agg(DISTINCT a.id) AS matched_appointment_ids
       FROM service_regions sr
       JOIN properties p ON ST_Intersects(sr.geom, p.coordinates)
@@ -184,12 +190,16 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
         AND p.coordinates IS NOT NULL
         AND p.deleted_at IS NULL
         AND a.deleted_at IS NULL
-      GROUP BY sr.id, sr.name, sr.color
-      ORDER BY COUNT(DISTINCT a.id) DESC
+      GROUP BY sr.id, sr.region_number, sr.name, sr.color
+      -- region_number is not decoration here: with a single appointment every
+      -- matched region ties at COUNT = 1, and without a second key Postgres row
+      -- order is not stable between runs.
+      ORDER BY COUNT(DISTINCT a.id) DESC, sr.region_number ASC
     `;
 
     return rows.map((r) => ({
       regionId: r.region_id,
+      regionNumber: r.region_number,
       regionName: r.region_name,
       color: r.color,
       matchedAppointmentIds: r.matched_appointment_ids,
@@ -198,7 +208,7 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
 
   async findContainingPoint(tenantId: string, lat: number, lng: number): Promise<ServiceRegionEntity[]> {
     const rows = await this.prisma.$queryRaw<RegionRow[]>`
-      SELECT id, tenant_id, name, geojson, color, status::text, created_by_user_id, created_at, updated_at
+      SELECT id, tenant_id, region_number, name, geojson, color, status::text, created_by_user_id, created_at, updated_at
       FROM service_regions
       WHERE tenant_id = ${tenantId}
         AND status = 'ACTIVE'

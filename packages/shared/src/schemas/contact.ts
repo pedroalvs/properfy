@@ -161,12 +161,22 @@ const inlineLink = z.object({
 
 export const appointmentContactLinkSchema = contactIdLink.or(inlineLink);
 
-// Array of contact links with exactly-one-primary validation
+/**
+ * Contact links for an appointment. May be empty — an appointment with nobody to
+ * contact is legitimate, and the domain, the create use case, publish and the
+ * importer all already tolerated it.
+ *
+ * When non-empty, exactly one entry must be primary. Deliberately not "at most
+ * one": every read path resolves the recipient as `contacts[0]` after a
+ * primary-first sort, so a populated list with no primary would parse cleanly
+ * and then degrade silently into NO_PRIMARY_CONTACT — no notice, no portal link,
+ * and no error the operator ever sees.
+ */
 export const appointmentContactsArraySchema = z
   .array(contactIdLink.or(inlineLink))
-  .min(1, 'At least one contact is required')
   .refine(
     (contacts) => {
+      if (contacts.length === 0) return true;
       const primaryCount = contacts.filter((c) => c.isPrimary).length;
       return primaryCount === 1;
     },

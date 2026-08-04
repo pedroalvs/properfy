@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CreateServiceGroupUseCase } from '../../../src/modules/service-group/application/use-cases/create-service-group.use-case';
 import type { IServiceGroupRepository } from '../../../src/modules/service-group/domain/service-group.repository';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../src/modules/appointment/domain/appointment.repository';
@@ -13,6 +13,8 @@ import { AuthorizationService } from '../../../src/shared/domain/authorization.s
 import {
   AppointmentInvalidStatusError,
   ServiceRegionInactiveError,
+  ServiceGroupDateInPastError,
+  ServiceGroupTimeInPastError,
 } from '../../../src/modules/service-group/domain/service-group.errors';
 import { ServiceRegionEntity } from '../../../src/modules/service-region/domain/service-region.entity';
 import type { ServiceGroupTimeSyncLogger } from '../../../src/modules/service-group/application/sync-appointment-time-slot-to-group';
@@ -671,5 +673,114 @@ describe('CreateServiceGroupUseCase', () => {
         }),
       }),
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // Internal (SYS) invocation — the INGOING/OUTGOING auto-group path calls this
+  // use case on behalf of whoever created the appointment, who may be a
+  // CL_ADMIN. `SYS` is absent from the Prisma UserRole enum, so no user row and
+  // no JWT can carry it: accepting it here widens the reachable surface by zero.
+  // -------------------------------------------------------------------------
+  describe('SYS actor', () => {
+    async function executeAsSys(overrides: Record<string, unknown> = {}) {
+      for (let i = 0; i < 5; i++) {
+        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+          makeAppointmentWithRelations({ id: `appt-${i + 1}`, tenantId: 'tenant-1' }),
+        );
+      }
+      return useCase.execute({
+        appointmentIds: makeAppointmentIds(5),
+        serviceTypeId: 'svc-type-1',
+        scheduledDate: farFutureDate,
+        timeWindow: '09:00-12:00',
+        serviceRegionId: REGION_ID,
+        // Derived from the real actor, so created_by_user_id keeps a real FK
+        // target — a literal 'SYSTEM' user id would violate the users FK.
+        actor: makeActor({ role: 'SYS', userId: 'user-cl-admin', tenantId: 'tenant-1' }),
+        ...overrides,
+      } as Parameters<typeof useCase.execute>[0]);
+    }
+
+    it('accepts a SYS actor', async () => {
+      await expect(executeAsSys()).resolves.toBeDefined();
+    });
+
+    it('records the audit entry as SYSTEM while keeping the real user id', async () => {
+      await executeAsSys();
+
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'service_group.created',
+          actorType: 'SYSTEM',
+          actorId: 'user-cl-admin',
+        }),
+      );
+    });
+
+    it('still rejects CL_ADMIN and INSP', async () => {
+      for (const role of ['CL_ADMIN', 'INSP'] as const) {
+        await expect(
+          useCase.execute({
+            appointmentIds: makeAppointmentIds(5),
+            serviceTypeId: 'svc-type-1',
+            scheduledDate: farFutureDate,
+            timeWindow: '09:00-12:00',
+            serviceRegionId: REGION_ID,
+            actor: makeActor({ role, tenantId: 'tenant-1' }),
+          }),
+        ).rejects.toThrow(ForbiddenError);
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // skipTimeInPastCheck — an imported row whose slot has already started must
+  // still get a group (left DRAFT for the operator), never no group at all.
+  // Pinned clock: validateNewSchedule reads the real clock with no injection
+  // point, and 2026-07-31 is AEST (UTC+10, no DST) => 06:00Z is 16:00 Sydney.
+  // -------------------------------------------------------------------------
+  describe('skipTimeInPastCheck', () => {
+    const SYDNEY_TODAY = '2026-07-31';
+    const SYDNEY_YESTERDAY = '2026-07-30';
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-07-31T06:00:00.000Z'));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function execute(overrides: Record<string, unknown>) {
+      for (let i = 0; i < 5; i++) {
+        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+          makeAppointmentWithRelations({ id: `appt-${i + 1}`, tenantId: 'tenant-1' }),
+        );
+      }
+      return useCase.execute({
+        appointmentIds: makeAppointmentIds(5),
+        serviceTypeId: 'svc-type-1',
+        scheduledDate: SYDNEY_TODAY,
+        timeWindow: '09:00-12:00', // already started at 16:00 Sydney
+        serviceRegionId: REGION_ID,
+        actor: makeActor(),
+        ...overrides,
+      } as Parameters<typeof useCase.execute>[0]);
+    }
+
+    it('rejects an already-started window by default', async () => {
+      await expect(execute({})).rejects.toThrow(ServiceGroupTimeInPastError);
+    });
+
+    it('creates the group when the flag is set', async () => {
+      await expect(execute({ skipTimeInPastCheck: true })).resolves.toBeDefined();
+    });
+
+    it('still rejects a past DATE even with the flag set', async () => {
+      await expect(
+        execute({ scheduledDate: SYDNEY_YESTERDAY, skipTimeInPastCheck: true }),
+      ).rejects.toThrow(ServiceGroupDateInPastError);
+    });
   });
 });

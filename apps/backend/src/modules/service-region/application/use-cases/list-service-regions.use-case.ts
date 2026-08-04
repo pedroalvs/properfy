@@ -14,6 +14,7 @@ export interface ListServiceRegionsInput {
 
 export interface ServiceRegionListItem {
   id: string;
+  regionNumber: number;
   name: string;
   geojson: Record<string, unknown>;
   color: string;
@@ -52,6 +53,7 @@ export class ListServiceRegionsUseCase {
     return {
       data: data.map((region) => ({
         id: region.id,
+        regionNumber: region.regionNumber,
         name: region.name,
         geojson: region.geojson,
         color: region.color,

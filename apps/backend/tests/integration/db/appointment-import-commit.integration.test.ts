@@ -26,6 +26,11 @@ import { PrismaServiceTypeRepository } from '../../../src/modules/service-type/i
 import { PrismaPricingRuleRepository } from '../../../src/modules/pricing-rule/infrastructure/prisma-pricing-rule.repository';
 import { PrismaContactRepository } from '../../../src/modules/contact/infrastructure/prisma-contact.repository';
 import { AppointmentImportEntity } from '../../../src/modules/appointment/domain/appointment-import.entity';
+import { PrismaServiceGroupRepository } from '../../../src/modules/service-group/infrastructure/prisma-service-group.repository';
+import { PrismaServiceRegionRepository } from '../../../src/modules/service-region/infrastructure/prisma-service-region.repository';
+import { CreateServiceGroupUseCase } from '../../../src/modules/service-group/application/use-cases/create-service-group.use-case';
+import { PublishServiceGroupUseCase } from '../../../src/modules/service-group/application/use-cases/publish-service-group.use-case';
+import { AutoGroupIngoingOutgoingService } from '../../../src/modules/service-group/application/services/auto-group-ingoing-outgoing.service';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuthContext } from '@properfy/shared';
 import type { IReportStorageService } from '../../../src/modules/report/domain/report-storage.service';
@@ -118,7 +123,12 @@ async function seedPreviewImport(tenantId: string, branchId: string, userId: str
   return { importId, importRepo };
 }
 
-function buildWorker(storage: FakeStorageService, jobQueue: FakeJobQueue) {
+/**
+ * @param withAutoGroup wires the INGOING/OUTGOING auto-group exactly as the real
+ *   container does. Off by default so the existing assertions keep exercising
+ *   the plain import path.
+ */
+function buildWorker(storage: FakeStorageService, jobQueue: FakeJobQueue, withAutoGroup = false) {
   const propertyRepo = new PrismaPropertyRepository(harness.prisma);
   const branchRepo = new PrismaBranchRepository(harness.prisma);
   const serviceTypeRepo = new PrismaServiceTypeRepository(harness.prisma);
@@ -129,6 +139,21 @@ function buildWorker(storage: FakeStorageService, jobQueue: FakeJobQueue) {
   const auditService = { log: () => {} } as unknown as AuditService;
   const authorizationService = new AuthorizationService(auditService);
 
+  let autoGroupService: AutoGroupIngoingOutgoingService | undefined;
+  if (withAutoGroup) {
+    const serviceGroupRepo = new PrismaServiceGroupRepository(harness.prisma);
+    const serviceRegionRepo = new PrismaServiceRegionRepository(harness.prisma);
+    autoGroupService = new AutoGroupIngoingOutgoingService(
+      new CreateServiceGroupUseCase(
+        serviceGroupRepo, appointmentRepo, auditService, authorizationService, serviceRegionRepo, undefined, noopLogger,
+      ),
+      new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo, authorizationService),
+      serviceRegionRepo,
+      auditService,
+      noopLogger,
+    );
+  }
+
   const resolver = new AppointmentImportRowResolver(propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo);
   const createAppointmentUseCase = new CreateAppointmentUseCase(
     appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
@@ -136,6 +161,7 @@ function buildWorker(storage: FakeStorageService, jobQueue: FakeJobQueue) {
     // propertyId itself and never asks CreateAppointmentUseCase to create one inline.
     { execute: async () => { throw new Error('should not be called'); } } as any,
     auditService, authorizationService, undefined, contactRepo,
+    undefined, undefined, undefined, autoGroupService,
   );
 
   const worker = new AppointmentImportCommitWorker(
@@ -274,5 +300,61 @@ describe('AppointmentImportCommitWorker — real Postgres end-to-end', () => {
     expect(junction!.snapshot_name).toBe('Completely Different Person');
     expect(junction!.snapshot_email).toBe(existingContact.primary_email);
     expect(junction!.snapshot_phone).toBe('0400999888');
+  });
+
+  // The worker calls CreateAppointmentUseCase directly rather than the HTTP
+  // route, so "grouped on import" is not a separate code path — it is the same
+  // step 12b. This proves the wiring actually reaches imported rows.
+  it('groups INGOING rows on import and leaves ROUTINE rows alone', async () => {
+    const { tenant, branch, user, serviceType } = await seedScenario();
+    const ingoingType = await harness.prisma.serviceType.create({
+      data: {
+        code: `IN-${Math.random().toString(36).slice(2, 8)}`,
+        name: `Ingoing ${Math.random().toString(36).slice(2, 8)}`,
+        flow_type: 'INGOING', requires_rental_tenant_confirmation: false, status: 'ACTIVE',
+      },
+    });
+    await harness.prisma.servicePriceRule.create({
+      data: {
+        tenant_id: tenant.id, service_type_id: ingoingType.id, branch_id: null,
+        currency: 'AUD', price_amount: '120.00', payout_type: 'FIXED', payout_value: 90, status: 'ACTIVE',
+      },
+    });
+
+    const storage = new FakeStorageService();
+    const jobQueue = new FakeJobQueue();
+    const csv = [
+      'Type,Date,Start Time,End Time,Street,Suburb,State,Postcode,Tenant name,Tenant mail,Tenant phone',
+      `${ingoingType.name},2027-07-10,09:00,11:00,1 Ingoing St,Carlton,NSW,2218,Ing Tenant,ing@example.com,0400111444`,
+      `${serviceType.name},2027-07-11,09:00,11:00,2 Routine St,Carlton,NSW,2218,Rou Tenant,rou@example.com,0400111555`,
+    ].join('\n');
+
+    const { importId, importRepo } = await seedPreviewImport(tenant.id, branch.id, user.id, storage, csv);
+    const { worker } = buildWorker(storage, jobQueue, true);
+
+    await worker.execute({ importId, actor: actor(tenant.id, user.id) });
+
+    expect((await importRepo.findById(importId, tenant.id))!.successCount).toBe(2);
+
+    const ingoing = await harness.prisma.appointment.findFirst({
+      where: { tenant_id: tenant.id, service_type_id: ingoingType.id },
+    });
+    const routine = await harness.prisma.appointment.findFirst({
+      where: { tenant_id: tenant.id, service_type_id: serviceType.id },
+    });
+
+    expect(ingoing!.service_group_id).not.toBeNull();
+    expect(ingoing!.status).toBe('AWAITING_INSPECTOR');
+
+    expect(routine!.service_group_id).toBeNull();
+    expect(routine!.status).toBe('DRAFT');
+
+    // The imported property is not geocoded here, so no region matches and the
+    // group correctly stops at DRAFT for an operator to publish — the
+    // documented fallback rather than a lost appointment.
+    const group = await harness.prisma.serviceGroup.findUnique({ where: { id: ingoing!.service_group_id! } });
+    expect(group!.status).toBe('DRAFT');
+    expect(group!.service_region_id).toBeNull();
+    expect(group!.service_type_id).toBe(ingoingType.id);
   });
 });

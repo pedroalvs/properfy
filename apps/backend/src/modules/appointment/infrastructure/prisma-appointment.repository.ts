@@ -444,9 +444,15 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     });
   }
 
-  async deleteContactsByAppointmentId(appointmentId: string): Promise<void> {
+  async deleteContactsByAppointmentId(appointmentId: string, tenantId?: string): Promise<void> {
+    // appointment_contacts has no tenant_id of its own; the scope travels
+    // through the appointment relation. Optional and last, per the repository
+    // idiom, so no existing call site shifts.
     await this.prisma.appointmentContact.deleteMany({
-      where: { appointment_id: appointmentId },
+      where: {
+        appointment_id: appointmentId,
+        ...(tenantId ? { appointment: { tenant_id: tenantId } } : {}),
+      },
     });
   }
 

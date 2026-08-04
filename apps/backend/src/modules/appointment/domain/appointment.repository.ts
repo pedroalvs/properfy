@@ -222,7 +222,8 @@ export interface IAppointmentRepository {
     }>,
   ): Promise<void>;
   /** Delete all contact junction rows for an appointment (used by contact replacement flow). */
-  deleteContactsByAppointmentId(appointmentId: string): Promise<void>;
+  /** `tenantId` scopes the delete through the appointment relation (defence in depth). */
+  deleteContactsByAppointmentId(appointmentId: string, tenantId?: string): Promise<void>;
   /** Insert a restriction for an appointment that has none yet (create flow). */
   saveRestriction(restriction: AppointmentRestrictionEntity): Promise<void>;
   /**

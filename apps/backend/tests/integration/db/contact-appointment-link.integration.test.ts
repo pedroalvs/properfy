@@ -402,7 +402,12 @@ describe('BUG-024-002 — UpdateAppointmentUseCase against real Postgres (parity
       actor: actor('CL_ADMIN', seed.tenantB),
     });
 
-    expect(appointmentRepo.deleteContactsByAppointmentId).toHaveBeenCalledWith(seed.appointmentInB);
+    // Second arg is the owning tenant: appointment_contacts has no tenant_id of
+    // its own, so the delete is scoped through the appointment relation.
+    expect(appointmentRepo.deleteContactsByAppointmentId).toHaveBeenCalledWith(
+      seed.appointmentInB,
+      expect.any(String),
+    );
     expect(appointmentRepo.saveContact).toHaveBeenCalled();
   });
 

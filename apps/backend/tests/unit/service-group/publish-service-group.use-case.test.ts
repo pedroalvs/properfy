@@ -446,4 +446,57 @@ describe('PublishServiceGroupUseCase', () => {
 
     expect(result.status).toBe('PUBLISHED');
   });
+
+  // -------------------------------------------------------------------------
+  // Internal (SYS) invocation — see the matching block in
+  // create-service-group.use-case.test.ts for why SYS is safe to accept.
+  // -------------------------------------------------------------------------
+  describe('SYS actor', () => {
+    const sysActor = () => makeActor({ role: 'SYS', userId: 'user-cl-admin', tenantId: 'tenant-1' });
+
+    it('accepts a SYS actor', async () => {
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+
+      const result = await useCase.execute({ groupId: 'group-1', actor: sysActor() });
+
+      expect(result.status).toBe('PUBLISHED');
+    });
+
+    it('records the audit entry as SYSTEM while keeping the real user id', async () => {
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments({ offeredCount: 1 }));
+
+      await useCase.execute({ groupId: 'group-1', actor: sysActor() });
+
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'service_group.published',
+          actorType: 'SYSTEM',
+          actorId: 'user-cl-admin',
+        }),
+      );
+    });
+
+    // SYS buys past the role check only. Every business guard still applies —
+    // this is what makes "auto-publish failed, group left DRAFT" a real
+    // outcome rather than an internal caller quietly forcing a bad publish.
+    it('does not bypass the service-region requirement', async () => {
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+        makeGroupWithAppointments({ serviceRegionId: null }),
+      );
+
+      await expect(
+        useCase.execute({ groupId: 'group-1', actor: sysActor() }),
+      ).rejects.toThrow(ServiceRegionRequiredError);
+    });
+
+    it('still rejects CL_ADMIN and INSP', async () => {
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+
+      for (const role of ['CL_ADMIN', 'INSP'] as const) {
+        await expect(
+          useCase.execute({ groupId: 'group-1', actor: makeActor({ role, tenantId: 'tenant-1' }) }),
+        ).rejects.toThrow(ForbiddenError);
+      }
+    });
+  });
 });

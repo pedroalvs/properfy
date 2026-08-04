@@ -39,8 +39,7 @@ export function buildCustomFieldsPayload(data: AppointmentFormData): Array<{ lab
  * `contactType` is set before submit (`validate()` blocks otherwise).
  */
 export function buildContactsPayload(data: AppointmentFormData) {
-  if (data.contacts && data.contacts.length > 0) {
-    return data.contacts.map((c) => {
+  return (data.contacts ?? []).map((c) => {
       if (c.contactId) {
         return {
           contactId: c.contactId,
@@ -68,24 +67,19 @@ export function buildContactsPayload(data: AppointmentFormData) {
         role: c.role,
         isPrimary: c.isPrimary,
       };
-    });
-  }
-  return undefined;
-}
-
-/** Build legacy contact object from flat fields (backward compat). */
-function buildLegacyContact(data: AppointmentFormData) {
-  return {
-    rentalTenantName: data.contactName.trim(),
-    ...(data.contactEmail.trim() ? { primaryEmail: data.contactEmail.trim() } : {}),
-    ...(data.contactPhone.trim() ? { primaryPhone: data.contactPhone.trim() } : {}),
-  };
+  });
 }
 
 /** Map flat form fields to the nested shape expected by the shared Zod schema. */
 function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
+  // Always the array, even when empty — an appointment with no contact is now
+  // valid, and "the operator removed them all" must reach the server as `[]`.
+  //
+  // The legacy `contact` fallback that used to fire here is gone: the flat
+  // contactName/Email/Phone fields are hydration-only (nothing in the UI writes
+  // them), so falling back would resurrect a phantom person from stale state on
+  // exactly the request that means "there is nobody to contact".
   const contacts = buildContactsPayload(data);
-  const contact = buildLegacyContact(data);
   const customFields = buildCustomFieldsPayload(data);
 
   const restriction = data.hasRestriction
@@ -104,7 +98,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
       scheduledDate: data.scheduledDate || undefined,
       timeSlotStart: data.timeSlotStart || undefined,
       timeSlotEnd: data.timeSlotEnd || undefined,
-      ...(contacts ? { contacts } : { contact }),
+      contacts,
       ...(data.appCredentialIds.length > 0 ? { appCredentialIds: data.appCredentialIds } : {}),
       ...(data.hasRestriction ? { restriction } : {}),
       keyRequired: data.keyRequired,
@@ -126,7 +120,7 @@ function toSchemaPayload(data: AppointmentFormData, mode: 'create' | 'edit') {
     keyLocation: data.keyLocation.trim() || null,
     notes: data.notes.trim() || null,
     observation: data.observation.trim() || null,
-    ...(contacts ? { contacts } : { contact }),
+    contacts,
     // Always send the array on edit so clearing all links persists.
     appCredentialIds: data.appCredentialIds,
     // Always send custom fields on edit so clearing them all persists (the form

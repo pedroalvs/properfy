@@ -316,8 +316,3 @@ export class AppointmentBulkBranchChangeNotAllowedError extends DomainError {
   }
 }
 
-export class AppointmentContactsRequiredError extends DomainError {
-  constructor() {
-    super('APPOINTMENT_CONTACTS_REQUIRED', 'At least one contact is required');
-  }
-}

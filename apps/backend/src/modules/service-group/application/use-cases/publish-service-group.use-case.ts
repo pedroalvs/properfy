@@ -55,7 +55,11 @@ export class PublishServiceGroupUseCase {
   async execute(input: PublishServiceGroupInput): Promise<PublishServiceGroupOutput> {
     const { actor, groupId } = input;
 
-    this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_group.publish', entityType: 'ServiceGroup' });
+    // `SYS` covers internal callers (the INGOING/OUTGOING auto-group path). It
+    //  is not in the Prisma UserRole enum, so no JWT can carry it. Note it buys
+    //  past the role check only — every guard below still applies, which is what
+    //  makes "auto-publish failed, group left DRAFT" a real, visible outcome.
+    this.authorizationService.assertRoles(actor, ['AM', 'OP', 'SYS'], { action: 'service_group.publish', entityType: 'ServiceGroup' });
 
     const result = await this.serviceGroupRepo.findById(groupId, actor.tenantId);
     if (!result) {
@@ -146,7 +150,7 @@ export class PublishServiceGroupUseCase {
 
     this.auditService.log({
       action: 'service_group.published',
-      actorType: 'USER',
+      actorType: actor.role === 'SYS' ? 'SYSTEM' : 'USER',
       actorId: actor.userId,
       entityType: 'ServiceGroup',
       entityId: groupId,

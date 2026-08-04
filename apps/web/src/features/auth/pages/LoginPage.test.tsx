@@ -48,7 +48,10 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText('Work Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
-    expect(screen.getByText(/secure sign in/i)).toBeInTheDocument();
+    // Replaced the old "Secure Sign In" eyebrow, which the redesign drops.
+    expect(
+      screen.getByRole('heading', { level: 1, name: /we are properfy/i }),
+    ).toBeInTheDocument();
   });
 
   it('shows error when fields are empty', async () => {
