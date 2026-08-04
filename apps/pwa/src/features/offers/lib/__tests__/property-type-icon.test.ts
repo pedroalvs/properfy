@@ -86,13 +86,42 @@ describe('pickOfferAddresses', () => {
     });
   });
 
-  it('skips blanked entries when choosing the primary but still counts them', () => {
+  it('skips a leading blank entry when choosing the primary', () => {
     expect(
       pickOfferAddresses(
         [{ street: '', suburb: '', propertyType: null }, properties[1]!],
         [],
       ),
-    ).toEqual({ primary: '3 Beach Rd, Coogee NSW', remaining: 1 });
+    ).toEqual({ primary: '3 Beach Rd, Coogee NSW', remaining: 0 });
+  });
+
+  /**
+   * "+N more addresses" is a claim about addresses, not jobs. A blank entry is
+   * a real job (the payload keeps it so the array length matches
+   * appointmentCount) but it has no address to show, so counting it here would
+   * promise the inspector something the detail sheet cannot deliver.
+   */
+  it('excludes blank placeholders from the remainder count', () => {
+    expect(
+      pickOfferAddresses(
+        [properties[0]!, { street: '', suburb: '', propertyType: null }],
+        [],
+      ),
+    ).toEqual({ primary: '12 Ocean St, Bondi NSW', remaining: 0 });
+  });
+
+  it('counts only the displayable addresses among a mixed group', () => {
+    expect(
+      pickOfferAddresses(
+        [
+          properties[0]!,
+          { street: '', suburb: '', propertyType: null },
+          properties[1]!,
+          properties[2]!,
+        ],
+        [],
+      ),
+    ).toEqual({ primary: '12 Ocean St, Bondi NSW', remaining: 2 });
   });
 
   // Older offers served before the payload carried `properties` still render.

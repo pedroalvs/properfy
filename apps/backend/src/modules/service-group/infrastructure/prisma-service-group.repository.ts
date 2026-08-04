@@ -98,11 +98,18 @@ function deriveOfferCentroid(
  * Appointments whose property is still live.
  *
  * The rule for a marketplace offer is that its **group-level aggregates** —
- * suburbs, addresses, the map pin — describe properties that still exist. The
- * per-appointment fields keep their own, older contract: `suburb` stays
- * visible, `street` and `coordinates` are withheld (see the detail mapper).
- * Mixing the two is what let a removed property put a suburb on the offer card
- * that nothing on the map or in the address list backed up.
+ * suburbs, addresses, the map pin — describe properties that still exist.
+ * Mixing that with per-appointment data is what let a removed property put a
+ * suburb on the offer card that nothing on the map or in the address list
+ * backed up.
+ *
+ * Two other shapes carry a soft-deleted property rather than dropping it, and
+ * each blanks a different amount — do not assume one rule covers all three:
+ *  - the DETAIL `appointments[]` mapper keeps `suburb` visible and withholds
+ *    `street`/`coordinates` (the older contract);
+ *  - `deriveOfferProperties` below blanks `street`, `suburb` AND
+ *    `propertyType`, keeping the entry only so the array length still matches
+ *    `appointmentCount`.
  */
 function liveProperties<T extends { property?: { deleted_at?: Date | null } | null }>(
   appointments: T[],

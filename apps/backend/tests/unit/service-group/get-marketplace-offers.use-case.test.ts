@@ -272,7 +272,9 @@ describe('GetMarketplaceOffersUseCase', () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue(inspector);
     vi.mocked(serviceGroupRepo.findPublishedForInspector).mockResolvedValue([
       makeMarketplaceOffer({
-        properties: [{ street: '', suburb: 'Bondi NSW', propertyType: null }],
+        // Matches what the repository actually emits for a soft-deleted
+        // property: street AND suburb blanked, type null.
+        properties: [{ street: '', suburb: '', propertyType: null }],
       }),
     ]);
     vi.mocked(serviceGroupRepo.countPublishedForInspector).mockResolvedValue(1);
@@ -284,7 +286,7 @@ describe('GetMarketplaceOffersUseCase', () => {
     });
 
     expect(result.data[0].properties).toEqual([
-      { street: '', suburb: 'Bondi NSW', propertyType: null },
+      { street: '', suburb: '', propertyType: null },
     ]);
   });
 });
