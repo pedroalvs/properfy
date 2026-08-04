@@ -193,6 +193,28 @@ describe('InviteSurveyOnDoneSubscriber', () => {
     expect(createNotification.execute).not.toHaveBeenCalled();
   });
 
+  it('does not extend the portal window once the tenant has answered', async () => {
+    // The window exists to let them answer. Pushing it out after they already
+    // did prolongs access to a link whose purpose is spent.
+    surveyRepo.findByAppointmentId.mockResolvedValue({ id: 'survey-1', rating: 5 });
+
+    await makeSubscriber().handle(doneEvent());
+
+    expect(tokenRepo.extendExpiryAndReactivate).not.toHaveBeenCalled();
+  });
+
+  it('does not re-extend the portal window on a repeated DONE', async () => {
+    // DONE -> DRAFT -> DONE is a legitimate operator path. Extending on every
+    // repeat would silently grant another 14 days of portal access each time,
+    // while sending nothing.
+    notificationRepo.existsByAppointmentAndTemplate.mockResolvedValue(true);
+
+    await makeSubscriber().handle(doneEvent());
+
+    expect(tokenRepo.extendExpiryAndReactivate).not.toHaveBeenCalled();
+    expect(createNotification.execute).not.toHaveBeenCalled();
+  });
+
   it('does not send a second invite for the same appointment', async () => {
     // Lifetime dedupe: the survey is asked once per inspection, so a DONE →
     // DRAFT → DONE loop must not re-ask.

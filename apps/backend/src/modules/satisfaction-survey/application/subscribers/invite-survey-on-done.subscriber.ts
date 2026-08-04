@@ -89,6 +89,28 @@ export class InviteSurveyOnDoneSubscriber {
     const token = await this.tokenRepo.findLatestExtendableByAppointmentId(payload.appointmentId);
     if (!token) return;
 
+    // Both dedupe guards run BEFORE the token is touched. `DONE → DRAFT → DONE`
+    // is a legitimate operator path, and extending first would push the portal
+    // deadline out another 14 days on every repeat while sending nothing —
+    // silently prolonging access to a link whose purpose is already spent.
+
+    // Already answered — asking again would be noise, and the window has served
+    // its purpose.
+    if (await this.surveyRepo.findByAppointmentId(payload.appointmentId)) return;
+
+    // Lifetime dedupe: one request per inspection. Same primitive the
+    // portal-action handler uses. Note it counts FAILED rows too, which is why a
+    // migration seeds the template row rather than relying on the manual seeder.
+    if (
+      await this.notificationRepo.existsByAppointmentAndTemplate(
+        payload.appointmentId,
+        SURVEY_TEMPLATE_CODE,
+        payload.tenantId,
+      )
+    ) {
+      return;
+    }
+
     const notBefore = new Date(occurredAt.getTime() + SURVEY_WINDOW_DAYS * 86_400_000);
     const extended = await this.tokenRepo.extendExpiryAndReactivate(
       token.id,
@@ -99,23 +121,10 @@ export class InviteSurveyOnDoneSubscriber {
     // longer opens is worse than sending nothing.
     if (!extended) return;
 
-    // Everything below sends a message, so it needs somewhere to send it.
+    // Everything below sends a message, so it needs somewhere to send it. The
+    // extension above still stands: the tenant may open the link they already
+    // hold even when we have no address to reach them at.
     if (!contact?.effectiveEmail) return;
-
-    // Already answered — asking again would be noise.
-    if (await this.surveyRepo.findByAppointmentId(payload.appointmentId)) return;
-
-    // Lifetime dedupe: one request per inspection, so a DONE → DRAFT → DONE loop
-    // does not re-ask. Same primitive the portal-action handler uses.
-    if (
-      await this.notificationRepo.existsByAppointmentAndTemplate(
-        payload.appointmentId,
-        SURVEY_TEMPLATE_CODE,
-        payload.tenantId,
-      )
-    ) {
-      return;
-    }
 
     // Recover the raw token rather than minting a fresh one, exactly as the
     // operator's "copy portal link" action does.
@@ -141,9 +150,10 @@ export class InviteSurveyOnDoneSubscriber {
     const tenant = await this.tenantRepo.findById(appointment.tenantId);
     if (!tenant) return;
 
-    // Routing through CreateNotificationUseCase is what applies the RENTAL_TENANT
-    // target gate and the agency kill switch — this template must never bypass
-    // an agency that has occupant notifications turned off.
+    // Routing through CreateNotificationUseCase rather than writing a row directly
+    // is what puts this on the normal send path, where SendNotificationUseCase
+    // applies the RENTAL_TENANT target gate and the agency kill switch. This
+    // template must never bypass an agency that has occupant notifications off.
     await this.createNotification.execute({
       tenantId: appointment.tenantId,
       appointmentId: appointment.id,
