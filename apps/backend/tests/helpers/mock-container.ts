@@ -119,6 +119,7 @@ export function createMockContainer(
       createInspectorUseCase: { execute: vi.fn() },
       getInspectorUseCase: { execute: vi.fn() },
       listInspectorsUseCase: { execute: vi.fn() },
+      listInspectorSurveysUseCase: { execute: vi.fn() },
       updateInspectorUseCase: { execute: vi.fn() },
       createAvailabilitySlotUseCase: { execute: vi.fn() },
       listAvailabilitySlotsUseCase: { execute: vi.fn() },
@@ -200,6 +201,7 @@ export function createMockContainer(
       getAvailableGroupsUseCase: { execute: vi.fn() },
       joinGroupUseCase: { execute: vi.fn() },
       submitSatisfactionSurveyUseCase: { execute: vi.fn() },
+      getAppointmentSurveyUseCase: { execute: vi.fn() },
       tokenRepo: {
         findByTokenHash: vi.fn(),
         findActiveByAppointmentId: vi.fn(),

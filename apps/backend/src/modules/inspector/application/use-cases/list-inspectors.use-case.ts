@@ -6,6 +6,7 @@ import type {
   PaginationParams,
 } from '../../domain/inspector.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
+import type { IInspectorRatingReader, InspectorRatingAggregate } from '../../domain/inspector-rating.reader';
 
 export interface ListInspectorsInput {
   filters: InspectorFilters;
@@ -22,6 +23,11 @@ export interface ListInspectorsOutput {
     status: string;
     regionIds: string[];
     serviceTypesJson: ServiceTypeEntry[];
+    /**
+     * Reputation figures. Aggregate only — an inspector reading its own row must
+     * never see individual ratings or comments through this endpoint.
+     */
+    rating: { average: number | null; responseCount: number; doneServicesCount: number };
     createdAt: Date;
     updatedAt: Date;
   }>;
@@ -34,7 +40,25 @@ export class ListInspectorsUseCase {
   constructor(
     private readonly inspectorRepo: IInspectorRepository,
     private readonly serviceRegionRepo: IServiceRegionRepository,
+    // Optional so existing two-argument construction keeps working; an unwired
+    // deployment reports zero responses rather than throwing.
+    private readonly ratingReader?: IInspectorRatingReader,
   ) {}
+
+  private async ratingsFor(inspectorIds: string[]): Promise<Map<string, InspectorRatingAggregate>> {
+    if (!this.ratingReader || inspectorIds.length === 0) return new Map();
+    return this.ratingReader.getAggregatesByInspectorIds(inspectorIds);
+  }
+
+  private static toRating(aggregate: InspectorRatingAggregate | undefined) {
+    return {
+      // null, never 0: "unrated" is not a bad score, and a 0 would sort above
+      // real ratings on an ascending sort.
+      average: aggregate?.averageRating ?? null,
+      responseCount: aggregate?.responseCount ?? 0,
+      doneServicesCount: aggregate?.doneServicesCount ?? 0,
+    };
+  }
 
   async execute(input: ListInspectorsInput): Promise<ListInspectorsOutput> {
     const { pagination, actor } = input;
@@ -50,6 +74,7 @@ export class ListInspectorsUseCase {
         return { data: [], total: 0, page: pagination.page, pageSize: pagination.pageSize };
       }
       const regionIds = await this.serviceRegionRepo.getInspectorRegionIds(item.id);
+      const ratings = await this.ratingsFor([item.id]);
       return {
         data: [
           {
@@ -60,6 +85,7 @@ export class ListInspectorsUseCase {
             status: item.status,
             regionIds,
             serviceTypesJson: item.serviceTypesJson,
+            rating: ListInspectorsUseCase.toRating(ratings.get(item.id)),
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
           },
@@ -84,7 +110,10 @@ export class ListInspectorsUseCase {
     ]);
 
     const inspectorIds = data.map((i) => i.id);
-    const regionIdsMap = await this.serviceRegionRepo.getInspectorRegionIdsBatch(inspectorIds);
+    const [regionIdsMap, ratingsMap] = await Promise.all([
+      this.serviceRegionRepo.getInspectorRegionIdsBatch(inspectorIds),
+      this.ratingsFor(inspectorIds),
+    ]);
 
     return {
       data: data.map((i) => ({
@@ -95,6 +124,7 @@ export class ListInspectorsUseCase {
         status: i.status,
         regionIds: regionIdsMap.get(i.id) ?? [],
         serviceTypesJson: i.serviceTypesJson,
+        rating: ListInspectorsUseCase.toRating(ratingsMap.get(i.id)),
         createdAt: i.createdAt,
         updatedAt: i.updatedAt,
       })),

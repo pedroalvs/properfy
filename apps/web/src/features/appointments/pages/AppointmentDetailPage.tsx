@@ -36,6 +36,7 @@ import { AssignInspectorModal } from '../components/AssignInspectorModal';
 import { ForceConfirmDialog } from '../components/ForceConfirmDialog';
 import { TenantAvailabilityDialog } from '../components/TenantAvailabilityDialog';
 import { AppointmentPortalActivityTab } from '../components/AppointmentPortalActivityTab';
+import { AppointmentSatisfactionSection } from '../components/AppointmentSatisfactionSection';
 import { useDeleteAppointment } from '../hooks/useDeleteAppointment';
 import { useForceConfirmation } from '../hooks/useForceConfirmation';
 
@@ -455,7 +456,13 @@ export function AppointmentDetailPage() {
 
         <div className="p-6">
           {activeTab === 'overview' && (
-            <AppointmentDetailSections appointment={appointment} />
+            <>
+              <AppointmentDetailSections appointment={appointment} />
+              <AppointmentSatisfactionSection
+                appointmentId={appointment.id}
+                isDone={appointment.status === 'DONE'}
+              />
+            </>
           )}
           {activeTab === 'contact' && (
             <AppointmentContactTab appointment={appointment} />

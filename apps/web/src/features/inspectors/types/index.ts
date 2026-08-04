@@ -11,6 +11,17 @@ export interface Inspector {
   status: InspectorStatus;
   regionsCount: number;
   serviceTypesCount: number;
+  /**
+   * Average satisfaction rating, or null when there are no responses.
+   *
+   * Must stay null rather than 0 for "unrated": DataTable's compareValues sends
+   * nullish last in BOTH sort directions, which is what keeps unrated inspectors
+   * off the top of an ascending sort.
+   */
+  ratingAvg: number | null;
+  ratingCount: number;
+  /** Total inspections completed (DONE). */
+  completedCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -80,3 +91,12 @@ export const DEFAULT_FILTERS: InspectorFiltersState = {
   search: '',
   status: '',
 };
+
+/** One satisfaction response as shown in the admin drawer. */
+export interface InspectorSurvey {
+  rating: number;
+  comment: string | null;
+  submittedAt: string;
+  /** Human code of the inspection — never a raw id. */
+  appointmentCode: string;
+}

@@ -15,6 +15,7 @@ import {
   joinGroupResponseSchema,
   submitSatisfactionSurveySchema,
   satisfactionSurveyResponseSchema,
+  appointmentSurveyResponseSchema,
   paginationSchema,
   successResponseSchema,
 } from '@properfy/shared';
@@ -31,6 +32,7 @@ import type { ListPortalActivitiesUseCase } from '../application/use-cases/list-
 import type { GetAvailableGroupsUseCase } from '../application/use-cases/get-available-groups.use-case';
 import type { JoinGroupUseCase } from '../application/use-cases/join-group.use-case';
 import type { SubmitSatisfactionSurveyUseCase } from '../../satisfaction-survey/application/use-cases/submit-satisfaction-survey.use-case';
+import type { GetAppointmentSurveyUseCase } from '../../satisfaction-survey/application/use-cases/get-appointment-survey.use-case';
 import type { IRentalTenantPortalTokenRepository } from '../domain/rental-tenant-portal-token.repository';
 import type { TokenService } from '../domain/token.service';
 import type { JwtService } from '../../auth/application/services/jwt.service';
@@ -45,6 +47,7 @@ export interface RentalTenantPortalRouteContainer {
   getAvailableGroupsUseCase: GetAvailableGroupsUseCase;
   joinGroupUseCase: JoinGroupUseCase;
   submitSatisfactionSurveyUseCase: SubmitSatisfactionSurveyUseCase;
+  getAppointmentSurveyUseCase: GetAppointmentSurveyUseCase;
   tokenRepo: IRentalTenantPortalTokenRepository;
   tokenService: TokenService;
   jwtService: JwtService;
@@ -310,6 +313,29 @@ export async function registerRentalTenantPortalRoutes(
         notify: body.data?.notify,
       });
       return reply.status(201).send(success(result));
+    },
+  );
+
+  // GET /v1/appointments/:appointmentId/survey
+  //
+  // Returns 200 with a null body when there is nothing to show — either the
+  // inspection has no response yet, or the caller's agency does not own it. The
+  // two cases are deliberately indistinguishable: a 403 or a 404 would confirm
+  // that someone else's appointment exists.
+  app.get(
+    '/v1/appointments/:appointmentId/survey',
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), response: { 200: successResponseSchema(appointmentSurveyResponseSchema) } } },
+    async (request, reply) => {
+      const params = appointmentIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid appointment ID', params.error.errors);
+      }
+
+      const result = await container.getAppointmentSurveyUseCase.execute({
+        appointmentId: params.data.appointmentId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 

@@ -14,6 +14,9 @@ function makeInspector(overrides: Partial<Inspector> = {}): Inspector {
     status: InspectorStatus.ACTIVE,
     regionsCount: 3,
     serviceTypesCount: 5,
+    ratingAvg: 4.8,
+    ratingCount: 12,
+    completedCount: 245,
     createdAt: '2026-01-10T10:00:00Z',
     updatedAt: '2026-01-10T10:00:00Z',
     ...overrides,
@@ -28,7 +31,54 @@ describe('InspectorTable', () => {
     expect(screen.getByText('Phone')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.getByText('Regions')).toBeInTheDocument();
-    expect(screen.getByText('Services')).toBeInTheDocument();
+    // Renamed from "Services" — it counts service TYPES, and a second "Services"
+    // column next to the completed-inspections count would be ambiguous.
+    expect(screen.getByText('Service Types')).toBeInTheDocument();
+    expect(screen.queryByText('Services')).not.toBeInTheDocument();
+    expect(screen.getByText('Rating')).toBeInTheDocument();
+    expect(screen.getByText('Completed')).toBeInTheDocument();
+  });
+
+  describe('rating column', () => {
+    it('shows the average, the response count and the completed total', () => {
+      render(<InspectorTable data={[makeInspector()]} />);
+
+      expect(screen.getByText('4.80')).toBeInTheDocument();
+      expect(screen.getByText('(12)')).toBeInTheDocument();
+      expect(screen.getByText('245')).toBeInTheDocument();
+    });
+
+    it('shows a dash rather than a zero score for an unrated inspector', () => {
+      render(<InspectorTable data={[makeInspector({ ratingAvg: null, ratingCount: 0 })]} />);
+
+      expect(screen.queryByText('0.00')).not.toBeInTheDocument();
+      expect(screen.getByText('—')).toBeInTheDocument();
+    });
+
+    it('keeps unrated inspectors last in both sort directions', async () => {
+      // compareValues sends nullish last regardless of direction, which is what
+      // stops an unrated inspector from topping an ascending sort. This only
+      // holds because ratingAvg is null, never 0.
+      const user = userEvent.setup();
+      render(
+        <InspectorTable
+          data={[
+            makeInspector({ id: 'a', name: 'Unrated', ratingAvg: null, ratingCount: 0 }),
+            makeInspector({ id: 'b', name: 'Rated', ratingAvg: 3.2, ratingCount: 4 }),
+          ]}
+        />,
+      );
+
+      const header = screen.getByText('Rating');
+      const namesInOrder = () =>
+        screen.getAllByText(/^(Unrated|Rated)$/).map((el) => el.textContent);
+
+      await user.click(header);
+      expect(namesInOrder()[1]).toBe('Unrated');
+
+      await user.click(header);
+      expect(namesInOrder()[1]).toBe('Unrated');
+    });
   });
 
   it('renders inspector data (name, email, regions/services counts)', () => {

@@ -171,6 +171,9 @@ import { GetPortalDataUseCase } from '../modules/rental-tenant-portal/applicatio
 import { PrismaSatisfactionSurveyRepository } from '../modules/satisfaction-survey/infrastructure/prisma-satisfaction-survey.repository';
 import { SubmitSatisfactionSurveyUseCase } from '../modules/satisfaction-survey/application/use-cases/submit-satisfaction-survey.use-case';
 import { InviteSurveyOnDoneSubscriber } from '../modules/satisfaction-survey/application/subscribers/invite-survey-on-done.subscriber';
+import { ListInspectorSurveysUseCase } from '../modules/satisfaction-survey/application/use-cases/list-inspector-surveys.use-case';
+import { GetAppointmentSurveyUseCase } from '../modules/satisfaction-survey/application/use-cases/get-appointment-survey.use-case';
+import { PrismaInspectorRatingReader } from '../modules/inspector/infrastructure/prisma-inspector-rating.reader';
 import { ConfirmAppointmentUseCase } from '../modules/rental-tenant-portal/application/use-cases/confirm-appointment.use-case';
 import { UpdateContactUseCase } from '../modules/rental-tenant-portal/application/use-cases/update-contact.use-case';
 import { ReportUnavailabilityUseCase } from '../modules/rental-tenant-portal/application/use-cases/report-unavailability.use-case';
@@ -651,8 +654,9 @@ export function createContainer(logger: Logger): AppContainer {
   // Inspector use cases
   const availabilitySlotRepo = new PrismaAvailabilitySlotRepository(prisma);
   const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, serviceRegionRepo, authorizationService);
-  const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo, serviceRegionRepo);
-  const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo, serviceRegionRepo);
+  const inspectorRatingReader = new PrismaInspectorRatingReader(prisma);
+  const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo, serviceRegionRepo, inspectorRatingReader);
+  const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo, serviceRegionRepo, inspectorRatingReader);
   const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, serviceRegionRepo, authorizationService, userManagementRepo);
   const createAvailabilitySlotUseCase = new CreateAvailabilitySlotUseCase(inspectorRepo, availabilitySlotRepo, auditService);
   const listAvailabilitySlotsUseCase = new ListAvailabilitySlotsUseCase(availabilitySlotRepo);
@@ -808,6 +812,8 @@ export function createContainer(logger: Logger): AppContainer {
   );
 
   const satisfactionSurveyRepo = new PrismaSatisfactionSurveyRepository(prisma);
+  const listInspectorSurveysUseCase = new ListInspectorSurveysUseCase(satisfactionSurveyRepo);
+  const getAppointmentSurveyUseCase = new GetAppointmentSurveyUseCase(appointmentRepo, satisfactionSurveyRepo);
   const submitSatisfactionSurveyUseCase = new SubmitSatisfactionSurveyUseCase(satisfactionSurveyRepo, appointmentRepo, rentalTenantPortalActivityRepo, auditService);
 
   const getPortalDataUseCase = new GetPortalDataUseCase(rentalTenantPortalTokenRepo, rentalTenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo, satisfactionSurveyRepo, inspectorRepo);
@@ -1414,6 +1420,7 @@ export function createContainer(logger: Logger): AppContainer {
       createInspectorUseCase,
       getInspectorUseCase,
       listInspectorsUseCase,
+      listInspectorSurveysUseCase,
       updateInspectorUseCase,
       createAvailabilitySlotUseCase,
       listAvailabilitySlotsUseCase,
@@ -1530,6 +1537,7 @@ export function createContainer(logger: Logger): AppContainer {
       getAvailableGroupsUseCase,
       joinGroupUseCase,
       submitSatisfactionSurveyUseCase,
+      getAppointmentSurveyUseCase,
       tokenRepo: rentalTenantPortalTokenRepo,
       tokenService,
       jwtService,

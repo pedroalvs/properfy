@@ -90,4 +90,41 @@ describe('ProfileCard', () => {
     renderWithProviders(<ProfileCard name="Jane" email="j@test.com" role="CL_USER" />);
     expect(screen.getByText('Real Estate Operator')).toBeInTheDocument();
   });
+
+  describe('stats strip', () => {
+    function renderCard(props: Record<string, unknown> = {}) {
+      return renderWithProviders(
+        <ProfileCard name="Jane" email="jane@test.com" role="INSP" showStats {...props} />,
+      );
+    }
+
+    it('shows the average rating and the completed count', () => {
+      renderCard({ ratingAvg: 4.8, ratingCount: 12, completedCount: 245 });
+
+      expect(screen.getByText('4.80')).toBeInTheDocument();
+      expect(screen.getByText('245')).toBeInTheDocument();
+      expect(screen.getByText('Services')).toBeInTheDocument();
+    });
+
+    it('shows an empty state rather than a zero score when unrated', () => {
+      renderCard({ ratingAvg: null, ratingCount: 0, completedCount: 3 });
+
+      expect(screen.queryByText('0.00')).not.toBeInTheDocument();
+      expect(screen.getByText('No ratings yet')).toBeInTheDocument();
+    });
+
+    it('keeps the same height while loading so the card does not jump', () => {
+      const { container } = renderCard({ ratingLoading: true });
+
+      const strip = container.querySelector('.min-h-\\[56px\\]');
+      expect(strip).not.toBeNull();
+      expect(strip!.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    });
+
+    it('is absent for a non-inspector', () => {
+      renderWithProviders(<ProfileCard name="Ana" email="ana@test.com" role="AM" />);
+
+      expect(screen.queryByText('Services')).not.toBeInTheDocument();
+    });
+  });
 });

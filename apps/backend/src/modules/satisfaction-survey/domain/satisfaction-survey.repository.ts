@@ -1,7 +1,19 @@
 import type { SatisfactionSurveyEntity } from './satisfaction-survey.entity';
 
+/**
+ * A response plus the human code of the inspection it belongs to.
+ *
+ * The code is resolved in the repository because it needs the appointment's
+ * number and the agency's prefix, neither of which lives on the survey row —
+ * and the admin UI must never render a raw UUID.
+ */
+export interface InspectorSurveyRow {
+  survey: SatisfactionSurveyEntity;
+  appointmentCode: string;
+}
+
 export interface FindSurveysResult {
-  surveys: SatisfactionSurveyEntity[];
+  surveys: InspectorSurveyRow[];
   total: number;
 }
 

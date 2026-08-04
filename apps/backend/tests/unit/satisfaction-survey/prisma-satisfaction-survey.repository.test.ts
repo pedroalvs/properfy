@@ -135,7 +135,10 @@ describe('PrismaSatisfactionSurveyRepository', () => {
 
   describe('findByInspectorId', () => {
     it('applies the caller tenant scope and paginates newest first', async () => {
-      prisma.$transaction.mockResolvedValue([[makeRow()], 1]);
+      prisma.$transaction.mockResolvedValue([
+        [{ ...makeRow(), appointment: { appointment_number: 42, tenant: { appointment_code_prefix: 'INS' } } }],
+        1,
+      ]);
 
       const result = await repo.findByInspectorId('inspector-1', 'tenant-1', 2, 10);
 
@@ -152,6 +155,8 @@ describe('PrismaSatisfactionSurveyRepository', () => {
       expect(countArgs.where).toEqual({ inspector_id: 'inspector-1', tenant_id: 'tenant-1' });
       expect(result.total).toBe(1);
       expect(result.surveys).toHaveLength(1);
+      // The admin UI names the inspection by its human code, never a raw id.
+      expect(result.surveys[0]).toMatchObject({ appointmentCode: 'INS-0042' });
     });
 
     it('omits the tenant filter only when the caller is unscoped', async () => {

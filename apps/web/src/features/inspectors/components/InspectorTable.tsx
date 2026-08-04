@@ -2,6 +2,7 @@ import { DataTable, type DataTableColumn, type DataTablePagination } from '@/com
 import { RowActions } from '@/components/data/RowActions';
 import { InspectorStatusChip } from './InspectorStatusChip';
 import type { Inspector } from '../types';
+import { StarRating } from '@/components/ui/StarRating';
 import { formatAuPhone } from '@/lib/phone-mask';
 
 interface InspectorTableProps {
@@ -52,9 +53,26 @@ export function InspectorTable({
       width: '100px',
     },
     {
+      // Renamed from "Services": this has always been service-TYPE coverage, and
+      // the ambiguity became untenable next to the completed-inspections count.
       key: 'serviceTypesCount',
-      label: 'Services',
-      width: '100px',
+      label: 'Service Types',
+      width: '120px',
+    },
+    {
+      key: 'ratingAvg',
+      label: 'Rating',
+      width: '140px',
+      // Sorts the loaded page only, exactly like the existing name/email/status
+      // columns — DataTable sorting is client-side.
+      sortable: true,
+      render: (row) => <StarRating value={row.ratingAvg} count={row.ratingCount} size="sm" showValue />,
+    },
+    {
+      key: 'completedCount',
+      label: 'Completed',
+      width: '110px',
+      sortable: true,
     },
     {
       key: 'actions',
