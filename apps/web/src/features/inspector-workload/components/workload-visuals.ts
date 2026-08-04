@@ -38,13 +38,10 @@ const ERROR_HEX = '#FF5252';
 export function cellStyle(count: number, thresholds: Thresholds): { backgroundColor: string } {
   if (count === 0) return { backgroundColor: 'transparent' };
 
-  const level = dayLevel(count, thresholds);
-  if (level === 'overloaded') return { backgroundColor: withAlpha(ERROR_HEX, 0.25) };
-  if (level === 'busy') return { backgroundColor: withAlpha(WARNING_HEX, 0.2) };
-  return { backgroundColor: withAlpha(SEQUENTIAL_HUE, 0.12) };
+  return { backgroundColor: DAY_LEVEL_SWATCH[dayLevel(count, thresholds)] };
 }
 
-/** Legend swatches must show exactly what the cells show. */
+/** Single source for the day-cell colours, so the legend and the cells cannot drift. */
 export const DAY_LEVEL_SWATCH: Record<WorkloadLevel, string> = {
   normal: withAlpha(SEQUENTIAL_HUE, 0.12),
   busy: withAlpha(WARNING_HEX, 0.2),

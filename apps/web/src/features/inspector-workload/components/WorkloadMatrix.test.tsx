@@ -140,6 +140,20 @@ describe('WorkloadMatrix', () => {
     expect(screen.getByText('4+ a day')).toBeInTheDocument();
   });
 
+  it('paints the legend swatches with the same colours as the cells', () => {
+    renderMatrix();
+
+    expect(screen.getByText('Under 3 a day').querySelector('span')).toHaveStyle({
+      backgroundColor: 'rgba(33, 86, 110, 0.12)',
+    });
+    expect(screen.getByText('3–3 a day').querySelector('span')).toHaveStyle({
+      backgroundColor: 'rgba(251, 140, 0, 0.2)',
+    });
+    expect(screen.getByText('4+ a day').querySelector('span')).toHaveStyle({
+      backgroundColor: 'rgba(255, 82, 82, 0.25)',
+    });
+  });
+
   it('exposes a table view that spells the level out in words', async () => {
     const user = userEvent.setup();
     renderMatrix();
