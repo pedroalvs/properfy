@@ -1,4 +1,4 @@
-import { UserRole } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, UserRole, addCivilDays, todayInTzDateString } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useNavigate } from 'react-router-dom';
@@ -7,11 +7,26 @@ import { DashboardSummaryCards, RecentAppointmentsList, PendingActionsCard, Stat
 import { IntegrationWarnings } from '../components/IntegrationWarnings';
 import { usePermissions } from '@/hooks/usePermissions';
 
-function computeTomorrowLabel(): string {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
+/**
+ * Names the day the "Tomorrow" card actually reports on.
+ *
+ * That window is a Sydney civil day server-side, so the label must be too. It
+ * previously used the browser's clock (`new Date()` + 1), which named a
+ * different day than the data for anyone outside Sydney — the numbers were
+ * right and the heading lied about them.
+ *
+ * A civil date carries no instant, so it is read back in UTC; converting it to
+ * the viewer's zone is exactly what shifts the day.
+ */
+export function computeTomorrowLabel(): string {
+  const tomorrow = addCivilDays(todayInTzDateString(PLATFORM_TIMEZONE), 1);
   // en-AU orders this day-then-month ('Wed, 29 Jul'); en-US would render 'Wed, Jul 29'.
-  const dateStr = Intl.DateTimeFormat('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }).format(tomorrow);
+  const dateStr = Intl.DateTimeFormat('en-AU', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(`${tomorrow}T00:00:00.000Z`));
   return `Tomorrow — ${dateStr}`;
 }
 
