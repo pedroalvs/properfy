@@ -1,7 +1,11 @@
-import type { AuthContext } from '@properfy/shared';
+// The output DTO is what the route serializes against the shared response
+// schema, so it types `properties` from @properfy/shared rather than from the
+// repository projection. If the two ever drift, the assignment below stops
+// compiling instead of silently producing a payload the serializer rejects.
+import type { AuthContext, MarketplaceOfferProperty } from '@properfy/shared';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
-import type { IServiceGroupRepository, MarketplaceOfferProperty, PaginationParams } from '../../domain/service-group.repository';
+import type { IServiceGroupRepository, PaginationParams } from '../../domain/service-group.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import { InspectorInactiveError } from '../../domain/service-group.errors';
 

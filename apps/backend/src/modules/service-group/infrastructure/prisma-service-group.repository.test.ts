@@ -112,7 +112,16 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
           appointments: expect.objectContaining({
             select: expect.objectContaining({
               property: {
-                select: expect.objectContaining({ street: true, type: true }),
+                // Every field deriveOfferProperties reads, not just the two new
+                // ones — a mocked row would otherwise hide a select that
+                // stopped fetching suburb/state/deleted_at.
+                select: expect.objectContaining({
+                  street: true,
+                  suburb: true,
+                  state: true,
+                  type: true,
+                  deleted_at: true,
+                }),
               },
             }),
           }),

@@ -106,7 +106,15 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
               {appointment.propertyCode}
             </span>
           )}
-          <span className="text-sm font-bold text-text-primary">{appointment.serviceTypeName}</span>
+          {/*
+            Shrinks and ellipsizes before anything else. The row carries two
+            codes and a flow chip, all shrink-0, so without this a long service
+            type pushes the chip past the card's overflow-hidden edge and it is
+            silently clipped on a narrow phone.
+          */}
+          <span className="min-w-0 flex-1 truncate text-sm font-bold text-text-primary">
+            {appointment.serviceTypeName}
+          </span>
           <span
             className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
             style={{ backgroundColor: flowStyle.bg, color: flowStyle.text ?? '#333' }}
