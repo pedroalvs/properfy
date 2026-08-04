@@ -225,12 +225,15 @@ describe('PrismaSatisfactionSurveyRepository (real DB)', () => {
     await repo.submit(makeSurvey(seed.appointmentB1, seed.tenantB, 3, 'agency B feedback'));
 
     const scopedToA = await repo.findByInspectorId(seed.inspector, seed.tenantA, 1, 50);
-    expect(scopedToA.surveys.every((s) => s.tenantId === seed.tenantA)).toBe(true);
-    expect(scopedToA.surveys.some((s) => s.comment === 'agency B feedback')).toBe(false);
+    expect(scopedToA.surveys.every((r) => r.survey.tenantId === seed.tenantA)).toBe(true);
+    expect(scopedToA.surveys.some((r) => r.survey.comment === 'agency B feedback')).toBe(false);
 
     const scopedToB = await repo.findByInspectorId(seed.inspector, seed.tenantB, 1, 50);
     expect(scopedToB.surveys).toHaveLength(1);
-    expect(scopedToB.surveys[0]!.comment).toBe('agency B feedback');
+    expect(scopedToB.surveys[0]!.survey.comment).toBe('agency B feedback');
+    // The human code is resolved from the appointment + agency prefix, because
+    // the admin UI must never render a raw id.
+    expect(scopedToB.surveys[0]!.appointmentCode).toMatch(/^SVB-\d{4}$/);
 
     // An unscoped (AM/OP) read sees both agencies.
     const unscoped = await repo.findByInspectorId(seed.inspector, null, 1, 50);
