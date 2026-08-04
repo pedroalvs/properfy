@@ -25144,6 +25144,376 @@
         }
       }
     },
+    "/v1/dashboard/analytics": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "startDate",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "endDate",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "period": {
+                          "type": "object",
+                          "properties": {
+                            "startDate": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            },
+                            "endDate": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            },
+                            "granularity": {
+                              "type": "string",
+                              "enum": [
+                                "day",
+                                "week"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "startDate",
+                            "endDate",
+                            "granularity"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "kpis": {
+                          "type": "object",
+                          "properties": {
+                            "today": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "thisWeek": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "thisMonth": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "inPeriod": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "cancelledInPeriod": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "today",
+                            "thisWeek",
+                            "thisMonth",
+                            "inPeriod",
+                            "cancelledInPeriod"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "statusInPeriod": {
+                          "type": "object",
+                          "properties": {
+                            "DRAFT": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "AWAITING_INSPECTOR": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "SCHEDULED": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "DONE": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "CANCELLED": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "REJECTED": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "DRAFT",
+                            "AWAITING_INSPECTOR",
+                            "SCHEDULED",
+                            "DONE",
+                            "CANCELLED",
+                            "REJECTED"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "confirmationRate": {
+                          "type": "object",
+                          "properties": {
+                            "confirmed": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "eligible": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "confirmed",
+                            "eligible"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "revenue": {
+                          "type": "object",
+                          "properties": {
+                            "amount": {
+                              "type": "number"
+                            },
+                            "currency": {
+                              "type": "string",
+                              "minLength": 3,
+                              "maxLength": 3
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "currency"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "evolution": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "bucketStart": {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "bucketStart",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "serviceTypeDistribution": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "serviceTypeId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "serviceTypeId",
+                              "code",
+                              "name",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "avgExecutionMinutes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "serviceTypeId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "avgMinutes": {
+                                "type": "number",
+                                "minimum": 0,
+                                "nullable": true
+                              },
+                              "sampleSize": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "serviceTypeId",
+                              "code",
+                              "name",
+                              "avgMinutes",
+                              "sampleSize"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "period",
+                        "kpis",
+                        "statusInPeriod",
+                        "confirmationRate",
+                        "revenue",
+                        "evolution",
+                        "serviceTypeDistribution",
+                        "avgExecutionMinutes"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dashboard/analytics/heatmap": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "startDate",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "endDate",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "points": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "suburb": {
+                                "type": "string"
+                              },
+                              "lat": {
+                                "type": "number",
+                                "minimum": -90,
+                                "maximum": 90
+                              },
+                              "lng": {
+                                "type": "number",
+                                "minimum": -180,
+                                "maximum": 180
+                              },
+                              "count": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "suburb",
+                              "lat",
+                              "lng",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "totalPlotted": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "totalWithoutCoordinates": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "points",
+                        "totalPlotted",
+                        "totalWithoutCoordinates"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/service-regions": {
       "get": {
         "responses": {

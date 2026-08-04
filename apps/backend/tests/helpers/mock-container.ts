@@ -290,6 +290,8 @@ export function createMockContainer(
     } as AppContainer['notification'],
     dashboard: {
       getDashboardStatsUseCase: { execute: vi.fn() },
+      getDashboardAnalyticsUseCase: { execute: vi.fn() },
+      getAnalyticsHeatmapUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['dashboard'],
