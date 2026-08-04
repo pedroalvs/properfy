@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { auPhoneSchema } from './phone';
 import { HHMM_REGEX } from './appointment';
 import { availableSlotSchema, hasUniqueAvailableSlotDays } from './available-slot';
+import { RATING_COMMENT_MAX_LENGTH, RATING_MAX, RATING_MIN } from '../lib/rating';
 
 // Token URL param validation
 export const portalTokenParam = z.object({
@@ -126,6 +127,38 @@ export const reportUnavailabilityPortalResponseSchema = z.object({
   urgentMode: z.boolean(),
 });
 export type ReportUnavailabilityPortalResponse = z.infer<typeof reportUnavailabilityPortalResponseSchema>;
+
+// POST /survey body — the post-execution satisfaction response.
+export const submitSatisfactionSurveySchema = z.object({
+  rating: z.number().int().min(RATING_MIN).max(RATING_MAX),
+  comment: z.string().trim().max(RATING_COMMENT_MAX_LENGTH).optional(),
+});
+export type SubmitSatisfactionSurveyInput = z.infer<typeof submitSatisfactionSurveySchema>;
+
+export const satisfactionSurveyResponseSchema = z.object({
+  rating: z.number().int(),
+  comment: z.string().nullable(),
+  submittedAt: z.string().datetime(),
+  /** True when the call resolved to a response the tenant had already given. */
+  alreadySubmitted: z.boolean(),
+});
+export type SatisfactionSurveyResponse = z.infer<typeof satisfactionSurveyResponseSchema>;
+
+/**
+ * Survey block on the portal payload. Present only once the inspection is `DONE`;
+ * absent for every other status, and absent on older API deployments — consumers
+ * must treat a missing block as "no survey", never as "not eligible yet".
+ */
+export const portalSurveySchema = z.object({
+  eligible: z.boolean(),
+  submitted: z.boolean(),
+  /** Echo of the tenant's own answer; safe to return to the person who gave it. */
+  rating: z.number().int().nullable(),
+  comment: z.string().nullable(),
+  submittedAt: z.string().datetime().nullable(),
+  inspectorName: z.string().nullable(),
+});
+export type PortalSurvey = z.infer<typeof portalSurveySchema>;
 
 // GET /v1/appointments/:id/portal-link response
 export const GetPortalLinkResponse = z.object({

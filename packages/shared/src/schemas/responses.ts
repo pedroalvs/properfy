@@ -4,6 +4,9 @@ import { propertyRulesSchema, PROPERTY_TYPE_VALUES } from './property';
 import { bonusRuleSchema } from './pricing-rule';
 import { appointmentAppSchema } from './app-credential';
 import { availableSlotSchema, storedAvailableSlotSchema } from './available-slot';
+// One-way edge: rental-tenant-portal.ts does not import this file (verified — a
+// cycle here typechecks fine and only explodes at runtime).
+import { portalSurveySchema } from './rental-tenant-portal';
 import { AppointmentStatus, ServiceTypeFlowType } from '../enums';
 
 /**
@@ -721,6 +724,10 @@ export const portalDataResponseSchema = z.object({
   // Display name of the PROPERTY_MANAGER contact, when one is linked.
   propertyManager: z.string().nullable().optional(),
   tenant: z.object({ name: z.string().nullable(), timezone: z.string() }).optional(),
+  // Post-execution satisfaction survey. Emitted only when the inspection is DONE,
+  // so a missing block means "nothing to rate" — the portal must keep its existing
+  // terminal view for that case and for payloads from older deployments.
+  survey: portalSurveySchema.optional(),
 });
 
 /**

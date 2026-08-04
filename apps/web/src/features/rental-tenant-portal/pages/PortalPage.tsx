@@ -17,11 +17,13 @@ import { RentalTenantPortalExpiredView } from '../components/RentalTenantPortalE
 import { RentalTenantPortalInvalidView } from '../components/RentalTenantPortalInvalidView';
 import { RentalTenantPortalCancelledView } from '../components/RentalTenantPortalCancelledView';
 import { ResponseConfirmationCard } from '../components/ResponseConfirmationCard';
+import { PortalSurveyView } from '../components/PortalSurveyView';
 import {
   usePortalData,
   useConfirmAppointment,
   useReportUnavailability,
   useAvailableGroups,
+  useSubmitSurvey,
 } from '../hooks/usePortalData';
 import { useJoinGroupFlow } from '../hooks/useJoinGroupFlow';
 import type { AvailableSlot } from '../types';
@@ -35,6 +37,8 @@ export function PortalPage() {
 
   const confirmMutation = useConfirmAppointment(token ?? '');
   const unavailableMutation = useReportUnavailability(token ?? '');
+  const surveyMutation = useSubmitSurvey(token ?? '');
+  const [surveyErrorMessage, setSurveyErrorMessage] = useState<string | null>(null);
 
   const [changeTimeOpen, setChangeTimeOpen] = useState(false);
 
@@ -70,6 +74,21 @@ export function PortalPage() {
       }
     },
     [confirmMutation, refetch],
+  );
+
+  const handleSubmitSurvey = useCallback(
+    async (input: { rating: number; comment?: string }) => {
+      setSurveyErrorMessage(null);
+      try {
+        // A replay is not an error: the API answers 200 with the stored response,
+        // and the mutation's invalidate refetches it, so the thank-you card is
+        // reached by the same path as a first-time submission.
+        await surveyMutation.mutateAsync(input);
+      } catch {
+        setSurveyErrorMessage('Could not submit your rating. Please try again.');
+      }
+    },
+    [surveyMutation],
   );
 
   const handleUnavailable = useCallback(
@@ -162,6 +181,26 @@ export function PortalPage() {
         <RentalTenantPortalCancelledView agencyPhone={data.agencyPhone} />
       </PortalLayout>
     );
+  }
+
+  // Once the inspection is done, the same link becomes the satisfaction survey.
+  // The block is absent for every other status and on API deployments predating
+  // the feature, so its absence falls through to the terminal view below.
+  if (appointment.status === AppointmentStatus.DONE && data.survey) {
+    const { survey } = data;
+    if (survey.eligible || survey.submitted) {
+      return (
+        <PortalLayout>
+          <PortalSurveyView
+            appointment={appointment}
+            survey={survey}
+            onSubmit={handleSubmitSurvey}
+            isSubmitting={surveyMutation.isPending}
+            errorMessage={surveyErrorMessage}
+          />
+        </PortalLayout>
+      );
+    }
   }
 
   const isReadOnly = data.token.isReadOnly;

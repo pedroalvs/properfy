@@ -13,6 +13,8 @@ import {
   availableGroupsResponseSchema,
   joinGroupRequestSchema,
   joinGroupResponseSchema,
+  submitSatisfactionSurveySchema,
+  satisfactionSurveyResponseSchema,
   paginationSchema,
   successResponseSchema,
 } from '@properfy/shared';
@@ -28,6 +30,7 @@ import type { GeneratePortalTokenUseCase } from '../application/use-cases/genera
 import type { ListPortalActivitiesUseCase } from '../application/use-cases/list-portal-activities.use-case';
 import type { GetAvailableGroupsUseCase } from '../application/use-cases/get-available-groups.use-case';
 import type { JoinGroupUseCase } from '../application/use-cases/join-group.use-case';
+import type { SubmitSatisfactionSurveyUseCase } from '../../satisfaction-survey/application/use-cases/submit-satisfaction-survey.use-case';
 import type { IRentalTenantPortalTokenRepository } from '../domain/rental-tenant-portal-token.repository';
 import type { TokenService } from '../domain/token.service';
 import type { JwtService } from '../../auth/application/services/jwt.service';
@@ -41,6 +44,7 @@ export interface RentalTenantPortalRouteContainer {
   listPortalActivitiesUseCase: ListPortalActivitiesUseCase;
   getAvailableGroupsUseCase: GetAvailableGroupsUseCase;
   joinGroupUseCase: JoinGroupUseCase;
+  submitSatisfactionSurveyUseCase: SubmitSatisfactionSurveyUseCase;
   tokenRepo: IRentalTenantPortalTokenRepository;
   tokenService: TokenService;
   jwtService: JwtService;
@@ -127,6 +131,39 @@ export async function registerRentalTenantPortalRoutes(
             }
           : undefined,
         rentalTenantNote: parsed.data.rentalTenantNote,
+        ipAddress,
+        userAgent,
+      });
+      return reply.status(200).send(result);
+    },
+  );
+
+  // POST /v1/rental-tenant-portal/:token/survey
+  app.post(
+    '/v1/rental-tenant-portal/:token/survey',
+    { preHandler: portalAuth, config: { rateLimit: { max: 30, timeWindow: '1 minute' } }, schema: { params: z.object({ token: z.string() }), body: submitSatisfactionSurveySchema, response: { 200: satisfactionSurveyResponseSchema } } },
+    async (request, reply) => {
+      const ctx = request.portalContext!;
+      const parsed = submitSatisfactionSurveySchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+
+      const ipAddress =
+        (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
+        request.ip ??
+        null;
+      const userAgent = request.headers['user-agent'] ?? null;
+
+      // Note: `ctx.isUsed` is deliberately NOT forwarded. It is set by confirm and
+      // join-group, so gating the survey on it would lock out every tenant who
+      // confirmed attendance.
+      const result = await container.submitSatisfactionSurveyUseCase.execute({
+        tokenId: ctx.tokenId,
+        appointmentId: ctx.appointmentId,
+        isReadOnly: ctx.isReadOnly,
+        rating: parsed.data.rating,
+        comment: parsed.data.comment,
         ipAddress,
         userAgent,
       });
