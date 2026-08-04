@@ -113,3 +113,49 @@ describe('PrismaDashboardRepository — processing reports scope', () => {
     expect(prisma.report.count).toHaveBeenCalledWith({ where: { status: 'PROCESSING' } });
   });
 });
+
+/**
+ * Sydney-boundary coverage for the completion windows.
+ *
+ * The civil-range and `updated_at` assertions live beside the repository in
+ * `src/modules/dashboard/infrastructure/prisma-dashboard.repository.test.ts`.
+ * What is unique here is the midnight rollover: Sydney is UTC+10/+11, so late
+ * UTC Sunday is already Monday in Sydney, and a UTC- or server-anchored clock
+ * would report the neighbouring week. Nothing else in either file catches that.
+ */
+describe('PrismaDashboardRepository — the week rolls over at Sydney midnight', () => {
+  function doneThisWeekWindow(prisma: PrismaClient) {
+    const count = prisma.appointment.count as unknown as { mock: { calls: [{ where: Record<string, unknown> }][] } };
+    const periodDone = count.mock.calls
+      .map((call) => call[0].where)
+      .filter((where) => where['status'] === 'DONE' && !('done_checked_by_user_id' in where));
+    // doneThisMonth is queried first, doneThisWeek second.
+    return periodDone[1]!['scheduled_date'];
+  }
+
+  it('rolls forward once it is Monday in Sydney, even while UTC says Sunday', async () => {
+    const prisma = buildPrismaMock([]);
+    const repo = new PrismaDashboardRepository(prisma);
+
+    // Sunday 26 Jul 23:00 UTC is Monday 27 Jul 09:00 in Sydney.
+    await repo.getStats(undefined, false, new Date('2026-07-26T23:00:00Z'));
+
+    expect(doneThisWeekWindow(prisma)).toEqual({
+      gte: new Date('2026-07-27T00:00:00.000Z'),
+      lt: new Date('2026-08-03T00:00:00.000Z'),
+    });
+  });
+
+  it('does not roll forward before Sydney midnight', async () => {
+    const prisma = buildPrismaMock([]);
+    const repo = new PrismaDashboardRepository(prisma);
+
+    // Sunday 26 Jul 12:00 UTC is still Sunday 22:00 in Sydney.
+    await repo.getStats(undefined, false, new Date('2026-07-26T12:00:00Z'));
+
+    expect(doneThisWeekWindow(prisma)).toEqual({
+      gte: new Date('2026-07-20T00:00:00.000Z'),
+      lt: new Date('2026-07-27T00:00:00.000Z'),
+    });
+  });
+});

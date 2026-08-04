@@ -50,117 +50,100 @@ describe('PrismaDashboardRepository', () => {
     repo = new PrismaDashboardRepository(prisma as unknown as PrismaClient);
   });
 
-  // ─── currentWeekRange ────────────────────────────────────────────────────
+  // ─── Week / month windows ────────────────────────────────────────────────
 
-  describe('currentWeekRange (via getStats week queries)', () => {
-    it('returns Mon 00:00:00.000 to Sun 23:59:59.999 when now is a Monday', async () => {
-      const monday = new Date(2026, 4, 18, 10, 0, 0); // Mon 18 May 2026
-      await repo.getStats(undefined, false, monday);
+  /**
+   * These windows used to be built with `new Date(y, m, d)` and read off
+   * `updated_at`. Both were wrong: the constructor reads the *server's*
+   * timezone rather than Sydney's, and `updated_at` is re-stamped by any later
+   * edit so it was never a completion date. Everything is now keyed on
+   * `scheduled_date` — a `@db.Date` pinned to UTC midnight of a Sydney civil
+   * date — over a half-open civil range, matching the Inspector Workload screen.
+   */
+  describe('week window (via getStats week queries)', () => {
+    /** The DONE counts that carry a period; excludes the cross-check backlog. */
+    function periodDoneCalls(): { where: Record<string, unknown> }[] {
+      return (prisma.appointment.count as ReturnType<typeof vi.fn>).mock.calls
+        .map((call: unknown[]) => call[0] as { where: Record<string, unknown> })
+        .filter((call) => call.where['status'] === 'DONE' && !('done_checked_by_user_id' in call.where));
+    }
 
-      // doneThisWeek has BOTH gte and lte in updated_at (doneThisMonth only has gte)
-      const doneThisWeekCall = (prisma.appointment.count as ReturnType<typeof vi.fn>).mock.calls.find(
-        (c: unknown[]) => {
-          const w = (c[0] as { where: { status: string; updated_at?: { lte?: unknown } } }).where;
-          return w.status === 'DONE' && w.updated_at?.lte !== undefined;
-        },
-      );
-      const { gte, lte } = doneThisWeekCall![0].where.updated_at;
+    /** doneThisMonth is queried before doneThisWeek in the Promise.all. */
+    function doneThisWeekWindow(): { gte: Date; lt: Date } {
+      return periodDoneCalls()[1]!.where['scheduled_date'] as { gte: Date; lt: Date };
+    }
 
-      expect(gte.getDay()).toBe(1); // Monday
-      expect(gte.getHours()).toBe(0);
-      expect(gte.getMinutes()).toBe(0);
-      expect(gte.getSeconds()).toBe(0);
-      expect(gte.getMilliseconds()).toBe(0);
-      expect(gte.getDate()).toBe(18);
+    it.each([
+      ['a Monday', '2026-05-18T10:00:00.000Z'],
+      ['a Wednesday', '2026-05-20T04:00:00.000Z'],
+      ['a Sunday', '2026-05-24T09:00:00.000Z'],
+    ])('resolves the same Mon-to-Sun civil week from %s', async (_label, instant) => {
+      await repo.getStats(undefined, false, new Date(instant));
 
-      expect(lte.getDay()).toBe(0); // Sunday
-      expect(lte.getHours()).toBe(23);
-      expect(lte.getMinutes()).toBe(59);
-      expect(lte.getSeconds()).toBe(59);
-      expect(lte.getMilliseconds()).toBe(999);
-      expect(lte.getDate()).toBe(24);
+      expect(doneThisWeekWindow()).toEqual({
+        gte: new Date('2026-05-18T00:00:00.000Z'),
+        lt: new Date('2026-05-25T00:00:00.000Z'),
+      });
     });
 
-    it('returns the same week range when now is a Sunday', async () => {
-      const sunday = new Date(2026, 4, 24, 22, 0, 0); // Sun 24 May 2026
-      await repo.getStats(undefined, false, sunday);
+    it('never keys a completion count on updated_at', async () => {
+      await repo.getStats(undefined, false, new Date('2026-05-20T04:00:00.000Z'));
 
-      const doneThisWeekCall = (prisma.appointment.count as ReturnType<typeof vi.fn>).mock.calls.find(
-        (c: unknown[]) => {
-          const w = (c[0] as { where: { status: string; updated_at?: { lte?: unknown } } }).where;
-          return w.status === 'DONE' && w.updated_at?.lte !== undefined;
-        },
-      );
-      const { gte, lte } = doneThisWeekCall![0].where.updated_at;
-
-      expect(gte.getDate()).toBe(18); // Same Monday
-      expect(lte.getDate()).toBe(24); // Same Sunday
+      const calls = periodDoneCalls();
+      expect(calls).toHaveLength(2);
+      for (const call of calls) {
+        expect(call.where['updated_at']).toBeUndefined();
+        expect(call.where['scheduled_date']).toBeDefined();
+      }
     });
 
-    it('returns the correct week range when now is a Wednesday', async () => {
-      const wednesday = new Date(2026, 4, 20, 14, 0, 0); // Wed 20 May 2026
-      await repo.getStats(undefined, false, wednesday);
+    it('bounds done-this-month by the civil month', async () => {
+      await repo.getStats(undefined, false, new Date('2026-05-20T04:00:00.000Z'));
 
-      const doneThisWeekCall = (prisma.appointment.count as ReturnType<typeof vi.fn>).mock.calls.find(
-        (c: unknown[]) => {
-          const w = (c[0] as { where: { status: string; updated_at?: { lte?: unknown } } }).where;
-          return w.status === 'DONE' && w.updated_at?.lte !== undefined;
-        },
-      );
-      const { gte, lte } = doneThisWeekCall![0].where.updated_at;
-
-      expect(gte.getDate()).toBe(18); // Monday 18 May
-      expect(lte.getDate()).toBe(24); // Sunday 24 May
+      expect(periodDoneCalls()[0]!.where['scheduled_date']).toEqual({
+        gte: new Date('2026-05-01T00:00:00.000Z'),
+        lt: new Date('2026-06-01T00:00:00.000Z'),
+      });
     });
   });
 
   // ─── tomorrowRange ───────────────────────────────────────────────────────
 
-  describe('tomorrowRange (via tomorrowByInspector groupBy)', () => {
-    it('queries tomorrow 00:00:00.000 to 23:59:59.999 for tomorrowByInspector', async () => {
-      const wednesday = new Date(2026, 4, 20, 10, 0, 0); // Wed 20 May 2026
-
+  describe('tomorrow window (via tomorrowByInspector groupBy)', () => {
+    it('queries the single civil day after today', async () => {
       (prisma.appointment.groupBy as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce([]) // status counts
         .mockResolvedValueOnce([]) // tomorrowByInspector
         .mockResolvedValueOnce([]) // scheduledThisWeekByInspector
-        .mockResolvedValueOnce([]) // confirmedThisWeekByInspector
+        .mockResolvedValueOnce([]); // confirmedThisWeekByInspector
 
-      await repo.getStats(undefined, true, wednesday);
+      // Wed 20 May 2026 in Sydney.
+      await repo.getStats(undefined, true, new Date('2026-05-20T04:00:00.000Z'));
 
-      const groupByCalls = (prisma.appointment.groupBy as ReturnType<typeof vi.fn>).mock.calls;
-      const tomorrowCall = groupByCalls.find(
-        (c: unknown[]) => (c[0] as { where: { rental_tenant_confirmation_status?: string } }).where.rental_tenant_confirmation_status === 'CONFIRMED' &&
-          (c[0] as { where: { scheduled_date?: unknown } }).where.scheduled_date,
+      const tomorrowCall = (prisma.appointment.groupBy as ReturnType<typeof vi.fn>).mock.calls.find(
+        (c: unknown[]) => {
+          const where = (c[0] as { where: Record<string, unknown> }).where;
+          return where['rental_tenant_confirmation_status'] === 'CONFIRMED' && where['scheduled_date'];
+        },
       );
 
-      const { gte, lte } = (tomorrowCall![0] as { where: { scheduled_date: { gte: Date; lte: Date } } }).where.scheduled_date;
-
-      expect(gte.getDate()).toBe(21); // Thursday 21 May
-      expect(gte.getHours()).toBe(0);
-      expect(gte.getMinutes()).toBe(0);
-      expect(gte.getSeconds()).toBe(0);
-      expect(gte.getMilliseconds()).toBe(0);
-
-      expect(lte.getDate()).toBe(21); // Same day
-      expect(lte.getHours()).toBe(23);
-      expect(lte.getMinutes()).toBe(59);
-      expect(lte.getSeconds()).toBe(59);
-      expect(lte.getMilliseconds()).toBe(999);
+      expect((tomorrowCall![0] as { where: { scheduled_date: unknown } }).where.scheduled_date).toEqual({
+        gte: new Date('2026-05-21T00:00:00.000Z'),
+        lt: new Date('2026-05-22T00:00:00.000Z'),
+      });
     });
   });
 
   // ─── New scalar queries ──────────────────────────────────────────────────
 
   describe('new scalar queries', () => {
-    it('queries doneThisWeek with status DONE and updated_at in week, with tenantId', async () => {
-      const now = new Date(2026, 4, 20, 10, 0, 0);
-      await repo.getStats('tenant-1', false, now);
+    it('queries doneThisWeek with status DONE and scheduled_date in week, with tenantId', async () => {
+      await repo.getStats('tenant-1', false, new Date('2026-05-20T04:00:00.000Z'));
 
       const doneThisWeekCall = (prisma.appointment.count as ReturnType<typeof vi.fn>).mock.calls.find(
         (c: unknown[]) => {
-          const w = (c[0] as { where: { status?: string; updated_at?: unknown } }).where;
-          return w.status === 'DONE' && w.updated_at;
+          const w = (c[0] as { where: Record<string, unknown> }).where;
+          return w['status'] === 'DONE' && w['scheduled_date'] && !('done_checked_by_user_id' in w);
         },
       );
 

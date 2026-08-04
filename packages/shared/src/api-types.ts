@@ -11579,6 +11579,128 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/dashboard/inspector-workload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    weekStart?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                week: {
+                                    weekStart: string;
+                                    weekEnd: string;
+                                    days: string[];
+                                };
+                                thresholds: {
+                                    weeklyBusy: number;
+                                    weeklyOverloaded: number;
+                                    dailyBusy: number;
+                                    dailyOverloaded: number;
+                                };
+                                kpis: {
+                                    totalInWeek: number;
+                                    activeInspectorCount: number;
+                                    avgPerInspector: number | null;
+                                    nearLimit: {
+                                        count: number;
+                                        inspectors: {
+                                            /** Format: uuid */
+                                            inspectorId: string;
+                                            inspectorName: string;
+                                            total: number;
+                                        }[];
+                                    };
+                                    overloaded: {
+                                        count: number;
+                                        inspectors: {
+                                            /** Format: uuid */
+                                            inspectorId: string;
+                                            inspectorName: string;
+                                            total: number;
+                                        }[];
+                                    };
+                                };
+                                funnel: {
+                                    previous: {
+                                        weekStart: string;
+                                        weekEnd: string;
+                                        done: number;
+                                        scheduled: number;
+                                        confirmed: number;
+                                        confirmationEligible: number;
+                                    };
+                                    selected: {
+                                        weekStart: string;
+                                        weekEnd: string;
+                                        done: number;
+                                        scheduled: number;
+                                        confirmed: number;
+                                        confirmationEligible: number;
+                                    };
+                                    next: {
+                                        weekStart: string;
+                                        weekEnd: string;
+                                        done: number;
+                                        scheduled: number;
+                                        confirmed: number;
+                                        confirmationEligible: number;
+                                    };
+                                };
+                                completed: {
+                                    doneSelectedWeek: number;
+                                    donePreviousWeek: number;
+                                    doneSelectedMonth: number;
+                                    donePreviousMonth: number;
+                                    selectedMonth: string;
+                                    previousMonth: string;
+                                };
+                                matrix: {
+                                    inspectors: {
+                                        /** Format: uuid */
+                                        inspectorId: string;
+                                        inspectorName: string;
+                                        isActive: boolean;
+                                        days: number[];
+                                        total: number;
+                                        /** @enum {string} */
+                                        level: "normal" | "busy" | "overloaded";
+                                    }[];
+                                    teamTotalsByDay: number[];
+                                    teamTotal: number;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/service-regions": {
         parameters: {
             query?: never;

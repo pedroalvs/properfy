@@ -293,6 +293,8 @@ import { GetDashboardStatsUseCase } from '../modules/dashboard/application/use-c
 import { PrismaDashboardAnalyticsRepository } from '../modules/dashboard/infrastructure/prisma-dashboard-analytics.repository';
 import { GetDashboardAnalyticsUseCase } from '../modules/dashboard/application/use-cases/get-dashboard-analytics.use-case';
 import { GetAnalyticsHeatmapUseCase } from '../modules/dashboard/application/use-cases/get-analytics-heatmap.use-case';
+import { PrismaInspectorWorkloadRepository } from '../modules/dashboard/infrastructure/prisma-inspector-workload.repository';
+import { GetInspectorWorkloadUseCase } from '../modules/dashboard/application/use-cases/get-inspector-workload.use-case';
 import type { DashboardRouteContainer } from '../modules/dashboard/interfaces/dashboard.routes';
 
 // Service region module
@@ -1198,6 +1200,8 @@ export function createContainer(logger: Logger): AppContainer {
   const dashboardAnalyticsRepo = new PrismaDashboardAnalyticsRepository(prisma);
   const getDashboardAnalyticsUseCase = new GetDashboardAnalyticsUseCase(dashboardAnalyticsRepo);
   const getAnalyticsHeatmapUseCase = new GetAnalyticsHeatmapUseCase(dashboardAnalyticsRepo);
+  const inspectorWorkloadRepo = new PrismaInspectorWorkloadRepository(prisma);
+  const getInspectorWorkloadUseCase = new GetInspectorWorkloadUseCase(inspectorWorkloadRepo);
 
   // Service region use cases (serviceRegionRepo instantiated earlier for inspector/marketplace use)
   const createServiceRegionUseCase = new CreateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService);
@@ -1622,6 +1626,7 @@ export function createContainer(logger: Logger): AppContainer {
       getDashboardStatsUseCase,
       getDashboardAnalyticsUseCase,
       getAnalyticsHeatmapUseCase,
+      getInspectorWorkloadUseCase,
       jwtService,
       tenantRepo,
     },

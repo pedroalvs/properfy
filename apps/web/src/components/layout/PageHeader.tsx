@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 
 export interface PageHeaderAction {
@@ -12,15 +13,22 @@ interface PageHeaderProps {
   title: string;
   primaryAction?: PageHeaderAction;
   secondaryActions?: PageHeaderAction[];
+  /**
+   * Arbitrary controls for the right of the header, rendered before the action
+   * buttons. For scope selectors that govern the whole page (the Inspector
+   * Workload week picker), which are neither a primary nor a secondary action.
+   */
+  children?: ReactNode;
 }
 
-export function PageHeader({ title, primaryAction, secondaryActions }: PageHeaderProps) {
+export function PageHeader({ title, primaryAction, secondaryActions, children }: PageHeaderProps) {
   return (
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
       <h1 className="text-page-title-mobile text-secondary md:text-page-title">
         {title}
       </h1>
       <div className="flex w-full flex-wrap items-stretch gap-2 sm:w-auto sm:items-center">
+        {children}
         {secondaryActions?.map((action) => (
           <Button
             key={action.label}

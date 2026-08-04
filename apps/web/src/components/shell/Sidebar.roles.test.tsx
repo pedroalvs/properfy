@@ -170,3 +170,28 @@ describe('Sidebar role-based visibility — Analytics', () => {
     expect(screen.queryByText('Reports')).not.toBeInTheDocument();
   });
 });
+
+describe('Sidebar role-based visibility — Workload', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each(['AM', 'OP'])('shows Workload to %s', (role) => {
+    renderSidebar(role);
+    expect(screen.getByText('Workload')).toBeInTheDocument();
+  });
+
+  // Narrower than Analytics on purpose. Inspectors carry no `tenant_id`, so an
+  // agency would only ever see its own slice of an inspector's week and could
+  // not read the capacity thresholds against it.
+  it.each(['CL_ADMIN', 'CL_USER', 'INSP'])('hides Workload from %s', (role) => {
+    renderSidebar(role);
+    expect(screen.queryByText('Workload')).not.toBeInTheDocument();
+  });
+
+  it('shows Analytics but not Workload to an agency admin', () => {
+    renderSidebar('CL_ADMIN');
+    expect(screen.getByText('Analytics')).toBeInTheDocument();
+    expect(screen.queryByText('Workload')).not.toBeInTheDocument();
+  });
+});

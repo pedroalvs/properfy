@@ -1,5 +1,15 @@
 import type { PrismaClient } from '@prisma/client';
-import { AGENCY_VISIBLE_ENTRY_TYPES } from '@properfy/shared';
+import {
+  addCivilDays,
+  AGENCY_VISIBLE_ENTRY_TYPES,
+  mondayOf,
+  workloadAlertLevel,
+} from '@properfy/shared';
+import {
+  civilDateInTimezone,
+  nextCivilDay,
+  PLATFORM_TIMEZONE,
+} from '../../../shared/domain/timezone-date';
 import { AppointmentCodeFormatter } from '../../appointment/domain/appointment-code.formatter';
 import type { DashboardRepository } from '../domain/dashboard.repository';
 import type { DashboardStatsOutput, InspectorBreakdowns, InspectorDayCount } from '../application/use-cases/get-dashboard-stats.use-case';
@@ -9,29 +19,30 @@ type InspectorGroupByRow = { inspector_id: string | null; _count: { _all: number
 export class PrismaDashboardRepository implements DashboardRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  /** Monday 00:00:00.000 -> Sunday 23:59:59.999 of the current week, server-local time. */
-  private currentWeekRange(now: Date = new Date()): { from: Date; to: Date } {
-    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    const daysSinceMonday = (dayOfWeek + 6) % 7; // 0 if Monday, 6 if Sunday
-    const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday, 0, 0, 0, 0);
-    const to = new Date(from);
-    to.setDate(from.getDate() + 6);
-    to.setHours(23, 59, 59, 999);
-    return { from, to };
+  /**
+   * Inclusive [start 00:00 UTC, end+1 00:00 UTC) — ONLY for `@db.Date` columns.
+   *
+   * `scheduled_date` is a `@db.Date` pinned to UTC midnight of a Sydney civil
+   * date, so it must be bounded by civil dates. This replaced a pair of helpers
+   * that built their windows with `new Date(y, m, d)`, which reads the *server's*
+   * timezone: on any host not set to Sydney the week and month boundaries landed
+   * on the wrong day, and the figures disagreed with the Inspector Workload
+   * screen. See `prisma-inspector-workload.repository.ts`, which uses the same
+   * discipline.
+   */
+  private civilDateRange(startDate: string, endDate: string): { gte: Date; lt: Date } {
+    return {
+      gte: new Date(`${startDate}T00:00:00.000Z`),
+      lt: new Date(`${nextCivilDay(endDate)}T00:00:00.000Z`),
+    };
   }
 
-  /** Tomorrow 00:00:00.000 -> 23:59:59.999, server-local time. */
-  private tomorrowRange(now: Date = new Date()): { from: Date; to: Date } {
-    const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
-    const to = new Date(from);
-    to.setHours(23, 59, 59, 999);
-    return { from, to };
-  }
-
-  private static computeAlertLevel(count: number): 'yellow' | 'red' | null {
-    if (count >= 18) return 'red';
-    if (count >= 15) return 'yellow';
-    return null;
+  /** First and last civil date of the month the given date falls in. */
+  private static monthRange(civilDate: string): { start: string; end: string } {
+    const [year, month] = civilDate.split('-').map(Number) as [number, number];
+    // Day 0 of the following month is the last day of this one.
+    const end = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+    return { start: `${civilDate.slice(0, 7)}-01`, end };
   }
 
   private buildInspectorList(
@@ -55,7 +66,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
         inspectorId: id,
         inspectorName: name,
         count: row._count._all,
-        alertLevel: withAlertLevel ? PrismaDashboardRepository.computeAlertLevel(row._count._all) : null,
+        alertLevel: withAlertLevel ? workloadAlertLevel(row._count._all) : null,
       });
     }
 
@@ -77,8 +88,14 @@ export class PrismaDashboardRepository implements DashboardRepository {
     now: Date = new Date(),
   ): Promise<DashboardStatsOutput> {
     const tenantFilter = tenantId ? { tenant_id: tenantId } : {};
-    const week = this.currentWeekRange(now);
-    const tomorrow = this.tomorrowRange(now);
+
+    // Every window below is a Sydney civil window, not a server-local one.
+    const today = civilDateInTimezone(now, PLATFORM_TIMEZONE);
+    const weekStart = mondayOf(today);
+    const week = this.civilDateRange(weekStart, addCivilDays(weekStart, 6));
+    const tomorrow = this.civilDateRange(nextCivilDay(today), nextCivilDay(today));
+    const month = PrismaDashboardRepository.monthRange(today);
+    const monthRange = this.civilDateRange(month.start, month.end);
 
     const [
       statusCounts,
@@ -106,15 +123,15 @@ export class PrismaDashboardRepository implements DashboardRepository {
         _count: true,
       }),
 
-      // Done this month
+      // Done this month, by scheduled date. `updated_at` was the original key
+      // here and was never a completion date — any later edit re-stamps it, so
+      // an inspection done in June and edited in July counted as July.
       this.prisma.appointment.count({
         where: {
           ...tenantFilter,
           deleted_at: null,
           status: 'DONE',
-          updated_at: {
-            gte: new Date(now.getFullYear(), now.getMonth(), 1),
-          },
+          scheduled_date: monthRange,
         },
       }),
 
@@ -216,13 +233,14 @@ export class PrismaDashboardRepository implements DashboardRepository {
         },
       }),
 
-      // Done this week (uses updated_at as proxy — consistent with doneThisMonth)
+      // Done this week, by scheduled date — same key as doneThisMonth above and
+      // as the Inspector Workload screen, so the three figures agree.
       this.prisma.appointment.count({
         where: {
           ...tenantFilter,
           deleted_at: null,
           status: 'DONE',
-          updated_at: { gte: week.from, lte: week.to },
+          scheduled_date: week,
         },
       }),
 
@@ -232,7 +250,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
           ...tenantFilter,
           deleted_at: null,
           status: 'SCHEDULED',
-          scheduled_date: { gte: week.from, lte: week.to },
+          scheduled_date: week,
         },
       }),
 
@@ -282,7 +300,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
             status: 'SCHEDULED',
             rental_tenant_confirmation_status: 'CONFIRMED',
             inspector_id: { not: null },
-            scheduled_date: { gte: tomorrow.from, lte: tomorrow.to },
+            scheduled_date: tomorrow,
           },
           _count: { _all: true },
         }),
@@ -293,7 +311,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
             deleted_at: null,
             status: 'SCHEDULED',
             inspector_id: { not: null },
-            scheduled_date: { gte: week.from, lte: week.to },
+            scheduled_date: week,
           },
           _count: { _all: true },
         }),
@@ -305,7 +323,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
             status: 'SCHEDULED',
             rental_tenant_confirmation_status: 'CONFIRMED',
             inspector_id: { not: null },
-            scheduled_date: { gte: week.from, lte: week.to },
+            scheduled_date: week,
           },
           _count: { _all: true },
         }),

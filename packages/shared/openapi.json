@@ -26376,6 +26376,452 @@
         }
       }
     },
+    "/v1/dashboard/inspector-workload": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "weekStart",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "week": {
+                          "type": "object",
+                          "properties": {
+                            "weekStart": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            },
+                            "weekEnd": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                            },
+                            "days": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                              },
+                              "minItems": 7,
+                              "maxItems": 7
+                            }
+                          },
+                          "required": [
+                            "weekStart",
+                            "weekEnd",
+                            "days"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "thresholds": {
+                          "type": "object",
+                          "properties": {
+                            "weeklyBusy": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "minimum": 0
+                            },
+                            "weeklyOverloaded": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "minimum": 0
+                            },
+                            "dailyBusy": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "minimum": 0
+                            },
+                            "dailyOverloaded": {
+                              "type": "integer",
+                              "exclusiveMinimum": true,
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "weeklyBusy",
+                            "weeklyOverloaded",
+                            "dailyBusy",
+                            "dailyOverloaded"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "kpis": {
+                          "type": "object",
+                          "properties": {
+                            "totalInWeek": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "activeInspectorCount": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "avgPerInspector": {
+                              "type": "number",
+                              "minimum": 0,
+                              "nullable": true
+                            },
+                            "nearLimit": {
+                              "type": "object",
+                              "properties": {
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "inspectors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "inspectorId": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                      },
+                                      "inspectorName": {
+                                        "type": "string"
+                                      },
+                                      "total": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": [
+                                      "inspectorId",
+                                      "inspectorName",
+                                      "total"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "count",
+                                "inspectors"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "overloaded": {
+                              "type": "object",
+                              "properties": {
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "inspectors": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "inspectorId": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                      },
+                                      "inspectorName": {
+                                        "type": "string"
+                                      },
+                                      "total": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": [
+                                      "inspectorId",
+                                      "inspectorName",
+                                      "total"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "count",
+                                "inspectors"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "totalInWeek",
+                            "activeInspectorCount",
+                            "avgPerInspector",
+                            "nearLimit",
+                            "overloaded"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "funnel": {
+                          "type": "object",
+                          "properties": {
+                            "previous": {
+                              "type": "object",
+                              "properties": {
+                                "weekStart": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "weekEnd": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "done": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "scheduled": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "confirmed": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "confirmationEligible": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "weekStart",
+                                "weekEnd",
+                                "done",
+                                "scheduled",
+                                "confirmed",
+                                "confirmationEligible"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "selected": {
+                              "type": "object",
+                              "properties": {
+                                "weekStart": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "weekEnd": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "done": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "scheduled": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "confirmed": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "confirmationEligible": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "weekStart",
+                                "weekEnd",
+                                "done",
+                                "scheduled",
+                                "confirmed",
+                                "confirmationEligible"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "next": {
+                              "type": "object",
+                              "properties": {
+                                "weekStart": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "weekEnd": {
+                                  "type": "string",
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                                },
+                                "done": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "scheduled": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "confirmed": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "confirmationEligible": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": [
+                                "weekStart",
+                                "weekEnd",
+                                "done",
+                                "scheduled",
+                                "confirmed",
+                                "confirmationEligible"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "previous",
+                            "selected",
+                            "next"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "completed": {
+                          "type": "object",
+                          "properties": {
+                            "doneSelectedWeek": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "donePreviousWeek": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "doneSelectedMonth": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "donePreviousMonth": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "selectedMonth": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}$"
+                            },
+                            "previousMonth": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}$"
+                            }
+                          },
+                          "required": [
+                            "doneSelectedWeek",
+                            "donePreviousWeek",
+                            "doneSelectedMonth",
+                            "donePreviousMonth",
+                            "selectedMonth",
+                            "previousMonth"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "matrix": {
+                          "type": "object",
+                          "properties": {
+                            "inspectors": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "inspectorId": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "inspectorName": {
+                                    "type": "string"
+                                  },
+                                  "isActive": {
+                                    "type": "boolean"
+                                  },
+                                  "days": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    "minItems": 7,
+                                    "maxItems": 7
+                                  },
+                                  "total": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "level": {
+                                    "type": "string",
+                                    "enum": [
+                                      "normal",
+                                      "busy",
+                                      "overloaded"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "inspectorId",
+                                  "inspectorName",
+                                  "isActive",
+                                  "days",
+                                  "total",
+                                  "level"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "teamTotalsByDay": {
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "minItems": 7,
+                              "maxItems": 7
+                            },
+                            "teamTotal": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "inspectors",
+                            "teamTotalsByDay",
+                            "teamTotal"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "week",
+                        "thresholds",
+                        "kpis",
+                        "funnel",
+                        "completed",
+                        "matrix"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/service-regions": {
       "get": {
         "responses": {
