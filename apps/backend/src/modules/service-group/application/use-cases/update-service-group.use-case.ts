@@ -90,9 +90,9 @@ export class UpdateServiceGroupUseCase {
     // TZ-aware past-date/time validation when date or window changes (R7: falls back to UTC).
     if (input.scheduledDate !== undefined || input.timeWindow !== undefined) {
       // Service groups are cross-tenant (region-scoped) marketplace constructs whose
-    // members may span agencies, so their schedule validation stays anchored to
-    // the platform timezone (documented carve-out of the per-agency timezone work).
-    const tz = PLATFORM_TIMEZONE;
+      // members may span agencies, so their schedule validation stays anchored to
+      // the platform timezone (documented carve-out of the per-agency timezone work).
+      const tz = PLATFORM_TIMEZONE;
       const existingDateStr = group.scheduledDate.toISOString().slice(0, 10);
       const scheduleCheck = validateEditedSchedule({
         existingDate: existingDateStr,

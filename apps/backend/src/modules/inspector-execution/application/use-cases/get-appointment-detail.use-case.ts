@@ -10,6 +10,7 @@ import type { IContactReader, ContactRegistryInfo, ContactRegistryChannel } from
 import { T1VisibilityService } from '../../domain/t1-visibility.service';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../../shared/domain/timezone-date';
+import type { ITenantTimezoneLookup } from '../../../../shared/application/tenant-timezone';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import {
@@ -157,6 +158,8 @@ export class GetAppointmentDetailUseCase {
     private readonly appCredentialRepo?: IAppCredentialRepository,
     private readonly contactReader?: IContactReader,
     private readonly logger?: Logger,
+    /** Cached tenants.timezone lookup — preferred over a full tenant fetch on this hot path. */
+    private readonly tenantTimezoneLookup?: ITenantTimezoneLookup,
   ) {}
 
   async execute(input: GetAppointmentDetailInput): Promise<AppointmentDetailOutput> {
@@ -193,11 +196,12 @@ export class GetAppointmentDetailUseCase {
     if (appointment.status === 'SCHEDULED') {
       const st = await this.serviceTypeReader.findById(appointment.serviceTypeId);
       const flowType = st?.flowType ?? 'ROUTINE';
-      // T-1 visibility is a rule of the appointment: use its AGENCY timezone.
-      const todayCivil = civilDateInTimezone(
-        new Date(),
-        (await this.tenantRepo.findById(appointment.tenantId))?.timezone ?? PLATFORM_TIMEZONE,
-      );
+      // T-1 visibility is a rule of the appointment: use its AGENCY timezone
+      // (via the shared cached lookup — this is a hot PWA path).
+      const agencyTz = this.tenantTimezoneLookup
+        ? await this.tenantTimezoneLookup.getTenantTimezone(appointment.tenantId)
+        : (await this.tenantRepo.findById(appointment.tenantId))?.timezone;
+      const todayCivil = civilDateInTimezone(new Date(), agencyTz ?? PLATFORM_TIMEZONE);
       const isVisible = this.t1Service.isVisibleForInspector(
         flowType,
         appointment.rentalTenantConfirmationStatus,

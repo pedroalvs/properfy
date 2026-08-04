@@ -65,7 +65,7 @@ describe('GetDashboardStatsUseCase', () => {
 
       await useCase.execute({ actor: makeActor('AM') });
 
-      expect(mockRepository.getStats).toHaveBeenCalledWith(undefined, true);
+      expect(mockRepository.getStats).toHaveBeenCalledWith(undefined, true, undefined, undefined);
     });
 
     it('returns populated inspectorBreakdowns', async () => {
@@ -93,7 +93,7 @@ describe('GetDashboardStatsUseCase', () => {
 
       await useCase.execute({ actor: makeActor('OP') });
 
-      expect(mockRepository.getStats).toHaveBeenCalledWith(undefined, true);
+      expect(mockRepository.getStats).toHaveBeenCalledWith(undefined, true, undefined, undefined);
     });
 
     it('returns populated inspectorBreakdowns', async () => {
@@ -112,7 +112,7 @@ describe('GetDashboardStatsUseCase', () => {
 
       await useCase.execute({ actor: makeActor('CL_ADMIN', 'tenant-1') });
 
-      expect(mockRepository.getStats).toHaveBeenCalledWith('tenant-1', false);
+      expect(mockRepository.getStats).toHaveBeenCalledWith('tenant-1', false, undefined, undefined);
     });
 
     it('returns inspectorBreakdowns: null', async () => {
@@ -139,7 +139,7 @@ describe('GetDashboardStatsUseCase', () => {
 
       await useCase.execute({ actor: makeActor('CL_USER', 'tenant-1') });
 
-      expect(mockRepository.getStats).toHaveBeenCalledWith('tenant-1', false);
+      expect(mockRepository.getStats).toHaveBeenCalledWith('tenant-1', false, undefined, undefined);
     });
 
     it('returns inspectorBreakdowns: null', async () => {

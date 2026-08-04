@@ -931,6 +931,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getAppointmentDetailUseCase = new GetAppointmentDetailUseCase(
     appointmentRepo, inspectionExecutionRepo, serviceTypeReaderForExec, authorizationService, tenantRepo, appCredentialRepo,
     contactReaderForExec, logger,
+    tenantTimezoneLookup,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
     appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, serviceTypeReaderForExec, authorizationService,
