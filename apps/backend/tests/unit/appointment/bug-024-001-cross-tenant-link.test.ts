@@ -360,7 +360,12 @@ describe('BUG-024-001 — UpdateAppointmentUseCase cross-tenant contact link (pa
     // visibility gate not consulted.
     expect(repos.contactRepo.findById).toHaveBeenCalledWith(STANDALONE_CONTACT_ID, null);
     expect(repos.contactRepo.existsLinkedToTenant).not.toHaveBeenCalled();
-    expect(repos.appointmentRepo.deleteContactsByAppointmentId).toHaveBeenCalledWith(APPOINTMENT_ID);
+    // Second arg is the owning tenant: appointment_contacts has no tenant_id of
+    // its own, so the delete is scoped through the appointment relation.
+    expect(repos.appointmentRepo.deleteContactsByAppointmentId).toHaveBeenCalledWith(
+      APPOINTMENT_ID,
+      expect.any(String),
+    );
     expect(repos.appointmentRepo.saveContact).toHaveBeenCalled();
   });
 

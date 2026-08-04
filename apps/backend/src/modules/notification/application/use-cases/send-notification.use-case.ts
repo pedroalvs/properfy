@@ -2,6 +2,9 @@ import { randomUUID } from 'node:crypto';
 import {
   toE164Au,
   isRentalTenantNotificationsEnabled,
+  suppressesOccupantNotifications,
+  isWithheldForNonNotifyingFlow,
+  FLOW_TYPE_NO_OCCUPANT_CODE,
   type NotificationClass,
 } from '@properfy/shared';
 import { prepareSmsBody } from '../../domain/sms-content';
@@ -112,6 +115,15 @@ export interface SendNotificationDeps {
   metrics: MetricsCollector;
   getTenantSettings: (tenantId: string | null) => Promise<Record<string, unknown>>;
   /**
+   * Flow type of the appointment behind this notification, or `null` when it is
+   * not appointment-scoped. Optional so existing wiring keeps working; absent
+   * means "never suppress", which is the fail-open direction.
+   */
+  getAppointmentFlowType?: (
+    appointmentId: string | null | undefined,
+    tenantId: string | null,
+  ) => Promise<string | null>;
+  /**
    * Resolves the branch contact a suppressed occupant message is mirrored to.
    * Reports WHY it could not (appointment gone vs branch has no contact email) so the
    * two can be logged and acted on differently.
@@ -145,6 +157,10 @@ export class SendNotificationUseCase {
   private readonly logger: Logger;
   private readonly metrics: MetricsCollector;
   private readonly getTenantSettings: (tenantId: string | null) => Promise<Record<string, unknown>>;
+  private readonly getAppointmentFlowType?: (
+    appointmentId: string | null | undefined,
+    tenantId: string | null,
+  ) => Promise<string | null>;
   private readonly getAgencyForwardRecipient: AgencyForwardRecipientReader;
   private readonly forwardNotification: (input: ForwardNotificationInput) => Promise<void>;
   private readonly htmlSanitizer?: IHtmlSanitizerService;
@@ -162,6 +178,7 @@ export class SendNotificationUseCase {
     this.logger = deps.logger;
     this.metrics = deps.metrics;
     this.getTenantSettings = deps.getTenantSettings;
+    this.getAppointmentFlowType = deps.getAppointmentFlowType;
     this.getAgencyForwardRecipient = deps.getAgencyForwardRecipient;
     this.forwardNotification = deps.forwardNotification;
     this.htmlSanitizer = deps.htmlSanitizer;
@@ -460,6 +477,42 @@ export class SendNotificationUseCase {
     }
     if (notification.notificationClass === null) {
       effectiveClass = template.notificationClass;
+    }
+
+    // INGOING/OUTGOING inspections have no rental tenant to consult at all —
+    // `SCHEDULED` is already the operational confirmation (see backend CLAUDE.md
+    // §8). Withhold everything aimed at an occupant, plus the property-manager
+    // escalation, which exists only to chase a tenant response that was never
+    // expected. Its same-target sibling INSPECTION_CANCELLED_AGENCY reports a
+    // real event and keeps flowing, which is why the rule is not "target ===
+    // PROPERTY_MANAGER".
+    //
+    // Evaluated BEFORE the agency kill switch, and deliberately without the
+    // agency mirror. That mirror exists so an agency that contacts its own
+    // tenants still receives the content to relay; here there is nobody to relay
+    // it to, so forwarding would be pure noise.
+    if (this.getAppointmentFlowType && isWithheldForNonNotifyingFlow(notification.templateCode)) {
+      const flowType = await this.getAppointmentFlowType(
+        notification.appointmentId,
+        notification.tenantId,
+      );
+      if (suppressesOccupantNotifications(flowType)) {
+        notification.status = 'SKIPPED_OPT_OUT';
+        notification.failureReason = FLOW_TYPE_NO_OCCUPANT_CODE;
+        notification.updatedAt = new Date();
+        await this.notificationRepo.update(notification);
+        this.logger.info(
+          {
+            notificationId: notification.id,
+            appointmentId: notification.appointmentId,
+            templateCode: notification.templateCode,
+            channel: notification.channel,
+            flowType,
+          },
+          'notification.skipped_flow_type_no_occupant',
+        );
+        return;
+      }
     }
 
     // Per-agency occupant kill switch: some agencies contact their own rental tenants

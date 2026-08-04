@@ -216,8 +216,7 @@ export class AppointmentImportCommitWorker {
     try {
       const propertyId = await this.resolveOrCreateProperty(row, tenantId, branchId, codePrefix, createdPropertyIds, geocodeCache);
 
-      // A contact is not required to import (CONTACT_INCOMPLETE is a
-      // warning, not an error) — `contacts` defaults to `[]` in
+      // A contact is not required to import — `contacts` defaults to `[]` in
       // CreateAppointmentUseCase, which creates the appointment with no
       // contact attached rather than failing.
       const contacts = row.contact ? [{

@@ -14,6 +14,7 @@ export interface GetServiceRegionInput {
 
 export interface GetServiceRegionOutput {
   id: string;
+  regionNumber: number;
   name: string;
   geojson: Record<string, unknown>;
   color: string;
@@ -51,6 +52,7 @@ export class GetServiceRegionUseCase {
 
     return {
       id: region.id,
+      regionNumber: region.regionNumber,
       name: region.name,
       geojson: region.geojson,
       color: region.color,

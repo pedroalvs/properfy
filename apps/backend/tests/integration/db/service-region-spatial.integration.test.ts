@@ -352,4 +352,115 @@ describe('T155 — GIST index correctness', () => {
     const outsideResult = await repo.findContainingPoint(tenantId, POINT_OUTSIDE_SYDNEY.lat, POINT_OUTSIDE_SYDNEY.lng);
     expect(outsideResult).toHaveLength(0);
   });
+
+  // The correctness assertions above pass just as happily against a sequential
+  // scan, which is exactly how migration 20260601120000 dropped both GIST
+  // indexes without a single test going red. Assert the indexes themselves.
+  it('the GIST indexes backing every ST_Intersects actually exist', async () => {
+    const rows = await harness.prisma.$queryRaw<Array<{ tablename: string; indexname: string; amname: string }>>`
+      SELECT t.relname AS tablename, i.relname AS indexname, a.amname
+        FROM pg_index x
+        JOIN pg_class i ON i.oid = x.indexrelid
+        JOIN pg_class t ON t.oid = x.indrelid
+        JOIN pg_am a ON a.oid = i.relam
+       WHERE t.relname IN ('service_regions', 'properties')
+         AND a.amname = 'gist'
+    `;
+
+    const byTable = Object.fromEntries(rows.map((r) => [r.tablename, r.indexname]));
+
+    // Both sides of the ST_Intersects join in resolveRegionsForAppointments /
+    // findPropertyIdsInInspectorRegions / findContainingPoint must be indexed.
+    expect(byTable).toHaveProperty('service_regions', 'service_regions_geom_idx');
+    expect(byTable).toHaveProperty('properties', 'properties_coordinates_idx');
+  });
+
+  // Dropped by the same drift migration as the two GIST indexes above.
+  // PrismaContactRepository.search() ranks with similarity() and filters with the
+  // `%` trigram operator on display_name, so without this GIN index every contact
+  // search seq-scans the table computing similarity per row.
+  it('the trigram index backing contact search actually exists', async () => {
+    const rows = await harness.prisma.$queryRaw<
+      Array<{ indexname: string; amname: string; indexdef: string; indisvalid: boolean }>
+    >`
+      SELECT i.relname AS indexname, a.amname,
+             pg_get_indexdef(x.indexrelid) AS indexdef, x.indisvalid
+        FROM pg_index x
+        JOIN pg_class i ON i.oid = x.indexrelid
+        JOIN pg_class t ON t.oid = x.indrelid
+        JOIN pg_am a ON a.oid = i.relam
+       WHERE t.relname = 'contacts' AND a.amname = 'gin'
+    `;
+
+    const idx = rows.find((r) => r.indexname === 'contacts_display_name_trgm_idx');
+    expect(idx).toBeDefined();
+    // Name and access method alone would also pass for a GIN index on the wrong
+    // column, or one built without gin_trgm_ops — which would not accelerate
+    // similarity()/% at all. Assert the definition, and that it is usable: an
+    // INVALID index (failed concurrent build) is silently ignored by the planner.
+    expect(idx?.indexdef).toContain('display_name gin_trgm_ops');
+    expect(idx?.indisvalid).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// region_number — the overlap tie-break key
+// ---------------------------------------------------------------------------
+
+describe('region_number sequence', () => {
+  it('assigns an increasing number to each new region without being told to', async () => {
+    const { tenantId } = await seedTenant(harness.prisma, 'Region Number Tenant');
+
+    const first = await seedServiceRegion(harness.prisma, { tenantId, name: 'First' });
+    const second = await seedServiceRegion(harness.prisma, { tenantId, name: 'Second' });
+
+    const rows = await harness.prisma.$queryRaw<Array<{ id: string; region_number: number }>>`
+      SELECT id, region_number FROM service_regions WHERE id IN (${first.regionId}, ${second.regionId})
+    `;
+    const byId = Object.fromEntries(rows.map((r) => [r.id, r.region_number]));
+
+    expect(byId[first.regionId]).toBeGreaterThan(0);
+    expect(byId[second.regionId]).toBeGreaterThan(byId[first.regionId]);
+  });
+
+  it('refuses a duplicate region_number', async () => {
+    const { tenantId } = await seedTenant(harness.prisma, 'Region Number Dup Tenant');
+    const first = await seedServiceRegion(harness.prisma, { tenantId, name: 'Taken' });
+    const second = await seedServiceRegion(harness.prisma, { tenantId, name: 'Collider' });
+
+    const [{ region_number: taken }] = await harness.prisma.$queryRaw<Array<{ region_number: number }>>`
+      SELECT region_number FROM service_regions WHERE id = ${first.regionId}
+    `;
+
+    // Targets a real, distinct row, so the unique index is what rejects this —
+    // an UPDATE matching zero rows would pass without proving anything.
+    // Matched on the constraint name rather than bare toThrow(): any database
+    // error satisfies the latter, so a typo'd column would read as "uniqueness
+    // works".
+    await expect(
+      harness.prisma.$executeRaw`
+        UPDATE service_regions SET region_number = ${taken} WHERE id = ${second.regionId}
+      `,
+    ).rejects.toThrow(/service_regions_region_number_key|23505/);
+  });
+
+  // The constraint is table-wide, not per-tenant, which is what makes
+  // region_number usable as a global tie-break: two agencies cannot both own
+  // "region 7" and have the ordering mean different things to each.
+  it('refuses a duplicate region_number across different tenants', async () => {
+    const { tenantId: tenantA } = await seedTenant(harness.prisma, 'Region Number Tenant A');
+    const { tenantId: tenantB } = await seedTenant(harness.prisma, 'Region Number Tenant B');
+    const ownedByA = await seedServiceRegion(harness.prisma, { tenantId: tenantA, name: 'A Region' });
+    const ownedByB = await seedServiceRegion(harness.prisma, { tenantId: tenantB, name: 'B Region' });
+
+    const [{ region_number: takenByA }] = await harness.prisma.$queryRaw<Array<{ region_number: number }>>`
+      SELECT region_number FROM service_regions WHERE id = ${ownedByA.regionId}
+    `;
+
+    await expect(
+      harness.prisma.$executeRaw`
+        UPDATE service_regions SET region_number = ${takenByA} WHERE id = ${ownedByB.regionId}
+      `,
+    ).rejects.toThrow(/service_regions_region_number_key|23505/);
+  });
 });

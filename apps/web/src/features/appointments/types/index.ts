@@ -30,6 +30,12 @@ export interface Appointment {
   propertyAddress: string;
   serviceTypeId: string;
   serviceTypeName: string;
+  /**
+   * Service type flow (ROUTINE | INGOING | OUTGOING). Optional because older
+   * cached payloads predate the field. INGOING/OUTGOING have no occupant, which
+   * is why the occupant-facing actions are disabled for them.
+   */
+  flowType?: string | null;
   status: AppointmentStatus;
   rentalTenantConfirmationStatus: RentalTenantConfirmationStatus;
   contactName: string;

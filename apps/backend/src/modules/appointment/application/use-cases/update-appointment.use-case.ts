@@ -439,14 +439,45 @@ export class UpdateAppointmentUseCase {
       }
     }
 
+    // App-credential ids are validated HERE, before any write below, and only
+    // replaced further down. The contacts replacement deletes the existing
+    // junction rows before this point, so validating late meant a bad credential
+    // id returned an error with the appointment's contacts already gone.
+    let validatedAppCredentialIds: string[] | undefined;
+    if (data.appCredentialIds !== undefined && this.appCredentialRepo) {
+      const ids = [...new Set(data.appCredentialIds)];
+      if (ids.length > 0) {
+        const foundCreds = await this.appCredentialRepo.findByIds(ids);
+        const byId = new Map(foundCreds.map((a) => [a.id, a]));
+        for (const id of ids) {
+          const cred = byId.get(id);
+          if (!cred || cred.tenantId !== appointment.tenantId) {
+            throw new NotFoundError('APPOINTMENT_APP_CREDENTIAL_NOT_FOUND', `App credential ${id} not found`);
+          }
+          if (!cred.isActive) {
+            throw new ValidationError('APPOINTMENT_APP_CREDENTIAL_INACTIVE', `App credential ${id} is not active`);
+          }
+          // Branch-scoped credentials only attach to appointments of that
+          // branch; agency-wide (branchId null) attach anywhere in the tenant.
+          if (cred.branchId !== null && cred.branchId !== appointment.branchId) {
+            throw new ValidationError(
+              'APPOINTMENT_APP_CREDENTIAL_BRANCH_MISMATCH',
+              `App credential ${id} belongs to another branch`,
+            );
+          }
+        }
+      }
+      validatedAppCredentialIds = ids;
+    }
+
     // Upsert contacts
     if (data.contacts !== undefined && this.contactRepo) {
-      // New path: contacts array replacement (feature 021)
-      if (data.contacts.length === 0) {
-        throw new ValidationError('APPOINTMENT_CONTACTS_REQUIRED', 'At least one contact is required');
-      }
+      // New path: contacts array replacement (feature 021).
+      // An empty array is a valid instruction — "clear them all" — since a
+      // contact is no longer required for any service type. The delete below
+      // followed by a loop over zero entries already implements exactly that.
       // Delete old junction rows, insert new with fresh snapshots
-      await this.appointmentRepo.deleteContactsByAppointmentId(appointmentId);
+      await this.appointmentRepo.deleteContactsByAppointmentId(appointmentId, appointment.tenantId);
       const now = this.clock.now();
       for (const entry of data.contacts) {
         let cId: string | null = null;
@@ -550,30 +581,8 @@ export class UpdateAppointmentUseCase {
     // Replace app-credential links (live reference). When the key is present
     // we replace the full set; an empty array clears all links. Each id must
     // belong to this appointment's tenant and be active.
-    if (data.appCredentialIds !== undefined && this.appCredentialRepo) {
-      const ids = [...new Set(data.appCredentialIds)];
-      if (ids.length > 0) {
-        const found = await this.appCredentialRepo.findByIds(ids);
-        const byId = new Map(found.map((a) => [a.id, a]));
-        for (const id of ids) {
-          const cred = byId.get(id);
-          if (!cred || cred.tenantId !== appointment.tenantId) {
-            throw new NotFoundError('APPOINTMENT_APP_CREDENTIAL_NOT_FOUND', `App credential ${id} not found`);
-          }
-          if (!cred.isActive) {
-            throw new ValidationError('APPOINTMENT_APP_CREDENTIAL_INACTIVE', `App credential ${id} is not active`);
-          }
-          // Branch-scoped credentials only attach to appointments of that
-          // branch; agency-wide (branchId null) attach anywhere in the tenant.
-          if (cred.branchId !== null && cred.branchId !== appointment.branchId) {
-            throw new ValidationError(
-              'APPOINTMENT_APP_CREDENTIAL_BRANCH_MISMATCH',
-              `App credential ${id} belongs to another branch`,
-            );
-          }
-        }
-      }
-      await this.appCredentialRepo.replaceAppointmentLinks(appointmentId, ids);
+    if (validatedAppCredentialIds !== undefined && this.appCredentialRepo) {
+      await this.appCredentialRepo.replaceAppointmentLinks(appointmentId, validatedAppCredentialIds);
     }
 
     // Upsert restriction: delete existing, create new if provided.

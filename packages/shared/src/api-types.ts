@@ -4534,6 +4534,7 @@ export interface paths {
                                 inspectorName?: string | null;
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
+                                flowType?: string | null;
                                 clientName?: string;
                                 rentalTenantNotificationsEnabled?: boolean;
                                 cancellationReason?: string | null;
@@ -4738,6 +4739,7 @@ export interface paths {
                                 inspectorName?: string | null;
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
+                                flowType?: string | null;
                                 clientName?: string;
                                 rentalTenantNotificationsEnabled?: boolean;
                                 cancellationReason?: string | null;
@@ -4867,6 +4869,7 @@ export interface paths {
                                 inspectorName?: string | null;
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
+                                flowType?: string | null;
                                 clientName?: string;
                                 rentalTenantNotificationsEnabled?: boolean;
                                 cancellationReason?: string | null;
@@ -5071,6 +5074,7 @@ export interface paths {
                                 inspectorName?: string | null;
                                 branchName?: string | null;
                                 serviceTypeName?: string | null;
+                                flowType?: string | null;
                                 clientName?: string;
                                 rentalTenantNotificationsEnabled?: boolean;
                                 cancellationReason?: string | null;
@@ -8691,23 +8695,15 @@ export interface paths {
                         "application/json": {
                             data: {
                                 /** Format: uuid */
-                                id: string;
+                                executionId: string;
                                 /** Format: uuid */
                                 appointmentId: string;
-                                /** Format: uuid */
-                                inspectorId: string;
                                 startedAt: string;
-                                finishedAt: (string) | null;
-                                resumedAt: (string) | null;
                                 startLatitude: number;
                                 startLongitude: number;
-                                finishLatitude: number | null;
-                                finishLongitude: number | null;
                                 geolocationDistanceMeters: number | null;
-                                checklistJson?: unknown;
-                                notes: string | null;
-                                createdAt: string;
-                                updatedAt: string;
+                                /** @enum {string} */
+                                status: "IN_PROGRESS";
                             };
                         };
                     };

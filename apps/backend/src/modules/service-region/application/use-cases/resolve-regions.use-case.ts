@@ -14,6 +14,7 @@ export interface ResolveRegionsInput {
 
 export interface ResolvedRegionItem {
   regionId: string;
+  regionNumber: number;
   regionName: string;
   color: string;
   matchedAppointmentCount: number;
@@ -55,6 +56,7 @@ export class ResolveRegionsUseCase {
     const regions: ResolvedRegionItem[] = await Promise.all(
       resolved.map(async (r) => ({
         regionId: r.regionId,
+        regionNumber: r.regionNumber,
         regionName: r.regionName,
         color: r.color,
         matchedAppointmentCount: r.matchedAppointmentIds.length,

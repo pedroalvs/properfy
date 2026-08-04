@@ -125,9 +125,11 @@ export const createAppointmentSchema = z.object({
   (data) => {
     const hasLegacy = data.contact !== undefined;
     const hasNew = data.contacts !== undefined;
-    return (hasLegacy || hasNew) && !(hasLegacy && hasNew);
+    // Both absent is fine — a contact is no longer required for any service
+    // type. Both present is still ambiguous. Mirrors the update refine below.
+    return !(hasLegacy && hasNew);
   },
-  { message: 'Must provide either contact (legacy) or contacts (array), but not both and not neither', path: ['contacts'] },
+  { message: 'Cannot provide both contact (legacy) and contacts (array)', path: ['contacts'] },
 ).refine(
   (data) => isTimeRangeOrdered(data.timeSlotStart, data.timeSlotEnd),
   { message: TIME_RANGE_MESSAGE, path: ['timeSlotEnd'] },
@@ -393,6 +395,10 @@ export const bulkResendReminderResultStatusSchema = z.enum([
   // status rather than ERROR: it is an expected outcome of a deliberate setting,
   // and a selection can legitimately mix blocked and unblocked agencies.
   'TENANT_NOTIFICATIONS_BLOCKED',
+  // Nothing was dispatched and nothing went wrong: the caller asked not to
+  // notify, or the service type has no occupant to notify. Distinct from ERROR
+  // (a real failure) and from SENT (a lie).
+  'NOT_APPLICABLE',
   'ERROR',
 ]);
 export type BulkResendReminderResultStatus = z.infer<typeof bulkResendReminderResultStatusSchema>;

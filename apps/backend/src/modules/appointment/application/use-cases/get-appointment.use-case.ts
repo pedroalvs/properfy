@@ -54,6 +54,7 @@ export interface GetAppointmentOutput {
   inspectorName: string | null;
   branchName: string;
   serviceTypeName: string;
+  flowType: string | null;
   /** Tenant (agency) display name — labelled "CLIENT" in the map detail panel (025 §FR-451). */
   clientName: string;
   /**
@@ -155,6 +156,7 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
     inspectorName: found.inspectorName ?? null,
     branchName: found.branchName ?? '',
     serviceTypeName: found.serviceTypeName ?? '',
+    flowType: found.serviceTypeFlowType ?? null,
     clientName: found.tenantName ?? '',
     // Undefined (older fixtures) means enabled, matching the schema default.
     rentalTenantNotificationsEnabled: found.tenantRentalTenantNotificationsEnabled !== false,

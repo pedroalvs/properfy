@@ -205,11 +205,17 @@ describe('appointmentContactsArraySchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should fail with empty array', () => {
+  // An appointment with nobody to contact is a legitimate state: agencies that
+  // do not hold occupant details still need the job created.
+  it('should accept an empty array', () => {
     const result = appointmentContactsArraySchema.safeParse([]);
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
+  // "Exactly one when non-empty", not "at most one". Every read path resolves
+  // the recipient as contacts[0] after a primary-first sort, so a populated list
+  // with no designated primary degrades silently to NO_PRIMARY_CONTACT instead
+  // of telling the operator they mis-entered the data.
   it('should fail with zero primaries', () => {
     const result = appointmentContactsArraySchema.safeParse([
       { contactId: '550e8400-e29b-41d4-a716-446655440000', role: 'RENTAL_TENANT', isPrimary: false },
