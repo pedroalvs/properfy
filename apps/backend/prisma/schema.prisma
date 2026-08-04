@@ -188,6 +188,7 @@ model Tenant {
   service_regions        ServiceRegion[]
   contacts               Contact[]
   app_credentials        AppCredential[]
+  satisfaction_surveys   SatisfactionSurvey[]
 
   @@index([status])
   @@map("tenants")
@@ -480,6 +481,7 @@ model Inspector {
   financial_entries       FinancialEntry[]
   invoices                InspectorInvoice[]
   inspector_regions       InspectorRegion[]
+  satisfaction_surveys    SatisfactionSurvey[]
 
   @@index([status])
   @@index([user_id])
@@ -576,6 +578,7 @@ model Appointment {
   execution         InspectionExecution?
   financial_entries FinancialEntry[]
   notifications     Notification[]
+  satisfaction_survey SatisfactionSurvey?
 
   @@index([tenant_id, status])
   @@index([tenant_id, branch_id])
@@ -587,6 +590,10 @@ model Appointment {
   // exactly (status, created_at). Every other index here leads with tenant_id, so
   // none of them can serve that query.
   @@index([status, created_at])
+  // Cross-tenant, like status_created_at: the completed-services count on the
+  // inspector list has no tenant scope, and every other index here leads with
+  // tenant_id so none of them can serve it.
+  @@index([inspector_id, status])
   @@map("appointments")
 }
 
@@ -980,6 +987,7 @@ enum RentalTenantPortalAction {
   CONTACT_UPDATED
   UNAVAILABLE_REPORTED
   GROUP_JOIN
+  SURVEY_SUBMITTED
 }
 
 enum FinancialEntryType {
@@ -1113,6 +1121,34 @@ model RentalTenantPortalActivityArchive {
   @@index([created_at])
   @@index([archived_at])
   @@map("rental_tenant_portal_activities_archive")
+}
+
+/// Post-execution satisfaction response left by the rental tenant in the portal.
+///
+/// One row per appointment (`appointment_id` is unique) and immutable once
+/// written: the submit path re-reads and returns the existing row on a duplicate
+/// rather than updating it. A `rating BETWEEN 1 AND 5` CHECK constraint lives in
+/// the migration — Prisma cannot express it, and the bound must not depend on
+/// Zod alone.
+model SatisfactionSurvey {
+  id             String   @id @default(uuid())
+  appointment_id String   @unique
+  tenant_id      String
+  inspector_id   String
+  rating         Int
+  comment        String?
+  submitted_at   DateTime @default(now())
+  ip_address     String?
+  user_agent     String?
+  created_at     DateTime @default(now())
+
+  appointment Appointment @relation(fields: [appointment_id], references: [id])
+  tenant      Tenant      @relation(fields: [tenant_id], references: [id])
+  inspector   Inspector   @relation(fields: [inspector_id], references: [id])
+
+  @@index([inspector_id, tenant_id, submitted_at])
+  @@index([tenant_id])
+  @@map("satisfaction_surveys")
 }
 
 model InspectionExecution {

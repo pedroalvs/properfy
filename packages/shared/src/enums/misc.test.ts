@@ -38,17 +38,21 @@ describe('RentalTenantPortalTokenStatus', () => {
 });
 
 describe('RentalTenantPortalAction', () => {
-  it('should have VIEW, CONFIRM, RESCHEDULE, CONTACT_UPDATED, UNAVAILABLE_REPORTED, GROUP_JOIN values', () => {
+  it('should have VIEW, CONFIRM, RESCHEDULE, CONTACT_UPDATED, UNAVAILABLE_REPORTED, GROUP_JOIN, SURVEY_SUBMITTED values', () => {
     expect(RentalTenantPortalAction.VIEW).toBe('VIEW');
     expect(RentalTenantPortalAction.CONFIRM).toBe('CONFIRM');
     expect(RentalTenantPortalAction.RESCHEDULE).toBe('RESCHEDULE');
     expect(RentalTenantPortalAction.CONTACT_UPDATED).toBe('CONTACT_UPDATED');
     expect(RentalTenantPortalAction.UNAVAILABLE_REPORTED).toBe('UNAVAILABLE_REPORTED');
     expect(RentalTenantPortalAction.GROUP_JOIN).toBe('GROUP_JOIN');
+    expect(RentalTenantPortalAction.SURVEY_SUBMITTED).toBe('SURVEY_SUBMITTED');
   });
 
-  it('should have exactly 6 actions', () => {
-    expect(Object.keys(RentalTenantPortalAction)).toHaveLength(6);
+  it('should have exactly 7 actions', () => {
+    // Adding a value here is a schema change: the Prisma enum needs its own
+    // isolated `ALTER TYPE ... ADD VALUE` migration, and the web activity feed's
+    // exhaustive colour map must gain an entry or typecheck fails.
+    expect(Object.keys(RentalTenantPortalAction)).toHaveLength(7);
   });
 });
 
