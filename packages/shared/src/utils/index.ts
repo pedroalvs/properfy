@@ -10,6 +10,7 @@ export {
   todayInTzDateString,
   civilDateInTz,
   addCivilDays,
+  mondayOf,
   currentTimeInTzHHmm,
   isTimeStartInPastForDate,
 } from './local-date';

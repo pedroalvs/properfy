@@ -4,6 +4,8 @@ import {
   dashboardAnalyticsQuerySchema,
   dashboardAnalyticsResponseSchema,
   dashboardStatsResponseSchema,
+  inspectorWorkloadQuerySchema,
+  inspectorWorkloadResponseSchema,
   successResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
@@ -13,12 +15,14 @@ import { success } from '../../../shared/interfaces/response';
 import type { GetDashboardStatsUseCase } from '../application/use-cases/get-dashboard-stats.use-case';
 import type { GetDashboardAnalyticsUseCase } from '../application/use-cases/get-dashboard-analytics.use-case';
 import type { GetAnalyticsHeatmapUseCase } from '../application/use-cases/get-analytics-heatmap.use-case';
+import type { GetInspectorWorkloadUseCase } from '../application/use-cases/get-inspector-workload.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface DashboardRouteContainer {
   getDashboardStatsUseCase: GetDashboardStatsUseCase;
   getDashboardAnalyticsUseCase: GetDashboardAnalyticsUseCase;
   getAnalyticsHeatmapUseCase: GetAnalyticsHeatmapUseCase;
+  getInspectorWorkloadUseCase: GetInspectorWorkloadUseCase;
   jwtService: JwtService;
   tenantRepo: {
     findById(id: string): Promise<{ isActive(): boolean; settingsJson?: Record<string, unknown> } | null>;
@@ -99,6 +103,30 @@ export async function registerDashboardRoutes(
         throw new ValidationError('Query parameters are invalid', parsed.error.errors);
       }
       const result = await container.getAnalyticsHeatmapUseCase.execute({
+        actor: request.authContext!,
+        query: parsed.data,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/dashboard/inspector-workload — 200
+  // `weekStart` is optional; omitted, the use case resolves the current Sydney week.
+  app.get(
+    '/v1/dashboard/inspector-workload',
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: inspectorWorkloadQuerySchema,
+        response: { 200: successResponseSchema(inspectorWorkloadResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const parsed = inspectorWorkloadQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        throw new ValidationError('Query parameters are invalid', parsed.error.errors);
+      }
+      const result = await container.getInspectorWorkloadUseCase.execute({
         actor: request.authContext!,
         query: parsed.data,
       });

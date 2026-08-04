@@ -594,6 +594,11 @@ model Appointment {
   // inspector list has no tenant scope, and every other index here leads with
   // tenant_id so none of them can serve it.
   @@index([inspector_id, status])
+  // Backs the Inspector Workload aggregation, which is AM/OP-only and therefore
+  // cross-tenant: it ranges on scheduled_date with no tenant predicate, so the
+  // tenant_id-leading indexes above are useless to it. inspector_id second lets
+  // the per-inspector, per-day group-by be answered from the index alone.
+  @@index([scheduled_date, inspector_id])
   @@map("appointments")
 }
 
