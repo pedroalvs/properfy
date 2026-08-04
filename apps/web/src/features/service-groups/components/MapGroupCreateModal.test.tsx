@@ -4,12 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MapGroupCreateModal } from './MapGroupCreateModal';
 import { api } from '@/services/api';
 
-// The component resolves "today"/instants in the user's effective timezone;
-// pin it to the platform default so these tests stay deterministic.
-vi.mock('@/hooks/useEffectiveTimezone', () => ({
-  useEffectiveTimezone: () => 'Australia/Sydney',
-}));
-
 
 // Stable references so individual tests can assert on showError/showSuccess calls.
 // Vitest allows mock-prefixed variables to be referenced inside vi.mock() factories.

@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { createServiceGroupSchema, UserRole, currentTimeInTzHHmm, todayInTzDateString } from '@properfy/shared';
-import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
+import { createServiceGroupSchema, UserRole, currentTimeInTzHHmm, todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -30,7 +29,6 @@ export function ServiceGroupCreatePage() {
   const { showSuccess, showError } = useSnackbar();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const effectiveTimezone = useEffectiveTimezone();
   const isGlobalRole = user?.role === UserRole.AM || user?.role === UserRole.OP;
 
   const { options: serviceTypeOptions } = useFormOptions<{ id: string; name: string }>(
@@ -280,7 +278,9 @@ export function ServiceGroupCreatePage() {
                 <DateInput
                   value={scheduledDate}
                   onChange={setScheduledDate}
-                  min={todayInTzDateString(effectiveTimezone)}
+                  // Service groups are validated server-side in the PLATFORM timezone
+                  // (cross-tenant carve-out), so the client guard matches it exactly.
+                  min={todayInTzDateString(PLATFORM_TIMEZONE)}
                   aria-label="Scheduled Date"
                 />
               </FormField>
@@ -296,8 +296,8 @@ export function ServiceGroupCreatePage() {
                 onStartTimeChange={setStartTime}
                 onEndTimeChange={setEndTime}
                 minStartTime={(() => {
-                  const today = todayInTzDateString(effectiveTimezone);
-                  return scheduledDate === today ? currentTimeInTzHHmm(effectiveTimezone) : undefined;
+                  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+                  return scheduledDate === today ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined;
                 })()}
               />
             </FormSection>

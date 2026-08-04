@@ -489,8 +489,10 @@ export function AppointmentFormDrawer({
     // Past-time guard (applies to ALL roles, incl. AM/OP — native input `min`
     // is only a hint and does not block the button-submit path). On edit we use
     // `validateEditedSchedule` so an untouched legacy past appointment is NOT
-    // blocked; only a changed date/time is re-validated. Validate in the user's
-    // effective timezone so the UI matches the backend.
+    // blocked; only a changed date/time is re-validated. Advisory gate in the
+    // actor's effective timezone (exact for agency users; near-midnight
+    // approximation for AM/OP) — the server enforces the appointment's AGENCY
+    // timezone.
     const tz = effectiveTimezone;
     if (isEditMode && appointment) {
       const result = validateEditedSchedule({

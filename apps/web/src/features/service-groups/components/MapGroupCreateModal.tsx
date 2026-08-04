@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createServiceGroupSchema, currentTimeInTzHHmm, todayInTzDateString } from '@properfy/shared';
-import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
+import { createServiceGroupSchema, currentTimeInTzHHmm, todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { FormField } from '@/components/forms/FormField';
 import { DateInput } from '@/components/forms/DateInput';
@@ -63,9 +62,10 @@ export function MapGroupCreateModal({
     { status: 'ACTIVE' },
   );
 
-  const effectiveTimezone = useEffectiveTimezone();
-  const today = todayInTzDateString(effectiveTimezone);
-  const minStartTime = useMemo(() => scheduledDate === today ? currentTimeInTzHHmm(effectiveTimezone) : undefined, [scheduledDate, today, effectiveTimezone]);
+  // Service groups are cross-tenant constructs: the backend validates their
+  // schedule in the PLATFORM timezone, so the client guard matches it exactly.
+  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+  const minStartTime = useMemo(() => scheduledDate === today ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined, [scheduledDate, today]);
 
   const handleSubmit = useCallback(async () => {
     const timeWindow = `${startTime}-${endTime}`;

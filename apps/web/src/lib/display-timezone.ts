@@ -12,6 +12,10 @@ import { PLATFORM_TIMEZONE } from '@properfy/shared';
  * Components that need the timezone as a reactive value (re-render on change)
  * should use `useEffectiveTimezone` instead — this module is intentionally
  * non-reactive and exists only for the formatter wrappers.
+ *
+ * Known trade-off: already-mounted screens whose query data did not change may
+ * keep rendering instants in the old timezone until navigation (React Query
+ * structural sharing skips the re-render); accepted.
  */
 
 let displayTimezone: string = PLATFORM_TIMEZONE;

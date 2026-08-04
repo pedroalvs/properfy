@@ -2,8 +2,9 @@ import { validateNewSchedule, ServiceGroupStatus } from '@properfy/shared';
 
 export interface PublishBlockInput {
   status: ServiceGroupStatus;
-  /** IANA timezone the schedule guard resolves "today" in — pass the caller's
-   *  effective timezone (`useEffectiveTimezone`), matching the backend guard. */
+  /** IANA timezone the schedule guard resolves "today" in. Service groups are
+   *  validated server-side in the PLATFORM timezone (cross-tenant carve-out),
+   *  so callers pass `PLATFORM_TIMEZONE` to match it exactly. */
   timeZone: string;
   /**
    * Number of appointments actually linked to the group. Pass an explicit count

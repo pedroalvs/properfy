@@ -55,7 +55,9 @@ export function MapBulkRescheduleForm({
   // Date is kept from the selection (same-group ⇒ same group date); date-only normalization.
   const targetDate = (checkedAppointments[0]?.scheduledDate ?? '').split('T')[0] ?? '';
 
-  // "Today" and the past-time hint follow the user's effective timezone.
+  // Advisory gate in the actor's effective timezone (exact for agency users;
+  // near-midnight approximation for AM/OP) — the server enforces the
+  // appointment's AGENCY timezone.
   const effectiveTimezone = useEffectiveTimezone();
   const today = todayInTzDateString(effectiveTimezone);
   const minStartTime = targetDate === today ? currentTimeInTzHHmm(effectiveTimezone) : undefined;

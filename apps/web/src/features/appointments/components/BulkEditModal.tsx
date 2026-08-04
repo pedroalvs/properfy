@@ -108,6 +108,9 @@ interface BulkEditModalProps {
 
 export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }: BulkEditModalProps) {
   const selectedIds = useMemo(() => selectedAppointments.map((a) => a.id), [selectedAppointments]);
+  // Advisory gate in the actor's effective timezone (exact for agency users;
+  // near-midnight approximation for AM/OP) — the server enforces the
+  // appointment's AGENCY timezone.
   const effectiveTimezone = useEffectiveTimezone();
   const { canPerform, role } = usePermissions();
   const canReview = canPerform('appointment.cross_check');

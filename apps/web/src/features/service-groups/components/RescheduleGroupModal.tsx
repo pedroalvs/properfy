@@ -3,6 +3,7 @@ import {
   currentTimeInTzHHmm,
   todayInTzDateString,
   isTimeStartInPastForDate,
+  PLATFORM_TIMEZONE,
   ServiceGroupStatus,
   isTerminalAppointmentStatus,
   type GroupConfirmationStrategy,
@@ -15,7 +16,6 @@ import { AppointmentCodePill } from '@/features/appointments/components/Appointm
 import { useRescheduleServiceGroup } from '../hooks/useRescheduleServiceGroup';
 import type { ServiceGroupDetail } from '../types';
 import { DateInput } from '@/components/forms/DateInput';
-import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { formatWallTimeRange } from '@/lib/format-date';
 
 interface RescheduleGroupModalProps {
@@ -51,7 +51,6 @@ export function RescheduleGroupModal({
   mode,
   onSaved,
 }: RescheduleGroupModalProps) {
-  const effectiveTimezone = useEffectiveTimezone();
   const currentDate = serviceGroup.scheduledDate?.slice(0, 10) ?? '';
   const [currentStart, currentEnd] = splitWindow(serviceGroup.timeWindow);
 
@@ -72,7 +71,9 @@ export function RescheduleGroupModal({
     setError(null);
   }, [open, currentDate, currentStart, currentEnd]);
 
-  const today = todayInTzDateString(effectiveTimezone);
+  // Service groups are cross-tenant constructs: the backend validates their
+  // schedule in the PLATFORM timezone, so the client guard matches it exactly.
+  const today = todayInTzDateString(PLATFORM_TIMEZONE);
   const newWindow = startTime && endTime ? `${startTime}-${endTime}` : '';
   const dateChanged = scheduledDate !== '' && scheduledDate !== currentDate;
   const windowChanged = newWindow !== '' && newWindow !== serviceGroup.timeWindow;
@@ -126,7 +127,7 @@ export function RescheduleGroupModal({
       setError('Scheduled date cannot be in the past');
       return;
     }
-    if (targetDate === today && isTimeStartInPastForDate(startTime, targetDate, effectiveTimezone)) {
+    if (targetDate === today && isTimeStartInPastForDate(startTime, targetDate, PLATFORM_TIMEZONE)) {
       setError('Start time is in the past');
       return;
     }
@@ -178,7 +179,7 @@ export function RescheduleGroupModal({
             endTime={endTime}
             onStartTimeChange={setStartTime}
             onEndTimeChange={setEndTime}
-            minStartTime={scheduledDate === today ? currentTimeInTzHHmm(effectiveTimezone) : undefined}
+            minStartTime={scheduledDate === today ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined}
           />
         </FormField>
 

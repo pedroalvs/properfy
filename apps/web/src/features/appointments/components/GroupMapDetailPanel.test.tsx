@@ -22,12 +22,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { GroupMapDetailPanel } from './GroupMapDetailPanel';
 import { ServiceGroupStatus } from '@properfy/shared';
 
-// The component resolves "today"/instants in the user's effective timezone;
-// pin it to the platform default so these tests stay deterministic.
-vi.mock('@/hooks/useEffectiveTimezone', () => ({
-  useEffectiveTimezone: () => 'Australia/Sydney',
-}));
-
 
 const sampleGroup = {
   id: 'gggggggg-0000-4000-8000-000000000001',

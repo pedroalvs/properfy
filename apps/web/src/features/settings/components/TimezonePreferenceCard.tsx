@@ -27,7 +27,9 @@ export function TimezonePreferenceCard() {
   const handleSave = useCallback(async () => {
     const result = await updateTimezone(timezone || null);
     if (result.success) {
-      await refreshUser();
+      // The PATCH already succeeded — a failed refresh must not hide that, so
+      // the invalidate + success snackbar run regardless.
+      await refreshUser().catch(() => {});
       // Every dated payload on screen may now render differently.
       queryClient.invalidateQueries();
       showSuccess('Timezone preference saved');
@@ -40,10 +42,7 @@ export function TimezonePreferenceCard() {
     <div className="rounded bg-card-bg p-6 shadow-sm">
       <FormSection title="Timezone Preference">
         <div className="flex max-w-md flex-col gap-4">
-          <FormField
-            label="Timezone"
-            hint="Leave empty to use the platform default (Australia/Sydney)."
-          >
+          <FormField label="Timezone" hint="Platform default (Sydney) when empty.">
             <TimezoneSelect
               value={timezone}
               onChange={setTimezone}
@@ -52,7 +51,12 @@ export function TimezonePreferenceCard() {
             />
           </FormField>
           <div>
-            <Button variant="primary" loading={isSaving} onClick={handleSave}>
+            <Button
+              variant="primary"
+              loading={isSaving}
+              disabled={timezone === (user?.personalTimezone ?? '')}
+              onClick={handleSave}
+            >
               Save
             </Button>
           </div>

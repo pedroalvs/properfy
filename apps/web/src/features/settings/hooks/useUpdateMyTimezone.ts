@@ -22,7 +22,7 @@ export function useUpdateMyTimezone(): UseUpdateMyTimezoneReturn {
   const updateTimezone = useCallback(async (timezone: string | null): Promise<SaveResult> => {
     setIsSaving(true);
     try {
-      const { error } = await api.PATCH('/v1/me' as any, { body: { timezone } as any });
+      const { error } = await api.PATCH('/v1/me', { body: { timezone } });
       if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
       return { success: true };
     } catch (err) {

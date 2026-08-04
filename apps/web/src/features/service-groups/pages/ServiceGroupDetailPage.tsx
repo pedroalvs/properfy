@@ -6,7 +6,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { Button } from '@/components/ui/Button';
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { ServiceGroupStatus } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, ServiceGroupStatus } from '@properfy/shared';
 import { useServiceGroupDetail } from '../hooks/useServiceGroupDetail';
 import { usePublishServiceGroup } from '../hooks/usePublishServiceGroup';
 import { useAssignInspector } from '../hooks/useAssignInspector';
@@ -30,13 +30,11 @@ import { SendPortalLinkDialog } from '../components/SendPortalLinkDialog';
 import { useGoBack } from '@/hooks/useGoBack';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { getPublishBlockReason } from '../lib/publish-block-reason';
-import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 
 const PUBLISH_BLOCK_REASON_ID = 'publish-block-reason';
 
 export function ServiceGroupDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const effectiveTimezone = useEffectiveTimezone();
   const handleBack = useGoBack('/service-groups');
   const { serviceGroup, isLoading, isError, refetch } = useServiceGroupDetail(id ?? null);
   const { publish, isPublishing } = usePublishServiceGroup(id ?? null, refetch);
@@ -166,7 +164,7 @@ export function ServiceGroupDetailPage() {
   // array means "not in the payload", not "empty group".
   const publishBlockReason = getPublishBlockReason({
     status: serviceGroup.status,
-    timeZone: effectiveTimezone,
+    timeZone: PLATFORM_TIMEZONE,
     appointmentCount: serviceGroup.appointmentsCount,
     scheduledDate: serviceGroup.scheduledDate,
     timeWindow: serviceGroup.timeWindow,

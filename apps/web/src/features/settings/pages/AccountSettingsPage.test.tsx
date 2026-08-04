@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
+import { Snackbar } from '@/components/feedback/Snackbar';
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -48,10 +49,13 @@ function setUser(role: string, extra: Record<string, unknown> = {}) {
   };
 }
 
+let lastQueryClient: QueryClient;
+
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  lastQueryClient = queryClient;
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return <QueryClientProvider client={queryClient}><SnackbarProvider>{children}</SnackbarProvider></QueryClientProvider>;
+    return <QueryClientProvider client={queryClient}><SnackbarProvider>{children}<Snackbar /></SnackbarProvider></QueryClientProvider>;
   };
 }
 
@@ -176,15 +180,19 @@ describe('AccountSettingsPage — CL_ADMIN agency timezone flow', () => {
 });
 
 describe('AccountSettingsPage — personal timezone flow', () => {
+  async function pickPersonalPerth(user: ReturnType<typeof userEvent.setup>) {
+    const input = screen.getByRole('combobox', { name: 'Timezone' });
+    await user.click(input);
+    await user.keyboard('perth');
+    await user.click(screen.getByRole('option', { name: /^Perth/ }));
+  }
+
   it('saving the personal preference PATCHes /v1/me and refreshes the user', async () => {
     const user = userEvent.setup();
     setUser('OP');
     renderPage();
 
-    const input = screen.getByRole('combobox', { name: 'Timezone' });
-    await user.click(input);
-    await user.keyboard('perth');
-    await user.click(screen.getByRole('option', { name: /^Perth/ }));
+    await pickPersonalPerth(user);
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(mockPatch).toHaveBeenCalled());
@@ -192,5 +200,39 @@ describe('AccountSettingsPage — personal timezone flow', () => {
       body: { timezone: 'Australia/Perth' },
     });
     await waitFor(() => expect(mockRefreshUser).toHaveBeenCalled());
+  });
+
+  it('disables Save while the value is unchanged from the stored preference', () => {
+    setUser('OP', { personalTimezone: null });
+    renderPage();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
+  it('clearing an existing preference saves { timezone: null }', async () => {
+    const user = userEvent.setup();
+    setUser('OP', { personalTimezone: 'Australia/Perth' });
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: 'Clear timezone selection' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockPatch).toHaveBeenCalled());
+    expect(mockPatch).toHaveBeenCalledWith('/v1/me', { body: { timezone: null } });
+  });
+
+  it('still shows success and invalidates queries when refreshUser rejects', async () => {
+    const user = userEvent.setup();
+    setUser('OP');
+    mockRefreshUser.mockRejectedValueOnce(new Error('network'));
+    renderPage();
+    const invalidateSpy = vi.spyOn(lastQueryClient, 'invalidateQueries');
+
+    await pickPersonalPerth(user);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('Timezone preference saved'),
+    );
+    expect(invalidateSpy).toHaveBeenCalled();
   });
 });

@@ -32,7 +32,9 @@ export function AgencyTimezoneCard() {
     const result = await updateTimezone(user.tenantId, timezone);
     setShowConfirm(false);
     if (result.success) {
-      await refreshUser();
+      // The PATCH already succeeded — a failed refresh must not hide that, so
+      // the invalidate + success snackbar run regardless.
+      await refreshUser().catch(() => {});
       // Every dated payload on screen may now render differently.
       queryClient.invalidateQueries();
       showSuccess('Agency timezone updated');

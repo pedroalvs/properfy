@@ -38,7 +38,8 @@ export interface WorkloadWeek {
  * week can be shared or bookmarked.
  *
  * Every date computation here is civil-date **string** math. Deriving a week
- * from `new Date(y, m, d)` reads the browser's timezone rather than Sydney's,
+ * from `new Date(y, m, d)` reads the browser's timezone rather than the
+ * effective timezone's,
  * so an operator in another timezone would see a week offset by a day — the
  * same class of bug `resolvePreset` documents on the Analytics screen.
  *

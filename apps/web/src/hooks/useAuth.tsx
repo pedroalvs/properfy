@@ -49,8 +49,6 @@ async function fetchFullUser(): Promise<AuthUser | null> {
     phone?: string | null;
     lastLoginAt?: string | null;
     createdAt?: string;
-    timezone?: string | null;
-    personalTimezone?: string | null;
     clUserPermissions?: string[];
   };
   return {
