@@ -333,6 +333,19 @@ export const appointmentResponseSchema = z.object({
   inspectorName: z.string().nullable().optional(),
   branchName: z.string().nullable().optional(),
   serviceTypeName: z.string().nullable().optional(),
+  /**
+   * Service type flow (ROUTINE | INGOING | OUTGOING). INGOING/OUTGOING have no
+   * rental tenant at all, so the UI uses this to disable occupant-facing actions
+   * with a reason rather than letting the operator discover the refusal.
+   * Must stay declared here — this schema is the Fastify response schema, and an
+   * undeclared field is silently stripped on serialization.
+   *
+   * `z.string()` rather than a native enum, matching
+   * `inspectorAppointmentDetailResponseSchema`: a value added to the DB enum
+   * before this schema is redeployed would otherwise throw in the serializer,
+   * turning a read into a 500 after the write already committed.
+   */
+  flowType: z.string().nullable().optional(),
   /** Tenant (agency) display name surfaced as "CLIENT" in the map detail panel (025 §FR-451). */
   clientName: z.string().optional(),
   /**

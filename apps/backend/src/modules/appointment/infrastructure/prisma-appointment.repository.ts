@@ -220,6 +220,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         row.property?.rent_amount != null ? Number(row.property.rent_amount) : null,
       branchName: row.branch?.name ?? '',
       serviceTypeName: row.service_type?.name ?? '',
+      serviceTypeFlowType: (row.service_type?.flow_type ?? 'ROUTINE') as ServiceTypeFlowType,
       inspectorName: row.inspector?.name ?? null,
       tenantName: (row as any).tenant?.name ?? '',
       tenantAppointmentCodePrefix,

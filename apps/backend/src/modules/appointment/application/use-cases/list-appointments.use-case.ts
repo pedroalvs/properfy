@@ -75,6 +75,7 @@ export interface ListAppointmentsOutput {
     clientName: string;
     branchName: string;
     serviceTypeName: string;
+    flowType: string | null;
     isOverdue: boolean;
     hasRentalTenantNote: boolean;
     rentalTenantNote: string | null;
@@ -198,6 +199,7 @@ export class ListAppointmentsUseCase {
         clientName: item.tenantName,
         branchName: item.branchName,
         serviceTypeName: item.serviceTypeName,
+        flowType: item.serviceTypeFlowType ?? null,
         isOverdue: isAppointmentOverdue({
           status: item.appointment.status,
           createdAt: item.appointment.createdAt,

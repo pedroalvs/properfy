@@ -1,3 +1,5 @@
+import { suppressesOccupantNotifications } from '@properfy/shared';
+
 /**
  * Whether the rental tenant has plausibly already been told this inspection
  * exists — the condition under which cancelling may offer to notify them.
@@ -32,11 +34,19 @@
  * notice is sent regardless of confirmation, so requiring confirmation meant a
  * tenant who was told the date but never clicked confirm could never be told it
  * was called off.
+ *
+ * INGOING/OUTGOING short-circuit to false: those flows have no occupant, so no
+ * notice was ever sent and the server now withholds the cancellation notice too.
+ * Offering the checkbox there would promise something guaranteed not to happen.
+ * `flowType` is optional on the wire, and an absent value falls through to the
+ * status rules — the same fail-open direction as the server predicate.
  */
 export function wasRentalTenantNotified(appointment: {
   status: string;
   rentalTenantConfirmationStatus?: string | null;
+  flowType?: string | null;
 }): boolean {
+  if (suppressesOccupantNotifications(appointment.flowType)) return false;
   return (
     appointment.status === 'SCHEDULED' ||
     appointment.rentalTenantConfirmationStatus === 'CONFIRMED'

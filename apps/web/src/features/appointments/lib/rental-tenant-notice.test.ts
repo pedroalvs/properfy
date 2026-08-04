@@ -43,4 +43,32 @@ describe('wasRentalTenantNotified', () => {
       wasRentalTenantNotified({ status: 'DRAFT', rentalTenantConfirmationStatus: 'NO_RESPONSE' }),
     ).toBe(false);
   });
+
+  // INGOING/OUTGOING never had an occupant, so no notice was ever sent and the
+  // server now withholds the cancellation notice too. Offering the checkbox
+  // would promise something guaranteed not to happen.
+  it.each(['INGOING', 'OUTGOING'])('is false for %s even when SCHEDULED', (flowType) => {
+    expect(wasRentalTenantNotified({ status: 'SCHEDULED', flowType })).toBe(false);
+  });
+
+  it('is false for a non-notifying flow even when the tenant is CONFIRMED', () => {
+    expect(
+      wasRentalTenantNotified({
+        status: 'DRAFT',
+        rentalTenantConfirmationStatus: 'CONFIRMED',
+        flowType: 'INGOING',
+      }),
+    ).toBe(false);
+  });
+
+  // Fail open, matching the server predicate: an absent or unknown flow type
+  // falls through to the status rules rather than silencing the offer.
+  it.each([undefined, null, 'ROUTINE', 'STANDARD'])(
+    'falls through to the status rules for flowType %p',
+    (flowType) => {
+      expect(
+        wasRentalTenantNotified({ status: 'SCHEDULED', flowType: flowType as string | null }),
+      ).toBe(true);
+    },
+  );
 });
