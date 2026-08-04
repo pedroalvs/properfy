@@ -17,6 +17,10 @@ export interface AuthUser {
   lastLoginAt?: string | null;
   inspectorId?: string | null;
   inspectorPhotoUrl?: string | null;
+  /** Effective IANA timezone (personal ?? platform), from /v1/me. */
+  timezone?: string | null;
+  /** Raw personal timezone (users.timezone); null when unset. */
+  personalTimezone?: string | null;
 }
 
 interface AuthContextValue {
@@ -54,6 +58,8 @@ async function fetchFullUser(): Promise<AuthUser | null> {
     lastLoginAt?: string | null;
     inspectorId?: string | null;
     inspectorPhotoUrl?: string | null;
+    timezone?: string | null;
+    personalTimezone?: string | null;
   };
   return normalizePwaUser({
     id: me.id,
@@ -67,6 +73,8 @@ async function fetchFullUser(): Promise<AuthUser | null> {
     lastLoginAt: me.lastLoginAt,
     inspectorId: me.inspectorId ?? null,
     inspectorPhotoUrl: me.inspectorPhotoUrl ?? null,
+    timezone: me.timezone ?? null,
+    personalTimezone: me.personalTimezone ?? null,
   });
 }
 

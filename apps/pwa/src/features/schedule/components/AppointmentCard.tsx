@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppointmentStatus, PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
+import { AppointmentStatus, todayInTzDateString } from '@properfy/shared';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { RentalTenantConfirmationBadge } from './RentalTenantConfirmationBadge';
 import { FLOW_TYPE_MAP } from '@/lib/status-colors';
 import type { InspectorAppointment } from '../types';
@@ -32,7 +33,8 @@ function getStatusAccent(status: AppointmentStatus): string {
 
 export const AppointmentCard = memo(function AppointmentCard({ appointment, today }: AppointmentCardProps) {
   const navigate = useNavigate();
-  const showT1Warning = isT1Warning(appointment, today ?? todayInTzDateString(PLATFORM_TIMEZONE));
+  const timeZone = useEffectiveTimezone();
+  const showT1Warning = isT1Warning(appointment, today ?? todayInTzDateString(timeZone));
   const flowStyle = FLOW_TYPE_MAP[appointment.flowType];
   const accentClass = getStatusAccent(appointment.status);
   const isDone = appointment.status === AppointmentStatus.DONE;

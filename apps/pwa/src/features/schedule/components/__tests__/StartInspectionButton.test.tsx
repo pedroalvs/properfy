@@ -2,6 +2,11 @@ import { act, screen, fireEvent } from '@testing-library/react';
 import { StartInspectionButton } from '../StartInspectionButton';
 import { renderWithProviders } from '@/test-utils';
 
+// Rendered without an AuthProvider; pin the effective timezone to Sydney.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
