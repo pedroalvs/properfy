@@ -59,10 +59,28 @@ export class BulkResendReminderUseCase {
           appointmentId: apptId,
           actor: input.actor,
         });
-        const status = dispatch.dispatched === false && dispatch.reason === 'NO_PRIMARY_CONTACT'
-          ? 'NO_PRIMARY_CONTACT'
-          : 'SENT';
+        // Switch on the reason rather than defaulting to SENT. The previous
+        // fall-through reported DISPATCH_FAILED and NOTIFY_DISABLED as SENT and
+        // then cached that for 36h, so the operator was told the reminder went
+        // out AND the same-day retry was suppressed.
+        if (dispatch.dispatched === false && dispatch.reason === 'DISPATCH_FAILED') {
+          // A real failure: surface it and do NOT cache, so a retry can happen.
+          results.push({
+            appointmentId: apptId,
+            status: 'ERROR',
+            error: { code: ERROR_CODE, message: 'Notification dispatch failed' },
+          });
+          continue;
+        }
+        const status: BulkResendReminderResult['status'] =
+          dispatch.dispatched === false
+            ? dispatch.reason === 'NO_PRIMARY_CONTACT'
+              ? 'NO_PRIMARY_CONTACT'
+              : 'NOT_APPLICABLE'
+            : 'SENT';
         const result: BulkResendReminderResult = { appointmentId: apptId, status };
+        // Only stable outcomes are cached — re-running the batch will not change
+        // them, whereas a failure must stay retryable.
         await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, IDEMPOTENCY_TTL_HOURS);
         results.push(result);
       } catch (e) {
