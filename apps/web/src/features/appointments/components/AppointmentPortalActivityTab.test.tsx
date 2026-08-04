@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { RentalTenantPortalAction } from '@properfy/shared';
 import { AppointmentPortalActivityTab } from './AppointmentPortalActivityTab';
 
 const mockActivities = [
@@ -16,15 +17,14 @@ const mockActivities = [
   },
 ];
 
-/** Every value the backend can actually store — see RentalTenantPortalAction. */
-const allActionActivities = [
-  'VIEW',
-  'CONFIRM',
-  'RESCHEDULE',
-  'CONTACT_UPDATED',
-  'UNAVAILABLE_REPORTED',
-  'GROUP_JOIN',
-].map((action, i) => ({
+/**
+ * Derived from the enum, not restated: a hardcoded list silently stops covering
+ * new actions the moment one is added, which is exactly how SURVEY_SUBMITTED
+ * would have shipped with a styled badge and no test exercising it.
+ */
+const ALL_ACTIONS = Object.values(RentalTenantPortalAction);
+
+const allActionActivities = ALL_ACTIONS.map((action, i) => ({
   id: `pa-all-${i}`,
   appointmentId: 'apt-01',
   rentalTenantPortalTokenId: 'tok-1',
@@ -103,9 +103,9 @@ describe('AppointmentPortalActivityTab', () => {
       Array.from(el.classList).find((c) => c.startsWith('mdi-')),
     );
 
-    expect(icons).toHaveLength(6);
+    expect(icons).toHaveLength(ALL_ACTIONS.length);
     expect(icons).not.toContain('mdi-account');
-    expect(new Set(icons).size).toBe(6);
+    expect(new Set(icons).size).toBe(ALL_ACTIONS.length);
   });
 
   it('labels every real action type readably', () => {

@@ -590,6 +590,10 @@ model Appointment {
   // exactly (status, created_at). Every other index here leads with tenant_id, so
   // none of them can serve that query.
   @@index([status, created_at])
+  // Cross-tenant, like status_created_at: the completed-services count on the
+  // inspector list has no tenant scope, and every other index here leads with
+  // tenant_id so none of them can serve it.
+  @@index([inspector_id, status])
   @@map("appointments")
 }
 
@@ -1142,7 +1146,7 @@ model SatisfactionSurvey {
   tenant      Tenant      @relation(fields: [tenant_id], references: [id])
   inspector   Inspector   @relation(fields: [inspector_id], references: [id])
 
-  @@index([inspector_id])
+  @@index([inspector_id, tenant_id, submitted_at])
   @@index([tenant_id])
   @@map("satisfaction_surveys")
 }

@@ -17,7 +17,14 @@ export class PrismaInspectorRatingReader implements IInspectorRatingReader {
   constructor(private readonly prisma: PrismaClient) {}
 
   /**
-   * Two `groupBy` round-trips, both index-backed, run concurrently.
+   * Two `groupBy` round-trips run concurrently.
+   *
+   * Both are index-backed, but only because this feature added the indexes that
+   * serve them: `satisfaction_surveys(inspector_id, tenant_id, submitted_at)` and
+   * `appointments(inspector_id, status)`. The latter matters — every pre-existing
+   * index on `appointments` leads with `tenant_id`, and this count is deliberately
+   * platform-wide, so without it the groupBy degrades to a sequential scan on the
+   * busiest read in the admin UI.
    *
    * `groupBy` rather than a single `$queryRaw`: `_count._all` comes back as a JS
    * number and `_avg.rating` as `number | null`, so there is no bigint to cast.
