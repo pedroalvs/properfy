@@ -12,6 +12,13 @@ export interface ICronJobRunRepository {
    * false when another tick already claimed it.
    */
   tryClaim(jobName: string, tenantId: string, localDate: string): Promise<boolean>;
+  /**
+   * DELETE the claims for the given tenants/date so a later tick (or a
+   * pg-boss retry of this one) can claim and run them again. Used when a
+   * group's execution fails after its claims were taken — without the
+   * release, the failed group would silently lose its civil day.
+   */
+  releaseClaims(jobName: string, tenantIds: string[], localDate: string): Promise<void>;
 }
 
 export interface DueTenantGroup {
@@ -42,10 +49,22 @@ export class TenantCronTick {
     const groups = new Map<string, DueTenantGroup>();
 
     for (const tenant of tenants) {
-      const timezone = tenant.timezone ?? PLATFORM_TIMEZONE;
-      if (hourInTimezone(now, timezone) < targetHour) continue;
+      let timezone = tenant.timezone ?? PLATFORM_TIMEZONE;
+      let localHour: number;
+      let todayCivil: string;
+      try {
+        localHour = hourInTimezone(now, timezone);
+        todayCivil = civilDateInTimezone(now, timezone);
+      } catch {
+        // Defense in depth: timezone strings are validated at write time, but
+        // an unparseable value must degrade to the platform default rather
+        // than throwing and failing the whole tick for every other tenant.
+        timezone = PLATFORM_TIMEZONE;
+        localHour = hourInTimezone(now, timezone);
+        todayCivil = civilDateInTimezone(now, timezone);
+      }
+      if (localHour < targetHour) continue;
 
-      const todayCivil = civilDateInTimezone(now, timezone);
       const claimed = await this.runRepo.tryClaim(jobName, tenant.id, todayCivil);
       if (!claimed) continue;
 
@@ -59,5 +78,48 @@ export class TenantCronTick {
     }
 
     return [...groups.values()];
+  }
+
+  /**
+   * Claim-and-run with failure recovery: runs each due group through `runner`;
+   * a group whose runner throws has its claims RELEASED (so the pg-boss retry
+   * of this job — or the next hourly tick — claims and runs it again) and the
+   * error is rethrown after the remaining groups were attempted, so the job
+   * registers as failed and pg-boss retries. Groups that succeeded keep their
+   * claims and are not re-run on retry.
+   *
+   * Known blind spot (accepted): if the process is down across a local
+   * midnight, the missed civil day can no longer be claimed once the date
+   * rolls over — same loss profile as the previous daily-cron design.
+   * A crash BETWEEN claim and run (not a thrown error) also loses that
+   * group's day; the window is milliseconds and downstream dedupe/idempotency
+   * bounds the impact.
+   */
+  async runDue(
+    jobName: string,
+    targetHour: number,
+    runner: (group: DueTenantGroup) => Promise<void>,
+    now: Date = new Date(),
+  ): Promise<DueTenantGroup[]> {
+    const groups = await this.claimDue(jobName, targetHour, now);
+    const failures: unknown[] = [];
+
+    for (const group of groups) {
+      try {
+        await runner(group);
+      } catch (err) {
+        await this.runRepo.releaseClaims(jobName, group.tenantIds, group.todayCivil);
+        failures.push(err);
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new Error(
+        `${jobName}: ${failures.length}/${groups.length} timezone group(s) failed; their claims were released for retry`,
+        { cause: failures[0] },
+      );
+    }
+
+    return groups;
   }
 }

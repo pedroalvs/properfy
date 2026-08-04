@@ -34,11 +34,11 @@ export class DispatchEscalationsUseCase {
     let smsAlerts = 0;
     let skipped = 0;
 
-    // "Today" is the agency-local civil date for scoped (per-tenant tick) runs,
-    // the platform civil date otherwise; the repo expects UTC midnight of it.
-    const targetDate = new Date(
-      `${civilDateInTimezone(now, scope?.timezone ?? PLATFORM_TIMEZONE)}T00:00:00.000Z`,
-    );
+    // "Today" is the CLAIMED agency-local civil date for scoped (per-tenant
+    // tick) runs, the platform civil date otherwise; the repo expects UTC
+    // midnight of it.
+    const todayCivil = scope?.todayCivil ?? civilDateInTimezone(now, PLATFORM_TIMEZONE);
+    const targetDate = new Date(`${todayCivil}T00:00:00.000Z`);
     targetDate.setUTCDate(targetDate.getUTCDate() + ESCALATION_OFFSET_DAYS);
     const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate, scope?.tenantIds);
 

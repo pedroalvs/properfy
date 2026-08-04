@@ -19,6 +19,12 @@ export interface DispatchRemindersOutput {
  */
 export interface TenantCronScope {
   timezone: string;
+  /**
+   * The civil date the tick CLAIMED in cron_job_runs. Passed through so claim
+   * and execution always agree even when a queued tick job runs after the
+   * local midnight (worker outage, retry backoff).
+   */
+  todayCivil: string;
   tenantIds: string[];
 }
 
@@ -62,9 +68,10 @@ export class DispatchRemindersUseCase {
     let dispatched = 0;
     let skipped = 0;
 
-    // "Today" is the agency-local civil date for scoped (per-tenant tick) runs,
-    // the platform civil date otherwise; the repo expects UTC midnight of it.
-    const todayCivil = civilDateInTimezone(now, scope?.timezone ?? PLATFORM_TIMEZONE);
+    // "Today" is the CLAIMED agency-local civil date for scoped (per-tenant
+    // tick) runs, the platform civil date otherwise; the repo expects UTC
+    // midnight of it.
+    const todayCivil = scope?.todayCivil ?? civilDateInTimezone(now, PLATFORM_TIMEZONE);
     for (const { offsetDays, templateCode, onlyWhenUnanswered } of REMINDER_WINDOWS) {
       const targetDate = new Date(`${todayCivil}T00:00:00.000Z`);
       targetDate.setUTCDate(targetDate.getUTCDate() + offsetDays);

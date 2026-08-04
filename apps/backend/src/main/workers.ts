@@ -153,18 +153,19 @@ export async function registerWorkers(
 
   await boss.schedule('notification.dispatch-reminders', '0 * * * *', {}, SYDNEY_TZ);
   await boss.work('notification.dispatch-reminders', withJobMetrics('notification.dispatch-reminders', async (job) => {
-    // 18:00 agency-local.
-    const groups = await tenantCronTick.claimDue('notification.dispatch-reminders', 18);
+    // 18:00 agency-local. runDue releases a failed group's claims and rethrows
+    // so the pg-boss retry re-claims exactly the unserved groups.
     let dispatched = 0;
     let skipped = 0;
-    for (const group of groups) {
+    const groups = await tenantCronTick.runDue('notification.dispatch-reminders', 18, async (group) => {
       const result = await dispatchRemindersUseCase.execute(new Date(), {
         timezone: group.timezone,
+        todayCivil: group.todayCivil,
         tenantIds: group.tenantIds,
       });
       dispatched += result.dispatched;
       skipped += result.skipped;
-    }
+    });
     if (groups.length > 0) {
       logger.info({ jobId: job.id, groups: groups.length, dispatched, skipped }, 'Dispatch reminders completed');
     }
@@ -173,19 +174,19 @@ export async function registerWorkers(
   await boss.schedule('notification.dispatch-escalations', '0 * * * *', {}, SYDNEY_TZ);
   await boss.work('notification.dispatch-escalations', withJobMetrics('notification.dispatch-escalations', async (job) => {
     // 18:00 agency-local.
-    const groups = await tenantCronTick.claimDue('notification.dispatch-escalations', 18);
     let pmEscalations = 0;
     let smsAlerts = 0;
     let skipped = 0;
-    for (const group of groups) {
+    const groups = await tenantCronTick.runDue('notification.dispatch-escalations', 18, async (group) => {
       const result = await dispatchEscalationsUseCase.execute(new Date(), {
         timezone: group.timezone,
+        todayCivil: group.todayCivil,
         tenantIds: group.tenantIds,
       });
       pmEscalations += result.pmEscalations;
       smsAlerts += result.smsAlerts;
       skipped += result.skipped;
-    }
+    });
     if (groups.length > 0) {
       logger.info({ jobId: job.id, groups: groups.length, pmEscalations, smsAlerts, skipped }, 'Dispatch escalations completed');
     }
@@ -288,19 +289,19 @@ export async function registerWorkers(
   // Reject unconfirmed appointments — 19:00 agency-local via the hourly tick.
   await boss.schedule('appointment.reject-unconfirmed', '0 * * * *', {}, SYDNEY_TZ);
   await boss.work('appointment.reject-unconfirmed', withJobMetrics('appointment.reject-unconfirmed', async (job) => {
-    const groups = await tenantCronTick.claimDue('appointment.reject-unconfirmed', 19);
     let rejectedCount = 0;
     let groupsClosedCount = 0;
     let groupsUpdatedCount = 0;
-    for (const group of groups) {
+    const groups = await tenantCronTick.runDue('appointment.reject-unconfirmed', 19, async (group) => {
       const result = await rejectUnconfirmedWorker.execute({
         timezone: group.timezone,
+        todayCivil: group.todayCivil,
         tenantIds: group.tenantIds,
       });
       rejectedCount += result.rejectedCount;
       groupsClosedCount += result.groupsClosedCount;
       groupsUpdatedCount += result.groupsUpdatedCount;
-    }
+    });
     if (groups.length > 0) {
       logger.info(
         { jobId: job.id, groups: groups.length, rejectedCount, groupsClosedCount, groupsUpdatedCount },
@@ -315,16 +316,15 @@ export async function registerWorkers(
   // tenant scoping are agency-local.
   await boss.schedule('appointment.cancel-overdue', '10 * * * *', {}, SYDNEY_TZ);
   await boss.work('appointment.cancel-overdue', withJobMetrics('appointment.cancel-overdue', async (job) => {
-    const groups = await tenantCronTick.claimDue('appointment.cancel-overdue', 0);
     let cancelledCount = 0;
     let failedCount = 0;
     let batchCapped = false;
-    for (const group of groups) {
+    const groups = await tenantCronTick.runDue('appointment.cancel-overdue', 0, async (group) => {
       const result = await cancelOverdueWorker.execute({ tenantIds: group.tenantIds });
       cancelledCount += result.cancelledCount;
       failedCount += result.failedCount;
       batchCapped = batchCapped || result.batchCapped;
-    }
+    });
     if (groups.length > 0) {
       logger.info(
         { jobId: job.id, groups: groups.length, cancelledCount, failedCount, batchCapped },

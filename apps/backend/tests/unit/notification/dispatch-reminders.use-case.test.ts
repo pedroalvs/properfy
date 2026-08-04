@@ -185,10 +185,14 @@ describe('DispatchRemindersUseCase', () => {
     expect(calls[2][0]).toEqual(new Date('2026-03-20T00:00:00.000Z'));
   });
 
-  it('scoped runs derive "today" from the scope timezone and narrow to its tenantIds', async () => {
-    // 2026-03-17T10:00Z is 2026-03-17 21:00 in Sydney but already 2026-03-18
-    // 00:00 in Pacific/Kiritimati (UTC+14) — the T+7 window shifts one day.
-    await useCase.execute(today, { timezone: 'Pacific/Kiritimati', tenantIds: ['t1', 't2'] });
+  it('scoped runs derive "today" from the CLAIMED civil date and narrow to its tenantIds', async () => {
+    // The tick claimed 2026-03-18 (the Pacific/Kiritimati civil date at
+    // 2026-03-17T10:00Z) — the T+7 window shifts one day vs the platform date.
+    await useCase.execute(today, {
+      timezone: 'Pacific/Kiritimati',
+      todayCivil: '2026-03-18',
+      tenantIds: ['t1', 't2'],
+    });
 
     const calls = mockAppointmentRepo.findScheduledOnDate.mock.calls;
     expect(calls[0][0]).toEqual(new Date('2026-03-25T00:00:00.000Z'));

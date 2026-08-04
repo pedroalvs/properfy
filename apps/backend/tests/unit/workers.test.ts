@@ -251,6 +251,7 @@ describe('registerWorkers', () => {
     expect(mockDispatchRemindersExecute).toHaveBeenCalledOnce();
     expect(mockDispatchRemindersExecute).toHaveBeenCalledWith(expect.any(Date), {
       timezone: 'Australia/Sydney',
+      todayCivil: '2026-06-15',
       tenantIds: ['tenant-1'],
     });
     expect(mockLogger.info).toHaveBeenCalledWith(
@@ -286,6 +287,7 @@ describe('registerWorkers', () => {
     expect(mockDispatchEscalationsExecute).toHaveBeenCalledOnce();
     expect(mockDispatchEscalationsExecute).toHaveBeenCalledWith(expect.any(Date), {
       timezone: 'Australia/Sydney',
+      todayCivil: '2026-06-15',
       tenantIds: ['tenant-1'],
     });
     expect(mockLogger.info).toHaveBeenCalledWith(

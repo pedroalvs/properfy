@@ -15,4 +15,15 @@ export class PrismaCronJobRunRepository implements ICronJobRunRepository {
     `;
     return inserted > 0;
   }
+
+  async releaseClaims(jobName: string, tenantIds: string[], localDate: string): Promise<void> {
+    if (tenantIds.length === 0) return;
+    await this.prisma.cronJobRun.deleteMany({
+      where: {
+        job_name: jobName,
+        tenant_id: { in: tenantIds },
+        local_date: new Date(`${localDate}T00:00:00.000Z`),
+      },
+    });
+  }
 }
