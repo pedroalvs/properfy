@@ -1,4 +1,7 @@
+import { useNavigate } from 'react-router-dom';
+import { UserRole } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { usePermissions } from '@/hooks/usePermissions';
 import { FilterSegmented } from '@/components/filters/FilterSegmented';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -26,6 +29,8 @@ import { RegionHeatmap } from '../components/RegionHeatmap';
  * screen, so a CL_USER without `view_financials` still gets the other panels.
  */
 export function AnalyticsPage() {
+  const navigate = useNavigate();
+  const { hasRole } = usePermissions();
   const period = useAnalyticsPeriod();
   const { analytics, isLoading, isError, refetch } = useAnalytics({
     startDate: period.startDate,
@@ -40,7 +45,18 @@ export function AnalyticsPage() {
 
   return (
     <div>
-      <PageHeader title="Analytics" />
+      {/* With the sidebar entries gone these actions are the only in-cluster
+          navigation. Everyone past the route guard may open the Dashboard;
+          Workload mirrors its narrower AM/OP-only guard. */}
+      <PageHeader
+        title="Analytics"
+        secondaryActions={[
+          { label: 'Dashboard', icon: 'mdi-view-dashboard-outline', onClick: () => navigate('/dashboard') },
+          ...(hasRole(UserRole.AM, UserRole.OP)
+            ? [{ label: 'Workload', icon: 'mdi-account-clock-outline', onClick: () => navigate('/inspector-workload') }]
+            : []),
+        ]}
+      />
 
       <div className="mb-5 flex flex-wrap items-end gap-4 rounded bg-card-bg p-4 shadow-sm">
         <FilterSegmented

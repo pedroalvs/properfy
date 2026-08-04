@@ -21,21 +21,26 @@ export function DashboardPage() {
   const { hasRole } = usePermissions();
   const tomorrowLabel = computeTomorrowLabel();
 
-  // /dashboard is unguarded and INSP lands here, but /analytics is guarded to
-  // the four business roles. Offering the button to an inspector would bounce
-  // them straight back with a permission toast — the Sidebar already hides the
-  // equivalent entry for exactly this reason.
+  // /dashboard is unguarded and INSP lands here, but the sibling screens are
+  // guarded: /analytics to the four business roles, /inspector-workload to
+  // AM/OP only. Offering a button past someone's guard would bounce them
+  // straight back with a permission toast, so each action mirrors its route.
   const canViewAnalytics = hasRole(UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER);
+  const canViewWorkload = hasRole(UserRole.AM, UserRole.OP);
+  const secondaryActions = [
+    ...(canViewAnalytics
+      ? [{ label: 'Analytics', icon: 'mdi-chart-line', onClick: () => navigate('/analytics') }]
+      : []),
+    ...(canViewWorkload
+      ? [{ label: 'Workload', icon: 'mdi-account-clock-outline', onClick: () => navigate('/inspector-workload') }]
+      : []),
+  ];
 
   return (
     <div>
       <PageHeader
         title="Dashboard"
-        secondaryActions={
-          canViewAnalytics
-            ? [{ label: 'Analytics', icon: 'mdi-chart-line', onClick: () => navigate('/analytics') }]
-            : undefined
-        }
+        secondaryActions={secondaryActions.length > 0 ? secondaryActions : undefined}
       />
 
       <IntegrationWarnings />

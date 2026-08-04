@@ -1,11 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import type { DashboardAnalyticsResponse } from '@properfy/shared';
 import { AnalyticsPage } from './AnalyticsPage';
 
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000', mapboxToken: 'pk.test' } }));
+
+// Mutable so the header cross-nav tests can walk through the four guarded roles.
+let mockRole = 'AM';
+vi.mock('@/hooks/usePermissions', () => ({
+  usePermissions: () => ({
+    role: mockRole,
+    hasRole: (...roles: string[]) => roles.includes(mockRole),
+    canPerform: () => true,
+    hasClUserFlag: () => true,
+  }),
+}));
 
 // The heatmap owns a Mapbox GL instance; jsdom has no WebGL. Its own behaviour
 // (layer paint, centroid fit) is not what this suite is about.
@@ -50,12 +62,18 @@ function makeAnalytics(overrides: Partial<DashboardAnalyticsResponse> = {}): Das
   };
 }
 
+function LocationDisplay() {
+  const location = useLocation();
+  return <div data-testid="location-display">{location.pathname}</div>;
+}
+
 function renderPage(initialEntries = ['/analytics']) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={initialEntries}>
         <AnalyticsPage />
+        <LocationDisplay />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -63,6 +81,7 @@ function renderPage(initialEntries = ['/analytics']) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockRole = 'AM';
   useAnalyticsMock.mockReturnValue({
     analytics: makeAnalytics(),
     isLoading: false,
@@ -115,6 +134,44 @@ describe('AnalyticsPage — revenue gating', () => {
     // Absent, not zeroed — a CL_USER without view_financials must not read "$0".
     expect(screen.queryByText('Revenue')).not.toBeInTheDocument();
     expect(screen.getByText('In period')).toBeInTheDocument();
+  });
+});
+
+// With the sidebar entries removed, these header actions are the only way to
+// move between the dashboard screens — presence per role is load-bearing.
+describe('AnalyticsPage — header cross-navigation', () => {
+  it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('offers the Dashboard action to %s', (role) => {
+    mockRole = role;
+    renderPage();
+    expect(screen.getAllByRole('button', { name: /dashboard/i }).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it.each(['AM', 'OP'])('offers the Workload action to %s', (role) => {
+    mockRole = role;
+    renderPage();
+    expect(screen.getAllByRole('button', { name: /workload/i }).length).toBeGreaterThanOrEqual(1);
+  });
+
+  // /inspector-workload is AM/OP-only; showing the button to an agency role
+  // would bounce them back with a permission toast.
+  it.each(['CL_ADMIN', 'CL_USER'])('hides the Workload action from %s', (role) => {
+    mockRole = role;
+    renderPage();
+    expect(screen.queryByRole('button', { name: /workload/i })).not.toBeInTheDocument();
+  });
+
+  it('navigates to /dashboard when the Dashboard action is clicked', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getAllByRole('button', { name: /dashboard/i })[0]!);
+    expect(screen.getByTestId('location-display')).toHaveTextContent('/dashboard');
+  });
+
+  it('navigates to /inspector-workload when the Workload action is clicked', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getAllByRole('button', { name: /workload/i })[0]!);
+    expect(screen.getByTestId('location-display')).toHaveTextContent('/inspector-workload');
   });
 });
 
