@@ -128,6 +128,18 @@ export function startOfOverdueAgeCutoff(now: Date = new Date()): Date {
   return parseDateInTimezone(cutoffCivilDate, PLATFORM_TIMEZONE);
 }
 
+/** The current wall-clock hour (0-23) in the given timezone. */
+export function hourInTimezone(now: Date, timezone: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: '2-digit',
+    hour12: false,
+  }).formatToParts(now);
+  const hour = parseInt(parts.find((p) => p.type === 'hour')?.value ?? '0', 10);
+  // Some ICU versions render midnight as '24' with hour12: false.
+  return hour === 24 ? 0 : hour;
+}
+
 /** The current civil date (YYYY-MM-DD) in the given timezone. */
 export function civilDateInTimezone(now: Date, timezone: string): string {
   const parts = new Intl.DateTimeFormat('en-CA', {

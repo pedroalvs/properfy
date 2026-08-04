@@ -25,7 +25,11 @@ vi.mock('../../shared/infrastructure/queue', () => ({
 
 vi.mock('../../shared/infrastructure/prisma', () => ({
   prisma: {
+    $executeRaw: vi.fn().mockResolvedValue(1),
     property: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    tenant: {
       findMany: vi.fn().mockResolvedValue([]),
     },
   },
@@ -86,8 +90,8 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
   const EXPECTED_SCHEDULES: Array<[name: string, cron: string]> = [
     ['notification.retry-poll', '*/5 * * * *'],
     ['notification.sms-delivery-poll', '*/10 * * * *'],
-    ['notification.dispatch-reminders', '0 18 * * *'],
-    ['notification.dispatch-escalations', '0 18 * * *'],
+    ['notification.dispatch-reminders', '0 * * * *'],
+    ['notification.dispatch-escalations', '0 * * * *'],
     ['auth.cleanup-sessions', '0 2 * * *'],
     ['auth.check-key-expiry', '0 3 * * *'],
     ['report.expire-files', '0 3 * * *'],
@@ -96,8 +100,8 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
     ['rental-tenant-portal.expire-tokens', '*/15 * * * *'],
     ['inspection-execution.notify-not-started', '0 * * * *'],
     ['audit.retention', '30 3 * * *'],
-    ['appointment.reject-unconfirmed', '0 19 * * *'],
-    ['appointment.cancel-overdue', '10 0 * * *'],
+    ['appointment.reject-unconfirmed', '0 * * * *'],
+    ['appointment.cancel-overdue', '10 * * * *'],
     ['service-group.cancel-empty', '20 0 * * *'],
     ['system.dlq-monitor', '*/5 * * * *'],
   ];

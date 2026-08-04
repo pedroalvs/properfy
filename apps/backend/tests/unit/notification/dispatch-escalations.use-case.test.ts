@@ -208,6 +208,7 @@ describe('DispatchEscalationsUseCase', () => {
 
     expect(mockAppointmentRepo.findScheduledOnDate).toHaveBeenCalledWith(
       new Date('2026-03-19T00:00:00.000Z'),
+      undefined,
     );
   });
 

@@ -50,11 +50,15 @@ export class CancelOverdueAppointmentsUseCase {
     private readonly batchLimit: number = DEFAULT_BATCH_LIMIT,
   ) {}
 
-  async execute(): Promise<CancelOverdueAppointmentsOutput> {
+  async execute(scope?: { tenantIds: string[] }): Promise<CancelOverdueAppointmentsOutput> {
+    // The 45-day age cutoff stays platform-anchored (an age-of-record rule);
+    // the per-agency tick only decides WHEN each agency's sweep runs and
+    // narrows the query to the agencies whose local midnight claimed this run.
     const cutoff = startOfOverdueAgeCutoff();
     const appointments = await this.appointmentRepo.findOverdueForAutoCancel(
       cutoff,
       this.batchLimit,
+      scope?.tenantIds,
     );
 
     if (appointments.length === 0) {

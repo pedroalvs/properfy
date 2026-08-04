@@ -5,7 +5,7 @@ export class RejectUnconfirmedWorker {
     private readonly useCase: RejectUnconfirmedAppointmentsUseCase,
   ) {}
 
-  async execute(): Promise<RejectUnconfirmedAppointmentsOutput> {
-    return this.useCase.execute();
+  async execute(scope?: { timezone: string; tenantIds: string[] }): Promise<RejectUnconfirmedAppointmentsOutput> {
+    return this.useCase.execute(scope);
   }
 }

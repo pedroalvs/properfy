@@ -13,6 +13,16 @@ export interface DispatchRemindersOutput {
 }
 
 /**
+ * Per-agency tick scope: `timezone` decides which civil date is "today" and
+ * `tenantIds` narrows the sweep to the agencies whose local 18:00 claimed this
+ * run. Absent → legacy platform-wide behaviour on the platform timezone.
+ */
+export interface TenantCronScope {
+  timezone: string;
+  tenantIds: string[];
+}
+
+/**
  * Confirmation states that count as "the occupant has answered".
  *
  * UNAVAILABLE is in here alongside CONFIRMED: someone who replied "I can't make it" has
@@ -47,17 +57,18 @@ export class DispatchRemindersUseCase {
     private readonly rentalTenantPortalBaseUrl: string,
   ) {}
 
-  async execute(today?: Date): Promise<DispatchRemindersOutput> {
+  async execute(today?: Date, scope?: TenantCronScope): Promise<DispatchRemindersOutput> {
     const now = today ?? new Date();
     let dispatched = 0;
     let skipped = 0;
 
-    // "Today" is the Sydney civil date; the repo expects UTC midnight of that civil date.
-    const todayCivil = civilDateInTimezone(now, PLATFORM_TIMEZONE);
+    // "Today" is the agency-local civil date for scoped (per-tenant tick) runs,
+    // the platform civil date otherwise; the repo expects UTC midnight of it.
+    const todayCivil = civilDateInTimezone(now, scope?.timezone ?? PLATFORM_TIMEZONE);
     for (const { offsetDays, templateCode, onlyWhenUnanswered } of REMINDER_WINDOWS) {
       const targetDate = new Date(`${todayCivil}T00:00:00.000Z`);
       targetDate.setUTCDate(targetDate.getUTCDate() + offsetDays);
-      const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate);
+      const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate, scope?.tenantIds);
 
       for (const { appointment, contact, propertyAddress, serviceTypeName } of appointments) {
         // Before anything else, so a chased-and-answered appointment costs no dedupe
