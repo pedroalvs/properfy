@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeAll, afterAll, vi } from 'vitest';
 import { computeTomorrowLabel } from './DashboardPage';
 
 /**
@@ -17,6 +17,24 @@ import { computeTomorrowLabel } from './DashboardPage';
  * why this file exists separately from the page's render tests.
  */
 const SPLIT_INSTANT = new Date('2026-07-29T20:00:00.000Z');
+
+/**
+ * Pinning the process timezone is what gives this file its teeth, and it must
+ * be a **non**-Sydney zone — the opposite of `useAnalyticsPeriod.test.ts`.
+ *
+ * `vi.setSystemTime` fixes the instant, not the zone. A browser-local
+ * implementation reads the runner's local clock, so on a machine already in
+ * Sydney (or Auckland) it would produce the correct answer by accident and the
+ * test would pass on broken code. Nothing in the workspace config sets `TZ`, so
+ * without this the check would depend on where CI happens to run.
+ */
+const originalTz = process.env.TZ;
+beforeAll(() => {
+  process.env.TZ = 'America/New_York';
+});
+afterAll(() => {
+  process.env.TZ = originalTz;
+});
 
 afterEach(() => {
   vi.useRealTimers();
