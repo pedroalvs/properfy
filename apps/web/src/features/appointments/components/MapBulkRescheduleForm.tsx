@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
-import { PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate, ServiceGroupStatus } from '@properfy/shared';
+import { todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate, ServiceGroupStatus } from '@properfy/shared';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { useBulkRescheduleAppointments } from '../hooks/useBulkRescheduleAppointments';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { AppointmentCodePill } from './AppointmentCodePill';
@@ -54,9 +55,10 @@ export function MapBulkRescheduleForm({
   // Date is kept from the selection (same-group ⇒ same group date); date-only normalization.
   const targetDate = (checkedAppointments[0]?.scheduledDate ?? '').split('T')[0] ?? '';
 
-  // Sydney-only platform: "today" and the past-time hint follow the platform timezone.
-  const today = todayInTzDateString(PLATFORM_TIMEZONE);
-  const minStartTime = targetDate === today ? currentTimeInTzHHmm(PLATFORM_TIMEZONE) : undefined;
+  // "Today" and the past-time hint follow the user's effective timezone.
+  const effectiveTimezone = useEffectiveTimezone();
+  const today = todayInTzDateString(effectiveTimezone);
+  const minStartTime = targetDate === today ? currentTimeInTzHHmm(effectiveTimezone) : undefined;
 
   const sameGroupCheck = useMemo<{ ok: boolean; reason?: string }>(() => {
     if (checkedAppointments.length === 0) return { ok: false, reason: 'No appointments selected' };
@@ -111,7 +113,7 @@ export function MapBulkRescheduleForm({
         e.preventDefault();
         if (!canSubmit) return;
         // Past-time guard (all roles) — native input min is only a hint.
-        if (targetDate === today && isTimeStartInPastForDate(newTimeSlotStart, targetDate, PLATFORM_TIMEZONE)) {
+        if (targetDate === today && isTimeStartInPastForDate(newTimeSlotStart, targetDate, effectiveTimezone)) {
           setTimeError('Start time is in the past');
           return;
         }

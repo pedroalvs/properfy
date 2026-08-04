@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { PLATFORM_TIMEZONE, addCivilDays, todayInTzDateString } from '@properfy/shared';
 import { useUrlFilters } from '@/hooks/useUrlFilters';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 
 /** Presets the segmented control offers, plus the escape hatch to explicit dates. */
 export const PERIOD_PRESETS = [
@@ -19,7 +20,8 @@ export const ANALYTICS_FILTER_SCHEMA = {
 };
 
 /**
- * Resolves a preset to a civil-date range, anchored to `PLATFORM_TIMEZONE`.
+ * Resolves a preset to a civil-date range. The hook passes "today" in the
+ * user's effective timezone; the pure default stays `PLATFORM_TIMEZONE`.
  *
  * All arithmetic is civil-date **string** math. Building a `Date` from local
  * calendar components and then reading `toISOString()` off it mixes two clocks:
@@ -73,14 +75,15 @@ export interface AnalyticsPeriod {
  */
 export function useAnalyticsPeriod(): AnalyticsPeriod {
   const [filters, setFilter] = useUrlFilters(ANALYTICS_FILTER_SCHEMA);
+  const effectiveTimezone = useEffectiveTimezone();
   const preset = filters.preset as PeriodPreset;
 
   const resolved = useMemo(() => {
     if (preset === 'custom') {
       return { startDate: filters.startDate, endDate: filters.endDate };
     }
-    return resolvePreset(preset);
-  }, [preset, filters.startDate, filters.endDate]);
+    return resolvePreset(preset, todayInTzDateString(effectiveTimezone));
+  }, [preset, filters.startDate, filters.endDate, effectiveTimezone]);
 
   const setPreset = useCallback(
     (next: PeriodPreset) => {

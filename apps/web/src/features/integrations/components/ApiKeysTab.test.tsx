@@ -4,6 +4,13 @@ import userEvent from '@testing-library/user-event';
 
 import { ApiKeysTab } from './ApiKeysTab';
 
+// The component resolves "today"/instants in the user's effective timezone;
+// pin it to the platform default so these tests stay deterministic.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
+
 const mockUseApiKeys = vi.fn();
 const mockCreateMutateAsync = vi.fn();
 const mockRevokeMutateAsync = vi.fn();

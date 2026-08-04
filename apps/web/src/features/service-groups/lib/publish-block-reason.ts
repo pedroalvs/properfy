@@ -1,7 +1,10 @@
-import { validateNewSchedule, PLATFORM_TIMEZONE, ServiceGroupStatus } from '@properfy/shared';
+import { validateNewSchedule, ServiceGroupStatus } from '@properfy/shared';
 
 export interface PublishBlockInput {
   status: ServiceGroupStatus;
+  /** IANA timezone the schedule guard resolves "today" in — pass the caller's
+   *  effective timezone (`useEffectiveTimezone`), matching the backend guard. */
+  timeZone: string;
   /**
    * Number of appointments actually linked to the group. Pass an explicit count
    * (never `array?.length ?? 0`) so "the payload did not include appointments"
@@ -54,7 +57,7 @@ export function getPublishBlockReason(input: PublishBlockInput): string | null {
       // Without a window there is nothing to compare against the current time;
       // '23:59' makes the same-day branch a no-op and leaves the date check intact.
       timeSlot: input.timeWindow || '23:59',
-      tz: PLATFORM_TIMEZONE,
+      tz: input.timeZone,
     });
     if (!schedule.ok) {
       return schedule.code === 'TIME_IN_PAST'

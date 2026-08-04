@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
-import { PLATFORM_TIMEZONE, addCivilDays, mondayOf, todayInTzDateString } from '@properfy/shared';
+import { addCivilDays, mondayOf, todayInTzDateString } from '@properfy/shared';
 import { useUrlFilters } from '@/hooks/useUrlFilters';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 
 export const WORKLOAD_FILTER_SCHEMA = {
   week: { type: 'string' as const, default: '' },
@@ -47,8 +48,9 @@ export interface WorkloadWeek {
  */
 export function useWorkloadWeek(): WorkloadWeek {
   const [filters, setFilter] = useUrlFilters(WORKLOAD_FILTER_SCHEMA);
+  const effectiveTimezone = useEffectiveTimezone();
 
-  const currentWeek = mondayOf(todayInTzDateString(PLATFORM_TIMEZONE));
+  const currentWeek = mondayOf(todayInTzDateString(effectiveTimezone));
 
   // A missing, malformed or impossible `week` param falls back to this week
   // rather than rendering an error: the screen has a sensible default and a

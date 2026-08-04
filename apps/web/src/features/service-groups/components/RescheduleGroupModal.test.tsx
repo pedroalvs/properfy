@@ -3,6 +3,13 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { RescheduleGroupModal } from './RescheduleGroupModal';
 import type { ServiceGroupAppointment, ServiceGroupDetail } from '../types';
 
+// The component resolves "today"/instants in the user's effective timezone;
+// pin it to the platform default so these tests stay deterministic.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
+
 const mockReschedule = vi.fn();
 vi.mock('../hooks/useRescheduleServiceGroup', () => ({
   useRescheduleServiceGroup: () => ({ reschedule: mockReschedule, isRescheduling: false }),

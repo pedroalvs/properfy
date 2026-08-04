@@ -6,6 +6,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { InspectorWorkloadResponse } from '@properfy/shared';
 import { InspectorWorkloadPage } from './InspectorWorkloadPage';
 
+// The component resolves "today"/instants in the user's effective timezone;
+// pin it to the platform default so these tests stay deterministic.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
+
 const mockUseInspectorWorkload = vi.fn();
 vi.mock('../hooks/useInspectorWorkload', () => ({
   useInspectorWorkload: (weekStart: string) => mockUseInspectorWorkload(weekStart),

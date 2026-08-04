@@ -10,6 +10,8 @@ export interface User {
   email: string;
   phone: string | null;
   status: UserStatus;
+  /** Personal IANA timezone (AM/OP/INSP only); null when inheriting. */
+  timezone?: string | null;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -41,6 +43,8 @@ export interface UserFormData {
   role: string;
   status: string;
   branchId: string;
+  /** Personal IANA timezone; '' = unset (platform default). Internal scope only. */
+  timezone: string;
   password: string;
   confirmPassword: string;
 }
@@ -54,6 +58,7 @@ export const EMPTY_USER_FORM: UserFormData = {
   role: '',
   status: '',
   branchId: '',
+  timezone: '',
   password: '',
   confirmPassword: '',
 };

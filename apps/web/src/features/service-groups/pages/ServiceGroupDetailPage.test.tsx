@@ -280,6 +280,13 @@ vi.mock('../hooks/useGroupPortalLinkPlan', () => ({
 
 import { ServiceGroupDetailPage } from './ServiceGroupDetailPage';
 
+// The component resolves "today"/instants in the user's effective timezone;
+// pin it to the platform default so these tests stay deterministic.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
+
 function createWrapper(initialEntry: string = '/service-groups/sg-01') {
   const queryClient = new QueryClient({
     defaultOptions: {

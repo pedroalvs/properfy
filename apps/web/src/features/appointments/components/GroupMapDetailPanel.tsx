@@ -5,6 +5,7 @@ import { SERVICE_GROUP_STATUS_MAP } from '@/lib/status-colors';
 import { formatCivilDate , formatWallTimeRange } from '@/lib/format-date';
 import { ServiceGroupStatus, type UserRole } from '@properfy/shared';
 import { getPublishBlockReason } from '@/features/service-groups/lib/publish-block-reason';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 
 const PUBLISH_BLOCK_REASON_ID = 'group-map-publish-block-reason';
 
@@ -68,6 +69,7 @@ export function GroupMapDetailPanel({
   onUnpublish,
   isUnpublishing = false,
 }: GroupMapDetailPanelProps) {
+  const effectiveTimezone = useEffectiveTimezone();
   const cardRef = useRef<HTMLDivElement | null>(null);
 
   // Dialog focus management: move focus into the card on open and restore it
@@ -140,6 +142,7 @@ export function GroupMapDetailPanel({
   const publishBlockReason = showPublish
     ? getPublishBlockReason({
         status: group.status,
+        timeZone: effectiveTimezone,
         appointmentCount: group.groupSize,
         scheduledDate: group.scheduledDate,
         timeWindow: group.timeWindow,

@@ -12,6 +12,7 @@ import { EmailInput } from '@/components/forms/EmailInput';
 import { PhoneInput } from '@/components/forms/PhoneInput';
 import { PasswordStrengthIndicator } from '@/components/forms/PasswordStrengthIndicator';
 import { SelectInput } from '@/components/forms/SelectInput';
+import { TimezoneSelect } from '@/components/forms/TimezoneSelect';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useUserDetail } from '../hooks/useUserDetail';
@@ -74,6 +75,7 @@ export function UserFormDrawer({
         role: user.role,
         status: user.status,
         branchId: user.branchId ?? '',
+        timezone: user.timezone ?? '',
         password: '',
         confirmPassword: '',
       };
@@ -233,6 +235,31 @@ export function UserFormDrawer({
                       </FormField>
                     </FormSection>
                   ) : null}
+
+                  {scope === 'internal' ? (
+                    <FormSection title="Preferences" columns={2}>
+                      <FormField
+                        label="Timezone"
+                        error={errors.timezone}
+                        hint="Leave empty to use the platform default (Australia/Sydney)."
+                      >
+                        <TimezoneSelect
+                          value={form.timezone}
+                          onChange={(v) => updateField('timezone', v)}
+                          placeholder="Platform default"
+                          error={!!errors.timezone}
+                          aria-label="Timezone"
+                        />
+                      </FormField>
+                    </FormSection>
+                  ) : (
+                    <FormSection title="Preferences" columns={2}>
+                      <div>
+                        <p className="text-xs text-text-muted">Timezone</p>
+                        <p className="text-sm font-medium">Inherited from the agency</p>
+                      </div>
+                    </FormSection>
+                  )}
 
                   {isEditMode && (
                     <FormSection title="Status">

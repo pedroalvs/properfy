@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   todayInTzDateString,
-  PLATFORM_TIMEZONE,
   getValidTransitions,
   isReasonRequired,
   type AppointmentStatus,
@@ -18,6 +17,7 @@ import { wasRentalTenantNotified } from '../lib/rental-tenant-notice';
 import { TimeRangeInput } from '@/components/forms/TimeRangeInput';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { useFormOptions } from '@/hooks/useFormOptions';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { usePermissions } from '@/hooks/usePermissions';
 import { api } from '@/services/api';
 import { ContactAutocomplete } from './ContactAutocomplete';
@@ -108,6 +108,7 @@ interface BulkEditModalProps {
 
 export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }: BulkEditModalProps) {
   const selectedIds = useMemo(() => selectedAppointments.map((a) => a.id), [selectedAppointments]);
+  const effectiveTimezone = useEffectiveTimezone();
   const { canPerform, role } = usePermissions();
   const canReview = canPerform('appointment.cross_check');
   // AM/OP only — mirrors the server-side gate on the bulk endpoint. Deliberately
@@ -409,7 +410,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
         setErrorMessage('Enter a complete scheduled date.');
         return;
       }
-      if (scheduledDate < todayInTzDateString(PLATFORM_TIMEZONE)) {
+      if (scheduledDate < todayInTzDateString(effectiveTimezone)) {
         setErrorMessage('Scheduled date cannot be in the past.');
         return;
       }
@@ -608,7 +609,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
               aria-label="Set scheduled date"
               value={values.scheduledDate ?? ''}
               onChange={(v) => setFieldValue('scheduledDate', v)}
-              min={todayInTzDateString(PLATFORM_TIMEZONE)}
+              min={todayInTzDateString(effectiveTimezone)}
             />
           </FieldRow>
 
