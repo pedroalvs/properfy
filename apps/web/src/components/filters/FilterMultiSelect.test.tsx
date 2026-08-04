@@ -277,3 +277,63 @@ describe('FilterMultiSelect keyboard navigation', () => {
     expect(trigger()).not.toHaveAttribute('aria-activedescendant');
   });
 });
+
+/** Same defect and fix as FilterSelect: see that file's clear-button block. */
+describe('FilterMultiSelect clear button', () => {
+  const trigger = () => screen.getByRole('button', { name: 'Type' });
+  const clear = () => screen.getByRole('button', { name: 'Clear Type' });
+
+  it('is a real button outside the trigger', () => {
+    render(
+      <FilterMultiSelect label="Type" value={['OWNER']} onChange={() => {}} options={options} />,
+    );
+
+    expect(clear().tagName).toBe('BUTTON');
+    expect(trigger().contains(clear())).toBe(false);
+  });
+
+  it('is reachable with Tab straight after the trigger', async () => {
+    const user = userEvent.setup();
+    render(
+      <FilterMultiSelect label="Type" value={['OWNER']} onChange={() => {}} options={options} />,
+    );
+    trigger().focus();
+
+    await user.tab();
+
+    expect(clear()).toHaveFocus();
+  });
+
+  it('clears the whole selection on Enter and returns focus to the trigger', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <FilterMultiSelect
+        label="Type"
+        value={['OWNER', 'RENTAL_TENANT']}
+        onChange={onChange}
+        options={options}
+      />,
+    );
+    clear().focus();
+
+    await user.keyboard('{Enter}');
+    rerender(<FilterMultiSelect label="Type" value={[]} onChange={onChange} options={options} />);
+
+    expect(onChange).toHaveBeenCalledWith([]);
+    expect(trigger()).toHaveFocus();
+  });
+
+  it('stays hidden while disabled', () => {
+    render(
+      <FilterMultiSelect
+        label="Type"
+        value={['OWNER']}
+        onChange={() => {}}
+        options={options}
+        disabled
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Clear Type' })).not.toBeInTheDocument();
+  });
+});

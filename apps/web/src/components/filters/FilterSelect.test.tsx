@@ -238,3 +238,72 @@ describe('FilterSelect keyboard navigation', () => {
     expect(highlighted.className).not.toBe(selected.className);
   });
 });
+
+/**
+ * The clear (×) affordance. It used to be a `span role="button" tabIndex={-1}`
+ * nested inside the trigger `<button>`: unreachable by keyboard, and invalid
+ * HTML (interactive content inside a button).
+ */
+describe('FilterSelect clear button', () => {
+  const trigger = () => screen.getByRole('button', { name: 'Status' });
+  const clear = () => screen.getByRole('button', { name: 'Clear Status' });
+
+  it('is absent until there is something to clear', () => {
+    render(<FilterSelect label="Status" value="" onChange={() => {}} options={options} />);
+    expect(screen.queryByRole('button', { name: 'Clear Status' })).not.toBeInTheDocument();
+  });
+
+  it('is a real button outside the trigger, not interactive content nested in one', () => {
+    render(<FilterSelect label="Status" value="active" onChange={() => {}} options={options} />);
+
+    expect(clear().tagName).toBe('BUTTON');
+    // Nesting is what made it both invalid HTML and unfocusable.
+    expect(trigger().contains(clear())).toBe(false);
+  });
+
+  it('is reachable with Tab straight after the trigger', async () => {
+    const user = userEvent.setup();
+    render(<FilterSelect label="Status" value="active" onChange={() => {}} options={options} />);
+    trigger().focus();
+
+    await user.tab();
+
+    expect(clear()).toHaveFocus();
+  });
+
+  it('clears on Enter', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<FilterSelect label="Status" value="active" onChange={onChange} options={options} />);
+    clear().focus();
+
+    await user.keyboard('{Enter}');
+
+    expect(onChange).toHaveBeenCalledWith('');
+  });
+
+  // Clearing removes the button that had focus, so without this focus falls to
+  // <body> and the keyboard user loses their place in the filter bar.
+  it('returns focus to the trigger after clearing', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <FilterSelect label="Status" value="active" onChange={() => {}} options={options} />,
+    );
+    clear().focus();
+
+    await user.keyboard('{Enter}');
+    rerender(<FilterSelect label="Status" value="" onChange={() => {}} options={options} />);
+
+    expect(trigger()).toHaveFocus();
+  });
+
+  it('does not open the menu when cleared', async () => {
+    const user = userEvent.setup();
+    render(<FilterSelect label="Status" value="active" onChange={() => {}} options={options} />);
+    clear().focus();
+
+    await user.keyboard('{Enter}');
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+});
