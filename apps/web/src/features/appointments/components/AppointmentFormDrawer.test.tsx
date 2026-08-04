@@ -152,6 +152,24 @@ const MOCK_APPOINTMENT = {
   restrictions: [{ id: 'res-1', isHome: true, unavailableDaysJson: null, unavailableHoursJson: null, notes: 'Ring bell', source: 'OPERATOR' }],
 };
 
+// Two contacts where the PRIMARY is registry-linked. Removing it promotes the
+// survivor, which is where the promotion used to rebuild the entry field by field
+// and silently drop contactId — unlinking it from the registry.
+const MOCK_APPOINTMENT_TWO_CONTACTS = {
+  ...MOCK_APPOINTMENT,
+  id: 'apt-two-contacts',
+  contacts: [
+    {
+      id: 'junction-1', contactId: 'registry-primary', role: 'RENTAL_TENANT', isPrimary: true,
+      snapshotName: 'Primary Person', snapshotEmail: 'primary@test.com', snapshotPhone: null,
+    },
+    {
+      id: 'junction-2', contactId: 'registry-second', role: 'PROPERTY_MANAGER', isPrimary: false,
+      snapshotName: 'Second Person', snapshotEmail: 'second@test.com', snapshotPhone: null,
+    },
+  ],
+};
+
 // A restriction row written by the rental tenant portal on decline: it exists only to
 // carry availableSlotsJson, and holds nothing the operator authored.
 const MOCK_APPOINTMENT_PORTAL_RESTRICTION = {
@@ -207,6 +225,9 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
     }
     if (id === 'apt-portal-restriction') {
       return { appointment: MOCK_APPOINTMENT_PORTAL_RESTRICTION, isLoading: false, isError: false, refetch: mockRefetchDetail };
+    }
+    if (id === 'apt-two-contacts') {
+      return { appointment: MOCK_APPOINTMENT_TWO_CONTACTS, isLoading: false, isError: false, refetch: mockRefetchDetail };
     }
     return { appointment: MOCK_APPOINTMENT, isLoading: false, isError: false, refetch: mockRefetchDetail };
   },
@@ -777,5 +798,34 @@ describe('AppointmentFormDrawer', () => {
         expect(onSaved).toHaveBeenCalled();
       });
     });
+  });
+
+  // Regression: promoting the survivor used to rebuild the entry from scratch
+  // ({ key, name, email, phone, role, isPrimary }), dropping contactId,
+  // contactType, company, notes and additionalChannels. Removing the primary of
+  // a two-contact form therefore unlinked the survivor from its registry row —
+  // silently, since the form still looked correct on screen.
+  it('keeps the survivor linked to its registry contact when the primary is removed', async () => {
+    renderDrawer({ appointmentId: 'apt-two-contacts' });
+
+    // Linked contacts render a registry view rather than editable fields, so
+    // assert on the rows themselves.
+    expect(await screen.findByLabelText('Remove contact 1')).toBeInTheDocument();
+    expect(screen.getByLabelText('Remove contact 2')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Remove contact 1'));
+
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(mockSave).toHaveBeenCalled());
+    const saved = mockSave.mock.calls[0][0] as { contacts: Array<Record<string, unknown>> };
+    expect(saved.contacts).toHaveLength(1);
+    expect(saved.contacts[0]).toEqual(
+      expect.objectContaining({
+        contactId: 'registry-second',
+        name: 'Second Person',
+        role: 'PROPERTY_MANAGER',
+        isPrimary: true,
+      }),
+    );
   });
 });
