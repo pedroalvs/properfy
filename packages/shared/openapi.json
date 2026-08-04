@@ -8003,65 +8003,69 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object",
-                      "properties": {
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "rating": {
-                                "type": "integer"
-                              },
-                              "comment": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "submittedAt": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ]
-                              },
-                              "appointmentCode": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rating": {
+                            "type": "integer"
+                          },
+                          "comment": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "submittedAt": {
+                            "anyOf": [
+                              {
                                 "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
                               }
-                            },
-                            "required": [
-                              "rating",
-                              "comment",
-                              "submittedAt",
-                              "appointmentCode"
-                            ],
-                            "additionalProperties": false
+                            ]
+                          },
+                          "appointmentCode": {
+                            "type": "string"
                           }
                         },
-                        "total": {
-                          "type": "number"
-                        },
+                        "required": [
+                          "rating",
+                          "comment",
+                          "submittedAt",
+                          "appointmentCode"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
                         "page": {
                           "type": "number"
                         },
                         "pageSize": {
                           "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "totalPages": {
+                          "type": "number"
                         }
                       },
                       "required": [
-                        "data",
-                        "total",
                         "page",
-                        "pageSize"
+                        "pageSize",
+                        "total",
+                        "totalPages"
                       ],
                       "additionalProperties": false
                     }
                   },
                   "required": [
-                    "data"
+                    "data",
+                    "pagination"
                   ],
                   "additionalProperties": false
                 }

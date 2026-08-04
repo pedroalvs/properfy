@@ -55,7 +55,8 @@ export class ListInspectorSurveysUseCase {
       // truthy, so a null scope here would silently widen the read to every
       // agency's responses.
       //
-      // TODO: swap for the shared `requireTenantScope` helper once PR #1080 lands.
+      // `shared/domain/require-tenant-scope.ts` (PR #1080) now does exactly this
+      // on develop; swap to it when this stack rebases onto a base that has it.
       if (!actor.tenantId) {
         throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
       }

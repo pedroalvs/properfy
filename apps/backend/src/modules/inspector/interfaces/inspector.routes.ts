@@ -17,7 +17,7 @@ import {
   inspectorSelfUpdateSchema,
   availabilityTemplateSchema,
   inspectorAvailabilityResponseSchema,
-  inspectorSurveysResponseSchema,
+  inspectorSurveyItemSchema,
   paginationSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
@@ -172,7 +172,7 @@ export async function registerInspectorRoutes(
       schema: {
         params: z.object({ inspectorId: z.string().uuid() }),
         querystring: paginationSchema,
-        response: { 200: successResponseSchema(inspectorSurveysResponseSchema) },
+        response: { 200: paginatedResponseSchema(inspectorSurveyItemSchema) },
       },
     },
     async (request, reply) => {
@@ -190,7 +190,12 @@ export async function registerInspectorRoutes(
         pagination: { page: query.data.page, pageSize: query.data.pageSize },
         actor: request.authContext!,
       });
-      return reply.status(200).send(success(result));
+      // paginated(), not success(): every other list route in this file uses the
+      // { data, pagination } envelope, and usePaginatedQuery on the web side
+      // reads exactly that shape.
+      return reply
+        .status(200)
+        .send(paginated(result.data, result.total, result.page, result.pageSize));
     },
   );
 

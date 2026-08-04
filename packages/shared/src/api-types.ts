@@ -3359,15 +3359,16 @@ export interface paths {
                     content: {
                         "application/json": {
                             data: {
-                                data: {
-                                    rating: number;
-                                    comment: string | null;
-                                    submittedAt: string;
-                                    appointmentCode: string;
-                                }[];
-                                total: number;
+                                rating: number;
+                                comment: string | null;
+                                submittedAt: string;
+                                appointmentCode: string;
+                            }[];
+                            pagination: {
                                 page: number;
                                 pageSize: number;
+                                total: number;
+                                totalPages: number;
                             };
                         };
                     };

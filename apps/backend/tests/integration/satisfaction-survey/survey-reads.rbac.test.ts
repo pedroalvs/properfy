@@ -79,7 +79,11 @@ describe('GET /v1/inspectors/:id/surveys', () => {
       .set('Authorization', 'Bearer token');
 
     expect(res.status).toBe(200);
-    expect(res.body.data.data[0]).toMatchObject({ rating: 5, appointmentCode: 'INS-0042' });
+    // The standard list envelope: { data: [...], pagination: {...} }. The web
+    // side consumes exactly this via usePaginatedQuery, so asserting the real
+    // wire shape here is what keeps the two halves from drifting apart.
+    expect(res.body.data[0]).toMatchObject({ rating: 5, appointmentCode: 'INS-0042' });
+    expect(res.body.pagination).toMatchObject({ page: 1, pageSize: 20, total: 1 });
   });
 
   it('passes the caller through so the use case can pin the tenant scope', async () => {

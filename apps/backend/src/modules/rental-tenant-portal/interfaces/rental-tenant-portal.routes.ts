@@ -318,9 +318,10 @@ export async function registerRentalTenantPortalRoutes(
 
   // GET /v1/appointments/:appointmentId/survey
   //
-  // Returns null when the inspection has no response yet, so the detail screen
-  // can simply omit the section. Cross-tenant reads resolve to a 404 through the
-  // appointment lookup rather than a 403, which would confirm the row exists.
+  // Returns 200 with a null body when there is nothing to show — either the
+  // inspection has no response yet, or the caller's agency does not own it. The
+  // two cases are deliberately indistinguishable: a 403 or a 404 would confirm
+  // that someone else's appointment exists.
   app.get(
     '/v1/appointments/:appointmentId/survey',
     { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), response: { 200: successResponseSchema(appointmentSurveyResponseSchema) } } },
