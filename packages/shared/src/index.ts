@@ -7,4 +7,5 @@ export * from './permissions';
 export * from './lib/appointment-transitions';
 export * from './lib/marker-collision';
 export * from './lib/plottable-point';
+export * from './lib/rating';
 export type { paths, components, operations } from './api-types';

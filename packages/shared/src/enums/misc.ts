@@ -20,6 +20,7 @@ export const RentalTenantPortalAction = {
   CONTACT_UPDATED: 'CONTACT_UPDATED',
   UNAVAILABLE_REPORTED: 'UNAVAILABLE_REPORTED',
   GROUP_JOIN: 'GROUP_JOIN',
+  SURVEY_SUBMITTED: 'SURVEY_SUBMITTED',
 } as const;
 export type RentalTenantPortalAction = (typeof RentalTenantPortalAction)[keyof typeof RentalTenantPortalAction];
 

@@ -1,0 +1,66 @@
+import type { PrismaClient } from '@prisma/client';
+import type {
+  IInspectorRatingReader,
+  InspectorRatingAggregate,
+} from '../domain/inspector-rating.reader';
+
+/**
+ * Rounds to two decimals for display parity with `formatRatingAverage`.
+ * Kept out of SQL so the rounding rule lives in one place per layer.
+ */
+function roundAverage(value: number | null): number | null {
+  if (value === null) return null;
+  return Math.round(value * 100) / 100;
+}
+
+export class PrismaInspectorRatingReader implements IInspectorRatingReader {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  /**
+   * Two `groupBy` round-trips, both index-backed, run concurrently.
+   *
+   * `groupBy` rather than a single `$queryRaw`: `_count._all` comes back as a JS
+   * number and `_avg.rating` as `number | null`, so there is no bigint to cast.
+   * A hand-written `COUNT(*)` would return a bigint that throws on JSON
+   * serialisation unless cast `::int`.
+   */
+  async getAggregatesByInspectorIds(
+    inspectorIds: string[],
+  ): Promise<Map<string, InspectorRatingAggregate>> {
+    const result = new Map<string, InspectorRatingAggregate>();
+    if (inspectorIds.length === 0) return result;
+
+    const [ratings, doneCounts] = await Promise.all([
+      this.prisma.satisfactionSurvey.groupBy({
+        by: ['inspector_id'],
+        where: { inspector_id: { in: inspectorIds } },
+        _avg: { rating: true },
+        _count: { _all: true },
+      }),
+      this.prisma.appointment.groupBy({
+        by: ['inspector_id'],
+        // `deleted_at: null` matters: a soft-deleted appointment must not
+        // inflate the inspector's completed-services count.
+        where: { inspector_id: { in: inspectorIds }, status: 'DONE', deleted_at: null },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const ratingByInspector = new Map(ratings.map((row) => [row.inspector_id, row]));
+    const doneByInspector = new Map(doneCounts.map((row) => [row.inspector_id, row]));
+
+    // Seed every requested id so callers never have to distinguish "absent from
+    // the map" from "has no responses" — both mean the same thing to the UI.
+    for (const inspectorId of inspectorIds) {
+      const rating = ratingByInspector.get(inspectorId);
+      result.set(inspectorId, {
+        inspectorId,
+        averageRating: roundAverage(rating?._avg.rating ?? null),
+        responseCount: rating?._count._all ?? 0,
+        doneServicesCount: doneByInspector.get(inspectorId)?._count._all ?? 0,
+      });
+    }
+
+    return result;
+  }
+}

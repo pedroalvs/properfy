@@ -25,6 +25,7 @@ const ACTION_COLORS: Record<RentalTenantPortalAction, ActionStyle> = {
   CONTACT_UPDATED: { bg: '#FFE0B2', text: '#E65100', icon: 'mdi-account-edit' },
   UNAVAILABLE_REPORTED: { bg: '#FFCDD2', text: '#C62828', icon: 'mdi-calendar-remove' },
   GROUP_JOIN: { bg: '#E8F5E9', text: '#388E3C', icon: 'mdi-account-group' },
+  SURVEY_SUBMITTED: { bg: '#FFF8E1', text: '#F57F17', icon: 'mdi-star' },
 };
 
 /** `action` arrives as a plain string from the API; unknown values keep a neutral badge. */
