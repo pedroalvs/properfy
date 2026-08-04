@@ -22,16 +22,15 @@ export const MANDATORY_TEMPLATE_CODES = [
   'REMINDER_3_DAYS_SMS',
   'PROPERTY_MANAGER_ESCALATION',
   'TENANT_SMS_ALERT',
+  // Email-only by decision. Each of these announces an action the occupant has just
+  // taken themselves (or, for a cancellation, one they opted in to hear about), so an
+  // SMS twin only restated the email. The dispatch legs were removed with the codes.
   'INSPECTION_CONFIRMED',
-  'INSPECTION_CONFIRMED_SMS',
   'INSPECTION_RESCHEDULED',
-  'INSPECTION_RESCHEDULED_SMS',
   'INSPECTION_CANCELLED',
-  'INSPECTION_CANCELLED_SMS',
   'INSPECTION_CANCELLED_AGENCY',
   'INSPECTION_REJECTED_AGENCY',
   'INSPECTION_UNAVAILABILITY_REPORTED',
-  'INSPECTION_UNAVAILABILITY_REPORTED_SMS',
   'REPORT_READY',
   'REPORT_FAILED',
   'TENANT_PORTAL_LINK',
@@ -72,15 +71,11 @@ export const TEMPLATE_CODE_LABELS: Record<MandatoryTemplateCode, string> = {
   PROPERTY_MANAGER_ESCALATION: 'Property Manager Escalation',
   TENANT_SMS_ALERT: 'Tenant SMS Alert',
   INSPECTION_CONFIRMED: 'Inspection Confirmed',
-  INSPECTION_CONFIRMED_SMS: 'Inspection Confirmed (SMS)',
   INSPECTION_RESCHEDULED: 'Inspection Rescheduled',
-  INSPECTION_RESCHEDULED_SMS: 'Inspection Rescheduled (SMS)',
   INSPECTION_CANCELLED: 'Inspection Cancelled',
-  INSPECTION_CANCELLED_SMS: 'Inspection Cancelled (SMS)',
   INSPECTION_CANCELLED_AGENCY: 'Inspection Cancelled (Agency)',
   INSPECTION_REJECTED_AGENCY: 'Inspection Rejected (Agency)',
   INSPECTION_UNAVAILABILITY_REPORTED: 'Unavailability Reported',
-  INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'Unavailability Reported (SMS)',
   REPORT_READY: 'Report Ready',
   REPORT_FAILED: 'Report Failed',
   TENANT_PORTAL_LINK: 'Tenant Portal Link',
@@ -146,9 +141,11 @@ export type NotificationTarget = (typeof NOTIFICATION_TARGETS)[number];
  *
  * Current sources, one per family:
  *
- * - RENTAL_TENANT — `notify-on-status-transition.handler.ts`,
- *   `notify-on-rental-tenant-portal-action.handler.ts`, `notify-on-admin-reschedule.handler.ts`,
- *   `dispatch-reminders.use-case.ts`, `dispatch-escalations.use-case.ts` (TENANT_SMS_ALERT),
+ * - RENTAL_TENANT — `notify-on-status-transition.handler.ts` (email + SMS for the notice,
+ *   email only for a cancellation), `notify-on-rental-tenant-portal-action.handler.ts` and
+ *   `notify-on-admin-reschedule.handler.ts` (both email-only — the occupant-action SMS
+ *   twins were retired), `dispatch-reminders.use-case.ts` (email + SMS),
+ *   `dispatch-escalations.use-case.ts` (TENANT_SMS_ALERT),
  *   `generate-portal-token.use-case.ts` (TENANT_PORTAL_LINK)
  * - PROPERTY_MANAGER — `dispatch-escalations.use-case.ts` and
  *   `notify-on-status-transition.handler.ts` (INSPECTION_CANCELLED_AGENCY, the agency's own
@@ -179,15 +176,11 @@ export const TEMPLATE_TARGETS: Record<
   PROPERTY_MANAGER_ESCALATION: 'PROPERTY_MANAGER',
   TENANT_SMS_ALERT: 'RENTAL_TENANT',
   INSPECTION_CONFIRMED: 'RENTAL_TENANT',
-  INSPECTION_CONFIRMED_SMS: 'RENTAL_TENANT',
   INSPECTION_RESCHEDULED: 'RENTAL_TENANT',
-  INSPECTION_RESCHEDULED_SMS: 'RENTAL_TENANT',
   INSPECTION_CANCELLED: 'RENTAL_TENANT',
-  INSPECTION_CANCELLED_SMS: 'RENTAL_TENANT',
   INSPECTION_CANCELLED_AGENCY: 'PROPERTY_MANAGER',
   INSPECTION_REJECTED_AGENCY: 'PROPERTY_MANAGER',
   INSPECTION_UNAVAILABILITY_REPORTED: 'RENTAL_TENANT',
-  INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'RENTAL_TENANT',
   REPORT_READY: 'USER_ACCOUNT',
   REPORT_FAILED: 'USER_ACCOUNT',
   TENANT_PORTAL_LINK: 'RENTAL_TENANT',
@@ -223,15 +216,11 @@ export function getTemplateTarget(templateCode: string): NotificationTarget | un
  */
 export const PROTECTED_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClass> = {
   INSPECTION_CONFIRMED: 'TRANSACTIONAL',
-  INSPECTION_CONFIRMED_SMS: 'TRANSACTIONAL',
   INSPECTION_RESCHEDULED: 'TRANSACTIONAL',
-  INSPECTION_RESCHEDULED_SMS: 'TRANSACTIONAL',
   INSPECTION_CANCELLED: 'TRANSACTIONAL',
-  INSPECTION_CANCELLED_SMS: 'TRANSACTIONAL',
   INSPECTION_CANCELLED_AGENCY: 'TRANSACTIONAL',
   INSPECTION_REJECTED_AGENCY: 'TRANSACTIONAL',
   INSPECTION_UNAVAILABILITY_REPORTED: 'TRANSACTIONAL',
-  INSPECTION_UNAVAILABILITY_REPORTED_SMS: 'TRANSACTIONAL',
   // The mirror of a message withheld from the occupant. OPERATIONAL would make it
   // consent-checked per recipient, so a branch contact's opt-out would suppress it —
   // and then neither the occupant nor the agency ever learns of the inspection, which
@@ -368,25 +357,13 @@ export const TEMPLATE_VARIABLES: Record<
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
     optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'serviceTypeName'],
   },
-  INSPECTION_CONFIRMED_SMS: {
-    required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode'],
-  },
   INSPECTION_RESCHEDULED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
     optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'serviceTypeName'],
   },
-  INSPECTION_RESCHEDULED_SMS: {
-    required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode'],
-  },
   INSPECTION_CANCELLED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate'],
     optional: ['agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'serviceTypeName'],
-  },
-  INSPECTION_CANCELLED_SMS: {
-    required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'appointmentCode'],
   },
   // Agency-facing counterpart of INSPECTION_CANCELLED, addressed to the branch
   // contact rather than the rental tenant. `cancellationReason` is deliberately
@@ -410,10 +387,6 @@ export const TEMPLATE_VARIABLES: Record<
   INSPECTION_UNAVAILABILITY_REPORTED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode'],
     optional: ['agencyName', 'agencyPhone', 'properfyLogoUrl', 'serviceTypeName'],
-  },
-  INSPECTION_UNAVAILABILITY_REPORTED_SMS: {
-    required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'appointmentCode'],
   },
   REPORT_READY: {
     required: ['userName', 'reportType', 'downloadLink'],
