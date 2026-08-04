@@ -27,6 +27,7 @@ const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 const VALID_DATA: TenantAdminFormData = {
   name: 'Imob Alpha',
   legalName: 'Alpha LTDA',
+  timezone: 'Australia/Sydney',
   currency: 'AUD',
   appointmentCodePrefix: 'INS',
   notes: '',
@@ -55,6 +56,29 @@ describe('useTenantAdminSave', () => {
     const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
     const errors = result.current.validate(VALID_DATA);
     expect(Object.keys(errors)).toHaveLength(0);
+  });
+
+  it('validate requires timezone', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+    const errors = result.current.validate({ ...VALID_DATA, timezone: '' });
+    expect(errors.timezone).toBeDefined();
+  });
+
+  it('save sends timezone in the PATCH payload', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_DATA, timezone: 'Australia/Perth' }, 'ten-01');
+    });
+
+    expect(mockPatch).toHaveBeenCalledWith(
+      '/v1/tenants/{tenantId}',
+      expect.objectContaining({
+        body: expect.objectContaining({ timezone: 'Australia/Perth' }),
+      }),
+    );
   });
 
   it('validate requires legalName', () => {
@@ -159,6 +183,7 @@ describe('useTenantAdminSave', () => {
       body: {
         name: 'Imob Alpha',
         legalName: 'Alpha LTDA',
+        timezone: 'Australia/Sydney',
         currency: 'AUD',
         appointmentCodePrefix: 'INS',
         settings: {

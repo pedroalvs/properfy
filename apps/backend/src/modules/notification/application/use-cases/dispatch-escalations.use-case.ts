@@ -6,6 +6,7 @@ import type { INotificationRepository } from '../../domain/notification.reposito
 import type { BuildNotificationPayloadService } from '../../domain/build-notification-payload.service';
 import type { AppointmentCodeFormatter } from '../../../appointment/domain/appointment-code.formatter';
 import type { CreateNotificationUseCase } from './create-notification.use-case';
+import type { TenantCronScope } from './dispatch-reminders.use-case';
 
 export interface DispatchEscalationsOutput {
   pmEscalations: number;
@@ -27,16 +28,19 @@ export class DispatchEscalationsUseCase {
     private readonly rentalTenantPortalBaseUrl: string,
   ) {}
 
-  async execute(today?: Date): Promise<DispatchEscalationsOutput> {
+  async execute(today?: Date, scope?: TenantCronScope): Promise<DispatchEscalationsOutput> {
     const now = today ?? new Date();
     let pmEscalations = 0;
     let smsAlerts = 0;
     let skipped = 0;
 
-    // "Today" is the Sydney civil date; the repo expects UTC midnight of that civil date.
-    const targetDate = new Date(`${civilDateInTimezone(now, PLATFORM_TIMEZONE)}T00:00:00.000Z`);
+    // "Today" is the CLAIMED agency-local civil date for scoped (per-tenant
+    // tick) runs, the platform civil date otherwise; the repo expects UTC
+    // midnight of it.
+    const todayCivil = scope?.todayCivil ?? civilDateInTimezone(now, PLATFORM_TIMEZONE);
+    const targetDate = new Date(`${todayCivil}T00:00:00.000Z`);
     targetDate.setUTCDate(targetDate.getUTCDate() + ESCALATION_OFFSET_DAYS);
-    const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate);
+    const appointments = await this.appointmentRepo.findScheduledOnDate(targetDate, scope?.tenantIds);
 
     for (const { appointment, contact, propertyAddress, serviceTypeName } of appointments) {
       if (appointment.rentalTenantConfirmationStatus === 'CONFIRMED') {

@@ -18,9 +18,13 @@ export interface AnalyticsQuery {
   tenantId?: string;
   /** Injectable clock — the absolute today/week/month KPIs depend on it. */
   now?: Date;
+  /** Actor's effective IANA timezone anchoring civil-day windows; defaults to the platform timezone. */
+  timezone?: string;
 }
 
 export interface HeatmapQuery {
+  // No timezone here on purpose: the heatmap ranges only the `scheduled_date`
+  // @db.Date column, whose civil-date window is timezone-independent.
   startDate: string;
   endDate: string;
   tenantId?: string;

@@ -1,5 +1,6 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { prisma } from '../shared/infrastructure/prisma';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { Logger } from '../shared/infrastructure/logger';
 import { metrics } from '../shared/infrastructure/metrics';
 import { getEnv } from './env';
@@ -13,6 +14,7 @@ import { LoginUseCase } from '../modules/auth/application/use-cases/login.use-ca
 import { RefreshTokenUseCase } from '../modules/auth/application/use-cases/refresh-token.use-case';
 import { LogoutUseCase } from '../modules/auth/application/use-cases/logout.use-case';
 import { GetMeUseCase } from '../modules/auth/application/use-cases/get-me.use-case';
+import { UpdateMyTimezoneUseCase } from '../modules/auth/application/use-cases/update-my-timezone.use-case';
 import { ChangePasswordUseCase } from '../modules/auth/application/use-cases/change-password.use-case';
 import { RevokeSessionUseCase } from '../modules/auth/application/use-cases/revoke-session.use-case';
 import { ListSessionsUseCase } from '../modules/auth/application/use-cases/list-sessions.use-case';
@@ -187,6 +189,10 @@ import type { RentalTenantPortalRouteContainer } from '../modules/rental-tenant-
 import { PrismaInspectionExecutionRepository } from '../modules/inspector-execution/infrastructure/prisma-inspection-execution.repository';
 import { PrismaIdempotencyService } from '../modules/inspector-execution/infrastructure/prisma-idempotency.service';
 import { StubStorageService } from '../modules/inspector-execution/infrastructure/stub-storage.service';
+import { SupabaseBrandingStorageService } from '../modules/tenant/infrastructure/supabase-branding-storage.service';
+import { StubBrandingStorageService } from '../modules/tenant/infrastructure/stub-branding-storage.service';
+import { UploadTenantLogoUseCase } from '../modules/tenant/application/use-cases/upload-tenant-logo.use-case';
+import { DeleteTenantLogoUseCase } from '../modules/tenant/application/use-cases/delete-tenant-logo.use-case';
 import { SupabaseStorageService } from '../modules/inspector-execution/infrastructure/supabase-storage.service';
 import { PrismaServiceTypeReader } from '../modules/inspector-execution/infrastructure/prisma-service-type-reader';
 import { PrismaContactReader } from '../modules/inspector-execution/infrastructure/prisma-contact-reader';
@@ -353,7 +359,9 @@ import { NotifyOnGroupInspectorChangeSubscriber } from '../modules/notification/
 import { ChangeGroupInspectorUseCase } from '../modules/service-group/application/use-cases/change-group-inspector.use-case';
 import { ChangeGroupScheduleUseCase } from '../modules/service-group/application/use-cases/change-group-schedule.use-case';
 import { createApiKeyAuthMiddleware } from '../shared/interfaces/api-key-auth-middleware';
-import { createAuthMiddleware } from '../shared/interfaces/auth-middleware';
+import { createAuthMiddleware, setDefaultTimezoneResolver } from '../shared/interfaces/auth-middleware';
+import { createEffectiveTimezoneResolver } from '../shared/infrastructure/effective-timezone-resolver';
+import { CachedTenantTimezoneLookup } from '../shared/infrastructure/cached-tenant-timezone.lookup';
 
 // Appointment module
 import { PrismaAppointmentRepository } from '../modules/appointment/infrastructure/prisma-appointment.repository';
@@ -470,6 +478,24 @@ export interface AppContainer {
 
 export function createContainer(logger: Logger): AppContainer {
   const env = getEnv();
+
+  // Effective-timezone resolution for every auth middleware instance: route
+  // modules build their own middleware, so the resolver is registered once
+  // here (composition root) instead of threaded through each route container.
+  const tenantTimezoneLookup = new CachedTenantTimezoneLookup(prisma);
+  setDefaultTimezoneResolver(
+    createEffectiveTimezoneResolver({
+      getTenantTimezone: (tenantId) => tenantTimezoneLookup.getTenantTimezone(tenantId),
+      getUserTimezone: async (userId) => {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { timezone: true },
+        });
+        return user?.timezone;
+      },
+    }),
+  );
+
   const auditLogRepo = new PrismaAuditLogRepository(prisma);
   const auditService = new PersistentAuditService(auditLogRepo, logger);
   // Feature 020: retention + preservation + PII registry repositories
@@ -533,6 +559,7 @@ export function createContainer(logger: Logger): AppContainer {
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo);
   const logoutUseCase = new LogoutUseCase(sessionRepo, auditService);
   const getMeUseCase = new GetMeUseCase(userRepo, inspectorRepo, storageService, tenantRepo);
+  const updateMyTimezoneUseCase = new UpdateMyTimezoneUseCase(userRepo, auditService);
   const passwordHistoryRepo = new PrismaPasswordHistoryRepository(prisma);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo);
   const revokeSessionUseCase = new RevokeSessionUseCase(sessionRepo, auditService);
@@ -544,10 +571,29 @@ export function createContainer(logger: Logger): AppContainer {
   // Domain event bus (single instance shared across modules)
   const domainEventBus = new DomainEventBus();
 
+  // Tenant branding storage: public bucket, so uploads need the public URL base.
+  // The stub is only legitimate where S3 itself is stubbed (local dev, tests);
+  // S3 configured but no public URL base would 200 the upload and persist a
+  // fabricated stub URL into real outbound emails — warn loudly instead of
+  // failing silently.
+  if (s3Client && !env.SUPABASE_STORAGE_PUBLIC_URL) {
+    logger.warn(
+      'SUPABASE_STORAGE_PUBLIC_URL is not set: tenant logo uploads will use the stub ' +
+        'branding storage and persist non-working logo URLs. Set it to ' +
+        'https://<project>.supabase.co/storage/v1/object/public to enable real uploads.',
+    );
+  }
+  const brandingStorageService =
+    s3Client && env.SUPABASE_STORAGE_PUBLIC_URL
+      ? new SupabaseBrandingStorageService(s3Client, env.SUPABASE_STORAGE_PUBLIC_URL)
+      : new StubBrandingStorageService();
+
   // Tenant use cases
   const getTenantUseCase = new GetTenantUseCase(tenantRepo);
   const listTenantsUseCase = new ListTenantsUseCase(tenantRepo, branchRepo, authorizationService);
   const updateTenantUseCase = new UpdateTenantUseCase(tenantRepo, auditService, domainEventBus);
+  const uploadTenantLogoUseCase = new UploadTenantLogoUseCase(tenantRepo, brandingStorageService, auditService, logger);
+  const deleteTenantLogoUseCase = new DeleteTenantLogoUseCase(tenantRepo, brandingStorageService, auditService, logger);
   const activateTenantUseCase = new ActivateTenantUseCase(tenantRepo, auditService, authorizationService, domainEventBus);
   const deactivateTenantUseCase = new DeactivateTenantUseCase(tenantRepo, appointmentChecker, auditService, authorizationService, domainEventBus);
   const createBranchUseCase = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus);
@@ -752,6 +798,7 @@ export function createContainer(logger: Logger): AppContainer {
     rentalTenantPortalTokenRepo,
     confirmationCycleService,
     prisma,
+    tenantTimezoneLookup,
   );
 
   // Notification payload helpers — no constructor deps, safe to create here
@@ -785,6 +832,7 @@ export function createContainer(logger: Logger): AppContainer {
     undefined, appCredentialRepo,
     confirmationCycleService, rentalTenantPortalTokenRepo, notifyOnAdminRescheduleHandler,
     new PrismaServiceGroupRepository(prisma),
+    tenantTimezoneLookup,
   );
 
   const bulkEditAppointmentsUseCase = new BulkEditAppointmentsUseCase(
@@ -883,9 +931,11 @@ export function createContainer(logger: Logger): AppContainer {
   const getAppointmentDetailUseCase = new GetAppointmentDetailUseCase(
     appointmentRepo, inspectionExecutionRepo, serviceTypeReaderForExec, authorizationService, tenantRepo, appCredentialRepo,
     contactReaderForExec, logger,
+    tenantTimezoneLookup,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
     appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, serviceTypeReaderForExec, authorizationService,
+    tenantTimezoneLookup,
   );
   const finishInspectionUseCase = new FinishInspectionUseCase(
     inspectionExecutionRepo, idempotencyService,
@@ -953,6 +1003,7 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
     createPropertyUseCase, auditService, authorizationService, tenantRepo, contactRepo,
     undefined, idempotencyService, appCredentialRepo, autoGroupIngoingOutgoingService,
+    tenantTimezoneLookup,
   );
   const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
   const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
@@ -1104,6 +1155,16 @@ export function createContainer(logger: Logger): AppContainer {
     reportDataReader,
     createNotificationUseCase,
     userManagementRepo,
+    async (r) => {
+      if (r.agencyScoped && r.tenantId) {
+        return (await tenantTimezoneLookup.getTenantTimezone(r.tenantId)) ?? PLATFORM_TIMEZONE;
+      }
+      const requester = await prisma.user.findUnique({
+        where: { id: r.requestedByUserId },
+        select: { timezone: true },
+      });
+      return requester?.timezone ?? PLATFORM_TIMEZONE;
+    },
   );
 
   // Notification providers and services (notificationRepo + notificationTemplateRepo created above)
@@ -1268,6 +1329,7 @@ export function createContainer(logger: Logger): AppContainer {
   const previewAppointmentImportUseCase = new PreviewAppointmentImportUseCase(
     appointmentImportRepo, reportStorageService, branchRepo, appointmentImportRowResolver,
     appointmentImportGeocodeVerifier, authorizationService,
+    tenantTimezoneLookup,
   );
   const commitAppointmentImportUseCase = new CommitAppointmentImportUseCase(
     appointmentImportRepo, importJobQueue, authorizationService, idempotencyService,
@@ -1356,6 +1418,7 @@ export function createContainer(logger: Logger): AppContainer {
       refreshTokenUseCase,
       logoutUseCase,
       getMeUseCase,
+      updateMyTimezoneUseCase,
       changePasswordUseCase,
       revokeSessionUseCase,
       listSessionsUseCase,
@@ -1371,6 +1434,8 @@ export function createContainer(logger: Logger): AppContainer {
       getTenantUseCase,
       listTenantsUseCase,
       updateTenantUseCase,
+      uploadTenantLogoUseCase,
+      deleteTenantLogoUseCase,
       activateTenantUseCase,
       deactivateTenantUseCase,
       createBranchUseCase,

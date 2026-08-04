@@ -54,9 +54,18 @@ export function workloadLevel(
  * Adapter onto the dashboard's existing `alertLevel` wire contract
  * (`'yellow' | 'red' | null`). Kept separate from `workloadLevel` so the new
  * screen can use the descriptive vocabulary without changing a shipped payload.
+ *
+ * `thresholds` is explicit, and defaulting it to weekly is a convenience for
+ * weekly callers — not a statement that this function is weekly by nature. It
+ * previously took no thresholds at all, and the dashboard used it to classify a
+ * **one-day** count: a day would have needed 15 inspections to raise an alert,
+ * so the alert never fired. Pass the set that matches the window you counted.
  */
-export function workloadAlertLevel(count: number): 'yellow' | 'red' | null {
-  const level = workloadLevel(count);
+export function workloadAlertLevel(
+  count: number,
+  thresholds: WorkloadThresholds = WEEKLY_WORKLOAD_THRESHOLDS,
+): 'yellow' | 'red' | null {
+  const level = workloadLevel(count, thresholds);
   if (level === 'overloaded') return 'red';
   if (level === 'busy') return 'yellow';
   return null;

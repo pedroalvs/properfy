@@ -76,7 +76,6 @@ export class AppointmentImportCommitWorker {
 
   async execute(data: AppointmentImportCommitJobData): Promise<void> {
     const { importId, actor } = data;
-    const tz = PLATFORM_TIMEZONE;
 
     const importRecord = await this.importRepo.findById(importId, null);
     if (!importRecord) {
@@ -126,6 +125,12 @@ export class AppointmentImportCommitWorker {
       // time would only confuse.
       const parsed = await parseAppointmentImportFile(fileBuffer, ext);
 
+      // One tenant fetch serves both concerns below: the property-code prefix
+      // (a per-batch constant) and the agency timezone anchoring past-date checks.
+      const tenant = await this.tenantRepo.findById(importRecord.tenantId);
+      const codePrefix = tenant?.appointmentCodePrefix ?? null;
+      const tz = tenant?.timezone ?? PLATFORM_TIMEZONE;
+
       const { rows } = await this.resolver.resolve(parsed.rows, {
         tenantId: importRecord.tenantId,
         branchId: importRecord.branchId,
@@ -135,12 +140,6 @@ export class AppointmentImportCommitWorker {
 
       const createdPropertyIds = new Map<string, string>();
       const results: ImportRowResult[] = [];
-
-      // Property codes are `<PREFIX>-PROP-NNNN` like every other property; the
-      // tenant prefix is a per-batch constant, so it is read once here rather
-      // than once per created row.
-      const tenant = await this.tenantRepo.findById(importRecord.tenantId);
-      const codePrefix = tenant?.appointmentCodePrefix ?? null;
 
       for (const row of rows) {
         const prior = priorByRow.get(row.rowNumber);

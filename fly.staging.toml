@@ -1,5 +1,9 @@
 app = 'properfy'
-primary_region = 'gru'
+# Sydney is production-only (see fly.prod.toml). This was 'gru' until Fly ran out of
+# capacity there — `fly deploy` fails with "no capacity available in gru" and, worse,
+# a release_command machine pinned to gru cannot restart, which blocks every staging
+# deploy at its first step. Do not move this back without checking gru capacity first.
+primary_region = 'iad'
 
 [build]
   dockerfile = 'apps/backend/Dockerfile'

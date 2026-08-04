@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TenantStatusChip } from '../components/TenantStatusChip';
 import { BranchSection } from '../components/BranchSection';
 import { PricingRulesSection } from '../components/PricingRulesSection';
+import { EmailLogoSection } from '../components/EmailLogoSection';
 import { TenantFormDrawer } from '../components/TenantFormDrawer';
 import { useTenantAdminDetail } from '../hooks/useTenantAdminDetail';
 import { useTenantDeactivate } from '../hooks/useTenantDeactivate';
@@ -20,6 +21,7 @@ const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'branches', label: 'Branches' },
   { id: 'pricing', label: 'Pricing' },
+  { id: 'branding', label: 'Email Logo' },
 ];
 
 export function TenantDetailPage() {
@@ -164,6 +166,18 @@ export function TenantDetailPage() {
             tenantId={id}
             tenantName={tenant.name}
             currency={tenant.currency}
+          />
+        )}
+
+        {activeTab === 'branding' && id && (
+          <EmailLogoSection
+            tenantId={id}
+            logoUrl={
+              typeof tenant.settingsJson?.logoUrl === 'string'
+                ? tenant.settingsJson.logoUrl
+                : null
+            }
+            onChanged={refetch}
           />
         )}
       </div>

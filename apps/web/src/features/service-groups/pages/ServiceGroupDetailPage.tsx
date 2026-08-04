@@ -6,7 +6,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { Button } from '@/components/ui/Button';
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { ServiceGroupStatus } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, ServiceGroupStatus } from '@properfy/shared';
 import { useServiceGroupDetail } from '../hooks/useServiceGroupDetail';
 import { usePublishServiceGroup } from '../hooks/usePublishServiceGroup';
 import { useAssignInspector } from '../hooks/useAssignInspector';
@@ -164,6 +164,7 @@ export function ServiceGroupDetailPage() {
   // array means "not in the payload", not "empty group".
   const publishBlockReason = getPublishBlockReason({
     status: serviceGroup.status,
+    timeZone: PLATFORM_TIMEZONE,
     appointmentCount: serviceGroup.appointmentsCount,
     scheduledDate: serviceGroup.scheduledDate,
     timeWindow: serviceGroup.timeWindow,

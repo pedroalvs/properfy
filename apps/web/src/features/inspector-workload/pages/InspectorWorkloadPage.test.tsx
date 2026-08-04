@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { InspectorWorkloadResponse } from '@properfy/shared';
 import { InspectorWorkloadPage } from './InspectorWorkloadPage';
+
+// The component resolves "today"/instants in the user's effective timezone;
+// pin it to the platform default so these tests stay deterministic.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
 
 const mockUseInspectorWorkload = vi.fn();
 vi.mock('../hooks/useInspectorWorkload', () => ({
@@ -87,12 +94,18 @@ function makeWorkload(): InspectorWorkloadResponse {
   };
 }
 
+function LocationDisplay() {
+  const location = useLocation();
+  return <div data-testid="location-display">{location.pathname}</div>;
+}
+
 function renderPage(url = '/inspector-workload?week=2026-07-27') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[url]}>
         <InspectorWorkloadPage />
+        <LocationDisplay />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -135,6 +148,33 @@ describe('InspectorWorkloadPage', () => {
     // `useUrlFilters` debounces its URL write by 300 ms, so the re-query is not
     // observable on the next tick.
     await waitFor(() => expect(mockUseInspectorWorkload).toHaveBeenLastCalledWith('2026-07-20'));
+  });
+
+  // The route is AM/OP-only and both roles may open Dashboard and Analytics,
+  // so the actions carry no role gate. With the sidebar entries removed these
+  // buttons are the only way off the screen within the dashboard cluster.
+  it('offers Dashboard and Analytics actions alongside the week selector', () => {
+    renderPage();
+
+    expect(screen.getAllByRole('button', { name: /dashboard/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole('button', { name: /analytics/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByTestId('week-selector')).toBeInTheDocument();
+  });
+
+  it('navigates to /dashboard when the Dashboard action is clicked', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getAllByRole('button', { name: /dashboard/i })[0]!);
+    expect(screen.getByTestId('location-display')).toHaveTextContent('/dashboard');
+  });
+
+  it('navigates to /analytics when the Analytics action is clicked', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getAllByRole('button', { name: /analytics/i })[0]!);
+    expect(screen.getByTestId('location-display')).toHaveTextContent('/analytics');
   });
 
   it('shows a loading placeholder rather than an empty screen', () => {

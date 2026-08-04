@@ -280,6 +280,7 @@ vi.mock('../hooks/useGroupPortalLinkPlan', () => ({
 
 import { ServiceGroupDetailPage } from './ServiceGroupDetailPage';
 
+
 function createWrapper(initialEntry: string = '/service-groups/sg-01') {
   const queryClient = new QueryClient({
     defaultOptions: {

@@ -487,9 +487,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   }
 
   // Cross-tenant: background job processes all tenants for reminders/escalation
-  async findScheduledOnDate(date: Date): Promise<AppointmentWithRelations[]> {
+  async findScheduledOnDate(date: Date, tenantIds?: string[]): Promise<AppointmentWithRelations[]> {
     // scheduled_date is a @db.Date pinned to UTC midnight; callers must pass
-    // UTC midnight of the *Sydney* civil date they are targeting.
+    // UTC midnight of the civil date they are targeting (in the relevant agency timezone).
     const startOfDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
     const endOfDay = new Date(startOfDay.getTime() + 86_400_000);
 
@@ -498,6 +498,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         status: 'SCHEDULED',
         scheduled_date: { gte: startOfDay, lt: endOfDay },
         deleted_at: null,
+        ...(tenantIds ? { tenant_id: { in: tenantIds } } : {}),
       },
       include: {
         contacts: true,
@@ -796,9 +797,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
    * Contrast `createAppointmentFlowTypeReader`, which is request-scoped and
    * therefore does scope by tenant.
    */
-  async findUnconfirmedForDate(date: Date): Promise<AppointmentEntity[]> {
+  async findUnconfirmedForDate(date: Date, tenantIds?: string[]): Promise<AppointmentEntity[]> {
     // scheduled_date is a @db.Date pinned to UTC midnight; callers must pass
-    // UTC midnight of the *Sydney* civil date they are targeting.
+    // UTC midnight of the civil date they are targeting (in the relevant agency timezone).
     const startOfDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
     const endOfDay = new Date(startOfDay.getTime() + 86_400_000);
 
@@ -809,6 +810,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         key_required: false,
         status: { notIn: ['DONE', 'CANCELLED', 'REJECTED'] },
         deleted_at: null,
+        ...(tenantIds ? { tenant_id: { in: tenantIds } } : {}),
         service_type: {
           flow_type: 'ROUTINE',
           requires_rental_tenant_confirmation: true,
@@ -819,9 +821,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     return rows.map(mapToEntity);
   }
 
-  async findOverdueForAutoCancel(createdBefore: Date, limit: number): Promise<AppointmentEntity[]> {
-    // Cross-tenant: background job processes all tenants, so there is deliberately
-    // no tenant_id filter here. The caller is the scheduled sweep, not a request.
+  async findOverdueForAutoCancel(createdBefore: Date, limit: number, tenantIds?: string[]): Promise<AppointmentEntity[]> {
+    // Background job: without `tenantIds` it processes all tenants; the per-agency
+    // tick sweep passes the tenants whose local midnight claimed the run.
     // `created_at` is a real instant, so callers must pass the actual Sydney-midnight
     // instant of the cutoff civil date (startOfOverdueAgeCutoff), NOT UTC midnight.
     const rows = await this.prisma.appointment.findMany({
@@ -831,6 +833,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         // overdue badge but must never be cancelled — it is the operator repair state.
         status: { in: [...OVERDUE_AUTO_CANCEL_STATUSES] },
         deleted_at: null,
+        ...(tenantIds ? { tenant_id: { in: tenantIds } } : {}),
       },
       // Oldest first: the longest-stalled appointments drain out of a backlog first.
       orderBy: { created_at: 'asc' },

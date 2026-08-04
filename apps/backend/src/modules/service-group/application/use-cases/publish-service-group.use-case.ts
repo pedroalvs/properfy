@@ -101,8 +101,10 @@ export class PublishServiceGroupUseCase {
 
     // `validateNewSchedule` (not the edited variant) because publishing is a
     // release, not an edit: there is no unchanged field to grandfather. Same
-    // Sydney-based rule used by create/update — past day, or today with a
-    // window that has already started.
+    // platform-timezone rule used by create/update — past day, or today with a
+    // window that has already started. Groups are cross-tenant (region-scoped)
+    // constructs, so they stay on the platform timezone (documented carve-out
+    // of the per-agency timezone work).
     const scheduleCheck = validateNewSchedule({
       date: group.scheduledDate.toISOString().slice(0, 10),
       timeSlot: group.timeWindow,

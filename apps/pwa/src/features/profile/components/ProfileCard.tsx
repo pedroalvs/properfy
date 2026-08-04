@@ -1,6 +1,7 @@
 
 import { formatInstantDateTime } from '@/lib/format-date';
 import { StarRating } from '@/components/ui/StarRating';
+import { formatTimezoneLabel } from '@/components/ui/TimezonePicker';
 
 interface ProfileCardProps {
   name: string;
@@ -8,6 +9,8 @@ interface ProfileCardProps {
   role: string;
   status?: string;
   phone?: string | null;
+  /** Effective IANA timezone (personal ?? platform). */
+  timezone?: string | null;
   totpEnabled?: boolean;
   lastLoginAt?: string | null;
   photoUrl?: string | null;
@@ -43,7 +46,7 @@ function formatStatus(value: string | null | undefined): string {
     .join(' ');
 }
 
-export function ProfileCard({ name, email, role, status, phone, totpEnabled, lastLoginAt, photoUrl, avatarUploader, ratingAvg, ratingCount = 0, completedCount = 0, ratingLoading = false, showStats = false }: ProfileCardProps) {
+export function ProfileCard({ name, email, role, status, phone, timezone, totpEnabled, lastLoginAt, photoUrl, avatarUploader, ratingAvg, ratingCount = 0, completedCount = 0, ratingLoading = false, showStats = false }: ProfileCardProps) {
   const roleLabel = roleLabelMap[role] ?? role;
 
   return (
@@ -120,6 +123,10 @@ export function ProfileCard({ name, email, role, status, phone, totpEnabled, las
         <div className="flex items-center justify-between gap-4">
           <span className="text-text-secondary">Phone</span>
           <span className="font-medium text-text-primary">{phone ?? '—'}</span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-text-secondary">Timezone</span>
+          <span className="font-medium text-text-primary">{formatTimezoneLabel(timezone) ?? '—'}</span>
         </div>
         <div className="flex items-center justify-between gap-4">
           <span className="text-text-secondary">Two-Factor</span>

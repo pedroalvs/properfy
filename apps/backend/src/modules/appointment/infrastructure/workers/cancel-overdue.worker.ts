@@ -5,7 +5,7 @@ export class CancelOverdueWorker {
     private readonly useCase: CancelOverdueAppointmentsUseCase,
   ) {}
 
-  async execute(): Promise<CancelOverdueAppointmentsOutput> {
-    return this.useCase.execute();
+  async execute(scope?: { tenantIds: string[] }): Promise<CancelOverdueAppointmentsOutput> {
+    return this.useCase.execute(scope);
   }
 }

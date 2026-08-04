@@ -29,14 +29,17 @@ export class RejectUnconfirmedAppointmentsUseCase {
     private readonly prisma?: PrismaClient,
   ) {}
 
-  async execute(): Promise<RejectUnconfirmedAppointmentsOutput> {
-    // Tomorrow as a Sydney civil date; the repo expects UTC midnight of that civil date.
+  async execute(scope?: { timezone: string; todayCivil?: string; tenantIds: string[] }): Promise<RejectUnconfirmedAppointmentsOutput> {
+    // Tomorrow as a civil date — derived from the CLAIMED agency-local date for
+    // scoped (per-tenant tick) runs so claim and execution always agree,
+    // platform otherwise; the repo expects UTC midnight of that civil date.
     const now = new Date();
-    const tomorrow = new Date(`${civilDateInTimezone(now, PLATFORM_TIMEZONE)}T00:00:00.000Z`);
+    const todayCivil = scope?.todayCivil ?? civilDateInTimezone(now, PLATFORM_TIMEZONE);
+    const tomorrow = new Date(`${todayCivil}T00:00:00.000Z`);
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
     // Find appointments scheduled for tomorrow that are unconfirmed and in active status
-    const appointments = await this.appointmentRepo.findUnconfirmedForDate(tomorrow);
+    const appointments = await this.appointmentRepo.findUnconfirmedForDate(tomorrow, scope?.tenantIds);
 
     if (appointments.length === 0) {
       this.logger.info('No unconfirmed appointments found for tomorrow');

@@ -2,8 +2,11 @@ import type { PrismaClient } from '@prisma/client';
 import {
   addCivilDays,
   AGENCY_VISIBLE_ENTRY_TYPES,
+  DAILY_WORKLOAD_THRESHOLDS,
   mondayOf,
+  WEEKLY_WORKLOAD_THRESHOLDS,
   workloadAlertLevel,
+  type WorkloadThresholds,
 } from '@properfy/shared';
 import {
   civilDateInTimezone,
@@ -45,10 +48,17 @@ export class PrismaDashboardRepository implements DashboardRepository {
     return { start: `${civilDate.slice(0, 7)}-01`, end };
   }
 
+  /**
+   * @param thresholds Capacity thresholds matching the window the rows were
+   *   counted over. This used to be a `withAlertLevel` boolean, and that boolean
+   *   was the bug: it encoded "tomorrow is the special one" while the weekly
+   *   thresholds were applied to that one-day count, so the alert never fired
+   *   and the two weekly lists carried no alert at all.
+   */
   private buildInspectorList(
     rows: InspectorGroupByRow[],
     nameMap: Map<string, string>,
-    withAlertLevel: boolean,
+    thresholds: WorkloadThresholds,
   ): InspectorDayCount[] {
     const list: InspectorDayCount[] = [];
 
@@ -66,7 +76,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
         inspectorId: id,
         inspectorName: name,
         count: row._count._all,
-        alertLevel: withAlertLevel ? workloadAlertLevel(row._count._all) : null,
+        alertLevel: workloadAlertLevel(row._count._all, thresholds),
       });
     }
 
@@ -86,11 +96,13 @@ export class PrismaDashboardRepository implements DashboardRepository {
     tenantId?: string,
     includeInspectorBreakdowns = false,
     now: Date = new Date(),
+    timezone?: string,
   ): Promise<DashboardStatsOutput> {
     const tenantFilter = tenantId ? { tenant_id: tenantId } : {};
 
-    // Every window below is a Sydney civil window, not a server-local one.
-    const today = civilDateInTimezone(now, PLATFORM_TIMEZONE);
+    // Every window below is a civil window in the actor's effective timezone,
+    // not a server-local one.
+    const today = civilDateInTimezone(now, timezone ?? PLATFORM_TIMEZONE);
     const weekStart = mondayOf(today);
     const week = this.civilDateRange(weekStart, addCivilDays(weekStart, 6));
     const tomorrow = this.civilDateRange(nextCivilDay(today), nextCivilDay(today));
@@ -347,10 +359,13 @@ export class PrismaDashboardRepository implements DashboardRepository {
         inspectorRecords.map((r) => [r.id, r.name]),
       );
 
+      // Each list is classified by the thresholds matching its own window: the
+      // tomorrow query covers ONE day, the other two cover SEVEN. Copying a
+      // neighbour's thresholds here is exactly how this feature broke before.
       inspectorBreakdowns = {
-        tomorrowByInspector: this.buildInspectorList(typedTomorrowRows, nameMap, true),
-        scheduledThisWeekByInspector: this.buildInspectorList(typedScheduledWeekRows, nameMap, false),
-        confirmedThisWeekByInspector: this.buildInspectorList(typedConfirmedWeekRows, nameMap, false),
+        tomorrowByInspector: this.buildInspectorList(typedTomorrowRows, nameMap, DAILY_WORKLOAD_THRESHOLDS),
+        scheduledThisWeekByInspector: this.buildInspectorList(typedScheduledWeekRows, nameMap, WEEKLY_WORKLOAD_THRESHOLDS),
+        confirmedThisWeekByInspector: this.buildInspectorList(typedConfirmedWeekRows, nameMap, WEEKLY_WORKLOAD_THRESHOLDS),
       };
     }
 

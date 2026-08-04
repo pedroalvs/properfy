@@ -66,6 +66,8 @@ export function createMockContainer(
       getTenantUseCase: { execute: vi.fn() },
       listTenantsUseCase: { execute: vi.fn() },
       updateTenantUseCase: { execute: vi.fn() },
+      uploadTenantLogoUseCase: { execute: vi.fn() },
+      deleteTenantLogoUseCase: { execute: vi.fn() },
       activateTenantUseCase: { execute: vi.fn() },
       deactivateTenantUseCase: { execute: vi.fn() },
       createBranchUseCase: { execute: vi.fn() },

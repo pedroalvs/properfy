@@ -24,8 +24,8 @@ describe('createTenantSchema', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.currency).toBe('AUD');
-      // timezone is no longer part of the contract — the platform is Sydney-only.
-      expect('timezone' in result.data).toBe(false);
+      // timezone is optional: the use case defaults it to the platform timezone.
+      expect(result.data.timezone).toBeUndefined();
     }
   });
 
@@ -66,7 +66,7 @@ describe('createTenantSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should accept valid input with all fields, stripping the removed timezone field', () => {
+  it('should accept valid input with all fields, including the agency timezone', () => {
     const result = createTenantSchema.safeParse({
       ...validInput,
       timezone: 'America/Sao_Paulo',
@@ -74,7 +74,12 @@ describe('createTenantSchema', () => {
       settings: { billingPeriod: 'WEEKLY' },
     });
     expect(result.success).toBe(true);
-    expect(result.success && 'timezone' in result.data).toBe(false);
+    expect(result.success && result.data.timezone).toBe('America/Sao_Paulo');
+  });
+
+  it('should reject an invalid timezone identifier', () => {
+    const result = createTenantSchema.safeParse({ ...validInput, timezone: 'Sydney' });
+    expect(result.success).toBe(false);
   });
 
   it('should reject missing name', () => {
@@ -411,7 +416,6 @@ describe('tenantSettingsSchema', () => {
     const result = tenantSettingsSchema.safeParse({
       billingPeriod: 'WEEKLY',
       notificationEmail: 'admin@acme.com',
-      timezone: 'Australia/Sydney',
     });
     expect(result.success).toBe(true);
   });

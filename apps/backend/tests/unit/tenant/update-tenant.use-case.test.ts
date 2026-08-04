@@ -9,7 +9,7 @@ import {
   TenantLegalNameConflictError,
   TenantAppointmentCodePrefixConflictError,
 } from '../../../src/modules/tenant/domain/tenant.errors';
-import { ForbiddenError } from '../../../src/shared/domain/errors';
+import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 
 function makeTenant(
   overrides: Partial<ConstructorParameters<typeof TenantEntity>[0]> = {},
@@ -76,8 +76,7 @@ describe('UpdateTenantUseCase', () => {
 
     expect(result.name).toBe('Updated Name');
     expect(result.legalName).toBe('Updated Legal Name');
-    // timezone is frozen (Sydney-only platform): the sent value is ignored.
-    expect(result.timezone).toBe('Australia/Sydney');
+    expect(result.timezone).toBe('America/Sao_Paulo');
     expect(result.currency).toBe('BRL');
     expect(tenantRepo.update).toHaveBeenCalledWith(
       'tenant-1',
@@ -85,9 +84,9 @@ describe('UpdateTenantUseCase', () => {
         name: 'Updated Name',
         legalName: 'Updated Legal Name',
         currency: 'BRL',
+        timezone: 'America/Sao_Paulo',
       }),
     );
-    expect(vi.mocked(tenantRepo.update).mock.calls[0]![1]).not.toHaveProperty('timezone');
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'tenant.updated' }),
     );
@@ -108,7 +107,7 @@ describe('UpdateTenantUseCase', () => {
     expect(result.name).toBe('New Name');
   });
 
-  it('should strip legalName/timezone/currency when CL_ADMIN updates', async () => {
+  it('should strip legalName/currency when CL_ADMIN updates', async () => {
     vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
 
     await useCase.execute({
@@ -116,17 +115,52 @@ describe('UpdateTenantUseCase', () => {
       data: {
         name: 'New Name',
         legalName: 'Hacked Legal Name',
-        timezone: 'Hacked/TZ',
         currency: 'FAKE',
       },
       actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
     });
 
-    // Verify update was NOT called with legalName, timezone, or currency
+    // Verify update was NOT called with legalName or currency
     const updateCall = vi.mocked(tenantRepo.update).mock.calls[0]![1]!;
     expect(updateCall).not.toHaveProperty('legalName');
-    expect(updateCall).not.toHaveProperty('timezone');
     expect(updateCall).not.toHaveProperty('currency');
+  });
+
+  it('should allow CL_ADMIN to update the agency timezone on their own tenant', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      data: { timezone: 'Australia/Perth' },
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(result.timezone).toBe('Australia/Perth');
+    expect(tenantRepo.update).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({ timezone: 'Australia/Perth' }),
+    );
+    // The change is audited with before/after snapshots.
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'tenant.updated',
+        before: expect.objectContaining({ timezone: 'Australia/Sydney' }),
+        after: expect.objectContaining({ timezone: 'Australia/Perth' }),
+      }),
+    );
+  });
+
+  it('should reject an invalid timezone with a ValidationError', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        data: { timezone: 'Hacked/TZ' },
+        actor: makeActor(),
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(tenantRepo.update).not.toHaveBeenCalled();
   });
 
   it('should throw TENANT_LEGAL_NAME_CONFLICT when legalName is taken', async () => {

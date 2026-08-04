@@ -55,11 +55,12 @@ export class PrismaDashboardAnalyticsRepository implements DashboardAnalyticsRep
     };
   }
 
-  /** Inclusive [start 00:00 Sydney, end+1 00:00 Sydney) — for real timestamp columns. */
-  private sydneyTimestampRange(startDate: string, endDate: string): { gte: Date; lt: Date } {
+  /** Inclusive [start 00:00, end+1 00:00) in the actor's timezone — for real timestamp columns. */
+  private timestampRange(startDate: string, endDate: string, timezone?: string): { gte: Date; lt: Date } {
+    const tz = timezone ?? PLATFORM_TIMEZONE;
     return {
-      gte: parseDateInTimezone(startDate, PLATFORM_TIMEZONE),
-      lt: parseDateInTimezone(nextCivilDay(endDate), PLATFORM_TIMEZONE),
+      gte: parseDateInTimezone(startDate, tz),
+      lt: parseDateInTimezone(nextCivilDay(endDate), tz),
     };
   }
 
@@ -86,9 +87,9 @@ export class PrismaDashboardAnalyticsRepository implements DashboardAnalyticsRep
     const periodRange = this.civilDateRange(query.startDate, query.endDate);
     const inPeriod: Prisma.AppointmentWhereInput = { ...base, scheduled_date: periodRange };
 
-    // The standing today/week/month indicators are absolute Sydney-calendar
-    // windows and deliberately ignore the selected period.
-    const today = civilDateInTimezone(now, PLATFORM_TIMEZONE);
+    // The standing today/week/month indicators are absolute calendar windows in
+    // the actor's effective timezone and deliberately ignore the selected period.
+    const today = civilDateInTimezone(now, query.timezone ?? PLATFORM_TIMEZONE);
     const weekStart = PrismaDashboardAnalyticsRepository.weekStart(today);
     const month = PrismaDashboardAnalyticsRepository.monthRange(today);
 
@@ -134,7 +135,7 @@ export class PrismaDashboardAnalyticsRepository implements DashboardAnalyticsRep
               ...tenantFilter,
               status: 'APPROVED',
               entry_type: 'TENANT_DEBIT',
-              effective_at: this.sydneyTimestampRange(query.startDate, query.endDate),
+              effective_at: this.timestampRange(query.startDate, query.endDate, query.timezone),
             },
             _sum: { amount: true },
           })

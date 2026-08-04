@@ -1,4 +1,4 @@
-import { NotFoundError, ConflictError } from '../../../shared/domain/errors';
+import { NotFoundError, ConflictError, ValidationError } from '../../../shared/domain/errors';
 
 export class TenantNotFoundError extends NotFoundError {
   constructor() {
@@ -84,5 +84,37 @@ export class BranchHasOpenAppointmentsError extends ConflictError {
 export class BranchAlreadyActiveError extends ConflictError {
   constructor() {
     super('BRANCH_ALREADY_ACTIVE', 'Branch is already active');
+  }
+}
+
+export class LogoFileInvalidError extends ValidationError {
+  constructor() {
+    super('Logo must be a PNG, JPEG or WebP image', undefined, 'LOGO_FILE_INVALID');
+  }
+}
+
+export class LogoFileTooLargeError extends ValidationError {
+  constructor(maxBytes: number) {
+    super(
+      `Logo must be ${Math.floor(maxBytes / (1024 * 1024))} MB or smaller`,
+      undefined,
+      'LOGO_FILE_TOO_LARGE',
+    );
+  }
+}
+
+export class LogoDimensionsExceededError extends ValidationError {
+  constructor(maxPx: number) {
+    super(
+      `Logo must be at most ${maxPx}×${maxPx} pixels`,
+      undefined,
+      'LOGO_DIMENSIONS_EXCEEDED',
+    );
+  }
+}
+
+export class TenantLogoNotFoundError extends NotFoundError {
+  constructor() {
+    super('TENANT_LOGO_NOT_FOUND', 'This agency has no logo to remove');
   }
 }

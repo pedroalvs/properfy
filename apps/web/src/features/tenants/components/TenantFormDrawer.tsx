@@ -10,6 +10,7 @@ import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
+import { TimezoneSelect } from '@/components/forms/TimezoneSelect';
 import { Textarea } from '@/components/forms/Textarea';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
@@ -61,6 +62,7 @@ export function TenantFormDrawer({
       const data: TenantAdminFormData = {
         name: tenant.name,
         legalName: tenant.legalName ?? '',
+        timezone: tenant.timezone,
         currency: tenant.currency,
         appointmentCodePrefix: tenant.appointmentCodePrefix ?? '',
         notes: tenant.notes ?? '',
@@ -173,6 +175,15 @@ export function TenantFormDrawer({
                         placeholder="Legal entity name"
                         error={!!errors.legalName}
                         aria-label="Legal Name"
+                      />
+                    </FormField>
+                    <FormField label="Timezone" required error={errors.timezone}>
+                      <TimezoneSelect
+                        value={form.timezone}
+                        onChange={(v) => updateField('timezone', v)}
+                        placeholder="Search timezones"
+                        error={!!errors.timezone}
+                        aria-label="Timezone"
                       />
                     </FormField>
                     <FormField label="Currency" required error={errors.currency}>

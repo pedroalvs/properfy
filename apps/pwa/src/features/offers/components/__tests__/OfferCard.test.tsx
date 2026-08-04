@@ -3,6 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { OfferCard } from '../OfferCard';
 import type { MarketplaceOffer } from '../../types';
 
+// Rendered without an AuthProvider; pin the effective timezone to Sydney.
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
 const baseOffer: MarketplaceOffer = {
   groupId: 'group-1',
   groupNumber: 1057,

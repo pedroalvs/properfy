@@ -55,6 +55,7 @@ export function ProfilePage() {
           role={user.role}
           status={user.status}
           phone={user.phone}
+          timezone={user.timezone}
           totpEnabled={totpEnabled}
           lastLoginAt={user.lastLoginAt}
           photoUrl={user.inspectorPhotoUrl}

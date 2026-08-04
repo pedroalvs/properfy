@@ -21,6 +21,7 @@ import { useInspectorAppointment } from '@/features/schedule/hooks/useInspectorA
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { canTransition } from '../lib/execution-state-machine';
 import { isPastScheduledEnd } from '../lib/isPastScheduledEnd';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { getErrorMessage } from '@/lib/api-error';
 import type { CapturedLocation, ChecklistResponse } from '../types';
 
@@ -36,6 +37,7 @@ export function ExecutionPage() {
   const startMutation = useStartInspection();
   const finishMutation = useFinishInspection();
   const { showInfo, showError } = useSnackbar();
+  const effectiveTimezone = useEffectiveTimezone();
   useAutoSave(state);
   const resumeBannerShown = useRef(false);
   const [confirmStep, setConfirmStep] = useState<FinishConfirmStep>(null);
@@ -122,7 +124,11 @@ export function ExecutionPage() {
     updateState({ phase: 'FINISHING' });
   };
 
-  const appointmentPastEnd = isPastScheduledEnd(appointment.scheduledDate, appointment.timeSlotEnd);
+  const appointmentPastEnd = isPastScheduledEnd(
+    appointment.scheduledDate,
+    appointment.timeSlotEnd,
+    effectiveTimezone,
+  );
   const hasInspectionAppLink = Boolean(jobDetails?.inspectionAppLink);
 
   const handleSubmitRequest = (location: CapturedLocation) => {

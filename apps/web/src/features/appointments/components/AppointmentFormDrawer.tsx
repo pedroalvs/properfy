@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, RestrictionSource, PLATFORM_TIMEZONE, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate, validateEditedSchedule, CUSTOM_FIELD_LABEL_MAX, CUSTOM_FIELD_VALUE_MAX } from '@properfy/shared';
+import { AppointmentStatus, AppointmentContactRole, ContactType, ContactChannelType, RestrictionSource, todayInTzDateString, currentTimeInTzHHmm, isTimeStartInPastForDate, validateEditedSchedule, CUSTOM_FIELD_LABEL_MAX, CUSTOM_FIELD_VALUE_MAX } from '@properfy/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
@@ -20,6 +20,7 @@ import { Checkbox } from '@/components/forms/Checkbox';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { api } from '@/services/api';
@@ -94,6 +95,7 @@ export function AppointmentFormDrawer({
   onSaved,
 }: AppointmentFormDrawerProps) {
   const { user } = useAuth();
+  const effectiveTimezone = useEffectiveTimezone();
   const { canPerform } = usePermissions();
   const isGlobalRole = user?.role === 'AM' || user?.role === 'OP';
   const canAssignRole = user?.role === 'AM' || user?.role === 'OP';
@@ -487,9 +489,11 @@ export function AppointmentFormDrawer({
     // Past-time guard (applies to ALL roles, incl. AM/OP — native input `min`
     // is only a hint and does not block the button-submit path). On edit we use
     // `validateEditedSchedule` so an untouched legacy past appointment is NOT
-    // blocked; only a changed date/time is re-validated. Sydney-only platform:
-    // validate in the platform timezone so the UI matches the backend.
-    const tz = PLATFORM_TIMEZONE;
+    // blocked; only a changed date/time is re-validated. Advisory gate in the
+    // actor's effective timezone (exact for agency users; near-midnight
+    // approximation for AM/OP) — the server enforces the appointment's AGENCY
+    // timezone.
+    const tz = effectiveTimezone;
     if (isEditMode && appointment) {
       const result = validateEditedSchedule({
         existingDate: (appointment.scheduledDate ?? '').split('T')[0] ?? '',
@@ -592,6 +596,7 @@ export function AppointmentFormDrawer({
     isEditMode,
     appointment,
     form,
+    effectiveTimezone,
     validate,
     save,
     appointmentId,
@@ -723,7 +728,7 @@ export function AppointmentFormDrawer({
                         // Edit-conditional: allow keeping a legacy past date when editing;
                         // create flow always enforces min=today.
                         min={(() => {
-                          const today = todayInTzDateString(PLATFORM_TIMEZONE);
+                          const today = todayInTzDateString(effectiveTimezone);
                           if (!isEditMode) return today;
                           const existing = (appointment?.scheduledDate ?? '').split('T')[0] ?? '';
                           return existing < today ? undefined : today;
@@ -740,8 +745,8 @@ export function AppointmentFormDrawer({
                         onStartChange={(v) => updateField('timeSlotStart', v)}
                         onEndChange={(v) => updateField('timeSlotEnd', v)}
                         minStartTime={
-                          form.scheduledDate === todayInTzDateString(PLATFORM_TIMEZONE)
-                            ? currentTimeInTzHHmm(PLATFORM_TIMEZONE)
+                          form.scheduledDate === todayInTzDateString(effectiveTimezone)
+                            ? currentTimeInTzHHmm(effectiveTimezone)
                             : undefined
                         }
                         error={!!errors.timeSlotStart || !!errors.timeSlotEnd}

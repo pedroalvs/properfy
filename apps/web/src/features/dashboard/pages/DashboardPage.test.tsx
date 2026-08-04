@@ -284,3 +284,40 @@ describe('DashboardPage — Analytics entry point', () => {
     });
   });
 });
+
+describe('DashboardPage — Workload entry point', () => {
+  beforeEach(() => {
+    mockRole = 'AM';
+  });
+
+  it.each(['AM', 'OP'])('offers the Workload action to %s', (role) => {
+    mockRole = role;
+    renderPage();
+    expect(screen.getAllByRole('button', { name: /workload/i }).length).toBeGreaterThanOrEqual(1);
+  });
+
+  // /inspector-workload is guarded narrower than /analytics: inspectors are
+  // cross-tenant, so the capacity view is platform-only. Agency roles keep the
+  // Analytics action but must not see Workload.
+  it.each(['CL_ADMIN', 'CL_USER', 'INSP'])('hides the Workload action from %s', (role) => {
+    mockRole = role;
+    renderPage();
+    expect(screen.queryByRole('button', { name: /workload/i })).not.toBeInTheDocument();
+  });
+
+  it('navigates to /inspector-workload when the action is clicked', async () => {
+    const user = userEvent.setup();
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <DashboardPage />
+        <LocationDisplay />
+      </Wrapper>,
+    );
+
+    await user.click(screen.getAllByRole('button', { name: /workload/i })[0]!);
+    await waitFor(() => {
+      expect(screen.getByTestId('location-display')).toHaveTextContent('/inspector-workload');
+    });
+  });
+});

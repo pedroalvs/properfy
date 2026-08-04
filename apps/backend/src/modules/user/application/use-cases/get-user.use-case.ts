@@ -17,6 +17,7 @@ export interface GetUserOutput {
   tenantId: string | null;
   branchId: string | null;
   phone: string | null;
+  timezone: string | null;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -65,6 +66,7 @@ export class GetUserUseCase {
       tenantId: user.tenantId,
       branchId: user.branchId,
       phone: user.phone,
+      timezone: user.timezone,
       status: user.status,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
