@@ -15,6 +15,7 @@ const spies = vi.hoisted(() => ({
   deferLoad: false,
   setOffset: vi.fn(),
   markers: [] as Array<{
+    el: HTMLElement;
     coords: [number, number] | null;
     offset: [number, number];
     alive: boolean;
@@ -58,7 +59,7 @@ vi.mock('mapbox-gl', () => {
     private record: (typeof spies.markers)[number];
     constructor(opts: { element: HTMLElement }) {
       this.el = opts.element;
-      this.record = { coords: null, offset: [0, 0], alive: false };
+      this.record = { el: this.el, coords: null, offset: [0, 0], alive: false };
       spies.markers.push(this.record);
     }
     setLngLat(coords: [number, number]) {
@@ -281,8 +282,11 @@ describe('OffersMapView — overlapping pins', () => {
     expectNoOverlappingPins();
   });
 
-  it('separates pins that merely overlap without coinciding', async () => {
-    // 20px apart under the test projection — the 36px pins overlap.
+  // The deliberate limit of the feature: a pin that is merely crowded must stay
+  // on its true location. Zooming in separates those, and moving them would
+  // misreport where the job is at every zoom in between.
+  it('leaves pins that merely overlap on their true position', async () => {
+    // 20px apart under the test projection — the 36px pins overlap on screen.
     render(
       <OffersMapView
         offers={[
@@ -293,7 +297,10 @@ describe('OffersMapView — overlapping pins', () => {
       />,
     );
     await waitForPins('map-pin', 2);
-    expectNoOverlappingPins();
+    expect(drawnMarkers().map((m) => m.offset)).toEqual([
+      [0, 0],
+      [0, 0],
+    ]);
   });
 
   it('leaves well-separated pins at a zero offset', async () => {
@@ -313,9 +320,37 @@ describe('OffersMapView — overlapping pins', () => {
     ]);
   });
 
-  // Offsets are pixels, collisions are pixels, and zoom changes the pixels — so
-  // an offset computed once is wrong the moment the camera moves.
-  it('recomputes offsets when the camera settles', async () => {
+  // The offers list is refetched periodically and carries no ordering
+  // guarantee, so a row laid out in array order would let two pins at one
+  // centroid swap sides on any refetch.
+  it('orders a coincident row by id, whatever order the offers arrive in', async () => {
+    const offerA = makeOffer({ groupId: 'group-a', centroid: SAME });
+    const offerB = makeOffer({ groupId: 'group-b', centroid: { ...SAME } });
+
+    /** Offset drawn for each group id, read off the live marker elements. */
+    function offsetsByGroup() {
+      return Object.fromEntries(
+        spies.markers
+          .filter((m) => m.alive)
+          .map((m) => [m.el.getAttribute('data-group-id'), m.offset]),
+      );
+    }
+
+    const first = render(<OffersMapView offers={[offerA, offerB]} onSelectOffer={vi.fn()} />);
+    await waitForPins('map-pin', 2);
+    const byId = offsetsByGroup();
+    first.unmount();
+    spies.markers.length = 0;
+
+    render(<OffersMapView offers={[offerB, offerA]} onSelectOffer={vi.fn()} />);
+    await waitForPins('map-pin', 2);
+    expect(offsetsByGroup()).toEqual(byId);
+    expect(byId['group-a']).toEqual([-18, 0]);
+  });
+
+  // Coincident pins can never be separated by the camera, so their offset must
+  // survive a zoom rather than be recomputed against it.
+  it('keeps coincident pins apart after the camera moves', async () => {
     render(
       <OffersMapView
         offers={[
@@ -326,42 +361,13 @@ describe('OffersMapView — overlapping pins', () => {
       />,
     );
     await waitForPins('map-pin', 2);
-    spies.setOffset.mockClear();
+    const before = drawnMarkers().map((m) => m.offset);
 
+    spies.zoom = BASE_ZOOM + 5;
     emitMapEvent('moveend');
 
-    await waitFor(() => {
-      expect(spies.setOffset).toHaveBeenCalled();
-    });
+    expect(drawnMarkers().map((m) => m.offset)).toEqual(before);
     expectNoOverlappingPins();
-  });
-
-  // The reason the moveend recompute exists: the same two pins collide at one
-  // zoom and not at another, so a once-computed offset would be wrong as soon
-  // as the inspector zooms in — and would keep the pins artificially apart.
-  it('drops the offset once zooming has pulled the pins apart', async () => {
-    render(
-      <OffersMapView
-        offers={[
-          makeOffer({ groupId: 'group-1', centroid: SAME }),
-          makeOffer({ groupId: 'group-2', centroid: { lat: SAME.lat, lng: SAME.lng + 0.02 } }),
-        ]}
-        onSelectOffer={vi.fn()}
-      />,
-    );
-    await waitForPins('map-pin', 2);
-    // 20px apart at the base zoom — overlapping, so they were nudged.
-    expect(drawnMarkers().some((m) => m.offset[0] !== 0)).toBe(true);
-
-    spies.zoom = BASE_ZOOM + 5; // same pair now 640px apart
-    emitMapEvent('moveend');
-
-    await waitFor(() => {
-      expect(drawnMarkers().map((m) => m.offset)).toEqual([
-        [0, 0],
-        [0, 0],
-      ]);
-    });
   });
 
   it('separates drill-down inspection pins at the same address', async () => {
