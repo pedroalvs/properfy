@@ -43,7 +43,7 @@ describe('PrismaSatisfactionSurveyRepository', () => {
   const prisma = {
     satisfactionSurvey: {
       create: vi.fn(),
-      findUnique: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       count: vi.fn(),
     },
@@ -80,15 +80,15 @@ describe('PrismaSatisfactionSurveyRepository', () => {
       // The whole point of the idempotency contract: a replayed submission must
       // resolve to the FIRST answer, so a second POST cannot rewrite history.
       prisma.satisfactionSurvey.create.mockRejectedValue(uniqueConflict(['appointment_id']));
-      prisma.satisfactionSurvey.findUnique.mockResolvedValue(makeRow({ rating: 3, comment: 'It was fine.' }));
+      prisma.satisfactionSurvey.findFirst.mockResolvedValue(makeRow({ rating: 3, comment: 'It was fine.' }));
 
       const result = await repo.submit(makeSurvey({ id: 'survey-2', rating: 1, comment: 'Changed my mind.' }));
 
       expect(result.id).toBe('survey-1');
       expect(result.rating).toBe(3);
       expect(result.comment).toBe('It was fine.');
-      expect(prisma.satisfactionSurvey.findUnique).toHaveBeenCalledWith({
-        where: { appointment_id: 'appointment-1' },
+      expect(prisma.satisfactionSurvey.findFirst).toHaveBeenCalledWith({
+        where: { appointment_id: 'appointment-1', tenant_id: 'tenant-1' },
       });
     });
 
@@ -98,7 +98,7 @@ describe('PrismaSatisfactionSurveyRepository', () => {
       prisma.satisfactionSurvey.create.mockRejectedValue(uniqueConflict(['id']));
 
       await expect(repo.submit(makeSurvey())).rejects.toMatchObject({ code: 'P2002' });
-      expect(prisma.satisfactionSurvey.findUnique).not.toHaveBeenCalled();
+      expect(prisma.satisfactionSurvey.findFirst).not.toHaveBeenCalled();
     });
 
     it('rethrows non-conflict database errors untouched', async () => {
@@ -111,7 +111,7 @@ describe('PrismaSatisfactionSurveyRepository', () => {
       // Deleted between the failed insert and the lookup: there is no row to
       // return, and inventing one would be worse than surfacing the conflict.
       prisma.satisfactionSurvey.create.mockRejectedValue(uniqueConflict(['appointment_id']));
-      prisma.satisfactionSurvey.findUnique.mockResolvedValue(null);
+      prisma.satisfactionSurvey.findFirst.mockResolvedValue(null);
 
       await expect(repo.submit(makeSurvey())).rejects.toMatchObject({ code: 'P2002' });
     });
@@ -119,17 +119,17 @@ describe('PrismaSatisfactionSurveyRepository', () => {
 
   describe('findByAppointmentId', () => {
     it('maps a stored row', async () => {
-      prisma.satisfactionSurvey.findUnique.mockResolvedValue(makeRow());
+      prisma.satisfactionSurvey.findFirst.mockResolvedValue(makeRow());
 
-      const result = await repo.findByAppointmentId('appointment-1');
+      const result = await repo.findByAppointmentId('appointment-1', 'tenant-1');
 
       expect(result?.inspectorId).toBe('inspector-1');
     });
 
     it('returns null when the appointment has no response', async () => {
-      prisma.satisfactionSurvey.findUnique.mockResolvedValue(null);
+      prisma.satisfactionSurvey.findFirst.mockResolvedValue(null);
 
-      expect(await repo.findByAppointmentId('appointment-1')).toBeNull();
+      expect(await repo.findByAppointmentId('appointment-1', 'tenant-1')).toBeNull();
     });
   });
 
@@ -146,6 +146,10 @@ describe('PrismaSatisfactionSurveyRepository', () => {
         skip: 10,
         take: 10,
       });
+      // `total` comes from a separate count() call. If a later change scopes
+      // findMany but not count, the tab would report another agency's row count.
+      const [countArgs] = prisma.satisfactionSurvey.count.mock.calls[0];
+      expect(countArgs.where).toEqual({ inspector_id: 'inspector-1', tenant_id: 'tenant-1' });
       expect(result.total).toBe(1);
       expect(result.surveys).toHaveLength(1);
     });

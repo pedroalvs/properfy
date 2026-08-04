@@ -52,9 +52,15 @@ function isUniqueConflictOn(error: unknown, column: string): boolean {
 export class PrismaSatisfactionSurveyRepository implements ISatisfactionSurveyRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async findByAppointmentId(appointmentId: string): Promise<SatisfactionSurveyEntity | null> {
-    const row = await this.prisma.satisfactionSurvey.findUnique({
-      where: { appointment_id: appointmentId },
+  async findByAppointmentId(
+    appointmentId: string,
+    tenantId: string,
+  ): Promise<SatisfactionSurveyEntity | null> {
+    // findFirst, not findUnique: the unique key is appointment_id alone, so the
+    // tenant predicate has to be an additional filter rather than part of the
+    // lookup key. A row belonging to another agency resolves to null.
+    const row = await this.prisma.satisfactionSurvey.findFirst({
+      where: { appointment_id: appointmentId, tenant_id: tenantId },
     });
     return row ? mapToEntity(row) : null;
   }
@@ -83,7 +89,9 @@ export class PrismaSatisfactionSurveyRepository implements ISatisfactionSurveyRe
     } catch (error) {
       if (!isUniqueConflictOn(error, 'appointment_id')) throw error;
 
-      const existing = await this.findByAppointmentId(survey.appointmentId);
+      // Scoped to the tenant we were asked to write for. An unscoped re-read
+      // would hand back another agency's answer on a colliding appointment id.
+      const existing = await this.findByAppointmentId(survey.appointmentId, survey.tenantId);
       // Deleted between the failed insert and this read. There is nothing
       // truthful to return, so surface the original conflict.
       if (!existing) throw error;

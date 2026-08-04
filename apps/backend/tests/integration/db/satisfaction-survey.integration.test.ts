@@ -29,6 +29,7 @@ const seed = {
   tenantA: '',
   tenantB: '',
   inspector: '',
+  serviceType: '',
   appointmentA1: '',
   appointmentA2: '',
   appointmentB1: '',
@@ -76,6 +77,27 @@ async function createAppointment(tenantId: string, branchId: string, propertyId:
   return appt.id;
 }
 
+/** Branch + user + property for a tenant, usable outside beforeAll. */
+async function seedTenantFixtures(tenantId: string, label: string) {
+  const branch = await harness.prisma.branch.create({ data: { tenant_id: tenantId, name: `${label}-Branch`, status: 'ACTIVE' } });
+  const user = await harness.prisma.user.create({
+    data: {
+      tenant_id: tenantId, branch_id: branch.id, role: 'CL_ADMIN', name: `${label}-User`,
+      email: `surv-${label.toLowerCase()}-${suffix()}@test.local`,
+      password_hash: '$2a$10$fakehashfakehashfakehashfakehashfake', status: 'ACTIVE',
+    },
+  });
+  const property = await harness.prisma.property.create({
+    data: {
+      tenant_id: tenantId, branch_id: branch.id, property_code: `SURV-${label}-${suffix()}`,
+      // The address must be unique per tenant — (tenant_id, normalized_address_key).
+      type: 'HOUSE', street: `${suffix()} Survey St`, suburb: 'Bondi', postcode: '2026', state: 'NSW',
+      country: 'AU', geocoding_status: 'SUCCESS',
+    },
+  });
+  return { branch, user, property, serviceTypeId: seed.serviceType };
+}
+
 beforeAll(async () => {
   harness = await setupDbHarness();
   repo = new PrismaSatisfactionSurveyRepository(harness.prisma);
@@ -98,8 +120,9 @@ beforeAll(async () => {
   const serviceType = await harness.prisma.serviceType.create({
     data: { code: `SURV-ST-${suffix()}`, name: 'Routine', flow_type: 'ROUTINE', requires_rental_tenant_confirmation: true, status: 'ACTIVE' },
   });
+  seed.serviceType = serviceType.id;
 
-  async function seedTenant(tenantId: string, label: string) {
+  async function seedTenantInline(tenantId: string, label: string) {
     const branch = await harness.prisma.branch.create({ data: { tenant_id: tenantId, name: `${label}-Branch`, status: 'ACTIVE' } });
     const user = await harness.prisma.user.create({
       data: {
@@ -118,8 +141,8 @@ beforeAll(async () => {
     return { branch, user, property };
   }
 
-  const a = await seedTenant(seed.tenantA, 'A');
-  const b = await seedTenant(seed.tenantB, 'B');
+  const a = await seedTenantInline(seed.tenantA, 'A');
+  const b = await seedTenantInline(seed.tenantB, 'B');
 
   seed.appointmentA1 = await createAppointment(seed.tenantA, a.branch.id, a.property.id, serviceType.id, a.user.id, 'DONE');
   seed.appointmentA2 = await createAppointment(seed.tenantA, a.branch.id, a.property.id, serviceType.id, a.user.id, 'DONE');
@@ -167,6 +190,9 @@ describe('PrismaSatisfactionSurveyRepository (real DB)', () => {
   it('rejects a rating outside 1..5 at the database level', async () => {
     // Bypasses Zod and the use case entirely: the CHECK constraint is the last
     // line of defence and must hold on its own.
+    // Named explicitly: a bare rejects.toThrow() would also pass if a missing
+    // default or an unrelated constraint rejected the row first, and this test
+    // exists precisely to prove the rating bound holds on its own.
     await expect(
       harness.prisma.satisfactionSurvey.create({
         data: {
@@ -176,7 +202,20 @@ describe('PrismaSatisfactionSurveyRepository (real DB)', () => {
           rating: 6,
         },
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/satisfaction_surveys_rating_check/);
+
+    // ...and the same row is accepted at the boundary, so the constraint is not
+    // simply rejecting everything.
+    const ok = await harness.prisma.satisfactionSurvey.create({
+      data: {
+        appointment_id: seed.appointmentB1,
+        tenant_id: seed.tenantB,
+        inspector_id: seed.inspector,
+        rating: 5,
+      },
+    });
+    expect(ok.rating).toBe(5);
+    await harness.prisma.satisfactionSurvey.delete({ where: { id: ok.id } });
   });
 
   it('scopes individual responses by tenant', async () => {
@@ -201,13 +240,33 @@ describe('PrismaSatisfactionSurveyRepository (real DB)', () => {
 
 describe('PrismaInspectorRatingReader (real DB)', () => {
   it('aggregates the average, the response count and the completed count', async () => {
-    const aggregates = await reader.getAggregatesByInspectorIds([seed.inspector]);
-    const row = aggregates.get(seed.inspector)!;
+    // Owns its own inspector and its own rows. Reading the figures produced by
+    // the sibling describe would make this pass or fail depending on execution
+    // order, and on whether that describe is later split into its own file.
+    const inspector = await harness.prisma.inspector.create({
+      data: { name: 'Aggregate Target', email: `agg-${suffix()}@test.local`, status: 'ACTIVE' },
+    });
+    const previousInspector = seed.inspector;
+    seed.inspector = inspector.id;
 
-    // Ratings stored above: 5 (A1), the concurrency winner (A2, 4 or 2), 3 (B1).
-    expect(row.responseCount).toBe(3);
-    expect(row.averageRating).toBeGreaterThan(0);
-    expect(row.doneServicesCount).toBe(3);
+    try {
+      const a = await seedTenantFixtures(seed.tenantA, 'AGG');
+      const doneOne = await createAppointment(seed.tenantA, a.branch.id, a.property.id, a.serviceTypeId, a.user.id, 'DONE');
+      const doneTwo = await createAppointment(seed.tenantA, a.branch.id, a.property.id, a.serviceTypeId, a.user.id, 'DONE');
+      // A SCHEDULED inspection must not count towards completed services.
+      await createAppointment(seed.tenantA, a.branch.id, a.property.id, a.serviceTypeId, a.user.id, 'SCHEDULED');
+
+      await repo.submit(makeSurvey(doneOne, seed.tenantA, 5, null));
+      await repo.submit(makeSurvey(doneTwo, seed.tenantA, 2, null));
+
+      const row = (await reader.getAggregatesByInspectorIds([inspector.id])).get(inspector.id)!;
+
+      expect(row.responseCount).toBe(2);
+      expect(row.averageRating).toBe(3.5);
+      expect(row.doneServicesCount).toBe(2);
+    } finally {
+      seed.inspector = previousInspector;
+    }
   });
 
   it('reports null, not zero, for an inspector with no responses', async () => {

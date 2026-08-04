@@ -46,6 +46,21 @@ describe('PrismaInspectorRatingReader', () => {
       responseCount: 12,
       doneServicesCount: 245,
     });
+    // 'b' has ratings but no completed row; 'c' has completed work but no
+    // ratings. Both are only correct if the two maps are read independently —
+    // 'c' in particular is the everyday new-inspector case.
+    expect(result.get('b')).toEqual({
+      inspectorId: 'b',
+      averageRating: 3,
+      responseCount: 1,
+      doneServicesCount: 0,
+    });
+    expect(result.get('c')).toEqual({
+      inspectorId: 'c',
+      averageRating: null,
+      responseCount: 0,
+      doneServicesCount: 7,
+    });
   });
 
   it('reports a rating from the very first response', async () => {
@@ -78,14 +93,17 @@ describe('PrismaInspectorRatingReader', () => {
     expect([...result.keys()].sort()).toEqual(['x', 'y']);
   });
 
-  it('rounds the average to two decimals', async () => {
+  it('reports the raw mean and leaves rounding to the display layer', async () => {
+    // Rounding here as well as in formatRatingAverage would be two rules that
+    // disagree on reachable averages (1.075 among them), and the unrounded mean
+    // is the honest value to sort on.
     prisma.satisfactionSurvey.groupBy.mockResolvedValue([
       { inspector_id: 'a', _avg: { rating: 4.666666666 }, _count: { _all: 3 } },
     ]);
 
     const result = await reader.getAggregatesByInspectorIds(['a']);
 
-    expect(result.get('a')?.averageRating).toBe(4.67);
+    expect(result.get('a')?.averageRating).toBe(4.666666666);
   });
 
   it('counts only DONE appointments that are not soft-deleted', async () => {

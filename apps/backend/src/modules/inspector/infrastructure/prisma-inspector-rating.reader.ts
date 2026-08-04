@@ -4,15 +4,6 @@ import type {
   InspectorRatingAggregate,
 } from '../domain/inspector-rating.reader';
 
-/**
- * Rounds to two decimals for display parity with `formatRatingAverage`.
- * Kept out of SQL so the rounding rule lives in one place per layer.
- */
-function roundAverage(value: number | null): number | null {
-  if (value === null) return null;
-  return Math.round(value * 100) / 100;
-}
-
 export class PrismaInspectorRatingReader implements IInspectorRatingReader {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -62,7 +53,11 @@ export class PrismaInspectorRatingReader implements IInspectorRatingReader {
       const rating = ratingByInspector.get(inspectorId);
       result.set(inspectorId, {
         inspectorId,
-        averageRating: roundAverage(rating?._avg.rating ?? null),
+        // Deliberately NOT rounded here. Rounding is a display concern owned by
+        // `formatRatingAverage`, and rounding twice with different rules (round
+        // vs toFixed) disagrees on reachable averages such as 1.075. The raw mean
+        // is also the honest value to sort on.
+        averageRating: rating?._avg.rating ?? null,
         responseCount: rating?._count._all ?? 0,
         doneServicesCount: doneByInspector.get(inspectorId)?._count._all ?? 0,
       });

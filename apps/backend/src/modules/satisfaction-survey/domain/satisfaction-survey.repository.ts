@@ -6,7 +6,15 @@ export interface FindSurveysResult {
 }
 
 export interface ISatisfactionSurveyRepository {
-  findByAppointmentId(appointmentId: string): Promise<SatisfactionSurveyEntity | null>;
+  /**
+   * `tenantId` is required, not optional and not nullable: every caller already
+   * knows the owning agency (from the portal token, the domain event, or an
+   * appointment lookup that was itself tenant-scoped). Making it mandatory means
+   * a future caller cannot accidentally read another agency's response by
+   * passing an appointment id alone — the isolation lives in the repository
+   * rather than depending on each caller remembering to pre-check.
+   */
+  findByAppointmentId(appointmentId: string, tenantId: string): Promise<SatisfactionSurveyEntity | null>;
 
   /**
    * Persists a response, or returns the one already stored for the appointment.
