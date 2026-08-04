@@ -242,6 +242,10 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   timeFrom: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
   timeTo: z.string().regex(timeRegex, TIME_FORMAT_MESSAGE).optional(),
   contactSearch: z.string().max(200).optional(),
+  // Exact (case-insensitive) match on the property's suburb. Distinct values are
+  // served by GET /v1/appointments/suburbs so the UI can offer a closed list —
+  // this is deliberately not a `contains` search, which `search` already covers.
+  suburb: z.string().max(100).optional(),
   hasRentalTenantNote: z
     .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
     .optional(),

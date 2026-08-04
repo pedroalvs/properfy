@@ -24,6 +24,8 @@ import {
   successResponseSchema,
   paginatedResponseSchema,
   appointmentImportPreviewResponseSchema,
+  appointmentSuburbsResponseSchema,
+  appointmentExportResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -31,6 +33,8 @@ import { success, paginated } from '../../../shared/interfaces/response';
 import type { CreateAppointmentUseCase } from '../application/use-cases/create-appointment.use-case';
 import type { GetAppointmentUseCase } from '../application/use-cases/get-appointment.use-case';
 import type { ListAppointmentsUseCase } from '../application/use-cases/list-appointments.use-case';
+import type { ListAppointmentSuburbsUseCase } from '../application/use-cases/list-appointment-suburbs.use-case';
+import type { ExportAppointmentsUseCase } from '../application/use-cases/export-appointments.use-case';
 import type { UpdateAppointmentUseCase } from '../application/use-cases/update-appointment.use-case';
 import type { ExecuteStatusTransitionUseCase } from '../application/use-cases/execute-status-transition.use-case';
 import type { PerformCrossCheckUseCase } from '../application/use-cases/perform-cross-check.use-case';
@@ -67,6 +71,8 @@ export interface AppointmentRouteContainer {
   createAppointmentUseCase: CreateAppointmentUseCase;
   getAppointmentUseCase: GetAppointmentUseCase;
   listAppointmentsUseCase: ListAppointmentsUseCase;
+  listAppointmentSuburbsUseCase: ListAppointmentSuburbsUseCase;
+  exportAppointmentsUseCase: ExportAppointmentsUseCase;
   updateAppointmentUseCase: UpdateAppointmentUseCase;
   executeStatusTransitionUseCase: ExecuteStatusTransitionUseCase;
   performCrossCheckUseCase: PerformCrossCheckUseCase;
@@ -168,6 +174,59 @@ export async function registerAppointmentRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(paginated(result.data, result.total, page, pageSize));
+    },
+  );
+
+  // GET /v1/appointments/suburbs — 200
+  // Static path, so find-my-way matches it ahead of /:appointmentId.
+  app.get(
+    '/v1/appointments/suburbs',
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: z.object({ tenantId: z.string().uuid().optional() }),
+        response: { 200: successResponseSchema(appointmentSuburbsResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const parsed = z
+        .object({ tenantId: z.string().uuid().optional() })
+        .safeParse(request.query);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid query parameters', parsed.error.errors);
+      }
+      const result = await container.listAppointmentSuburbsUseCase.execute({
+        tenantId: parsed.data.tenantId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/appointments/export — 200
+  // Same querystring as the list, so the file always matches the on-screen
+  // filter set. Pagination params are accepted and ignored: the export is the
+  // whole filtered set, capped, not the current page.
+  app.get(
+    '/v1/appointments/export',
+    {
+      preHandler: authenticate,
+      schema: {
+        querystring: listAppointmentsQuerySchema,
+        response: { 200: successResponseSchema(appointmentExportResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const parsed = listAppointmentsQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid query parameters', parsed.error.errors);
+      }
+      const { page: _page, pageSize: _pageSize, sortBy: _sortBy, sortOrder: _sortOrder, ...filters } = parsed.data;
+      const result = await container.exportAppointmentsUseCase.execute({
+        filters,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
     },
   );
 
