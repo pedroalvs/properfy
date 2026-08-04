@@ -96,7 +96,7 @@ export class InviteSurveyOnDoneSubscriber {
 
     // Already answered — asking again would be noise, and the window has served
     // its purpose.
-    if (await this.surveyRepo.findByAppointmentId(payload.appointmentId)) return;
+    if (await this.surveyRepo.findByAppointmentId(payload.appointmentId, payload.tenantId)) return;
 
     // Lifetime dedupe: one request per inspection. Same primitive the
     // portal-action handler uses. Note it counts FAILED rows too, which is why a
