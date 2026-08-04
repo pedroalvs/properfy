@@ -18,6 +18,12 @@ export interface PaginationParams {
 
 export interface ResolvedRegion {
   regionId: string;
+  /**
+   * Sequential region code. Breaks the tie when several overlapping regions
+   * match the same appointments — lowest wins, i.e. the region created first.
+   * Unlike the name, it cannot be changed by a rename.
+   */
+  regionNumber: number;
   regionName: string;
   color: string;
   matchedAppointmentIds: string[];

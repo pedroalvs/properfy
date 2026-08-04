@@ -15,6 +15,7 @@ export interface CreateServiceRegionInput {
 
 export interface CreateServiceRegionOutput {
   id: string;
+  regionNumber: number;
   name: string;
   geojson: Record<string, unknown>;
   color: string;
@@ -77,6 +78,8 @@ export class CreateServiceRegionUseCase {
 
     return {
       id,
+      // Assigned by the DB sequence during save() and read back onto the entity.
+      regionNumber: region.regionNumber,
       name,
       geojson,
       color: resolvedColor,

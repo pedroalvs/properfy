@@ -46,20 +46,46 @@ describe('PrismaServiceRegionRepository', () => {
   });
 
   describe('save', () => {
+    // $queryRaw, not $executeRaw: the insert has to RETURN the sequence-assigned
+    // region_number so the entity stops reporting the placeholder 0.
     it('should insert region with ST_SetSRID(ST_GeomFromGeoJSON(...)) for geom population', async () => {
       const region = makeRegionEntity();
-      (prisma.$executeRaw as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+      (prisma.$queryRaw as ReturnType<typeof vi.fn>).mockResolvedValue([{ region_number: 7 }]);
 
       await repo.save(region);
 
-      expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
       // Verify the raw SQL template was called (tagged template literal produces array)
-      const callArgs = (prisma.$executeRaw as ReturnType<typeof vi.fn>).mock.calls[0];
+      const callArgs = (prisma.$queryRaw as ReturnType<typeof vi.fn>).mock.calls[0];
       // The first argument of a tagged template is the strings array
       const sqlStrings = callArgs[0];
       const joinedSql = Array.isArray(sqlStrings) ? sqlStrings.join('?') : String(sqlStrings);
       expect(joinedSql).toContain('INSERT INTO service_regions');
       expect(joinedSql).toContain('ST_SetSRID(ST_GeomFromGeoJSON(');
+      expect(joinedSql).toContain('RETURNING region_number');
+    });
+
+    it('writes the sequence-assigned region_number back onto the entity', async () => {
+      const region = makeRegionEntity();
+      expect(region.regionNumber).toBe(0);
+      (prisma.$queryRaw as ReturnType<typeof vi.fn>).mockResolvedValue([{ region_number: 42 }]);
+
+      await repo.save(region);
+
+      expect(region.regionNumber).toBe(42);
+    });
+
+    // region_number must be absent from the column list so the DEFAULT
+    // nextval() applies; naming it would insert 0 and break the unique index.
+    it('does not insert region_number explicitly', async () => {
+      (prisma.$queryRaw as ReturnType<typeof vi.fn>).mockResolvedValue([{ region_number: 1 }]);
+
+      await repo.save(makeRegionEntity());
+
+      const sqlStrings = (prisma.$queryRaw as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const joinedSql = Array.isArray(sqlStrings) ? sqlStrings.join('?') : String(sqlStrings);
+      const columnList = joinedSql.slice(joinedSql.indexOf('('), joinedSql.indexOf(')'));
+      expect(columnList).not.toContain('region_number');
     });
   });
 

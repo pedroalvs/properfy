@@ -146,6 +146,7 @@ import { ListRetentionRunsUseCase } from '../modules/audit/application/use-cases
 // Service group module
 import { PrismaServiceGroupRepository } from '../modules/service-group/infrastructure/prisma-service-group.repository';
 import { CreateServiceGroupUseCase } from '../modules/service-group/application/use-cases/create-service-group.use-case';
+import { AutoGroupIngoingOutgoingService } from '../modules/service-group/application/services/auto-group-ingoing-outgoing.service';
 import { GetServiceGroupUseCase } from '../modules/service-group/application/use-cases/get-service-group.use-case';
 import { ListServiceGroupsUseCase } from '../modules/service-group/application/use-cases/list-service-groups.use-case';
 import { PublishServiceGroupUseCase } from '../modules/service-group/application/use-cases/publish-service-group.use-case';
@@ -697,11 +698,8 @@ export function createContainer(logger: Logger): AppContainer {
   const createFinancialEntriesOnDoneUseCase = new CreateFinancialEntriesOnDoneUseCase(
     appointmentRepo, financialEntryRepo, auditService, idempotencyService, tenantRepo,
   );
-  const createAppointmentUseCase = new CreateAppointmentUseCase(
-    appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
-    createPropertyUseCase, auditService, authorizationService, tenantRepo, contactRepo,
-    undefined, idempotencyService, appCredentialRepo,
-  );
+  // createAppointmentUseCase is constructed AFTER the service-group use cases below —
+  // the INGOING/OUTGOING auto-group step needs create/publish, which need serviceGroupRepo.
   const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService, appCredentialRepo);
   const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService);
   // updateAppointmentUseCase is constructed AFTER the notification handlers below —
@@ -920,6 +918,19 @@ export function createContainer(logger: Logger): AppContainer {
   const getServiceGroupUseCase = new GetServiceGroupUseCase(serviceGroupRepo, authorizationService);
   const listServiceGroupsUseCase = new ListServiceGroupsUseCase(serviceGroupRepo, authorizationService);
   const publishServiceGroupUseCase = new PublishServiceGroupUseCase(serviceGroupRepo, auditService, serviceRegionRepo, authorizationService, domainEventBus);
+
+  // Deferred from the appointment block above: INGOING/OUTGOING appointments are
+  // grouped and published on creation, which needs the two use cases just built.
+  // Wiring it into CreateAppointmentUseCase covers the import commit worker too,
+  // since that worker calls the use case directly rather than the HTTP route.
+  const autoGroupIngoingOutgoingService = new AutoGroupIngoingOutgoingService(
+    createServiceGroupUseCase, publishServiceGroupUseCase, serviceRegionRepo, auditService, logger,
+  );
+  const createAppointmentUseCase = new CreateAppointmentUseCase(
+    appointmentRepo, branchRepo, propertyRepo, serviceTypeRepo, pricingRuleRepo,
+    createPropertyUseCase, auditService, authorizationService, tenantRepo, contactRepo,
+    undefined, idempotencyService, appCredentialRepo, autoGroupIngoingOutgoingService,
+  );
   const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
   const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
   const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
