@@ -10,6 +10,11 @@ const branchOptions: FilterSelectOption[] = [
   { label: 'Downtown Branch', value: 'branch-1' },
 ];
 
+const suburbOptions: FilterSelectOption[] = [
+  { label: 'All', value: '' },
+  { label: 'Bondi', value: 'Bondi' },
+];
+
 describe('AppointmentFilters', () => {
   it('renders all filter controls', () => {
     render(
@@ -18,11 +23,12 @@ describe('AppointmentFilters', () => {
         onFiltersChange={() => {}}
         branchOptions={branchOptions}
         serviceTypeOptions={[]}
+        suburbOptions={suburbOptions}
       />,
     );
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
-    expect(screen.getByLabelText('Confirmation')).toBeInTheDocument();
+    expect(screen.getByLabelText('Tenant Confirmation')).toBeInTheDocument();
     expect(screen.getByLabelText('Branch')).toBeInTheDocument();
     expect(screen.getByLabelText('Period - start')).toBeInTheDocument();
     expect(screen.getByLabelText('Period - end')).toBeInTheDocument();
@@ -36,6 +42,7 @@ describe('AppointmentFilters', () => {
         onFiltersChange={() => {}}
         branchOptions={branchOptions}
         serviceTypeOptions={[]}
+        suburbOptions={suburbOptions}
       />,
     );
     const input = screen.getByLabelText('Search');
@@ -50,6 +57,7 @@ describe('AppointmentFilters', () => {
         onFiltersChange={() => {}}
         branchOptions={branchOptions}
         serviceTypeOptions={[]}
+        suburbOptions={suburbOptions}
       />,
     );
     await user.click(screen.getByLabelText('Status'));
@@ -70,6 +78,7 @@ describe('AppointmentFilters', () => {
         onFiltersChange={() => {}}
         branchOptions={branchOptions}
         serviceTypeOptions={[]}
+        suburbOptions={suburbOptions}
       />,
     );
     const checkbox = screen.getByLabelText('Show cancelled');
@@ -85,6 +94,7 @@ describe('AppointmentFilters', () => {
         onFiltersChange={onChange}
         branchOptions={branchOptions}
         serviceTypeOptions={[]}
+        suburbOptions={suburbOptions}
       />,
     );
     await user.click(screen.getByLabelText('Show cancelled'));
@@ -100,6 +110,7 @@ describe('AppointmentFilters', () => {
         onFiltersChange={onChange}
         branchOptions={branchOptions}
         serviceTypeOptions={[]}
+        suburbOptions={suburbOptions}
       />,
     );
     await user.click(screen.getByLabelText('Status'));
@@ -115,6 +126,7 @@ describe('AppointmentFilters', () => {
           onFiltersChange={() => {}}
           branchOptions={branchOptions}
           serviceTypeOptions={[]}
+          suburbOptions={suburbOptions}
           hiddenFilters={hiddenFilters}
         />,
       );
@@ -134,7 +146,7 @@ describe('AppointmentFilters', () => {
 
       expect(screen.getByLabelText('Search')).toBeInTheDocument();
       expect(screen.getByLabelText('Branch')).toBeInTheDocument();
-      expect(screen.getByLabelText('Confirmation')).toBeInTheDocument();
+      expect(screen.getByLabelText('Tenant Confirmation')).toBeInTheDocument();
       expect(screen.getByLabelText('Period - start')).toBeInTheDocument();
       expect(screen.getByLabelText('Period - end')).toBeInTheDocument();
       expect(screen.getByLabelText('Overdue only')).toBeInTheDocument();
@@ -162,6 +174,7 @@ describe('AppointmentFilters', () => {
           onFiltersChange={() => {}}
           branchOptions={branchOptions}
           serviceTypeOptions={[]}
+          suburbOptions={suburbOptions}
         />,
       );
       expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
@@ -175,6 +188,7 @@ describe('AppointmentFilters', () => {
           onFiltersChange={() => {}}
           branchOptions={branchOptions}
           serviceTypeOptions={[]}
+          suburbOptions={suburbOptions}
           inspectorOptions={inspectorOptions}
         />,
       );
@@ -192,6 +206,7 @@ describe('AppointmentFilters', () => {
           onFiltersChange={onChange}
           branchOptions={branchOptions}
           serviceTypeOptions={[]}
+          suburbOptions={suburbOptions}
           agencyOptions={agencyOptions}
         />,
       );
@@ -217,6 +232,7 @@ describe('AppointmentFilters', () => {
           onFiltersChange={onChange}
           branchOptions={branchOptions}
           serviceTypeOptions={[]}
+          suburbOptions={suburbOptions}
           inspectorOptions={inspectorOptions}
         />,
       );
@@ -237,15 +253,92 @@ describe('AppointmentFilters', () => {
         onFiltersChange={onChange}
         branchOptions={branchOptions}
         serviceTypeOptions={[]}
+        suburbOptions={suburbOptions}
       />,
     );
 
-    await user.click(screen.getByLabelText('Confirmation'));
+    await user.click(screen.getByLabelText('Tenant Confirmation'));
     await user.click(screen.getByText('No Response'));
 
     expect(onChange).toHaveBeenCalledWith({
       ...DEFAULT_FILTERS,
       rentalTenantConfirmationStatus: 'NO_RESPONSE',
+    });
+  });
+
+  describe('suburb filter', () => {
+    it('renders the suburb options it is given', async () => {
+      const user = userEvent.setup();
+      render(
+        <AppointmentFilters
+          filters={DEFAULT_FILTERS}
+          onFiltersChange={() => {}}
+          branchOptions={branchOptions}
+          serviceTypeOptions={[]}
+          suburbOptions={suburbOptions}
+        />,
+      );
+
+      await user.click(screen.getByLabelText('Suburb'));
+      expect(screen.getByRole('listbox', { name: 'Suburb' })).toHaveTextContent('Bondi');
+    });
+
+    it('calls onFiltersChange when a suburb is selected', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      render(
+        <AppointmentFilters
+          filters={DEFAULT_FILTERS}
+          onFiltersChange={onChange}
+          branchOptions={branchOptions}
+          serviceTypeOptions={[]}
+          suburbOptions={suburbOptions}
+        />,
+      );
+
+      await user.click(screen.getByLabelText('Suburb'));
+      await user.click(screen.getByText('Bondi'));
+
+      expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, suburb: 'Bondi' });
+    });
+  });
+
+  describe('confirmation email filter', () => {
+    // The two confirmation controls mean different things — the tenant's answer
+    // vs whether the notice email went out — so both labels must be distinct
+    // and reachable side by side.
+    it('renders separately from the tenant confirmation filter', () => {
+      render(
+        <AppointmentFilters
+          filters={DEFAULT_FILTERS}
+          onFiltersChange={() => {}}
+          branchOptions={branchOptions}
+          serviceTypeOptions={[]}
+          suburbOptions={suburbOptions}
+        />,
+      );
+
+      expect(screen.getByLabelText('Tenant Confirmation')).toBeInTheDocument();
+      expect(screen.getByLabelText('Confirmation Email')).toBeInTheDocument();
+    });
+
+    it('calls onFiltersChange with the sent/not_sent wire value', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      render(
+        <AppointmentFilters
+          filters={DEFAULT_FILTERS}
+          onFiltersChange={onChange}
+          branchOptions={branchOptions}
+          serviceTypeOptions={[]}
+          suburbOptions={suburbOptions}
+        />,
+      );
+
+      await user.click(screen.getByLabelText('Confirmation Email'));
+      await user.click(screen.getByText('Not sent'));
+
+      expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, confirmationStatus: 'not_sent' });
     });
   });
 });

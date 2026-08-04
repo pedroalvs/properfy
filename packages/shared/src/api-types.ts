@@ -4456,6 +4456,7 @@ export interface paths {
                     timeFrom?: string;
                     timeTo?: string;
                     contactSearch?: string;
+                    suburb?: string;
                     hasRentalTenantNote?: boolean;
                     confirmationStatus?: "sent" | "not_sent";
                     serviceGroupId?: string;
@@ -4528,6 +4529,7 @@ export interface paths {
                                 appointmentCode?: string;
                                 code?: string;
                                 propertyAddress?: string;
+                                propertyCode?: string | null;
                                 contactName?: string;
                                 contactPhone?: string | null;
                                 contactEmail?: string | null;
@@ -4733,6 +4735,7 @@ export interface paths {
                                 appointmentCode?: string;
                                 code?: string;
                                 propertyAddress?: string;
+                                propertyCode?: string | null;
                                 contactName?: string;
                                 contactPhone?: string | null;
                                 contactEmail?: string | null;
@@ -4777,6 +4780,113 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/suburbs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    tenantId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                suburbs: string[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/appointments/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: string;
+                    sortOrder?: "asc" | "desc";
+                    status?: ("DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED")[];
+                    serviceTypeId?: string;
+                    branchId?: string;
+                    inspectorId?: string;
+                    propertyId?: string;
+                    tenantId?: string;
+                    search?: string;
+                    fromDate?: string;
+                    toDate?: string;
+                    rentalTenantConfirmationStatus?: ("PENDING" | "CONFIRMED" | "UNAVAILABLE" | "NO_RESPONSE")[];
+                    showCancelled?: boolean;
+                    overdueOnly?: boolean;
+                    ungroupedOnly?: boolean;
+                    timeFrom?: string;
+                    timeTo?: string;
+                    contactSearch?: string;
+                    suburb?: string;
+                    hasRentalTenantNote?: boolean;
+                    confirmationStatus?: "sent" | "not_sent";
+                    serviceGroupId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                filename: string;
+                                contentType: string;
+                                contentBase64: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4863,6 +4973,7 @@ export interface paths {
                                 appointmentCode?: string;
                                 code?: string;
                                 propertyAddress?: string;
+                                propertyCode?: string | null;
                                 contactName?: string;
                                 contactPhone?: string | null;
                                 contactEmail?: string | null;
@@ -5068,6 +5179,7 @@ export interface paths {
                                 appointmentCode?: string;
                                 code?: string;
                                 propertyAddress?: string;
+                                propertyCode?: string | null;
                                 contactName?: string;
                                 contactPhone?: string | null;
                                 contactEmail?: string | null;
@@ -5434,7 +5546,7 @@ export interface paths {
                                     /** Format: uuid */
                                     appointmentId: string;
                                     /** @enum {string} */
-                                    status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "TENANT_NOTIFICATIONS_BLOCKED" | "ERROR";
+                                    status: "SENT" | "NO_PRIMARY_CONTACT" | "IDEMPOTENT_REPLAY" | "TENANT_NOTIFICATIONS_BLOCKED" | "NOT_APPLICABLE" | "ERROR";
                                     error?: {
                                         code: string;
                                         message: string;

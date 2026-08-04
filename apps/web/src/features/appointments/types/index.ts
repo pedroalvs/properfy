@@ -28,6 +28,11 @@ export interface Appointment {
   branchName: string;
   propertyId: string;
   propertyAddress: string;
+  /**
+   * The property's own code (e.g. "ACME-PROP-0007") — NOT the appointment code,
+   * which is `code`. Optional because older cached payloads predate the field.
+   */
+  propertyCode?: string | null;
   serviceTypeId: string;
   serviceTypeName: string;
   /**
@@ -48,6 +53,12 @@ export interface Appointment {
   timeSlotEnd: string;
   keyRequired: boolean;
   notes: string | null;
+  /** Free-text reason recorded on the last sensitive transition. */
+  reason?: string | null;
+  /** Structured reason code; set when the appointment was CANCELLED. */
+  cancellationReasonCode?: string | null;
+  /** Structured reason code; set when the appointment was REJECTED. */
+  rejectionReasonCode?: string | null;
   doneCheckedByUserId?: string | null;
   doneCheckedAt?: string | null;
   serviceGroupId?: string | null;
@@ -70,11 +81,19 @@ export interface Appointment {
 export interface AppointmentFiltersState {
   search: string;
   status: string;
+  /** The rental tenant's ANSWER (PENDING/CONFIRMED/...). */
   rentalTenantConfirmationStatus: string;
+  /**
+   * Whether the confirmation EMAIL was sent ('sent' | 'not_sent' | ''). Distinct
+   * from `rentalTenantConfirmationStatus` above despite the similar name — this
+   * one is derived server-side from notification records, not from the tenant.
+   */
+  confirmationStatus: string;
   tenantId: string;
   branchId: string;
   inspectorId: string;
   serviceTypeId: string;
+  suburb: string;
   startDate: string;
   endDate: string;
   showCancelled: boolean;
@@ -286,10 +305,12 @@ export const DEFAULT_FILTERS: AppointmentFiltersState = {
   search: '',
   status: '',
   rentalTenantConfirmationStatus: '',
+  confirmationStatus: '',
   tenantId: '',
   branchId: '',
   inspectorId: '',
   serviceTypeId: '',
+  suburb: '',
   startDate: '',
   endDate: '',
   showCancelled: false,

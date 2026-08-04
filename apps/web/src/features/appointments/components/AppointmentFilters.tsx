@@ -22,6 +22,18 @@ const RENTAL_TENANT_CONFIRMATION_OPTIONS: FilterSelectOption[] = [
   })),
 ];
 
+/**
+ * Whether the confirmation EMAIL went out — derived server-side from the
+ * notification records, not from the rental tenant's answer. Labelled
+ * "Confirmation Email" against the neighbouring "Tenant Confirmation" control
+ * so the two are not read as the same thing.
+ */
+const CONFIRMATION_EMAIL_OPTIONS: FilterSelectOption[] = [
+  { label: 'All', value: '' },
+  { label: 'Sent', value: 'sent' },
+  { label: 'Not sent', value: 'not_sent' },
+];
+
 /** Filters a screen can opt out of. The board hides both: status is its column axis. */
 export type HideableAppointmentFilter = 'status' | 'showCancelled';
 
@@ -30,6 +42,8 @@ interface AppointmentFiltersProps {
   onFiltersChange: (filters: AppointmentFiltersState) => void;
   branchOptions: FilterSelectOption[];
   serviceTypeOptions: FilterSelectOption[];
+  /** Distinct suburbs of appointment-bearing properties in the actor's scope. */
+  suburbOptions: FilterSelectOption[];
   /**
    * Agency and inspector controls are opt-in by options rather than by an
    * internal role check. The option hooks own the RBAC (only AM/OP may list
@@ -52,6 +66,7 @@ export function AppointmentFilters({
   onFiltersChange,
   branchOptions,
   serviceTypeOptions,
+  suburbOptions,
   agencyOptions = [],
   inspectorOptions = [],
   hiddenFilters = [],
@@ -105,10 +120,22 @@ export function AppointmentFilters({
         />
       )}
       <FilterSelect
-        label="Confirmation"
+        label="Suburb"
+        value={filters.suburb}
+        onChange={(suburb) => onFiltersChange({ ...filters, suburb })}
+        options={suburbOptions}
+      />
+      <FilterSelect
+        label="Tenant Confirmation"
         value={filters.rentalTenantConfirmationStatus}
         onChange={(rentalTenantConfirmationStatus) => onFiltersChange({ ...filters, rentalTenantConfirmationStatus })}
         options={RENTAL_TENANT_CONFIRMATION_OPTIONS}
+      />
+      <FilterSelect
+        label="Confirmation Email"
+        value={filters.confirmationStatus}
+        onChange={(confirmationStatus) => onFiltersChange({ ...filters, confirmationStatus })}
+        options={CONFIRMATION_EMAIL_OPTIONS}
       />
       <FilterDateRange
         label="Period"
