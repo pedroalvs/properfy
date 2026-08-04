@@ -242,6 +242,17 @@ describe('ExportAppointmentsUseCase', () => {
     );
   });
 
+  // Fail closed: an undefined tenant means "no predicate" in buildWhere, so a
+  // pinned actor without a tenant would export every agency's appointments.
+  it('refuses a tenant-pinned actor carrying no tenant instead of exporting unscoped', async () => {
+    await expect(
+      useCase.execute({ filters: {}, actor: makeActor({ role: 'CL_ADMIN', tenantId: null }) }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+
+    expect(appointmentRepo.count).not.toHaveBeenCalled();
+    expect(xlsxGenerator.generate).not.toHaveBeenCalled();
+  });
+
   it('rejects INSP', async () => {
     await expect(
       useCase.execute({ filters: {}, actor: makeActor({ role: 'INSP', tenantId: 'tenant-1' }) }),

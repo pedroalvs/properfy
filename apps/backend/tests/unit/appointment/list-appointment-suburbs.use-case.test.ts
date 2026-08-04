@@ -68,6 +68,17 @@ describe('ListAppointmentSuburbsUseCase', () => {
     expect(appointmentRepo.findDistinctSuburbs).toHaveBeenCalledWith('tenant-2');
   });
 
+  // Fail closed: `buildWhere` applies tenant_id behind a truthiness check, so
+  // returning undefined here would drop the predicate entirely and hand a
+  // tenant-pinned actor every agency's suburbs.
+  it('refuses a tenant-pinned actor carrying no tenant instead of querying unscoped', async () => {
+    await expect(
+      useCase.execute({ actor: makeActor({ role: 'CL_ADMIN', tenantId: null }) }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+
+    expect(appointmentRepo.findDistinctSuburbs).not.toHaveBeenCalled();
+  });
+
   it('rejects INSP', async () => {
     await expect(
       useCase.execute({ actor: makeActor({ role: 'INSP', tenantId: 'tenant-1' }) }),
