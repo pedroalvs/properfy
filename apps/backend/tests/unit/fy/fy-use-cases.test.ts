@@ -164,6 +164,27 @@ describe('FindFyAppointmentsByPhoneUseCase', () => {
     expect((error as NoActiveAppointmentsError).message).toContain('statusIn');
   });
 
+  it('404 carries diagnostics: contact known but no appointments at all', async () => {
+    const fyRepo = {
+      findAppointmentsByContactPhone: vi.fn(async () => null),
+      findContactPhoneDiagnostics: vi.fn(async () => ({
+        phoneKnown: true,
+        otherAppointments: [],
+      })),
+    } as any;
+    const error = await new FindFyAppointmentsByPhoneUseCase(fyRepo)
+      .execute({ phone: '0412345678' })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(NoActiveAppointmentsError);
+    expect((error as NoActiveAppointmentsError).details).toEqual({
+      phoneKnown: true,
+      otherAppointments: [],
+    });
+    expect((error as NoActiveAppointmentsError).message).toContain(
+      'contact exists but has no appointments',
+    );
+  });
+
   it('does not run diagnostics when appointments are found', async () => {
     const fyRepo = {
       findAppointmentsByContactPhone: vi.fn(async () => ({

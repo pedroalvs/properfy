@@ -91,11 +91,18 @@ export class AppointmentImportRowResolver {
       : [];
     const contactByEmail = new Map<string, ContactEntity>();
     // Keyed by canonical phone so `+61…` and legacy `0…` rows collide as the
-    // same number.
-    const contactByPhone = new Map<string, ContactEntity>();
+    // same number. An ARRAY per key: historical duplicates store the same
+    // number under both spellings, and dropping one could hide the identical
+    // contact and demote the row to snapshot-only.
+    const contactsByPhone = new Map<string, ContactEntity[]>();
     for (const c of existingContacts) {
       if (c.primaryEmail) contactByEmail.set(c.primaryEmail, c);
-      if (c.primaryPhone) contactByPhone.set(canonicalPhone(c.primaryPhone)!, c);
+      if (c.primaryPhone) {
+        const key = canonicalPhone(c.primaryPhone)!;
+        const bucket = contactsByPhone.get(key) ?? [];
+        bucket.push(c);
+        contactsByPhone.set(key, bucket);
+      }
     }
 
     // A batch typically shares one service type and always shares one branch,
@@ -114,7 +121,7 @@ export class AppointmentImportRowResolver {
         await this.resolveRow(
           normalizedRows[i]!, rowNumber, ctx, today,
           serviceTypeCache, pricingExistsCache, newPropertyFirstRow,
-          propertyByKey, contactByEmail, contactByPhone,
+          propertyByKey, contactByEmail, contactsByPhone,
         ),
       );
     }
@@ -139,13 +146,13 @@ export class AppointmentImportRowResolver {
     newPropertyFirstRow: Map<string, number>,
     propertyByKey: Map<string, PropertyEntity>,
     contactByEmail: Map<string, ContactEntity>,
-    contactByPhone: Map<string, ContactEntity>,
+    contactsByPhone: Map<string, ContactEntity[]>,
   ): Promise<ResolvedImportRow> {
     const issues: ImportRowIssue[] = [...normalizeIssues];
 
     const serviceTypeId = await this.resolveServiceType(normalized.serviceTypeName, ctx, serviceTypeCache, pricingExistsCache, issues);
     const property = this.resolveProperty(normalized, newPropertyFirstRow, rowNumber, issues, propertyByKey);
-    const contact = this.resolveContact(normalized, issues, contactByEmail, contactByPhone);
+    const contact = this.resolveContact(normalized, issues, contactByEmail, contactsByPhone);
 
     if (normalized.scheduledDate < today) {
       issues.push(errorIssue('scheduledDate', 'PAST_DATE', `Date ${normalized.scheduledDate} is in the past`));
@@ -269,7 +276,7 @@ export class AppointmentImportRowResolver {
     normalized: NormalizedRow,
     issues: ImportRowIssue[],
     contactByEmail: Map<string, ContactEntity>,
-    contactByPhone: Map<string, ContactEntity>,
+    contactsByPhone: Map<string, ContactEntity[]>,
   ): ResolvedImportRow['contact'] {
     const { name, email, phone } = normalized.primaryContact;
     // A name plus at least one channel is enough. Requiring all three used to
@@ -297,10 +304,12 @@ export class AppointmentImportRowResolver {
     // appointment keeps the sheet data as its snapshot with no registry link.
     // Guarded because a partial contact carries a null channel, and the maps are
     // keyed only by non-null values — looking up null would be meaningless.
-    const candidates = [
+    const rawCandidates = [
       email ? contactByEmail.get(email) : undefined,
-      phone ? contactByPhone.get(canonicalPhone(phone)!) : undefined,
+      ...(phone ? contactsByPhone.get(canonicalPhone(phone)!) ?? [] : []),
     ].filter((c): c is ContactEntity => c !== undefined);
+    // The email hit may be one of the phone hits — evaluate each contact once.
+    const candidates = [...new Map(rawCandidates.map((c) => [c.id, c])).values()];
     const identical = candidates.find((c) => isIdenticalContact(c, { name, email, phone }));
     const hasExtraChannels = normalized.additionalChannelCandidates.length > 0;
     if (identical) {

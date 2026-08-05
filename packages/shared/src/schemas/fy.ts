@@ -47,7 +47,7 @@ export type FyPhoneQuery = z.infer<typeof fyPhoneQuerySchema>;
 export const fyNoActiveAppointmentsDetailsSchema = z.object({
   phoneKnown: z.boolean(),
   otherAppointments: z.array(
-    z.object({ status: fyAppointmentStatusSchema, count: z.number().int() }),
+    z.object({ status: fyAppointmentStatusSchema, count: z.number().int().positive() }),
   ),
 });
 export type FyNoActiveAppointmentsDetails = z.infer<typeof fyNoActiveAppointmentsDetailsSchema>;
