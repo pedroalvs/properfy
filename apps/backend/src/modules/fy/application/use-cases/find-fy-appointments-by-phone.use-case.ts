@@ -44,8 +44,9 @@ export class FindFyAppointmentsByPhoneUseCase {
     }
 
     const statuses = input.statusIn ?? DEFAULT_STATUSES;
+    const variants = phoneDigitVariants(e164);
     const match = await this.fyRepo.findAppointmentsByContactPhone({
-      phoneDigitVariants: phoneDigitVariants(e164),
+      phoneDigitVariants: variants,
       statuses,
       // Only the default view includes the DONE grace window; an explicit
       // statusIn filter is honoured as-is.
@@ -53,7 +54,11 @@ export class FindFyAppointmentsByPhoneUseCase {
     });
 
     if (!match || match.appointments.length === 0) {
-      throw new NoActiveAppointmentsError();
+      // Miss-path only: tell the bot whether the phone is unknown or the
+      // appointments are merely hidden by the status filter (e.g. DRAFT).
+      throw new NoActiveAppointmentsError(
+        await this.fyRepo.findContactPhoneDiagnostics(variants),
+      );
     }
 
     return {

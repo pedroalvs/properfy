@@ -12,8 +12,8 @@ export class DomainError extends Error {
 }
 
 export class NotFoundError extends DomainError {
-  constructor(code: string, message: string) {
-    super(code, message, 404);
+  constructor(code: string, message: string, details?: unknown) {
+    super(code, message, 404, details);
     this.name = 'NotFoundError';
   }
 }

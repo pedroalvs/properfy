@@ -110,7 +110,34 @@ Query params:
 }
 ```
 
-`404 NO_ACTIVE_APPOINTMENTS` when nothing matches — respond politely and escalate to a human.
+`404 NO_ACTIVE_APPOINTMENTS` when nothing matches the requested view. The
+`error.details` payload says why, so the agent can react without escalating
+blindly:
+
+```json
+{
+  "error": {
+    "code": "NO_ACTIVE_APPOINTMENTS",
+    "message": "No active appointments found for this phone number — appointment(s) exist in other statuses (DRAFT: 2); query with statusIn to retrieve them",
+    "details": {
+      "phoneKnown": true,
+      "otherAppointments": [{ "status": "DRAFT", "count": 2 }]
+    }
+  }
+}
+```
+
+- `phoneKnown: false` — the phone does not match any contact (snapshot,
+  registry primary or secondary channel). Confirm the number with the tenant.
+- `phoneKnown: true` with `otherAppointments` — appointments exist but are
+  hidden by the status filter. Common cases: `DRAFT` (created by the agency
+  but **not yet released** — by design invisible to the default view; the
+  agency must release it), `CANCELLED`/`REJECTED`, or `DONE` older than the
+  48h grace window. Pass `statusIn` (e.g. `statusIn=DRAFT`) to fetch them
+  explicitly.
+- `phoneKnown: true` with empty `otherAppointments` — the contact exists but
+  has no appointments at all.
+
 Multiple appointments → ask the tenant which one (use `code`, address and date).
 
 ### 2. `GET /appointments/{id}`

@@ -96,8 +96,8 @@ async function seedScenario() {
     },
   });
   // Digits-only phone: the CSV round-trips through normalizePhoneAU, and the
-  // identity rule compares phones exactly — a letter-bearing suffix would
-  // normalize to a different string and break the "fully identical" match.
+  // identity rule compares phones canonically (E.164) — a letter-bearing
+  // suffix would normalize to a different number and break the match.
   const existingContact = await harness.prisma.contact.create({
     data: {
       type: 'RENTAL_TENANT', display_name: 'Existing Tenant',
@@ -299,7 +299,7 @@ describe('AppointmentImportCommitWorker — real Postgres end-to-end', () => {
     expect(junction!.contact_id).toBeNull();
     expect(junction!.snapshot_name).toBe('Completely Different Person');
     expect(junction!.snapshot_email).toBe(existingContact.primary_email);
-    expect(junction!.snapshot_phone).toBe('0400999888');
+    expect(junction!.snapshot_phone).toBe('+61400999888');
   });
 
   // The worker calls CreateAppointmentUseCase directly rather than the HTTP

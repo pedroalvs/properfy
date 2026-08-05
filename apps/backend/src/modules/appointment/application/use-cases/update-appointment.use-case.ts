@@ -6,7 +6,7 @@ import type { ITenantTimezoneLookup } from '../../../../shared/application/tenan
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import { ContactEntity } from '../../../contact/domain/contact.entity';
-import { resolveInlineContactMatch } from '../../../contact/domain/contact-identity';
+import { phoneLookupVariants, resolveInlineContactMatch } from '../../../contact/domain/contact-identity';
 import { ContactNoChannelError } from '../../../contact/domain/contact.errors';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -524,7 +524,7 @@ export class UpdateAppointmentUseCase {
           const candidates = (inlineEmail || inlinePhone)
             ? await this.contactRepo.findManyActiveByEmailsOrPhones(
                 inlineEmail ? [inlineEmail] : [],
-                inlinePhone ? [inlinePhone] : [],
+                inlinePhone ? phoneLookupVariants(inlinePhone) : [],
               )
             : [];
           const match = resolveInlineContactMatch(candidates, {
