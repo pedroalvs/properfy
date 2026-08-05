@@ -1755,7 +1755,11 @@ export function createContainer(logger: Logger): AppContainer {
           fyRepo,
         ),
         getFyAgencyUseCase: new GetFyAgencyUseCase(fyRepo),
-        getFyAvailableDatesUseCase: new GetFyAvailableDatesUseCase(appointmentRepo, serviceGroupRepo),
+        getFyAvailableDatesUseCase: new GetFyAvailableDatesUseCase(
+          appointmentRepo,
+          serviceGroupRepo,
+          fyRepo,
+        ),
         addFyAppointmentNoteUseCase: new AddFyAppointmentNoteUseCase(fyRepo, auditService),
         updateFyAppointmentContactUseCase: new UpdateFyAppointmentContactUseCase(appointmentRepo, contactRepo, auditService),
         resendFyNoticeUseCase: new ResendFyNoticeUseCase(generatePortalTokenUseCase, idempotencyService),

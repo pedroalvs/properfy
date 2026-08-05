@@ -811,9 +811,11 @@ describe('CreateAppointmentUseCase', () => {
         primaryPhone: '0400 111 222',
       }));
 
+      // The lookup probes both stored spellings of the number (E.164 + local)
+      // so legacy local-format registry rows still match.
       expect(contactRepo.findManyActiveByEmailsOrPhones).toHaveBeenCalledWith(
         ['jane@example.com'],
-        ['0400 111 222'],
+        ['+61400111222', '0400111222'],
       );
       expect(contactRepo.save).toHaveBeenCalledTimes(1);
       expect(appointmentRepo.saveContact).toHaveBeenCalledWith(
