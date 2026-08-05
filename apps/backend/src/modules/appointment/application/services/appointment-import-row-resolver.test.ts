@@ -388,7 +388,7 @@ describe('AppointmentImportRowResolver.resolve', () => {
         contactId: null,
         displayName: 'Jeanette Rojas',
         primaryEmail: 'jeanette.rojas31@gmail.com',
-        primaryPhone: '0412345678',
+        primaryPhone: '+61412345678',
       }));
       expect(rows[0]!.issues).toEqual(expect.arrayContaining([
         expect.objectContaining({ code: 'CONTACT_MISMATCH_SNAPSHOT_ONLY', severity: 'warning' }),

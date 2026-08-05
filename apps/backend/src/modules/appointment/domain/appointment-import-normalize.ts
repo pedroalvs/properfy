@@ -1,4 +1,4 @@
-import { HHMM_REGEX } from '@properfy/shared';
+import { HHMM_REGEX, toE164Au } from '@properfy/shared';
 import type { ImportRowIssue } from '@properfy/shared';
 import {
   CUSTOM_FIELD_LABEL_MAX,
@@ -167,16 +167,30 @@ export function normalizePhoneAU(raw: RawCell): { value: string | null; normaliz
   if (!trimmed) return { value: null, normalized: false };
   const digits = trimmed.replace(/\D/g, '');
 
+  // Recover the local 0-prefixed form first, then emit canonical E.164 so
+  // imported phones match the format every other write path (UI, Fy) stores —
+  // string-equal contact reuse and the global phone unique index depend on it.
+  // `normalized: true` still means "the cell shape was repaired" (lost leading
+  // zero / dropped plus), not the local→E.164 conversion itself.
+  let localCandidate: string | null = null;
+  let repaired = false;
   if (digits.startsWith('61') && (digits.length === 10 || digits.length === 11)) {
-    return { value: `0${digits.slice(2)}`, normalized: true };
-  }
-  if (digits.length === 9) {
+    localCandidate = `0${digits.slice(2)}`;
+    repaired = !trimmed.startsWith('+');
+  } else if (digits.length === 9) {
     // Numeric-cell storage drops the leading 0 on both mobiles (04xxxxxxxx)
     // and landlines (0Xxxxxxxxx) alike — restore it either way.
-    return { value: `0${digits}`, normalized: true };
+    localCandidate = `0${digits}`;
+    repaired = true;
+  } else if (digits.length === 10 && digits.startsWith('0')) {
+    localCandidate = digits;
   }
-  if (digits.length === 10 && digits.startsWith('0')) {
-    return { value: digits, normalized: false };
+
+  if (localCandidate) {
+    const e164 = toE164Au(localCandidate);
+    if (e164) return { value: e164, normalized: repaired };
+    // Repairable shape but not a valid AU number — keep the legacy local form.
+    return { value: localCandidate, normalized: repaired };
   }
   // Unrecognized shape — best-effort passthrough, no forced change.
   return { value: digits || trimmed, normalized: false };

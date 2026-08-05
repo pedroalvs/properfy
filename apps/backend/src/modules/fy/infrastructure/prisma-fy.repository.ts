@@ -4,6 +4,7 @@ import type {
   FyAgency,
   FyContactMatch,
   FyGroupAcceptanceRow,
+  FyPhoneMatchDiagnostics,
   IFyRepository,
 } from '../domain/fy.repository';
 
@@ -31,50 +32,71 @@ interface PhoneMatchRow {
 export class PrismaFyRepository implements IFyRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  /**
+   * Phone predicate over one contact row (`ac` snapshot + `c` registry join).
+   * Snapshot/registry phones are stored as provided (not guaranteed E.164), so
+   * every side — including registry secondary channels — is compared
+   * digits-only against the AU variants.
+   */
+  private phoneMatchClause(phoneDigitVariants: string[]): Prisma.Sql {
+    const variants = Prisma.join(phoneDigitVariants);
+    return Prisma.sql`(
+      regexp_replace(COALESCE(ac.snapshot_phone, ''), '[^0-9]', '', 'g') IN (${variants})
+      OR regexp_replace(COALESCE(c.primary_phone, ''), '[^0-9]', '', 'g') IN (${variants})
+      OR EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(COALESCE(c.additional_channels_json, '[]'::jsonb)) AS channel
+        WHERE channel->>'channel' = 'PHONE'
+          AND regexp_replace(COALESCE(channel->>'value', ''), '[^0-9]', '', 'g') IN (${variants})
+      )
+    )`;
+  }
+
   async findAppointmentsByContactPhone(params: {
     phoneDigitVariants: string[];
     statuses: string[];
     doneWithinHours: number;
   }): Promise<FyContactMatch | null> {
-    // Snapshot/registry phones are stored as provided (not guaranteed E.164),
-    // so both sides are compared digits-only against the AU variants.
+    // DISTINCT ON collapses duplicate contact rows on the same appointment
+    // (the primary row wins the snapshot columns); the outer ORDER BY keeps
+    // the appointment list itself deterministic.
     const rows = await this.prisma.$queryRaw<PhoneMatchRow[]>(Prisma.sql`
-      SELECT
-        a.id,
-        a.appointment_number,
-        t.appointment_code_prefix,
-        a.status::text AS status,
-        a.scheduled_date,
-        a.time_slot_start,
-        a.time_slot_end,
-        a.service_type_id,
-        st.name AS service_type_name,
-        p.street, p.suburb, p.state, p.postcode,
-        a.tenant_id,
-        t.name AS tenant_name,
-        ac.snapshot_name,
-        COALESCE(ac.snapshot_email, c.primary_email) AS snapshot_email,
-        COALESCE(ac.snapshot_phone, c.primary_phone) AS snapshot_phone
-      FROM appointment_contacts ac
-      JOIN appointments a ON a.id = ac.appointment_id
-      JOIN tenants t ON t.id = a.tenant_id AND t.deleted_at IS NULL
-      JOIN service_types st ON st.id = a.service_type_id
-      JOIN properties p ON p.id = a.property_id
-      LEFT JOIN contacts c ON c.id = ac.contact_id
-      WHERE a.deleted_at IS NULL
-      AND (
-        regexp_replace(COALESCE(ac.snapshot_phone, ''), '[^0-9]', '', 'g') IN (${Prisma.join(params.phoneDigitVariants)})
-        OR regexp_replace(COALESCE(c.primary_phone, ''), '[^0-9]', '', 'g') IN (${Prisma.join(params.phoneDigitVariants)})
-      )
-      AND (
-        a.status::text IN (${Prisma.join(params.statuses)})
-        OR (
-          ${params.doneWithinHours}::int > 0
-          AND a.status = 'DONE'
-          AND a.updated_at > NOW() - make_interval(hours => ${params.doneWithinHours}::int)
+      SELECT * FROM (
+        SELECT DISTINCT ON (a.id)
+          a.id,
+          a.appointment_number,
+          t.appointment_code_prefix,
+          a.status::text AS status,
+          a.scheduled_date,
+          a.time_slot_start,
+          a.time_slot_end,
+          a.service_type_id,
+          st.name AS service_type_name,
+          p.street, p.suburb, p.state, p.postcode,
+          a.tenant_id,
+          t.name AS tenant_name,
+          ac.snapshot_name,
+          COALESCE(ac.snapshot_email, c.primary_email) AS snapshot_email,
+          COALESCE(ac.snapshot_phone, c.primary_phone) AS snapshot_phone
+        FROM appointment_contacts ac
+        JOIN appointments a ON a.id = ac.appointment_id
+        JOIN tenants t ON t.id = a.tenant_id AND t.deleted_at IS NULL
+        JOIN service_types st ON st.id = a.service_type_id
+        JOIN properties p ON p.id = a.property_id
+        LEFT JOIN contacts c ON c.id = ac.contact_id
+        WHERE a.deleted_at IS NULL
+        AND ${this.phoneMatchClause(params.phoneDigitVariants)}
+        AND (
+          a.status::text IN (${Prisma.join(params.statuses)})
+          OR (
+            ${params.doneWithinHours}::int > 0
+            AND a.status = 'DONE'
+            AND a.updated_at > NOW() - make_interval(hours => ${params.doneWithinHours}::int)
+          )
         )
-      )
-      ORDER BY a.scheduled_date ASC
+        ORDER BY a.id, ac.is_primary DESC, ac.created_at ASC
+      ) AS matches
+      ORDER BY scheduled_date ASC, appointment_number ASC
     `);
 
     if (rows.length === 0) return null;
@@ -101,6 +123,45 @@ export class PrismaFyRepository implements IFyRepository {
         tenantName: row.tenant_name,
       })),
     };
+  }
+
+  async findContactPhoneDiagnostics(
+    phoneDigitVariants: string[],
+  ): Promise<FyPhoneMatchDiagnostics> {
+    const statusRows = await this.prisma.$queryRaw<Array<{ status: string; count: number }>>(
+      Prisma.sql`
+        SELECT a.status::text AS status, COUNT(DISTINCT a.id)::int AS count
+        FROM appointment_contacts ac
+        JOIN appointments a ON a.id = ac.appointment_id
+        JOIN tenants t ON t.id = a.tenant_id AND t.deleted_at IS NULL
+        LEFT JOIN contacts c ON c.id = ac.contact_id
+        WHERE a.deleted_at IS NULL
+        AND ${this.phoneMatchClause(phoneDigitVariants)}
+        GROUP BY a.status
+        ORDER BY count DESC, status ASC
+      `,
+    );
+    if (statusRows.length > 0) {
+      return {
+        phoneKnown: true,
+        otherAppointments: statusRows.map((row) => ({ status: row.status, count: row.count })),
+      };
+    }
+
+    const variants = Prisma.join(phoneDigitVariants);
+    const existsRows = await this.prisma.$queryRaw<Array<{ phone_known: boolean }>>(Prisma.sql`
+      SELECT EXISTS (
+        SELECT 1 FROM contacts c
+        WHERE regexp_replace(COALESCE(c.primary_phone, ''), '[^0-9]', '', 'g') IN (${variants})
+        OR EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements(COALESCE(c.additional_channels_json, '[]'::jsonb)) AS channel
+          WHERE channel->>'channel' = 'PHONE'
+            AND regexp_replace(COALESCE(channel->>'value', ''), '[^0-9]', '', 'g') IN (${variants})
+        )
+      ) AS phone_known
+    `);
+    return { phoneKnown: existsRows[0]?.phone_known ?? false, otherAppointments: [] };
   }
 
   async findAgencyById(id: string): Promise<FyAgency | null> {

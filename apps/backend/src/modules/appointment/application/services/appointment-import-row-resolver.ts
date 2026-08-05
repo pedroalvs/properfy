@@ -9,7 +9,11 @@ import type { ServiceTypeEntity } from '../../../service-type/domain/service-typ
 import type { IPricingRuleRepository } from '../../../pricing-rule/domain/pricing-rule.repository';
 import type { IContactRepository } from '../../../contact/domain/contact.repository';
 import type { ContactEntity } from '../../../contact/domain/contact.entity';
-import { isIdenticalContact } from '../../../contact/domain/contact-identity';
+import {
+  canonicalPhone,
+  isIdenticalContact,
+  phoneLookupVariants,
+} from '../../../contact/domain/contact-identity';
 import { resolvePricingRule } from '../../../pricing-rule/domain/resolve-pricing-rule';
 
 export interface ResolveContext {
@@ -70,7 +74,9 @@ export class AppointmentImportRowResolver {
       }
       const { email, phone } = normalized.primaryContact;
       if (email) emails.add(email);
-      if (phone) phones.add(phone);
+      // Probe both stored spellings (E.164 and legacy local) — the repo's IN
+      // comparison is exact-string.
+      if (phone) for (const variant of phoneLookupVariants(phone)) phones.add(variant);
     }
 
     const existingProperties = addressKeys.size > 0
@@ -84,10 +90,12 @@ export class AppointmentImportRowResolver {
       ? await this.contactRepo.findManyActiveByEmailsOrPhones([...emails], [...phones])
       : [];
     const contactByEmail = new Map<string, ContactEntity>();
+    // Keyed by canonical phone so `+61…` and legacy `0…` rows collide as the
+    // same number.
     const contactByPhone = new Map<string, ContactEntity>();
     for (const c of existingContacts) {
       if (c.primaryEmail) contactByEmail.set(c.primaryEmail, c);
-      if (c.primaryPhone) contactByPhone.set(c.primaryPhone, c);
+      if (c.primaryPhone) contactByPhone.set(canonicalPhone(c.primaryPhone)!, c);
     }
 
     // A batch typically shares one service type and always shares one branch,
@@ -291,7 +299,7 @@ export class AppointmentImportRowResolver {
     // keyed only by non-null values — looking up null would be meaningless.
     const candidates = [
       email ? contactByEmail.get(email) : undefined,
-      phone ? contactByPhone.get(phone) : undefined,
+      phone ? contactByPhone.get(canonicalPhone(phone)!) : undefined,
     ].filter((c): c is ContactEntity => c !== undefined);
     const identical = candidates.find((c) => isIdenticalContact(c, { name, email, phone }));
     const hasExtraChannels = normalized.additionalChannelCandidates.length > 0;

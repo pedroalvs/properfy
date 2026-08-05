@@ -38,6 +38,20 @@ export const fyPhoneQuerySchema = z.object({
 });
 export type FyPhoneQuery = z.infer<typeof fyPhoneQuerySchema>;
 
+/**
+ * `error.details` payload of the NO_ACTIVE_APPOINTMENTS 404: whether the
+ * phone matches any contact at all, and per-status counts of non-deleted
+ * appointments hidden from the requested view (e.g. DRAFT drafts not yet
+ * released, or DONE past the 48h grace window).
+ */
+export const fyNoActiveAppointmentsDetailsSchema = z.object({
+  phoneKnown: z.boolean(),
+  otherAppointments: z.array(
+    z.object({ status: fyAppointmentStatusSchema, count: z.number().int() }),
+  ),
+});
+export type FyNoActiveAppointmentsDetails = z.infer<typeof fyNoActiveAppointmentsDetailsSchema>;
+
 export const fyContactSchema = z.object({
   name: z.string(),
   email: z.string().nullable(),
