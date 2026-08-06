@@ -1,0 +1,118 @@
+name: Deploy Frontends (Vercel)
+
+# Gated on CI success, same as the backend workflow. Builds run here in CI
+# (env vars baked at build time); Vercel only receives the prebuilt dist/,
+# with vercel.json copied in for SPA rewrites + cache headers.
+# Branch → environment topology (deploy-restructure-plan.md):
+#   staging → DEV projects      (properfy-web-dev / properfy-pwa-dev)
+#   main    → STAGING projects  (properfy-web-staging / properfy-pwa-staging)
+#   production → PRODUCTION projects (added in the go-live phase)
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [staging, main]
+  # Manual redeploy lever. NOTE: workflow_run only fires for workflow files
+  # present on the default branch — dispatch also covers that gap during
+  # branch-restructure transitions.
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Environment to deploy (uses the branch you dispatch from)
+        required: true
+        type: choice
+        options: [dev, staging]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-dev:
+    name: Deploy ${{ matrix.app }} (dev)
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'staging') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'dev')
+    runs-on: ubuntu-latest
+    environment: dev
+    concurrency: deploy-frontend-dev-${{ matrix.app }}
+    strategy:
+      matrix:
+        app: [web, pwa]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter shared build
+
+      - name: Build
+        run: pnpm --filter ${{ matrix.app }} build
+        env:
+          VITE_API_BASE_URL: https://properfy-api-dev.fly.dev
+          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
+
+      - name: Deploy to Vercel
+        run: |
+          cp apps/${{ matrix.app }}/vercel.json apps/${{ matrix.app }}/dist/
+          npx vercel@58.7.1 deploy apps/${{ matrix.app }}/dist --prod --yes --token "$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ matrix.app == 'web' && secrets.VERCEL_PROJECT_ID_WEB || secrets.VERCEL_PROJECT_ID_PWA }}
+
+  deploy-staging:
+    name: Deploy ${{ matrix.app }} (staging)
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'staging')
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency: deploy-frontend-staging-${{ matrix.app }}
+    strategy:
+      matrix:
+        app: [web, pwa]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter shared build
+
+      - name: Build
+        run: pnpm --filter ${{ matrix.app }} build
+        env:
+          VITE_API_BASE_URL: https://api-properfy.autolabs.tech
+          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
+
+      - name: Deploy to Vercel
+        run: |
+          cp apps/${{ matrix.app }}/vercel.json apps/${{ matrix.app }}/dist/
+          npx vercel@58.7.1 deploy apps/${{ matrix.app }}/dist --prod --yes --token "$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ matrix.app == 'web' && secrets.VERCEL_PROJECT_ID_WEB || secrets.VERCEL_PROJECT_ID_PWA }}

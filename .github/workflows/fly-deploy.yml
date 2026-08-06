@@ -1,36 +1,77 @@
-name: Deploy to Fly.io
+name: Deploy Backend (Fly.io)
 
+# Deploys are gated on CI: this workflow fires only when the "CI" workflow
+# completes successfully for the branch — a red build can never deploy.
+# Branch → environment topology (deploy-restructure-plan.md):
+#   staging → DEV (properfy-api-dev, iad)
+#   main    → STAGING (properfy-api-staging, syd)
+#   production → PRODUCTION (added in the go-live phase, client Fly org)
 on:
-  push:
-    branches: [main, staging]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [staging, main]
+  # Manual redeploy lever. NOTE: workflow_run only fires for workflow files
+  # present on the default branch — dispatch also covers that gap during
+  # branch-restructure transitions.
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Environment to deploy (uses the branch you dispatch from)
+        required: true
+        type: choice
+        options: [dev, staging]
+
+permissions:
+  contents: read
 
 jobs:
-  deploy-staging:
-    name: Deploy Staging (iad)
-    if: github.ref == 'refs/heads/staging'
+  deploy-dev:
+    name: Deploy DEV (properfy-api-dev, iad)
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'staging') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'dev')
     runs-on: ubuntu-latest
-    concurrency: deploy-staging
+    environment: dev
+    concurrency: deploy-dev
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
 
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # master 2026-05
+        with:
+          version: 0.4.77
 
       - name: Deploy
-        run: flyctl deploy --remote-only --config fly.staging.toml
+        run: flyctl deploy --remote-only --config fly.dev.toml
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
-  deploy-production:
-    name: Deploy Production (syd)
-    if: github.ref == 'refs/heads/main'
+  deploy-staging:
+    name: Deploy STAGING (properfy-api-staging, syd)
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'staging')
     runs-on: ubuntu-latest
-    concurrency: deploy-production
+    environment: staging
+    concurrency: deploy-staging
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
 
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # master 2026-05
+        with:
+          version: 0.4.77
 
       - name: Deploy
-        run: flyctl deploy --remote-only --config fly.prod.toml
+        run: flyctl deploy --remote-only --config fly.staging.toml
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

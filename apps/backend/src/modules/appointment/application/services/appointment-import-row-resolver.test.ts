@@ -388,7 +388,7 @@ describe('AppointmentImportRowResolver.resolve', () => {
         contactId: null,
         displayName: 'Jeanette Rojas',
         primaryEmail: 'jeanette.rojas31@gmail.com',
-        primaryPhone: '0412345678',
+        primaryPhone: '+61412345678',
       }));
       expect(rows[0]!.issues).toEqual(expect.arrayContaining([
         expect.objectContaining({ code: 'CONTACT_MISMATCH_SNAPSHOT_ONLY', severity: 'warning' }),
@@ -409,6 +409,27 @@ describe('AppointmentImportRowResolver.resolve', () => {
       const resolver = buildResolver(repos);
 
       const { rows } = await resolver.resolve([baseRawRow()], CTX);
+
+      expect(rows[0]!.contact).toEqual(expect.objectContaining({
+        resolution: 'existing', contactId: 'contact-identical',
+      }));
+    });
+
+    it('links the identical contact when a historical duplicate stores the same number in the other spelling', async () => {
+      const repos = buildRepos();
+      repos.serviceTypeRepo.findByName.mockResolvedValue(buildServiceType());
+      repos.pricingRuleRepo.findAll.mockResolvedValue([buildPricingRule()]);
+      repos.propertyRepo.findManyByNormalizedAddressKeys.mockResolvedValue([buildProperty()]);
+      // Both rows canonicalize to +61412345678; the identical one comes FIRST,
+      // so a single-value map keyed by canonical phone would drop it in favour
+      // of the legacy duplicate and demote the row to snapshot-only.
+      repos.contactRepo.findManyActiveByEmailsOrPhones.mockResolvedValue([
+        buildContact({ id: 'contact-identical', primaryEmail: null, primaryPhone: '+61412345678' }),
+        buildContact({ id: 'contact-dup-legacy', displayName: 'Someone Else', primaryEmail: null, primaryPhone: '0412345678' }),
+      ]);
+      const resolver = buildResolver(repos);
+
+      const { rows } = await resolver.resolve([baseRawRow({ primaryContactEmail: null })], CTX);
 
       expect(rows[0]!.contact).toEqual(expect.objectContaining({
         resolution: 'existing', contactId: 'contact-identical',

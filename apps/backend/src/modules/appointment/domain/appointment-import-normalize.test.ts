@@ -108,27 +108,39 @@ describe('normalizePostcode', () => {
 });
 
 describe('normalizePhoneAU', () => {
-  it('restores a leading 0 lost when the cell was stored as a number (mobile)', () => {
+  it('repairs a leading 0 lost to numeric-cell storage and emits E.164 (mobile)', () => {
     const result = normalizePhoneAU(412345678);
-    expect(result.value).toBe('0412345678');
+    expect(result.value).toBe('+61412345678');
     expect(result.normalized).toBe(true);
   });
 
-  it('restores a leading 0 for a 9-digit landline', () => {
+  it('repairs a 9-digit landline and emits E.164', () => {
     const result = normalizePhoneAU(298765432);
-    expect(result.value).toBe('0298765432');
+    expect(result.value).toBe('+61298765432');
     expect(result.normalized).toBe(true);
   });
 
-  it('converts a +61-prefixed international number to local 0-prefixed form', () => {
+  it('keeps a +61-prefixed international number as canonical E.164 without flagging a repair', () => {
     const result = normalizePhoneAU('+61412345678');
-    expect(result.value).toBe('0412345678');
+    expect(result.value).toBe('+61412345678');
+    expect(result.normalized).toBe(false);
+  });
+
+  it('repairs a 61-prefixed number whose cell dropped the plus sign', () => {
+    const result = normalizePhoneAU(61412345678);
+    expect(result.value).toBe('+61412345678');
     expect(result.normalized).toBe(true);
   });
 
-  it('leaves an already-correct 10-digit local number untouched', () => {
+  it('converts a well-formed local number to E.164 without flagging a repair', () => {
     const result = normalizePhoneAU('0412345678');
-    expect(result.value).toBe('0412345678');
+    expect(result.value).toBe('+61412345678');
+    expect(result.normalized).toBe(false);
+  });
+
+  it('passes through a shape that is not a valid AU number', () => {
+    const result = normalizePhoneAU('0512345678'); // 05 is not an AU prefix
+    expect(result.value).toBe('0512345678');
     expect(result.normalized).toBe(false);
   });
 
@@ -194,7 +206,7 @@ describe('normalizeImportRow', () => {
     expect(normalized.street).toBe('3/18 Ocean St');
     expect(normalized.postcode).toBe('2217');
     expect(normalized.primaryContact).toEqual({
-      name: 'Jeanette Rojas', email: 'jeanette.rojas31@gmail.com', phone: '0412345678', nameDerived: false,
+      name: 'Jeanette Rojas', email: 'jeanette.rojas31@gmail.com', phone: '+61412345678', nameDerived: false,
     });
     expect(normalized.additionalChannelCandidates).toEqual([]);
     expect(normalized.customFields).toEqual([]);
@@ -245,7 +257,7 @@ describe('normalizeImportRow', () => {
     expect(normalized.additionalChannelCandidates).toEqual(
       expect.arrayContaining([
         { channel: 'EMAIL', value: 'second@example.com', label: 'Secondary' },
-        { channel: 'PHONE', value: '0400000001', label: 'Secondary' },
+        { channel: 'PHONE', value: '+61400000001', label: 'Secondary' },
         { channel: 'EMAIL', value: 'third@example.com', label: 'Tertiary' },
       ]),
     );

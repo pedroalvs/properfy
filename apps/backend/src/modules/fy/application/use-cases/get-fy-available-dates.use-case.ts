@@ -1,10 +1,13 @@
 import type { FyAvailableDates } from '@properfy/shared';
+import { addCivilDays } from '@properfy/shared';
 
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
 import type { IServiceGroupRepository } from '../../../service-group/domain/service-group.repository';
 import { buildPortalEligibleSlots } from '../../../service-group/domain/portal-slot-capacity';
+import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../../shared/domain/timezone-date';
 import { NoticePeriodViolationError } from '../../domain/fy.errors';
+import type { IFyRepository } from '../../domain/fy.repository';
 
 export interface GetFyAvailableDatesInput {
   appointmentId: string;
@@ -32,6 +35,7 @@ export class GetFyAvailableDatesUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly serviceGroupRepo: IServiceGroupRepository,
+    private readonly fyRepo: IFyRepository,
   ) {}
 
   async execute(input: GetFyAvailableDatesInput): Promise<FyAvailableDates> {
@@ -55,9 +59,15 @@ export class GetFyAvailableDatesUseCase {
     // tenant would then be refused on.
     const rows = buildPortalEligibleSlots(members);
 
-    const noticeFloor = new Date(today.getTime());
-    noticeFloor.setUTCDate(noticeFloor.getUTCDate() + NOTICE_PERIOD_DAYS);
-    const noticeFloorIso = noticeFloor.toISOString().slice(0, 10);
+    // The RTA notice period counts civil days where the property is — the
+    // agency's timezone — not UTC days. A raw-UTC floor is one day short for
+    // any request made after ~10:00 UTC (evening in Australia).
+    const agency = await this.fyRepo.findAgencyById(appointment.tenantId);
+    const timezone = agency?.timezone ?? PLATFORM_TIMEZONE;
+    const noticeFloorIso = addCivilDays(
+      civilDateInTimezone(today, timezone),
+      NOTICE_PERIOD_DAYS,
+    );
 
     const legal = rows
       .map((g) => ({

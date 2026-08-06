@@ -21,6 +21,14 @@ export interface FyContactMatch {
   appointments: FyAppointmentRow[];
 }
 
+/** Why a phone lookup came back empty — surfaced as `error.details` on the 404. */
+export interface FyPhoneMatchDiagnostics {
+  /** The phone matches at least one contact (snapshot, registry or secondary channel). */
+  phoneKnown: boolean;
+  /** Non-deleted appointments hidden from the requested view, counted per status. */
+  otherAppointments: Array<{ status: string; count: number }>;
+}
+
 export interface FyAgency {
   id: string;
   name: string;
@@ -39,6 +47,8 @@ export interface IFyRepository {
     statuses: string[];
     doneWithinHours: number;
   }): Promise<FyContactMatch | null>;
+  /** Status-blind probe run only when the lookup above returns nothing. */
+  findContactPhoneDiagnostics(phoneDigitVariants: string[]): Promise<FyPhoneMatchDiagnostics>;
   findAgencyById(id: string): Promise<FyAgency | null>;
   /**
    * Append to the appointment operational notes column. Returns the

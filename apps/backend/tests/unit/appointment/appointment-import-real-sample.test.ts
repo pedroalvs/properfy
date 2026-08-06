@@ -63,12 +63,12 @@ describe('real sample agency export', () => {
     }
   });
 
-  it('restores a leading 0 on numeric-stored phone numbers', () => {
+  it('repairs numeric-stored phone numbers into canonical E.164', () => {
     const withPhone = rawRows.filter((r) => r.primaryContactPhone != null);
     expect(withPhone.length).toBeGreaterThan(0);
     for (const raw of withPhone) {
       const { normalized } = normalizeImportRow(raw, IMPORT_DAY);
-      expect(normalized.primaryContact.phone).toMatch(/^0\d{9}$/);
+      expect(normalized.primaryContact.phone).toMatch(/^\+61\d{9}$/);
     }
   });
 

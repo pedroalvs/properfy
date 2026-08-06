@@ -1,9 +1,32 @@
+import { toE164Au } from '@properfy/shared';
+
 import type { ContactEntity } from './contact.entity';
 
 export interface ContactIdentityCandidate {
   name: string;
   email: string | null;
   phone: string | null;
+}
+
+/**
+ * Canonical comparison form for AU phones: E.164 when convertible, verbatim
+ * otherwise (legacy/non-AU shapes). The registry holds both `+61…` (UI, Fy)
+ * and `0…` (legacy imports) for the same number, so identity checks must
+ * compare numbers, not strings.
+ */
+export function canonicalPhone(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return toE164Au(value) ?? value;
+}
+
+/**
+ * Every stored spelling a phone lookup must probe: the E.164 and local forms
+ * for AU numbers, or the value verbatim when it is not convertible. Feed this
+ * to `findManyActiveByEmailsOrPhones`, whose `IN` comparison is exact-string.
+ */
+export function phoneLookupVariants(value: string): string[] {
+  const e164 = toE164Au(value);
+  return e164 ? [e164, `0${e164.slice(3)}`] : [value];
 }
 
 /**
@@ -19,7 +42,7 @@ export function isIdenticalContact(
 ): boolean {
   const sameName = contact.displayName.trim().toLowerCase() === candidate.name.trim().toLowerCase();
   const sameEmail = (contact.primaryEmail ?? null) === (candidate.email ?? null);
-  const samePhone = (contact.primaryPhone ?? null) === (candidate.phone ?? null);
+  const samePhone = canonicalPhone(contact.primaryPhone) === canonicalPhone(candidate.phone);
   return sameName && sameEmail && samePhone;
 }
 

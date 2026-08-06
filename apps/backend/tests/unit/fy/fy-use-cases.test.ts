@@ -104,12 +104,97 @@ describe('FindFyAppointmentsByPhoneUseCase', () => {
   });
 
   it('400 on invalid phone, 404 when nothing matches', async () => {
-    const fyRepo = { findAppointmentsByContactPhone: vi.fn(async () => null) } as any;
+    const fyRepo = {
+      findAppointmentsByContactPhone: vi.fn(async () => null),
+      findContactPhoneDiagnostics: vi.fn(async () => ({
+        phoneKnown: false,
+        otherAppointments: [],
+      })),
+    } as any;
     const useCase = new FindFyAppointmentsByPhoneUseCase(fyRepo);
     await expect(useCase.execute({ phone: '12345' })).rejects.toBeInstanceOf(ValidationError);
     await expect(useCase.execute({ phone: '+61412345678' })).rejects.toBeInstanceOf(
       NoActiveAppointmentsError,
     );
+    // Diagnostics only run on the miss path, never on the happy path.
+    expect(fyRepo.findContactPhoneDiagnostics).toHaveBeenCalledWith([
+      '61412345678',
+      '0412345678',
+    ]);
+  });
+
+  it('404 carries diagnostics: unknown phone', async () => {
+    const fyRepo = {
+      findAppointmentsByContactPhone: vi.fn(async () => null),
+      findContactPhoneDiagnostics: vi.fn(async () => ({
+        phoneKnown: false,
+        otherAppointments: [],
+      })),
+    } as any;
+    const error = await new FindFyAppointmentsByPhoneUseCase(fyRepo)
+      .execute({ phone: '0412345678' })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(NoActiveAppointmentsError);
+    expect((error as NoActiveAppointmentsError).details).toEqual({
+      phoneKnown: false,
+      otherAppointments: [],
+    });
+    expect((error as NoActiveAppointmentsError).message).toContain(
+      'does not match any contact',
+    );
+  });
+
+  it('404 carries diagnostics: appointments exist in non-active statuses', async () => {
+    const fyRepo = {
+      findAppointmentsByContactPhone: vi.fn(async () => null),
+      findContactPhoneDiagnostics: vi.fn(async () => ({
+        phoneKnown: true,
+        otherAppointments: [{ status: 'DRAFT', count: 2 }],
+      })),
+    } as any;
+    const error = await new FindFyAppointmentsByPhoneUseCase(fyRepo)
+      .execute({ phone: '0412345678' })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(NoActiveAppointmentsError);
+    expect((error as NoActiveAppointmentsError).details).toEqual({
+      phoneKnown: true,
+      otherAppointments: [{ status: 'DRAFT', count: 2 }],
+    });
+    expect((error as NoActiveAppointmentsError).message).toContain('DRAFT: 2');
+    expect((error as NoActiveAppointmentsError).message).toContain('statusIn');
+  });
+
+  it('404 carries diagnostics: contact known but no appointments at all', async () => {
+    const fyRepo = {
+      findAppointmentsByContactPhone: vi.fn(async () => null),
+      findContactPhoneDiagnostics: vi.fn(async () => ({
+        phoneKnown: true,
+        otherAppointments: [],
+      })),
+    } as any;
+    const error = await new FindFyAppointmentsByPhoneUseCase(fyRepo)
+      .execute({ phone: '0412345678' })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(NoActiveAppointmentsError);
+    expect((error as NoActiveAppointmentsError).details).toEqual({
+      phoneKnown: true,
+      otherAppointments: [],
+    });
+    expect((error as NoActiveAppointmentsError).message).toContain(
+      'contact exists but has no appointments',
+    );
+  });
+
+  it('does not run diagnostics when appointments are found', async () => {
+    const fyRepo = {
+      findAppointmentsByContactPhone: vi.fn(async () => ({
+        contact: { name: 'J', email: null, phone: null },
+        appointments: [makeRow()],
+      })),
+      findContactPhoneDiagnostics: vi.fn(),
+    } as any;
+    await new FindFyAppointmentsByPhoneUseCase(fyRepo).execute({ phone: '0412345678' });
+    expect(fyRepo.findContactPhoneDiagnostics).not.toHaveBeenCalled();
   });
 });
 
@@ -225,6 +310,17 @@ describe('GetFyAvailableDatesUseCase', () => {
     })),
   } as any;
 
+  function agencyRepo(timezone = 'Australia/Sydney') {
+    return {
+      findAgencyById: vi.fn(async () => ({
+        id: 't1',
+        name: 'Belle Property',
+        timezone,
+        branches: [],
+      })),
+    } as any;
+  }
+
   function inDays(days: number): Date {
     const d = new Date();
     d.setUTCDate(d.getUTCDate() + days);
@@ -267,6 +363,7 @@ describe('GetFyAvailableDatesUseCase', () => {
         { scheduledDate: weekday, timeSlotStart: '06:00', timeSlotEnd: '09:00' }, // before 08:00
         { scheduledDate: saturday, timeSlotStart: '09:00', timeSlotEnd: '12:00' }, // weekend
       ]),
+      agencyRepo(),
     );
 
     const result = await useCase.execute({ appointmentId: 'a1', limit: 5 });
@@ -282,6 +379,7 @@ describe('GetFyAvailableDatesUseCase', () => {
     const useCase = new GetFyAvailableDatesUseCase(
       appointmentRepo,
       groupRepo([{ scheduledDate: soon, timeSlotStart: '09:00', timeSlotEnd: '12:00' }]),
+      agencyRepo(),
     );
     await expect(useCase.execute({ appointmentId: 'a1', limit: 5 })).rejects.toBeInstanceOf(
       NoticePeriodViolationError,
@@ -289,7 +387,7 @@ describe('GetFyAvailableDatesUseCase', () => {
   });
 
   it('empty list when there are no candidate groups at all', async () => {
-    const useCase = new GetFyAvailableDatesUseCase(appointmentRepo, groupRepo([]));
+    const useCase = new GetFyAvailableDatesUseCase(appointmentRepo, groupRepo([]), agencyRepo());
     expect((await useCase.execute({ appointmentId: 'a1', limit: 5 })).availableDates).toEqual([]);
   });
 
@@ -299,9 +397,32 @@ describe('GetFyAvailableDatesUseCase', () => {
       timeSlotStart: '09:00',
       timeSlotEnd: '12:00',
     }));
-    const useCase = new GetFyAvailableDatesUseCase(appointmentRepo, groupRepo(slots));
+    const useCase = new GetFyAvailableDatesUseCase(appointmentRepo, groupRepo(slots), agencyRepo());
     const result = await useCase.execute({ appointmentId: 'a1', limit: 3 });
     expect(result.availableDates.length).toBeLessThanOrEqual(3);
+  });
+
+  it('computes the notice floor on the agency civil date, not the UTC date', async () => {
+    // 2026-08-05T15:00:00Z is already 2026-08-06 in Sydney (+10). A raw-UTC
+    // floor would be Aug 12; the Sydney floor is Aug 13, so an Aug 12 slot
+    // must violate the 7-day notice and yield a 409.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-05T15:00:00Z'));
+    try {
+      const useCase = new GetFyAvailableDatesUseCase(
+        appointmentRepo,
+        groupRepo([
+          // 2026-08-12 is a Wednesday, inside the legal window.
+          { scheduledDate: new Date('2026-08-12T00:00:00Z'), timeSlotStart: '09:00', timeSlotEnd: '12:00' },
+        ]),
+        agencyRepo('Australia/Sydney'),
+      );
+      await expect(useCase.execute({ appointmentId: 'a1', limit: 5 })).rejects.toBeInstanceOf(
+        NoticePeriodViolationError,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
