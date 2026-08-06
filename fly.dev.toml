@@ -1,18 +1,24 @@
-# UNUSED BY CI — kept as local reference only.
-# The CI workflows use fly.prod.toml (properfy-prod, syd) and fly.staging.toml (properfy, iad).
-# Running `fly deploy` from the repo root without --config will pick this file and deploy
-# to the wrong app/region. Use `fly deploy --config fly.prod.toml` or fly.staging.toml instead.
-app = 'properfy'
+# DEV environment — deployed by CI on every push to the `staging` branch.
+# Topology (deploy-restructure-plan.md): staging branch → DEV, main → STAGING,
+# production → PRODUCTION. Dev stays in iad: gru has no capacity — a
+# release_command machine pinned there cannot restart, which blocks every
+# deploy at its first step. Do not move without checking capacity first.
+app = 'properfy-api-dev'
 primary_region = 'iad'
 
 [build]
   dockerfile = 'apps/backend/Dockerfile'
 
 [deploy]
-  release_command = 'sh -c "cd /app/apps/backend && npx prisma migrate deploy"'
+  # Migrate, then refresh the QA role fixtures (AM / OP / CL_ADMIN / CL_USER).
+  # provision-qa-users is idempotent — safe to rerun on every release. It must
+  # NEVER run in production (see fly.production.toml).
+  release_command = 'sh -lc "cd /app/apps/backend && prisma migrate deploy && node dist/provision-qa-users.js"'
 
 [env]
   NODE_ENV = 'staging'
+  # Explicit pg-boss queue schema — authoritative, do NOT rely on NODE_ENV inference.
+  PGBOSS_SCHEMA = 'pgboss_dev'
   PORT = '3000'
   LOG_LEVEL = 'info'
   JWT_ACCESS_TOKEN_TTL_MINUTES = '60'
