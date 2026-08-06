@@ -48,7 +48,7 @@ jobs:
       - name: Build
         run: pnpm --filter ${{ matrix.app }} build
         env:
-          VITE_API_BASE_URL: https://api-properfy.pedroalvs.com
+          VITE_API_BASE_URL: https://properfy-api-dev.fly.dev
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
 
       - name: Deploy to Vercel
@@ -91,7 +91,7 @@ jobs:
       - name: Build
         run: pnpm --filter ${{ matrix.app }} build
         env:
-          VITE_API_BASE_URL: https://api-properfy.autolabs.tech
+          VITE_API_BASE_URL: https://properfy-api-staging.fly.dev
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
 
       - name: Deploy to Vercel
