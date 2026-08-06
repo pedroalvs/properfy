@@ -11,6 +11,16 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [staging, main]
+  # Manual redeploy lever. NOTE: workflow_run only fires for workflow files
+  # present on the default branch — dispatch also covers that gap during
+  # branch-restructure transitions.
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Environment to deploy (uses the branch you dispatch from)
+        required: true
+        type: choice
+        options: [dev, staging]
 
 permissions:
   contents: read
@@ -19,17 +29,22 @@ jobs:
   deploy-dev:
     name: Deploy DEV (properfy-api-dev, iad)
     if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'staging'
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'staging') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'dev')
     runs-on: ubuntu-latest
     environment: dev
     concurrency: deploy-dev
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
 
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # master 2026-05
+        with:
+          version: 0.4.77
 
       - name: Deploy
         run: flyctl deploy --remote-only --config fly.dev.toml
@@ -39,17 +54,22 @@ jobs:
   deploy-staging:
     name: Deploy STAGING (properfy-api-staging, syd)
     if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main'
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'staging')
     runs-on: ubuntu-latest
     environment: staging
     concurrency: deploy-staging
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
 
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # master 2026-05
+        with:
+          version: 0.4.77
 
       - name: Deploy
         run: flyctl deploy --remote-only --config fly.staging.toml
