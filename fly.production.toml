@@ -1,0 +1,46 @@
+# PRODUCTION — client Fly org (contact-properfy-inspections), deployed by CI on
+# every push to the `production` branch, behind the GitHub `production`
+# environment approval gate. Sizing rationale: deploy-restructure-plan.md §3.
+# NOTE: no QA/demo seeding here — the only user-creating one-shot allowed in
+# production is dist/provision-admin.js (run manually via fly ssh console).
+app = 'properfy-api'
+primary_region = 'syd'
+
+[build]
+  dockerfile = 'apps/backend/Dockerfile'
+
+[deploy]
+  release_command = 'sh -lc "cd /app/apps/backend && prisma migrate deploy"'
+  strategy = 'rolling'
+
+[env]
+  NODE_ENV = 'production'
+  # Explicit pg-boss queue schema — authoritative, do NOT rely on NODE_ENV inference.
+  PGBOSS_SCHEMA = 'pgboss'
+  PORT = '3000'
+  LOG_LEVEL = 'info'
+  JWT_ACCESS_TOKEN_TTL_MINUTES = '60'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'stop'     # scale down when idle…
+  auto_start_machines = true      # …scale back up on demand
+  min_machines_running = 1        # never below 1 — pg-boss crons live in-process
+  processes = ['app']
+
+  [http_service.concurrency]
+    type = 'requests'
+    soft_limit = 80               # proxy wakes machine #2 past this
+    hard_limit = 250
+
+[[http_service.checks]]
+  grace_period = '30s'
+  interval = '30s'
+  method = 'GET'
+  timeout = '10s'
+  path = '/ready'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '1gb'
