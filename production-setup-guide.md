@@ -12,7 +12,7 @@ Final domain matrix (reference throughout):
 |---|---|---|---|
 | Production | `app.properfy.me` | `pwa.properfy.me` | `api.properfy.me` |
 | Staging | `properfy.autolabs.tech` | `pwa-properfy.autolabs.tech` | `api-properfy.autolabs.tech` |
-| Dev | `properfy.pedroalvs.com` | `pwa-properfy.pedroalvs.com` | `api-properfy.pedroalvs.com` |
+| Dev | `properfy.pedroalvs.com` | `pwa-properfy.pedroalvs.com` | `properfy-api-dev.fly.dev` (Fly-native) |
 
 ---
 
