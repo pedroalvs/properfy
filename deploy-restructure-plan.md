@@ -30,7 +30,7 @@ develop ──▶ staging ──▶ main ──▶ production        (branch pro
 | **Database** | Supabase — current shared project, now **dev-only** | Supabase — current **prod** project, repurposed as staging | **New Supabase project (client account)** |
 | **Web URL** | `properfy.pedroalvs.com` | `properfy.autolabs.tech` | `app.properfy.me` |
 | **PWA URL** | `pwa-properfy.pedroalvs.com` | `pwa-properfy.autolabs.tech` | `pwa.properfy.me` |
-| **API URL** | `api-properfy.pedroalvs.com` | `api-properfy.autolabs.tech` (reuse) | `api.properfy.me` |
+| **API URL** | `properfy-api-dev.fly.dev` (Fly-native) | `properfy-api-staging.fly.dev` (Fly-native) | `api.properfy.me` |
 
 Rationale for names: `properfy-api-<env>` makes the Fly app's role unambiguous
 (today `properfy` vs `properfy-prod` is confusing); the production app drops the
@@ -218,12 +218,13 @@ Staging/dev domains (decided — the dev's DNS, CNAMEd to the Vercel projects):
 
 | Env | Web | PWA | API |
 |---|---|---|---|
-| Staging | `properfy.autolabs.tech` | `pwa-properfy.autolabs.tech` | `api-properfy.autolabs.tech` |
-| Dev | `properfy.pedroalvs.com` | `pwa-properfy.pedroalvs.com` | `api-properfy.pedroalvs.com` |
+| Staging | `properfy.autolabs.tech` | `pwa-properfy.autolabs.tech` | `properfy-api-staging.fly.dev` (Fly-native) |
+| Dev | `properfy.pedroalvs.com` | `pwa-properfy.pedroalvs.com` | `properfy-api-dev.fly.dev` (Fly-native) |
 
-API domains are repointed at the new Fly apps (`fly certs add` on each).
-Each environment's backend `CORS_ORIGIN` must list exactly its two frontend
-origins.
+Dev/staging APIs use the Fly-native `*.fly.dev` hostnames (decided at cutover —
+no custom API domains outside production, so no extra DNS records or certs).
+Production keeps `api.properfy.me` (`fly certs add` at go-live). Each
+environment's backend `CORS_ORIGIN` must list exactly its two frontend origins.
 
 ## 7. Migration consolidation & seed policy (v1 baseline)
 
