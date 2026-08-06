@@ -11,7 +11,7 @@ on:
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [staging, main]
+    branches: [staging, main, production]
   # Manual redeploy lever. NOTE: workflow_run only fires for workflow files
   # present on the default branch — dispatch also covers that gap during
   # branch-restructure transitions.
@@ -21,7 +21,7 @@ on:
         description: Environment to deploy (uses the branch you dispatch from)
         required: true
         type: choice
-        options: [dev, staging]
+        options: [dev, staging, production]
 
 permissions:
   contents: read
@@ -61,6 +61,52 @@ jobs:
         run: pnpm --filter ${{ matrix.app }} build
         env:
           VITE_API_BASE_URL: https://properfy-api-dev.fly.dev
+          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
+
+      - name: Deploy to Vercel
+        run: |
+          cp apps/${{ matrix.app }}/vercel.json apps/${{ matrix.app }}/dist/
+          npx vercel@58.7.1 deploy apps/${{ matrix.app }}/dist --prod --yes --token "$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ matrix.app == 'web' && secrets.VERCEL_PROJECT_ID_WEB || secrets.VERCEL_PROJECT_ID_PWA }}
+
+  deploy-production:
+    name: Deploy ${{ matrix.app }} (production)
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'production') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'production')
+    runs-on: ubuntu-latest
+    # Human gate + client-team Vercel credentials live in this environment.
+    environment: production
+    concurrency: deploy-frontend-production-${{ matrix.app }}
+    strategy:
+      matrix:
+        app: [web, pwa]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter shared build
+
+      - name: Build
+        run: pnpm --filter ${{ matrix.app }} build
+        env:
+          VITE_API_BASE_URL: https://api.properfy.me
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
 
       - name: Deploy to Vercel
