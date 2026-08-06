@@ -464,9 +464,18 @@ wrangler, openssl, psql/containers).
 | M5 | **MobileMessage**: create/confirm client account, request sender-ID approval, copy API key/password | Dashboard + AU compliance |
 | M6 | **Mapbox**: create the two tokens (server unrestricted, browser URL-restricted) | Dashboard |
 | M7 | **DNS** for `properfy.me`: add the CNAMEs + Resend DKIM/SPF records (values supplied by the AI) | Registrar/DNS UI |
-| M8 | **Fly client-org login in this terminal**: run `! fly auth login` (or paste an org token) so the AI can operate the client org | Interactive OAuth |
-| M9 | Supabase dashboard clicks the AI can't reach: S3 access keys, storage buckets (`properfy-assets` private, `email-assets` public) — *or* hand the AI a Supabase access token and it scripts them | Dashboard/API key |
-| M10 | **Approvals**: review PRs, click the production environment approval, decide staging-DB data cleanup | Human judgment by design |
+| M8 | Supabase dashboard clicks the AI can't reach: S3 access keys, storage buckets (`properfy-assets` private, `email-assets` public) — *or* hand the AI a Supabase access token and it scripts them | Dashboard/API key |
+| M9 | **Approvals**: review PRs, click the production environment approval, decide staging-DB data cleanup | Human judgment by design |
+
+No Fly login handoff is needed: the dev is a member of the client org
+(`contact-properfy-inspections`), already visible to the local `flyctl` session
+alongside `personal`. Production commands just target it explicitly
+(`fly apps create properfy-api --org contact-properfy-inspections`;
+`fly tokens create deploy -a properfy-api` mints `FLY_API_TOKEN_PROD` from the
+same login). One consequence to respect: a bare `fly deploy` can now reach
+production from this machine — every Fly command must carry `-a <app>`/`--config`
+explicitly, and the production-access rule (never touch prod without an explicit
+request) applies as ever.
 
 ### 11.2 Terminal — the AI (everything else)
 
@@ -497,14 +506,13 @@ wrangler, openssl, psql/containers).
 
 ### 11.3 Handoff checklist (what the AI needs handed over, literally)
 
-1. `! fly auth login` into the client org (M8) — or an org-scoped deploy token.
-2. `VERCEL_TOKEN` (owner-minted, M3) + confirmation the Viewer invite exists.
-3. Production Supabase: `DATABASE_URL` password + S3 keys (M9) — or a Supabase
+1. `VERCEL_TOKEN` (owner-minted, M3) + confirmation the Viewer invite exists.
+2. Production Supabase: `DATABASE_URL` password + S3 keys (M8) — or a Supabase
    access token to script it.
-4. Resend API key + webhook signing secret (M4, after domain verifies).
-5. MobileMessage API key/password/sender ID (M5).
-6. Both Mapbox tokens (M6).
-7. Confirmation that the M7 DNS records are in (the AI verifies propagation).
+3. Resend API key + webhook signing secret (M4, after domain verifies).
+4. MobileMessage API key/password/sender ID (M5).
+5. Both Mapbox tokens (M6).
+6. Confirmation that the M7 DNS records are in (the AI verifies propagation).
 
 Everything in the list is pasteable into the terminal session; the AI stores
 them only in Fly/GitHub secret stores, never in the repo.
