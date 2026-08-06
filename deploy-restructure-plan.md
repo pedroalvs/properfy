@@ -445,3 +445,66 @@ secrets into them (out of repo-level secrets):
    prod data — the QA provisioning script runs on it from the first staging
    release, and any old-prod leftovers can be cleaned or kept as staging
    fixtures at cutover.
+
+## 11. Execution split — AI via terminal vs manual (the dev)
+
+Principle: **manual work is front-loaded into a single credentials handoff.**
+Accounts, billing, dashboard token minting and DNS are human work; once the
+tokens exist, everything else is terminal-automatable (flyctl, gh, vercel CLI,
+wrangler, openssl, psql/containers).
+
+### 11.1 Manual — the dev (mostly one sitting, before Phase 0 code starts)
+
+| # | Task | Why manual |
+|---|---|---|
+| M1 | Client **Fly.io** org: create/verify, attach billing | Account + billing UI |
+| M2 | Client **Supabase** org + create the production project (region `ap-southeast-2`), note DB password | Dashboard (CLI possible with an access token, but org/billing setup is UI) |
+| M3 | **Vercel**: confirm Pro team, owner mints the team-scoped `VERCEL_TOKEN`, invite the dev as Viewer | Token must come from the owner's account |
+| M4 | **Resend**: create account, add domain `properfy.me` | Dashboard |
+| M5 | **MobileMessage**: create/confirm client account, request sender-ID approval, copy API key/password | Dashboard + AU compliance |
+| M6 | **Mapbox**: create the two tokens (server unrestricted, browser URL-restricted) | Dashboard |
+| M7 | **DNS** for `properfy.me`: add the CNAMEs + Resend DKIM/SPF records (values supplied by the AI) | Registrar/DNS UI |
+| M8 | **Fly client-org login in this terminal**: run `! fly auth login` (or paste an org token) so the AI can operate the client org | Interactive OAuth |
+| M9 | Supabase dashboard clicks the AI can't reach: S3 access keys, storage buckets (`properfy-assets` private, `email-assets` public) — *or* hand the AI a Supabase access token and it scripts them | Dashboard/API key |
+| M10 | **Approvals**: review PRs, click the production environment approval, decide staging-DB data cleanup | Human judgment by design |
+
+### 11.2 Terminal — the AI (everything else)
+
+**Code (worktree + PR flow, per phase):**
+- All config files: `fly.production.toml`, rewritten `fly.dev.toml` /
+  `fly.staging.toml`, `vercel.json` (web + pwa), CI workflow rewrite
+  (triggers, workflow_run gating, environments, auto-tagging), `rotate-jwt.sh`,
+  scheduled rotation-reminder workflow.
+- Migration squash: throwaway-container replay, `0_init` authoring,
+  replay-diff verification loop, `migrate resolve --applied` runs.
+- `provision-admin.ts` with TDD; version exposure in `/ready`.
+- CLAUDE.md / docs updates (cutover step 14).
+
+**Infra operations (after the handoff):**
+- Secrets generation: JWT keypairs, the 3 AES keys, webhook tokens (`openssl`).
+- Fly (both orgs once M8 done): `apps create`, `secrets set/import`,
+  `certs add` + cert status polling, `scale count 2`, deploys, `fly ssh
+  console` one-shots (template seed, provision-admin), old-app teardown.
+- GitHub via `gh api`: create `production` branch, rulesets/branch protection,
+  the three Environments with scoped secrets (`gh secret set --env`),
+  required-reviewer config on `production`.
+- Vercel via CLI + M3 token: create the six projects, attach all domains,
+  wire project IDs into GitHub environment secrets.
+- Cloudflare Pages teardown via wrangler (CI token already exists).
+- Verification: DNS propagation checks (`dig`), smoke curls, browser QA of all
+  four portals (Chrome tools), burst test for machine-#2 wake/stop, overnight
+  cron check via `pgboss.job` queries.
+
+### 11.3 Handoff checklist (what the AI needs handed over, literally)
+
+1. `! fly auth login` into the client org (M8) — or an org-scoped deploy token.
+2. `VERCEL_TOKEN` (owner-minted, M3) + confirmation the Viewer invite exists.
+3. Production Supabase: `DATABASE_URL` password + S3 keys (M9) — or a Supabase
+   access token to script it.
+4. Resend API key + webhook signing secret (M4, after domain verifies).
+5. MobileMessage API key/password/sender ID (M5).
+6. Both Mapbox tokens (M6).
+7. Confirmation that the M7 DNS records are in (the AI verifies propagation).
+
+Everything in the list is pasteable into the terminal session; the AI stores
+them only in Fly/GitHub secret stores, never in the repo.
