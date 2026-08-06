@@ -1,36 +1,57 @@
-name: Deploy to Fly.io
+name: Deploy Backend (Fly.io)
 
+# Deploys are gated on CI: this workflow fires only when the "CI" workflow
+# completes successfully for the branch — a red build can never deploy.
+# Branch → environment topology (deploy-restructure-plan.md):
+#   staging → DEV (properfy-api-dev, iad)
+#   main    → STAGING (properfy-api-staging, syd)
+#   production → PRODUCTION (added in the go-live phase, client Fly org)
 on:
-  push:
-    branches: [main, staging]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [staging, main]
+
+permissions:
+  contents: read
 
 jobs:
-  deploy-staging:
-    name: Deploy Staging (iad)
-    if: github.ref == 'refs/heads/staging'
+  deploy-dev:
+    name: Deploy DEV (properfy-api-dev, iad)
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'staging'
     runs-on: ubuntu-latest
+    environment: dev
+    concurrency: deploy-dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy
+        run: flyctl deploy --remote-only --config fly.dev.toml
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  deploy-staging:
+    name: Deploy STAGING (properfy-api-staging, syd)
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    environment: staging
     concurrency: deploy-staging
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy
         run: flyctl deploy --remote-only --config fly.staging.toml
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-  deploy-production:
-    name: Deploy Production (syd)
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    concurrency: deploy-production
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-
-      - name: Deploy
-        run: flyctl deploy --remote-only --config fly.prod.toml
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

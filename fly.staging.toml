@@ -1,23 +1,21 @@
-app = 'properfy'
-# Sydney is production-only (see fly.prod.toml). This was 'gru' until Fly ran out of
-# capacity there — `fly deploy` fails with "no capacity available in gru" and, worse,
-# a release_command machine pinned to gru cannot restart, which blocks every staging
-# deploy at its first step. Do not move this back without checking gru capacity first.
-primary_region = 'iad'
+# STAGING environment — deployed by CI on every push to the `main` branch.
+# Runs in syd to mirror production behavior (timezone, latency). Its database is
+# the repurposed former-prod Supabase project — every environment has its own DB.
+app = 'properfy-api-staging'
+primary_region = 'syd'
 
 [build]
   dockerfile = 'apps/backend/Dockerfile'
 
 [deploy]
-  # Migrate first, then refresh the QA role fixtures (AM / OP / CL_ADMIN /
-  # CL_USER). The provision-qa-users script is bundled by tsup into dist/
-  # and is idempotent — safe to rerun on every staging release.
+  # Migrate, then refresh the QA role fixtures (AM / OP / CL_ADMIN / CL_USER).
+  # provision-qa-users is idempotent — safe to rerun on every release. It must
+  # NEVER run in production (see fly.production.toml).
   release_command = 'sh -lc "cd /app/apps/backend && prisma migrate deploy && node dist/provision-qa-users.js"'
 
 [env]
   NODE_ENV = 'staging'
   # Explicit pg-boss queue schema — authoritative, do NOT rely on NODE_ENV inference.
-  # Isolates staging's queue from dev/prod (dev+staging share one database).
   PGBOSS_SCHEMA = 'pgboss_staging'
   PORT = '3000'
   LOG_LEVEL = 'info'
