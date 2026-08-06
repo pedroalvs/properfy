@@ -14,7 +14,7 @@ const BRAND_TAGLINE = 'Inspection operations for Australian agencies.';
  * `auth-pane-reveal` is what arms the load sequence in styles/auth-pane.css; the layer
  * classes inside RouteArt are inert without it.
  */
-function AuthBrandPane({ wordmarkText }: { wordmarkText?: string }) {
+function AuthBrandPane({ logoHidden }: { logoHidden?: boolean }) {
   return (
     <div
       data-testid="auth-brand-pane"
@@ -24,11 +24,7 @@ function AuthBrandPane({ wordmarkText }: { wordmarkText?: string }) {
       <RouteArt className="absolute inset-0 h-full w-full" />
 
       <div className="auth-reveal-lockup absolute bottom-0 left-0 flex flex-col items-start px-10 pb-12">
-        {wordmarkText ? (
-          <p className="font-poppins text-[30px] font-bold leading-tight tracking-tight text-secondary">
-            {wordmarkText}
-          </p>
-        ) : (
+        {!logoHidden && (
           <>
             {/*
              * The asset is the full lockup on a generous transparent margin — roughly half
@@ -51,9 +47,10 @@ interface AuthLayoutProps {
   title: string;
   subtitle: string;
   /**
-   * Swaps the brand elements: the pane shows `title` as text and the sheet's `h1`
-   * becomes the logo, sized to the space the textual title would take. Login only —
-   * the other auth screens need their textual titles.
+   * Moves the brand to the sheet: the `h1` becomes the logo, sized to the space the
+   * textual title would take, and the pane drops its logo (keeping only the tagline)
+   * so the brand appears once. Login only — the other auth screens need their
+   * textual titles.
    */
   logoAsTitle?: boolean;
   children: ReactNode;
@@ -69,7 +66,7 @@ interface AuthLayoutProps {
 export function AuthLayout({ title, subtitle, logoAsTitle = false, children }: AuthLayoutProps) {
   return (
     <div className="relative min-h-screen bg-app-bg">
-      <AuthBrandPane wordmarkText={logoAsTitle ? title : undefined} />
+      <AuthBrandPane logoHidden={logoAsTitle} />
 
       <div className="relative flex min-h-screen flex-col justify-center bg-card-bg px-6 py-12 sm:px-10 lg:ml-[39.5%] lg:rounded-l-[30px] lg:px-0 lg:shadow-[-20px_0_54px_rgba(21,64,86,0.13)]">
         <div className="mx-auto w-full max-w-[420px] lg:mx-0 lg:ml-[22%] lg:w-[57%] lg:max-w-none">

@@ -60,9 +60,9 @@ describe('AuthLayout', () => {
 });
 
 /**
- * The login screen swaps the brand elements: the pane carries the wordmark as text and
- * the sheet's heading becomes the logo. Other auth screens keep textual titles, so the
- * swap is opt-in via `logoAsTitle`.
+ * The login screen moves the brand to the sheet: the heading becomes the logo and the
+ * pane keeps only the tagline. Other auth screens keep textual titles, so the swap is
+ * opt-in via `logoAsTitle`.
  */
 describe('AuthLayout with logoAsTitle', () => {
   function renderSwapped() {
@@ -83,12 +83,15 @@ describe('AuthLayout with logoAsTitle', () => {
     );
   });
 
-  it('shows the title as text on the brand pane instead of the logo', () => {
+  it('shows only the tagline on the brand pane — no logo, no wordmark text', () => {
     renderSwapped();
 
     const pane = screen.getByTestId('auth-brand-pane');
-    expect(within(pane).getByText('We are Properfy')).toBeInTheDocument();
+    expect(within(pane).queryByText('We are Properfy')).toBeNull();
     expect(pane.querySelector('img')).toBeNull();
+    expect(
+      within(pane).getByText('Inspection operations for Australian agencies.'),
+    ).toBeInTheDocument();
   });
 
   it('exposes exactly one brand image to assistive tech, the heading logo', () => {
