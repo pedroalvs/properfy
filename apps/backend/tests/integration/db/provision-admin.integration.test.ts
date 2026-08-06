@@ -69,7 +69,11 @@ describe('provisionAdmin', () => {
       where: { user_id: user.id },
     });
     expect(row.token_hash).toBe(createHash('sha256').update(token).digest('hex'));
-    expect(row.expires_at.getTime()).toBeGreaterThan(Date.now());
+    // Onboarding lifetime is 24h (not the forgot-password flow's 1h) — assert
+    // the window, not just "in the future".
+    const lifetimeMs = row.expires_at.getTime() - row.created_at.getTime();
+    expect(lifetimeMs).toBeGreaterThan(23.5 * 60 * 60 * 1000);
+    expect(lifetimeMs).toBeLessThanOrEqual(24 * 60 * 60 * 1000);
 
     const audit = await harness.prisma.auditLog.findFirstOrThrow({
       where: { entity_type: 'user', entity_id: user.id },

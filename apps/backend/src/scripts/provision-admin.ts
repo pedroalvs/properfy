@@ -53,13 +53,9 @@ export async function provisionAdmin(
   }
   const email = parsed.data;
 
-  const existingAdmin = await prisma.user.findFirst({
-    where: { role: 'AM', deleted_at: null },
-    select: { id: true },
-  });
-  if (existingAdmin) {
-    return { created: false, reason: 'AM_EXISTS' };
-  }
+  // Fail before any write if the base URL cannot form a link — otherwise the
+  // AM would exist with an unprintable reset link.
+  const resetLink = new URL('/reset-password', options.baseUrl);
 
   const throwawayPassword = randomBytes(32).toString('hex');
   const passwordHash = await bcrypt.hash(throwawayPassword, 12);
@@ -69,6 +65,19 @@ export async function provisionAdmin(
   const now = new Date();
 
   const user = await prisma.$transaction(async (tx) => {
+    // Advisory xact-lock serializes concurrent runs so the existence check
+    // and the insert are atomic — two racing invocations cannot both pass
+    // the check and create two AMs. ::bigint key = arbitrary constant.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(72019842)`;
+
+    const existingAdmin = await tx.user.findFirst({
+      where: { role: 'AM', deleted_at: null },
+      select: { id: true },
+    });
+    if (existingAdmin) {
+      return null;
+    }
+
     const created = await tx.user.create({
       data: {
         id: randomUUID(),
@@ -105,7 +114,10 @@ export async function provisionAdmin(
     return created;
   });
 
-  const resetLink = new URL('/reset-password', options.baseUrl);
+  if (!user) {
+    return { created: false, reason: 'AM_EXISTS' };
+  }
+
   resetLink.searchParams.set('token', rawToken);
 
   return { created: true, userId: user.id, resetLink: resetLink.toString() };
