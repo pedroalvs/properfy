@@ -1,13 +1,12 @@
 import type { InspectorWorkloadResponse, WorkloadMatrixRow } from '@properfy/shared';
 import { ChartCard } from '@/features/analytics/components/charts/ChartCard';
-import { SEQUENTIAL_HUE } from '@/features/analytics/components/charts/theme';
 import {
+  DAY_LEVEL_SWATCH,
   LEVEL_LABEL,
   TOTAL_LEVEL_CLASS,
   cellStyle,
   dayLevel,
   formatDayHeader,
-  withAlpha,
 } from './workload-visuals';
 
 interface WorkloadMatrixProps {
@@ -28,11 +27,10 @@ function LegendSwatch({ color, label }: { color: string; label: string }) {
 /**
  * One row per inspector, one column per day of the selected week.
  *
- * Cells encode magnitude with a single-hue wash and always print the count, so
- * the value never depends on colour. The Total column is the one status-coloured
- * element — a weekly total is a *state* (normal / busy / overloaded) rather than
- * a magnitude — and it carries the number plus a level word in its accessible
- * name.
+ * Busy and overloaded cells wear the status palette (warning / error tints) and
+ * quieter days keep the neutral wash; every cell always prints the count, so the
+ * value never depends on colour. The Total column stays status-coloured too and
+ * carries the number plus a level word in its accessible name.
  *
  * `ChartCard` supplies the mandatory table view. That toggle is not redundant
  * here even though this view is already grid-shaped: the table drops colour
@@ -60,12 +58,12 @@ export function WorkloadMatrix({ matrix, week, thresholds }: WorkloadMatrixProps
       emptyMessage="No inspectors are carrying work this week."
     >
       <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-text-secondary">
-        <LegendSwatch color={withAlpha(SEQUENTIAL_HUE, 0.12)} label={`Under ${thresholds.dailyBusy} a day`} />
+        <LegendSwatch color={DAY_LEVEL_SWATCH.normal} label={`Under ${thresholds.dailyBusy} a day`} />
         <LegendSwatch
-          color={withAlpha(SEQUENTIAL_HUE, 0.3)}
+          color={DAY_LEVEL_SWATCH.busy}
           label={`${thresholds.dailyBusy}–${thresholds.dailyOverloaded - 1} a day`}
         />
-        <LegendSwatch color={withAlpha(SEQUENTIAL_HUE, 0.55)} label={`${thresholds.dailyOverloaded}+ a day`} />
+        <LegendSwatch color={DAY_LEVEL_SWATCH.overloaded} label={`${thresholds.dailyOverloaded}+ a day`} />
         <span className="flex items-center gap-1.5">
           <span className="rounded bg-warning/15 px-1.5 py-0.5 font-bold text-warning">Total</span>
           Busy or overloaded for the week

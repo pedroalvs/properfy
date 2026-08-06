@@ -1,6 +1,6 @@
-# DEV environment — deployed by CI on every push to the `staging` branch.
-# Topology (deploy-restructure-plan.md): staging branch → DEV, main → STAGING,
-# production → PRODUCTION. Dev stays in iad: gru has no capacity — a
+# DEV environment — deployed by CI on every push to the `develop` branch.
+# Topology (deploy-restructure-plan.md): develop → DEV, staging → STAGING,
+# main → PRODUCTION. Dev stays in iad: gru has no capacity — a
 # release_command machine pinned there cannot restart, which blocks every
 # deploy at its first step. Do not move without checking capacity first.
 app = 'properfy-api-dev'

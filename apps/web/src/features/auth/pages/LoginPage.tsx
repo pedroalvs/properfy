@@ -95,7 +95,7 @@ export function LoginPage() {
   if (isAuthenticated) return null;
 
   return (
-    <AuthLayout title="We are Properfy" subtitle="Welcome. Please log in.">
+    <AuthLayout title="We are Properfy" subtitle="Welcome. Please log in." logoAsTitle>
       {error && <AuthAlert>{error}</AuthAlert>}
 
       <form onSubmit={handleSubmit} noValidate className="space-y-5">

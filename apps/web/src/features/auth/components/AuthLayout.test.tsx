@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { AuthLayout } from './AuthLayout';
 
 function renderLayout(children: React.ReactNode = <p>form goes here</p>) {
@@ -56,5 +56,49 @@ describe('AuthLayout', () => {
     renderLayout();
 
     expect(screen.getByTestId('auth-brand-pane')).toHaveClass('auth-pane-reveal');
+  });
+});
+
+/**
+ * The login screen moves the brand to the sheet: the heading becomes the logo and the
+ * pane keeps only the tagline. Other auth screens keep textual titles, so the swap is
+ * opt-in via `logoAsTitle`.
+ */
+describe('AuthLayout with logoAsTitle', () => {
+  function renderSwapped() {
+    return render(
+      <AuthLayout title="We are Properfy" subtitle="Welcome. Please log in." logoAsTitle>
+        <p>form goes here</p>
+      </AuthLayout>,
+    );
+  }
+
+  it('renders the logo as the page heading, named by the title', () => {
+    renderSwapped();
+
+    const heading = screen.getByRole('heading', { level: 1, name: 'We are Properfy' });
+    expect(within(heading).getByRole('img')).toHaveAttribute(
+      'src',
+      '/images/properfy-logo-red.png',
+    );
+  });
+
+  it('shows only the tagline on the brand pane — no logo, no wordmark text', () => {
+    renderSwapped();
+
+    const pane = screen.getByTestId('auth-brand-pane');
+    expect(within(pane).queryByText('We are Properfy')).toBeNull();
+    expect(pane.querySelector('img')).toBeNull();
+    expect(
+      within(pane).getByText('Inspection operations for Australian agencies.'),
+    ).toBeInTheDocument();
+  });
+
+  it('exposes exactly one brand image to assistive tech, the heading logo', () => {
+    renderSwapped();
+
+    const images = screen.getAllByRole('img');
+    expect(images).toHaveLength(1);
+    expect(images[0]).toHaveAccessibleName('We are Properfy');
   });
 });
