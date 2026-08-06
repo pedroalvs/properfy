@@ -36,8 +36,11 @@ jobs:
         id: version
         run: |
           set -euo pipefail
-          last=$(git tag --list 'v*' --sort=-v:refname | head -1)
           sha="${{ github.event.workflow_run.head_sha }}"
+          # Only stable v<maj>.<min>.<patch> tags reachable from this commit —
+          # prereleases or tags from unrelated history must not seed the bump.
+          last=$(git tag --list 'v*' --merged "$sha" \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
 
           if [ -z "$last" ]; then
             echo "version=v1.0.0" >> "$GITHUB_OUTPUT"
@@ -59,7 +62,11 @@ jobs:
           git log --format='%s' "$last..$sha" > /tmp/subjects.txt
           git log -1 --format='%B' "$sha" > /tmp/head-message.txt
 
-          if grep -qF '[release:major]' /tmp/head-message.txt; then
+          # The major marker is only honored on a merge commit (≥2 parents) —
+          # the plan requires it in the MERGE commit message, and direct pushes
+          # must not be able to smuggle a major.
+          parent_count=$(git rev-list --parents -n 1 "$sha" | wc -w)
+          if grep -qF '[release:major]' /tmp/head-message.txt && [ "$parent_count" -ge 3 ]; then
             next="v$((major + 1)).0.0"
           elif grep -qE '^feat(\(|!|:)' /tmp/subjects.txt; then
             next="v${major}.$((minor + 1)).0"
