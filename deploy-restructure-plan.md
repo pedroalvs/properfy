@@ -9,18 +9,20 @@
 
 ## 1. Target topology
 
-Every environment shifts one step down; a new `production` branch is added on top.
+Branch semantics are UNCHANGED (develop → staging → main, as always). The
+restructure replaced the SERVERS: every environment got a fresh app/account,
+retiring the confusing properfy/properfy-prod pair.
 
 ```
-develop ──▶ staging ──▶ main ──▶ production        (branch promotion flow)
-               │          │          │
-               ▼          ▼          ▼
-             DEV       STAGING    PRODUCTION       (deployed environments)
+develop ──▶ staging ──▶ main                       (branch promotion flow)
+   │           │          │
+   ▼           ▼          ▼
+  DEV       STAGING   PRODUCTION                   (deployed environments)
 ```
 
 | | DEV | STAGING | PRODUCTION |
 |---|---|---|---|
-| **Git branch** | `staging` | `main` | `production` (new) |
+| **Git branch** | `develop` | `staging` | `main` |
 | **Backend (Fly)** | `properfy-api-dev` | `properfy-api-staging` | `properfy-api` |
 | **Fly account** | Dev | Dev | **Client** |
 | **Fly region** | `iad` | `syd` | `syd` |
@@ -175,22 +177,22 @@ staging move, before production ever ships.
 
 | Trigger | Job | Config | Token |
 |---|---|---|---|
-| push `staging` | deploy DEV (iad) | `fly.dev.toml` (rewritten, becomes real) | `FLY_API_TOKEN` |
-| push `main` | deploy STAGING (syd) | `fly.staging.toml` | `FLY_API_TOKEN` |
-| push `production` | deploy PRODUCTION (syd) | `fly.production.toml` | `FLY_API_TOKEN_PROD` |
+| push `develop` | deploy DEV (iad) | `fly.dev.toml` (rewritten, becomes real) | env `dev` `FLY_API_TOKEN` |
+| push `staging` | deploy STAGING (syd) | `fly.staging.toml` | env `staging` `FLY_API_TOKEN` |
+| push `main` | deploy PRODUCTION (syd) | `fly.production.toml` | env `production` `FLY_API_TOKEN` (client org) |
 
 `pages-deploy.yml` → renamed (e.g. `frontend-deploy.yml`), Vercel-only:
 
-- push `staging` → Vercel deploy web+pwa dev projects.
-- push `main` → Vercel deploy web+pwa staging projects.
-- push `production` → Vercel deploy web+pwa production projects.
+- push `develop` → Vercel deploy web+pwa dev projects.
+- push `staging` → Vercel deploy web+pwa staging projects.
+- push `main` → Vercel deploy web+pwa production projects.
 
 Wrangler and the `CLOUDFLARE_*` secrets are removed once cutover completes.
 
 Guard rails:
 
-- Branch protection on `production`: PRs only, from `main` only (convention),
-  CI green required. Same gates `main` already has.
+- Branch protection on `main` (production): PRs only, from `staging` only
+  (convention), CI green required.
 - The QA-users provisioning step (`provision-qa-users.js`) runs in the **dev and
   staging** release commands only — never in production's.
 - Keep the existing per-env `PGBOSS_SCHEMA` isolation; production gets its own
@@ -303,7 +305,7 @@ Two protections close known failure modes from this repo's history:
   PR does not re-trigger CI, and a conflicted PR silently never schedules it,
   so a PR can show stale/absent green ("green checks that mean nothing").
   Up-to-date enforcement forces a fresh run on the final merge base.
-- `production` additionally restricted: merges allowed **from `main` only**
+- `main` additionally restricted: merges allowed **from `staging` only**
   (convention enforced by review; GitHub can't express source-branch rules) and
   the human gate lives in the deploy environment approval (§8.3), which is
   stronger than a second PR review for a solo maintainer.
@@ -329,7 +331,7 @@ secrets into them (out of repo-level secrets):
 
 - `production` env holds `FLY_API_TOKEN_PROD` + the prod Vercel project IDs and
   is configured with **required reviewers** (the dev) and **deployment branch =
-  `production` only**. Effect: no workflow on any other branch can even read
+  `main` only**. Effect: no workflow on any other branch can even read
   the prod token, and every prod deploy pauses for an explicit approval click —
   the deploy window rule (09:00 BR) becomes enforceable, not aspirational.
 - `dev`/`staging` envs hold the dev's tokens; no approval gate (fast iteration).
@@ -393,10 +395,8 @@ secrets into them (out of repo-level secrets):
    (app name, syd, schema), author `vercel.json` for web + pwa.
 3. **Migration squash (§7):** freeze window → squash PR → replay-verified
    baseline → `migrate resolve --applied` on dev/staging DBs. Land this before
-   the `production` branch exists so prod's first deploy already runs the
-   clean baseline.
+   the first production deploy so it already runs the clean baseline.
 4. Write `provision-admin.ts` (§7.3) — TDD like any backend change.
-5. Create `production` branch from current `main`.
 
 **Phase 1 — restructure dev/staging (the dev's accounts)**
 6. Create new Fly apps `properfy-api-dev` / `properfy-api-staging`, set secrets,
@@ -412,7 +412,7 @@ secrets into them (out of repo-level secrets):
    secrets only after a full green cycle.
 
 **Phase 2 — production go-live (client accounts)**
-9. Merge `main → production` → first production deploy (empty DB, v1 baseline
+9. Merge `staging → main` → first production deploy (empty DB, v1 baseline
    runs fresh; reference data lands via the baseline, no QA fixtures).
    Then the first-admin one-shot (§7.3) — the only prod seed.
 10. Point `app.` / `pwa.` / `api.properfy.me`, verify TLS certs.
@@ -498,7 +498,7 @@ request) applies as ever.
 - Fly (both orgs once M8 done): `apps create`, `secrets set/import`,
   `certs add` + cert status polling, `scale count 2`, deploys, `fly ssh
   console` one-shots (template seed, provision-admin), old-app teardown.
-- GitHub via `gh api`: create `production` branch, rulesets/branch protection,
+- GitHub via `gh api`: rulesets/branch protection,
   the three Environments with scoped secrets (`gh secret set --env`),
   required-reviewer config on `production`.
 - Vercel via CLI + M3 token: create the six projects, attach all domains,

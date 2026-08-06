@@ -352,7 +352,7 @@ Created by the **team owner** (keeps the dev on a free Viewer seat — plan §4)
 
 Store these in **GitHub Environments** (`dev` / `staging` / `production`), not
 repo-level secrets — the `production` environment is restricted to the
-`production` branch and gated by a required-reviewer approval (plan §8.3), so
+`main` branch and gated by a required-reviewer approval (plan §8.3), so
 prod credentials are unreadable from any other workflow.
 
 | Secret | Used by | Source |

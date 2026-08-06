@@ -1,8 +1,7 @@
 name: Release Tag
 
 # Automated semver tagging for production (deploy-restructure-plan.md §8.5).
-# Fires alongside the deploy workflows when CI succeeds on the production
-# branch; the deploys pin the same head SHA this job tags.
+# Fires alongside the deploy workflows when CI succeeds on main (production); the deploys pin the same head SHA this job tags.
 #
 # Bump rules, derived from Conventional Commits since the last v* tag:
 #   - only fix:/chore:/refactor:/etc. → patch
@@ -15,7 +14,7 @@ on:
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [production]
+    branches: [main]
 
 permissions:
   contents: write

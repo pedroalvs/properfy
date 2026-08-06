@@ -4,14 +4,14 @@ name: Deploy Frontends (Vercel)
 # (env vars baked at build time); Vercel only receives the prebuilt dist/,
 # with vercel.json copied in for SPA rewrites + cache headers.
 # Branch → environment topology (deploy-restructure-plan.md):
-#   staging → DEV projects      (properfy-web-dev / properfy-pwa-dev)
-#   main    → STAGING projects  (properfy-web-staging / properfy-pwa-staging)
-#   production → PRODUCTION projects (added in the go-live phase)
+#   develop → DEV projects      (properfy-web-dev / properfy-pwa-dev)
+#   staging → STAGING projects  (properfy-web-staging / properfy-pwa-staging)
+#   main    → PRODUCTION projects (properfy-web / properfy-pwa)
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [staging, main, production]
+    branches: [develop, staging, main]
   # Manual redeploy lever. NOTE: workflow_run only fires for workflow files
   # present on the default branch — dispatch also covers that gap during
   # branch-restructure transitions.
@@ -32,7 +32,7 @@ jobs:
     if: >-
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'staging') ||
+       github.event.workflow_run.head_branch == 'develop') ||
       (github.event_name == 'workflow_dispatch' && inputs.target == 'dev')
     runs-on: ubuntu-latest
     environment: dev
@@ -77,7 +77,7 @@ jobs:
     if: >-
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'production') ||
+       github.event.workflow_run.head_branch == 'main') ||
       (github.event_name == 'workflow_dispatch' && inputs.target == 'production')
     runs-on: ubuntu-latest
     # Human gate + client-team Vercel credentials live in this environment.
@@ -123,7 +123,7 @@ jobs:
     if: >-
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main') ||
+       github.event.workflow_run.head_branch == 'staging') ||
       (github.event_name == 'workflow_dispatch' && inputs.target == 'staging')
     runs-on: ubuntu-latest
     environment: staging
