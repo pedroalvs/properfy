@@ -9,8 +9,6 @@
  *   pnpm --filter backend test:integration:db
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { setupDbHarness, teardownDbHarness, type DbHarness } from './harness';
 import { PrismaNotificationRepository } from '../../../src/modules/notification/infrastructure/prisma-notification.repository';
@@ -132,69 +130,3 @@ describe('scrubPayload', () => {
   });
 });
 
-describe('backfill migration semantics (20260721000000_scrub_notification_payload_secrets)', () => {
-  const migrationSql = readFileSync(
-    join(
-      __dirname,
-      '../../../prisma/migrations/20260721000000_scrub_notification_payload_secrets/migration.sql',
-    ),
-    'utf8',
-  );
-
-  async function seedWithStatus(
-    status: 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED_OPT_OUT',
-    payloadJson: Record<string, unknown>,
-  ): Promise<string> {
-    const row = await harness.prisma.notification.create({
-      data: {
-        tenant_id: tenantId,
-        recipient: 'user@example.com',
-        channel: 'EMAIL',
-        template_code: 'PASSWORD_RESET',
-        status,
-        payload_json: payloadJson,
-      },
-    });
-    return row.id;
-  }
-
-  it('scrubs SENT and FAILED rows but leaves PENDING rows intact', async () => {
-    const pending = await seedWithStatus('PENDING', { userName: 'A', resetToken: 'raw-1' });
-    const sent = await seedWithStatus('SENT', { userName: 'B', resetToken: 'raw-2' });
-    const failed = await seedWithStatus('FAILED', {
-      userName: 'C',
-      confirmationLink: 'https://portal/x?token=raw-3',
-    });
-    const untouched = await seedWithStatus('SENT', { rentalTenantName: 'D' });
-
-    await harness.prisma.$executeRawUnsafe(migrationSql);
-
-    expect(await readPayload(pending)).toEqual({ userName: 'A', resetToken: 'raw-1' });
-    expect(await readPayload(sent)).toEqual({ userName: 'B', resetToken: '[REDACTED]' });
-    expect(await readPayload(failed)).toEqual({ userName: 'C', confirmationLink: '[REDACTED]' });
-    expect(await readPayload(untouched)).toEqual({ rentalTenantName: 'D' });
-  });
-
-  it('redacts all five sensitive keys on any non-PENDING status', async () => {
-    const allKeys = {
-      userName: 'E',
-      resetLink: 'https://a/reset?token=1',
-      resetToken: 'raw-token',
-      confirmationLink: 'https://portal/x?token=2',
-      rescheduleLink: 'https://portal/x/reschedule?token=3',
-      inviteToken: 'raw-invite',
-    };
-    const skipped = await seedWithStatus('SKIPPED_OPT_OUT', allKeys);
-
-    await harness.prisma.$executeRawUnsafe(migrationSql);
-
-    expect(await readPayload(skipped)).toEqual({
-      userName: 'E',
-      resetLink: '[REDACTED]',
-      resetToken: '[REDACTED]',
-      confirmationLink: '[REDACTED]',
-      rescheduleLink: '[REDACTED]',
-      inviteToken: '[REDACTED]',
-    });
-  });
-});

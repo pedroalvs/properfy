@@ -32,6 +32,11 @@ export default defineConfig({
     //   fly ssh console -a properfy-prod -C \
     //     "cd /app/apps/backend && node dist/dry-run-auto-cancel.js"
     'dry-run-auto-cancel': 'src/scripts/dry-run-auto-cancel.ts',
+    // Production first-admin one-shot — the only user-creating artifact
+    // allowed in prod. Refuses if an AM already exists:
+    //   fly ssh console -a properfy-api -C \
+    //     "cd /app && node apps/backend/dist/provision-admin.js --email <admin-email>"
+    'provision-admin': 'src/scripts/provision-admin.ts',
   },
   format: ['esm'],
   target: 'node20',

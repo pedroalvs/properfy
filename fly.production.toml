@@ -1,5 +1,5 @@
 # PRODUCTION — client Fly org (contact-properfy-inspections), deployed by CI on
-# every push to the `production` branch, behind the GitHub `production`
+# every push to the `main` branch, behind the GitHub `production`
 # environment approval gate. Sizing rationale: deploy-restructure-plan.md §3.
 # NOTE: no QA/demo seeding here — the only user-creating one-shot allowed in
 # production is dist/provision-admin.js (run manually via fly ssh console).

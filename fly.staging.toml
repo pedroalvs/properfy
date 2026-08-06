@@ -1,4 +1,4 @@
-# STAGING environment — deployed by CI on every push to the `main` branch.
+# STAGING environment — deployed by CI on every push to the `staging` branch.
 # Runs in syd to mirror production behavior (timezone, latency). Its database is
 # the repurposed former-prod Supabase project — every environment has its own DB.
 app = 'properfy-api-staging'

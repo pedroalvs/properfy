@@ -1,1 +1,0 @@
-ALTER TYPE "TenantPortalTokenStatus" ADD VALUE IF NOT EXISTS 'SUPERSEDED';
