@@ -60,12 +60,19 @@ PG_BOSS_URL  = postgresql://postgres.<project-ref>:<PASSWORD>@aws-0-ap-southeast
 
 ### 1.3 Storage buckets (S3-compatible)
 
-Dashboard → **Storage**:
+Dashboard → **Storage** — four buckets, names exactly as the code hardcodes
+them (audited 2026-08-07 against actual consumers):
 
-1. Create bucket **`properfy-assets`** — **private** (inspection evidence,
-   agency logos for signed-URL access). → `SUPABASE_STORAGE_BUCKET`
-2. Create bucket **`email-assets`** — **public** (images embedded in
-   notification emails must be fetchable by mail clients without auth).
+| Bucket | Visibility | Consumer |
+|---|---|---|
+| `tenant-branding` | **Public** | Agency logos (tenant module); public URL built from `SUPABASE_STORAGE_PUBLIC_URL`, referenced in emails too |
+| `inspector-avatars` | Private (today) | Inspector profile photos — served via 15-min signed URLs in `get-me`; flipping it public later also requires changing `get-me` |
+| `inspector-documents` | Private | Inspector documents (signed upload/download) |
+| `properfy-assets` | Private | XLSX report exports + appointment-import files → `SUPABASE_STORAGE_BUCKET` |
+
+Do **not** create `email-assets` — the email image library was removed and
+nothing references it. Inspection-evidence uploads are not wired yet; when
+they land they will use `properfy-assets`.
 
 ### 1.4 S3 access keys (3 variables)
 
