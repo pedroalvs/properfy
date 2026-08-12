@@ -294,6 +294,7 @@ describe('SendNotificationUseCase', () => {
       'Inspection for John',
       '<p>Hello John, your inspection is on 2026-03-20</p>',
       'Hello John, your inspection is on 2026-03-20',
+      { identity: 'inspection' },
     );
   });
 
@@ -319,6 +320,7 @@ describe('SendNotificationUseCase', () => {
       'Override for John',
       '<p>Override John</p>',
       'Override John',
+      { identity: 'inspection' },
     );
   });
 
@@ -354,6 +356,31 @@ describe('SendNotificationUseCase', () => {
       'Inspection for John',
       '<p>Hello John, your inspection is on 2026-03-20</p>',
       'Hello John, your inspection is on 2026-03-20',
+      { identity: 'inspection' },
+    );
+  });
+
+  it('sends system templates with the system email identity', async () => {
+    const notification = makeNotification({ templateCode: 'PASSWORD_RESET' });
+    const template = makeTemplate({
+      templateCode: 'PASSWORD_RESET',
+      subject: 'Reset your password',
+      bodyHtml: '<p>Reset</p>',
+      bodyText: 'Reset',
+    });
+
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
+    vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
+    vi.mocked(emailProvider.send).mockResolvedValue({ messageId: 'msg-sys-1' });
+
+    await useCase.execute({ notificationId: 'notif-1' });
+
+    expect(emailProvider.send).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      { identity: 'system' },
     );
   });
 

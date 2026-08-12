@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { AuthContext } from '@properfy/shared';
 import { prepareSmsBody } from '../../domain/sms-content';
-import { TEMPLATE_VARIABLES, SAMPLE_DATA, type AllowedVariable } from '@properfy/shared';
+import { TEMPLATE_VARIABLES, SAMPLE_DATA, isSystemTemplate, type AllowedVariable } from '@properfy/shared';
 import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
@@ -118,6 +118,7 @@ export class SendTestNotificationUseCase {
         renderedSubject,
         renderedBodyHtml || renderedBodyText,
         renderedBodyText,
+        { identity: isSystemTemplate(input.templateCode) ? 'system' : 'inspection' },
       ));
     } else {
       const renderedBodyText = this.templateRenderer.render(template.bodyText, vars);

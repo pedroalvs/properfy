@@ -1169,7 +1169,11 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Notification providers and services (notificationRepo + notificationTemplateRepo created above)
   const notificationAttemptRepo = new PrismaNotificationAttemptRepository(prisma);
-  const emailProvider = new DynamicEmailProvider(integrationConfigResolver, env.EMAIL_BCC_RECIPIENT);
+  const emailProvider = new DynamicEmailProvider(integrationConfigResolver, {
+    bccRecipient: env.EMAIL_BCC_RECIPIENT,
+    systemFromEmail: env.SYSTEM_EMAIL_FROM,
+    systemBccRecipient: env.SYSTEM_EMAIL_BCC,
+  });
   const smsProvider = new DynamicSmsProvider(integrationConfigResolver);
   const templateRenderer = new TemplateRendererService();
   const htmlSanitizer = new SanitizeHtmlService();

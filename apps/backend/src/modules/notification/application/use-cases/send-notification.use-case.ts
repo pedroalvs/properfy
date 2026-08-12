@@ -36,6 +36,7 @@ import {
   AGENCY_FORWARD_FAILURE_REASON_PREFIX,
   getTemplateTarget,
   getTemplateCodeLabel,
+  isSystemTemplate,
 } from '../../domain/notification.constants';
 import { renderEmailBody } from '../render-email-body';
 import {
@@ -732,6 +733,7 @@ export class SendNotificationUseCase {
           renderedSubject,
           renderedBodyHtml,
           renderedBodyText,
+          { identity: isSystemTemplate(notification.templateCode) ? 'system' : 'inspection' },
         );
         messageId = result.messageId;
         notification.providerName = 'resend';

@@ -193,4 +193,24 @@ describe('validateEnv', () => {
       'EMAIL_BCC_RECIPIENT',
     );
   });
+
+  it('should accept valid system email identity vars', () => {
+    const result = validateEnv({
+      ...validEnv,
+      SYSTEM_EMAIL_FROM: 'system@example.com',
+      SYSTEM_EMAIL_BCC: 'system-archive@example.com',
+    });
+
+    expect(result.SYSTEM_EMAIL_FROM).toBe('system@example.com');
+    expect(result.SYSTEM_EMAIL_BCC).toBe('system-archive@example.com');
+  });
+
+  it('should reject invalid system email identity vars', () => {
+    expect(() => validateEnv({ ...validEnv, SYSTEM_EMAIL_FROM: 'not-an-email' })).toThrow(
+      'SYSTEM_EMAIL_FROM',
+    );
+    expect(() => validateEnv({ ...validEnv, SYSTEM_EMAIL_BCC: 'not-an-email' })).toThrow(
+      'SYSTEM_EMAIL_BCC',
+    );
+  });
 });

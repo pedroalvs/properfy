@@ -49,7 +49,31 @@ describe('maskIntegrationConfig', () => {
   it('masks secrets to last 4 and passes non-secrets through', () => {
     expect(
       maskIntegrationConfig('resend', { apiKey: 're_1234abcd', fromEmail: 'no@x.com' }),
-    ).toEqual({ apiKey: '••••abcd', fromEmail: 'no@x.com' });
+    ).toEqual({
+      apiKey: '••••abcd',
+      fromEmail: 'no@x.com',
+      bccRecipient: null,
+      systemFromEmail: null,
+      systemBccRecipient: null,
+    });
+  });
+
+  it('exposes the email identity fields unmasked (they are not secrets)', () => {
+    expect(
+      maskIntegrationConfig('resend', {
+        apiKey: 're_1234abcd',
+        fromEmail: 'no@x.com',
+        bccRecipient: 'archive@x.com',
+        systemFromEmail: 'system@x.com',
+        systemBccRecipient: 'system-archive@x.com',
+      }),
+    ).toEqual({
+      apiKey: '••••abcd',
+      fromEmail: 'no@x.com',
+      bccRecipient: 'archive@x.com',
+      systemFromEmail: 'system@x.com',
+      systemBccRecipient: 'system-archive@x.com',
+    });
   });
 
   it('returns null for unset keys and full mask for short secrets', () => {
@@ -105,6 +129,50 @@ describe('UpsertIntegrationSettingUseCase', () => {
       true,
       'am-1',
     );
+  });
+
+  it('round-trips the email identity fields through upsert (survives the schema allowlist)', async () => {
+    const repo = makeRepo();
+    const resolver = new IntegrationConfigResolver(repo, {}, noopLogger);
+    const useCase = new UpsertIntegrationSettingUseCase(repo, resolver, auditService);
+
+    const detail = await useCase.execute({
+      provider: 'resend',
+      config: {
+        apiKey: 're_1234abcd',
+        fromEmail: 'no@x.com',
+        bccRecipient: 'archive@x.com',
+        systemFromEmail: 'system@x.com',
+        systemBccRecipient: 'system-archive@x.com',
+      },
+      actorId: 'am-1',
+    });
+
+    expect(repo.upsert).toHaveBeenCalledWith(
+      'resend',
+      {
+        apiKey: 're_1234abcd',
+        fromEmail: 'no@x.com',
+        bccRecipient: 'archive@x.com',
+        systemFromEmail: 'system@x.com',
+        systemBccRecipient: 'system-archive@x.com',
+      },
+      true,
+      'am-1',
+    );
+    expect(detail.maskedConfig['systemFromEmail']).toBe('system@x.com');
+    expect(detail.maskedConfig['bccRecipient']).toBe('archive@x.com');
+    expect(detail.maskedConfig['systemBccRecipient']).toBe('system-archive@x.com');
+  });
+
+  it('rejects invalid email identity fields', async () => {
+    const repo = makeRepo();
+    const resolver = new IntegrationConfigResolver(repo, {}, noopLogger);
+    const useCase = new UpsertIntegrationSettingUseCase(repo, resolver, auditService);
+
+    await expect(
+      useCase.execute({ provider: 'resend', config: { systemFromEmail: 'nope' }, actorId: 'am-1' }),
+    ).rejects.toBeInstanceOf(IntegrationConfigInvalidError);
   });
 
   it('rejects an invalid config', async () => {
