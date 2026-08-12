@@ -33,7 +33,11 @@ export const PROVIDER_META: ProviderMeta[] = [
     fields: [
       { key: 'apiKey', label: 'API Key', secret: true, placeholder: 're_...' },
       { key: 'fromEmail', label: 'From Email', secret: false, placeholder: 'no-reply@yourdomain.com' },
+      { key: 'bccRecipient', label: 'BCC (inspection emails)', secret: false, placeholder: 'archive@yourdomain.com' },
+      { key: 'systemFromEmail', label: 'System From Email', secret: false, placeholder: 'system@yourdomain.com' },
+      { key: 'systemBccRecipient', label: 'System BCC', secret: false, placeholder: 'system-archive@yourdomain.com' },
     ],
+    note: 'System emails (password reset, report delivery, platform alerts) use the System From/BCC pair; when those are blank they fall back to the main From Email and BCC.',
   },
   {
     provider: IntegrationProvider.MOBILE_MESSAGE,
