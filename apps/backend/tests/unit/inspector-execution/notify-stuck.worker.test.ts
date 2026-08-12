@@ -139,6 +139,35 @@ describe('NotifyStuckInspectionsWorker', () => {
     expect(result).toEqual({ notifiedCount: 2 });
   });
 
+  it('does not count an execution as notified when every recipient send fails', async () => {
+    executionRepo.findStuckExecutions.mockResolvedValue([makeStuckExecution()]);
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: { tenantId: 'tenant-1', status: 'SCHEDULED' },
+    });
+    createNotificationUseCase.execute.mockRejectedValue(new Error('queue down'));
+
+    const worker = makeWorker();
+    const result = await worker.execute();
+
+    expect(createNotificationUseCase.execute).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ notifiedCount: 0 });
+  });
+
+  it('still counts the execution when at least one recipient send succeeds', async () => {
+    executionRepo.findStuckExecutions.mockResolvedValue([makeStuckExecution()]);
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: { tenantId: 'tenant-1', status: 'SCHEDULED' },
+    });
+    createNotificationUseCase.execute
+      .mockRejectedValueOnce(new Error('queue down'))
+      .mockResolvedValueOnce({ notificationId: 'notif-1' });
+
+    const worker = makeWorker();
+    const result = await worker.execute();
+
+    expect(result).toEqual({ notifiedCount: 1 });
+  });
+
   it('logs an error and sends nothing when no active OP or AM exists', async () => {
     executionRepo.findStuckExecutions.mockResolvedValue([makeStuckExecution()]);
     userManagementRepo.findActiveByRoles.mockResolvedValue([]);

@@ -127,7 +127,12 @@ export class NotifyStuckInspectionsWorker {
             );
           }
         }
-        notifiedCount++;
+        // An execution only counts as notified when someone actually got the
+        // alert; an all-rejected batch also creates no notification row, so the
+        // cool-off check lets the next run retry it.
+        if (results.some((settled) => settled.status === 'fulfilled')) {
+          notifiedCount++;
+        }
       } catch (err) {
         this.logger.error(
           { appointmentId: execution.appointmentId, error: err },
