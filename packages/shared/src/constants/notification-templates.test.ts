@@ -6,12 +6,14 @@ import {
   PLATFORM_ONLY_TEMPLATE_CODES,
   PLATFORM_TEMPLATE_CODE_LABELS,
   SAMPLE_DATA,
+  SYSTEM_TEMPLATE_CODES,
   TEMPLATE_CODE_LABELS,
   TEMPLATE_TARGETS,
   TEMPLATE_VARIABLES,
   getDefaultClass,
   getTemplateCodeLabel,
   getTemplateTarget,
+  isSystemTemplate,
 } from './notification-templates';
 import { formatCivilDate, formatWallTimeRange } from '../utils/format-display-date';
 
@@ -154,6 +156,61 @@ describe('TEMPLATE_TARGETS', () => {
     expect(TEMPLATE_TARGETS.INSPECTION_REJECTED_AGENCY).toBe(
       TEMPLATE_TARGETS.INSPECTION_CANCELLED_AGENCY,
     );
+  });
+});
+
+describe('SYSTEM_TEMPLATE_CODES', () => {
+  it('contains exactly the templates sent with the system email identity', () => {
+    expect(new Set(SYSTEM_TEMPLATE_CODES)).toEqual(
+      new Set([
+        'PASSWORD_RESET',
+        'REPORT_READY',
+        'REPORT_FAILED',
+        'REGION_DEACTIVATED',
+        'INSPECTION_STUCK_ALERT',
+      ]),
+    );
+  });
+
+  it('every code except REGION_DEACTIVATED belongs to a catalog', () => {
+    // REGION_DEACTIVATED is dispatched with a literal code and lives in neither
+    // catalog; the rest must stay aligned with the registries so a rename there
+    // cannot silently detach a template from the system identity.
+    const catalogued = new Set<string>([
+      ...MANDATORY_TEMPLATE_CODES,
+      ...PLATFORM_ONLY_TEMPLATE_CODES,
+    ]);
+    for (const code of SYSTEM_TEMPLATE_CODES) {
+      if (code === 'REGION_DEACTIVATED') continue;
+      expect(catalogued).toContain(code);
+    }
+  });
+});
+
+describe('isSystemTemplate', () => {
+  it('classifies system templates as system', () => {
+    expect(isSystemTemplate('PASSWORD_RESET')).toBe(true);
+    expect(isSystemTemplate('REPORT_READY')).toBe(true);
+    expect(isSystemTemplate('REPORT_FAILED')).toBe(true);
+    expect(isSystemTemplate('REGION_DEACTIVATED')).toBe(true);
+    expect(isSystemTemplate('INSPECTION_STUCK_ALERT')).toBe(true);
+  });
+
+  it('classifies inspection-facing templates as non-system', () => {
+    expect(isSystemTemplate('INSPECTION_NOTICE')).toBe(false);
+    expect(isSystemTemplate('INSPECTION_CONFIRMED')).toBe(false);
+    expect(isSystemTemplate('TENANT_PORTAL_LINK')).toBe(false);
+    expect(isSystemTemplate('INSPECTOR_GROUP_ASSIGNED')).toBe(false);
+  });
+
+  it('treats unknown/custom codes as non-system', () => {
+    expect(isSystemTemplate('SOME_CUSTOM_CODE')).toBe(false);
+    expect(isSystemTemplate('')).toBe(false);
+  });
+
+  it('does not resolve inherited Object members as system codes', () => {
+    expect(isSystemTemplate('constructor')).toBe(false);
+    expect(isSystemTemplate('toString')).toBe(false);
   });
 });
 
