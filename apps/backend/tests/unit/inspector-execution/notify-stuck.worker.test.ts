@@ -36,6 +36,10 @@ describe('NotifyStuckInspectionsWorker', () => {
     execute: vi.fn(),
   };
 
+  const userManagementRepo = {
+    findActiveByRoles: vi.fn(),
+  };
+
   const logger = {
     info: vi.fn(),
     error: vi.fn(),
@@ -47,6 +51,7 @@ describe('NotifyStuckInspectionsWorker', () => {
       appointmentRepo as any,
       notificationRepo as any,
       createNotificationUseCase as any,
+      userManagementRepo as any,
       logger as any,
     );
   }
@@ -64,6 +69,10 @@ describe('NotifyStuckInspectionsWorker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     notificationRepo.count.mockResolvedValue(0);
+    userManagementRepo.findActiveByRoles.mockResolvedValue([
+      { email: 'op@agency.example' },
+      { email: 'am@agency.example' },
+    ]);
   });
 
   it('uses the appointment tenant when creating stuck inspection alerts', async () => {
@@ -87,6 +96,65 @@ describe('NotifyStuckInspectionsWorker', () => {
       }),
     );
     expect(result).toEqual({ notifiedCount: 1 });
+  });
+
+  it('fans the alert out to every active OP and AM user, never a hardcoded inbox', async () => {
+    executionRepo.findStuckExecutions.mockResolvedValue([makeStuckExecution()]);
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: { tenantId: 'tenant-1', status: 'SCHEDULED' },
+    });
+    createNotificationUseCase.execute.mockResolvedValue({ notificationId: 'notif-1' });
+
+    const worker = makeWorker();
+    const result = await worker.execute();
+
+    expect(userManagementRepo.findActiveByRoles).toHaveBeenCalledWith(['OP', 'AM']);
+    expect(createNotificationUseCase.execute).toHaveBeenCalledTimes(2);
+    const recipients = createNotificationUseCase.execute.mock.calls.map(
+      (call) => call[0].recipient,
+    );
+    expect(recipients).toEqual(
+      expect.arrayContaining(['op@agency.example', 'am@agency.example']),
+    );
+    expect(recipients).not.toContain('ops@properfy.com.au');
+    // notifiedCount counts stuck executions alerted, not emails sent.
+    expect(result).toEqual({ notifiedCount: 1 });
+  });
+
+  it('fetches the recipient list once per run, not per execution', async () => {
+    executionRepo.findStuckExecutions.mockResolvedValue([
+      makeStuckExecution({ appointmentId: 'appt-1' }),
+      makeStuckExecution({ appointmentId: 'appt-2' }),
+    ]);
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: { tenantId: 'tenant-1', status: 'SCHEDULED' },
+    });
+    createNotificationUseCase.execute.mockResolvedValue({ notificationId: 'notif-1' });
+
+    const worker = makeWorker();
+    const result = await worker.execute();
+
+    expect(userManagementRepo.findActiveByRoles).toHaveBeenCalledTimes(1);
+    expect(createNotificationUseCase.execute).toHaveBeenCalledTimes(4);
+    expect(result).toEqual({ notifiedCount: 2 });
+  });
+
+  it('logs an error and sends nothing when no active OP or AM exists', async () => {
+    executionRepo.findStuckExecutions.mockResolvedValue([makeStuckExecution()]);
+    userManagementRepo.findActiveByRoles.mockResolvedValue([]);
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: { tenantId: 'tenant-1', status: 'SCHEDULED' },
+    });
+
+    const worker = makeWorker();
+    const result = await worker.execute();
+
+    expect(createNotificationUseCase.execute).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.anything(),
+      'No active OP/AM users to receive stuck inspection alerts',
+    );
+    expect(result).toEqual({ notifiedCount: 0 });
   });
 
   it('skips notifications when the appointment cannot be resolved', async () => {
@@ -201,10 +269,11 @@ describe('NotifyStuckInspectionsWorker', () => {
     const worker = makeWorker();
     const result = await worker.execute();
 
-    expect(createNotificationUseCase.execute).toHaveBeenCalledTimes(1);
-    expect(createNotificationUseCase.execute).toHaveBeenCalledWith(
-      expect.objectContaining({ appointmentId: 'appt-fresh' }),
-    );
+    // One send per recipient (2 mocked OP/AM users), all for the fresh execution only.
+    expect(createNotificationUseCase.execute).toHaveBeenCalledTimes(2);
+    for (const call of createNotificationUseCase.execute.mock.calls) {
+      expect(call[0]).toMatchObject({ appointmentId: 'appt-fresh' });
+    }
     expect(result).toEqual({ notifiedCount: 1 });
   });
 });

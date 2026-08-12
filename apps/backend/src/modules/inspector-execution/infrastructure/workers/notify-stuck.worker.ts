@@ -2,6 +2,7 @@ import type { IInspectionExecutionRepository } from '../../domain/inspection-exe
 import type { INotificationRepository } from '../../../notification/domain/notification.repository';
 import type { CreateNotificationUseCase } from '../../../notification/application/use-cases/create-notification.use-case';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
+import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 
 const STUCK_THRESHOLD_HOURS = 6;
@@ -33,6 +34,7 @@ export class NotifyStuckInspectionsWorker {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly notificationRepo: INotificationRepository,
     private readonly createNotificationUseCase: CreateNotificationUseCase,
+    private readonly userManagementRepo: IUserManagementRepository,
     private readonly logger: Logger,
   ) {}
 
@@ -40,6 +42,19 @@ export class NotifyStuckInspectionsWorker {
     const stuckExecutions = await this.executionRepo.findStuckExecutions(STUCK_THRESHOLD_HOURS);
 
     if (stuckExecutions.length === 0) {
+      return { notifiedCount: 0 };
+    }
+
+    // Platform alert: fan out to every active OP/AM account rather than a
+    // hardcoded inbox. Fetched once per run — the list does not vary per execution.
+    const recipients = (await this.userManagementRepo.findActiveByRoles(['OP', 'AM'])).map(
+      (user) => user.email,
+    );
+    if (recipients.length === 0) {
+      this.logger.error(
+        { stuckCount: stuckExecutions.length },
+        'No active OP/AM users to receive stuck inspection alerts',
+      );
       return { notifiedCount: 0 };
     }
 
@@ -88,14 +103,30 @@ export class NotifyStuckInspectionsWorker {
           startedAt: execution.startedAt.toISOString(),
           hoursStuck: String(STUCK_THRESHOLD_HOURS),
         };
-        await this.createNotificationUseCase.execute({
-          tenantId: appointmentResult.appointment.tenantId,
-          appointmentId: execution.appointmentId,
-          recipient: 'ops@properfy.com.au',
-          channel: 'EMAIL',
-          templateCode: 'INSPECTION_STUCK_ALERT',
-          payloadJson,
-        });
+        const results = await Promise.allSettled(
+          recipients.map((recipient) =>
+            this.createNotificationUseCase.execute({
+              tenantId: appointmentResult.appointment.tenantId,
+              appointmentId: execution.appointmentId,
+              recipient,
+              channel: 'EMAIL',
+              templateCode: 'INSPECTION_STUCK_ALERT',
+              payloadJson,
+            }),
+          ),
+        );
+        for (const [index, settled] of results.entries()) {
+          if (settled.status === 'rejected') {
+            this.logger.error(
+              {
+                appointmentId: execution.appointmentId,
+                recipient: recipients[index],
+                error: settled.reason,
+              },
+              'Failed to create stuck inspection alert for recipient',
+            );
+          }
+        }
         notifiedCount++;
       } catch (err) {
         this.logger.error(
@@ -109,6 +140,7 @@ export class NotifyStuckInspectionsWorker {
       {
         stuckCount: stuckExecutions.length,
         notifiedCount,
+        recipientCount: recipients.length,
         skippedTooOld,
         skippedNotScheduled,
         skippedCoolOff,

@@ -1353,7 +1353,8 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const expireTokensWorker = new ExpireTokensWorker(rentalTenantPortalTokenRepo, logger);
   const notifyStuckInspectionsWorker = new NotifyStuckInspectionsWorker(
-    inspectionExecutionRepo, appointmentRepo, notificationRepo, createNotificationUseCase, logger,
+    inspectionExecutionRepo, appointmentRepo, notificationRepo, createNotificationUseCase,
+    userManagementRepo, logger,
   );
   const auditRetentionWorker = new AuditRetentionWorker(
     prisma,
