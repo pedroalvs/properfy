@@ -23,6 +23,8 @@ export interface IUserManagementRepository {
   findByEmail(email: string): Promise<UserEntity | null>;
   /** Feature 020 FR-019b: phone-input path for data subject erasure resolver. */
   findByPhone(phone: string): Promise<UserEntity | null>;
+  /** Active, non-deleted users holding any of the given roles (platform alert fan-out). */
+  findActiveByRoles(roles: string[]): Promise<UserEntity[]>;
   findByTenantId(
     tenantId: string | null,
     filters: UserManagementFilters,

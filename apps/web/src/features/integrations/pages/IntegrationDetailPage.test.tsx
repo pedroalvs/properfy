@@ -55,6 +55,14 @@ describe('IntegrationDetailPage', () => {
     expect(screen.getByText('Configured (hub)')).toBeInTheDocument();
   });
 
+  it('renders the email identity fields on the Resend form', () => {
+    renderAt('/integrations/resend');
+    expect(screen.getByLabelText('Resend BCC (inspection emails)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Resend System From Email')).toBeInTheDocument();
+    expect(screen.getByLabelText('Resend System BCC')).toBeInTheDocument();
+    expect(screen.getByText(/System emails .* fall back to the main From Email/)).toBeInTheDocument();
+  });
+
   it('shows a not-found state for an unknown slug', () => {
     renderAt('/integrations/unknown-provider');
     expect(screen.getByText(/Integration not found/)).toBeInTheDocument();

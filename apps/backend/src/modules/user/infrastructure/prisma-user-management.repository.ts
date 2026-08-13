@@ -88,6 +88,19 @@ export class PrismaUserManagementRepository
     return row ? mapToEntity(row) : null;
   }
 
+  async findActiveByRoles(roles: string[]): Promise<UserEntity[]> {
+    // No tenant scope on purpose: OP/AM are platform roles with tenant_id NULL;
+    // role membership is the authoritative filter here.
+    const rows = await this.prisma.user.findMany({
+      where: {
+        role: { in: roles as PrismaUserRole[] },
+        status: PrismaUserStatus.ACTIVE,
+        deleted_at: null,
+      },
+    });
+    return rows.map(mapToEntity);
+  }
+
   async findByTenantId(
     tenantId: string | null,
     filters: UserManagementFilters,

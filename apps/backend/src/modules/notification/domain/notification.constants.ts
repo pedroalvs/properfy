@@ -17,6 +17,9 @@ export {
   type NotificationTarget,
   getTemplateTarget,
   getTemplateCodeLabel,
+  SYSTEM_TEMPLATE_CODES,
+  type SystemTemplateCode,
+  isSystemTemplate,
 } from '@properfy/shared';
 
 /**
