@@ -34,6 +34,10 @@ const envSchema = z.object({
   RESEND_FROM_EMAIL: z.string().optional(),
   /** Global hidden copy recipient for every outbound email. */
   EMAIL_BCC_RECIPIENT: z.string().email('EMAIL_BCC_RECIPIENT must be a valid email address').optional(),
+  // System email identity (password reset, reports, ops alerts). Env fallbacks;
+  // the Integrations Hub resend config wins per field when set.
+  SYSTEM_EMAIL_FROM: z.string().email('SYSTEM_EMAIL_FROM must be a valid email address').optional(),
+  SYSTEM_EMAIL_BCC: z.string().email('SYSTEM_EMAIL_BCC must be a valid email address').optional(),
 
   // Optional webhook signature secrets (skip validation when absent — dev mode)
   RESEND_WEBHOOK_SECRET: z.string().optional(),

@@ -56,6 +56,37 @@ export const PLATFORM_ONLY_TEMPLATE_CODES = [
 export type PlatformOnlyTemplateCode = (typeof PLATFORM_ONLY_TEMPLATE_CODES)[number];
 
 /**
+ * Templates sent with the platform's "system" email identity (dedicated
+ * from-address and BCC on the Resend config) rather than the inspection one.
+ * These are account/operations messages — password resets, report delivery,
+ * internal alerts — not occupant- or agency-facing inspection traffic.
+ *
+ * REGION_DEACTIVATED is dispatched with a literal code
+ * (notify-inspectors-on-region-deactivation.handler.ts) and belongs to neither
+ * catalog, which is why this union is wider than the two catalogs' types.
+ */
+export const SYSTEM_TEMPLATE_CODES = [
+  'PASSWORD_RESET',
+  'REPORT_READY',
+  'REPORT_FAILED',
+  'REGION_DEACTIVATED',
+  'INSPECTION_STUCK_ALERT',
+] as const satisfies readonly (
+  | MandatoryTemplateCode
+  | PlatformOnlyTemplateCode
+  | 'REGION_DEACTIVATED'
+)[];
+
+export type SystemTemplateCode = (typeof SYSTEM_TEMPLATE_CODES)[number];
+
+const SYSTEM_TEMPLATE_CODE_SET: ReadonlySet<string> = new Set(SYSTEM_TEMPLATE_CODES);
+
+/** Whether a template code is sent with the system email identity. */
+export function isSystemTemplate(templateCode: string): boolean {
+  return SYSTEM_TEMPLATE_CODE_SET.has(templateCode);
+}
+
+/**
  * Human-readable labels for each mandatory template code. Single source of truth
  * for code dropdowns in the UI (e.g. the "create custom template" form).
  */

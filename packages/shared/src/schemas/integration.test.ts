@@ -40,6 +40,32 @@ describe('per-provider config schemas', () => {
     expect(resendConfigSchema.safeParse({ fromEmail: 'not-an-email' }).success).toBe(false);
   });
 
+  it('resend accepts the identity fields (bcc + system from/bcc)', () => {
+    expect(
+      resendConfigSchema.parse({
+        bccRecipient: 'archive@x.com',
+        systemFromEmail: 'system@x.com',
+        systemBccRecipient: 'system-archive@x.com',
+      }),
+    ).toEqual({
+      bccRecipient: 'archive@x.com',
+      systemFromEmail: 'system@x.com',
+      systemBccRecipient: 'system-archive@x.com',
+    });
+  });
+
+  it('resend still accepts payloads omitting the identity fields', () => {
+    expect(resendConfigSchema.parse({ fromEmail: 'no-reply@x.com' })).toEqual({
+      fromEmail: 'no-reply@x.com',
+    });
+  });
+
+  it('resend rejects non-email identity fields', () => {
+    expect(resendConfigSchema.safeParse({ bccRecipient: 'nope' }).success).toBe(false);
+    expect(resendConfigSchema.safeParse({ systemFromEmail: 'nope' }).success).toBe(false);
+    expect(resendConfigSchema.safeParse({ systemBccRecipient: 'nope' }).success).toBe(false);
+  });
+
   it('mobile_message accepts full config including webhookToken', () => {
     const parsed = mobileMessageConfigSchema.parse({
       apiKey: 'k',

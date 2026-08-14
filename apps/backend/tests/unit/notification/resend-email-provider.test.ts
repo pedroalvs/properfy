@@ -53,7 +53,7 @@ describe('ResendEmailProvider', () => {
 
   it('includes the configured global recipient as a hidden copy', async () => {
     const bccRecipient = 'supervision@properfy.com.au';
-    const providerWithBcc = new ResendEmailProvider(apiKey, fromEmail, bccRecipient);
+    const providerWithBcc = new ResendEmailProvider(apiKey, fromEmail, { bccRecipient });
     mockSend.mockResolvedValue({ data: { id: 'msg-bcc' }, error: null });
 
     await providerWithBcc.send('user@example.com', 'Subject', '<p>Body</p>', 'Body');
@@ -67,6 +67,91 @@ describe('ResendEmailProvider', () => {
     await provider.send('user@example.com', 'Subject', '<p>Body</p>', 'Body');
 
     expect(mockSend).toHaveBeenCalledWith(expect.not.objectContaining({ bcc: expect.anything() }));
+  });
+
+  describe('system identity', () => {
+    const identityOptions = {
+      bccRecipient: 'supervision@properfy.com.au',
+      systemFromEmail: 'system@properfy.com.au',
+      systemBccRecipient: 'system-archive@properfy.com.au',
+    };
+
+    it('uses the system from/bcc pair when identity is system', async () => {
+      const p = new ResendEmailProvider(apiKey, fromEmail, identityOptions);
+      mockSend.mockResolvedValue({ data: { id: 'msg-sys' }, error: null });
+
+      await p.send('user@example.com', 'Reset', '<p>Body</p>', 'Body', { identity: 'system' });
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: identityOptions.systemFromEmail,
+          bcc: identityOptions.systemBccRecipient,
+        }),
+      );
+    });
+
+    it('keeps the inspection pair when identity is inspection or omitted', async () => {
+      const p = new ResendEmailProvider(apiKey, fromEmail, identityOptions);
+      mockSend.mockResolvedValue({ data: { id: 'msg-insp' }, error: null });
+
+      await p.send('user@example.com', 'Notice', '<p>Body</p>', 'Body', {
+        identity: 'inspection',
+      });
+      await p.send('user@example.com', 'Notice', '<p>Body</p>', 'Body');
+
+      for (const call of mockSend.mock.calls) {
+        expect(call[0]).toMatchObject({
+          from: fromEmail,
+          bcc: identityOptions.bccRecipient,
+        });
+      }
+    });
+
+    it('falls back to the inspection from when systemFromEmail is unset', async () => {
+      const p = new ResendEmailProvider(apiKey, fromEmail, {
+        bccRecipient: identityOptions.bccRecipient,
+      });
+      mockSend.mockResolvedValue({ data: { id: 'msg-fb' }, error: null });
+
+      await p.send('user@example.com', 'Reset', '<p>Body</p>', 'Body', { identity: 'system' });
+
+      expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ from: fromEmail }));
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.not.objectContaining({ bcc: expect.anything() }),
+      );
+    });
+
+    it('sends system emails with NO bcc when systemBccRecipient is unset — never the inspection bcc', async () => {
+      // Deliberate: the inspection BCC must not leak onto password resets and
+      // other system mail. System BCC is opt-in only.
+      const p = new ResendEmailProvider(apiKey, fromEmail, {
+        bccRecipient: identityOptions.bccRecipient,
+        systemFromEmail: identityOptions.systemFromEmail,
+      });
+      mockSend.mockResolvedValue({ data: { id: 'msg-fb2' }, error: null });
+
+      await p.send('user@example.com', 'Reset', '<p>Body</p>', 'Body', { identity: 'system' });
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({ from: identityOptions.systemFromEmail }),
+      );
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.not.objectContaining({ bcc: expect.anything() }),
+      );
+    });
+
+    it('omits bcc entirely for a system send when no bcc is configured at all', async () => {
+      const p = new ResendEmailProvider(apiKey, fromEmail, {
+        systemFromEmail: identityOptions.systemFromEmail,
+      });
+      mockSend.mockResolvedValue({ data: { id: 'msg-fb3' }, error: null });
+
+      await p.send('user@example.com', 'Reset', '<p>Body</p>', 'Body', { identity: 'system' });
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.not.objectContaining({ bcc: expect.anything() }),
+      );
+    });
   });
 
   it('propagates errors from Resend SDK', async () => {

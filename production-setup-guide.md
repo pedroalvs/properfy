@@ -60,12 +60,21 @@ PG_BOSS_URL  = postgresql://postgres.<project-ref>:<PASSWORD>@aws-0-ap-southeast
 
 ### 1.3 Storage buckets (S3-compatible)
 
-Dashboard → **Storage**:
+Dashboard → **Storage** — four buckets, names exactly as the code hardcodes
+them. Limits audited 2026-08-07 against the actual upload flows. ⚠️ The two
+browser-presigned flows (avatars, documents) validate MIME server-side but
+have **no server-side size cap** — the bucket file-size limit is the only real
+barrier, so set it.
 
-1. Create bucket **`properfy-assets`** — **private** (inspection evidence,
-   agency logos for signed-URL access). → `SUPABASE_STORAGE_BUCKET`
-2. Create bucket **`email-assets`** — **public** (images embedded in
-   notification emails must be fetchable by mail clients without auth).
+| Bucket | Visibility | Writer | Allowed MIME | Bucket size limit | Content |
+|---|---|---|---|---|---|
+| `tenant-branding` | **Public** | Backend only (magic-byte validated) | `image/png`, `image/jpeg`, `image/webp` | **2 MB** (server also enforces 2 MB / 2000×2000 px) | Agency logos — portal branding + email header; public URL from `SUPABASE_STORAGE_PUBLIC_URL` |
+| `inspector-avatars` | Private (today; going public later also requires changing `get-me`) | **Browser via presigned PUT** | `image/png`, `image/jpeg`, `image/webp` | **5 MB** (no app-side cap!) | Inspector profile photos, read via 15-min signed URLs |
+| `inspector-documents` | Private | **Browser via presigned PUT** | `application/pdf`, `image/jpeg`, `image/png` | **10 MB** (no app-side cap!) | Inspector insurance + police check (keys `inspectors/<uuid>/documents/(insurance\|police_check)/<uuid>.(pdf\|jpg\|png)`) |
+| `properfy-assets` | Private | Backend only | leave unrestricted (server-only writer; future inspection evidence lands here) | **20 MB** (API multipart caps uploads at 10 MB) | XLSX report exports + appointment-import files → `SUPABASE_STORAGE_BUCKET` |
+
+Do **not** create `email-assets` — the email image library was removed and
+nothing references it.
 
 ### 1.4 S3 access keys (3 variables)
 
