@@ -1,4 +1,5 @@
 import type {
+  EmailSendOptions,
   EmailSendResult,
   IEmailProvider,
   ISmsProvider,
@@ -32,13 +33,19 @@ function configKey(config: IntegrationConfig, keys: string[]): string {
   return keys.map((key) => config[key] ?? '').join('\n');
 }
 
+export interface EmailIdentityEnvDefaults {
+  bccRecipient?: string;
+  systemFromEmail?: string;
+  systemBccRecipient?: string;
+}
+
 export class DynamicEmailProvider implements IEmailProvider {
   private readonly stub = new StubEmailProvider();
   private current: { key: string; provider: IEmailProvider } | null = null;
 
   constructor(
     private readonly resolver: IntegrationConfigResolver,
-    private readonly bccRecipient?: string,
+    private readonly envDefaults: EmailIdentityEnvDefaults = {},
   ) {}
 
   private async provider(): Promise<IEmailProvider> {
@@ -47,22 +54,42 @@ export class DynamicEmailProvider implements IEmailProvider {
       this.current = null;
       return this.stub;
     }
-    const key = configKey(resolved.config, ['apiKey', 'fromEmail']);
+    // The resolver hands back the database OR env config wholesale, so the
+    // per-field precedence (DB over env default) for the identity keys lives here.
+    const identityOptions = {
+      bccRecipient: resolved.config['bccRecipient'] ?? this.envDefaults.bccRecipient,
+      systemFromEmail: resolved.config['systemFromEmail'] ?? this.envDefaults.systemFromEmail,
+      systemBccRecipient:
+        resolved.config['systemBccRecipient'] ?? this.envDefaults.systemBccRecipient,
+    };
+    const key = configKey(resolved.config, [
+      'apiKey',
+      'fromEmail',
+      'bccRecipient',
+      'systemFromEmail',
+      'systemBccRecipient',
+    ]);
     if (this.current?.key !== key) {
       this.current = {
         key,
         provider: new ResendEmailProvider(
           resolved.config['apiKey'] ?? '',
           resolved.config['fromEmail'] ?? '',
-          this.bccRecipient,
+          identityOptions,
         ),
       };
     }
     return this.current.provider;
   }
 
-  async send(to: string, subject: string, bodyHtml: string, bodyText: string): Promise<EmailSendResult> {
-    return (await this.provider()).send(to, subject, bodyHtml, bodyText);
+  async send(
+    to: string,
+    subject: string,
+    bodyHtml: string,
+    bodyText: string,
+    options?: EmailSendOptions,
+  ): Promise<EmailSendResult> {
+    return (await this.provider()).send(to, subject, bodyHtml, bodyText, options);
   }
 }
 

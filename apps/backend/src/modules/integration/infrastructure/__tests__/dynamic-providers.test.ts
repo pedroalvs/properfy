@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ResolvedIntegrationConfig } from '../../domain/integration-setting';
 import type { IntegrationConfigResolver } from '../integration-config-resolver';
@@ -27,6 +27,12 @@ function fakeResolver(sequence: Array<ResolvedIntegrationConfig | null>): Integr
 }
 
 describe('DynamicEmailProvider', () => {
+  beforeEach(() => {
+    // The constructor mock is module-level; clear call history so each test's
+    // rebuild-count assertions start from zero.
+    vi.clearAllMocks();
+  });
+
   it('falls back to the stub when nothing is configured', async () => {
     const provider = new DynamicEmailProvider(fakeResolver([null]));
     const result = await provider.send('a@b.c', 's', '<p/>', 't');
@@ -48,22 +54,81 @@ describe('DynamicEmailProvider', () => {
 
     await provider.send('a@b.c', 's', '<p/>', 't');
     expect(ResendEmailProvider).toHaveBeenCalledTimes(2);
-    expect(ResendEmailProvider).toHaveBeenLastCalledWith('k2', 'a@x.com', undefined);
+    expect(ResendEmailProvider).toHaveBeenLastCalledWith('k2', 'a@x.com', {
+      bccRecipient: undefined,
+      systemFromEmail: undefined,
+      systemBccRecipient: undefined,
+    });
   });
 
-  it('passes the environment-only BCC recipient through to Resend', async () => {
+  it('rebuilds the provider when an identity config key changes', async () => {
+    const resolver = fakeResolver([
+      { config: { apiKey: 'k1', fromEmail: 'a@x.com' }, source: 'database' },
+      {
+        config: { apiKey: 'k1', fromEmail: 'a@x.com', systemFromEmail: 'sys@x.com' },
+        source: 'database',
+      },
+    ]);
+    const provider = new DynamicEmailProvider(resolver);
+
+    await provider.send('a@b.c', 's', '<p/>', 't');
+    await provider.send('a@b.c', 's', '<p/>', 't');
+
+    expect(ResendEmailProvider).toHaveBeenCalledTimes(2);
+    expect(ResendEmailProvider).toHaveBeenLastCalledWith('k1', 'a@x.com', {
+      bccRecipient: undefined,
+      systemFromEmail: 'sys@x.com',
+      systemBccRecipient: undefined,
+    });
+  });
+
+  it('passes the env identity defaults through to Resend', async () => {
     const provider = new DynamicEmailProvider(
       fakeResolver([{ config: { apiKey: 'k1', fromEmail: 'a@x.com' }, source: 'database' }]),
-      'supervision@properfy.com.au',
+      {
+        bccRecipient: 'supervision@properfy.com.au',
+        systemFromEmail: 'system@properfy.com.au',
+        systemBccRecipient: 'system-archive@properfy.com.au',
+      },
     );
 
     await provider.send('a@b.c', 's', '<p/>', 't');
 
-    expect(ResendEmailProvider).toHaveBeenCalledWith(
-      'k1',
-      'a@x.com',
-      'supervision@properfy.com.au',
+    expect(ResendEmailProvider).toHaveBeenCalledWith('k1', 'a@x.com', {
+      bccRecipient: 'supervision@properfy.com.au',
+      systemFromEmail: 'system@properfy.com.au',
+      systemBccRecipient: 'system-archive@properfy.com.au',
+    });
+  });
+
+  it('prefers database identity values over env defaults, per field', async () => {
+    const provider = new DynamicEmailProvider(
+      fakeResolver([
+        {
+          config: { apiKey: 'k1', fromEmail: 'a@x.com', bccRecipient: 'db-bcc@x.com' },
+          source: 'database',
+        },
+      ]),
+      { bccRecipient: 'env-bcc@x.com', systemFromEmail: 'env-sys@x.com' },
     );
+
+    await provider.send('a@b.c', 's', '<p/>', 't');
+
+    expect(ResendEmailProvider).toHaveBeenCalledWith('k1', 'a@x.com', {
+      bccRecipient: 'db-bcc@x.com',
+      systemFromEmail: 'env-sys@x.com',
+      systemBccRecipient: undefined,
+    });
+  });
+
+  it('forwards send options to the inner provider', async () => {
+    const provider = new DynamicEmailProvider(
+      fakeResolver([{ config: { apiKey: 'k1', fromEmail: 'a@x.com' }, source: 'database' }]),
+    );
+
+    await provider.send('a@b.c', 's', '<p/>', 't', { identity: 'system' });
+
+    expect(sendSpy).toHaveBeenCalledWith('a@b.c', 's', '<p/>', 't', { identity: 'system' });
   });
 });
 

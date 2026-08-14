@@ -31,6 +31,13 @@ const secretSchema = z.string().trim().min(1).max(500);
 export const resendConfigSchema = z.object({
   apiKey: secretSchema.optional(),
   fromEmail: z.string().trim().email().max(320).optional(),
+  // Identity split: inspection emails use fromEmail/bccRecipient; system emails
+  // (password reset, reports, ops alerts — see SYSTEM_TEMPLATE_CODES) use the
+  // system pair. systemFromEmail falls back to fromEmail when unset;
+  // systemBccRecipient is opt-in only — unset means system mail has no BCC.
+  bccRecipient: z.string().trim().email().max(320).optional(),
+  systemFromEmail: z.string().trim().email().max(320).optional(),
+  systemBccRecipient: z.string().trim().email().max(320).optional(),
 });
 export type ResendConfigInput = z.infer<typeof resendConfigSchema>;
 

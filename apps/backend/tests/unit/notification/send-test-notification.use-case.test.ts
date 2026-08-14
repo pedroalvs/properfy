@@ -186,6 +186,18 @@ describe('SendTestNotificationUseCase', () => {
       'Inspection at 123 Main St, Sydney NSW 2000',
       '<p>Hello John Smith</p>',
       'Hello John Smith',
+      { identity: 'inspection' },
+    );
+  });
+
+  it('sends a system template test with the system email identity', async () => {
+    await useCase.execute({ templateCode: 'PASSWORD_RESET', channel: 'EMAIL', recipient: 'test@example.com', actor: makeActor() });
+    expect(emailProvider.send).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      { identity: 'system' },
     );
   });
 

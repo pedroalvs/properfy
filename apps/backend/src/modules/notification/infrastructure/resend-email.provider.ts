@@ -1,29 +1,48 @@
 import { Resend } from 'resend';
-import type { IEmailProvider, EmailSendResult } from '../domain/providers';
+import type { IEmailProvider, EmailSendOptions, EmailSendResult } from '../domain/providers';
 import { CircuitBreaker } from '../../../shared/infrastructure/circuit-breaker';
+
+export interface ResendIdentityOptions {
+  /** Hidden copy on inspection emails only — never applied to system mail. */
+  bccRecipient?: string;
+  /** Sender for system emails; falls back to the main fromEmail when unset. */
+  systemFromEmail?: string;
+  /** Hidden copy on system emails. Opt-in only: unset means system mail goes out with no BCC. */
+  systemBccRecipient?: string;
+}
 
 export class ResendEmailProvider implements IEmailProvider {
   private readonly resend: Resend;
   private readonly fromEmail: string;
-  private readonly bccRecipient: string | undefined;
+  private readonly identityOptions: ResendIdentityOptions;
   private readonly circuitBreaker: CircuitBreaker;
 
-  constructor(apiKey: string, fromEmail: string, bccRecipient?: string) {
+  constructor(apiKey: string, fromEmail: string, identityOptions: ResendIdentityOptions = {}) {
     this.resend = new Resend(apiKey);
     this.fromEmail = fromEmail;
-    this.bccRecipient = bccRecipient;
+    this.identityOptions = identityOptions;
     this.circuitBreaker = new CircuitBreaker({ name: 'resend-email', failureThreshold: 5, resetTimeoutMs: 60000 });
   }
 
-  async send(to: string, subject: string, bodyHtml: string, bodyText: string): Promise<EmailSendResult> {
+  async send(
+    to: string,
+    subject: string,
+    bodyHtml: string,
+    bodyText: string,
+    options?: EmailSendOptions,
+  ): Promise<EmailSendResult> {
+    const system = options?.identity === 'system';
+    const from = (system && this.identityOptions.systemFromEmail) || this.fromEmail;
+    const bcc = system ? this.identityOptions.systemBccRecipient : this.identityOptions.bccRecipient;
+
     return this.circuitBreaker.execute(async () => {
       const response = await this.resend.emails.send({
-        from: this.fromEmail,
+        from,
         to,
         subject,
         html: bodyHtml,
         text: bodyText,
-        ...(this.bccRecipient ? { bcc: this.bccRecipient } : {}),
+        ...(bcc ? { bcc } : {}),
       });
 
       if (!response.data) {
