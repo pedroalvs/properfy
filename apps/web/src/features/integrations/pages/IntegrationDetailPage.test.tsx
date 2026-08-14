@@ -60,7 +60,9 @@ describe('IntegrationDetailPage', () => {
     expect(screen.getByLabelText('Resend BCC (inspection emails)')).toBeInTheDocument();
     expect(screen.getByLabelText('Resend System From Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Resend System BCC')).toBeInTheDocument();
-    expect(screen.getByText(/System emails .* fall back to the main From Email/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/blank System BCC means system emails are sent with no BCC/),
+    ).toBeInTheDocument();
   });
 
   it('shows a not-found state for an unknown slug', () => {

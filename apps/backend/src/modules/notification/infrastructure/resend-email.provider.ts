@@ -3,11 +3,11 @@ import type { IEmailProvider, EmailSendOptions, EmailSendResult } from '../domai
 import { CircuitBreaker } from '../../../shared/infrastructure/circuit-breaker';
 
 export interface ResendIdentityOptions {
-  /** Hidden copy on inspection emails; also the system fallback BCC. */
+  /** Hidden copy on inspection emails only — never applied to system mail. */
   bccRecipient?: string;
   /** Sender for system emails; falls back to the main fromEmail when unset. */
   systemFromEmail?: string;
-  /** Hidden copy on system emails; falls back to bccRecipient when unset. */
+  /** Hidden copy on system emails. Opt-in only: unset means system mail goes out with no BCC. */
   systemBccRecipient?: string;
 }
 
@@ -33,9 +33,7 @@ export class ResendEmailProvider implements IEmailProvider {
   ): Promise<EmailSendResult> {
     const system = options?.identity === 'system';
     const from = (system && this.identityOptions.systemFromEmail) || this.fromEmail;
-    const bcc = system
-      ? this.identityOptions.systemBccRecipient ?? this.identityOptions.bccRecipient
-      : this.identityOptions.bccRecipient;
+    const bcc = system ? this.identityOptions.systemBccRecipient : this.identityOptions.bccRecipient;
 
     return this.circuitBreaker.execute(async () => {
       const response = await this.resend.emails.send({

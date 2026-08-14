@@ -37,7 +37,7 @@ export const PROVIDER_META: ProviderMeta[] = [
       { key: 'systemFromEmail', label: 'System From Email', secret: false, placeholder: 'system@yourdomain.com' },
       { key: 'systemBccRecipient', label: 'System BCC', secret: false, placeholder: 'system-archive@yourdomain.com' },
     ],
-    note: 'System emails (password reset, report delivery, platform alerts) use the System From/BCC pair; when those are blank they fall back to the main From Email and BCC.',
+    note: 'System emails (password reset, report delivery, platform alerts) use the System From/BCC pair. A blank System From Email falls back to the main From Email; a blank System BCC means system emails are sent with no BCC.',
   },
   {
     provider: IntegrationProvider.MOBILE_MESSAGE,

@@ -115,12 +115,15 @@ describe('ResendEmailProvider', () => {
 
       await p.send('user@example.com', 'Reset', '<p>Body</p>', 'Body', { identity: 'system' });
 
+      expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ from: fromEmail }));
       expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({ from: fromEmail, bcc: identityOptions.bccRecipient }),
+        expect.not.objectContaining({ bcc: expect.anything() }),
       );
     });
 
-    it('falls back to the inspection bcc when systemBccRecipient is unset', async () => {
+    it('sends system emails with NO bcc when systemBccRecipient is unset — never the inspection bcc', async () => {
+      // Deliberate: the inspection BCC must not leak onto password resets and
+      // other system mail. System BCC is opt-in only.
       const p = new ResendEmailProvider(apiKey, fromEmail, {
         bccRecipient: identityOptions.bccRecipient,
         systemFromEmail: identityOptions.systemFromEmail,
@@ -130,10 +133,10 @@ describe('ResendEmailProvider', () => {
       await p.send('user@example.com', 'Reset', '<p>Body</p>', 'Body', { identity: 'system' });
 
       expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          from: identityOptions.systemFromEmail,
-          bcc: identityOptions.bccRecipient,
-        }),
+        expect.objectContaining({ from: identityOptions.systemFromEmail }),
+      );
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.not.objectContaining({ bcc: expect.anything() }),
       );
     });
 
