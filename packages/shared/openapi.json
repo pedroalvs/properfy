@@ -25930,6 +25930,9 @@
                         },
                         "htmlRendered": {
                           "type": "string"
+                        },
+                        "renderError": {
+                          "type": "string"
                         }
                       },
                       "required": [
