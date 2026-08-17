@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
@@ -6,12 +6,16 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
-import { TextInput } from '@/components/forms/TextInput';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { SelectInput, type SelectOption } from '@/components/forms/SelectInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
-import { useTemplateCreate, prefillFromDefault } from '../hooks/useTemplateCreate';
-import { VariableInsertToolbar } from './VariableInsertToolbar';
+import { useTemplateCreate } from '../hooks/useTemplateCreate';
+import { useTemplateDefault } from '../hooks/useTemplateDefault';
+import { useTemplatePreview } from '../hooks/useTemplatePreview';
+import { SendTestEmailDialog } from './SendTestEmailDialog';
+import { SendTestSmsDialog } from './SendTestSmsDialog';
+import { TemplateEditorFields } from './TemplateEditorFields';
+import { TemplatePreview } from './TemplatePreview';
 import {
   EMPTY_TEMPLATE_CREATE_FORM,
   MANDATORY_TEMPLATE_CODES,
@@ -19,7 +23,6 @@ import {
   TEMPLATE_VARIABLES,
   inferChannelFromCode,
   type MandatoryTemplateCode,
-  type NotificationTemplate,
   type TemplateFormData,
   type TemplateFormErrors,
 } from '../types';
@@ -34,8 +37,6 @@ interface TemplateCreateDrawerProps {
   isGlobalRole: boolean;
   /** CL_ADMIN's own tenant (used when not a global role). */
   pinnedTenantId?: string | null;
-  /** Already-loaded platform defaults — the create form is seeded from these. */
-  platformDefaults: NotificationTemplate[];
 }
 
 interface CreateErrors extends TemplateFormErrors {
@@ -55,17 +56,18 @@ export function TemplateCreateDrawer({
   tenantOptions,
   isGlobalRole,
   pinnedTenantId,
-  platformDefaults,
 }: TemplateCreateDrawerProps) {
   const { save, isSaving, validate } = useTemplateCreate();
+  const { fetchDefault } = useTemplateDefault();
   const { showSuccess, showError } = useSnackbar();
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   const [selectedCode, setSelectedCode] = useState<string>('');
   const [selectedTenantId, setSelectedTenantId] = useState<string>('');
   const [form, setForm] = useState<TemplateFormData>(EMPTY_TEMPLATE_CREATE_FORM);
   const [errors, setErrors] = useState<CreateErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showTestDialog, setShowTestDialog] = useState(false);
+  const [showTestSmsDialog, setShowTestSmsDialog] = useState(false);
 
   // Reset everything whenever the drawer opens.
   useEffect(() => {
@@ -78,6 +80,7 @@ export function TemplateCreateDrawer({
   }, [open]);
 
   const channel = selectedCode ? inferChannelFromCode(selectedCode) : null;
+  const isEmailChannel = channel === 'EMAIL';
   const isDirty = selectedCode !== '' || form.subject !== '' || form.body !== '';
 
   const varSpec = selectedCode
@@ -89,14 +92,27 @@ export function TemplateCreateDrawer({
     [varSpec],
   );
 
+  // Guards against an older default response landing after the operator has
+  // already switched to another code.
+  const prefillSeqRef = useRef(0);
+
   const handleCodeChange = useCallback(
     (code: string) => {
       setSelectedCode(code);
-      // Seed the editor from the platform default so the agency edits a copy.
-      setForm(prefillFromDefault(code, platformDefaults));
+      setForm({ ...EMPTY_TEMPLATE_CREATE_FORM });
       setErrors((prev) => ({ ...prev, code: undefined, subject: undefined, body: undefined }));
+
+      // Seed the editor from the current platform default via GET .../default —
+      // the same source "Reset to default" uses. The previous implementation
+      // copied whatever platform row happened to be in the (filtered) list
+      // cache, which could be blank or stale.
+      const seq = ++prefillSeqRef.current;
+      void fetchDefault(code, inferChannelFromCode(code), undefined).then((result) => {
+        if (seq !== prefillSeqRef.current || !result) return;
+        setForm({ subject: result.subject ?? '', body: result.body, active: true });
+      });
     },
-    [platformDefaults],
+    [fetchDefault],
   );
 
   const updateField = useCallback(
@@ -107,24 +123,14 @@ export function TemplateCreateDrawer({
     [],
   );
 
-  const insertAtCursor = useCallback(
-    (text: string) => {
-      const textarea = bodyRef.current;
-      if (textarea) {
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const newBody = form.body.substring(0, start) + text + form.body.substring(end);
-        updateField('body', newBody);
-        requestAnimationFrame(() => {
-          const cursorPos = start + text.length;
-          textarea.focus();
-          textarea.setSelectionRange(cursorPos, cursorPos);
-        });
-      } else {
-        updateField('body', form.body + text);
-      }
-    },
-    [form.body, updateField],
+  const effectiveTenantId = isGlobalRole ? selectedTenantId : pinnedTenantId ?? '';
+
+  const { preview: livePreview, isLoading: previewLoading } = useTemplatePreview(
+    selectedCode,
+    channel ?? '',
+    isEmailChannel ? form.body : '',
+    form.subject,
+    effectiveTenantId || undefined,
   );
 
   const handleSubmit = useCallback(async () => {
@@ -141,7 +147,6 @@ export function TemplateCreateDrawer({
       return;
     }
 
-    const effectiveTenantId = isGlobalRole ? selectedTenantId : pinnedTenantId ?? '';
     if (!effectiveTenantId) {
       setErrors({ tenantId: 'Please select an agency' });
       return;
@@ -158,7 +163,8 @@ export function TemplateCreateDrawer({
     selectedCode,
     selectedTenantId,
     isGlobalRole,
-    pinnedTenantId,
+    effectiveTenantId,
+    channel,
     form,
     canonicalRequired,
     canonicalAllowed,
@@ -174,9 +180,7 @@ export function TemplateCreateDrawer({
     else onClose();
   }, [isDirty, onClose]);
 
-  const bodyContainerClass = errors.body
-    ? 'rounded border border-error bg-white shadow-[inset_0_-1px_0_0_var(--color-error)]'
-    : 'rounded border border-[#E0E0E0] bg-white shadow-[inset_0_-1px_0_0_#E0E0E0] focus-within:border-primary';
+  const canSendTest = selectedCode !== '' && form.body.trim() !== '';
 
   return (
     <>
@@ -184,7 +188,7 @@ export function TemplateCreateDrawer({
         <div className="flex h-full flex-col">
           <DrawerHeader title="Create Custom Template" onClose={handleClose} />
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
             <div className="flex flex-col gap-6">
               <FormSection title="Template">
                 <FormField label="Template type" required error={errors.code}>
@@ -223,37 +227,14 @@ export function TemplateCreateDrawer({
               </FormSection>
 
               <FormSection title="Template Content">
-                <FormField label="Subject" error={errors.subject}>
-                  <TextInput
-                    value={form.subject}
-                    onChange={(v) => updateField('subject', v)}
-                    placeholder="Email subject line"
-                    error={!!errors.subject}
-                    aria-label="Subject"
-                  />
-                </FormField>
-
-                <div className="flex flex-col gap-2">
-                  <VariableInsertToolbar
-                    onInsert={(variable) => insertAtCursor(variable)}
-                    disabled={isSaving || !selectedCode}
-                    variables={canonicalAllowed}
-                  />
-                  <FormField label="Body" error={errors.body}>
-                    <div className={bodyContainerClass}>
-                      <textarea
-                        ref={bodyRef}
-                        value={form.body}
-                        onChange={(e) => updateField('body', e.target.value)}
-                        className="w-full resize-none bg-transparent px-3 py-2 font-mono text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
-                        placeholder="<table>...</table>  Use {{variable}} for dynamic values"
-                        rows={12}
-                        aria-label="Body"
-                        spellCheck={false}
-                      />
-                    </div>
-                  </FormField>
-                </div>
+                <TemplateEditorFields
+                  form={form}
+                  errors={errors}
+                  updateField={updateField}
+                  channel={channel}
+                  variables={canonicalAllowed}
+                  toolbarDisabled={isSaving || !selectedCode}
+                />
               </FormSection>
 
               <FormSection title="Settings">
@@ -263,6 +244,16 @@ export function TemplateCreateDrawer({
                   label="Template active"
                 />
               </FormSection>
+
+              {isEmailChannel && (
+                <TemplatePreview
+                  subject={livePreview?.subjectRendered || form.subject}
+                  htmlRendered={livePreview?.htmlRendered ?? ''}
+                  channel="EMAIL"
+                  isLoading={previewLoading}
+                  renderError={livePreview?.renderError}
+                />
+              )}
             </div>
           </div>
 
@@ -271,6 +262,24 @@ export function TemplateCreateDrawer({
               <Button variant="secondary" onClick={handleClose}>
                 Cancel
               </Button>
+              {isEmailChannel && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowTestDialog(true)}
+                  disabled={isSaving || !canSendTest}
+                >
+                  Send Test Email
+                </Button>
+              )}
+              {channel === 'SMS' && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowTestSmsDialog(true)}
+                  disabled={isSaving || !canSendTest}
+                >
+                  Send Test SMS
+                </Button>
+              )}
               <Button variant="primary" loading={isSaving} onClick={handleSubmit}>
                 Create Template
               </Button>
@@ -278,6 +287,30 @@ export function TemplateCreateDrawer({
           </div>
         </div>
       </DrawerPanel>
+
+      {/* The dialogs receive the live draft — a template being created has no
+          persisted row yet, so the draft is the only content there is. */}
+      {isEmailChannel && (
+        <SendTestEmailDialog
+          open={showTestDialog}
+          onClose={() => setShowTestDialog(false)}
+          templateCode={selectedCode}
+          channel="EMAIL"
+          tenantId={effectiveTenantId || undefined}
+          draftSubject={form.subject}
+          draftBodyHtml={form.body}
+        />
+      )}
+      {channel === 'SMS' && (
+        <SendTestSmsDialog
+          open={showTestSmsDialog}
+          onClose={() => setShowTestSmsDialog(false)}
+          templateCode={selectedCode}
+          channel="SMS"
+          tenantId={effectiveTenantId || undefined}
+          draftBodyText={form.body}
+        />
+      )}
 
       <ConfirmDialog
         open={showConfirm}

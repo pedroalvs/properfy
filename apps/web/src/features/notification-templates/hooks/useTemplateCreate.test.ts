@@ -6,29 +6,11 @@ vi.mock('@/services/api', () => ({
   api: { GET: vi.fn(), POST: vi.fn(), PATCH: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
 }));
 import { api } from '@/services/api';
-import { useTemplateCreate, prefillFromDefault } from './useTemplateCreate';
-import { inferChannelFromCode, type NotificationTemplate, type TemplateFormData } from '../types';
+import { useTemplateCreate } from './useTemplateCreate';
+import { inferChannelFromCode, type TemplateFormData } from '../types';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
 const mockPut = api.PUT as ReturnType<typeof vi.fn>;
-
-function makeTemplate(overrides: Partial<NotificationTemplate> = {}): NotificationTemplate {
-  return {
-    id: 'tpl-1',
-    tenantId: null,
-    rentalTenantName: null,
-    code: 'INSPECTION_NOTICE',
-    channel: 'EMAIL',
-    subject: 'Default subject',
-    body: '<p>Default body {{rentalTenantName}}</p>',
-    active: true,
-    notificationClass: 'OPERATIONAL',
-    requiredVariables: [],
-    createdAt: '2026-01-01T00:00:00Z',
-    updatedAt: '2026-01-01T00:00:00Z',
-    ...overrides,
-  };
-}
 
 beforeEach(() => {
   mockPut.mockReset();
@@ -46,24 +28,7 @@ describe('inferChannelFromCode', () => {
   });
 });
 
-describe('prefillFromDefault', () => {
-  it('seeds the form from the matching platform default', () => {
-    const list = [
-      makeTemplate({ id: 'd1', tenantId: null, code: 'INSPECTION_NOTICE', subject: 'S', body: 'B' }),
-      makeTemplate({ id: 'o1', tenantId: 'agency-1', code: 'INSPECTION_NOTICE', subject: 'X', body: 'Y' }),
-    ];
-    expect(prefillFromDefault('INSPECTION_NOTICE', list)).toEqual({ subject: 'S', body: 'B', active: true });
-  });
-
-  it('ignores agency overrides and only reads the platform default', () => {
-    const list = [makeTemplate({ tenantId: 'agency-1', code: 'INSPECTION_NOTICE', subject: 'X', body: 'Y' })];
-    expect(prefillFromDefault('INSPECTION_NOTICE', list)).toEqual({ subject: '', body: '', active: true });
-  });
-
-  it('returns an empty form when no default exists for the code', () => {
-    expect(prefillFromDefault('REPORT_READY', [])).toEqual({ subject: '', body: '', active: true });
-  });
-});
+// Prefill now goes through GET .../default — covered in TemplateCreateDrawer.test.tsx.
 
 describe('useTemplateCreate', () => {
   const data: TemplateFormData = { subject: 'Hi', body: '<p>Hello {{rentalTenantName}}</p>', active: true };

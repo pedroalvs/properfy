@@ -40,7 +40,15 @@ export function Dialog({
     // Focus trap: focus the dialog on open
     dialogRef.current?.focus();
 
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    // Lock the page scroll while the dialog is open so wheel events at the end
+    // of the dialog body don't chain to (and scroll) the page behind it.
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open]);
 
   if (!open) return null;

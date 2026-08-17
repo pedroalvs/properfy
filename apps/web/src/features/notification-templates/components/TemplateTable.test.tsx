@@ -29,7 +29,7 @@ function makeTemplate(overrides: Partial<NotificationTemplate> = {}): Notificati
   return {
     id: 'tpl-1',
     tenantId: null,
-    rentalTenantName: null,
+    tenantName: null,
     code: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: 'Inspection Scheduled',
@@ -70,13 +70,13 @@ describe('TemplateTable', () => {
   });
 
   it('shows the owning agency name for overrides', () => {
-    const template = makeTemplate({ tenantId: 'tenant-1', rentalTenantName: 'Acme Realty' });
+    const template = makeTemplate({ tenantId: 'tenant-1', tenantName: 'Acme Realty' });
     render(<TemplateTable data={[template]} />);
     expect(screen.getByText('Acme Realty')).toBeInTheDocument();
   });
 
   it('shows em dash in the Agency column for platform defaults', () => {
-    const template = makeTemplate({ tenantId: null, rentalTenantName: null, subject: 'Has subject' });
+    const template = makeTemplate({ tenantId: null, tenantName: null, subject: 'Has subject' });
     render(<TemplateTable data={[template]} />);
     // Subject is filled and INSPECTION_NOTICE has a declared target, so Agency is the only
     // column that can render a dash. Asserting the count keeps this honest if a future column

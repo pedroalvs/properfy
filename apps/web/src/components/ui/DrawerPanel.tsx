@@ -26,6 +26,18 @@ export function DrawerPanel({ open, onClose, size = 'narrow', ariaLabel, childre
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose]);
 
+  // Lock the page scroll while the drawer is open — without this, reaching the
+  // end of the drawer's own scroll area chains the wheel to the document and
+  // the page behind visibly moves (same pattern as shell/MobileDrawer).
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
   return (
     <>
       {/* Backdrop */}

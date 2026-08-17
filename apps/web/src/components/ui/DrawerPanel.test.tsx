@@ -44,4 +44,31 @@ describe('DrawerPanel', () => {
     await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('locks the page scroll while open and restores it on close', () => {
+    const { rerender } = render(
+      <DrawerPanel open onClose={() => {}}>
+        <p>Content</p>
+      </DrawerPanel>,
+    );
+    expect(document.body.style.overflow).toBe('hidden');
+
+    rerender(
+      <DrawerPanel open={false} onClose={() => {}}>
+        <p>Content</p>
+      </DrawerPanel>,
+    );
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('restores the page scroll when unmounted while open', () => {
+    const { unmount } = render(
+      <DrawerPanel open onClose={() => {}}>
+        <p>Content</p>
+      </DrawerPanel>,
+    );
+    expect(document.body.style.overflow).toBe('hidden');
+    unmount();
+    expect(document.body.style.overflow).toBe('');
+  });
 });

@@ -38,7 +38,7 @@ const mockPut = api.PUT as ReturnType<typeof vi.fn>;
 const MOCK_TEMPLATE: NotificationTemplate = {
   id: 'tpl-01',
   tenantId: null,
-  rentalTenantName: null,
+  tenantName: null,
   code: 'INSPECTION_NOTICE',
   channel: 'EMAIL',
   subject: 'Inspection at {{propertyAddress}}',
@@ -95,7 +95,7 @@ function renderDrawer(template: NotificationTemplate | null = MOCK_TEMPLATE) {
 const MOCK_SMS_TEMPLATE: NotificationTemplate = {
   id: 'tpl-02',
   tenantId: null,
-  rentalTenantName: null,
+  tenantName: null,
   code: 'INSPECTION_NOTICE_SMS',
   channel: 'SMS',
   subject: '',
@@ -144,7 +144,7 @@ describe('TemplateFormDrawer — reset to default', () => {
     ...MOCK_TEMPLATE,
     id: 'tpl-override',
     tenantId: 'tenant-1',
-    rentalTenantName: 'Acme Realty',
+    tenantName: 'Acme Realty',
     subject: 'Edited subject',
     body: 'Edited body {{rentalTenantName}} {{propertyAddress}} {{scheduledDate}} {{timeSlot}}',
   };
@@ -517,7 +517,7 @@ describe('TemplateFormDrawer', () => {
 
   it('sends the override tenantId when editing an agency override', async () => {
     const user = userEvent.setup();
-    renderDrawer({ ...MOCK_TEMPLATE, tenantId: 'agency-1', rentalTenantName: 'Acme Realty' });
+    renderDrawer({ ...MOCK_TEMPLATE, tenantId: 'agency-1', tenantName: 'Acme Realty' });
 
     await user.click(screen.getByText('Save'));
 

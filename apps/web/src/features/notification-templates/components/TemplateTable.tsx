@@ -63,7 +63,7 @@ export function TemplateTable({
       width: '180px',
       render: (row) => (
         <span className="text-sm text-text-secondary">
-          {row.tenantId ? (row.rentalTenantName ?? '—') : '—'}
+          {row.tenantId ? (row.tenantName ?? '—') : '—'}
         </span>
       ),
     },

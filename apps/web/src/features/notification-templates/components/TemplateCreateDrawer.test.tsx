@@ -22,32 +22,23 @@ vi.mock('@/lib/auth-storage', () => ({
 
 import { api } from '@/services/api';
 import { TemplateCreateDrawer } from './TemplateCreateDrawer';
-import type { NotificationTemplate } from '../types';
 
 const mockPut = api.PUT as ReturnType<typeof vi.fn>;
+const mockGet = api.GET as ReturnType<typeof vi.fn>;
+const mockPost = api.POST as ReturnType<typeof vi.fn>;
 
 const TENANT_OPTIONS = [
   { value: 'agency-1', label: 'Acme Realty' },
   { value: 'agency-2', label: 'Globex' },
 ];
 
-// Platform default for INSPECTION_NOTICE with all required vars, so prefill yields a valid form.
-const PLATFORM_DEFAULTS: NotificationTemplate[] = [
-  {
-    id: 'd1',
-    tenantId: null,
-    rentalTenantName: null,
-    code: 'INSPECTION_NOTICE',
-    channel: 'EMAIL',
-    subject: 'Inspection notice',
-    body: 'Hi {{rentalTenantName}} at {{propertyAddress}} on {{scheduledDate}} {{timeSlot}}',
-    active: true,
-    notificationClass: 'OPERATIONAL',
-    requiredVariables: [],
-    createdAt: '2026-01-01T00:00:00Z',
-    updatedAt: '2026-01-01T00:00:00Z',
-  },
-];
+// GET .../default response — the create drawer prefills from this endpoint,
+// never from the loaded list (which can be filtered or stale).
+const DEFAULT_RESULT = {
+  subject: 'Inspection notice',
+  body: 'Hi {{rentalTenantName}} at {{propertyAddress}} on {{scheduledDate}} {{timeSlot}}',
+  source: 'PLATFORM_DEFAULT',
+};
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -69,7 +60,6 @@ function createWrapper() {
 interface Overrides {
   isGlobalRole?: boolean;
   pinnedTenantId?: string | null;
-  platformDefaults?: NotificationTemplate[];
 }
 
 function renderDrawer(overrides: Overrides = {}) {
@@ -84,7 +74,6 @@ function renderDrawer(overrides: Overrides = {}) {
         tenantOptions={TENANT_OPTIONS}
         isGlobalRole={overrides.isGlobalRole ?? true}
         pinnedTenantId={overrides.pinnedTenantId}
-        platformDefaults={overrides.platformDefaults ?? PLATFORM_DEFAULTS}
       />
     </Wrapper>,
   );
@@ -100,7 +89,18 @@ async function selectCode(user: ReturnType<typeof userEvent.setup>, label: strin
 beforeEach(() => {
   mockPut.mockReset();
   mockPut.mockResolvedValue({ data: { data: { id: 'tpl-new' } } });
+  mockGet.mockReset();
+  mockGet.mockResolvedValue({ data: { data: DEFAULT_RESULT } });
+  mockPost.mockReset();
+  mockPost.mockResolvedValue({ data: { data: { subjectRendered: '', htmlRendered: '' } } });
 });
+
+/** The prefill from GET .../default is async — wait for it to land. */
+async function waitForPrefill() {
+  await waitFor(() => {
+    expect(screen.getByLabelText('Body')).toHaveValue(DEFAULT_RESULT.body);
+  });
+}
 
 describe('TemplateCreateDrawer', () => {
   it('renders the code dropdown with all mandatory codes', async () => {
@@ -125,22 +125,28 @@ describe('TemplateCreateDrawer', () => {
     expect(screen.queryByRole('button', { name: 'Agency' })).not.toBeInTheDocument();
   });
 
-  it('prefills subject and body from the platform default when a code is selected', async () => {
+  it('prefills subject and body from GET .../default when a code is selected', async () => {
     const user = userEvent.setup();
     renderDrawer();
     await selectCode(user, 'Inspection Notice');
 
-    expect(screen.getByLabelText('Subject')).toHaveValue('Inspection notice');
-    expect(screen.getByLabelText('Body')).toHaveValue(
-      'Hi {{rentalTenantName}} at {{propertyAddress}} on {{scheduledDate}} {{timeSlot}}',
+    await waitForPrefill();
+    expect(mockGet).toHaveBeenCalledWith(
+      '/v1/notification-templates/INSPECTION_NOTICE/EMAIL/default',
+      expect.anything(),
     );
+    expect(screen.getByLabelText('Subject')).toHaveValue('Inspection notice');
   });
 
-  it('shows the derived channel (SMS) after selecting an SMS code', async () => {
+  it('shows the derived channel (SMS) and hides the Subject field for an SMS code', async () => {
     const user = userEvent.setup();
-    renderDrawer({ platformDefaults: [] });
+    mockGet.mockResolvedValue({
+      data: { data: { subject: null, body: 'Hi {{rentalTenantName}}', source: 'PLATFORM_DEFAULT' } },
+    });
+    renderDrawer();
     await selectCode(user, 'Inspection Notice (SMS)');
     expect(screen.getByText('SMS')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Subject')).not.toBeInTheDocument();
   });
 
   it('blocks submit and shows an error when no code is selected', async () => {
@@ -156,6 +162,7 @@ describe('TemplateCreateDrawer', () => {
     renderDrawer({ isGlobalRole: true });
 
     await selectCode(user, 'Inspection Notice');
+    await waitForPrefill();
     await user.click(screen.getByRole('button', { name: 'Agency' }));
     const agencyList = screen.getByRole('listbox', { name: 'Agency' });
     await user.click(within(agencyList).getByText('Acme Realty'));
@@ -175,6 +182,7 @@ describe('TemplateCreateDrawer', () => {
     renderDrawer({ isGlobalRole: false, pinnedTenantId: 'cl-1' });
 
     await selectCode(user, 'Inspection Notice');
+    await waitForPrefill();
     await user.click(screen.getByText('Create Template'));
 
     await waitFor(() => {
