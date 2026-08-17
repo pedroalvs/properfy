@@ -83,6 +83,15 @@ export class SendTestNotificationUseCase {
     const allowlist = parseAllowlist(
       input.channel === 'EMAIL' ? this.allowlists?.email : this.allowlists?.sms,
     );
+    // SMS fails closed: unlike email (dev convenience, free), an SMS test costs
+    // money and lands on a real phone, so it is refused until an allowlist is
+    // explicitly configured (SMS_TEST_RECIPIENT_ALLOWLIST).
+    if (input.channel === 'SMS' && allowlist.length === 0) {
+      throw new ForbiddenError(
+        'RECIPIENT_NOT_ALLOWED',
+        'SMS test-send is disabled: configure SMS_TEST_RECIPIENT_ALLOWLIST with the allowed test numbers.',
+      );
+    }
     if (allowlist.length > 0 && !allowlist.includes(input.recipient.toLowerCase())) {
       throw new ForbiddenError(
         'RECIPIENT_NOT_ALLOWED',
@@ -101,7 +110,14 @@ export class SendTestNotificationUseCase {
       tenantId = actor.tenantId;
     }
 
+    // A draft subject alone is still a draft: the operator is testing this
+    // override's on-screen content, so it must not fall back to the platform row.
     const hasDraft =
+      input.channel === 'EMAIL'
+        ? input.draftBodyHtml !== undefined || input.draftSubject !== undefined
+        : input.draftBodyText !== undefined;
+    // A body draft is the only thing that can replace a missing persisted row.
+    const hasDraftBody =
       input.channel === 'EMAIL' ? input.draftBodyHtml !== undefined : input.draftBodyText !== undefined;
 
     let template = await this.templateRepo.findByTenantCodeChannel(tenantId, input.templateCode, input.channel);
@@ -111,7 +127,7 @@ export class SendTestNotificationUseCase {
     if (tenantId !== null && (!template || (!hasDraft && !template.isActive()))) {
       template = await this.templateRepo.findByTenantCodeChannel(null, input.templateCode, input.channel);
     }
-    if (!template && !hasDraft) {
+    if (!template && !hasDraftBody) {
       throw new TemplateNotFoundError();
     }
 

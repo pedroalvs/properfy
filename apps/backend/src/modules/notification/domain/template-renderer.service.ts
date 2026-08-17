@@ -75,6 +75,11 @@ export function templateCacheSize(): number {
   return templateCache.size;
 }
 
+/** Test-only membership check, so tests can prove recency-based eviction. */
+export function templateCacheHas(template: string): boolean {
+  return templateCache.has(template);
+}
+
 export class TemplateRendererService {
   render(template: string, variables: Record<string, unknown>): string {
     if (!template) return '';

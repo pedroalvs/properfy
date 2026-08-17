@@ -87,7 +87,9 @@ function normalizeForComparison(html: string): string {
 
 /** First tag name in the document that is not on the allowlist, if any. */
 function findDisallowedTag(html: string): string | null {
-  const re = /<\/?([a-zA-Z][a-zA-Z0-9]*)/g;
+  // Hyphens are part of the name grammar (<custom-element>), so the reason
+  // reports the full name rather than truncating at the first hyphen.
+  const re = /<\/?([a-zA-Z][a-zA-Z0-9-]*)/g;
   let match: RegExpExecArray | null;
   while ((match = re.exec(html)) !== null) {
     const tag = (match[1] ?? '').toLowerCase();
@@ -108,13 +110,16 @@ function findDisallowedAttribute(html: string): string | null {
     const tag = (tagMatch[1] ?? '').toLowerCase();
     const perTag = ALLOWED_ATTRS[tag] ?? [];
     const allowed = new Set([...universal, ...perTag].map((a) => a.toLowerCase()));
-    // Blank out quoted values so text like href="a=b" is never read as an attribute.
+    // Blank out quoted values so text like href="a=b" is never read as an
+    // attribute, then tokenize what remains: `name="…"`, `name=`, or a bare
+    // minimized attribute (`nowrap`, `contenteditable`).
     const attrChunk = (tagMatch[2] ?? '').replace(/"[^"]*"|'[^']*'/g, '""');
-    const attrRe = /([a-zA-Z][\w-]*)\s*=/g;
+    const attrRe = /([a-zA-Z][\w-]*)(?:\s*=\s*(?:""|[^\s>]*))?/g;
     let attrMatch: RegExpExecArray | null;
     while ((attrMatch = attrRe.exec(attrChunk)) !== null) {
+      if (attrMatch[0] === '') break;
       const attr = (attrMatch[1] ?? '').toLowerCase();
-      if (!allowed.has(attr)) return attr;
+      if (attr && !allowed.has(attr)) return attr;
     }
   }
   return null;

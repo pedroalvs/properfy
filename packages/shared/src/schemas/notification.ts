@@ -141,6 +141,29 @@ export const testSendSmsRequestSchema = z.object({
 });
 export type TestSendSmsRequest = z.infer<typeof testSendSmsRequestSchema>;
 
+/**
+ * Route-level (OpenAPI) shape of the test-send body: the union of the EMAIL
+ * and SMS variants with everything optional. The handler still applies the
+ * strict per-channel schema above — this one exists so the generated spec
+ * documents the full contract on the single route.
+ */
+export const testSendRequestSchema = z.object({
+  recipientEmail: z.string().email().optional(),
+  recipientPhone: z.string().regex(AU_E164_REGEX).optional(),
+  ...testSendScopeFields,
+  draftSubject: z.string().min(1).max(255).optional(),
+  draftBodyHtml: z.string().min(1).optional(),
+  draftBodyText: z.string().min(1).optional(),
+});
+export type TestSendRequest = z.infer<typeof testSendRequestSchema>;
+
+export const testSendResponseSchema = z.object({
+  messageId: z.string(),
+  recipient: z.string(),
+  sentAt: z.string().datetime(),
+});
+export type TestSendResponse = z.infer<typeof testSendResponseSchema>;
+
 // ---------------------------------------------------------------------------
 // Template default (reset-to-default) schemas
 // ---------------------------------------------------------------------------

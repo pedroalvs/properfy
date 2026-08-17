@@ -94,6 +94,9 @@ describe('SendTestNotificationUseCase', () => {
       smsProvider,
       auditService,
       authorizationService,
+      // SMS fails closed without an allowlist, so the default fixture allows
+      // the number the SMS tests use; email stays unrestricted (dev behavior).
+      { sms: '+61412345678' },
     );
   });
 
@@ -392,7 +395,7 @@ describe('SendTestNotificationUseCase', () => {
       const authorizationService = new AuthorizationService(auditService);
       useCase = new SendTestNotificationUseCase(
         templateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
-        undefined,
+        { sms: '+61412345678' },
         { htmlSanitizer, htmlToText },
       );
     });
@@ -494,6 +497,43 @@ describe('SendTestNotificationUseCase', () => {
       await useCase.execute({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', recipient: '+61400000001', actor: makeActor() });
       expect(smsProvider.send).toHaveBeenCalled();
     });
+
+    it('SMS with NO allowlist configured fails closed', async () => {
+      const authorizationService = new AuthorizationService(auditService);
+      const noAllowlist = new SendTestNotificationUseCase(
+        templateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
+      );
+      vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(makeSmsTemplate());
+      await expect(
+        noAllowlist.execute({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', recipient: '+61412345678', actor: makeActor() }),
+      ).rejects.toThrow(ForbiddenError);
+      expect(smsProvider.send).not.toHaveBeenCalled();
+    });
+
+    it('EMAIL with NO allowlist configured stays unrestricted (dev behavior)', async () => {
+      const authorizationService = new AuthorizationService(auditService);
+      const noAllowlist = new SendTestNotificationUseCase(
+        templateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
+      );
+      await noAllowlist.execute({ templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'anyone@x.com', actor: makeActor() });
+      expect(emailProvider.send).toHaveBeenCalled();
+    });
+  });
+
+  it('a subject-only draft counts as a draft: inactive override does NOT fall back to platform', async () => {
+    const inactive = makeTemplate({ id: 'tpl-inactive', tenantId: 'tenant-x', isActive: false });
+    vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValueOnce(inactive);
+
+    await useCase.execute({
+      templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com',
+      tenantId: 'tenant-x', draftSubject: 'Draft subject only',
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(templateRepo.findByTenantCodeChannel).toHaveBeenCalledTimes(1);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ entityId: 'tpl-inactive' }),
+    );
   });
 
   it('SMS sample vars come from TEMPLATE_VARIABLES[INSPECTION_NOTICE_SMS] (no EMAIL-only leak)', async () => {
