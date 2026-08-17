@@ -2,6 +2,7 @@
 // seed-platform-notification-templates.ts. Kept as a plain data module so unit
 // tests can assert the seed catalog without touching the database.
 
+import { createHash } from 'node:crypto';
 import { getDefaultClass, type NotificationClass } from '@properfy/shared';
 import {
   renderAppointmentEmailHtml,
@@ -49,6 +50,37 @@ export interface PlatformTemplateSeed {
  */
 export function resolvePlatformTemplateClass(entry: PlatformTemplateSeed): NotificationClass {
   return entry.notificationClass ?? getDefaultClass(entry.code);
+}
+
+export interface PlatformTemplateContent {
+  subject: string | null;
+  bodyText: string;
+  bodyHtml: string | null;
+}
+
+/**
+ * The exact column values a catalog entry seeds — including the `<p>` fallback
+ * for EMAIL entries without a rich body. Both the seeder and the startup sync
+ * must write (and hash) through this so their notion of "seed content" agrees.
+ */
+export function platformTemplateEffectiveContent(entry: PlatformTemplateSeed): PlatformTemplateContent {
+  return {
+    subject: entry.subject,
+    bodyText: entry.body,
+    bodyHtml: entry.channel === 'EMAIL' ? (entry.bodyHtml ?? `<p>${entry.body}</p>`) : null,
+  };
+}
+
+/**
+ * Stable fingerprint of seed content, stored in
+ * `notification_templates.seeded_content_hash`. A platform row is only
+ * auto-refreshed from the catalog while its current content still matches the
+ * hash it was seeded with — any human edit breaks the match and protects the row.
+ */
+export function platformTemplateContentHash(content: PlatformTemplateContent): string {
+  return createHash('sha256')
+    .update(`${content.subject ?? ''}\u0000${content.bodyText}\u0000${content.bodyHtml ?? ''}`)
+    .digest('hex');
 }
 
 // ── Shared paragraph fragments for the appointment email layout ─────────────

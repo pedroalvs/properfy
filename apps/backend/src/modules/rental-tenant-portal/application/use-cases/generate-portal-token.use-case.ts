@@ -21,8 +21,8 @@ import {
 } from '../../../../shared/application/unit-of-work';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
 import { AppointmentCodeFormatter } from '../../../appointment/domain/appointment-code.formatter';
+import { BuildNotificationPayloadService } from '../../../notification/domain/build-notification-payload.service';
 import {
-  PROPERFY_LOGO_URL,
   isRentalTenantNotificationsEnabled,
   TENANT_NOTIFICATIONS_BLOCKED_CODE,
 } from '@properfy/shared';
@@ -332,35 +332,20 @@ export class GeneratePortalTokenUseCase {
     let attemptedDispatches = 0;
     let succeededDispatches = 0;
     if (this.createNotificationUseCase) {
-      const scheduledDateStr = appointment.scheduledDate.toISOString().split('T')[0] ?? '';
-      // Build full portal URLs (not the bare token) so the email/SMS contains a
-      // clickable link. Mirrors BuildNotificationPayloadService (automated path).
-      const confirmationLink = new URL(
-        '/portal/' + encodeURIComponent(rawToken),
-        this.rentalTenantPortalBaseUrl,
-      ).toString();
-      // The tenant-facing "propose new date" page was removed; this now points
-      // at the portal itself. Mirrors BuildNotificationPayloadService.
-      const rescheduleLink = confirmationLink;
-      const tenantSettings: Record<string, unknown> = tenant.settingsJson ?? {};
-      const payloadJson = {
-        confirmationLink,
-        rescheduleLink,
-        scheduledDate: scheduledDateStr,
-        rentalTenantName: result.contact.effectiveName,
-        propertyAddress: result.propertyAddress ?? '',
-        timeSlot: `${appointment.timeSlotStart}-${appointment.timeSlotEnd}`,
-        appointmentCode: new AppointmentCodeFormatter().format(
-          appointment.appointmentNumber,
-          tenant,
-        ),
-        agencyName: tenant.name,
-        agencyPhone: typeof tenantSettings.contactPhone === 'string' ? tenantSettings.contactPhone : '',
-        properfyLogoUrl: PROPERFY_LOGO_URL,
-        agencyLogoUrl:
-          typeof tenantSettings.logoUrl === 'string' ? tenantSettings.logoUrl : '',
-        serviceTypeName: result.serviceTypeName ?? '',
-      };
+      // Canonical variable set and formatting (formatted civil date, 12h time
+      // range, portal links) — the same builder the automated dispatch path
+      // uses, so both paths render TENANT_PORTAL_LINK identically.
+      const payloadJson = new BuildNotificationPayloadService().build({
+        templateCode: 'TENANT_PORTAL_LINK',
+        tenant,
+        appointment,
+        contact: result.contact,
+        propertyAddress: result.propertyAddress ?? undefined,
+        serviceTypeName: result.serviceTypeName,
+        rawPortalToken: rawToken,
+        portalBaseUrl: this.rentalTenantPortalBaseUrl,
+        appointmentCodeFormatter: new AppointmentCodeFormatter(),
+      });
 
       const recipientEmail = result.contact.effectiveEmail;
       if (recipientEmail) {

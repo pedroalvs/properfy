@@ -6,7 +6,7 @@ import { createContainer } from './container';
 import { registerErrorHandler } from '../shared/interfaces/error-handler';
 import { validateEnv, getEnv } from './env';
 import { runWithRequestContext } from '../shared/infrastructure/request-context';
-import { checkMandatoryTemplates } from '../shared/infrastructure/template-startup-check';
+import { checkMandatoryTemplates, syncPlatformTemplates } from '../shared/infrastructure/template-startup-check';
 
 const SHUTDOWN_TIMEOUT_MS = 30_000;
 
@@ -125,7 +125,9 @@ async function start() {
     );
   }
 
-  // Check mandatory notification templates at startup (non-blocking)
+  // Sync platform-default templates with the code catalog (guarded: human
+  // edits are never overwritten), then check mandatory coverage (non-blocking).
+  await syncPlatformTemplates(app.log);
   await checkMandatoryTemplates(app.log);
 
   try {

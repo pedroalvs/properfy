@@ -25649,6 +25649,43 @@
     },
     "/v1/notification-templates/{templateCode}/{channel}/test-send": {
       "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "recipientEmail": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "recipientPhone": {
+                    "type": "string",
+                    "pattern": "^\\+61[23478]\\d{8}$"
+                  },
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "draftSubject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "draftBodyHtml": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "draftBodyText": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -25669,7 +25706,41 @@
         ],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "messageId": {
+                          "type": "string"
+                        },
+                        "recipient": {
+                          "type": "string"
+                        },
+                        "sentAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "messageId",
+                        "recipient",
+                        "sentAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -25929,6 +26000,9 @@
                           "type": "string"
                         },
                         "htmlRendered": {
+                          "type": "string"
+                        },
+                        "renderError": {
                           "type": "string"
                         }
                       },
