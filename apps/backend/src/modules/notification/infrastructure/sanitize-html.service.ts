@@ -10,14 +10,19 @@ const ALLOWED_TAGS = [
   'th', 'thead', 'title', 'tr', 'u', 'ul', 'var',
 ];
 
-const ALLOWED_ATTRS: sanitizeHtml.IOptions['allowedAttributes'] = {
-  '*': ['style', 'class', 'id', 'align', 'valign', 'width', 'height', 'border', 'cellpadding', 'cellspacing'],
-  a: ['href', 'name', 'target', 'title'],
+const ALLOWED_ATTRS: Record<string, string[]> = {
+  // bgcolor/background/dir/role/nowrap are ubiquitous in exported email HTML
+  // (Outlook, Mailchimp) and are presentation-only — safe without JS execution.
+  '*': [
+    'style', 'class', 'id', 'align', 'valign', 'width', 'height', 'border',
+    'cellpadding', 'cellspacing', 'bgcolor', 'background', 'dir', 'role', 'nowrap',
+  ],
+  a: ['href', 'name', 'target', 'title', 'rel'],
   col: ['span'],
   colgroup: ['span'],
   font: ['color', 'face', 'size'],
   html: ['lang', 'xmlns'],
-  img: ['src', 'alt', 'width', 'height', 'style'],
+  img: ['src', 'alt', 'width', 'height', 'style', 'hspace', 'vspace'],
   meta: ['charset', 'name', 'content'],
   td: ['colspan', 'rowspan', 'headers'],
   th: ['colspan', 'rowspan', 'scope'],
@@ -73,8 +78,46 @@ function normalizeForComparison(html: string): string {
     html
       .replace(/<!doctype[^>]*>/gi, '')
       .replace(/<!--[\s\S]*?-->/g, '')
-      .replace(/(style\s*=\s*")([^"]*?);\s*"/gi, '$1$2"'),
+      .replace(/(style\s*=\s*")([^"]*?);\s*"/gi, '$1$2"')
+      // sanitize-html re-encodes bare "&" as "&amp;" (e.g. in query strings);
+      // both spellings are equivalent, so compare them as one.
+      .replace(/&amp;/gi, '&'),
   ).trim();
+}
+
+/** First tag name in the document that is not on the allowlist, if any. */
+function findDisallowedTag(html: string): string | null {
+  const re = /<\/?([a-zA-Z][a-zA-Z0-9]*)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(html)) !== null) {
+    const tag = (match[1] ?? '').toLowerCase();
+    if (tag && !ALLOWED_TAGS.includes(tag)) return tag;
+  }
+  return null;
+}
+
+/**
+ * First `name=` attribute not allowed for its tag, if any. Only used to build a
+ * precise rejection message — safety itself still comes from the sanitize diff.
+ */
+function findDisallowedAttribute(html: string): string | null {
+  const universal = ALLOWED_ATTRS['*'] ?? [];
+  const tagRe = /<([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
+  let tagMatch: RegExpExecArray | null;
+  while ((tagMatch = tagRe.exec(html)) !== null) {
+    const tag = (tagMatch[1] ?? '').toLowerCase();
+    const perTag = ALLOWED_ATTRS[tag] ?? [];
+    const allowed = new Set([...universal, ...perTag].map((a) => a.toLowerCase()));
+    // Blank out quoted values so text like href="a=b" is never read as an attribute.
+    const attrChunk = (tagMatch[2] ?? '').replace(/"[^"]*"|'[^']*'/g, '""');
+    const attrRe = /([a-zA-Z][\w-]*)\s*=/g;
+    let attrMatch: RegExpExecArray | null;
+    while ((attrMatch = attrRe.exec(attrChunk)) !== null) {
+      const attr = (attrMatch[1] ?? '').toLowerCase();
+      if (!allowed.has(attr)) return attr;
+    }
+  }
+  return null;
 }
 
 /**
@@ -108,6 +151,14 @@ export class SanitizeHtmlService implements IHtmlSanitizerService {
     const httpImgMatch = /<img\b[^>]*\bsrc\s*=\s*["']?(?!https:)/i.exec(html);
     if (httpImgMatch) {
       return { safe: false, rejectedReason: 'Image src must use https.' };
+    }
+    const disallowedTag = findDisallowedTag(html);
+    if (disallowedTag) {
+      return { safe: false, rejectedReason: `Disallowed tag: <${disallowedTag}>` };
+    }
+    const disallowedAttr = findDisallowedAttribute(html);
+    if (disallowedAttr) {
+      return { safe: false, rejectedReason: `Disallowed attribute: ${disallowedAttr}` };
     }
 
     return {

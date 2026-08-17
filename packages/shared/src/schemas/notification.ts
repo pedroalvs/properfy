@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { booleanQueryParam } from './boolean-query';
 import { paginationSchema } from './pagination';
+import { AU_E164_REGEX } from '../constants/phone';
 
 // Feature 018: shared classification and consent enums as Zod schemas
 export const notificationClassSchema = z.enum(['TRANSACTIONAL', 'OPERATIONAL', 'MARKETING']);
@@ -97,8 +98,48 @@ export type TemplatePreviewRequest = z.infer<typeof templatePreviewRequestSchema
 export const templatePreviewResponseSchema = z.object({
   subjectRendered: z.string(),
   htmlRendered: z.string(),
+  /**
+   * Present when the body could not be rendered (e.g. a Handlebars syntax
+   * error). Template syntax problems carry the parser message so the operator
+   * can fix the template; internal failures carry a generic message only.
+   */
+  renderError: z.string().optional(),
 });
 export type TemplatePreviewResponse = z.infer<typeof templatePreviewResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Template test-send schemas
+// ---------------------------------------------------------------------------
+
+/**
+ * The tenant scope of the template under test. AM/OP editing an agency
+ * override pass that agency's id; omitted = platform default. CL_ADMIN is
+ * always pinned to its own tenant regardless of this field.
+ */
+const testSendScopeFields = {
+  tenantId: z.string().uuid().optional(),
+};
+
+export const testSendEmailRequestSchema = z.object({
+  recipientEmail: z.string().email(),
+  ...testSendScopeFields,
+  /**
+   * Unsaved editor draft. When present the test renders and sends this content
+   * instead of the persisted row, so the operator tests exactly what is on
+   * screen. Validated with the same save-time HTML rules as an upsert.
+   */
+  draftSubject: z.string().min(1).max(255).optional(),
+  draftBodyHtml: z.string().min(1).optional(),
+});
+export type TestSendEmailRequest = z.infer<typeof testSendEmailRequestSchema>;
+
+export const testSendSmsRequestSchema = z.object({
+  recipientPhone: z.string().regex(AU_E164_REGEX, 'Phone must be in E.164 AU format (e.g. +61412345678)'),
+  ...testSendScopeFields,
+  /** Unsaved editor draft (plain text) — same semantics as draftBodyHtml. */
+  draftBodyText: z.string().min(1).optional(),
+});
+export type TestSendSmsRequest = z.infer<typeof testSendSmsRequestSchema>;
 
 // ---------------------------------------------------------------------------
 // Template default (reset-to-default) schemas

@@ -111,10 +111,9 @@ describe('SendTestNotificationUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('rejects OP with null tenantId (cannot act as platform scope)', async () => {
-    await expect(
-      useCase.execute({ templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com', actor: makeActor({ role: 'OP', tenantId: null }) }),
-    ).rejects.toThrow(NotificationForbiddenError);
+  it('OP with null tenantId falls back to platform scope (cross-tenant role)', async () => {
+    await useCase.execute({ templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com', actor: makeActor({ role: 'OP', tenantId: null }) });
+    expect(templateRepo.findByTenantCodeChannel).toHaveBeenCalledWith(null, 'INSPECTION_NOTICE', 'EMAIL');
   });
 
   it('rejects CL_ADMIN with null tenantId with NotificationForbiddenError', async () => {
@@ -330,6 +329,171 @@ describe('SendTestNotificationUseCase', () => {
       useCase.execute({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', recipient: '+61412345678', actor: makeActor() }),
     ).rejects.toThrow(ValidationError);
     expect(smsProvider.send).not.toHaveBeenCalled();
+  });
+
+  // ── Explicit tenant scope (input.tenantId) ─────────────────────────────────
+
+  it('AM with input tenantId looks up that tenant scope first', async () => {
+    await useCase.execute({
+      templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com',
+      tenantId: 'tenant-x', actor: makeActor({ role: 'AM' }),
+    });
+    expect(templateRepo.findByTenantCodeChannel).toHaveBeenNthCalledWith(1, 'tenant-x', 'INSPECTION_NOTICE', 'EMAIL');
+  });
+
+  it('OP with input tenantId targets that tenant, not its own', async () => {
+    await useCase.execute({
+      templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com',
+      tenantId: 'tenant-x', actor: makeActor({ role: 'OP', tenantId: 'tenant-op' }),
+    });
+    expect(templateRepo.findByTenantCodeChannel).toHaveBeenNthCalledWith(1, 'tenant-x', 'INSPECTION_NOTICE', 'EMAIL');
+  });
+
+  it('CL_ADMIN with a foreign input tenantId is rejected', async () => {
+    await expect(
+      useCase.execute({
+        templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com',
+        tenantId: 'tenant-other', actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(NotificationForbiddenError);
+  });
+
+  // ── Inactive override parity with real send ───────────────────────────────
+
+  it('inactive tenant override falls back to the platform row (mirrors real send)', async () => {
+    const inactive = makeTemplate({ id: 'tpl-inactive', tenantId: 'tenant-x', isActive: false });
+    vi.mocked(templateRepo.findByTenantCodeChannel)
+      .mockResolvedValueOnce(inactive)
+      .mockResolvedValueOnce(makeTemplate());
+
+    await useCase.execute({
+      templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com',
+      tenantId: 'tenant-x', actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(templateRepo.findByTenantCodeChannel).toHaveBeenNthCalledWith(2, null, 'INSPECTION_NOTICE', 'EMAIL');
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ entityId: 'tpl-1' }),
+    );
+  });
+
+  // ── Draft content path ─────────────────────────────────────────────────────
+
+  describe('draft content', () => {
+    const htmlSanitizer = {
+      validateForSave: vi.fn().mockReturnValue({ safe: true }),
+      sanitizeForRender: vi.fn((html: string) => html),
+    };
+    const htmlToText = { convert: vi.fn(() => 'text version') };
+
+    beforeEach(() => {
+      htmlSanitizer.validateForSave.mockClear().mockReturnValue({ safe: true });
+      htmlSanitizer.sanitizeForRender.mockClear();
+      const authorizationService = new AuthorizationService(auditService);
+      useCase = new SendTestNotificationUseCase(
+        templateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
+        undefined,
+        { htmlSanitizer, htmlToText },
+      );
+    });
+
+    it('EMAIL draft renders the draft body/subject instead of the persisted row', async () => {
+      vi.mocked(templateRenderer.render).mockReset().mockImplementation((src: string) => `R:${src}`);
+      await useCase.execute({
+        templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com',
+        draftSubject: 'Draft subject', draftBodyHtml: '<p>Draft body</p>',
+        actor: makeActor(),
+      });
+      const renderedSources = vi.mocked(templateRenderer.render).mock.calls.map((c) => c[0]);
+      expect(renderedSources).toContain('Draft subject');
+      expect(renderedSources).toContain('<p>Draft body</p>');
+      expect(renderedSources).not.toContain('<p>Hello {{rentalTenantName}}</p>');
+    });
+
+    it('EMAIL draft body is validated with the save-time HTML rules', async () => {
+      await useCase.execute({
+        templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com',
+        draftBodyHtml: '<p>Draft body</p>',
+        actor: makeActor(),
+      });
+      expect(htmlSanitizer.validateForSave).toHaveBeenCalledWith('<p>Draft body</p>');
+    });
+
+    it('EMAIL draft failing save-time validation throws ValidationError and does not send', async () => {
+      htmlSanitizer.validateForSave.mockReturnValue({ safe: false, rejectedReason: 'Disallowed tag: <script>' });
+      await expect(
+        useCase.execute({
+          templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com',
+          draftBodyHtml: '<script>x</script>',
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(ValidationError);
+      expect(emailProvider.send).not.toHaveBeenCalled();
+    });
+
+    it('EMAIL draft sends even when no persisted template exists (new override being created)', async () => {
+      vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(null);
+      await useCase.execute({
+        templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com',
+        draftSubject: 'S', draftBodyHtml: '<p>B</p>',
+        tenantId: 'tenant-x', actor: makeActor(),
+      });
+      expect(emailProvider.send).toHaveBeenCalled();
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({ entityId: 'INSPECTION_NOTICE' }),
+      );
+    });
+
+    it('SMS draft renders draftBodyText instead of the persisted row', async () => {
+      vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(makeSmsTemplate());
+      vi.mocked(templateRenderer.render).mockReset().mockReturnValue('rendered draft');
+      await useCase.execute({
+        templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', recipient: '+61412345678',
+        draftBodyText: 'Draft sms {{rentalTenantName}}',
+        actor: makeActor(),
+      });
+      expect(vi.mocked(templateRenderer.render).mock.calls[0][0]).toBe('Draft sms {{rentalTenantName}}');
+      expect(smsProvider.send).toHaveBeenCalledWith('+61412345678', 'rendered draft', expect.anything());
+    });
+  });
+
+  // ── Recipient allowlists ───────────────────────────────────────────────────
+
+  describe('recipient allowlists', () => {
+    beforeEach(() => {
+      const authorizationService = new AuthorizationService(auditService);
+      useCase = new SendTestNotificationUseCase(
+        templateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
+        { email: 'safe@test.com, other@test.com', sms: '+61400000001,+61400000002' },
+      );
+    });
+
+    it('EMAIL outside the allowlist is rejected', async () => {
+      await expect(
+        useCase.execute({ templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'evil@x.com', actor: makeActor() }),
+      ).rejects.toThrow(ForbiddenError);
+      expect(emailProvider.send).not.toHaveBeenCalled();
+    });
+
+    it('EMAIL inside the allowlist is sent (case-insensitive)', async () => {
+      await useCase.execute({ templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'Safe@Test.com', actor: makeActor() });
+      expect(emailProvider.send).toHaveBeenCalled();
+    });
+
+    it('SMS outside the allowlist is rejected', async () => {
+      vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(makeSmsTemplate());
+      await expect(
+        useCase.execute({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', recipient: '+61412345678', actor: makeActor() }),
+      ).rejects.toThrow(ForbiddenError);
+      expect(smsProvider.send).not.toHaveBeenCalled();
+    });
+
+    it('SMS inside the allowlist is sent', async () => {
+      vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(makeSmsTemplate());
+      vi.mocked(templateRenderer.render).mockReset().mockReturnValue('Hi');
+      await useCase.execute({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', recipient: '+61400000001', actor: makeActor() });
+      expect(smsProvider.send).toHaveBeenCalled();
+    });
   });
 
   it('SMS sample vars come from TEMPLATE_VARIABLES[INSPECTION_NOTICE_SMS] (no EMAIL-only leak)', async () => {

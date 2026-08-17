@@ -48,15 +48,31 @@ handlebars.registerHelper('formatCurrency', (amount: unknown, currency: unknown)
   }
 });
 
+// Keyed by full template text, so every distinct *draft* previewed in the
+// editor is a new entry — bounded as an LRU or a long editing session would
+// grow the heap monotonically. 200 comfortably covers all persisted templates.
+const TEMPLATE_CACHE_MAX = 200;
 const templateCache = new Map<string, HandlebarsTemplateDelegate>();
 
 function getCompiledTemplate(template: string): HandlebarsTemplateDelegate {
-  let compiled = templateCache.get(template);
-  if (!compiled) {
-    compiled = handlebars.compile(template, { noEscape: false });
-    templateCache.set(template, compiled);
+  const hit = templateCache.get(template);
+  if (hit) {
+    // Map preserves insertion order; re-inserting marks this entry most-recent.
+    templateCache.delete(template);
+    templateCache.set(template, hit);
+    return hit;
+  }
+  const compiled = handlebars.compile(template, { noEscape: false });
+  templateCache.set(template, compiled);
+  if (templateCache.size > TEMPLATE_CACHE_MAX) {
+    templateCache.delete(templateCache.keys().next().value as string);
   }
   return compiled;
+}
+
+/** Test-only observability for the LRU bound. */
+export function templateCacheSize(): number {
+  return templateCache.size;
 }
 
 export class TemplateRendererService {

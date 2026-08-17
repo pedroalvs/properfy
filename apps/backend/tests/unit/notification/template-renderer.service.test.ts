@@ -1,4 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import {
+  TemplateRendererService as RendererForCacheTest,
+  templateCacheSize,
+} from '../../../src/modules/notification/domain/template-renderer.service';
 import { TemplateRendererService } from '../../../src/modules/notification/domain/template-renderer.service';
 
 describe('TemplateRendererService', () => {
@@ -305,5 +309,16 @@ describe('TemplateRendererService', () => {
       );
       expect(result).toContain('scheduledDate');
     });
+  });
+});
+
+describe('template cache LRU bound', () => {
+  it('caps the compiled-template cache and keeps evicted entries renderable', () => {
+    const svc = new RendererForCacheTest();
+    for (let i = 0; i < 500; i++) {
+      svc.render(`Unique template ${i} {{name}}`, { name: 'x' });
+    }
+    expect(templateCacheSize()).toBeLessThanOrEqual(200);
+    expect(svc.render('Unique template 0 {{name}}', { name: 'y' })).toBe('Unique template 0 y');
   });
 });
