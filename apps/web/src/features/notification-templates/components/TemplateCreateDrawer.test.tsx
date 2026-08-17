@@ -132,8 +132,10 @@ describe('TemplateCreateDrawer', () => {
 
     await waitForPrefill();
     expect(mockGet).toHaveBeenCalledWith(
-      '/v1/notification-templates/INSPECTION_NOTICE/EMAIL/default',
-      expect.anything(),
+      '/v1/notification-templates/{templateCode}/{channel}/default',
+      expect.objectContaining({
+        params: expect.objectContaining({ path: { templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL' } }),
+      }),
     );
     expect(screen.getByLabelText('Subject')).toHaveValue('Inspection notice');
   });
@@ -155,6 +157,23 @@ describe('TemplateCreateDrawer', () => {
     await user.click(screen.getByText('Create Template'));
     expect(await screen.findByText('Select a template')).toBeInTheDocument();
     expect(mockPut).not.toHaveBeenCalled();
+  });
+
+  it('disables Send Test until an agency is selected (global role)', async () => {
+    const user = userEvent.setup();
+    renderDrawer({ isGlobalRole: true });
+
+    await selectCode(user, 'Inspection Notice');
+    await waitForPrefill();
+    // Code + body present, but no agency yet — a test now would silently
+    // target the platform scope instead of the override being created.
+    expect(screen.getByRole('button', { name: 'Send Test Email' })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Agency' }));
+    const agencyList = screen.getByRole('listbox', { name: 'Agency' });
+    await user.click(within(agencyList).getByText('Acme Realty'));
+
+    expect(screen.getByRole('button', { name: 'Send Test Email' })).toBeEnabled();
   });
 
   it('submits with the tenantId chosen in the agency selector', async () => {

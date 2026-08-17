@@ -49,10 +49,10 @@ export function useTemplatePreview(
       const seq = ++requestSeqRef.current;
       setIsLoading(true);
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (api as any).POST(
-          `/v1/notification-templates/${code}/${channel}/preview`,
+        const { data, error } = await api.POST(
+          '/v1/notification-templates/{templateCode}/{channel}/preview',
           {
+            params: { path: { templateCode: code, channel } },
             body: {
               bodyHtml,
               subject: subject || undefined,
@@ -62,11 +62,8 @@ export function useTemplatePreview(
           },
         );
         if (seq !== requestSeqRef.current) return;
-        if (!error && data) {
-          const result = data as { data?: TemplatePreviewResult };
-          if (result.data) {
-            setPreview(result.data);
-          }
+        if (!error && data?.data) {
+          setPreview(data.data);
         }
       } catch {
         // Network error / abort — don't update preview

@@ -180,7 +180,9 @@ export function TemplateCreateDrawer({
     else onClose();
   }, [isDirty, onClose]);
 
-  const canSendTest = selectedCode !== '' && form.body.trim() !== '';
+  // The agency must be chosen before a test send — without it the test would
+  // silently target the platform scope instead of the override being created.
+  const canSendTest = selectedCode !== '' && form.body.trim() !== '' && effectiveTenantId !== '';
 
   return (
     <>

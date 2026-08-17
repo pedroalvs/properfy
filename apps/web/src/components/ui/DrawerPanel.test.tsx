@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DrawerPanel } from './DrawerPanel';
+import { Dialog } from './Dialog';
 
 describe('DrawerPanel', () => {
   it('renders children when open', () => {
@@ -69,6 +70,37 @@ describe('DrawerPanel', () => {
     );
     expect(document.body.style.overflow).toBe('hidden');
     unmount();
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('keeps the page locked when stacked overlays close out of order', () => {
+    // Drawer opens first (captures the original overflow), dialog stacks on top.
+    const drawer = render(
+      <DrawerPanel open onClose={() => {}}>
+        <p>Drawer</p>
+      </DrawerPanel>,
+    );
+    const dialog = render(
+      <Dialog open onClose={() => {}} title="Stacked">
+        <p>Dialog</p>
+      </Dialog>,
+    );
+    expect(document.body.style.overflow).toBe('hidden');
+
+    // The overlay that captured the original value closes FIRST — the page
+    // must stay locked while the dialog is still open.
+    drawer.rerender(
+      <DrawerPanel open={false} onClose={() => {}}>
+        <p>Drawer</p>
+      </DrawerPanel>,
+    );
+    expect(document.body.style.overflow).toBe('hidden');
+
+    dialog.rerender(
+      <Dialog open={false} onClose={() => {}} title="Stacked">
+        <p>Dialog</p>
+      </Dialog>,
+    );
     expect(document.body.style.overflow).toBe('');
   });
 });
