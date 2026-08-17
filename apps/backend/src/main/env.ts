@@ -47,6 +47,8 @@ const envSchema = z.object({
 
   /** Comma-separated list of email addresses allowed as test-send recipients (FR-027a) */
   EMAIL_TEST_RECIPIENT_ALLOWLIST: z.string().optional(),
+  /** Comma-separated list of E.164 phone numbers allowed as SMS test-send recipients */
+  SMS_TEST_RECIPIENT_ALLOWLIST: z.string().optional(),
 
   // Optional MobileMessage (SMS provider — no webhook secret, provider does not sign requests)
   MOBILE_MESSAGE_API_KEY: z.string().optional(),

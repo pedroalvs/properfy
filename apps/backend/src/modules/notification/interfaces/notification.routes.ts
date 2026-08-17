@@ -11,7 +11,10 @@ import {
   paginatedResponseSchema,
   listConsentsQuerySchema,
   overrideConsentSchema,
-  AU_E164_REGEX,
+  testSendEmailRequestSchema,
+  testSendSmsRequestSchema,
+  testSendRequestSchema,
+  testSendResponseSchema,
   templatePreviewRequestSchema,
   templatePreviewResponseSchema,
   templateDefaultQuerySchema,
@@ -91,7 +94,16 @@ interface SmsRateLimitEntry {
   day: string;
   dayCount: number;
 }
+// In-process only (resets on deploy, not shared across instances) — acceptable
+// for a low-stakes test-send limit. Pruned on every check so it cannot grow
+// beyond the keys seen today.
 const smsRateLimitCounts = new Map<string, SmsRateLimitEntry>();
+
+function pruneStaleSmsRateLimitEntries(dayKey: string): void {
+  for (const [key, entry] of smsRateLimitCounts) {
+    if (entry.day !== dayKey) smsRateLimitCounts.delete(key);
+  }
+}
 
 const notificationIdParam = z.object({ notificationId: z.string().uuid() });
 const templateParam = z.object({ templateCode: z.string(), channel: z.string() });
@@ -310,7 +322,15 @@ export async function registerNotificationRoutes(
   });
   app.post(
     '/v1/notification-templates/:templateCode/:channel/test-send',
-    { preHandler: authenticate, config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+      schema: {
+        params: z.object({ templateCode: z.string(), channel: z.string() }),
+        body: testSendRequestSchema,
+        response: { 200: successResponseSchema(testSendResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = testSendParam.safeParse(request.params);
       if (!params.success) {
@@ -324,6 +344,7 @@ export async function registerNotificationRoutes(
         const now = new Date();
         const minuteKey = now.toISOString().slice(0, 16);
         const dayKey = now.toISOString().slice(0, 10);
+        pruneStaleSmsRateLimitEntries(dayKey);
         const entry = smsRateLimitCounts.get(key);
         const sameMinute = entry?.minute === minuteKey;
         const sameDay = entry?.day === dayKey;
@@ -343,23 +364,31 @@ export async function registerNotificationRoutes(
         });
       }
 
-      const bodySchema = isSms
-        ? z.object({ recipientPhone: z.string().regex(AU_E164_REGEX, 'Phone must be in E.164 AU format (e.g. +61412345678)') })
-        : z.object({ recipientEmail: z.string().email() });
-      const body = bodySchema.safeParse(request.body);
+      const body = (isSms ? testSendSmsRequestSchema : testSendEmailRequestSchema).safeParse(request.body);
       if (!body.success) {
         throw new ValidationError('Request payload is invalid', body.error.errors);
       }
-      const recipient = isSms
-        ? (body.data as { recipientPhone: string }).recipientPhone
-        : (body.data as { recipientEmail: string }).recipientEmail;
+      const data = body.data as {
+        recipientPhone?: string;
+        recipientEmail?: string;
+        tenantId?: string;
+        draftSubject?: string;
+        draftBodyHtml?: string;
+        draftBodyText?: string;
+      };
       const result = await container.sendTestNotificationUseCase.execute({
         templateCode: params.data.templateCode,
         channel: params.data.channel,
-        recipient,
+        recipient: isSms ? data.recipientPhone! : data.recipientEmail!,
+        tenantId: data.tenantId,
+        draftSubject: data.draftSubject,
+        draftBodyHtml: data.draftBodyHtml,
+        draftBodyText: data.draftBodyText,
         actor: request.authContext!,
       });
-      return reply.status(200).send(success(result));
+      // sentAt serialized explicitly: the declared response schema is a
+      // datetime string, and the Fastify serializer throws on a raw Date.
+      return reply.status(200).send(success({ ...result, sentAt: result.sentAt.toISOString() }));
     },
   );
 

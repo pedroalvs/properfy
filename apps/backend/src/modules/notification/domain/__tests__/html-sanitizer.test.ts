@@ -164,6 +164,63 @@ describe('HtmlSanitizerService — save profile (validateForSave)', () => {
       svc.validateForSave('<head><link rel="stylesheet" href="https://x.com/a.css"></head>').safe,
     ).toBe(false);
   });
+
+  it('should permit common exported-email attributes (bgcolor, background, role, dir, nowrap)', async () => {
+    const svc = await loadImpl();
+    const html =
+      '<table role="presentation" bgcolor="#ffffff" background="https://x.com/bg.png" dir="ltr">' +
+      '<tr><td nowrap="nowrap" bgcolor="#eeeeee">Hi</td></tr></table>';
+    expect(svc.validateForSave(html).safe).toBe(true);
+  });
+
+  it('should permit rel on links and hspace/vspace on images', async () => {
+    const svc = await loadImpl();
+    const html =
+      '<a href="https://x.com" rel="noopener" target="_blank">x</a>' +
+      '<img src="https://x.com/a.png" hspace="4" vspace="4">';
+    expect(svc.validateForSave(html).safe).toBe(true);
+  });
+
+  it('should name the offending tag in the rejection reason', async () => {
+    const svc = await loadImpl();
+    const result = svc.validateForSave('<p>ok</p><iframe src="https://x.com"></iframe>');
+    expect(result.safe).toBe(false);
+    expect(result.rejectedReason).toContain('<iframe>');
+  });
+
+  it('should name the offending attribute in the rejection reason', async () => {
+    const svc = await loadImpl();
+    const result = svc.validateForSave('<p contenteditable="true">x</p>');
+    expect(result.safe).toBe(false);
+    expect(result.rejectedReason).toContain('contenteditable');
+  });
+
+  it('should report the full name of a hyphenated disallowed tag', async () => {
+    const svc = await loadImpl();
+    const result = svc.validateForSave('<custom-element>x</custom-element>');
+    expect(result.safe).toBe(false);
+    expect(result.rejectedReason).toContain('<custom-element>');
+  });
+
+  it('should name a valueless disallowed attribute in the rejection reason', async () => {
+    const svc = await loadImpl();
+    const result = svc.validateForSave('<p contenteditable>x</p>');
+    expect(result.safe).toBe(false);
+    expect(result.rejectedReason).toContain('contenteditable');
+  });
+
+  it('should not misreport valueless ALLOWED attributes (nowrap)', async () => {
+    const svc = await loadImpl();
+    // nowrap without a value is legal minimized-attribute HTML and allowed.
+    expect(svc.validateForSave('<table><tr><td nowrap>Hi</td></tr></table>').safe).toBe(true);
+  });
+
+  it('should not misreport attribute-like text inside quoted values', async () => {
+    const svc = await loadImpl();
+    // href value contains "foo=bar" — must not be reported as attribute "foo"
+    const result = svc.validateForSave('<a href="https://x.com/?foo=bar&baz=1">link</a>');
+    expect(result.safe).toBe(true);
+  });
 });
 
 describe('HtmlSanitizerService — render profile (sanitizeForRender)', () => {

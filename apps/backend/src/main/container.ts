@@ -1222,7 +1222,7 @@ export function createContainer(logger: Logger): AppContainer {
     notificationTemplateRepo, authorizationService, auditService,
   );
   const renderTemplatePreviewUseCase = new RenderTemplatePreviewUseCase(
-    templateRenderer, htmlSanitizer, authorizationService,
+    templateRenderer, htmlSanitizer, authorizationService, tenantRepo,
   );
   const getTemplateDefaultUseCase = new GetTemplateDefaultUseCase(
     notificationTemplateRepo, authorizationService,
@@ -1230,7 +1230,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   const sendTestNotificationUseCase = new SendTestNotificationUseCase(
     notificationTemplateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
-    env.EMAIL_TEST_RECIPIENT_ALLOWLIST,
+    { email: env.EMAIL_TEST_RECIPIENT_ALLOWLIST, sms: env.SMS_TEST_RECIPIENT_ALLOWLIST },
     { htmlSanitizer, htmlToText },
   );
   const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(
