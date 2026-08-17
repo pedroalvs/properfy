@@ -195,6 +195,26 @@ describe('HtmlSanitizerService — save profile (validateForSave)', () => {
     expect(result.rejectedReason).toContain('contenteditable');
   });
 
+  it('should report the full name of a hyphenated disallowed tag', async () => {
+    const svc = await loadImpl();
+    const result = svc.validateForSave('<custom-element>x</custom-element>');
+    expect(result.safe).toBe(false);
+    expect(result.rejectedReason).toContain('<custom-element>');
+  });
+
+  it('should name a valueless disallowed attribute in the rejection reason', async () => {
+    const svc = await loadImpl();
+    const result = svc.validateForSave('<p contenteditable>x</p>');
+    expect(result.safe).toBe(false);
+    expect(result.rejectedReason).toContain('contenteditable');
+  });
+
+  it('should not misreport valueless ALLOWED attributes (nowrap)', async () => {
+    const svc = await loadImpl();
+    // nowrap without a value is legal minimized-attribute HTML and allowed.
+    expect(svc.validateForSave('<table><tr><td nowrap>Hi</td></tr></table>').safe).toBe(true);
+  });
+
   it('should not misreport attribute-like text inside quoted values', async () => {
     const svc = await loadImpl();
     // href value contains "foo=bar" — must not be reported as attribute "foo"
