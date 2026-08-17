@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import {
   formInput,
   formInputContainer,
@@ -16,22 +17,27 @@ interface TextInputProps {
   name?: string;
   autoFocus?: boolean;
   maxLength?: number;
+  onFocus?: () => void;
   'aria-label'?: string;
 }
 
-export function TextInput({
-  value,
-  onChange,
-  placeholder,
-  disabled,
-  error,
-  type = 'text',
-  id,
-  name,
-  autoFocus,
-  maxLength,
-  'aria-label': ariaLabel,
-}: TextInputProps) {
+export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function TextInput(
+  {
+    value,
+    onChange,
+    placeholder,
+    disabled,
+    error,
+    type = 'text',
+    id,
+    name,
+    autoFocus,
+    maxLength,
+    onFocus,
+    'aria-label': ariaLabel,
+  },
+  ref,
+) {
   const containerClass = disabled
     ? formInputContainerDisabled
     : error
@@ -41,6 +47,7 @@ export function TextInput({
   return (
     <div className={containerClass}>
       <input
+        ref={ref}
         type={type}
         id={id}
         name={name}
@@ -51,8 +58,9 @@ export function TextInput({
         disabled={disabled}
         autoFocus={autoFocus}
         maxLength={maxLength}
+        onFocus={onFocus}
         aria-label={ariaLabel}
       />
     </div>
   );
-}
+});

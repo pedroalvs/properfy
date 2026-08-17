@@ -37,7 +37,7 @@ const MOCK_TEMPLATES = [
   {
     id: 'tpl-02',
     tenantId: 'tenant-1',
-    rentalTenantName: 'Acme Realty',
+    tenantName: 'Acme Realty',
     templateCode: 'REMINDER_7D',
     channel: 'SMS',
     subject: '',
@@ -78,8 +78,8 @@ describe('useTemplateList', () => {
 
     expect(result.current.data).toHaveLength(2);
     expect(result.current.data[0]?.code).toBe('INSPECTION_NOTICE');
-    expect(result.current.data[0]?.rentalTenantName).toBeNull();
-    expect(result.current.data[1]?.rentalTenantName).toBe('Acme Realty');
+    expect(result.current.data[0]?.tenantName).toBeNull();
+    expect(result.current.data[1]?.tenantName).toBe('Acme Realty');
   });
 
   it('returns error state on API failure', async () => {

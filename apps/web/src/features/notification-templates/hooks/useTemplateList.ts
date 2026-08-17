@@ -45,7 +45,9 @@ export function useTemplateList(): UseTemplateListReturn {
   const templates: NotificationTemplate[] = useMemo(() => (response?.data ?? []).map((raw) => ({
     id: raw['id'] as string,
     tenantId: (raw['tenantId'] as string | null | undefined) ?? null,
-    rentalTenantName: (raw['rentalTenantName'] as string | null | undefined) ?? null,
+    // The list endpoint sends the owning agency as `tenantName` — reading the
+    // wrong key here left the Agency column permanently blank.
+    tenantName: (raw['tenantName'] as string | null | undefined) ?? null,
     code: (raw['templateCode'] ?? raw['code']) as string,
     channel: raw['channel'] as NotificationTemplate['channel'],
     subject: (raw['subject'] as string) ?? '',

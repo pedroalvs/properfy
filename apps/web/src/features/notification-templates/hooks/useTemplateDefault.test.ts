@@ -42,8 +42,8 @@ describe('useTemplateDefault', () => {
     });
 
     expect(mockGet).toHaveBeenCalledWith(
-      '/v1/notification-templates/INSPECTION_NOTICE_SMS/SMS/default',
-      { params: { query: {} } },
+      '/v1/notification-templates/{templateCode}/{channel}/default',
+      { params: { path: { templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS' }, query: {} } },
     );
   });
 
@@ -56,8 +56,8 @@ describe('useTemplateDefault', () => {
     });
 
     expect(mockGet).toHaveBeenCalledWith(
-      '/v1/notification-templates/INSPECTION_NOTICE/EMAIL/default',
-      { params: { query: { tenantId: 'tenant-1' } } },
+      '/v1/notification-templates/{templateCode}/{channel}/default',
+      { params: { path: { templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL' }, query: { tenantId: 'tenant-1' } } },
     );
   });
 

@@ -56,7 +56,7 @@ const MOCK_TEMPLATES = [
   {
     id: 'tpl-02',
     tenantId: 'tenant-1',
-    rentalTenantName: 'Acme Realty',
+    tenantName: 'Acme Realty',
     code: 'REMINDER_7D',
     channel: 'SMS',
     subject: '',
