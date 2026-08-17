@@ -51,10 +51,10 @@ export async function checkMandatoryTemplates(logger: Logger): Promise<void> {
  * is left alone (logged as skipped). Rows whose content already equals the
  * catalog get their hash stamped ("adopted") so future refreshes apply.
  */
-export async function syncPlatformTemplates(logger: Logger): Promise<void> {
+export async function syncPlatformTemplates(logger: Logger, db: typeof prisma = prisma): Promise<void> {
   try {
     const templateRenderer = new TemplateRendererService();
-    const rows = await prisma.notificationTemplate.findMany({ where: { tenant_id: null } });
+    const rows = await db.notificationTemplate.findMany({ where: { tenant_id: null } });
     const byKey = new Map(rows.map((r) => [`${r.template_code}:${r.channel}`, r]));
 
     let created = 0;
@@ -63,69 +63,87 @@ export async function syncPlatformTemplates(logger: Logger): Promise<void> {
     const skipped: string[] = [];
 
     for (const entry of PLATFORM_TEMPLATES) {
-      const content = platformTemplateEffectiveContent(entry);
-      const catalogHash = platformTemplateContentHash(content);
-      const row = byKey.get(`${entry.code}:${entry.channel}`);
+      // Per-entry isolation: one failing entry (e.g. a unique-constraint race
+      // with another instance booting concurrently) must not abort the sync of
+      // every remaining template.
+      try {
+        const content = platformTemplateEffectiveContent(entry);
+        const catalogHash = platformTemplateContentHash(content);
+        const row = byKey.get(`${entry.code}:${entry.channel}`);
 
-      if (!row) {
-        const variables = templateRenderer.extractVariables(
-          `${content.subject ?? ''} ${content.bodyText} ${content.bodyHtml ?? ''}`,
-        );
-        await prisma.notificationTemplate.create({
-          data: {
-            tenant_id: null,
-            template_code: entry.code,
-            channel: entry.channel,
-            subject: content.subject,
-            body_text: content.bodyText,
-            body_html: content.bodyHtml,
-            variables_json: variables,
-            is_active: true,
-            notification_class: resolvePlatformTemplateClass(entry),
-            seeded_content_hash: catalogHash,
-          },
-        });
-        created += 1;
-        continue;
-      }
-
-      const rowHash = platformTemplateContentHash({
-        subject: row.subject,
-        bodyText: row.body_text,
-        bodyHtml: row.body_html,
-      });
-
-      if (rowHash === catalogHash) {
-        if (row.seeded_content_hash !== catalogHash) {
-          await prisma.notificationTemplate.update({
-            where: { id: row.id },
-            data: { seeded_content_hash: catalogHash },
+        if (!row) {
+          const variables = templateRenderer.extractVariables(
+            `${content.subject ?? ''} ${content.bodyText} ${content.bodyHtml ?? ''}`,
+          );
+          await db.notificationTemplate.create({
+            data: {
+              tenant_id: null,
+              template_code: entry.code,
+              channel: entry.channel,
+              subject: content.subject,
+              body_text: content.bodyText,
+              body_html: content.bodyHtml,
+              variables_json: variables,
+              is_active: true,
+              notification_class: resolvePlatformTemplateClass(entry),
+              seeded_content_hash: catalogHash,
+            },
           });
-          adopted += 1;
+          created += 1;
+          continue;
         }
-        continue;
-      }
 
-      if (row.seeded_content_hash === rowHash) {
-        const variables = templateRenderer.extractVariables(
-          `${content.subject ?? ''} ${content.bodyText} ${content.bodyHtml ?? ''}`,
-        );
-        await prisma.notificationTemplate.update({
-          where: { id: row.id },
-          data: {
-            subject: content.subject,
-            body_text: content.bodyText,
-            body_html: content.bodyHtml,
-            variables_json: variables,
-            notification_class: resolvePlatformTemplateClass(entry),
-            seeded_content_hash: catalogHash,
-            // is_active deliberately untouched: deactivation is an operator
-            // decision, not seed content.
-          },
+        const rowHash = platformTemplateContentHash({
+          subject: row.subject,
+          bodyText: row.body_text,
+          bodyHtml: row.body_html,
         });
-        refreshed += 1;
-      } else {
-        skipped.push(`${entry.code}/${entry.channel}`);
+        const catalogClass = resolvePlatformTemplateClass(entry);
+
+        if (rowHash === catalogHash) {
+          // Content already matches the catalog — stamp the hash if missing and
+          // pick up a classification-only catalog change, which no content hash
+          // can detect.
+          if (row.seeded_content_hash !== catalogHash || row.notification_class !== catalogClass) {
+            await db.notificationTemplate.update({
+              where: { id: row.id },
+              data: { seeded_content_hash: catalogHash, notification_class: catalogClass },
+            });
+            adopted += 1;
+          }
+          continue;
+        }
+
+        if (row.seeded_content_hash === rowHash) {
+          const variables = templateRenderer.extractVariables(
+            `${content.subject ?? ''} ${content.bodyText} ${content.bodyHtml ?? ''}`,
+          );
+          await db.notificationTemplate.update({
+            where: { id: row.id },
+            data: {
+              subject: content.subject,
+              body_text: content.bodyText,
+              body_html: content.bodyHtml,
+              variables_json: variables,
+              notification_class: catalogClass,
+              seeded_content_hash: catalogHash,
+              // is_active deliberately untouched: deactivation is an operator
+              // decision, not seed content.
+            },
+          });
+          refreshed += 1;
+        } else {
+          skipped.push(`${entry.code}/${entry.channel}`);
+        }
+      } catch (entryErr) {
+        const isUniqueConflict =
+          typeof entryErr === 'object' && entryErr !== null && (entryErr as { code?: string }).code === 'P2002';
+        logger.warn(
+          { error: entryErr, templateCode: entry.code, channel: entry.channel, isUniqueConflict },
+          isUniqueConflict
+            ? 'Platform template already created by a concurrent instance — skipping'
+            : 'Could not sync one platform template — continuing with the rest',
+        );
       }
     }
 

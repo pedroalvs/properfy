@@ -16,6 +16,7 @@ import {
   PLATFORM_TEMPLATES,
   platformTemplateContentHash,
   platformTemplateEffectiveContent,
+  resolvePlatformTemplateClass,
 } from '../../../src/modules/notification/domain/platform-notification-templates';
 import type { Logger } from '../../../src/shared/infrastructure/logger';
 
@@ -33,7 +34,7 @@ function rowFor(entry: (typeof PLATFORM_TEMPLATES)[number], overrides: Record<st
     body_html: content.bodyHtml,
     variables_json: [],
     is_active: true,
-    notification_class: 'OPERATIONAL',
+    notification_class: resolvePlatformTemplateClass(entry),
     seeded_content_hash: platformTemplateContentHash(content),
     ...overrides,
   };
@@ -84,7 +85,36 @@ describe('syncPlatformTemplates', () => {
       data: Record<string, unknown>;
     };
     expect(call.where.id).toBe(`row-${entry.code}-${entry.channel}`);
-    expect(Object.keys(call.data)).toEqual(['seeded_content_hash']);
+    expect(Object.keys(call.data).sort()).toEqual(['notification_class', 'seeded_content_hash']);
+  });
+
+  it('refreshes notification_class when only the catalog classification changed', async () => {
+    const entry = PLATFORM_TEMPLATES[0];
+    const key = `${entry.code}:${entry.channel}`;
+    const staleClass = resolvePlatformTemplateClass(entry) === 'OPERATIONAL' ? 'MARKETING' : 'OPERATIONAL';
+    vi.mocked(prisma.notificationTemplate.findMany).mockResolvedValue(
+      allRows({ [key]: { notification_class: staleClass } }) as never,
+    );
+    await syncPlatformTemplates(logger);
+    expect(prisma.notificationTemplate.update).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(prisma.notificationTemplate.update).mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(call.data.notification_class).toBe(resolvePlatformTemplateClass(entry));
+  });
+
+  it('a unique-constraint race on one entry does not abort the rest of the sync', async () => {
+    const conflict = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+    vi.mocked(prisma.notificationTemplate.create)
+      .mockRejectedValueOnce(conflict)
+      .mockResolvedValue({} as never);
+    await syncPlatformTemplates(logger);
+    // First create raced and lost; every remaining catalog entry is still created.
+    expect(prisma.notificationTemplate.create).toHaveBeenCalledTimes(PLATFORM_TEMPLATES.length);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ isUniqueConflict: true }),
+      expect.any(String),
+    );
   });
 
   it('refreshes a stale row still matching its seed hash (untouched since seed)', async () => {
