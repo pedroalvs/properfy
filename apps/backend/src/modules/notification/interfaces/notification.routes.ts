@@ -13,6 +13,8 @@ import {
   overrideConsentSchema,
   testSendEmailRequestSchema,
   testSendSmsRequestSchema,
+  testSendRequestSchema,
+  testSendResponseSchema,
   templatePreviewRequestSchema,
   templatePreviewResponseSchema,
   templateDefaultQuerySchema,
@@ -320,7 +322,15 @@ export async function registerNotificationRoutes(
   });
   app.post(
     '/v1/notification-templates/:templateCode/:channel/test-send',
-    { preHandler: authenticate, config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+      schema: {
+        params: z.object({ templateCode: z.string(), channel: z.string() }),
+        body: testSendRequestSchema,
+        response: { 200: successResponseSchema(testSendResponseSchema) },
+      },
+    },
     async (request, reply) => {
       const params = testSendParam.safeParse(request.params);
       if (!params.success) {
@@ -376,7 +386,9 @@ export async function registerNotificationRoutes(
         draftBodyText: data.draftBodyText,
         actor: request.authContext!,
       });
-      return reply.status(200).send(success(result));
+      // sentAt serialized explicitly: the declared response schema is a
+      // datetime string, and the Fastify serializer throws on a raw Date.
+      return reply.status(200).send(success({ ...result, sentAt: result.sentAt.toISOString() }));
     },
   );
 

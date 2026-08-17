@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   TemplateRendererService as RendererForCacheTest,
   templateCacheSize,
+  templateCacheHas,
 } from '../../../src/modules/notification/domain/template-renderer.service';
 import { TemplateRendererService } from '../../../src/modules/notification/domain/template-renderer.service';
 
@@ -320,5 +321,22 @@ describe('template cache LRU bound', () => {
     }
     expect(templateCacheSize()).toBeLessThanOrEqual(200);
     expect(svc.render('Unique template 0 {{name}}', { name: 'y' })).toBe('Unique template 0 y');
+  });
+
+  it('evicts by recency, not insertion order (a re-used entry survives)', () => {
+    const svc = new RendererForCacheTest();
+    // Fill the cache with exactly its capacity of fresh entries, so it now
+    // contains lru-0..lru-199 in insertion order.
+    for (let i = 0; i < 200; i++) {
+      svc.render(`lru-${i} {{name}}`, { name: 'x' });
+    }
+    // Touch the OLDEST entry, marking it most-recent…
+    svc.render('lru-0 {{name}}', { name: 'x' });
+    // …then insert one more. FIFO would evict lru-0; LRU must evict lru-1.
+    svc.render('lru-fresh {{name}}', { name: 'x' });
+
+    expect(templateCacheHas('lru-0 {{name}}')).toBe(true);
+    expect(templateCacheHas('lru-1 {{name}}')).toBe(false);
+    expect(templateCacheHas('lru-fresh {{name}}')).toBe(true);
   });
 });
