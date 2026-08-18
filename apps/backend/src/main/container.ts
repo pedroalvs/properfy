@@ -188,9 +188,9 @@ import type { RentalTenantPortalRouteContainer } from '../modules/rental-tenant-
 // Inspector execution module
 import { PrismaInspectionExecutionRepository } from '../modules/inspector-execution/infrastructure/prisma-inspection-execution.repository';
 import { PrismaIdempotencyService } from '../modules/inspector-execution/infrastructure/prisma-idempotency.service';
-import { StubStorageService } from '../modules/inspector-execution/infrastructure/stub-storage.service';
+import { UnconfiguredStorageService } from '../modules/inspector-execution/infrastructure/unconfigured-storage.service';
 import { SupabaseBrandingStorageService } from '../modules/tenant/infrastructure/supabase-branding-storage.service';
-import { StubBrandingStorageService } from '../modules/tenant/infrastructure/stub-branding-storage.service';
+import { UnconfiguredBrandingStorageService } from '../modules/tenant/infrastructure/unconfigured-branding-storage.service';
 import { UploadTenantLogoUseCase } from '../modules/tenant/application/use-cases/upload-tenant-logo.use-case';
 import { DeleteTenantLogoUseCase } from '../modules/tenant/application/use-cases/delete-tenant-logo.use-case';
 import { SupabaseStorageService } from '../modules/inspector-execution/infrastructure/supabase-storage.service';
@@ -552,13 +552,13 @@ export function createContainer(logger: Logger): AppContainer {
   // S3 storage service (shared across modules)
   const storageService = s3Client
     ? new SupabaseStorageService(s3Client)
-    : new StubStorageService();
+    : new UnconfiguredStorageService();
 
   // Auth use cases
   const loginUseCase = new LoginUseCase(userRepo, sessionRepo, jwtService, totpService, auditService, inspectorRepo, totpEncryptionService, sessionTrustService);
   const refreshTokenUseCase = new RefreshTokenUseCase(userRepo, sessionRepo, jwtService, auditService, inspectorRepo);
   const logoutUseCase = new LogoutUseCase(sessionRepo, auditService);
-  const getMeUseCase = new GetMeUseCase(userRepo, inspectorRepo, storageService, tenantRepo);
+  const getMeUseCase = new GetMeUseCase(userRepo, inspectorRepo, storageService, tenantRepo, logger);
   const updateMyTimezoneUseCase = new UpdateMyTimezoneUseCase(userRepo, auditService);
   const passwordHistoryRepo = new PrismaPasswordHistoryRepository(prisma);
   const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo);
@@ -572,21 +572,20 @@ export function createContainer(logger: Logger): AppContainer {
   const domainEventBus = new DomainEventBus();
 
   // Tenant branding storage: public bucket, so uploads need the public URL base.
-  // The stub is only legitimate where S3 itself is stubbed (local dev, tests);
-  // S3 configured but no public URL base would 200 the upload and persist a
-  // fabricated stub URL into real outbound emails — warn loudly instead of
-  // failing silently.
-  if (s3Client && !env.SUPABASE_STORAGE_PUBLIC_URL) {
+  // Real uploads require BOTH an S3 client and the public URL base; missing
+  // either wires UnconfiguredBrandingStorageService, whose upload throws a clear
+  // 503 instead of persisting a fabricated logo URL. Warn at boot too so the
+  // gap is visible before anyone tries.
+  if (!s3Client || !env.SUPABASE_STORAGE_PUBLIC_URL) {
     logger.warn(
-      'SUPABASE_STORAGE_PUBLIC_URL is not set: tenant logo uploads will use the stub ' +
-        'branding storage and persist non-working logo URLs. Set it to ' +
-        'https://<project>.supabase.co/storage/v1/object/public to enable real uploads.',
+      'Tenant logo storage is not configured (SUPABASE_S3_* and SUPABASE_STORAGE_PUBLIC_URL): ' +
+        'logo uploads will return 503 until configured.',
     );
   }
   const brandingStorageService =
     s3Client && env.SUPABASE_STORAGE_PUBLIC_URL
       ? new SupabaseBrandingStorageService(s3Client, env.SUPABASE_STORAGE_PUBLIC_URL)
-      : new StubBrandingStorageService();
+      : new UnconfiguredBrandingStorageService();
 
   // Tenant use cases
   const getTenantUseCase = new GetTenantUseCase(tenantRepo);

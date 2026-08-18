@@ -66,3 +66,19 @@ export class UnprocessableEntityError extends DomainError {
     this.name = 'UnprocessableEntityError';
   }
 }
+
+/**
+ * 503 Service Unavailable — a file upload/download was attempted but object
+ * storage is not configured in this environment. Thrown instead of silently
+ * accepting the upload and returning a fabricated URL that points at nothing.
+ * Staging/production require the SUPABASE_S3_* vars at boot, so this only ever
+ * surfaces in a dev server without storage configured.
+ */
+export class StorageNotConfiguredError extends DomainError {
+  constructor(
+    message = 'File storage is not configured in this environment. Set the SUPABASE_S3_* variables to enable uploads.',
+  ) {
+    super('STORAGE_NOT_CONFIGURED', message, 503);
+    this.name = 'StorageNotConfiguredError';
+  }
+}
