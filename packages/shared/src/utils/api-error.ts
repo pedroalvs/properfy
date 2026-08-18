@@ -19,6 +19,12 @@ export const NETWORK_ERROR_STATUS = 0;
 const GENERIC_MESSAGE = 'Something went wrong. Please try again.';
 const FORBIDDEN_MESSAGE = "You don't have permission to perform this action.";
 
+/**
+ * 5xx error codes whose backend message is deliberate and safe to show the user
+ * (no internals leaked), so it bypasses the blanket 5xx-message suppression.
+ */
+const DISPLAYABLE_SERVER_ERROR_CODES = new Set<string>(['STORAGE_NOT_CONFIGURED']);
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -107,7 +113,13 @@ export function getErrorMessage(err: unknown, fallback?: string): string {
   const apiError = toApiError(err);
 
   if (isNetworkError(apiError)) return networkErrorMessage();
-  if (apiError.status >= 500 || apiError.code === 'INTERNAL_ERROR') {
+  // 5xx messages are suppressed so raw internals never surface — except a small
+  // allowlist of deliberate, operator-safe 5xx codes whose message is the whole
+  // point (e.g. "storage is not configured": actionable, no internals leaked).
+  if (
+    (apiError.status >= 500 || apiError.code === 'INTERNAL_ERROR') &&
+    !(apiError.code && DISPLAYABLE_SERVER_ERROR_CODES.has(apiError.code))
+  ) {
     return fallback ?? GENERIC_MESSAGE;
   }
 
