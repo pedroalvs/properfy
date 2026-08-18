@@ -6,6 +6,7 @@ import type { IInspectorRepository } from '../../../inspector/domain/inspector.r
 import type { IStorageService } from '../../../inspector-execution/domain/storage.service';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import { normalizeClUserPermissions } from '../../../../shared/domain/cl-user-permissions';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 
 const AVATAR_BUCKET = 'inspector-avatars';
 const AVATAR_SIGNED_URL_TTL = 900; // 15 minutes
@@ -39,6 +40,8 @@ export class GetMeUseCase {
     private readonly inspectorRepo: IInspectorRepository,
     private readonly storageService: IStorageService,
     private readonly tenantRepo: ITenantRepository,
+    /** Optional: used only to warn when an avatar URL can't be resolved. */
+    private readonly logger?: Logger,
   ) {}
 
   async execute(userId: string): Promise<GetMeOutput> {
@@ -56,11 +59,21 @@ export class GetMeUseCase {
       if (inspector) {
         inspectorId = inspector.id;
         if (inspector.photoStorageKey) {
-          inspectorPhotoUrl = await this.storageService.createSignedDownloadUrl(
-            AVATAR_BUCKET,
-            inspector.photoStorageKey,
-            AVATAR_SIGNED_URL_TTL,
-          );
+          // The avatar is non-critical enrichment: a storage read failure
+          // (e.g. storage not configured in dev, or a transient S3 error) must
+          // degrade the URL to null, never fail the whole /me session.
+          try {
+            inspectorPhotoUrl = await this.storageService.createSignedDownloadUrl(
+              AVATAR_BUCKET,
+              inspector.photoStorageKey,
+              AVATAR_SIGNED_URL_TTL,
+            );
+          } catch (error) {
+            this.logger?.warn(
+              { error, inspectorId: inspector.id },
+              'Could not resolve inspector avatar URL; returning profile without it',
+            );
+          }
         }
       }
     }
