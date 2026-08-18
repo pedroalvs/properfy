@@ -1,6 +1,9 @@
 import type { IStorageService, SignedUploadUrlResult, HeadObjectResult } from '../domain/storage.service';
 import { StorageNotConfiguredError } from '../../../shared/domain/errors';
 
+const STORAGE_MESSAGE =
+  'File storage is not configured in this environment. Set SUPABASE_S3_* to enable uploads.';
+
 /**
  * Object storage used when Supabase S3 is not configured (a dev server without
  * the SUPABASE_S3_* vars). Every operation throws instead of the old no-op
@@ -14,18 +17,18 @@ import { StorageNotConfiguredError } from '../../../shared/domain/errors';
  */
 export class UnconfiguredStorageService implements IStorageService {
   async createSignedUploadUrl(): Promise<SignedUploadUrlResult> {
-    throw new StorageNotConfiguredError();
+    throw new StorageNotConfiguredError(STORAGE_MESSAGE);
   }
 
   async headObject(): Promise<HeadObjectResult> {
-    throw new StorageNotConfiguredError();
+    throw new StorageNotConfiguredError(STORAGE_MESSAGE);
   }
 
   async createSignedDownloadUrl(): Promise<string> {
-    throw new StorageNotConfiguredError();
+    throw new StorageNotConfiguredError(STORAGE_MESSAGE);
   }
 
   async deleteObject(): Promise<void> {
-    throw new StorageNotConfiguredError();
+    throw new StorageNotConfiguredError(STORAGE_MESSAGE);
   }
 }
