@@ -6,6 +6,7 @@ import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { TemplateRendererService } from '../../domain/template-renderer.service';
 import type { IHtmlSanitizerService } from '../../domain/html-sanitizer.service';
 import type { IHtmlToTextService } from '../../domain/html-to-text.service';
@@ -65,6 +66,12 @@ export class SendTestNotificationUseCase {
       htmlSanitizer?: IHtmlSanitizerService;
       htmlToText?: IHtmlToTextService;
     },
+    /**
+     * Used to resolve the agency's real logo/name/phone when testing an agency
+     * override, so the test email matches the real send (and the preview)
+     * instead of the platform SAMPLE_DATA placeholders.
+     */
+    private readonly tenantRepo?: Pick<ITenantRepository, 'findById'>,
   ) {}
 
   async execute(input: SendTestNotificationInput): Promise<SendTestNotificationOutput> {
@@ -144,6 +151,25 @@ export class SendTestNotificationUseCase {
     for (const key of varKeys) {
       const sample = SAMPLE_DATA[key as AllowedVariable];
       if (sample !== undefined) vars[key] = sample;
+    }
+
+    // Agency override under test: replace the platform SAMPLE_DATA placeholders
+    // (agencyLogoUrl defaults to the PROPERFY logo) with the tenant's real
+    // branding, mirroring the real send (BuildNotificationPayloadService) and
+    // the preview — otherwise the test email shows the Properfy logo instead of
+    // the agency's. Only keys the template actually declares are overridden.
+    if (tenantId !== null && this.tenantRepo) {
+      const tenant = await this.tenantRepo.findById(tenantId);
+      if (tenant) {
+        const settings = tenant.settingsJson ?? {};
+        if ('agencyName' in vars) vars.agencyName = tenant.name;
+        if ('agencyLogoUrl' in vars) {
+          vars.agencyLogoUrl = typeof settings.logoUrl === 'string' ? settings.logoUrl : '';
+        }
+        if ('agencyPhone' in vars) {
+          vars.agencyPhone = typeof settings.contactPhone === 'string' ? settings.contactPhone : '';
+        }
+      }
     }
 
     let messageId: string;
