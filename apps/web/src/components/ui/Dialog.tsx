@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { lockBodyScroll } from '@/lib/body-scroll-lock';
 
 interface DialogProps {
   open: boolean;
@@ -40,7 +41,15 @@ export function Dialog({
     // Focus trap: focus the dialog on open
     dialogRef.current?.focus();
 
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    // Lock the page scroll while the dialog is open so wheel events at the end
+    // of the dialog body don't chain to (and scroll) the page behind it.
+    // Reference-counted: a dialog stacked over a drawer releases in any order.
+    const releaseScrollLock = lockBodyScroll();
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      releaseScrollLock();
+    };
   }, [open]);
 
   if (!open) return null;

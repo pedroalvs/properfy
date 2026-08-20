@@ -158,11 +158,6 @@ const IDS = {
   exec1: stableSeedUuid('exec1'),
   exec2: stableSeedUuid('exec2'),
   exec3: stableSeedUuid('exec3'),
-  // Inspection assets
-  asset1: stableSeedUuid('asset1'),
-  asset2: stableSeedUuid('asset2'),
-  asset3: stableSeedUuid('asset3'),
-  asset4: stableSeedUuid('asset4'),
   // Notifications
   notif1: stableSeedUuid('notif1'),
   notif2: stableSeedUuid('notif2'),
@@ -1240,73 +1235,11 @@ async function main() {
   });
   console.log('Inspection executions: 3 created (2 finished, 1 in-progress)');
 
-  // ─── INSPECTION ASSETS ────────────────────────────────────────────────────
-
-  await prisma.inspectionAsset.upsert({
-    where: { storage_key: 'executions/exec1/photo-bathroom-ceiling.jpg' },
-    update: {},
-    create: {
-      id: IDS.asset1,
-      appointment_id: IDS.apptDone,
-      inspection_execution_id: IDS.exec1,
-      storage_key: 'executions/exec1/photo-bathroom-ceiling.jpg',
-      mime_type: 'image/jpeg',
-      size_bytes: 2048000,
-      kind: 'PHOTO',
-      status: 'UPLOADED',
-      uploaded_by: IDS.userINSP,
-    },
-  });
-
-  await prisma.inspectionAsset.upsert({
-    where: { storage_key: 'executions/exec1/signature-tenant.png' },
-    update: {},
-    create: {
-      id: IDS.asset2,
-      appointment_id: IDS.apptDone,
-      inspection_execution_id: IDS.exec1,
-      storage_key: 'executions/exec1/signature-tenant.png',
-      mime_type: 'image/png',
-      size_bytes: 45000,
-      kind: 'SIGNATURE',
-      status: 'UPLOADED',
-      uploaded_by: IDS.userINSP,
-    },
-  });
-
-  await prisma.inspectionAsset.upsert({
-    where: { storage_key: 'executions/exec2/photo-living-room.jpg' },
-    update: {},
-    create: {
-      id: IDS.asset3,
-      appointment_id: IDS.apptScheduled,
-      inspection_execution_id: IDS.exec2,
-      storage_key: 'executions/exec2/photo-living-room.jpg',
-      mime_type: 'image/jpeg',
-      size_bytes: 0,
-      kind: 'PHOTO',
-      status: 'PENDING',
-      uploaded_by: IDS.userINSP,
-      upload_expires_at: new Date(Date.now() + 30 * 60000),
-    },
-  });
-
-  await prisma.inspectionAsset.upsert({
-    where: { storage_key: 'executions/exec1/report-document.pdf' },
-    update: {},
-    create: {
-      id: IDS.asset4,
-      appointment_id: IDS.apptDone,
-      inspection_execution_id: IDS.exec1,
-      storage_key: 'executions/exec1/report-document.pdf',
-      mime_type: 'application/pdf',
-      size_bytes: 0,
-      kind: 'DOCUMENT',
-      status: 'UPLOAD_FAILED',
-      uploaded_by: IDS.userINSP,
-    },
-  });
-  console.log('Inspection assets: 4 created (UPLOADED, PENDING, UPLOAD_FAILED)');
+  // NOTE: no inspection-asset seed — the InspectionAsset table was never carried
+  // into the v1 baseline schema (evidence upload is a deferred spec-008 feature,
+  // not built). The old `prisma.inspectionAsset.upsert` block referenced a model
+  // that does not exist and crashed the whole seed; it was removed. See
+  // specs/008-inspectors-execution for the deferred design.
 
   // ─── TENANT PORTAL TOKENS ─────────────────────────────────────────────────
 

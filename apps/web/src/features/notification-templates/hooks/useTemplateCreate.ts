@@ -1,26 +1,14 @@
 import { useCallback } from 'react';
 import { useTemplateSave, type SaveResult, type UseTemplateSaveReturn } from './useTemplateSave';
 import {
-  EMPTY_TEMPLATE_CREATE_FORM,
   inferChannelFromCode,
-  type NotificationTemplate,
   type TemplateFormData,
   type TemplateFormErrors,
 } from '../types';
 
-/**
- * Seeds the create form from the platform default for a given code, so an agency
- * edits a copy rather than starting blank. Returns an empty form when no default
- * exists for that code. Pure — reads from the already-loaded list, no fetch.
- */
-export function prefillFromDefault(
-  code: string,
-  platformDefaults: NotificationTemplate[],
-): TemplateFormData {
-  const base = platformDefaults.find((t) => t.tenantId === null && t.code === code);
-  if (!base) return { ...EMPTY_TEMPLATE_CREATE_FORM };
-  return { subject: base.subject, body: base.body, active: true };
-}
+// Prefill of the create form now goes through GET .../default (see
+// TemplateCreateDrawer.handleCodeChange) — the old list-cache-based
+// prefillFromDefault could seed from a filtered or stale list.
 
 export interface UseTemplateCreateReturn {
   /** Creates an override via the upsert endpoint (channel derived from the code). */

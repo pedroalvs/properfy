@@ -7,7 +7,8 @@ import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenan
 import { UserEntity } from '../../../src/modules/auth/domain/user.entity';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
-import { UnauthorizedError } from '../../../src/shared/domain/errors';
+import { UnauthorizedError, StorageNotConfiguredError } from '../../../src/shared/domain/errors';
+import type { Logger } from '../../../src/shared/infrastructure/logger';
 
 function makeUser(
   overrides: Partial<ConstructorParameters<typeof UserEntity>[0]> = {},
@@ -205,6 +206,24 @@ describe('GetMeUseCase', () => {
     expect(result.inspectorPhotoUrl).toBe(
       'https://storage.example.com/inspector-avatars/inspectors/inspector-1/avatar.jpg?sig=abc',
     );
+  });
+
+  it('degrades photoUrl to null (does not throw /me) when the storage read fails', async () => {
+    const user = makeUser({ id: 'user-insp-1', role: 'INSP', tenantId: null });
+    const inspector = makeInspector({ photoStorageKey: 'inspectors/inspector-1/avatar.jpg' });
+    vi.mocked(userRepo.findById).mockResolvedValue(user);
+    vi.mocked(inspectorRepo.findByUserId).mockResolvedValue(inspector);
+    vi.mocked(storageService.createSignedDownloadUrl).mockRejectedValue(
+      new StorageNotConfiguredError(),
+    );
+    const logger = { warn: vi.fn() } as unknown as Logger;
+    const uc = new GetMeUseCase(userRepo, inspectorRepo, storageService, tenantRepo, logger);
+
+    const result = await uc.execute('user-insp-1');
+
+    expect(result.inspectorId).toBe('inspector-1');
+    expect(result.inspectorPhotoUrl).toBeNull();
+    expect(logger.warn).toHaveBeenCalled();
   });
 
   it('should return null inspectorId when INSP user has no linked inspector', async () => {

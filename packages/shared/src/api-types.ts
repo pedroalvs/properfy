@@ -11250,14 +11250,36 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        recipientEmail?: string;
+                        recipientPhone?: string;
+                        /** Format: uuid */
+                        tenantId?: string;
+                        draftSubject?: string;
+                        draftBodyHtml?: string;
+                        draftBodyText?: string;
+                    };
+                };
+            };
             responses: {
                 /** @description Default Response */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: {
+                                messageId: string;
+                                recipient: string;
+                                /** Format: date-time */
+                                sentAt: string;
+                            };
+                        };
+                    };
                 };
             };
         };
@@ -11414,6 +11436,7 @@ export interface paths {
                             data: {
                                 subjectRendered: string;
                                 htmlRendered: string;
+                                renderError?: string;
                             };
                         };
                     };

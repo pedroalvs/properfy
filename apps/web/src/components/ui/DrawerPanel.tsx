@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { lockBodyScroll } from '@/lib/body-scroll-lock';
 
 type DrawerSize = 'narrow' | 'wide';
 
@@ -25,6 +26,15 @@ export function DrawerPanel({ open, onClose, size = 'narrow', ariaLabel, childre
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose]);
+
+  // Lock the page scroll while the drawer is open — without this, reaching the
+  // end of the drawer's own scroll area chains the wheel to the document and
+  // the page behind visibly moves. Reference-counted so stacked overlays
+  // (dialog above drawer) release in any order without unlocking early.
+  useEffect(() => {
+    if (!open) return;
+    return lockBodyScroll();
+  }, [open]);
 
   return (
     <>

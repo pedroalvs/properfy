@@ -38,14 +38,17 @@ export function useTemplateDefault(): UseTemplateDefaultReturn {
   ): Promise<TemplateDefaultResult | null> => {
     setIsLoading(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (api as any).GET(
-        `/v1/notification-templates/${code}/${channel}/default`,
-        { params: { query: tenantId ? { tenantId } : {} } },
+      const { data, error } = await api.GET(
+        '/v1/notification-templates/{templateCode}/{channel}/default',
+        {
+          params: {
+            path: { templateCode: code, channel },
+            query: tenantId ? { tenantId } : {},
+          },
+        },
       );
       if (error || !data) return null;
-      const result = data as { data?: TemplateDefaultResult };
-      return result.data ?? null;
+      return data.data ?? null;
     } catch {
       return null;
     } finally {

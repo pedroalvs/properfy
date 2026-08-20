@@ -139,4 +139,20 @@ describe('Dialog', () => {
     );
     expect(screen.getByRole('button', { name: 'Salvar' })).toBeInTheDocument();
   });
+
+  it('locks the page scroll while open and restores it on close', () => {
+    const { rerender } = render(
+      <Dialog open onClose={() => {}} title="Test">
+        <p>Body</p>
+      </Dialog>,
+    );
+    expect(document.body.style.overflow).toBe('hidden');
+
+    rerender(
+      <Dialog open={false} onClose={() => {}} title="Test">
+        <p>Body</p>
+      </Dialog>,
+    );
+    expect(document.body.style.overflow).toBe('');
+  });
 });

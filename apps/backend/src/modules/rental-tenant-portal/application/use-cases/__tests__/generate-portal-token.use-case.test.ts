@@ -103,7 +103,9 @@ function makeUseCase(options: {
     }),
   };
   const tenantRepo = {
-    findById: vi.fn().mockResolvedValue({ id: 'tenant-1', name: 'Test Agency' }),
+    // settingsJson matches the real TenantEntity shape (never undefined) — the
+    // payload is now built by BuildNotificationPayloadService, which reads it.
+    findById: vi.fn().mockResolvedValue({ id: 'tenant-1', name: 'Test Agency', settingsJson: {} }),
   };
   const mintPortalTokenService = {
     mint: vi.fn().mockResolvedValue({ rawToken: 'raw-token-abc', tokenId: 'token-1', expiresAt: new Date(Date.now() + 86400000) }),
