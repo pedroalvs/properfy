@@ -1231,6 +1231,7 @@ export function createContainer(logger: Logger): AppContainer {
     notificationTemplateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
     { email: env.EMAIL_TEST_RECIPIENT_ALLOWLIST, sms: env.SMS_TEST_RECIPIENT_ALLOWLIST },
     { htmlSanitizer, htmlToText },
+    tenantRepo,
   );
   const listNotificationTemplatesUseCase = new ListNotificationTemplatesUseCase(
     notificationTemplateRepo, authorizationService,

@@ -6,6 +6,7 @@ import type { IEmailProvider, ISmsProvider } from '../../../src/modules/notifica
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { NotificationTemplateEntity } from '../../../src/modules/notification/domain/notification-template.entity';
+import { SAMPLE_DATA } from '@properfy/shared';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import { TemplateNotFoundError, NotificationForbiddenError } from '../../../src/modules/notification/domain/notification.errors';
@@ -332,6 +333,77 @@ describe('SendTestNotificationUseCase', () => {
       useCase.execute({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', recipient: '+61412345678', actor: makeActor() }),
     ).rejects.toThrow(ValidationError);
     expect(smsProvider.send).not.toHaveBeenCalled();
+  });
+
+  // ── Agency branding in test email (mirrors real send, not SAMPLE_DATA) ──────
+
+  describe('agency logo/name/phone from tenant settings', () => {
+    const tenantRepo = {
+      findById: vi.fn(),
+    };
+
+    function makeUseCase() {
+      const authorizationService = new AuthorizationService(auditService);
+      return new SendTestNotificationUseCase(
+        templateRepo, templateRenderer, emailProvider, smsProvider, auditService, authorizationService,
+        undefined, undefined, tenantRepo,
+      );
+    }
+
+    beforeEach(() => {
+      tenantRepo.findById.mockReset();
+    });
+
+    it('overrides agencyLogoUrl/agencyName/agencyPhone with the tenant branding when testing an agency override', async () => {
+      tenantRepo.findById.mockResolvedValue({
+        id: 'tenant-x',
+        name: 'Amecrim Realty',
+        settingsJson: { logoUrl: 'https://cdn.example.com/amecrim.png', contactPhone: '+61298765432' },
+      });
+      // INSPECTION_NOTICE declares agencyName/agencyLogoUrl/agencyPhone as optional vars.
+      vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ tenantId: 'tenant-x' }),
+      );
+      vi.mocked(templateRenderer.render).mockReset().mockImplementation((_src, v) => JSON.stringify(v));
+
+      await makeUseCase().execute({
+        templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com',
+        tenantId: 'tenant-x', actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(tenantRepo.findById).toHaveBeenCalledWith('tenant-x');
+      const [, passedVars] = vi.mocked(templateRenderer.render).mock.calls[0] as [unknown, Record<string, string>];
+      expect(passedVars.agencyLogoUrl).toBe('https://cdn.example.com/amecrim.png');
+      expect(passedVars.agencyName).toBe('Amecrim Realty');
+      expect(passedVars.agencyPhone).toBe('+61298765432');
+      // Never the Properfy sample logo for an agency override.
+      expect(passedVars.agencyLogoUrl).not.toBe(SAMPLE_DATA.agencyLogoUrl);
+    });
+
+    it('sets agencyLogoUrl to empty when the tenant has no logo (real-send parity → properfy fallback)', async () => {
+      tenantRepo.findById.mockResolvedValue({ id: 'tenant-x', name: 'No Logo Co', settingsJson: {} });
+      vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate({ tenantId: 'tenant-x' }));
+      vi.mocked(templateRenderer.render).mockReset().mockImplementation((_src, v) => JSON.stringify(v));
+
+      await makeUseCase().execute({
+        templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com',
+        tenantId: 'tenant-x', actor: makeActor({ role: 'AM' }),
+      });
+
+      const [, passedVars] = vi.mocked(templateRenderer.render).mock.calls[0] as [unknown, Record<string, string>];
+      expect(passedVars.agencyLogoUrl).toBe('');
+    });
+
+    it('keeps SAMPLE_DATA branding for a platform template test (tenantId null)', async () => {
+      vi.mocked(templateRenderer.render).mockReset().mockImplementation((_src, v) => JSON.stringify(v));
+      await makeUseCase().execute({
+        templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com',
+        actor: makeActor({ role: 'AM' }),
+      });
+      expect(tenantRepo.findById).not.toHaveBeenCalled();
+      const [, passedVars] = vi.mocked(templateRenderer.render).mock.calls[0] as [unknown, Record<string, string>];
+      expect(passedVars.agencyLogoUrl).toBe(SAMPLE_DATA.agencyLogoUrl);
+    });
   });
 
   // ── Explicit tenant scope (input.tenantId) ─────────────────────────────────
