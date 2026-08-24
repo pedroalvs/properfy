@@ -69,6 +69,7 @@ Start an inspection.
     "startedAt": "ISO-8601",
     "startLatitude": -33.8688,
     "startLongitude": 151.2093,
+    "geolocationDistanceMeters": 12.5,
     "status": "IN_PROGRESS"
   }
 }
@@ -153,8 +154,7 @@ Finish an inspection. Triggers `SCHEDULED → DONE` via feature 006 `ExecuteStat
     "appointmentId": "<uuid>",
     "startedAt": "ISO-8601",
     "finishedAt": "ISO-8601",
-    "appointmentStatus": "DONE",
-    "assetsCount": 6
+    "appointmentStatus": "DONE"
   }
 }
 ```
