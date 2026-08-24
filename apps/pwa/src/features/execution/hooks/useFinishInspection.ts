@@ -5,13 +5,10 @@ import { getOrCreateIdempotencyKey } from '@/lib/idempotency';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import { enqueueAction } from '../lib/indexeddb';
 import type { CapturedLocation } from '../types';
-import type { ChecklistResponse } from '../types';
 
 interface FinishInput {
   appointmentId: string;
   location: CapturedLocation;
-  checklist: ChecklistResponse[];
-  notes: string;
 }
 
 interface FinishResponse {
@@ -24,18 +21,12 @@ export function useFinishInspection() {
   const isOnline = useIsOnline();
 
   return useMutation<{ data: FinishResponse }, ApiError, FinishInput>({
-    mutationFn: async ({ appointmentId, location, checklist, notes }) => {
+    mutationFn: async ({ appointmentId, location }) => {
       const idempotencyKey = getOrCreateIdempotencyKey(`finish-${appointmentId}`);
-
-      const checklistJson = Object.fromEntries(
-        checklist.map((r) => [r.itemId, r.value]),
-      );
 
       const body = {
         latitude: location.latitude,
         longitude: location.longitude,
-        checklistJson,
-        notes,
       };
 
       if (!isOnline) {

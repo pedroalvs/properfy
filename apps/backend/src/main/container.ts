@@ -200,7 +200,6 @@ import { GetInspectorScheduleUseCase } from '../modules/inspector-execution/appl
 import { GetAppointmentDetailUseCase } from '../modules/inspector-execution/application/use-cases/get-appointment-detail.use-case';
 import { StartInspectionUseCase } from '../modules/inspector-execution/application/use-cases/start-inspection.use-case';
 import { FinishInspectionUseCase } from '../modules/inspector-execution/application/use-cases/finish-inspection.use-case';
-import { SaveExecutionProgressUseCase } from '../modules/inspector-execution/application/use-cases/save-execution-progress.use-case';
 import { ReopenExecutionUseCase } from '../modules/inspector-execution/application/use-cases/reopen-execution.use-case';
 import type { InspectorExecutionRouteContainer } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
 
@@ -945,9 +944,6 @@ export function createContainer(logger: Logger): AppContainer {
   const getInspectorEarningsSummaryUseCase = new GetInspectorEarningsSummaryUseCase(financialEntryRepo);
   const previewInvoiceUseCase = new PreviewInvoiceUseCase(inspectorRepo, financialEntryRepo);
   const requestInvoiceUseCase = new RequestInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, inspectorRepo, auditService);
-  const saveExecutionProgressUseCase = new SaveExecutionProgressUseCase(
-    inspectionExecutionRepo, authorizationService,
-  );
   const reopenExecutionUseCase = new ReopenExecutionUseCase(
     inspectionExecutionRepo, appointmentRepo, auditService, authorizationService,
   );
@@ -1622,7 +1618,6 @@ export function createContainer(logger: Logger): AppContainer {
       getAppointmentDetailUseCase,
       startInspectionUseCase,
       finishInspectionUseCase,
-      saveExecutionProgressUseCase,
       reopenExecutionUseCase,
       getMarketplaceOffersUseCase,
       getAvailablePeriodsUseCase,

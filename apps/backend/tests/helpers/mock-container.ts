@@ -222,7 +222,6 @@ export function createMockContainer(
       getAppointmentDetailUseCase: { execute: vi.fn() },
       startInspectionUseCase: { execute: vi.fn() },
       finishInspectionUseCase: { execute: vi.fn() },
-      saveExecutionProgressUseCase: { execute: vi.fn() },
       reopenExecutionUseCase: { execute: vi.fn() },
       getMarketplaceOffersUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },

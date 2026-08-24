@@ -6,11 +6,10 @@ import {
   startInspectionSchema,
   finishInspectionSchema,
   reopenExecutionSchema,
-  saveExecutionProgressSchema,
   inspectorScheduleResponseSchema,
   inspectorScheduleMonthItemSchema,
   inspectorScheduleMonthResponseSchema,
-  inspectionExecutionResponseSchema,
+  finishInspectionResponseSchema,
   startInspectionResponseSchema,
   inspectorAppointmentDetailResponseSchema,
   successResponseSchema,
@@ -26,7 +25,6 @@ import type { GetInspectorScheduleUseCase } from '../application/use-cases/get-i
 import type { GetAppointmentDetailUseCase } from '../application/use-cases/get-appointment-detail.use-case';
 import type { StartInspectionUseCase } from '../application/use-cases/start-inspection.use-case';
 import type { FinishInspectionUseCase } from '../application/use-cases/finish-inspection.use-case';
-import type { SaveExecutionProgressUseCase } from '../application/use-cases/save-execution-progress.use-case';
 import type { ReopenExecutionUseCase } from '../application/use-cases/reopen-execution.use-case';
 import type { GetMarketplaceOffersUseCase } from '../../service-group/application/use-cases/get-marketplace-offers.use-case';
 import type { GetAvailablePeriodsUseCase } from '../../billing/application/use-cases/get-available-periods.use-case';
@@ -50,7 +48,6 @@ export interface InspectorExecutionRouteContainer {
   getAppointmentDetailUseCase: GetAppointmentDetailUseCase;
   startInspectionUseCase: StartInspectionUseCase;
   finishInspectionUseCase: FinishInspectionUseCase;
-  saveExecutionProgressUseCase: SaveExecutionProgressUseCase;
   reopenExecutionUseCase: ReopenExecutionUseCase;
   getMarketplaceOffersUseCase: GetMarketplaceOffersUseCase;
   getAvailablePeriodsUseCase: GetAvailablePeriodsUseCase;
@@ -177,7 +174,7 @@ export async function registerInspectorExecutionRoutes(
   // POST /v1/inspector/appointments/:appointmentId/finish
   app.post(
     '/v1/inspector/appointments/:appointmentId/finish',
-    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), body: finishInspectionSchema, response: { 200: successResponseSchema(inspectionExecutionResponseSchema) } } },
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), body: finishInspectionSchema, response: { 200: successResponseSchema(finishInspectionResponseSchema) } } },
     async (request, reply) => {
       const params = appointmentIdParam.safeParse(request.params);
       if (!params.success) {
@@ -216,28 +213,6 @@ export async function registerInspectorExecutionRoutes(
       const result = await container.reopenExecutionUseCase.execute({
         appointmentId: params.data.appointmentId,
         reason: parsed.data.reason,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // PATCH /v1/inspector/appointments/:appointmentId/execution
-  app.patch(
-    '/v1/inspector/appointments/:appointmentId/execution',
-    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }) } },
-    async (request, reply) => {
-      const params = appointmentIdParam.safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid appointment ID', params.error.errors);
-      }
-      const parsed = saveExecutionProgressSchema.safeParse(request.body);
-      if (!parsed.success) {
-        throw new ValidationError('Request payload is invalid', parsed.error.errors);
-      }
-      const result = await container.saveExecutionProgressUseCase.execute({
-        appointmentId: params.data.appointmentId,
-        ...parsed.data,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

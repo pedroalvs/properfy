@@ -1197,8 +1197,6 @@ async function main() {
       start_longitude: 151.2022,
       finish_latitude: -33.8270,
       finish_longitude: 151.2025,
-      checklist_json: { items: ['Smoke alarms', 'Water damage', 'HVAC', 'Locks'], completed: [true, false, true, true] },
-      notes: 'Minor water stain on bathroom ceiling noted. All other items in good condition.',
     },
   });
 
@@ -1216,7 +1214,6 @@ async function main() {
       started_at: new Date(),
       start_latitude: -33.8389,
       start_longitude: 151.2074,
-      checklist_json: { items: ['Smoke alarms', 'Water damage', 'HVAC', 'Locks'], completed: [] },
     },
   });
 
@@ -1234,8 +1231,6 @@ async function main() {
       start_longitude: 144.9675,
       finish_latitude: -37.8306,
       finish_longitude: 144.9677,
-      checklist_json: { items: ['Smoke alarms', 'Water damage', 'Fixtures', 'Locks'], completed: [true, true, true, true] },
-      notes: 'Property in excellent condition. All items pass.',
     },
   });
   console.log('Inspection executions: 3 created (2 finished, 1 in-progress)');

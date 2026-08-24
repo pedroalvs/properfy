@@ -9175,10 +9175,6 @@ export interface paths {
                     "application/json": {
                         latitude: number;
                         longitude: number;
-                        checklistJson?: {
-                            [key: string]: unknown;
-                        };
-                        notes?: string;
                     };
                 };
             };
@@ -9192,23 +9188,13 @@ export interface paths {
                         "application/json": {
                             data: {
                                 /** Format: uuid */
-                                id: string;
+                                executionId: string;
                                 /** Format: uuid */
                                 appointmentId: string;
-                                /** Format: uuid */
-                                inspectorId: string;
                                 startedAt: string;
-                                finishedAt: (string) | null;
-                                resumedAt: (string) | null;
-                                startLatitude: number;
-                                startLongitude: number;
-                                finishLatitude: number | null;
-                                finishLongitude: number | null;
-                                geolocationDistanceMeters: number | null;
-                                checklistJson?: unknown;
-                                notes: string | null;
-                                createdAt: string;
-                                updatedAt: string;
+                                finishedAt: string;
+                                /** @enum {string} */
+                                appointmentStatus: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
                             };
                         };
                     };
@@ -9260,41 +9246,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/v1/inspector/appointments/{appointmentId}/execution": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    appointmentId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
         trace?: never;
     };
     "/v1/inspector/offers": {

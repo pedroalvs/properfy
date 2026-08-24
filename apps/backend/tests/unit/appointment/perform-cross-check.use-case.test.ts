@@ -59,8 +59,6 @@ function makeExecution(overrides: Partial<ConstructorParameters<typeof Inspectio
     finishLatitude: -1,
     finishLongitude: -1,
     geolocationDistanceMeters: null,
-    checklistJson: {},
-    notes: null,
     createdAt: new Date('2026-04-15T09:00:00Z'),
     updatedAt: new Date('2026-04-15T09:30:00Z'),
     ...overrides,

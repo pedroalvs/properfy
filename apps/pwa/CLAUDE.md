@@ -67,7 +67,7 @@ apps/pwa/
 │   │   ├── auth/               # Login, session
 │   │   ├── offers/             # Marketplace offers list, accept flow
 │   │   ├── schedule/           # Daily schedule, appointment list
-│   │   ├── execution/          # Start/finish inspection, checklist, evidence upload
+│   │   ├── execution/          # Start/finish inspection (geolocation capture)
 │   │   ├── appointments/       # Appointment details, contact info, restrictions
 │   │   └── earnings/           # Financial summary, inspector invoice history
 │   ├── services/               # API clients (generated from OpenAPI)
@@ -115,11 +115,10 @@ apps/pwa/
 **Finish inspection:**
 
 - `POST /v1/inspector/appointments/:appointmentId/finish`
-- Capture: `latitude`, `longitude`, `checklist` (JSON), `notes`, `assets` (photos/files)
-- Evidence upload via signed URLs (Supabase Storage)
-- Checklist completion validation before allowing finish
+- Capture: `latitude`, `longitude` (Geolocation API)
+- Finish is geolocation + timestamp only (scope 7.5). There is no inspector checklist or finish-notes capture.
 
-**Execution flow:** `SCHEDULED → start (capture geo) → execute checklist → upload evidence → finish (capture geo) → DONE`
+**Execution flow:** `SCHEDULED → start (capture geo) → finish (capture geo) → DONE`
 
 ### 4.4 Appointment details
 
@@ -243,7 +242,7 @@ Every screen must handle:
 When you (Claude Code) implement or modify PWA code:
 
 1. **Mobile-first always** – design for phone screen first, then adapt up.
-2. **Respect the execution flow** – `SCHEDULED → start → checklist → evidence → finish → DONE`.
+2. **Respect the execution flow** – `SCHEDULED → start (capture geo) → finish (capture geo) → DONE`.
 3. **Geolocation is critical** – always handle permission, errors and fallbacks.
 4. **Offline support** – cached schedule, queued actions, clear feedback.
 5. **Share types from `packages/shared`** for enums, IDs and DTOs.
