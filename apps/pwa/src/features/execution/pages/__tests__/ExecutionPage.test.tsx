@@ -225,9 +225,7 @@ describe('ExecutionPage', () => {
     const user = userEvent.setup();
     const updateState = vi.fn();
     const clearState = vi.fn();
-    mockFinishMutateAsync.mockResolvedValueOnce({
-      data: { appointmentId: 'apt-1', status: 'QUEUED' },
-    });
+    mockFinishMutateAsync.mockResolvedValueOnce({ queued: true });
 
     mockUseLocalExecutionState.mockReturnValue({
       state: {
@@ -346,9 +344,7 @@ describe('ExecutionPage', () => {
         clearState: vi.fn(),
         isRestored: true,
       });
-      mockFinishMutateAsync.mockResolvedValue({
-        data: { appointmentId: 'apt-1', status: 'DONE' },
-      });
+      mockFinishMutateAsync.mockResolvedValue({ queued: false });
     });
 
     it('submits immediately without modals when there is no link and the window has not passed', async () => {

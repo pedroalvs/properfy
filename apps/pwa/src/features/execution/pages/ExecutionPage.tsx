@@ -163,7 +163,7 @@ export function ExecutionPage() {
         appointmentId,
         location,
       });
-      const queuedOffline = result.data.status === 'QUEUED';
+      const queuedOffline = result.queued;
       updateState({
         phase: 'DONE',
         pendingSync: queuedOffline,

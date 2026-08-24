@@ -211,7 +211,7 @@ apps/pwa/
 - Upload via signed URLs to Supabase Storage
 - Show upload progress
 - Retry on failure
-- Validate minimum evidence before allowing inspection finish
+- Evidence uploads are optional and are NOT a prerequisite for finishing — finish is geolocation + timestamp only (see §4.3)
 - Compress images before upload (reduce bandwidth)
 
 ---
