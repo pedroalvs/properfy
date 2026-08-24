@@ -349,6 +349,13 @@ describe('ExecutionPage', () => {
 
     it('submits immediately without modals when there is no link and the window has not passed', async () => {
       const user = userEvent.setup();
+      const updateState = vi.fn();
+      mockUseLocalExecutionState.mockReturnValue({
+        state: finishingState,
+        updateState,
+        clearState: vi.fn(),
+        isRestored: true,
+      });
       mockAppointment();
 
       renderPage();
@@ -357,6 +364,12 @@ describe('ExecutionPage', () => {
       await waitFor(() => expect(mockFinishMutateAsync).toHaveBeenCalledOnce());
       expect(screen.queryByTestId('sync-confirm-modal')).not.toBeInTheDocument();
       expect(screen.queryByTestId('past-time-confirm-modal')).not.toBeInTheDocument();
+      // Online finish ({ queued: false }) must land in DONE without a pending sync.
+      await waitFor(() =>
+        expect(updateState).toHaveBeenCalledWith(
+          expect.objectContaining({ phase: 'DONE', pendingSync: false, errorMessage: null }),
+        ),
+      );
     });
 
     it('shows the sync modal before submitting when the appointment has an Inspection App link', async () => {
