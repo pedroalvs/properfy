@@ -161,7 +161,14 @@ export class SanitizeHtmlService implements IHtmlSanitizerService {
     if (onMatch) {
       return { safe: false, rejectedReason: `Disallowed event handler: ${onMatch[0].trim()}` };
     }
-    const jsMatch = /href\s*=\s*["']?javascript:/i.exec(html);
+    // A javascript: scheme on ANY URL-bearing attribute (not just href) earns
+    // the specific reason — otherwise background/poster/etc. would fall through
+    // to the generic message even though the sanitize diff already rejected them.
+    const jsSchemeRe = new RegExp(
+      `\\b(?:${ALLOWED_SCHEMES_APPLIED_TO_ATTRIBUTES.join('|')})\\s*=\\s*["']?\\s*javascript:`,
+      'i',
+    );
+    const jsMatch = jsSchemeRe.exec(html);
     if (jsMatch) {
       return { safe: false, rejectedReason: 'Disallowed URL scheme: javascript:' };
     }

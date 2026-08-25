@@ -179,6 +179,7 @@ describe('HtmlSanitizerService — save profile (validateForSave)', () => {
     // attribute and must be scheme-checked just like href/src.
     const result = svc.validateForSave('<td background="javascript:alert(1)">x</td>');
     expect(result.safe).toBe(false);
+    expect(result.rejectedReason).toMatch(/javascript:/i);
   });
 
   it('should permit rel on links and hspace/vspace on images', async () => {

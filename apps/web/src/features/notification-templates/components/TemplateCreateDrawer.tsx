@@ -69,8 +69,16 @@ export function TemplateCreateDrawer({
   const [showTestDialog, setShowTestDialog] = useState(false);
   const [showTestSmsDialog, setShowTestSmsDialog] = useState(false);
 
-  // Reset everything whenever the drawer opens.
+  // Guards against a stale default response landing after the operator has moved
+  // on — switched code, edited content, or closed and reopened the drawer. Any
+  // of those bumps the sequence so an in-flight fetchDefault result is ignored.
+  const prefillSeqRef = useRef(0);
+
+  // Reset everything whenever the drawer opens or closes.
   useEffect(() => {
+    // A new session invalidates any request still in flight from the last one,
+    // so it cannot populate the freshly blanked form.
+    prefillSeqRef.current += 1;
     if (open) {
       setSelectedCode('');
       setSelectedTenantId('');
@@ -91,10 +99,6 @@ export function TemplateCreateDrawer({
     () => (varSpec ? [...varSpec.required, ...varSpec.optional] : undefined),
     [varSpec],
   );
-
-  // Guards against an older default response landing after the operator has
-  // already switched to another code.
-  const prefillSeqRef = useRef(0);
 
   const handleCodeChange = useCallback(
     (code: string) => {
