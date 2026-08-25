@@ -30,11 +30,23 @@ const ALLOWED_ATTRS: Record<string, string[]> = {
 
 const ALLOWED_SCHEMES = ['http', 'https', 'mailto'];
 
+// sanitize-html only runs its scheme check (naughtyHref) against attributes named
+// here; its default list is href/src/cite. `background` accepts a URL too, so
+// without it a value like background="javascript:..." would slip past validation
+// (GHSA-vccv-cmxp-4j9h / CVE-2026-53606, present up to sanitize-html 2.17.4).
+// Listing every URL-bearing attribute we allow — plus the ones the advisory
+// flags — keeps the gate in place regardless of the resolved library version.
+const ALLOWED_SCHEMES_APPLIED_TO_ATTRIBUTES = [
+  'href', 'src', 'cite', 'action', 'formaction', 'data', 'poster',
+  'background', 'ping', 'xlink:href', 'dynsrc', 'lowsrc',
+];
+
 function buildOptions(): sanitizeHtml.IOptions {
   return {
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: ALLOWED_ATTRS,
     allowedSchemes: ALLOWED_SCHEMES,
+    allowedSchemesAppliedToAttributes: ALLOWED_SCHEMES_APPLIED_TO_ATTRIBUTES,
     // Images must be served over https; links may still be http/mailto
     allowedSchemesByTag: { img: ['https'] },
     allowProtocolRelative: false,

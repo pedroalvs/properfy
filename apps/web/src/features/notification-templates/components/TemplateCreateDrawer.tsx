@@ -117,6 +117,11 @@ export function TemplateCreateDrawer({
 
   const updateField = useCallback(
     <K extends keyof TemplateFormData>(field: K, value: TemplateFormData[K]) => {
+      // An edit to subject/body invalidates any in-flight prefill: a late
+      // default response must not land on top of what the operator just typed.
+      if (field === 'subject' || field === 'body') {
+        prefillSeqRef.current += 1;
+      }
       setForm((prev) => ({ ...prev, [field]: value }));
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     },

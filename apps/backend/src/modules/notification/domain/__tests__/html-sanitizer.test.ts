@@ -173,6 +173,14 @@ describe('HtmlSanitizerService — save profile (validateForSave)', () => {
     expect(svc.validateForSave(html).safe).toBe(true);
   });
 
+  it('should reject a javascript: URL in the background attribute', async () => {
+    const svc = await loadImpl();
+    // Regression for GHSA-vccv-cmxp-4j9h: `background` is a URL-bearing
+    // attribute and must be scheme-checked just like href/src.
+    const result = svc.validateForSave('<td background="javascript:alert(1)">x</td>');
+    expect(result.safe).toBe(false);
+  });
+
   it('should permit rel on links and hspace/vspace on images', async () => {
     const svc = await loadImpl();
     const html =
@@ -269,6 +277,13 @@ describe('HtmlSanitizerService — render profile (sanitizeForRender)', () => {
     expect(result).toContain('<style>');
     expect(result).toContain('<body>');
     expect(result).toContain('Hello');
+  });
+
+  it('should strip a javascript: background attribute in render profile', async () => {
+    const svc = await loadImpl();
+    const html = '<td background="javascript:alert(1)">x</td>';
+    const result = svc.sanitizeForRender(html);
+    expect(result).not.toContain('javascript:');
   });
 
   it('should strip on* attributes in render profile', async () => {
