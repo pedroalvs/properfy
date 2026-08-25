@@ -79,7 +79,7 @@ export function buildInspectionCalendarEvent(
   return {
     // Stable across re-downloads so a calendar client updates the existing entry
     // rather than stacking duplicates when the tenant adds it twice.
-    uid: `inspection-${input.appointmentId}@properfy.app`,
+    uid: `inspection-${input.appointmentId}@properfy.me`,
     title,
     startUtc,
     endUtc,

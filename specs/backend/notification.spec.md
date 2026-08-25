@@ -215,7 +215,7 @@ The following dynamic variables are available for use in templates. Variable nam
 | `{{inspection_date}}` | Formatted scheduled date | `Tuesday, 1 April 2026` |
 | `{{time_window}}` | Inspection time window | `8:00 AM – 12:00 PM` |
 | `{{agency_name}}` | Name of the real estate agency (tenant) | `XYZ Realty` |
-| `{{portal_link}}` | Full URL to tenant portal | `https://app.properfy.com.au/portal/abc123` |
+| `{{portal_link}}` | Full URL to tenant portal | `https://app.properfy.me/portal/abc123` |
 | `{{tenant_name}}` | Name of the property tenant | `Jane Smith` |
 | `{{inspector_name}}` | Name of the assigned inspector | `John Doe` |
 | `{{cancellation_reason}}` | Reason for cancellation (INSPECTION_CANCELLED) | `Tenant unavailable` |
@@ -592,7 +592,7 @@ interface UpsertNotificationTemplateInput {
     "inspection_date": "Tuesday, 1 April 2026",
     "time_window": "8:00 AM – 12:00 PM",
     "agency_name": "XYZ Realty",
-    "portal_link": "https://app.properfy.com.au/portal/abc123",
+    "portal_link": "https://app.properfy.me/portal/abc123",
     "tenant_name": "Jane Smith"
   },
   "retryCount": 0,
@@ -1033,7 +1033,7 @@ interface PendingRecoveryJobPayload {
 interface ResendEmailProvider extends IEmailProvider {
   send(params: {
     to: string;
-    from: string;     // configured "From" address (e.g. noreply@properfy.com.au)
+    from: string;     // configured "From" address (e.g. noreply@properfy.me)
     subject: string;
     html: string;
     text: string;
@@ -1045,7 +1045,7 @@ interface ResendEmailProvider extends IEmailProvider {
 **Environment variables:**
 ```
 RESEND_API_KEY=re_...
-RESEND_FROM_ADDRESS=noreply@properfy.com.au
+RESEND_FROM_ADDRESS=noreply@properfy.me
 RESEND_WEBHOOK_SECRET=whsec_...
 ```
 

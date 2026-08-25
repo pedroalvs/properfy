@@ -1410,7 +1410,7 @@ async function main() {
       template_code: 'TENANT_SMS_ALERT', status: 'SENT' as const,
       provider_name: 'mobile-message', provider_message_id: 'SM01ABCDEF',
       sent_at: pastDate(2),
-      payload_json: { propertyAddress: '5 Blue St, North Sydney', scheduledDate: '2026-03-25', portalUrl: 'https://portal.properfy.com.au/t/abc123' },
+      payload_json: { propertyAddress: '5 Blue St, North Sydney', scheduledDate: '2026-03-25', portalUrl: 'https://app.properfy.me/portal/abc123' },
     },
     {
       id: IDS.notif3, tenant_id: IDS.tenant, appointment_id: IDS.apptAwaiting,

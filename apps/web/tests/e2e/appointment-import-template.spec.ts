@@ -9,7 +9,7 @@ import {
 const CL_ADMIN_USER = {
   id: 'user-cl-admin-1',
   name: 'Agency Admin',
-  email: 'agency-admin@properfy.com',
+  email: 'agency-admin@properfy.me',
   role: 'CL_ADMIN',
   tenantId: 'tenant-1',
 };

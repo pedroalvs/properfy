@@ -1,5 +1,3 @@
-import { PROPERFY_LOGO_URL } from '@properfy/shared';
-
 // Shared HTML layout for appointment-related platform email templates:
 // wide greeting header, 520px content column, amber call-out box and the
 // Properfy logo footer ({{properfyLogoUrl}}).
@@ -81,9 +79,9 @@ export function tenantEmailHtml(contentHtml: string): string {
 // Properfy-branded light layout for platform/system emails (password reset,
 // report notifications, internal ops alerts). Visual language follows the
 // tenant portal "Coral Clean" redesign: light gray canvas, white rounded card,
-// coral (#F37A76) accents and the Properfy logo on top. These templates are
-// not tenant-customizable, so the logo is a fixed https asset served by the
-// production web app.
+// coral (#F37A76) accents and the Properfy logo on top. The logo is emitted as
+// the {{properfyLogoUrl}} placeholder (like the appointment footer) so the send
+// pipeline can resolve it per environment; SendNotificationUseCase injects it.
 
 const SYSTEM_BODY_STYLE =
   'margin:0;padding:0;background-color:#F5F5F5;color:rgba(0,0,0,0.87);' +
@@ -116,10 +114,12 @@ export function renderSystemEmailHtml(content: SystemEmailContent): string {
     '<tr><td align="center" style="padding:32px 16px;">' +
     '<table width="480" cellpadding="0" cellspacing="0" border="0" ' +
     'style="max-width:480px;width:100%;border-collapse:collapse;text-align:left;">' +
+    '{{#if properfyLogoUrl}}' +
     '<tr><td style="padding:0 0 20px 0;" align="center">' +
-    '<img src="' + PROPERFY_LOGO_URL + '" alt="Properfy" width="150" ' +
+    '<img src="{{properfyLogoUrl}}" alt="Properfy" width="150" ' +
     'style="display:block;max-width:150px;outline:0;">' +
     '</td></tr>' +
+    '{{/if}}' +
     '<tr><td style="' + SYSTEM_CARD_STYLE + '">' +
     '<h1 style="margin:0 0 16px 0;font-size:22px;font-weight:800;color:#21566E;">' +
     content.heading +

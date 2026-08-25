@@ -5,11 +5,14 @@ import {
   NOTIFICATION_TARGETS,
   PLATFORM_ONLY_TEMPLATE_CODES,
   PLATFORM_TEMPLATE_CODE_LABELS,
+  PROPERFY_LOGO_PATH,
+  PROPERFY_LOGO_URL,
   SAMPLE_DATA,
   SYSTEM_TEMPLATE_CODES,
   TEMPLATE_CODE_LABELS,
   TEMPLATE_TARGETS,
   TEMPLATE_VARIABLES,
+  buildProperfyLogoUrl,
   getDefaultClass,
   getTemplateCodeLabel,
   getTemplateTarget,
@@ -43,6 +46,32 @@ describe('SAMPLE_DATA', () => {
   it('shows a civil date and a 12-hour window, never the wire shapes', () => {
     expect(SAMPLE_DATA.scheduledDate).toBe('15/04/2026');
     expect(SAMPLE_DATA.timeSlot).toBe('9:00 am – 12:00 pm');
+  });
+
+  it('uses the real Properfy prod domain in its sample links', () => {
+    for (const link of [SAMPLE_DATA.confirmationLink, SAMPLE_DATA.surveyLink, SAMPLE_DATA.downloadLink, SAMPLE_DATA.resetLink]) {
+      expect(link).toContain('https://app.properfy.me/');
+    }
+  });
+});
+
+describe('buildProperfyLogoUrl', () => {
+  it('defaults to the production logo URL', () => {
+    expect(PROPERFY_LOGO_URL).toBe(`https://app.properfy.me${PROPERFY_LOGO_PATH}`);
+    expect(buildProperfyLogoUrl()).toBe(PROPERFY_LOGO_URL);
+    expect(buildProperfyLogoUrl('')).toBe(PROPERFY_LOGO_URL);
+    expect(buildProperfyLogoUrl(null)).toBe(PROPERFY_LOGO_URL);
+  });
+
+  it('resolves the logo from the given environment web app base URL', () => {
+    expect(buildProperfyLogoUrl('https://properfy.pedroalvs.com')).toBe(
+      `https://properfy.pedroalvs.com${PROPERFY_LOGO_PATH}`,
+    );
+    expect(buildProperfyLogoUrl('https://properfy.autolabs.tech')).toBe(
+      `https://properfy.autolabs.tech${PROPERFY_LOGO_PATH}`,
+    );
+    // Trailing slash on the base URL must not double up.
+    expect(buildProperfyLogoUrl('https://app.properfy.me/')).toBe(PROPERFY_LOGO_URL);
   });
 });
 
@@ -260,14 +289,19 @@ describe('agencyLogoUrl variable', () => {
     expect(SAMPLE_DATA.agencyLogoUrl).toMatch(/^https:\/\//);
   });
 
-  it('is offered exactly where properfyLogoUrl is', () => {
-    // Both logos are injected by the same payload builders, so a code that can
-    // render one can render the other. A code listing only one of them would
-    // either strip the missing logo from the outgoing payload (renders empty)
-    // or offer a variable its payload never carries.
+  it('is offered exactly where properfyLogoUrl is, for tenant-branded templates', () => {
+    // Both logos are injected by the same payload builders for tenant/appointment
+    // emails, so a code that can render one can render the other. System emails
+    // (password reset, reports, ops alerts) use the Properfy-branded system
+    // layout with the Properfy logo only — no agency branding — so they carry
+    // properfyLogoUrl without agencyLogoUrl.
     let comparedCodes = 0;
     for (const [code, spec] of Object.entries(TEMPLATE_VARIABLES)) {
       const declared = [...spec.required, ...spec.optional];
+      if (isSystemTemplate(code)) {
+        expect({ code, agency: declared.includes('agencyLogoUrl') }).toEqual({ code, agency: false });
+        continue;
+      }
       expect({ code, has: declared.includes('agencyLogoUrl') }).toEqual({
         code,
         has: declared.includes('properfyLogoUrl'),

@@ -1,6 +1,6 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { prisma } from '../shared/infrastructure/prisma';
-import { PLATFORM_TIMEZONE } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, buildProperfyLogoUrl } from '@properfy/shared';
 import type { Logger } from '../shared/infrastructure/logger';
 import { metrics } from '../shared/infrastructure/metrics';
 import { getEnv } from './env';
@@ -1206,6 +1206,8 @@ export function createContainer(logger: Logger): AppContainer {
     htmlSanitizer,
     htmlToText,
     auditService,
+    // Resolve the email logo from this environment's web app (dev/staging/prod).
+    properfyLogoUrl: buildProperfyLogoUrl(env.WEB_APP_BASE_URL),
   });
   const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
   const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo, logger);
