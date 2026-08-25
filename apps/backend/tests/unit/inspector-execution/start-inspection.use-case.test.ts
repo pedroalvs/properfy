@@ -171,8 +171,6 @@ describe('StartInspectionUseCase', () => {
       finishLatitude: null,
       finishLongitude: null,
       geolocationDistanceMeters: 120,
-      checklistJson: null,
-      notes: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -283,8 +281,6 @@ describe('StartInspectionUseCase', () => {
       finishLatitude: -33.6,
       finishLongitude: 151.1,
       geolocationDistanceMeters: null,
-      checklistJson: null,
-      notes: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

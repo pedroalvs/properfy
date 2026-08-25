@@ -59,7 +59,7 @@ Start an inspection.
 | `latitude` | number | yes | Decimal ~7 places. |
 | `longitude` | number | yes | Decimal ~7 places. |
 
-**Response 201** (`inspectionExecutionResponseSchema`)
+**Response 201** (`startInspectionResponseSchema`)
 
 ```json
 {
@@ -69,6 +69,7 @@ Start an inspection.
     "startedAt": "ISO-8601",
     "startLatitude": -33.8688,
     "startLongitude": 151.2093,
+    "geolocationDistanceMeters": 12.5,
     "status": "IN_PROGRESS"
   }
 }
@@ -142,11 +143,9 @@ Finish an inspection. Triggers `SCHEDULED → DONE` via feature 006 `ExecuteStat
 |---|---|---|---|
 | `latitude` | number | yes | Finish coordinates. |
 | `longitude` | number | yes | |
-| `checklistJson` | object | no | Must be non-empty if provided. |
-| `notes` | string | no | |
 | `assets` | array of `{ assetId, storageKey }` | no | Assets referenced for inclusion — must all be `UPLOADED`. |
 
-**Response 200** (`inspectionExecutionResponseSchema`)
+**Response 200** (`finishInspectionResponseSchema`)
 
 ```json
 {
@@ -155,15 +154,14 @@ Finish an inspection. Triggers `SCHEDULED → DONE` via feature 006 `ExecuteStat
     "appointmentId": "<uuid>",
     "startedAt": "ISO-8601",
     "finishedAt": "ISO-8601",
-    "appointmentStatus": "DONE",
-    "assetsCount": 6
+    "appointmentStatus": "DONE"
   }
 }
 ```
 
 > The appointment is now in `DONE` but the financial entries have NOT been created. A separate operator cross-check (feature 006 `POST /v1/appointments/:id/cross-check-done`) is required before billing runs.
 
-**Error codes**: `AUTH_FORBIDDEN`, `INSPECTOR_NOT_LINKED`, `EXECUTION_NOT_STARTED`, `EXECUTION_ALREADY_FINISHED`, `EXECUTION_ASSET_UPLOAD_PENDING`, `EXECUTION_INSUFFICIENT_ASSETS`, `EXECUTION_EMPTY_CHECKLIST`, `IDEMPOTENCY_KEY_MISSING`, `APPOINTMENT_NOT_FOUND`.
+**Error codes**: `AUTH_FORBIDDEN`, `INSPECTOR_NOT_LINKED`, `EXECUTION_NOT_STARTED`, `EXECUTION_ALREADY_FINISHED`, `EXECUTION_ASSET_UPLOAD_PENDING`, `EXECUTION_INSUFFICIENT_ASSETS`, `IDEMPOTENCY_KEY_MISSING`, `APPOINTMENT_NOT_FOUND`.
 
 ---
 

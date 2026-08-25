@@ -24,8 +24,6 @@ function makeExecution(overrides: { finishedAt?: Date | null } = {}): Inspection
     finishLatitude: null,
     finishLongitude: null,
     geolocationDistanceMeters: null,
-    checklistJson: null,
-    notes: null,
     createdAt: now,
     updatedAt: now,
   });

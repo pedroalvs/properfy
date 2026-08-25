@@ -864,22 +864,17 @@ export const inspectorScheduleMonthResponseSchema = z.object({
   overdueAppointments: z.array(inspectorScheduleMonthItemSchema),
 });
 
-export const inspectionExecutionResponseSchema = z.object({
-  id: z.string().uuid(),
+// Mirrors FinishInspectionUseCase's actual output. The finish route validates its
+// response against this schema (fastify-type-provider-zod parses on serialize and
+// throws on a mismatch), so it must match the use case's return shape exactly —
+// geolocation + timestamps live on the execution record, the response only reports
+// the finish result and the resulting appointment status.
+export const finishInspectionResponseSchema = z.object({
+  executionId: z.string().uuid(),
   appointmentId: z.string().uuid(),
-  inspectorId: z.string().uuid(),
   startedAt: instantStr(),
-  finishedAt: instantStrNullable(),
-  resumedAt: instantStrNullable(),
-  startLatitude: z.number(),
-  startLongitude: z.number(),
-  finishLatitude: z.number().nullable(),
-  finishLongitude: z.number().nullable(),
-  geolocationDistanceMeters: z.number().nullable(),
-  checklistJson: z.unknown().nullable(),
-  notes: z.string().nullable(),
-  createdAt: instantStr(),
-  updatedAt: instantStr(),
+  finishedAt: instantStr(),
+  appointmentStatus: z.nativeEnum(AppointmentStatus),
 });
 
 export const startInspectionResponseSchema = z.object({
@@ -1218,7 +1213,7 @@ export type InvoiceResponse = z.infer<typeof invoiceResponseSchema>;
 export type NotificationResponse = z.infer<typeof notificationResponseSchema>;
 export type NotificationTemplateResponse = z.infer<typeof notificationTemplateResponseSchema>;
 export type ReportResponse = z.infer<typeof reportResponseSchema>;
-export type InspectionExecutionResponse = z.infer<typeof inspectionExecutionResponseSchema>;
+export type FinishInspectionResponse = z.infer<typeof finishInspectionResponseSchema>;
 export type StartInspectionResponse = z.infer<typeof startInspectionResponseSchema>;
 export type DashboardStatsResponse = z.infer<typeof dashboardStatsResponseSchema>;
 export type InspectorDayCount = z.infer<typeof inspectorDayCountSchema>;

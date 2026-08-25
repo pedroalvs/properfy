@@ -9,7 +9,6 @@ import {
   ExecutionAppointmentNotFoundError,
   ExecutionNotStartedError,
   ExecutionAlreadyFinishedError,
-  ExecutionEmptyChecklistError,
 } from '../../domain/inspection-execution.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 
@@ -17,8 +16,6 @@ export interface FinishInspectionInput {
   appointmentId: string;
   latitude: number;
   longitude: number;
-  checklistJson?: Record<string, unknown>;
-  notes?: string;
   idempotencyKey: string;
   actor: AuthContext;
 }
@@ -46,8 +43,6 @@ export class FinishInspectionUseCase {
       appointmentId,
       latitude,
       longitude,
-      checklistJson,
-      notes,
       idempotencyKey,
       actor,
     } = input;
@@ -86,21 +81,12 @@ export class FinishInspectionUseCase {
     }
     const { appointment } = appointmentResult;
 
-    // 5a. Validate checklist has at least one response if provided
-    if (checklistJson !== undefined && checklistJson !== null) {
-      if (Object.keys(checklistJson).length === 0) {
-        throw new ExecutionEmptyChecklistError();
-      }
-    }
-
     // 6. Update execution
     const now = new Date();
     await this.executionRepo.update(execution.id, {
       finishedAt: now,
       finishLatitude: latitude,
       finishLongitude: longitude,
-      checklistJson: checklistJson ?? null,
-      notes: notes ?? null,
     });
 
     // 7. Trigger SCHEDULED -> DONE transition

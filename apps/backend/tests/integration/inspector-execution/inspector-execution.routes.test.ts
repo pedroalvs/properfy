@@ -35,7 +35,6 @@ vi.mock('../../../src/main/container', () => ({
       getAppointmentDetailUseCase: { execute: mockGetAppointmentDetailExecute },
       startInspectionUseCase: { execute: mockStartInspectionExecute },
       finishInspectionUseCase: { execute: mockFinishInspectionExecute },
-      saveExecutionProgressUseCase: { execute: vi.fn() },
       reopenExecutionUseCase: { execute: vi.fn() },
       jwtService: { verify: mockJwtVerify },
     },
@@ -307,23 +306,14 @@ describe('POST /v1/inspector/appointments/:appointmentId/start', () => {
 describe('POST /v1/inspector/appointments/:appointmentId/finish', () => {
   it('should return 200 with finish data', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
+    // Mirrors FinishInspectionUseCase's real output shape, which the finish route
+    // validates against finishInspectionResponseSchema on serialize.
     const finishResult = {
-      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99',
+      executionId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99',
       appointmentId: APPOINTMENT_ID,
-      inspectorId: 'f5eebc99-9c0b-4ef8-bb6d-6bb9bd380a66',
       startedAt: '2026-03-16T10:00:00.000Z',
       finishedAt: '2026-03-16T11:00:00.000Z',
-      resumedAt: null,
-      startLatitude: -33.8688,
-      startLongitude: 151.2093,
-      finishLatitude: -33.8688,
-      finishLongitude: 151.2093,
-      geolocationDistanceMeters: 50,
-      checklistJson: null,
-      notes: null,
-      observation: null,
-      createdAt: '2026-03-16T10:00:00.000Z',
-      updatedAt: '2026-03-16T11:00:00.000Z',
+      appointmentStatus: 'DONE',
     };
     mockFinishInspectionExecute.mockResolvedValueOnce(finishResult);
 
@@ -334,8 +324,9 @@ describe('POST /v1/inspector/appointments/:appointmentId/finish', () => {
       .send({ latitude: -33.8688, longitude: 151.2093 });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.id).toBeDefined();
+    expect(res.body.data.executionId).toBe('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99');
     expect(res.body.data.finishedAt).toBe('2026-03-16T11:00:00.000Z');
+    expect(res.body.data.appointmentStatus).toBe('DONE');
   });
 
   it('should return 400 without Idempotency-Key header', async () => {

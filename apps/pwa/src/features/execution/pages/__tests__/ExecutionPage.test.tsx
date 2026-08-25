@@ -150,9 +150,6 @@ describe('ExecutionPage', () => {
         pendingSync: false,
         startLocation: null,
         finishLocation: null,
-        checklistTemplate: [],
-        checklistResponses: [],
-        notes: '',
         startedAt: null,
         errorMessage: null,
         lastSavedAt: null,
@@ -190,9 +187,6 @@ describe('ExecutionPage', () => {
         pendingSync: false,
         startLocation: null,
         finishLocation: null,
-        checklistTemplate: [],
-        checklistResponses: [],
-        notes: '',
         startedAt: null,
         errorMessage: null,
         lastSavedAt: null,
@@ -231,9 +225,7 @@ describe('ExecutionPage', () => {
     const user = userEvent.setup();
     const updateState = vi.fn();
     const clearState = vi.fn();
-    mockFinishMutateAsync.mockResolvedValueOnce({
-      data: { appointmentId: 'apt-1', status: 'QUEUED' },
-    });
+    mockFinishMutateAsync.mockResolvedValueOnce({ queued: true });
 
     mockUseLocalExecutionState.mockReturnValue({
       state: {
@@ -242,9 +234,6 @@ describe('ExecutionPage', () => {
         pendingSync: false,
         startLocation: { latitude: -33.1, longitude: 151.2, accuracy: 10, capturedAt: '2026-03-24T09:00:00.000Z' },
         finishLocation: null,
-        checklistTemplate: [],
-        checklistResponses: [],
-        notes: 'All good',
         startedAt: '2026-03-24T09:00:00.000Z',
         errorMessage: null,
         lastSavedAt: null,
@@ -319,9 +308,6 @@ describe('ExecutionPage', () => {
         capturedAt: '2026-03-24T09:00:00.000Z',
       },
       finishLocation: null,
-      checklistTemplate: [],
-      checklistResponses: [],
-      notes: '',
       startedAt: '2026-03-24T09:00:00.000Z',
       errorMessage: null,
       lastSavedAt: null,
@@ -358,13 +344,18 @@ describe('ExecutionPage', () => {
         clearState: vi.fn(),
         isRestored: true,
       });
-      mockFinishMutateAsync.mockResolvedValue({
-        data: { appointmentId: 'apt-1', status: 'DONE' },
-      });
+      mockFinishMutateAsync.mockResolvedValue({ queued: false });
     });
 
     it('submits immediately without modals when there is no link and the window has not passed', async () => {
       const user = userEvent.setup();
+      const updateState = vi.fn();
+      mockUseLocalExecutionState.mockReturnValue({
+        state: finishingState,
+        updateState,
+        clearState: vi.fn(),
+        isRestored: true,
+      });
       mockAppointment();
 
       renderPage();
@@ -373,6 +364,12 @@ describe('ExecutionPage', () => {
       await waitFor(() => expect(mockFinishMutateAsync).toHaveBeenCalledOnce());
       expect(screen.queryByTestId('sync-confirm-modal')).not.toBeInTheDocument();
       expect(screen.queryByTestId('past-time-confirm-modal')).not.toBeInTheDocument();
+      // Online finish ({ queued: false }) must land in DONE without a pending sync.
+      await waitFor(() =>
+        expect(updateState).toHaveBeenCalledWith(
+          expect.objectContaining({ phase: 'DONE', pendingSync: false, errorMessage: null }),
+        ),
+      );
     });
 
     it('shows the sync modal before submitting when the appointment has an Inspection App link', async () => {

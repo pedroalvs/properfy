@@ -23,7 +23,7 @@ import { canTransition } from '../lib/execution-state-machine';
 import { isPastScheduledEnd } from '../lib/isPastScheduledEnd';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { getErrorMessage } from '@/lib/api-error';
-import type { CapturedLocation, ChecklistResponse } from '../types';
+import type { CapturedLocation } from '../types';
 
 type FinishConfirmStep = 'SYNC' | 'PAST_TIME' | null;
 
@@ -102,23 +102,6 @@ export function ExecutionPage() {
     }
   };
 
-  const handleChecklistChange = (response: ChecklistResponse) => {
-    updateState((prev) => ({
-      ...prev,
-      checklistResponses: [
-        ...prev.checklistResponses.filter((r) => r.itemId !== response.itemId),
-        response,
-      ],
-    }));
-  };
-
-  const requiredItems = state.checklistTemplate.filter((item) => item.required);
-  const requiredRemaining = requiredItems.filter(
-    (item) => !state.checklistResponses.some((r) => r.itemId === item.id && r.value !== null),
-  ).length;
-
-  const isChecklistComplete = requiredRemaining === 0;
-
   const handleProceedToFinish = () => {
     if (!canTransition(state.phase, 'FINISHING')) return;
     updateState({ phase: 'FINISHING' });
@@ -179,10 +162,8 @@ export function ExecutionPage() {
       const result = await finishMutation.mutateAsync({
         appointmentId,
         location,
-        checklist: state.checklistResponses,
-        notes: state.notes,
       });
-      const queuedOffline = result.data.status === 'QUEUED';
+      const queuedOffline = result.queued;
       updateState({
         phase: 'DONE',
         pendingSync: queuedOffline,
@@ -229,21 +210,13 @@ export function ExecutionPage() {
 
       {state.phase === 'IN_PROGRESS' && (
         <InProgressPanel
-          checklistTemplate={state.checklistTemplate}
-          checklistResponses={state.checklistResponses}
-          onChecklistChange={handleChecklistChange}
-          notes={state.notes}
-          onNotesChange={(notes) => updateState({ notes })}
+          startedAt={state.startedAt}
           onFinish={handleProceedToFinish}
-          isComplete={isChecklistComplete}
-          requiredRemaining={requiredRemaining}
         />
       )}
 
       {state.phase === 'FINISHING' && (
         <FinishingPanel
-          checklistCount={state.checklistResponses.length}
-          notes={state.notes}
           onSubmit={handleSubmitRequest}
           isSubmitting={finishMutation.isPending}
           propertyLatitude={appointment?.propertyLatitude}

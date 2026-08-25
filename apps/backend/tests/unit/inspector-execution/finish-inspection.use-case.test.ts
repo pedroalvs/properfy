@@ -5,7 +5,6 @@ import {
   ExecutionAppointmentNotFoundError,
   ExecutionNotStartedError,
   ExecutionAlreadyFinishedError,
-  ExecutionEmptyChecklistError,
 } from '../../../src/modules/inspector-execution/domain/inspection-execution.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -53,8 +52,6 @@ function makeExecution(overrides = {}) {
     finishLatitude: null,
     finishLongitude: null,
     geolocationDistanceMeters: null,
-    checklistJson: null,
-    notes: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -202,22 +199,6 @@ describe('FinishInspectionUseCase', () => {
 
     expect(executeStatusTransition.execute).not.toHaveBeenCalled();
     expect(auditService.log).not.toHaveBeenCalled();
-  });
-
-  it('should throw ExecutionEmptyChecklistError when checklist is provided but empty', async () => {
-    const sut = makeSut();
-    executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
-
-    await expect(
-      sut.execute({
-        appointmentId: 'appt-1',
-        latitude: -33.900,
-        longitude: 151.300,
-        checklistJson: {},
-        idempotencyKey: 'key-4',
-        actor: inspActor,
-      }),
-    ).rejects.toThrow(ExecutionEmptyChecklistError);
   });
 
   it('should throw ForbiddenError when actor is not INSP', async () => {

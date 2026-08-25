@@ -17,8 +17,6 @@ function makeExecution(overrides: Partial<InspectionExecutionProps> = {}): Inspe
     finishLatitude: null,
     finishLongitude: null,
     geolocationDistanceMeters: null,
-    checklistJson: null,
-    notes: null,
     createdAt: new Date('2026-03-16T09:00:00Z'),
     updatedAt: new Date('2026-03-16T09:00:00Z'),
     ...overrides,
@@ -39,8 +37,6 @@ describe('InspectionExecutionEntity', () => {
       finishLatitude: -23.5510,
       finishLongitude: -46.6340,
       geolocationDistanceMeters: 150,
-      checklistJson: { item1: true },
-      notes: 'All good',
       createdAt: new Date('2026-03-16T09:00:00Z'),
       updatedAt: new Date('2026-03-16T10:30:00Z'),
     };
@@ -56,8 +52,6 @@ describe('InspectionExecutionEntity', () => {
     expect(entity.startLongitude).toBe(-46.6333);
     expect(entity.finishLatitude).toBe(-23.5510);
     expect(entity.finishLongitude).toBe(-46.6340);
-    expect(entity.checklistJson).toEqual({ item1: true });
-    expect(entity.notes).toBe('All good');
     expect(entity.createdAt).toEqual(props.createdAt);
     expect(entity.updatedAt).toEqual(props.updatedAt);
   });
