@@ -32,9 +32,6 @@ describe('FinishingPanel', () => {
   function renderPanel(props: Partial<Parameters<typeof FinishingPanel>[0]> = {}) {
     return render(
       <FinishingPanel
-        checklistCount={3}
-        assetCount={2}
-        notes="some notes"
         onSubmit={onSubmit}
         isSubmitting={false}
         {...props}

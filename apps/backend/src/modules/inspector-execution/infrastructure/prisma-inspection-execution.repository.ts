@@ -1,4 +1,4 @@
-import { type PrismaClient, Prisma } from '@prisma/client';
+import { type PrismaClient } from '@prisma/client';
 import { InspectionExecutionEntity } from '../domain/inspection-execution.entity';
 import type { IInspectionExecutionRepository } from '../domain/inspection-execution.repository';
 
@@ -15,8 +15,6 @@ function mapToEntity(row: any): InspectionExecutionEntity {
     finishLatitude: row.finish_latitude ? Number(row.finish_latitude) : null,
     finishLongitude: row.finish_longitude ? Number(row.finish_longitude) : null,
     geolocationDistanceMeters: row.geolocation_distance_meters != null ? Number(row.geolocation_distance_meters) : null,
-    checklistJson: row.checklist_json as Record<string, unknown> | null,
-    notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
@@ -54,10 +52,6 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
         finish_latitude: execution.finishLatitude,
         finish_longitude: execution.finishLongitude,
         geolocation_distance_meters: execution.geolocationDistanceMeters,
-        checklist_json: execution.checklistJson !== null
-          ? (execution.checklistJson as Prisma.InputJsonValue)
-          : Prisma.JsonNull,
-        notes: execution.notes,
       },
     });
   }
@@ -69,8 +63,6 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
       resumedAt: Date | null;
       finishLatitude: number;
       finishLongitude: number;
-      checklistJson: Record<string, unknown> | null;
-      notes: string | null;
     }>,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
@@ -78,8 +70,6 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
     if (data.resumedAt !== undefined) updateData.resumed_at = data.resumedAt;
     if (data.finishLatitude !== undefined) updateData.finish_latitude = data.finishLatitude;
     if (data.finishLongitude !== undefined) updateData.finish_longitude = data.finishLongitude;
-    if (data.checklistJson !== undefined) updateData.checklist_json = data.checklistJson;
-    if (data.notes !== undefined) updateData.notes = data.notes;
     await this.prisma.inspectionExecution.update({ where: { id }, data: updateData });
   }
 

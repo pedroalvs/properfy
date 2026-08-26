@@ -55,7 +55,7 @@
 
 ```bash
 # Check health endpoint
-curl -s https://api.properfy.com.br/health | jq .
+curl -s https://api.properfy.me/health | jq .
 
 # Check DB directly
 psql "$DIRECT_URL" -c "SELECT 1;"
@@ -235,9 +235,9 @@ fly ssh console
 fly releases
 
 # Test API health
-curl -s https://api.properfy.com.br/health | jq .
-curl -s https://api.properfy.com.br/ready | jq .
+curl -s https://api.properfy.me/health | jq .
+curl -s https://api.properfy.me/ready | jq .
 
 # Check metrics
-curl -s https://api.properfy.com.br/metrics | jq .
+curl -s https://api.properfy.me/metrics | jq .
 ```

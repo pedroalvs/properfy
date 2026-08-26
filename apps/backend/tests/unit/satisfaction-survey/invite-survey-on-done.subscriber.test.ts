@@ -75,7 +75,7 @@ describe('InviteSurveyOnDoneSubscriber', () => {
       buildNotificationPayload as never,
       appointmentCodeFormatter as never,
       createNotification as never,
-      'https://app.properfy.com',
+      'https://app.properfy.me',
       logger,
     );
   }

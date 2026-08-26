@@ -286,8 +286,6 @@ describe('ReportUnavailabilityUseCase', () => {
         finishLatitude: null,
         finishLongitude: null,
         geolocationDistanceMeters: null,
-        checklistJson: null,
-        notes: null,
         createdAt: new Date('2026-04-15T09:00:00Z'),
         updatedAt: new Date('2026-04-15T09:00:00Z'),
       }),

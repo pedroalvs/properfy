@@ -12,7 +12,7 @@ function makeUser(overrides: Partial<UserDetail> = {}): UserDetail {
     branchName: 'Filial Centro',
     role: UserRole.AM,
     name: 'Admin Principal',
-    email: 'admin@properfy.com',
+    email: 'admin@properfy.me',
     phone: '11999000001',
     status: UserStatus.ACTIVE,
     lastLoginAt: '2026-03-15T08:00:00Z',
@@ -36,7 +36,7 @@ describe('UserDetailSections', () => {
   it('renders name and email', () => {
     render(<UserDetailSections user={makeUser()} />);
     expect(screen.getByText('Admin Principal')).toBeInTheDocument();
-    expect(screen.getByText('admin@properfy.com')).toBeInTheDocument();
+    expect(screen.getByText('admin@properfy.me')).toBeInTheDocument();
   });
 
   it('shows phone when present, em-dash when null', () => {

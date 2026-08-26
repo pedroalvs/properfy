@@ -137,8 +137,6 @@ function makeExecution(
     finishLatitude: null,
     finishLongitude: null,
     geolocationDistanceMeters: null,
-    checklistJson: null,
-    notes: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

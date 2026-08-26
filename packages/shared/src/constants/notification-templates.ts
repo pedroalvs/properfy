@@ -1,11 +1,27 @@
 import type { NotificationClass } from '../enums';
 import { formatCivilDate, formatWallTimeRange } from '../utils/format-display-date';
 
+/** Path (relative to a web app base URL) at which the Properfy logo is served. */
+export const PROPERFY_LOGO_PATH = '/images/properfy-logo-red.png';
+
 /**
  * Canonical https URL of the Properfy logo used in email templates via the
- * {{properfyLogoUrl}} variable. Served by the production web app.
+ * {{properfyLogoUrl}} variable. Points at the production web app and serves as
+ * the default/fallback (e.g. template previews). Live sends resolve the logo per
+ * environment via {@link buildProperfyLogoUrl}.
  */
-export const PROPERFY_LOGO_URL = 'https://properfy.autolabs.tech/images/properfy-logo-red.png';
+export const PROPERFY_LOGO_URL = `https://app.properfy.me${PROPERFY_LOGO_PATH}`;
+
+/**
+ * Resolves the Properfy logo URL for a given web app base URL, so an email
+ * resolves its logo from the current environment's web app (dev, staging or
+ * prod) instead of a hardcoded domain. Falls back to {@link PROPERFY_LOGO_URL}
+ * when no base URL is provided.
+ */
+export function buildProperfyLogoUrl(webAppBaseUrl?: string | null): string {
+  if (!webAppBaseUrl) return PROPERFY_LOGO_URL;
+  return new URL(PROPERFY_LOGO_PATH, webAppBaseUrl).toString();
+}
 
 // ---------------------------------------------------------------------------
 // Template codes
@@ -421,11 +437,13 @@ export const TEMPLATE_VARIABLES: Record<
   },
   REPORT_READY: {
     required: ['userName', 'reportType', 'downloadLink'],
-    optional: [],
+    // Injected by the send path into every email's system/appointment layout.
+    optional: ['properfyLogoUrl'],
   },
   REPORT_FAILED: {
     required: ['userName', 'reportType', 'errorMessage', 'downloadLink'],
-    optional: [],
+    // Injected by the send path into every email's system/appointment layout.
+    optional: ['properfyLogoUrl'],
   },
   // Same reason as TENANT_SMS_ALERT: the SMS variant of this code does not greet by
   // name, so `rentalTenantName` cannot be required of every channel's body.
@@ -492,9 +510,9 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   scheduledDate: formatCivilDate('2026-04-15'),
   timeSlot: formatWallTimeRange('09:00', '12:00'),
   inspectorName: 'Jane Doe',
-  surveyLink: 'https://app.properfy.com/portal/abc123',
-  confirmationLink: 'https://app.properfy.com/portal/abc123',
-  rescheduleLink: 'https://app.properfy.com/portal/abc123',
+  surveyLink: 'https://app.properfy.me/portal/abc123',
+  confirmationLink: 'https://app.properfy.me/portal/abc123',
+  rescheduleLink: 'https://app.properfy.me/portal/abc123',
   agencyName: 'ABC Realty',
   agencyPhone: '+61 2 9876 5432',
   appointmentCode: 'INS-0042',
@@ -507,7 +525,7 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   cancellationReason: 'Tenant requested a different week',
   userName: 'Admin User',
   reportType: 'Monthly Report',
-  downloadLink: 'https://app.properfy.com/reports/abc123',
+  downloadLink: 'https://app.properfy.me/reports/abc123',
   errorMessage: 'Server timeout — please retry',
-  resetLink: 'https://app.properfy.com/reset-password?token=abc123',
+  resetLink: 'https://app.properfy.me/reset-password?token=abc123',
 };

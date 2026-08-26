@@ -16,9 +16,6 @@ function makeState(overrides: Partial<ExecutionState> = {}): ExecutionState {
     pendingSync: false,
     startLocation: null,
     finishLocation: null,
-    checklistTemplate: [],
-    checklistResponses: [],
-    notes: '',
     startedAt: null,
     errorMessage: null,
     lastSavedAt: null,
@@ -51,11 +48,14 @@ describe('useAutoSave', () => {
   });
 
   it('saves state periodically during IN_PROGRESS', () => {
-    const state = makeState({ phase: 'IN_PROGRESS', notes: 'test' });
+    const state = makeState({ phase: 'IN_PROGRESS', startedAt: '2026-03-24T09:00:00.000Z' });
     renderHook(() => useAutoSave(state));
 
     vi.advanceTimersByTime(2000);
-    expect(mockSave).toHaveBeenCalledWith('apt-1', expect.objectContaining({ notes: 'test' }));
+    expect(mockSave).toHaveBeenCalledWith(
+      'apt-1',
+      expect.objectContaining({ startedAt: '2026-03-24T09:00:00.000Z' }),
+    );
   });
 
   it('does not re-save if state has not changed', () => {

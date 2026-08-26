@@ -4,8 +4,6 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import type { CapturedLocation } from '../types';
 
 interface FinishingPanelProps {
-  checklistCount: number;
-  notes: string;
   onSubmit: (location: CapturedLocation) => void;
   isSubmitting: boolean;
   propertyLatitude?: number | null;
@@ -13,8 +11,6 @@ interface FinishingPanelProps {
 }
 
 export function FinishingPanel({
-  checklistCount,
-  notes,
   onSubmit,
   isSubmitting,
   propertyLatitude,
@@ -26,19 +22,9 @@ export function FinishingPanel({
     <div className="flex flex-col gap-4 px-page-x py-4" data-testid="finishing-panel">
       <h2 className="text-lg font-bold text-secondary">Finish Inspection</h2>
 
-      <div className="rounded-lg bg-card-bg p-4">
-        <h3 className="text-xs font-bold uppercase text-text-secondary">Summary</h3>
-        <div className="mt-2 flex flex-col gap-1 text-sm text-text-primary">
-          <div className="flex justify-between">
-            <span>Checklist items</span>
-            <span className="font-semibold">{checklistCount}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Notes</span>
-            <span className="font-semibold">{notes ? 'Added' : 'None'}</span>
-          </div>
-        </div>
-      </div>
+      <p className="text-sm text-text-muted">
+        Confirm your location at the property to complete this inspection.
+      </p>
 
       <GeoLocationCapture
         status={status}

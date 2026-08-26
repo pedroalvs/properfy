@@ -116,7 +116,7 @@ describe('NotifyStuckInspectionsWorker', () => {
     expect(recipients).toEqual(
       expect.arrayContaining(['op@agency.example', 'am@agency.example']),
     );
-    expect(recipients).not.toContain('ops@properfy.com.au');
+    expect(recipients).not.toContain('ops@properfy.me');
     // notifiedCount counts stuck executions alerted, not emails sent.
     expect(result).toEqual({ notifiedCount: 1 });
   });

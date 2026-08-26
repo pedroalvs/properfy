@@ -73,7 +73,7 @@ function makeTemplate(overrides: Partial<NotificationTemplateProps> = {}): Notif
   return new NotificationTemplateEntity({ ...defaults, ...overrides });
 }
 
-function makeSut() {
+function makeSut(extraDeps: { properfyLogoUrl?: string } = {}) {
   const notificationRepo: INotificationRepository = {
     findById: vi.fn(),
     findByProviderMessageId: vi.fn(),
@@ -161,6 +161,7 @@ function makeSut() {
     getTenantSettings,
     getAgencyForwardRecipient,
     forwardNotification,
+    ...extraDeps,
   });
 
   return {
@@ -358,6 +359,34 @@ describe('SendNotificationUseCase', () => {
       'Hello John, your inspection is on 2026-03-20',
       { identity: 'inspection' },
     );
+  });
+
+  it('injects the environment-specific Properfy logo into the rendered email, overriding any stored payload value', async () => {
+    // The payload carries a stale/prod logo; the send path must override it with
+    // the environment-resolved URL so no email pins a wrong-environment domain.
+    const sut = makeSut({ properfyLogoUrl: 'https://properfy.pedroalvs.com/images/properfy-logo-red.png' });
+    const notification = makeNotification({
+      payloadJson: {
+        rentalTenantName: 'John',
+        date: '2026-03-20',
+        properfyLogoUrl: 'https://app.properfy.me/images/properfy-logo-red.png',
+      },
+    });
+    const template = makeTemplate({
+      bodyHtml: '<p>Hi {{rentalTenantName}}</p><img src="{{properfyLogoUrl}}">',
+      bodyText: 'Hi {{rentalTenantName}}',
+      variablesJson: ['rentalTenantName', 'properfyLogoUrl'],
+    });
+
+    vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+    vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
+    vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-logo-1' });
+
+    await sut.useCase.execute({ notificationId: 'notif-1' });
+
+    const renderedHtml = vi.mocked(sut.emailProvider.send).mock.calls[0]![2];
+    expect(renderedHtml).toContain('https://properfy.pedroalvs.com/images/properfy-logo-red.png');
+    expect(renderedHtml).not.toContain('https://app.properfy.me/images/properfy-logo-red.png');
   });
 
   it('sends system templates with the system email identity', async () => {

@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { FinishInspectionUseCase } from './finish-inspection.use-case';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import { AuthorizationService } from '../../../../shared/domain/authorization.service';
-import { ExecutionEmptyChecklistError } from '../../domain/inspection-execution.errors';
 
 const INSP_ACTOR = {
   userId: 'user-1',
@@ -76,22 +75,7 @@ describe('FinishInspectionUseCase', () => {
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
-  it('rejects empty checklist when checklistJson is provided', async () => {
-    const useCase = buildUseCase();
-
-    await expect(
-      useCase.execute({
-        appointmentId: 'apt-1',
-        latitude: -12.97,
-        longitude: -38.5,
-        checklistJson: {},
-        idempotencyKey: 'idem-2',
-        actor: INSP_ACTOR,
-      }),
-    ).rejects.toBeInstanceOf(ExecutionEmptyChecklistError);
-  });
-
-  it('allows undefined checklistJson (no checklist required)', async () => {
+  it('finishes with geolocation only and transitions the appointment to DONE', async () => {
     const useCase = buildUseCase();
 
     const result = await useCase.execute({
@@ -106,19 +90,32 @@ describe('FinishInspectionUseCase', () => {
     expect(result.appointmentStatus).toBe('DONE');
   });
 
-  it('allows checklistJson with at least one response', async () => {
-    const useCase = buildUseCase();
+  it('persists only finish geolocation and timestamp on the execution', async () => {
+    const update = vi.fn();
+    const executionRepo = {
+      findByAppointmentId: vi.fn().mockResolvedValue({
+        id: 'exec-1',
+        appointmentId: 'apt-1',
+        inspectorId: 'insp-1',
+        startedAt: new Date('2026-03-23T10:00:00.000Z'),
+        isFinished: () => false,
+      }),
+      update,
+    };
+    const useCase = buildUseCase({ executionRepo });
 
-    const result = await useCase.execute({
+    await useCase.execute({
       appointmentId: 'apt-1',
       latitude: -12.97,
       longitude: -38.5,
-      checklistJson: { 'item-1': { value: true } },
       idempotencyKey: 'idem-4',
       actor: INSP_ACTOR,
     });
 
-    expect(result.executionId).toBe('exec-1');
-    expect(result.appointmentStatus).toBe('DONE');
+    expect(update).toHaveBeenCalledWith('exec-1', {
+      finishedAt: expect.any(Date),
+      finishLatitude: -12.97,
+      finishLongitude: -38.5,
+    });
   });
 });

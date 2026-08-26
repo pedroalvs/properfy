@@ -7,7 +7,7 @@
 | Variable | Description |
 |---|---|
 | `RESEND_API_KEY` | Resend API key |
-| `RESEND_FROM_EMAIL` | Sender email address (e.g., `noreply@properfy.com.br`) |
+| `RESEND_FROM_EMAIL` | Sender email address (e.g., `noreply@properfy.me`) |
 
 ### MobileMessage (SMS)
 

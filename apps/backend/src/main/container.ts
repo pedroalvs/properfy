@@ -1,6 +1,6 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { prisma } from '../shared/infrastructure/prisma';
-import { PLATFORM_TIMEZONE } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, buildProperfyLogoUrl } from '@properfy/shared';
 import type { Logger } from '../shared/infrastructure/logger';
 import { metrics } from '../shared/infrastructure/metrics';
 import { getEnv } from './env';
@@ -200,7 +200,6 @@ import { GetInspectorScheduleUseCase } from '../modules/inspector-execution/appl
 import { GetAppointmentDetailUseCase } from '../modules/inspector-execution/application/use-cases/get-appointment-detail.use-case';
 import { StartInspectionUseCase } from '../modules/inspector-execution/application/use-cases/start-inspection.use-case';
 import { FinishInspectionUseCase } from '../modules/inspector-execution/application/use-cases/finish-inspection.use-case';
-import { SaveExecutionProgressUseCase } from '../modules/inspector-execution/application/use-cases/save-execution-progress.use-case';
 import { ReopenExecutionUseCase } from '../modules/inspector-execution/application/use-cases/reopen-execution.use-case';
 import type { InspectorExecutionRouteContainer } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
 
@@ -944,9 +943,6 @@ export function createContainer(logger: Logger): AppContainer {
   const getInspectorEarningsSummaryUseCase = new GetInspectorEarningsSummaryUseCase(financialEntryRepo);
   const previewInvoiceUseCase = new PreviewInvoiceUseCase(inspectorRepo, financialEntryRepo);
   const requestInvoiceUseCase = new RequestInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, inspectorRepo, auditService);
-  const saveExecutionProgressUseCase = new SaveExecutionProgressUseCase(
-    inspectionExecutionRepo, authorizationService,
-  );
   const reopenExecutionUseCase = new ReopenExecutionUseCase(
     inspectionExecutionRepo, appointmentRepo, auditService, authorizationService,
   );
@@ -1205,6 +1201,8 @@ export function createContainer(logger: Logger): AppContainer {
     htmlSanitizer,
     htmlToText,
     auditService,
+    // Resolve the email logo from this environment's web app (dev/staging/prod).
+    properfyLogoUrl: buildProperfyLogoUrl(env.WEB_APP_BASE_URL),
   });
   const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
   const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo, logger);
@@ -1622,7 +1620,6 @@ export function createContainer(logger: Logger): AppContainer {
       getAppointmentDetailUseCase,
       startInspectionUseCase,
       finishInspectionUseCase,
-      saveExecutionProgressUseCase,
       reopenExecutionUseCase,
       getMarketplaceOffersUseCase,
       getAvailablePeriodsUseCase,

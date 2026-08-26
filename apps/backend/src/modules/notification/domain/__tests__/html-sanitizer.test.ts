@@ -72,14 +72,14 @@ describe('HtmlSanitizerService — save profile (validateForSave)', () => {
 
   it('should permit http links', async () => {
     const svc = await loadImpl();
-    const html = '<a href="https://properfy.com">Properfy</a>';
+    const html = '<a href="https://properfy.me">Properfy</a>';
     const result = svc.validateForSave(html);
     expect(result.safe).toBe(true);
   });
 
   it('should permit mailto links', async () => {
     const svc = await loadImpl();
-    const html = '<a href="mailto:hello@properfy.com">Contact us</a>';
+    const html = '<a href="mailto:hello@properfy.me">Contact us</a>';
     const result = svc.validateForSave(html);
     expect(result.safe).toBe(true);
   });
@@ -298,7 +298,7 @@ describe('HtmlSanitizerService — render profile (sanitizeForRender)', () => {
 
   it('should strip on* attributes in render profile', async () => {
     const svc = await loadImpl();
-    const html = '<a href="https://properfy.com" onclick="evil()">Click</a>';
+    const html = '<a href="https://properfy.me" onclick="evil()">Click</a>';
     const result = svc.sanitizeForRender(html);
     expect(result).not.toContain('onclick');
     expect(result).toContain('href');

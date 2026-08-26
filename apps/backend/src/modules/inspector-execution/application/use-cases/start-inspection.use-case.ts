@@ -178,8 +178,6 @@ export class StartInspectionUseCase {
       finishLatitude: null,
       finishLongitude: null,
       geolocationDistanceMeters,
-      checklistJson: null,
-      notes: null,
       createdAt: now,
       updatedAt: now,
     });

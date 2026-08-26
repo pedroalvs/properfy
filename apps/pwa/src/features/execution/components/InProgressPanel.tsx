@@ -1,119 +1,50 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { ProgressBar } from './ProgressBar';
-import { ChecklistItem } from './ChecklistItem';
-import type { ChecklistTemplateItem, ChecklistResponse } from '../types';
 
 interface InProgressPanelProps {
-  checklistTemplate: ChecklistTemplateItem[];
-  checklistResponses: ChecklistResponse[];
-  onChecklistChange: (response: ChecklistResponse) => void;
-  notes: string;
-  onNotesChange: (notes: string) => void;
+  startedAt: string | null;
   onFinish: () => void;
-  isComplete: boolean;
-  requiredRemaining?: number;
 }
 
-type TabKey = 'checklist' | 'notes';
+function formatElapsed(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
+}
 
-export function InProgressPanel({
-  checklistTemplate,
-  checklistResponses,
-  onChecklistChange,
-  notes,
-  onNotesChange,
-  onFinish,
-  isComplete,
-  requiredRemaining = 0,
-}: InProgressPanelProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>('checklist');
+export function InProgressPanel({ startedAt, onFinish }: InProgressPanelProps) {
+  const [now, setNow] = useState(() => Date.now());
 
-  const tabs: { key: TabKey; label: string; icon: string }[] = [
-    { key: 'checklist', label: 'Checklist', icon: 'mdi-clipboard-check-outline' },
-    { key: 'notes', label: 'Notes', icon: 'mdi-text-box-outline' },
-  ];
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
-  const categories = [...new Set(checklistTemplate.map((i) => i.category))];
-
-  const completedCount = checklistTemplate.filter((item) =>
-    checklistResponses.some((r) => r.itemId === item.id && r.value !== null),
-  ).length;
-  const totalCount = checklistTemplate.length;
-  const checklistProgress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
-  function getFinishButtonLabel(): string {
-    if (requiredRemaining > 0) return `${requiredRemaining} required items remaining`;
-    return 'Proceed to Finish';
-  }
+  const startedMs = startedAt ? new Date(startedAt).getTime() : null;
+  const elapsed = startedMs !== null ? formatElapsed(now - startedMs) : null;
 
   return (
     <div className="flex flex-col" data-testid="in-progress-panel">
-      {totalCount > 0 && (
-        <div className="px-page-x py-2 bg-card-bg" data-testid="checklist-progress">
-          <ProgressBar
-            progress={checklistProgress}
-            label={`${completedCount} of ${totalCount} checklist items completed`}
-          />
+      <div className="flex flex-col items-center gap-3 px-page-x py-8 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-card-bg">
+          <i className="mdi mdi-clipboard-clock-outline text-3xl text-primary" aria-hidden="true" />
         </div>
-      )}
-
-      <div className="flex border-b border-border-subtle bg-card-bg">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex flex-1 min-h-touch items-center justify-center gap-1 text-xs font-bold transition-colors ${
-              activeTab === tab.key
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-text-muted'
-            }`}
-            data-testid={`tab-${tab.key}`}
-          >
-            <i className={`mdi ${tab.icon}`} />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex-1 px-page-x py-4">
-        {activeTab === 'checklist' && (
-          <div className="flex flex-col gap-4">
-            {categories.map((category) => (
-              <div key={category}>
-                <h4 className="mb-2 text-xs font-bold uppercase text-text-secondary">{category}</h4>
-                <div className="flex flex-col gap-2">
-                  {checklistTemplate
-                    .filter((i) => i.category === category)
-                    .map((item) => (
-                      <ChecklistItem
-                        key={item.id}
-                        item={item}
-                        response={checklistResponses.find((r) => r.itemId === item.id)}
-                        onChange={onChecklistChange}
-                      />
-                    ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'notes' && (
-          <div>
-            <textarea
-              value={notes}
-              onChange={(e) => onNotesChange(e.target.value)}
-              maxLength={2000}
-              placeholder="Add inspection notes..."
-              className="min-h-[200px] w-full rounded-lg border border-border-subtle bg-card-bg p-4 text-sm text-text-primary outline-none focus:border-primary"
-              data-testid="notes-textarea"
-            />
-            {notes.length >= 1800 && (
-              <p className="mt-1 text-right text-xs text-text-muted" data-testid="notes-char-count">
-                {notes.length}/2000
-              </p>
-            )}
+        <h2 className="text-lg font-bold text-secondary">Inspection in progress</h2>
+        <p className="text-sm text-text-muted">
+          Carry out the inspection at the property, then finish to capture your location.
+        </p>
+        {elapsed && (
+          <div className="mt-2" data-testid="elapsed-time">
+            <p className="text-xs font-bold uppercase text-text-secondary">Elapsed</p>
+            <p
+              className="font-mono text-2xl font-bold tabular-nums text-text-primary"
+              aria-live="polite"
+            >
+              {elapsed}
+            </p>
           </div>
         )}
       </div>
@@ -121,12 +52,11 @@ export function InProgressPanel({
       <div className="px-page-x pb-4">
         <Button
           variant="primary"
-          disabled={!isComplete}
           onClick={onFinish}
           className="!w-full !min-h-[48px]"
           data-testid="proceed-to-finish-button"
         >
-          {getFinishButtonLabel()}
+          Finish Inspection
         </Button>
       </div>
     </div>

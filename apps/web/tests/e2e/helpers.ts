@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 export const AM_USER = {
   id: 'user-am-1',
   name: 'Admin Master',
-  email: 'admin@properfy.com',
+  email: 'admin@properfy.me',
   role: 'AM',
   tenantId: 'tenant-1',
 };

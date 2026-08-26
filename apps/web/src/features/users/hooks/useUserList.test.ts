@@ -33,7 +33,7 @@ import { createQueryWrapper } from '@/test-utils/test-wrappers';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 
 const MOCK_USERS = [
-  { id: 'usr-01', name: 'Admin Principal', email: 'admin@properfy.com', role: 'AM', status: 'ACTIVE' },
+  { id: 'usr-01', name: 'Admin Principal', email: 'admin@properfy.me', role: 'AM', status: 'ACTIVE' },
   { id: 'usr-02', name: 'Ana Gestora', email: 'ana@imobiliaria.com', role: 'CL_ADMIN', status: 'ACTIVE' },
 ];
 

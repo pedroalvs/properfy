@@ -11,7 +11,7 @@ vi.mock('resend', () => ({
 
 describe('ResendEmailProvider', () => {
   const apiKey = 're_test_api_key';
-  const fromEmail = 'noreply@properfy.com.au';
+  const fromEmail = 'noreply@properfy.me';
   let provider: ResendEmailProvider;
 
   beforeEach(() => {
@@ -40,7 +40,7 @@ describe('ResendEmailProvider', () => {
   });
 
   it('passes from address from constructor config', async () => {
-    const customFrom = 'custom@properfy.com.au';
+    const customFrom = 'custom@properfy.me';
     const customProvider = new ResendEmailProvider(apiKey, customFrom);
     mockSend.mockResolvedValue({ data: { id: 'msg-456' }, error: null });
 
@@ -52,7 +52,7 @@ describe('ResendEmailProvider', () => {
   });
 
   it('includes the configured global recipient as a hidden copy', async () => {
-    const bccRecipient = 'supervision@properfy.com.au';
+    const bccRecipient = 'supervision@properfy.me';
     const providerWithBcc = new ResendEmailProvider(apiKey, fromEmail, { bccRecipient });
     mockSend.mockResolvedValue({ data: { id: 'msg-bcc' }, error: null });
 
@@ -71,9 +71,9 @@ describe('ResendEmailProvider', () => {
 
   describe('system identity', () => {
     const identityOptions = {
-      bccRecipient: 'supervision@properfy.com.au',
-      systemFromEmail: 'system@properfy.com.au',
-      systemBccRecipient: 'system-archive@properfy.com.au',
+      bccRecipient: 'supervision@properfy.me',
+      systemFromEmail: 'system@properfy.me',
+      systemBccRecipient: 'system-archive@properfy.me',
     };
 
     it('uses the system from/bcc pair when identity is system', async () => {
