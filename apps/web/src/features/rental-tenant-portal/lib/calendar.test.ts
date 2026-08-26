@@ -48,6 +48,13 @@ describe('buildInspectionCalendarEvent', () => {
     expect(first?.uid).toContain('appt-1');
   });
 
+  it('keeps the frozen UID identity namespace so exported events are never re-identified', () => {
+    // The @-suffix is a stable identity namespace, NOT a live domain, and must not
+    // track branding/domain changes — changing it duplicates already-added events.
+    const event = buildInspectionCalendarEvent(BASE_INPUT);
+    expect(event?.uid).toBe('inspection-appt-1@properfy.me');
+  });
+
   it('falls back to a one-hour duration when the end is not after the start', () => {
     const event = buildInspectionCalendarEvent({
       ...BASE_INPUT,

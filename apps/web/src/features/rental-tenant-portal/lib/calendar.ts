@@ -39,6 +39,20 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
 const DEFAULT_TITLE = 'Property inspection';
 
 /**
+ * Namespace for the iCal event UID. This is NOT a link — calendar clients never
+ * resolve it (RFC 5545 §3.8.4.7); it only makes the UID globally unique, and the
+ * real uniqueness already comes from the appointment id on the left.
+ *
+ * It is a FROZEN identity contract: once inspections have been exported, the UID
+ * is how a re-download updates the existing calendar entry instead of creating a
+ * duplicate. Changing this suffix re-identifies every previously exported event.
+ * Do NOT repoint it at a new marketing/app domain on a future rebrand — it is
+ * deliberately decoupled from branding for that reason. (Set to `properfy.me`
+ * while the feature is unreleased, so no exported event yet depends on it.)
+ */
+const CALENDAR_UID_NAMESPACE = 'properfy.me';
+
+/**
  * Build the calendar event for a confirmed inspection, or `null` when the appointment
  * carries a date or slot we cannot resolve. Callers render nothing on `null` — an
  * unusable event is worse than no button, and this never throws into the render path.
@@ -78,8 +92,9 @@ export function buildInspectionCalendarEvent(
 
   return {
     // Stable across re-downloads so a calendar client updates the existing entry
-    // rather than stacking duplicates when the tenant adds it twice.
-    uid: `inspection-${input.appointmentId}@properfy.me`,
+    // rather than stacking duplicates when the tenant adds it twice. The namespace
+    // is a frozen identity contract — see CALENDAR_UID_NAMESPACE.
+    uid: `inspection-${input.appointmentId}@${CALENDAR_UID_NAMESPACE}`,
     title,
     startUtc,
     endUtc,
