@@ -211,4 +211,52 @@ describe('TemplateCreateDrawer', () => {
       );
     });
   });
+
+  // The prefill sequence guard (prefillSeqRef) must drop a fetchDefault response
+  // that resolves after the operator has moved on. These keep the request pending
+  // across the invalidating action, then resolve it and assert it is ignored.
+  describe('stale prefill guard', () => {
+    function deferred<T>() {
+      let resolve!: (value: T) => void;
+      const promise = new Promise<T>((r) => {
+        resolve = r;
+      });
+      return { promise, resolve };
+    }
+
+    it('keeps an operator edit when a late default response resolves', async () => {
+      const user = userEvent.setup();
+      const pending = deferred<{ data: { data: typeof DEFAULT_RESULT } }>();
+      // The fetchDefault triggered by selecting the code never resolves until we say so.
+      mockGet.mockReturnValueOnce(pending.promise);
+      renderDrawer();
+
+      await selectCode(user, 'Inspection Notice');
+      const body = screen.getByLabelText('Body');
+      await user.type(body, 'Operator draft');
+
+      // The stale default finally lands — the edit must survive.
+      pending.resolve({ data: { data: DEFAULT_RESULT } });
+      await waitFor(() => expect(body).toHaveValue('Operator draft'));
+      expect(body).not.toHaveValue(DEFAULT_RESULT.body);
+    });
+
+    it('ignores a default response for a code the operator switched away from', async () => {
+      const user = userEvent.setup();
+      const stale = deferred<{ data: { data: { subject: string; body: string } } }>();
+      // First code's default stays pending; the second code uses the resolving mock.
+      mockGet.mockReturnValueOnce(stale.promise);
+      renderDrawer();
+
+      await selectCode(user, 'Inspection Notice');
+      await selectCode(user, 'Reminder – 7 Days');
+      await waitForPrefill();
+
+      // The first code's response arrives last and must not overwrite the current code.
+      stale.resolve({ data: { data: { subject: 'STALE', body: 'STALE BODY' } } });
+      await waitFor(() => expect(screen.getByLabelText('Body')).toHaveValue(DEFAULT_RESULT.body));
+      expect(screen.getByLabelText('Body')).not.toHaveValue('STALE BODY');
+      expect(screen.getByLabelText('Subject')).not.toHaveValue('STALE');
+    });
+  });
 });

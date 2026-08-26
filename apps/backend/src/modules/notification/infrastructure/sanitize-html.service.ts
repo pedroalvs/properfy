@@ -41,6 +41,16 @@ const ALLOWED_SCHEMES_APPLIED_TO_ATTRIBUTES = [
   'background', 'ping', 'xlink:href', 'dynsrc', 'lowsrc',
 ];
 
+// Detects a javascript: scheme on one of the URL-bearing attributes above, used
+// only to build a precise rejection message. Compiled once from a static list
+// (no user input → no ReDoS). The `(?<![\w-])` lookbehind requires a real
+// attribute boundary so `data-href="javascript:…"` is reported as the disallowed
+// attribute `data-href`, not as a javascript: scheme.
+const JAVASCRIPT_SCHEME_RE = new RegExp(
+  `(?<![\\w-])(?:${ALLOWED_SCHEMES_APPLIED_TO_ATTRIBUTES.join('|')})\\s*=\\s*["']?\\s*javascript:`,
+  'i',
+);
+
 function buildOptions(): sanitizeHtml.IOptions {
   return {
     allowedTags: ALLOWED_TAGS,
@@ -164,11 +174,7 @@ export class SanitizeHtmlService implements IHtmlSanitizerService {
     // A javascript: scheme on ANY URL-bearing attribute (not just href) earns
     // the specific reason — otherwise background/poster/etc. would fall through
     // to the generic message even though the sanitize diff already rejected them.
-    const jsSchemeRe = new RegExp(
-      `\\b(?:${ALLOWED_SCHEMES_APPLIED_TO_ATTRIBUTES.join('|')})\\s*=\\s*["']?\\s*javascript:`,
-      'i',
-    );
-    const jsMatch = jsSchemeRe.exec(html);
+    const jsMatch = JAVASCRIPT_SCHEME_RE.exec(html);
     if (jsMatch) {
       return { safe: false, rejectedReason: 'Disallowed URL scheme: javascript:' };
     }

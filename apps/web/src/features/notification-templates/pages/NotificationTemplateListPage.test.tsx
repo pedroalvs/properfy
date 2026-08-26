@@ -40,16 +40,21 @@ import { NotificationTemplateListPage } from './NotificationTemplateListPage';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const mockUsePermissions = usePermissions as unknown as ReturnType<typeof vi.fn>;
 
+// Fields mirror the list endpoint's actual payload (templateCode, bodyHtml/
+// bodyText, isActive, variables) — the same shape useTemplateList maps from the
+// OpenAPI-generated type. Using the old code/body/active names here would map to
+// undefined and render blank rows.
 const MOCK_TEMPLATES = [
   {
     id: 'tpl-01',
     tenantId: null,
-    code: 'INSPECTION_NOTICE',
+    templateCode: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: 'Inspection Scheduled',
-    body: 'Hello {{tenant_name}}',
-    active: true,
-    requiredVariables: ['tenant_name'],
+    bodyHtml: '<p>Hello {{tenant_name}}</p>',
+    bodyText: 'Hello {{tenant_name}}',
+    isActive: true,
+    variables: ['tenant_name'],
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
   },
@@ -57,12 +62,13 @@ const MOCK_TEMPLATES = [
     id: 'tpl-02',
     tenantId: 'tenant-1',
     tenantName: 'Acme Realty',
-    code: 'REMINDER_7D',
+    templateCode: 'REMINDER_7D',
     channel: 'SMS',
     subject: '',
-    body: 'Reminder: {{scheduled_date}}',
-    active: false,
-    requiredVariables: ['scheduled_date'],
+    bodyHtml: '',
+    bodyText: 'Reminder: {{scheduled_date}}',
+    isActive: false,
+    variables: ['scheduled_date'],
     createdAt: '2026-02-01T00:00:00Z',
     updatedAt: '2026-02-01T00:00:00Z',
   },
