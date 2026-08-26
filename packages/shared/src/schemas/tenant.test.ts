@@ -448,7 +448,7 @@ describe('tenantSettingsSchema', () => {
       billingPeriod: 'WEEKLY',
       billingDayOfWeek: 1,
       notificationFromName: 'Properfy',
-      notificationFromEmail: 'noreply@properfy.com',
+      notificationFromEmail: 'noreply@properfy.me',
       smsFromName: 'Properfy',
       logoUrl: 'https://storage.example.com/logo.png',
       primaryColor: '#FF5733',

@@ -22,9 +22,9 @@ describe('HtmlToTextService', () => {
 
   it('should preserve link text and include the URL', async () => {
     const svc = await loadImpl();
-    const result = svc.convert('<a href="https://properfy.com">Visit Properfy</a>');
+    const result = svc.convert('<a href="https://properfy.me">Visit Properfy</a>');
     expect(result).toContain('Visit Properfy');
-    expect(result).toContain('properfy.com');
+    expect(result).toContain('properfy.me');
   });
 
   it('should strip block formatting and return plain text from table layout', async () => {

@@ -86,18 +86,18 @@ describe('DynamicEmailProvider', () => {
     const provider = new DynamicEmailProvider(
       fakeResolver([{ config: { apiKey: 'k1', fromEmail: 'a@x.com' }, source: 'database' }]),
       {
-        bccRecipient: 'supervision@properfy.com.au',
-        systemFromEmail: 'system@properfy.com.au',
-        systemBccRecipient: 'system-archive@properfy.com.au',
+        bccRecipient: 'supervision@properfy.me',
+        systemFromEmail: 'system@properfy.me',
+        systemBccRecipient: 'system-archive@properfy.me',
       },
     );
 
     await provider.send('a@b.c', 's', '<p/>', 't');
 
     expect(ResendEmailProvider).toHaveBeenCalledWith('k1', 'a@x.com', {
-      bccRecipient: 'supervision@properfy.com.au',
-      systemFromEmail: 'system@properfy.com.au',
-      systemBccRecipient: 'system-archive@properfy.com.au',
+      bccRecipient: 'supervision@properfy.me',
+      systemFromEmail: 'system@properfy.me',
+      systemBccRecipient: 'system-archive@properfy.me',
     });
   });
 

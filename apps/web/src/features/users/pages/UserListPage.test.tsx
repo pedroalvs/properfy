@@ -46,7 +46,7 @@ type MockAuthUser = {
 let mockMe: MockAuthUser = { id: 'usr-99', name: 'Test Admin', email: 'admin@test.com', role: 'CL_ADMIN', tenantId: 'tenant-1', branchId: null, totpEnabled: false };
 
 const MOCK_USERS = [
-  { id: 'usr-01', name: 'Main Admin', email: 'admin@properfy.com', role: 'AM', status: 'ACTIVE' },
+  { id: 'usr-01', name: 'Main Admin', email: 'admin@properfy.me', role: 'AM', status: 'ACTIVE' },
   { id: 'usr-02', name: 'Ana Manager', email: 'ana@agency.com', role: 'CL_ADMIN', status: 'ACTIVE' },
 ];
 

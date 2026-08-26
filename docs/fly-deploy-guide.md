@@ -38,7 +38,7 @@ fly secrets set JWT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvQ...\n-----EN
 fly secrets set JWT_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\nMIIBI...\n-----END PUBLIC KEY-----"
 
 # CORS — your frontend domain(s), comma-separated
-fly secrets set CORS_ORIGIN="https://app.properfy.com.br"
+fly secrets set CORS_ORIGIN="https://app.properfy.me"
 
 # TOTP encryption key (32 bytes, hex encoded)
 # Generate with: openssl rand -hex 32
@@ -61,7 +61,7 @@ fly secrets set SUPABASE_S3_SECRET_ACCESS_KEY="your-secret"
 
 # Email (Resend)
 fly secrets set RESEND_API_KEY="re_xxxxx"
-fly secrets set RESEND_FROM_EMAIL="noreply@properfy.com.br"
+fly secrets set RESEND_FROM_EMAIL="noreply@properfy.me"
 
 # SMS (Twilio)
 fly secrets set TWILIO_ACCOUNT_SID="ACxxxxx"

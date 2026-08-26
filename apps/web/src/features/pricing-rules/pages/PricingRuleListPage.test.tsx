@@ -34,7 +34,7 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 let mockMe = {
   id: 'usr-01',
   name: 'Platform Admin',
-  email: 'admin@properfy.com',
+  email: 'admin@properfy.me',
   role: 'AM',
   tenantId: null as string | null,
   branchId: null as string | null,
@@ -64,7 +64,7 @@ beforeEach(() => {
   mockMe = {
     id: 'usr-01',
     name: 'Platform Admin',
-    email: 'admin@properfy.com',
+    email: 'admin@properfy.me',
     role: 'AM',
     tenantId: null,
     branchId: null,

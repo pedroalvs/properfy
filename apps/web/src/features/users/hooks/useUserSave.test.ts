@@ -37,7 +37,7 @@ const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 
 const VALID_CREATE_DATA: UserFormData = {
   name: 'Teste Usuário',
-  email: 'teste@properfy.com',
+  email: 'teste@properfy.me',
   phone: '11999999999',
   role: 'CL_USER',
   status: '',

@@ -211,7 +211,7 @@ SUPABASE_STORAGE_BUCKET=properfy-assets
 
 # Notifications — Email
 RESEND_API_KEY=
-RESEND_FROM_EMAIL=notifications@properfy.com.au
+RESEND_FROM_EMAIL=notifications@properfy.me
 
 # Notifications — SMS
 TWILIO_ACCOUNT_SID=
@@ -303,7 +303,7 @@ fly secrets set \
   SUPABASE_S3_SECRET_ACCESS_KEY="..." \
   SUPABASE_STORAGE_BUCKET="properfy-assets" \
   RESEND_API_KEY="..." \
-  RESEND_FROM_EMAIL="notifications@properfy.com.au" \
+  RESEND_FROM_EMAIL="notifications@properfy.me" \
   TWILIO_ACCOUNT_SID="..." \
   TWILIO_AUTH_TOKEN="..." \
   TWILIO_PHONE_NUMBER="..." \

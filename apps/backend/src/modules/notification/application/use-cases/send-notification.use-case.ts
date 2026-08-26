@@ -5,6 +5,7 @@ import {
   suppressesOccupantNotifications,
   isWithheldForNonNotifyingFlow,
   FLOW_TYPE_NO_OCCUPANT_CODE,
+  PROPERFY_LOGO_URL,
   type NotificationClass,
 } from '@properfy/shared';
 import { prepareSmsBody } from '../../domain/sms-content';
@@ -145,6 +146,13 @@ export interface SendNotificationDeps {
    * at the audit trail keep working.
    */
   auditService?: AuditService;
+  /**
+   * Environment-specific Properfy logo URL, injected into every email's render
+   * variables so the logo resolves from the current environment's web app
+   * instead of a hardcoded domain. Falls back to the shared prod default when
+   * unset (e.g. tests). Wire with `buildProperfyLogoUrl(env.WEB_APP_BASE_URL)`.
+   */
+  properfyLogoUrl?: string;
 }
 
 export class SendNotificationUseCase {
@@ -167,6 +175,7 @@ export class SendNotificationUseCase {
   private readonly htmlSanitizer?: IHtmlSanitizerService;
   private readonly htmlToText?: IHtmlToTextService;
   private readonly auditService?: AuditService;
+  private readonly properfyLogoUrl: string;
 
   constructor(deps: SendNotificationDeps) {
     this.notificationRepo = deps.notificationRepo;
@@ -185,6 +194,7 @@ export class SendNotificationUseCase {
     this.htmlSanitizer = deps.htmlSanitizer;
     this.htmlToText = deps.htmlToText;
     this.auditService = deps.auditService;
+    this.properfyLogoUrl = deps.properfyLogoUrl ?? PROPERFY_LOGO_URL;
   }
 
   /**
@@ -660,6 +670,11 @@ export class SendNotificationUseCase {
 
     // GAP-004: Validate template variables (warn but don't fail)
     const variables: Record<string, string> = { ...notification.payloadJson };
+
+    // The Properfy logo is platform-wide and environment-specific: resolve it
+    // here so every email (tenant + system) renders the logo from the current
+    // environment's web app, and no stored payload can pin a stale domain.
+    variables.properfyLogoUrl = this.properfyLogoUrl;
 
     const allTemplateContent = [template.subject, template.bodyHtml, template.bodyText]
       .filter(Boolean)

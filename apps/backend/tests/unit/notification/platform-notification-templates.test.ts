@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   TEMPLATE_VARIABLES,
   SAMPLE_DATA,
+  PROPERFY_LOGO_URL,
   getProtectedClass,
   getDefaultClass,
   getTemplateCodeLabel,
@@ -292,11 +293,13 @@ describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
 
 // ── System emails (Properfy-branded light layout, not tenant-customizable) ──
 
+// The Properfy logo is injected by the send path for every email, so it is
+// always available to a system template's body regardless of the sender.
 const SYSTEM_EMAIL_SAMPLES: Record<string, Record<string, string>> = {
-  PASSWORD_RESET: { userName: 'Admin User', resetLink: 'https://app.properfy.com/reset?token=x' },
-  REPORT_READY: { userName: 'Admin User', reportType: 'Appointments', downloadLink: 'https://app.properfy.com/reports/1' },
-  REPORT_FAILED: { userName: 'Admin User', reportType: 'Appointments', errorMessage: 'Server timeout', downloadLink: 'https://app.properfy.com/reports' },
-  INSPECTION_STUCK_ALERT: { appointmentId: 'appt-1', inspectorId: 'insp-1', startedAt: '2026-07-23 09:00', hoursStuck: '5' },
+  PASSWORD_RESET: { userName: 'Admin User', resetLink: 'https://app.properfy.me/reset?token=x', properfyLogoUrl: PROPERFY_LOGO_URL },
+  REPORT_READY: { userName: 'Admin User', reportType: 'Appointments', downloadLink: 'https://app.properfy.me/reports/1', properfyLogoUrl: PROPERFY_LOGO_URL },
+  REPORT_FAILED: { userName: 'Admin User', reportType: 'Appointments', errorMessage: 'Server timeout', downloadLink: 'https://app.properfy.me/reports', properfyLogoUrl: PROPERFY_LOGO_URL },
+  INSPECTION_STUCK_ALERT: { appointmentId: 'appt-1', inspectorId: 'insp-1', startedAt: '2026-07-23 09:00', hoursStuck: '5', properfyLogoUrl: PROPERFY_LOGO_URL },
 };
 
 describe('PLATFORM_TEMPLATES system email HTML bodies', () => {
@@ -308,8 +311,8 @@ describe('PLATFORM_TEMPLATES system email HTML bodies', () => {
 
     it(`${code} has a rich Properfy-branded HTML body`, () => {
       expect(entry?.bodyHtml).toBeTruthy();
-      // Light system layout markers: Properfy logo + coral accent
-      expect(entry!.bodyHtml).toContain('properfy-logo-red.png');
+      // Light system layout markers: env-resolved Properfy logo placeholder + coral accent
+      expect(entry!.bodyHtml).toContain('{{properfyLogoUrl}}');
       expect(entry!.bodyHtml).toContain('#F37A76');
     });
 

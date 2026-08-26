@@ -35,7 +35,7 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const MOCK_USER = {
   id: 'usr-01',
   name: 'Admin Principal',
-  email: 'admin@properfy.com',
+  email: 'admin@properfy.me',
   role: 'AM',
   status: 'ACTIVE',
 };
