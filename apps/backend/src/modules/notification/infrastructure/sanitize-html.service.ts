@@ -30,11 +30,33 @@ const ALLOWED_ATTRS: Record<string, string[]> = {
 
 const ALLOWED_SCHEMES = ['http', 'https', 'mailto'];
 
+// sanitize-html only runs its scheme check (naughtyHref) against attributes named
+// here; its default list is href/src/cite. `background` accepts a URL too, so
+// without it a value like background="javascript:..." would slip past validation
+// (GHSA-vccv-cmxp-4j9h / CVE-2026-53606, present up to sanitize-html 2.17.4).
+// Listing every URL-bearing attribute we allow — plus the ones the advisory
+// flags — keeps the gate in place regardless of the resolved library version.
+const ALLOWED_SCHEMES_APPLIED_TO_ATTRIBUTES = [
+  'href', 'src', 'cite', 'action', 'formaction', 'data', 'poster',
+  'background', 'ping', 'xlink:href', 'dynsrc', 'lowsrc',
+];
+
+// Detects a javascript: scheme on one of the URL-bearing attributes above, used
+// only to build a precise rejection message. Compiled once from a static list
+// (no user input → no ReDoS). The `(?<![\w-])` lookbehind requires a real
+// attribute boundary so `data-href="javascript:…"` is reported as the disallowed
+// attribute `data-href`, not as a javascript: scheme.
+const JAVASCRIPT_SCHEME_RE = new RegExp(
+  `(?<![\\w-])(?:${ALLOWED_SCHEMES_APPLIED_TO_ATTRIBUTES.join('|')})\\s*=\\s*["']?\\s*javascript:`,
+  'i',
+);
+
 function buildOptions(): sanitizeHtml.IOptions {
   return {
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: ALLOWED_ATTRS,
     allowedSchemes: ALLOWED_SCHEMES,
+    allowedSchemesAppliedToAttributes: ALLOWED_SCHEMES_APPLIED_TO_ATTRIBUTES,
     // Images must be served over https; links may still be http/mailto
     allowedSchemesByTag: { img: ['https'] },
     allowProtocolRelative: false,
@@ -149,7 +171,10 @@ export class SanitizeHtmlService implements IHtmlSanitizerService {
     if (onMatch) {
       return { safe: false, rejectedReason: `Disallowed event handler: ${onMatch[0].trim()}` };
     }
-    const jsMatch = /href\s*=\s*["']?javascript:/i.exec(html);
+    // A javascript: scheme on ANY URL-bearing attribute (not just href) earns
+    // the specific reason — otherwise background/poster/etc. would fall through
+    // to the generic message even though the sanitize diff already rejected them.
+    const jsMatch = JAVASCRIPT_SCHEME_RE.exec(html);
     if (jsMatch) {
       return { safe: false, rejectedReason: 'Disallowed URL scheme: javascript:' };
     }

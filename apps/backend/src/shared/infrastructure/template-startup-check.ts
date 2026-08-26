@@ -133,6 +133,16 @@ export async function syncPlatformTemplates(logger: Logger, db: typeof prisma = 
           });
           refreshed += 1;
         } else {
+          // Human-edited content: never rewrite the body/subject. The
+          // classification is not operator content, though — it is
+          // catalog-derived and drives consent/opt-out handling, so a stale
+          // class must still be corrected without touching the edited copy.
+          if (row.notification_class !== catalogClass) {
+            await db.notificationTemplate.update({
+              where: { id: row.id },
+              data: { notification_class: catalogClass },
+            });
+          }
           skipped.push(`${entry.code}/${entry.channel}`);
         }
       } catch (entryErr) {

@@ -297,13 +297,14 @@ export function TemplateFormDrawer({
                   Reset to default
                 </Button>
               )}
-              {/* An empty body is an unsendable draft — the test would silently
-                  fall back to the persisted row and mismatch the screen. */}
+              {/* A blank subject or body is an unsendable draft — useSendTestEmail
+                  drops an empty draft field, so the test would silently fall back
+                  to the persisted row and mismatch what is on screen. */}
               {isEmailChannel && (
                 <Button
                   variant="secondary"
                   onClick={() => setShowTestDialog(true)}
-                  disabled={isSaving || !form.body.trim()}
+                  disabled={isSaving || !form.subject.trim() || !form.body.trim()}
                 >
                   Send Test Email
                 </Button>

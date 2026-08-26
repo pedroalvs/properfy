@@ -167,6 +167,38 @@ describe('syncPlatformTemplates', () => {
     );
   });
 
+  it('corrects a stale notification_class on a human-edited row without touching its content', async () => {
+    const entry = PLATFORM_TEMPLATES[0];
+    const key = `${entry.code}:${entry.channel}`;
+    const staleClass = resolvePlatformTemplateClass(entry) === 'OPERATIONAL' ? 'MARKETING' : 'OPERATIONAL';
+    vi.mocked(prisma.notificationTemplate.findMany).mockResolvedValue(
+      allRows({
+        [key]: {
+          subject: 'Operator-customised subject',
+          seeded_content_hash: platformTemplateContentHash({
+            subject: 'What the seeder wrote long ago',
+            bodyText: 'x',
+            bodyHtml: null,
+          }),
+          notification_class: staleClass,
+        },
+      }) as never,
+    );
+    await syncPlatformTemplates(logger);
+    expect(prisma.notificationTemplate.update).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(prisma.notificationTemplate.update).mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    // Class-only update: the edited content is preserved, never rewritten.
+    expect(Object.keys(call.data)).toEqual(['notification_class']);
+    expect(call.data.notification_class).toBe(resolvePlatformTemplateClass(entry));
+    // The row is still reported as skipped (its content was not refreshed).
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ skippedCount: 1, skipped: [`${entry.code}/${entry.channel}`] }),
+      expect.any(String),
+    );
+  });
+
   it('never throws — a database failure is logged as a warning', async () => {
     vi.mocked(prisma.notificationTemplate.findMany).mockRejectedValue(new Error('db down'));
     await expect(syncPlatformTemplates(logger)).resolves.toBeUndefined();

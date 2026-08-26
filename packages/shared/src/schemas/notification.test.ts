@@ -3,6 +3,10 @@ import {
   listNotificationsQuerySchema,
   upsertNotificationTemplateSchema,
   listNotificationTemplatesQuerySchema,
+  testSendEmailRequestSchema,
+  testSendSmsRequestSchema,
+  testSendRequestSchema,
+  testSendResponseSchema,
 } from './notification';
 
 const validUuid = '550e8400-e29b-41d4-a716-446655440000';
@@ -229,5 +233,119 @@ describe('listNotificationTemplatesQuerySchema', () => {
       const result = listNotificationTemplatesQuerySchema.safeParse({ channel });
       expect(result.success).toBe(true);
     }
+  });
+});
+
+const validAuPhone = '+61412345678';
+
+describe('testSendEmailRequestSchema', () => {
+  it('should accept a bare recipient email (no scope, no draft)', () => {
+    const result = testSendEmailRequestSchema.safeParse({ recipientEmail: 'ops@properfy.com' });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept an optional tenant scope and draft fields', () => {
+    const result = testSendEmailRequestSchema.safeParse({
+      recipientEmail: 'ops@properfy.com',
+      tenantId: validUuid,
+      draftSubject: 'Preview subject',
+      draftBodyHtml: '<p>Hello</p>',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject a malformed recipient email', () => {
+    const result = testSendEmailRequestSchema.safeParse({ recipientEmail: 'not-an-email' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject a non-UUID tenantId', () => {
+    const result = testSendEmailRequestSchema.safeParse({
+      recipientEmail: 'ops@properfy.com',
+      tenantId: 'not-a-uuid',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject an empty draft subject or body', () => {
+    expect(
+      testSendEmailRequestSchema.safeParse({ recipientEmail: 'ops@properfy.com', draftSubject: '' }).success,
+    ).toBe(false);
+    expect(
+      testSendEmailRequestSchema.safeParse({ recipientEmail: 'ops@properfy.com', draftBodyHtml: '' }).success,
+    ).toBe(false);
+  });
+});
+
+describe('testSendSmsRequestSchema', () => {
+  it('should accept a valid AU E.164 recipient phone', () => {
+    const result = testSendSmsRequestSchema.safeParse({ recipientPhone: validAuPhone });
+    expect(result.success).toBe(true);
+  });
+
+  it('should accept an optional tenant scope and draft body', () => {
+    const result = testSendSmsRequestSchema.safeParse({
+      recipientPhone: validAuPhone,
+      tenantId: validUuid,
+      draftBodyText: 'Properfy: reminder',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject a non-E.164 or non-AU phone', () => {
+    expect(testSendSmsRequestSchema.safeParse({ recipientPhone: '0412345678' }).success).toBe(false);
+    expect(testSendSmsRequestSchema.safeParse({ recipientPhone: '+14155552671' }).success).toBe(false);
+  });
+
+  it('should reject an empty draft body', () => {
+    const result = testSendSmsRequestSchema.safeParse({ recipientPhone: validAuPhone, draftBodyText: '' });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('testSendRequestSchema (route-level union)', () => {
+  it('should accept an email-only body', () => {
+    expect(testSendRequestSchema.safeParse({ recipientEmail: 'ops@properfy.com' }).success).toBe(true);
+  });
+
+  it('should accept an SMS-only body', () => {
+    expect(testSendRequestSchema.safeParse({ recipientPhone: validAuPhone }).success).toBe(true);
+  });
+
+  it('should accept an empty object (all fields optional at the route layer)', () => {
+    expect(testSendRequestSchema.safeParse({}).success).toBe(true);
+  });
+
+  it('should reject a malformed email or phone when present', () => {
+    expect(testSendRequestSchema.safeParse({ recipientEmail: 'nope' }).success).toBe(false);
+    expect(testSendRequestSchema.safeParse({ recipientPhone: '12345' }).success).toBe(false);
+  });
+});
+
+describe('testSendResponseSchema', () => {
+  it('should accept a well-formed response with an ISO datetime sentAt', () => {
+    const result = testSendResponseSchema.safeParse({
+      messageId: 'msg-123',
+      recipient: 'ops@properfy.com',
+      sentAt: '2026-08-25T12:00:00.000Z',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject a non-datetime sentAt', () => {
+    const result = testSendResponseSchema.safeParse({
+      messageId: 'msg-123',
+      recipient: 'ops@properfy.com',
+      sentAt: '2026-08-25',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject a response missing messageId', () => {
+    const result = testSendResponseSchema.safeParse({
+      recipient: 'ops@properfy.com',
+      sentAt: '2026-08-25T12:00:00.000Z',
+    });
+    expect(result.success).toBe(false);
   });
 });
