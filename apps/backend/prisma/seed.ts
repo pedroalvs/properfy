@@ -158,11 +158,6 @@ const IDS = {
   exec1: stableSeedUuid('exec1'),
   exec2: stableSeedUuid('exec2'),
   exec3: stableSeedUuid('exec3'),
-  // Inspection assets
-  asset1: stableSeedUuid('asset1'),
-  asset2: stableSeedUuid('asset2'),
-  asset3: stableSeedUuid('asset3'),
-  asset4: stableSeedUuid('asset4'),
   // Notifications
   notif1: stableSeedUuid('notif1'),
   notif2: stableSeedUuid('notif2'),
@@ -1197,8 +1192,6 @@ async function main() {
       start_longitude: 151.2022,
       finish_latitude: -33.8270,
       finish_longitude: 151.2025,
-      checklist_json: { items: ['Smoke alarms', 'Water damage', 'HVAC', 'Locks'], completed: [true, false, true, true] },
-      notes: 'Minor water stain on bathroom ceiling noted. All other items in good condition.',
     },
   });
 
@@ -1216,7 +1209,6 @@ async function main() {
       started_at: new Date(),
       start_latitude: -33.8389,
       start_longitude: 151.2074,
-      checklist_json: { items: ['Smoke alarms', 'Water damage', 'HVAC', 'Locks'], completed: [] },
     },
   });
 
@@ -1234,79 +1226,15 @@ async function main() {
       start_longitude: 144.9675,
       finish_latitude: -37.8306,
       finish_longitude: 144.9677,
-      checklist_json: { items: ['Smoke alarms', 'Water damage', 'Fixtures', 'Locks'], completed: [true, true, true, true] },
-      notes: 'Property in excellent condition. All items pass.',
     },
   });
   console.log('Inspection executions: 3 created (2 finished, 1 in-progress)');
 
-  // ─── INSPECTION ASSETS ────────────────────────────────────────────────────
-
-  await prisma.inspectionAsset.upsert({
-    where: { storage_key: 'executions/exec1/photo-bathroom-ceiling.jpg' },
-    update: {},
-    create: {
-      id: IDS.asset1,
-      appointment_id: IDS.apptDone,
-      inspection_execution_id: IDS.exec1,
-      storage_key: 'executions/exec1/photo-bathroom-ceiling.jpg',
-      mime_type: 'image/jpeg',
-      size_bytes: 2048000,
-      kind: 'PHOTO',
-      status: 'UPLOADED',
-      uploaded_by: IDS.userINSP,
-    },
-  });
-
-  await prisma.inspectionAsset.upsert({
-    where: { storage_key: 'executions/exec1/signature-tenant.png' },
-    update: {},
-    create: {
-      id: IDS.asset2,
-      appointment_id: IDS.apptDone,
-      inspection_execution_id: IDS.exec1,
-      storage_key: 'executions/exec1/signature-tenant.png',
-      mime_type: 'image/png',
-      size_bytes: 45000,
-      kind: 'SIGNATURE',
-      status: 'UPLOADED',
-      uploaded_by: IDS.userINSP,
-    },
-  });
-
-  await prisma.inspectionAsset.upsert({
-    where: { storage_key: 'executions/exec2/photo-living-room.jpg' },
-    update: {},
-    create: {
-      id: IDS.asset3,
-      appointment_id: IDS.apptScheduled,
-      inspection_execution_id: IDS.exec2,
-      storage_key: 'executions/exec2/photo-living-room.jpg',
-      mime_type: 'image/jpeg',
-      size_bytes: 0,
-      kind: 'PHOTO',
-      status: 'PENDING',
-      uploaded_by: IDS.userINSP,
-      upload_expires_at: new Date(Date.now() + 30 * 60000),
-    },
-  });
-
-  await prisma.inspectionAsset.upsert({
-    where: { storage_key: 'executions/exec1/report-document.pdf' },
-    update: {},
-    create: {
-      id: IDS.asset4,
-      appointment_id: IDS.apptDone,
-      inspection_execution_id: IDS.exec1,
-      storage_key: 'executions/exec1/report-document.pdf',
-      mime_type: 'application/pdf',
-      size_bytes: 0,
-      kind: 'DOCUMENT',
-      status: 'UPLOAD_FAILED',
-      uploaded_by: IDS.userINSP,
-    },
-  });
-  console.log('Inspection assets: 4 created (UPLOADED, PENDING, UPLOAD_FAILED)');
+  // NOTE: no inspection-asset seed — the InspectionAsset table was never carried
+  // into the v1 baseline schema (evidence upload is a deferred spec-008 feature,
+  // not built). The old `prisma.inspectionAsset.upsert` block referenced a model
+  // that does not exist and crashed the whole seed; it was removed. See
+  // specs/008-inspectors-execution for the deferred design.
 
   // ─── TENANT PORTAL TOKENS ─────────────────────────────────────────────────
 
@@ -1410,7 +1338,7 @@ async function main() {
       template_code: 'TENANT_SMS_ALERT', status: 'SENT' as const,
       provider_name: 'mobile-message', provider_message_id: 'SM01ABCDEF',
       sent_at: pastDate(2),
-      payload_json: { propertyAddress: '5 Blue St, North Sydney', scheduledDate: '2026-03-25', portalUrl: 'https://portal.properfy.com.au/t/abc123' },
+      payload_json: { propertyAddress: '5 Blue St, North Sydney', scheduledDate: '2026-03-25', portalUrl: 'https://app.properfy.me/portal/abc123' },
     },
     {
       id: IDS.notif3, tenant_id: IDS.tenant, appointment_id: IDS.apptAwaiting,

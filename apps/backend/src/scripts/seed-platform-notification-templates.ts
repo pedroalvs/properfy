@@ -1,5 +1,10 @@
 import { PrismaClient } from '@prisma/client';
-import { PLATFORM_TEMPLATES, resolvePlatformTemplateClass } from '../modules/notification/domain/platform-notification-templates';
+import {
+  PLATFORM_TEMPLATES,
+  platformTemplateContentHash,
+  platformTemplateEffectiveContent,
+  resolvePlatformTemplateClass,
+} from '../modules/notification/domain/platform-notification-templates';
 import { TemplateRendererService } from '../modules/notification/domain/template-renderer.service';
 
 const prisma = new PrismaClient();
@@ -14,7 +19,9 @@ async function main() {
   for (const t of PLATFORM_TEMPLATES) {
     // Subject and the rich HTML body can carry variables too, so derive
     // variables_json from subject + body + bodyHtml, deduplicated.
-    const bodyHtml = t.channel === 'EMAIL' ? (t.bodyHtml ?? `<p>${t.body}</p>`) : null;
+    const content = platformTemplateEffectiveContent(t);
+    const bodyHtml = content.bodyHtml;
+    const contentHash = platformTemplateContentHash(content);
     const variables = templateRenderer.extractVariables(
       `${t.subject ?? ''} ${t.body} ${bodyHtml ?? ''}`,
     );
@@ -36,6 +43,7 @@ async function main() {
           // Always written, never conditional: omitting it left the row on the
           // schema default and silently contradicted the shared catalogue.
           notification_class: resolvePlatformTemplateClass(t),
+          seeded_content_hash: contentHash,
         },
       });
     } else {
@@ -50,6 +58,7 @@ async function main() {
           variables_json: variables,
           is_active: true,
           notification_class: resolvePlatformTemplateClass(t),
+          seeded_content_hash: contentHash,
         },
       });
     }

@@ -38,8 +38,16 @@ describe('useSendTestEmail', () => {
     expect(res?.success).toBe(true);
     expect(res?.messageId).toBe('msg-123');
     expect(mockPost).toHaveBeenCalledWith(
-      '/v1/notification-templates/INSPECTION_NOTICE/EMAIL/test-send',
-      { body: { recipientEmail: 'recipient@example.com' } },
+      '/v1/notification-templates/{templateCode}/{channel}/test-send',
+      {
+        params: { path: { templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL' } },
+        body: {
+          recipientEmail: 'recipient@example.com',
+          tenantId: undefined,
+          draftSubject: undefined,
+          draftBodyHtml: undefined,
+        },
+      },
     );
   });
 

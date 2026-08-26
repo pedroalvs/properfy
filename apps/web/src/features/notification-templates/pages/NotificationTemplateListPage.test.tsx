@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { paths } from '@properfy/shared';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -40,29 +41,37 @@ import { NotificationTemplateListPage } from './NotificationTemplateListPage';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const mockUsePermissions = usePermissions as unknown as ReturnType<typeof vi.fn>;
 
-const MOCK_TEMPLATES = [
+// Typed with the OpenAPI-generated list item so the fixture is checked against
+// the real contract: the old code/body/active names would now fail to compile
+// instead of silently mapping to undefined and rendering blank rows.
+type TemplateListItem =
+  paths['/v1/notification-templates']['get']['responses'][200]['content']['application/json']['data'][number];
+
+const MOCK_TEMPLATES: TemplateListItem[] = [
   {
     id: 'tpl-01',
     tenantId: null,
-    code: 'INSPECTION_NOTICE',
+    templateCode: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: 'Inspection Scheduled',
-    body: 'Hello {{tenant_name}}',
-    active: true,
-    requiredVariables: ['tenant_name'],
+    bodyHtml: '<p>Hello {{tenant_name}}</p>',
+    bodyText: 'Hello {{tenant_name}}',
+    isActive: true,
+    variables: ['tenant_name'],
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
   },
   {
     id: 'tpl-02',
     tenantId: 'tenant-1',
-    rentalTenantName: 'Acme Realty',
-    code: 'REMINDER_7D',
+    tenantName: 'Acme Realty',
+    templateCode: 'REMINDER_7D',
     channel: 'SMS',
     subject: '',
-    body: 'Reminder: {{scheduled_date}}',
-    active: false,
-    requiredVariables: ['scheduled_date'],
+    bodyHtml: '',
+    bodyText: 'Reminder: {{scheduled_date}}',
+    isActive: false,
+    variables: ['scheduled_date'],
     createdAt: '2026-02-01T00:00:00Z',
     updatedAt: '2026-02-01T00:00:00Z',
   },

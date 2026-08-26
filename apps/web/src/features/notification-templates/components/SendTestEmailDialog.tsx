@@ -13,6 +13,11 @@ interface SendTestEmailDialogProps {
   onClose: () => void;
   templateCode: string;
   channel: string;
+  /** Tenant scope of the template being edited (agency override). */
+  tenantId?: string | null;
+  /** Current editor draft — the test sends exactly what is on screen. */
+  draftSubject?: string;
+  draftBodyHtml?: string;
 }
 
 export function SendTestEmailDialog({
@@ -20,6 +25,9 @@ export function SendTestEmailDialog({
   onClose,
   templateCode,
   channel,
+  tenantId,
+  draftSubject,
+  draftBodyHtml,
 }: SendTestEmailDialogProps) {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -42,14 +50,18 @@ export function SendTestEmailDialog({
       setEmailError('Please enter a valid email address');
       return;
     }
-    const result = await sendTest(templateCode, channel, email);
+    const result = await sendTest(templateCode, channel, email, {
+      tenantId,
+      draftSubject,
+      draftBodyHtml,
+    });
     if (result.success) {
       showSuccess(`Test email sent to ${email}`);
       handleClose();
     } else {
       showError(result.error ?? 'Failed to send test email');
     }
-  }, [email, templateCode, channel, sendTest, showSuccess, showError, handleClose]);
+  }, [email, templateCode, channel, tenantId, draftSubject, draftBodyHtml, sendTest, showSuccess, showError, handleClose]);
 
   return (
     <Dialog

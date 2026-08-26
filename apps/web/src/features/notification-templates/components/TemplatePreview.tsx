@@ -5,9 +5,17 @@ interface TemplatePreviewProps {
   htmlRendered: string;
   channel: NotificationChannel;
   isLoading?: boolean;
+  /** Backend render failure (e.g. a Handlebars syntax error) shown above the body. */
+  renderError?: string;
 }
 
-export function TemplatePreview({ subject, htmlRendered, channel, isLoading = false }: TemplatePreviewProps) {
+export function TemplatePreview({
+  subject,
+  htmlRendered,
+  channel,
+  isLoading = false,
+  renderError,
+}: TemplatePreviewProps) {
   const showSubject = channel === 'EMAIL';
 
   return (
@@ -28,12 +36,27 @@ export function TemplatePreview({ subject, htmlRendered, channel, isLoading = fa
         </div>
       )}
 
+      {renderError && (
+        <p
+          className="mb-3 rounded border border-error/40 bg-error/5 px-3 py-2 font-mono text-xs text-error"
+          data-testid="preview-error"
+          role="alert"
+        >
+          {renderError}
+        </p>
+      )}
+
       <div>
         {showSubject && <span className="text-xs font-semibold text-text-muted">Body</span>}
         {htmlRendered ? (
           <iframe
             srcDoc={htmlRendered}
-            sandbox=""
+            // allow-same-origin (and nothing else): scripts stay blocked, but
+            // the frame keeps our origin so the onLoad height measurement can
+            // read contentDocument. With sandbox="" the origin is opaque, the
+            // read throws, and the preview stayed clipped at 200px forever —
+            // hiding the footer logo below the fold.
+            sandbox="allow-same-origin"
             title="Email preview"
             data-testid="preview-body"
             className="mt-1 w-full rounded border border-[#E0E0E0] bg-white"

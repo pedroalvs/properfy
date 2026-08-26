@@ -12,6 +12,10 @@ interface SendTestSmsDialogProps {
   onClose: () => void;
   templateCode: string;
   channel: string;
+  /** Tenant scope of the template being edited (agency override). */
+  tenantId?: string | null;
+  /** Current editor draft (plain text) — the test sends exactly what is on screen. */
+  draftBodyText?: string;
 }
 
 export function SendTestSmsDialog({
@@ -19,6 +23,8 @@ export function SendTestSmsDialog({
   onClose,
   templateCode,
   channel,
+  tenantId,
+  draftBodyText,
 }: SendTestSmsDialogProps) {
   const [phone, setPhone] = useState('');
   const [phoneError, setPhoneError] = useState('');
@@ -43,14 +49,14 @@ export function SendTestSmsDialog({
       return;
     }
 
-    const result = await sendTest(templateCode, channel, e164);
+    const result = await sendTest(templateCode, channel, e164, { tenantId, draftBodyText });
     if (result.success) {
       showSuccess(`Test SMS sent to ${phone}`);
       handleClose();
     } else {
       showError(result.error ?? 'Failed to send test SMS');
     }
-  }, [phone, templateCode, channel, sendTest, showSuccess, showError, handleClose]);
+  }, [phone, templateCode, channel, tenantId, draftBodyText, sendTest, showSuccess, showError, handleClose]);
 
   return (
     <Dialog

@@ -63,17 +63,7 @@ describe('startInspectionSchema', () => {
 });
 
 describe('finishInspectionSchema', () => {
-  it('should accept valid input with all fields', () => {
-    const result = finishInspectionSchema.safeParse({
-      latitude: -23.5505,
-      longitude: -46.6333,
-      checklistJson: { item1: true, item2: false },
-      notes: 'Inspection completed successfully',
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('should accept minimal input with lat/lng only', () => {
+  it('should accept input with lat/lng only', () => {
     const result = finishInspectionSchema.safeParse({
       latitude: -23.5505,
       longitude: -46.6333,
@@ -81,11 +71,23 @@ describe('finishInspectionSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should reject notes longer than 5000 characters', () => {
+  it('should strip unknown fields (finish carries geolocation only)', () => {
     const result = finishInspectionSchema.safeParse({
       latitude: -23.5505,
       longitude: -46.6333,
-      notes: 'a'.repeat(5001),
+      checklistJson: { item1: true },
+      notes: 'unexpected',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual({ latitude: -23.5505, longitude: -46.6333 });
+    }
+  });
+
+  it('should reject out-of-range latitude', () => {
+    const result = finishInspectionSchema.safeParse({
+      latitude: 100,
+      longitude: -46.6333,
     });
     expect(result.success).toBe(false);
   });

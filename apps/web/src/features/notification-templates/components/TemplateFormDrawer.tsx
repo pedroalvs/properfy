@@ -1,12 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormSection } from '@/components/forms/FormSection';
-import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
-import { TextInput } from '@/components/forms/TextInput';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useTemplateSave } from '../hooks/useTemplateSave';
@@ -15,7 +13,7 @@ import { useTemplateDefault } from '../hooks/useTemplateDefault';
 import { NotificationTargetChip } from './NotificationTargetChip';
 import { SendTestEmailDialog } from './SendTestEmailDialog';
 import { SendTestSmsDialog } from './SendTestSmsDialog';
-import { VariableInsertToolbar } from './VariableInsertToolbar';
+import { TemplateEditorFields } from './TemplateEditorFields';
 import { TemplatePreview } from './TemplatePreview';
 import type { NotificationTemplate, TemplateFormData, TemplateFormErrors } from '../types';
 import { TEMPLATE_VARIABLES, MANDATORY_TEMPLATE_CODES } from '../types';
@@ -36,7 +34,6 @@ export function TemplateFormDrawer({
   const { save, isSaving, validate } = useTemplateSave();
   const { fetchDefault, isLoading: isResetting } = useTemplateDefault();
   const { showSuccess, showError } = useSnackbar();
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   const [form, setForm] = useState<TemplateFormData>({ subject: '', body: '', active: true });
   const [initialData, setInitialData] = useState<TemplateFormData>({ subject: '', body: '', active: true });
@@ -120,28 +117,6 @@ export function TemplateFormDrawer({
     [],
   );
 
-  const insertAtCursor = useCallback((text: string) => {
-    const textarea = bodyRef.current;
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newBody = form.body.substring(0, start) + text + form.body.substring(end);
-      updateField('body', newBody);
-
-      requestAnimationFrame(() => {
-        const cursorPos = start + text.length;
-        textarea.focus();
-        textarea.setSelectionRange(cursorPos, cursorPos);
-      });
-    } else {
-      updateField('body', form.body + text);
-    }
-  }, [form.body, updateField]);
-
-  const handleInsertVariable = useCallback((variable: string) => {
-    insertAtCursor(variable);
-  }, [insertAtCursor]);
-
   // Single source of truth for channel-based conditions — Preview and Send Test
   // depend on this. Avoids divergence if code is later refactored.
   const isEmailChannel = template?.channel === 'EMAIL';
@@ -164,10 +139,14 @@ export function TemplateFormDrawer({
   );
 
   const templateVarSpec = template ? TEMPLATE_VARIABLES[template.code as keyof typeof TEMPLATE_VARIABLES] : undefined;
-  const canonicalRequired: string[] = templateVarSpec ? [...templateVarSpec.required] : template?.requiredVariables ?? [];
-  const canonicalAllowed: readonly string[] | undefined = templateVarSpec
-    ? [...templateVarSpec.required, ...templateVarSpec.optional]
-    : undefined;
+  const canonicalRequired: string[] = useMemo(
+    () => (templateVarSpec ? [...templateVarSpec.required] : template?.requiredVariables ?? []),
+    [templateVarSpec, template],
+  );
+  const canonicalAllowed: readonly string[] | undefined = useMemo(
+    () => (templateVarSpec ? [...templateVarSpec.required, ...templateVarSpec.optional] : undefined),
+    [templateVarSpec],
+  );
 
   const handleSubmit = useCallback(async () => {
     if (!template) return;
@@ -196,7 +175,7 @@ export function TemplateFormDrawer({
         showError(result.error ?? 'Failed to save template');
       }
     }
-  }, [template, form, validate, save, showSuccess, showError, onSaved]);
+  }, [template, form, canonicalRequired, canonicalAllowed, validate, save, showSuccess, showError, onSaved]);
 
   /**
    * Load the standard content into the form. Deliberately does NOT touch
@@ -235,10 +214,6 @@ export function TemplateFormDrawer({
     setShowConfirm(false);
   }, []);
 
-  const bodyContainerClass = errors.body
-    ? 'rounded border border-error bg-white shadow-[inset_0_-1px_0_0_var(--color-error)]'
-    : 'rounded border border-[#E0E0E0] bg-white shadow-[inset_0_-1px_0_0_#E0E0E0] focus-within:border-primary';
-
   return (
     <>
       <DrawerPanel open={open} onClose={handleClose} size="wide">
@@ -248,7 +223,7 @@ export function TemplateFormDrawer({
             onClose={handleClose}
           />
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
             <div className="flex flex-col gap-6">
               {template && (
                 <div className="flex items-center gap-4 rounded bg-[#F5F5F5] px-4 py-3">
@@ -278,46 +253,14 @@ export function TemplateFormDrawer({
               )}
 
               <FormSection title="Template Content">
-                {/* SMS has no subject line — the column stays null for those
-                    templates, so showing an "Email subject line" box on an SMS
-                    row only invited input that would be discarded. */}
-                {isEmailChannel && (
-                  <FormField label="Subject" error={errors.subject}>
-                    <TextInput
-                      value={form.subject}
-                      onChange={(v) => updateField('subject', v)}
-                      placeholder="Email subject line"
-                      error={!!errors.subject}
-                      aria-label="Subject"
-                    />
-                  </FormField>
-                )}
-
-                <div className="flex flex-col gap-2">
-                  <VariableInsertToolbar
-                    onInsert={handleInsertVariable}
-                    disabled={isSaving}
-                    variables={canonicalAllowed}
-                  />
-                  <FormField label="Body" error={errors.body}>
-                    <div className={bodyContainerClass}>
-                      <textarea
-                        ref={bodyRef}
-                        value={form.body}
-                        onChange={(e) => updateField('body', e.target.value)}
-                        className="w-full resize-none bg-transparent px-3 py-2 font-mono text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
-                        placeholder={
-                          isEmailChannel
-                            ? '<table>...</table>  Use {{variable}} for dynamic values'
-                            : 'Plain text only. Use {{variable}} for dynamic values.'
-                        }
-                        rows={isEmailChannel ? 12 : 5}
-                        aria-label="Body"
-                        spellCheck={false}
-                      />
-                    </div>
-                  </FormField>
-                </div>
+                <TemplateEditorFields
+                  form={form}
+                  errors={errors}
+                  updateField={updateField}
+                  channel={template?.channel ?? null}
+                  variables={canonicalAllowed}
+                  toolbarDisabled={isSaving}
+                />
               </FormSection>
 
               <FormSection title="Settings">
@@ -330,10 +273,11 @@ export function TemplateFormDrawer({
 
               {template && (
                 <TemplatePreview
-                  subject={livePreview?.subjectRendered ?? form.subject}
+                  subject={livePreview?.subjectRendered || form.subject}
                   htmlRendered={livePreview?.htmlRendered ?? ''}
                   channel={template.channel}
                   isLoading={previewLoading}
+                  renderError={livePreview?.renderError}
                 />
               )}
             </div>
@@ -353,13 +297,24 @@ export function TemplateFormDrawer({
                   Reset to default
                 </Button>
               )}
+              {/* A blank subject or body is an unsendable draft — useSendTestEmail
+                  drops an empty draft field, so the test would silently fall back
+                  to the persisted row and mismatch what is on screen. */}
               {isEmailChannel && (
-                <Button variant="secondary" onClick={() => setShowTestDialog(true)} disabled={isSaving}>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowTestDialog(true)}
+                  disabled={isSaving || !form.subject.trim() || !form.body.trim()}
+                >
                   Send Test Email
                 </Button>
               )}
               {template?.channel === 'SMS' && (
-                <Button variant="secondary" onClick={() => setShowTestSmsDialog(true)} disabled={isSaving}>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowTestSmsDialog(true)}
+                  disabled={isSaving || !form.body.trim()}
+                >
                   Send Test SMS
                 </Button>
               )}
@@ -371,12 +326,18 @@ export function TemplateFormDrawer({
         </div>
       </DrawerPanel>
 
+      {/* The dialogs receive the live draft, so the test reflects exactly what
+          is on screen — saved or not — and the tenant scope of the row being
+          edited (an agency override tests the override, not the platform row). */}
       {isEmailChannel && template && (
         <SendTestEmailDialog
           open={showTestDialog}
           onClose={() => setShowTestDialog(false)}
           templateCode={template.code}
           channel={template.channel}
+          tenantId={template.tenantId}
+          draftSubject={form.subject}
+          draftBodyHtml={form.body}
         />
       )}
       {template?.channel === 'SMS' && (
@@ -385,6 +346,8 @@ export function TemplateFormDrawer({
           onClose={() => setShowTestSmsDialog(false)}
           templateCode={template.code}
           channel={template.channel}
+          tenantId={template.tenantId}
+          draftBodyText={form.body}
         />
       )}
 

@@ -91,7 +91,7 @@ function baseCtx(extra: Record<string, unknown> = {}) {
     contact: makeContact(),
     propertyAddress: '123 Main St, Sydney NSW 2000',
     rawPortalToken: null,
-    portalBaseUrl: 'https://app.properfy.com',
+    portalBaseUrl: 'https://app.properfy.me',
     appointmentCodeFormatter: formatter,
     ...extra,
   };
@@ -193,21 +193,21 @@ describe('BuildNotificationPayloadService', () => {
   // ── H3: URL construction ─────────────────────────────────────────────────
 
   it('H3: confirmationLink is built with URL constructor (handles trailing slash)', () => {
-    const result = svc.build(baseCtx({ rawPortalToken: 'abc123', portalBaseUrl: 'https://app.properfy.com/' }));
-    expect(result.confirmationLink).toBe('https://app.properfy.com/portal/abc123');
+    const result = svc.build(baseCtx({ rawPortalToken: 'abc123', portalBaseUrl: 'https://app.properfy.me/' }));
+    expect(result.confirmationLink).toBe('https://app.properfy.me/portal/abc123');
     expect(result.confirmationLink).not.toContain('//portal');
   });
 
   // The tenant-facing "propose new date" page was removed, so rescheduleLink no
   // longer has its own path — it points at the portal, like confirmationLink.
   it('H3: rescheduleLink points at the portal, with no /reschedule suffix', () => {
-    const result = svc.build(baseCtx({ rawPortalToken: 'abc123', portalBaseUrl: 'https://app.properfy.com' }));
-    expect(result.rescheduleLink).toBe('https://app.properfy.com/portal/abc123');
+    const result = svc.build(baseCtx({ rawPortalToken: 'abc123', portalBaseUrl: 'https://app.properfy.me' }));
+    expect(result.rescheduleLink).toBe('https://app.properfy.me/portal/abc123');
     expect(result.rescheduleLink).not.toContain('/reschedule');
   });
 
   it('H3: rawToken is URL-encoded in the link', () => {
-    const result = svc.build(baseCtx({ rawPortalToken: 'tok+en=special', portalBaseUrl: 'https://app.properfy.com' }));
+    const result = svc.build(baseCtx({ rawPortalToken: 'tok+en=special', portalBaseUrl: 'https://app.properfy.me' }));
     expect(result.confirmationLink).toContain('tok%2Ben%3Dspecial');
   });
 

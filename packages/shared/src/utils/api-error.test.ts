@@ -134,6 +134,15 @@ describe('getErrorMessage', () => {
     );
   });
 
+  it('surfaces the message for allowlisted safe 5xx codes (STORAGE_NOT_CONFIGURED)', () => {
+    expect(
+      getErrorMessage(
+        new ApiError(503, 'File storage is not configured in this environment.', 'STORAGE_NOT_CONFIGURED'),
+        'Failed to upload logo',
+      ),
+    ).toBe('File storage is not configured in this environment.');
+  });
+
   it('uses the fallback for INTERNAL_ERROR regardless of status', () => {
     expect(getErrorMessage(new ApiError(200, 'raw internals', 'INTERNAL_ERROR'), 'Fallback')).toBe(
       'Fallback',

@@ -12,6 +12,10 @@ import type { MintPortalTokenService } from '../../../src/modules/rental-tenant-
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { TenantEntity } from '../../../src/modules/tenant/domain/tenant.entity';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../../src/shared/domain/errors';
+import {
+  formatScheduledDate,
+  formatTimeSlot,
+} from '../../../src/modules/notification/domain/build-notification-payload.service';
 
 function makeAppointment(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
   return new AppointmentEntity({
@@ -623,6 +627,41 @@ describe('GeneratePortalTokenUseCase', () => {
         }),
       }),
     );
+  });
+
+  it('builds the payload through the canonical builder (formatted date/time, full variable set)', async () => {
+    const notificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'n-1' }) };
+    const contact = {
+      isPrimary: true,
+      effectiveName: 'Jane Doe',
+      effectiveEmail: 'jane@example.com',
+      effectivePhone: null,
+    };
+    appointmentRepo.findById.mockResolvedValueOnce({
+      appointment: makeAppointment(),
+      contact,
+      restrictions: [],
+    });
+
+    const uc = new GeneratePortalTokenUseCase(
+      tokenRepo as unknown as IRentalTenantPortalTokenRepository,
+      appointmentRepo as unknown as IAppointmentRepository,
+      tenantRepo as unknown as ITenantRepository,
+      mintPortalTokenService as unknown as MintPortalTokenService,
+      auditService as unknown as PersistentAuditService,
+      PORTAL_BASE_URL,
+      notificationUseCase as any,
+    );
+
+    await uc.execute(makeInput({ actor: makeAMContext() }));
+
+    const payload = notificationUseCase.execute.mock.calls[0][0].payloadJson as Record<string, string>;
+    // Same shapes as the automated path (BuildNotificationPayloadService):
+    // formatted civil date and 12h wall-time range, never raw ISO shapes.
+    expect(payload.scheduledDate).toBe(formatScheduledDate(new Date('2026-04-15')));
+    expect(payload.timeSlot).toBe(formatTimeSlot('09:00', '12:00'));
+    expect(payload.agencyName).toBe('Test Agency');
+    expect(payload.rentalTenantName).toBe('Jane Doe');
   });
 
   it('returns dispatched: true when only one of two channels fails', async () => {

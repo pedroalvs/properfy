@@ -21283,14 +21283,6 @@
                     "type": "number",
                     "minimum": -180,
                     "maximum": 180
-                  },
-                  "checklistJson": {
-                    "type": "object",
-                    "additionalProperties": {}
-                  },
-                  "notes": {
-                    "type": "string",
-                    "maxLength": 5000
                   }
                 },
                 "required": [
@@ -21325,15 +21317,11 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "id": {
+                        "executionId": {
                           "type": "string",
                           "format": "uuid"
                         },
                         "appointmentId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "inspectorId": {
                           "type": "string",
                           "format": "uuid"
                         },
@@ -21357,84 +21345,26 @@
                               "type": "string",
                               "format": "date-time"
                             }
-                          ],
-                          "nullable": true
-                        },
-                        "resumedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ],
-                          "nullable": true
-                        },
-                        "startLatitude": {
-                          "type": "number"
-                        },
-                        "startLongitude": {
-                          "type": "number"
-                        },
-                        "finishLatitude": {
-                          "type": "number",
-                          "nullable": true
-                        },
-                        "finishLongitude": {
-                          "type": "number",
-                          "nullable": true
-                        },
-                        "geolocationDistanceMeters": {
-                          "type": "number",
-                          "nullable": true
-                        },
-                        "checklistJson": {
-                          "nullable": true
-                        },
-                        "notes": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "createdAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
                           ]
                         },
-                        "updatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
+                        "appointmentStatus": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "AWAITING_INSPECTOR",
+                            "SCHEDULED",
+                            "DONE",
+                            "CANCELLED",
+                            "REJECTED"
                           ]
                         }
                       },
                       "required": [
-                        "id",
+                        "executionId",
                         "appointmentId",
-                        "inspectorId",
                         "startedAt",
                         "finishedAt",
-                        "resumedAt",
-                        "startLatitude",
-                        "startLongitude",
-                        "finishLatitude",
-                        "finishLongitude",
-                        "geolocationDistanceMeters",
-                        "notes",
-                        "createdAt",
-                        "updatedAt"
+                        "appointmentStatus"
                       ],
                       "additionalProperties": false
                     }
@@ -21473,26 +21403,6 @@
           },
           "required": true
         },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "in": "path",
-            "name": "appointmentId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/inspector/appointments/{appointmentId}/execution": {
-      "patch": {
         "parameters": [
           {
             "schema": {
@@ -25649,6 +25559,43 @@
     },
     "/v1/notification-templates/{templateCode}/{channel}/test-send": {
       "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "recipientEmail": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "recipientPhone": {
+                    "type": "string",
+                    "pattern": "^\\+61[23478]\\d{8}$"
+                  },
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "draftSubject": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "draftBodyHtml": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "draftBodyText": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -25669,7 +25616,41 @@
         ],
         "responses": {
           "200": {
-            "description": "Default Response"
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "messageId": {
+                          "type": "string"
+                        },
+                        "recipient": {
+                          "type": "string"
+                        },
+                        "sentAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "messageId",
+                        "recipient",
+                        "sentAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -25929,6 +25910,9 @@
                           "type": "string"
                         },
                         "htmlRendered": {
+                          "type": "string"
+                        },
+                        "renderError": {
                           "type": "string"
                         }
                       },

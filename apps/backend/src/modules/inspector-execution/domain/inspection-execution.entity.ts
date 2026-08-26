@@ -12,8 +12,6 @@ export interface InspectionExecutionProps {
   finishLatitude: number | null;
   finishLongitude: number | null;
   geolocationDistanceMeters: number | null;
-  checklistJson: Record<string, unknown> | null;
-  notes: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,8 +27,6 @@ export class InspectionExecutionEntity extends BaseEntity {
   finishLatitude: number | null;
   finishLongitude: number | null;
   readonly geolocationDistanceMeters: number | null;
-  checklistJson: Record<string, unknown> | null;
-  notes: string | null;
 
   constructor(props: InspectionExecutionProps) {
     super(props.id, props.createdAt, props.updatedAt);
@@ -44,8 +40,6 @@ export class InspectionExecutionEntity extends BaseEntity {
     this.finishLatitude = props.finishLatitude;
     this.finishLongitude = props.finishLongitude;
     this.geolocationDistanceMeters = props.geolocationDistanceMeters;
-    this.checklistJson = props.checklistJson;
-    this.notes = props.notes;
   }
 
   isFinished(): boolean {

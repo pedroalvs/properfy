@@ -127,8 +127,11 @@ describe('SendTestEmailDialog', () => {
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith(
-        '/v1/notification-templates/INSPECTION_NOTICE/EMAIL/test-send',
-        { body: { recipientEmail: 'test@example.com' } },
+        '/v1/notification-templates/{templateCode}/{channel}/test-send',
+        expect.objectContaining({
+          params: { path: { templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL' } },
+          body: expect.objectContaining({ recipientEmail: 'test@example.com' }),
+        }),
       );
     });
 

@@ -129,8 +129,11 @@ describe('SendTestSmsDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Send' }));
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith(
-        '/v1/notification-templates/INSPECTION_NOTICE_SMS/SMS/test-send',
-        { body: { recipientPhone: '+61412345678' } },
+        '/v1/notification-templates/{templateCode}/{channel}/test-send',
+        expect.objectContaining({
+          params: { path: { templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS' } },
+          body: expect.objectContaining({ recipientPhone: '+61412345678' }),
+        }),
       );
     });
   });
@@ -143,8 +146,11 @@ describe('SendTestSmsDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Send' }));
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith(
-        '/v1/notification-templates/INSPECTION_NOTICE_SMS/SMS/test-send',
-        { body: { recipientPhone: '+61412345678' } },
+        '/v1/notification-templates/{templateCode}/{channel}/test-send',
+        expect.objectContaining({
+          params: { path: { templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS' } },
+          body: expect.objectContaining({ recipientPhone: '+61412345678' }),
+        }),
       );
     });
   });

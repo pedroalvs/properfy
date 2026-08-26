@@ -40,11 +40,11 @@ describe('SMS template round-trip: editor input → delivered message', () => {
     rentalTenantName: 'Alice Brown',
     propertyAddress: '12 Wallaby Way, Sydney NSW 2000',
     scheduledDate: '14/08/2026',
-    confirmationLink: 'https://portal.properfy.com.au/c/abc123',
+    confirmationLink: 'https://app.properfy.me/c/abc123',
   };
 
   const EXPECTED_MESSAGE =
-    'Properfy: Hi Alice Brown, your inspection at 12 Wallaby Way, Sydney NSW 2000 is scheduled for 14/08/2026. Please confirm at https://portal.properfy.com.au/c/abc123';
+    'Properfy: Hi Alice Brown, your inspection at 12 Wallaby Way, Sydney NSW 2000 is scheduled for 14/08/2026. Please confirm at https://app.properfy.me/c/abc123';
 
   function makeUseCase() {
     const templateRepo: INotificationTemplateRepository = {

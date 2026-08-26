@@ -47,6 +47,8 @@ const envSchema = z.object({
 
   /** Comma-separated list of email addresses allowed as test-send recipients (FR-027a) */
   EMAIL_TEST_RECIPIENT_ALLOWLIST: z.string().optional(),
+  /** Comma-separated list of E.164 phone numbers allowed as SMS test-send recipients */
+  SMS_TEST_RECIPIENT_ALLOWLIST: z.string().optional(),
 
   // Optional MobileMessage (SMS provider — no webhook secret, provider does not sign requests)
   MOBILE_MESSAGE_API_KEY: z.string().optional(),
@@ -79,7 +81,7 @@ const envSchema = z.object({
   AUDIT_RETENTION_BATCH_SIZE: z.coerce.number().int().positive().default(1000),
 
   // Tenant portal SPA base URL used to build confirmationLink / rescheduleLink in templates
-  // (e.g., https://app.properfy.com). URL syntax is validated in every runtime because these
+  // (e.g., https://app.properfy.me). URL syntax is validated in every runtime because these
   // values feed `new URL(...)` at link-build time; HTTPS/private-host checks below are strict-only.
   TENANT_PORTAL_BASE_URL: z.string().url('TENANT_PORTAL_BASE_URL must be a valid URL').default('http://localhost:5173'),
 

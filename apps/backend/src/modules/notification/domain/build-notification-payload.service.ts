@@ -93,7 +93,10 @@ export class BuildNotificationPayloadService {
       );
     }
 
-    const settings = ctx.tenant.settingsJson;
+    // Defensive: the entity contract guarantees settingsJson, but a missing
+    // object must degrade to empty optional variables, not a TypeError that
+    // costs the whole notification.
+    const settings = ctx.tenant.settingsJson ?? {};
 
     const scheduledDate = formatScheduledDate(ctx.appointment.scheduledDate);
 

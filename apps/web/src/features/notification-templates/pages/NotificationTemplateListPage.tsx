@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -24,10 +24,6 @@ export function NotificationTemplateListPage() {
   const { hasRole } = usePermissions();
   const { user } = useAuth();
   const isGlobalRole = hasRole('AM', 'OP');
-
-  // Platform defaults already in the loaded list — used to seed new overrides
-  // (no extra fetch). Overrides have a tenantId; defaults have tenantId === null.
-  const platformDefaults = useMemo(() => data.filter((t) => t.tenantId === null), [data]);
 
   // Cross-tenant roles (AM/OP) can filter templates by owning agency. Distinct
   // query-key so this tenant list does not collide with other pages' caches.
@@ -91,12 +87,16 @@ export function NotificationTemplateListPage() {
         />
       </ListFilterTableTemplate>
 
-      <TemplateFormDrawer
-        open={drawerOpen}
-        onClose={handleCloseDrawer}
-        template={selectedTemplate}
-        onSaved={handleSaved}
-      />
+      {/* Mounted only while open (like the create drawer) so a closed editor
+          doesn't keep a fixed full-height panel in the DOM. */}
+      {drawerOpen && (
+        <TemplateFormDrawer
+          open
+          onClose={handleCloseDrawer}
+          template={selectedTemplate}
+          onSaved={handleSaved}
+        />
+      )}
 
       {createDrawerOpen && (
         <TemplateCreateDrawer
@@ -106,7 +106,6 @@ export function NotificationTemplateListPage() {
           tenantOptions={tenantOptions}
           isGlobalRole={isGlobalRole}
           pinnedTenantId={user?.tenantId ?? null}
-          platformDefaults={platformDefaults}
         />
       )}
     </>

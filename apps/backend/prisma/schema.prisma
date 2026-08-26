@@ -1188,8 +1188,6 @@ model InspectionExecution {
   finish_latitude             Decimal?  @db.Decimal(10, 7)
   finish_longitude            Decimal?  @db.Decimal(10, 7)
   geolocation_distance_meters Decimal?  @db.Decimal(10, 2)
-  checklist_json              Json?
-  notes                       String?
   created_at                  DateTime  @default(now())
   updated_at                  DateTime  @updatedAt
 
@@ -1345,6 +1343,11 @@ model NotificationTemplate {
   variables_json     Json
   is_active          Boolean             @default(true)
   notification_class NotificationClass   @default(OPERATIONAL)
+  /// SHA-256 of the seed content this row was last written with (platform rows
+  /// only). Startup sync refreshes a row from the code catalog only while its
+  /// current content still matches this hash — a human edit breaks the match
+  /// and protects the row. NULL = unknown provenance, never auto-refreshed.
+  seeded_content_hash String?            @db.VarChar(64)
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
 

@@ -11,8 +11,6 @@ export interface IInspectionExecutionRepository {
       resumedAt: Date | null;
       finishLatitude: number;
       finishLongitude: number;
-      checklistJson: Record<string, unknown> | null;
-      notes: string | null;
     }>,
   ): Promise<void>;
   findStuckExecutions(olderThanHours: number): Promise<InspectionExecutionEntity[]>;

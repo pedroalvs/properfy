@@ -4,6 +4,8 @@ import { api } from '@/services/api';
 export interface TemplatePreviewResult {
   subjectRendered: string;
   htmlRendered: string;
+  /** Set when the backend could not render (e.g. a Handlebars syntax error). */
+  renderError?: string;
 }
 
 export interface UseTemplatePreviewReturn {
@@ -27,11 +29,9 @@ export function useTemplatePreview(
   const [preview, setPreview] = useState<TemplatePreviewResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestBodyRef = useRef(bodyHtml);
-
-  useEffect(() => {
-    latestBodyRef.current = bodyHtml;
-  }, [bodyHtml]);
+  // Monotonic request counter: only the newest request may write state, so a
+  // slow older response can never overwrite a newer preview.
+  const requestSeqRef = useRef(0);
 
   useEffect(() => {
     if (!bodyHtml.trim() || !code || !channel) {
@@ -43,30 +43,34 @@ export function useTemplatePreview(
       clearTimeout(timerRef.current);
     }
 
+    const controller = new AbortController();
+
     timerRef.current = setTimeout(async () => {
+      const seq = ++requestSeqRef.current;
       setIsLoading(true);
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (api as any).POST(
-          `/v1/notification-templates/${code}/${channel}/preview`,
+        const { data, error } = await api.POST(
+          '/v1/notification-templates/{templateCode}/{channel}/preview',
           {
+            params: { path: { templateCode: code, channel } },
             body: {
               bodyHtml,
               subject: subject || undefined,
               tenantId: tenantId ?? undefined,
             },
+            signal: controller.signal,
           },
         );
-        if (!error && data) {
-          const result = data as { data?: TemplatePreviewResult };
-          if (result.data) {
-            setPreview(result.data);
-          }
+        if (seq !== requestSeqRef.current) return;
+        if (!error && data?.data) {
+          setPreview(data.data);
         }
       } catch {
-        // Network error — don't update preview
+        // Network error / abort — don't update preview
       } finally {
-        setIsLoading(false);
+        if (seq === requestSeqRef.current) {
+          setIsLoading(false);
+        }
       }
     }, DEBOUNCE_MS);
 
@@ -74,6 +78,7 @@ export function useTemplatePreview(
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
       }
+      controller.abort();
     };
   }, [bodyHtml, code, channel, subject, tenantId]);
 

@@ -38,8 +38,15 @@ describe('useSendTestSms', () => {
     expect(res?.success).toBe(true);
     expect(res?.messageId).toBe('sms-123');
     expect(mockPost).toHaveBeenCalledWith(
-      '/v1/notification-templates/INSPECTION_NOTICE_SMS/SMS/test-send',
-      { body: { recipientPhone: '+61412345678' } },
+      '/v1/notification-templates/{templateCode}/{channel}/test-send',
+      {
+        params: { path: { templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS' } },
+        body: {
+          recipientPhone: '+61412345678',
+          tenantId: undefined,
+          draftBodyText: undefined,
+        },
+      },
     );
   });
 

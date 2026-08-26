@@ -104,7 +104,15 @@ async function setupExecutionAtFinishing(
     return route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ data: { appointmentId: APPOINTMENT_ID, status: 'DONE' } }),
+      body: JSON.stringify({
+        data: {
+          executionId: 'exec-e2e-1',
+          appointmentId: APPOINTMENT_ID,
+          startedAt: '2026-07-20T09:05:00.000Z',
+          finishedAt: '2026-07-20T09:30:00.000Z',
+          appointmentStatus: 'DONE',
+        },
+      }),
     });
   });
 
@@ -134,9 +142,6 @@ async function setupExecutionAtFinishing(
               capturedAt: '2026-07-20T09:05:00.000Z',
             },
             finishLocation: null,
-            checklistTemplate: [],
-            checklistResponses: [],
-            notes: '',
             startedAt: '2026-07-20T09:05:00.000Z',
             errorMessage: null,
             lastSavedAt: null,

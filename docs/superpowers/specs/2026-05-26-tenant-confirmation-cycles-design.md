@@ -174,7 +174,7 @@ Authorization: AM, OP only
 Response:
 ```json
 {
-  "portalUrl": "https://portal.properfy.app/t/<rawToken>",
+  "portalUrl": "https://app.properfy.me/portal/<rawToken>",
   "expiresAt": "2026-05-31T09:00:00Z"
 }
 ```
