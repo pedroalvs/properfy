@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MANDATORY_TEMPLATE_CODES } from '@properfy/shared';
+import { MANDATORY_TEMPLATE_CODES, type paths } from '@properfy/shared';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -32,9 +32,14 @@ const TENANT_OPTIONS = [
   { value: 'agency-2', label: 'Globex' },
 ];
 
+// The GET .../default response, typed from the OpenAPI contract so the fixtures
+// (including the deferred ones below) stay in step with the real endpoint.
+type TemplateDefaultResponse =
+  paths['/v1/notification-templates/{templateCode}/{channel}/default']['get']['responses'][200]['content']['application/json'];
+
 // GET .../default response — the create drawer prefills from this endpoint,
 // never from the loaded list (which can be filtered or stale).
-const DEFAULT_RESULT = {
+const DEFAULT_RESULT: TemplateDefaultResponse['data'] = {
   subject: 'Inspection notice',
   body: 'Hi {{rentalTenantName}} at {{propertyAddress}} on {{scheduledDate}} {{timeSlot}}',
   source: 'PLATFORM_DEFAULT',
@@ -226,7 +231,7 @@ describe('TemplateCreateDrawer', () => {
 
     it('keeps an operator edit when a late default response resolves', async () => {
       const user = userEvent.setup();
-      const pending = deferred<{ data: { data: typeof DEFAULT_RESULT } }>();
+      const pending = deferred<{ data: TemplateDefaultResponse }>();
       // The fetchDefault triggered by selecting the code never resolves until we say so.
       mockGet.mockReturnValueOnce(pending.promise);
       renderDrawer();
@@ -243,7 +248,7 @@ describe('TemplateCreateDrawer', () => {
 
     it('ignores a default response for a code the operator switched away from', async () => {
       const user = userEvent.setup();
-      const stale = deferred<{ data: { data: { subject: string; body: string } } }>();
+      const stale = deferred<{ data: TemplateDefaultResponse }>();
       // First code's default stays pending; the second code uses the resolving mock.
       mockGet.mockReturnValueOnce(stale.promise);
       renderDrawer();
@@ -253,7 +258,7 @@ describe('TemplateCreateDrawer', () => {
       await waitForPrefill();
 
       // The first code's response arrives last and must not overwrite the current code.
-      stale.resolve({ data: { data: { subject: 'STALE', body: 'STALE BODY' } } });
+      stale.resolve({ data: { data: { subject: 'STALE', body: 'STALE BODY', source: 'PLATFORM_DEFAULT' } } });
       await waitFor(() => expect(screen.getByLabelText('Body')).toHaveValue(DEFAULT_RESULT.body));
       expect(screen.getByLabelText('Body')).not.toHaveValue('STALE BODY');
       expect(screen.getByLabelText('Subject')).not.toHaveValue('STALE');

@@ -188,7 +188,7 @@ describe('HtmlSanitizerService — save profile (validateForSave)', () => {
     // an allowed URL attribute, so it is rejected as an attribute, not a scheme.
     const result = svc.validateForSave('<p data-href="javascript:alert(1)">x</p>');
     expect(result.safe).toBe(false);
-    expect(result.rejectedReason).toContain('data-href');
+    expect(result.rejectedReason).toBe('Disallowed attribute: data-href');
   });
 
   it('should permit rel on links and hspace/vspace on images', async () => {

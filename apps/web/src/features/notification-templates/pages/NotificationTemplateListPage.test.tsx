@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { paths } from '@properfy/shared';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -40,11 +41,13 @@ import { NotificationTemplateListPage } from './NotificationTemplateListPage';
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const mockUsePermissions = usePermissions as unknown as ReturnType<typeof vi.fn>;
 
-// Fields mirror the list endpoint's actual payload (templateCode, bodyHtml/
-// bodyText, isActive, variables) — the same shape useTemplateList maps from the
-// OpenAPI-generated type. Using the old code/body/active names here would map to
-// undefined and render blank rows.
-const MOCK_TEMPLATES = [
+// Typed with the OpenAPI-generated list item so the fixture is checked against
+// the real contract: the old code/body/active names would now fail to compile
+// instead of silently mapping to undefined and rendering blank rows.
+type TemplateListItem =
+  paths['/v1/notification-templates']['get']['responses'][200]['content']['application/json']['data'][number];
+
+const MOCK_TEMPLATES: TemplateListItem[] = [
   {
     id: 'tpl-01',
     tenantId: null,
