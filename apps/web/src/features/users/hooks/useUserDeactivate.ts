@@ -3,7 +3,7 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import type { UserScope } from '../types';
 
 export interface UseUserDeactivateReturn {
-  deactivate: () => void;
+  deactivate: (reason: string) => void;
   isDeactivating: boolean;
 }
 
@@ -22,11 +22,11 @@ export function useUserDeactivate(
 
   const mutation = useActionMutation(path, [['users']]);
 
-  const deactivate = () => {
+  const deactivate = (reason: string) => {
     if (!userId) return;
     if (scope === 'tenant' && !tenantId) return;
     mutation.mutate(
-      {},
+      { reason },
       {
         onSuccess: () => {
           showSuccess('User deactivated successfully');

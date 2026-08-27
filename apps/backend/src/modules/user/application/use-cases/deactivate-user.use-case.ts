@@ -10,7 +10,7 @@ import {
 import { ForbiddenError } from '../../../../shared/domain/errors';
 
 export interface DeactivateUserInput {
-  tenantId: string;
+  tenantId: string | null;
   userId: string;
   reason: string;
   actor: AuthContext;
@@ -27,21 +27,34 @@ export class DeactivateUserUseCase {
   async execute(input: DeactivateUserInput): Promise<void> {
     const { tenantId, userId, reason, actor } = input;
 
-    // RBAC: AM/OP can deactivate any user; CL_ADMIN own tenant only
+    // RBAC mirrors update-user.use-case: AM crosses tenants and manages internal
+    // (tenant-less) users; CL_ADMIN and OP are scoped to their own tenant.
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
       action: 'user.deactivate',
       entityType: 'User',
     });
 
-    if (actor.role === 'CL_ADMIN' && actor.tenantId !== tenantId) {
+    if (
+      (actor.role === 'CL_ADMIN' || actor.role === 'OP') &&
+      actor.tenantId !== tenantId
+    ) {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
         'You can only deactivate users from your own tenant',
       );
     }
 
+    // Internal (tenant-less) users can only be deactivated by AM.
+    // OP is tenant-scoped per CORRECTION-001 close-it.
+    if (tenantId === null && actor.role !== 'AM') {
+      throw new ForbiddenError(
+        'AUTH_FORBIDDEN',
+        'You are not allowed to deactivate internal users',
+      );
+    }
+
     // CL_ADMIN can only manage users if the tenant setting allows it
-    if (actor.role === 'CL_ADMIN') {
+    if (actor.role === 'CL_ADMIN' && tenantId) {
       const tenant = await this.tenantRepo.findById(tenantId);
       if (tenant && tenant.settingsJson.allowClientUserManagement !== true) {
         throw new ForbiddenError(

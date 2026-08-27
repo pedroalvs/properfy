@@ -1,8 +1,15 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider, useSnackbar } from '@/hooks/useSnackbar';
+import { api } from '@/services/api';
 import { UserDetailDrawer } from './UserDetailDrawer';
+
+const mockPost = api.POST as ReturnType<typeof vi.fn>;
+
+// Mutable holder so individual tests can make the logged-in user match (or not)
+// the user being viewed, to exercise the self-deactivation guard.
+const authState = vi.hoisted(() => ({ userId: 'usr-99' }));
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -29,7 +36,7 @@ vi.mock('@/lib/auth-storage', () => ({
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
-    user: { id: 'usr-99', name: 'Test Admin', email: 'test@test.com', role: 'AM', tenantId: 'tenant-1' },
+    user: { id: authState.userId, name: 'Test Admin', email: 'test@test.com', role: 'AM', tenantId: 'tenant-1' },
     token: 'mock-token',
     isAuthenticated: true,
     isLoading: false,
@@ -88,6 +95,8 @@ function renderDrawer(props: {
   onClose?: () => void;
   onEdit?: (id: string) => void;
   onResetPassword?: (id: string) => void;
+  scope?: 'tenant' | 'internal';
+  tenantId?: string;
 }) {
   return render(
     <Wrapper>
@@ -97,12 +106,24 @@ function renderDrawer(props: {
         onClose={props.onClose ?? vi.fn()}
         onEdit={props.onEdit}
         onResetPassword={props.onResetPassword}
+        scope={props.scope}
+        tenantId={props.tenantId}
       />
     </Wrapper>,
   );
 }
 
 describe('UserDetailDrawer', () => {
+  beforeEach(() => {
+    authState.userId = 'usr-99';
+    mockPost.mockReset();
+    mockPost.mockResolvedValue({ data: { data: {} } });
+  });
+
+  afterEach(() => {
+    authState.userId = 'usr-99';
+  });
+
   it('renders drawer with user name in header', () => {
     renderDrawer({ userId: 'usr-01', open: true });
     const matches = screen.getAllByText('Admin Principal');
@@ -168,6 +189,43 @@ describe('UserDetailDrawer', () => {
     renderDrawer({ userId: 'usr-01', open: true, onResetPassword });
     fireEvent.click(screen.getByLabelText('Reset Password'));
     expect(onResetPassword).toHaveBeenCalledWith('usr-01');
+  });
+
+  it('shows the Deactivate button when viewing another active user', () => {
+    // authState.userId is 'usr-99', viewed user is 'usr-01'
+    renderDrawer({ userId: 'usr-01', open: true });
+    expect(screen.getByLabelText('Deactivate User')).toBeInTheDocument();
+  });
+
+  it('hides the Deactivate button on your own account', () => {
+    authState.userId = 'usr-01'; // matches the viewed user's id
+    renderDrawer({ userId: 'usr-01', open: true });
+    expect(screen.queryByLabelText('Deactivate User')).not.toBeInTheDocument();
+  });
+
+  it('requires a reason before calling the API', () => {
+    renderDrawer({ userId: 'usr-01', open: true });
+    fireEvent.click(screen.getByLabelText('Deactivate User'));
+    // Confirm without typing a reason
+    fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
+    expect(screen.getByText('Reason is required')).toBeInTheDocument();
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it('posts the reason on confirm', async () => {
+    // usr-01 is an internal user (tenantId: null) → internal scope route.
+    renderDrawer({ userId: 'usr-01', open: true, scope: 'internal' });
+    fireEvent.click(screen.getByLabelText('Deactivate User'));
+    fireEvent.change(screen.getByLabelText('Deactivation reason'), {
+      target: { value: 'Account no longer needed' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith(
+        '/v1/users/usr-01/deactivate',
+        { body: { reason: 'Account no longer needed' } },
+      ),
+    );
   });
 
 });

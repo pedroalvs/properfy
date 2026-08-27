@@ -79,6 +79,15 @@ describe('DeactivateUserUseCase', () => {
     inspectorId: null,
   };
 
+  // OP is an internal (tenant-less) user, exactly like update-user fixtures.
+  const opActor: AuthContext = {
+    userId: 'op-1',
+    tenantId: null,
+    role: 'OP',
+    branchId: null,
+    inspectorId: null,
+  };
+
   beforeEach(() => {
     userManagementRepo = {
       findById: vi.fn(),
@@ -123,6 +132,49 @@ describe('DeactivateUserUseCase', () => {
     expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith(
       'user-1',
     );
+  });
+
+  it('should allow AM to deactivate an internal (tenant-less) user', async () => {
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(
+      makeUser({ tenantId: null, role: 'OP' }),
+    );
+
+    await useCase.execute({
+      tenantId: null,
+      userId: 'user-1',
+      reason: 'Employee left the platform',
+      actor: amActor,
+    });
+
+    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', null, {
+      status: 'INACTIVE',
+      deletedAt: expect.any(Date),
+    });
+    expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith('user-1');
+  });
+
+  it('should throw AUTH_FORBIDDEN when OP deactivates an internal user', async () => {
+    await expect(
+      useCase.execute({
+        tenantId: null,
+        userId: 'user-1',
+        reason: 'No longer needed',
+        actor: opActor,
+      }),
+    ).rejects.toThrow('You are not allowed to deactivate internal users');
+    expect(userManagementRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('should throw AUTH_FORBIDDEN when OP deactivates a tenant user', async () => {
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        reason: 'No longer needed',
+        actor: opActor,
+      }),
+    ).rejects.toThrow('You can only deactivate users from your own tenant');
+    expect(userManagementRepo.update).not.toHaveBeenCalled();
   });
 
   it('should allow CL_ADMIN to deactivate own tenant user when allowClientUserManagement is enabled', async () => {

@@ -2,8 +2,10 @@ import { useState, useCallback } from 'react';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Dialog } from '@/components/ui/Dialog';
+import { Textarea } from '@/components/forms/Textarea';
 import { LoadingState } from '@/components/feedback/LoadingState';
+import { useAuth } from '@/hooks/useAuth';
 import { useUserDetail } from '../hooks/useUserDetail';
 import { useUserDeactivate } from '../hooks/useUserDeactivate';
 import { UserStatusChip } from './UserStatusChip';
@@ -31,8 +33,11 @@ export function UserDetailDrawer({
   tenantId,
   scope = 'tenant',
 }: UserDetailDrawerProps) {
+  const { user: authUser } = useAuth();
   const { user, isLoading, refetch } = useUserDetail(userId, tenantId, scope);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [deactivateReason, setDeactivateReason] = useState('');
+  const [reasonError, setReasonError] = useState('');
 
   const { deactivate, isDeactivating } = useUserDeactivate(
     userId,
@@ -40,6 +45,8 @@ export function UserDetailDrawer({
     scope,
     () => {
       setShowDeactivateConfirm(false);
+      setDeactivateReason('');
+      setReasonError('');
       refetch();
       onDeactivated?.();
     },
@@ -56,6 +63,30 @@ export function UserDetailDrawer({
       onResetPassword(userId);
     }
   }, [onResetPassword, userId]);
+
+  const handleDeactivateClick = useCallback(() => {
+    setShowDeactivateConfirm(true);
+    setDeactivateReason('');
+    setReasonError('');
+  }, []);
+
+  const handleCancelDeactivate = useCallback(() => {
+    setShowDeactivateConfirm(false);
+    setDeactivateReason('');
+    setReasonError('');
+  }, []);
+
+  const handleConfirmDeactivate = useCallback(() => {
+    if (!deactivateReason.trim()) {
+      setReasonError('Reason is required');
+      return;
+    }
+    deactivate(deactivateReason.trim());
+  }, [deactivateReason, deactivate]);
+
+  // You cannot deactivate your own account (the API refuses it too).
+  const canDeactivate =
+    user?.status === 'ACTIVE' && user?.id !== authUser?.id;
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">
@@ -85,10 +116,10 @@ export function UserDetailDrawer({
                       <i className="mdi mdi-pencil-outline text-xl" />
                     </Button>
                   ) : null}
-                  {user.status === 'ACTIVE' ? (
+                  {canDeactivate ? (
                     <Button
                       variant="icon"
-                      onClick={() => setShowDeactivateConfirm(true)}
+                      onClick={handleDeactivateClick}
                       aria-label="Deactivate User"
                       disabled={isDeactivating}
                     >
@@ -105,16 +136,41 @@ export function UserDetailDrawer({
         ) : null}
       </div>
 
-      <ConfirmDialog
+      <Dialog
         open={showDeactivateConfirm}
+        onClose={handleCancelDeactivate}
         title="Deactivate User"
-        message={`Are you sure you want to deactivate "${user?.name}"? They will no longer be able to log in.`}
-        confirmLabel="Deactivate"
-        variant="danger"
-        loading={isDeactivating}
-        onConfirm={deactivate}
-        onClose={() => setShowDeactivateConfirm(false)}
-      />
+        actions={
+          <>
+            <Button variant="secondary" onClick={handleCancelDeactivate}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-error text-white hover:brightness-95 active:brightness-90"
+              onClick={handleConfirmDeactivate}
+              loading={isDeactivating}
+            >
+              Deactivate
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-text-secondary">
+            Are you sure you want to deactivate &quot;{user?.name}&quot;? They will no
+            longer be able to log in. Please provide a reason.
+          </p>
+          <Textarea
+            value={deactivateReason}
+            onChange={setDeactivateReason}
+            rows={3}
+            maxLength={500}
+            placeholder="Reason for deactivation"
+            aria-label="Deactivation reason"
+          />
+          {reasonError && <p className="text-sm text-error">{reasonError}</p>}
+        </div>
+      </Dialog>
     </DrawerPanel>
   );
 }

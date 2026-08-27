@@ -44,22 +44,25 @@ describe('useTenantDeactivate', () => {
     const { result } = renderHook(() => useTenantDeactivate(null), { wrapper });
 
     act(() => {
-      result.current.deactivate();
+      result.current.deactivate('some reason');
     });
 
     expect(mockPost).not.toHaveBeenCalled();
   });
 
-  it('calls API and shows success message on deactivate', async () => {
+  it('calls API with the reason and shows success message on deactivate', async () => {
     const onSuccess = vi.fn();
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTenantDeactivate('ten-01', onSuccess), { wrapper });
 
     await act(async () => {
-      result.current.deactivate();
+      result.current.deactivate('Closed the account');
     });
 
-    expect(mockPost).toHaveBeenCalled();
+    expect(mockPost).toHaveBeenCalledWith(
+      '/v1/tenants/ten-01/deactivate',
+      { body: { reason: 'Closed the account' } },
+    );
   });
 
   it('initially isDeactivating is false', () => {

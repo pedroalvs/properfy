@@ -510,3 +510,44 @@ describe('POST /v1/tenants/:tenantId/users/:userId/deactivate', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('POST /v1/users/:userId/deactivate', () => {
+  it('should resolve (not 404) and return 204 for internal deactivate', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockDeactivateUserExecute.mockResolvedValueOnce(undefined);
+
+    const res = await supertest(app.server)
+      .post(`/v1/users/${USER_ID}/deactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reason: 'Employee left the platform' });
+
+    expect(res.status).toBe(204);
+    expect(mockDeactivateUserExecute).toHaveBeenCalledWith({
+      tenantId: null,
+      userId: USER_ID,
+      reason: 'Employee left the platform',
+      actor: amContext,
+    });
+  });
+
+  it('should return 400 when reason is missing', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/users/${USER_ID}/deactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockDeactivateUserExecute).not.toHaveBeenCalled();
+  });
+
+  it('should return 401 without auth token', async () => {
+    const res = await supertest(app.server)
+      .post(`/v1/users/${USER_ID}/deactivate`)
+      .send({ reason: 'Employee left' });
+
+    expect(res.status).toBe(401);
+  });
+});

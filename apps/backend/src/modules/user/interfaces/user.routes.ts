@@ -333,6 +333,40 @@ export async function registerUserRoutes(
     },
   );
 
+  // POST /v1/users/:userId/deactivate (internal users only)
+  app.post(
+    '/v1/users/:userId/deactivate',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: internalUserIdParam,
+        body: deactivateSchema,
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      const params = internalUserIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid parameters',
+          params.error.errors,
+        );
+      const parsed = deactivateSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      await container.deactivateUserUseCase.execute({
+        tenantId: null,
+        userId: params.data.userId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
+    },
+  );
+
   // POST /v1/tenants/:tenantId/users/:userId/unlock
   app.post(
     '/v1/tenants/:tenantId/users/:userId/unlock',
