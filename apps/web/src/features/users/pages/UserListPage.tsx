@@ -129,10 +129,6 @@ export function UserListPage() {
           setDrawerOpen(false);
           setSelectedId(null);
         }}
-        onDeactivated={() => {
-          setDrawerOpen(false);
-          setSelectedId(null);
-        }}
         onEdit={(id) => {
           setDrawerOpen(false);
           setSelectedId(null);

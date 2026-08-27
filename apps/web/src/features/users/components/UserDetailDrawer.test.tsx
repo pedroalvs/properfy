@@ -229,6 +229,17 @@ describe('UserDetailDrawer', () => {
     );
   });
 
+  it('closes the drawer via onClose after a successful deactivation', async () => {
+    const onClose = vi.fn();
+    renderDrawer({ userId: 'usr-01', open: true, scope: 'internal', onClose });
+    fireEvent.click(screen.getByLabelText('Deactivate User'));
+    fireEvent.change(screen.getByLabelText('Deactivation reason'), {
+      target: { value: 'No longer needed' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
   it('shows Reactivate (not Deactivate) for an inactive user', () => {
     renderDrawer({ userId: 'usr-inactive', open: true });
     expect(screen.getByLabelText('Reactivate User')).toBeInTheDocument();

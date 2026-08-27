@@ -50,9 +50,12 @@ export function UserDetailDrawer({
       // Return the operator to the list after a successful deactivation. The
       // mutation already invalidates the list query, which re-renders the row as
       // Inactive; closing the drawer here is the intended post-action cleanup.
+      // Close via the required onClose so the drawer always dismisses, then fire
+      // the optional onDeactivated as a parent notification.
       setShowDeactivateConfirm(false);
       setDeactivateReason('');
       setReasonError('');
+      onClose();
       onDeactivated?.();
     },
   );
