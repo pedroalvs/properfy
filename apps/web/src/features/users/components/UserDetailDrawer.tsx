@@ -3,11 +3,13 @@ import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
 import { Dialog } from '@/components/ui/Dialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Textarea } from '@/components/forms/Textarea';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserDetail } from '../hooks/useUserDetail';
 import { useUserDeactivate } from '../hooks/useUserDeactivate';
+import { useUserReactivate } from '../hooks/useUserReactivate';
 import { UserStatusChip } from './UserStatusChip';
 import { UserDetailSections } from './UserDetailSections';
 import type { UserScope } from '../types';
@@ -34,10 +36,11 @@ export function UserDetailDrawer({
   scope = 'tenant',
 }: UserDetailDrawerProps) {
   const { user: authUser } = useAuth();
-  const { user, isLoading } = useUserDetail(userId, tenantId, scope);
+  const { user, isLoading, refetch } = useUserDetail(userId, tenantId, scope);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
   const [deactivateReason, setDeactivateReason] = useState('');
   const [reasonError, setReasonError] = useState('');
+  const [showReactivateConfirm, setShowReactivateConfirm] = useState(false);
 
   const { deactivate, isDeactivating } = useUserDeactivate(
     userId,
@@ -50,6 +53,18 @@ export function UserDetailDrawer({
       setDeactivateReason('');
       setReasonError('');
       onDeactivated?.();
+    },
+  );
+
+  const { reactivate, isReactivating } = useUserReactivate(
+    userId,
+    tenantId,
+    scope,
+    () => {
+      // The user stays listed after reactivation, so refresh the drawer in place
+      // to show ACTIVE and swap the action back to Deactivate.
+      setShowReactivateConfirm(false);
+      refetch();
     },
   );
 
@@ -88,6 +103,7 @@ export function UserDetailDrawer({
   // You cannot deactivate your own account (the API refuses it too).
   const canDeactivate =
     user?.status === 'ACTIVE' && user?.id !== authUser?.id;
+  const canReactivate = user?.status === 'INACTIVE';
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">
@@ -125,6 +141,16 @@ export function UserDetailDrawer({
                       disabled={isDeactivating}
                     >
                       <i className="mdi mdi-account-off-outline text-xl text-error" />
+                    </Button>
+                  ) : null}
+                  {canReactivate ? (
+                    <Button
+                      variant="icon"
+                      onClick={() => setShowReactivateConfirm(true)}
+                      aria-label="Reactivate User"
+                      disabled={isReactivating}
+                    >
+                      <i className="mdi mdi-account-check-outline text-xl text-success" />
                     </Button>
                   ) : null}
                 </>
@@ -172,6 +198,17 @@ export function UserDetailDrawer({
           {reasonError && <p className="text-sm text-error">{reasonError}</p>}
         </div>
       </Dialog>
+
+      <ConfirmDialog
+        open={showReactivateConfirm}
+        title="Reactivate User"
+        message={`Reactivate "${user?.name}"? They will be able to log in again.`}
+        confirmLabel="Reactivate"
+        variant="warning"
+        loading={isReactivating}
+        onConfirm={reactivate}
+        onClose={() => setShowReactivateConfirm(false)}
+      />
     </DrawerPanel>
   );
 }

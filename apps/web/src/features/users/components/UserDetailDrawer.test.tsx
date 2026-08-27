@@ -50,10 +50,11 @@ vi.mock('../hooks/useUserDetail', () => ({
   useUserDetail: (id: string | null) => {
     if (!id) return { user: null, isLoading: false, isError: false, refetch: vi.fn() };
     if (id === 'loading') return { user: null, isLoading: true, isError: false, refetch: vi.fn() };
+    const status = id === 'usr-inactive' ? 'INACTIVE' : 'ACTIVE';
     return {
       user: {
-        id: 'usr-01', name: 'Admin Principal', email: 'admin@properfy.me', phone: '11999999999',
-        role: 'AM', status: 'ACTIVE', branchName: null, tenantId: null, branchId: null,
+        id, name: 'Admin Principal', email: 'admin@properfy.me', phone: '11999999999',
+        role: 'AM', status, branchName: null, tenantId: null, branchId: null,
         lastLoginAt: null, twoFactorEnabled: false, permissions: [],
         createdAt: '2026-01-01T10:00:00Z', updatedAt: '2026-01-01T10:00:00Z',
       },
@@ -224,6 +225,24 @@ describe('UserDetailDrawer', () => {
       expect(mockPost).toHaveBeenCalledWith(
         '/v1/users/usr-01/deactivate',
         { body: { reason: 'Account no longer needed' } },
+      ),
+    );
+  });
+
+  it('shows Reactivate (not Deactivate) for an inactive user', () => {
+    renderDrawer({ userId: 'usr-inactive', open: true });
+    expect(screen.getByLabelText('Reactivate User')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Deactivate User')).not.toBeInTheDocument();
+  });
+
+  it('posts to the reactivate route on confirm', async () => {
+    renderDrawer({ userId: 'usr-inactive', open: true, scope: 'internal' });
+    fireEvent.click(screen.getByLabelText('Reactivate User'));
+    fireEvent.click(screen.getByRole('button', { name: 'Reactivate' }));
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith(
+        '/v1/users/usr-inactive/reactivate',
+        { body: {} },
       ),
     );
   });

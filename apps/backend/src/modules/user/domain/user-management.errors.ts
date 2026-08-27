@@ -18,6 +18,12 @@ export class UserAlreadyInactiveError extends ConflictError {
   }
 }
 
+export class UserAlreadyActiveError extends ConflictError {
+  constructor() {
+    super('USER_ALREADY_ACTIVE', 'User is already active');
+  }
+}
+
 export class UserNotLockedError extends ConflictError {
   constructor() {
     super('USER_NOT_LOCKED', 'User is not locked');
