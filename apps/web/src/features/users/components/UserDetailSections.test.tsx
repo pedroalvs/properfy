@@ -54,13 +54,23 @@ describe('UserDetailSections', () => {
     expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
-  it('shows branch name, em-dash when null', () => {
-    const { rerender } = render(<UserDetailSections user={makeUser()} />);
+  it('shows branch name for tenant users, em-dash when null', () => {
+    const { rerender } = render(
+      <UserDetailSections user={makeUser({ tenantId: 'tenant-1' })} />,
+    );
     expect(screen.getByText('Filial Centro')).toBeInTheDocument();
 
-    rerender(<UserDetailSections user={makeUser({ branchName: null })} />);
+    rerender(
+      <UserDetailSections user={makeUser({ tenantId: 'tenant-1', branchName: null })} />,
+    );
     const dashes = screen.getAllByText('—');
     expect(dashes.length).toBeGreaterThan(0);
+  });
+
+  it('hides the Branch row for internal users (no tenant)', () => {
+    render(<UserDetailSections user={makeUser({ tenantId: null })} />);
+    expect(screen.queryByText('Branch')).not.toBeInTheDocument();
+    expect(screen.queryByText('Filial Centro')).not.toBeInTheDocument();
   });
 
   it('shows permissions list', () => {

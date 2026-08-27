@@ -90,9 +90,25 @@ describe('GetUserUseCase', () => {
       phone: null,
       timezone: null,
       status: 'ACTIVE',
+      lastLoginAt: null,
       createdAt: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-01'),
     });
+  });
+
+  it('should surface lastLoginAt when the user has logged in', async () => {
+    const lastLogin = new Date('2024-06-15T10:30:00.000Z');
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(
+      makeUser({ lastLoginAt: lastLogin }),
+    );
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      actor: amActor,
+    });
+
+    expect(result.lastLoginAt).toEqual(lastLogin);
   });
 
   it('should return user for CL_ADMIN actor (own tenant)', async () => {

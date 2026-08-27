@@ -19,6 +19,7 @@ export interface GetUserOutput {
   phone: string | null;
   timezone: string | null;
   status: string;
+  lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -68,6 +69,7 @@ export class GetUserUseCase {
       phone: user.phone,
       timezone: user.timezone,
       status: user.status,
+      lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
