@@ -209,7 +209,11 @@ describe('UserDetailDrawer', () => {
     fireEvent.click(screen.getByLabelText('Deactivate User'));
     // Confirm without typing a reason
     fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
-    expect(screen.getByText('Reason is required')).toBeInTheDocument();
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Reason is required');
+    const textarea = screen.getByLabelText('Deactivation reason');
+    expect(textarea).toHaveAttribute('aria-invalid', 'true');
+    expect(textarea).toHaveAttribute('aria-describedby', alert.id);
     expect(mockPost).not.toHaveBeenCalled();
   });
 

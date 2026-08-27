@@ -198,8 +198,15 @@ export function UserDetailDrawer({
             maxLength={500}
             placeholder="Reason for deactivation"
             aria-label="Deactivation reason"
+            error={Boolean(reasonError)}
+            aria-invalid={Boolean(reasonError)}
+            aria-describedby={reasonError ? 'deactivation-reason-error' : undefined}
           />
-          {reasonError && <p className="text-sm text-error">{reasonError}</p>}
+          {reasonError && (
+            <p id="deactivation-reason-error" role="alert" className="text-sm text-error">
+              {reasonError}
+            </p>
+          )}
         </div>
       </Dialog>
 
