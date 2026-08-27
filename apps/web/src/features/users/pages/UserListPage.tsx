@@ -80,16 +80,17 @@ export function UserListPage() {
                 aria-label="User Scope"
               />
             </FormField>
-            <FormField label="Agency">
-              <SelectInput
-                value={selectedTenantId}
-                onChange={setSelectedTenantId}
-                options={tenantOptions}
-                placeholder="Select agency to view users"
-                aria-label="Agency"
-                disabled={scope !== 'tenant'}
-              />
-            </FormField>
+            {scope === 'tenant' && (
+              <FormField label="Agency">
+                <SelectInput
+                  value={selectedTenantId}
+                  onChange={setSelectedTenantId}
+                  options={tenantOptions}
+                  placeholder="Select agency to view users"
+                  aria-label="Agency"
+                />
+              </FormField>
+            )}
             {scope === 'internal' && (
               <p className="mt-2 text-sm text-text-muted">
                 Internal users are not linked to a specific agency.
@@ -111,6 +112,7 @@ export function UserListPage() {
               error={isError ? (errorMessage ?? 'Failed to load users') : undefined}
               onRetryError={refetch}
               pagination={pagination}
+              hideBranch={scope === 'internal'}
               onView={(user) => {
                 setSelectedId(user.id);
                 setDrawerOpen(true);
