@@ -104,10 +104,13 @@ export function UserDetailDrawer({
     deactivate(deactivateReason.trim());
   }, [deactivateReason, deactivate]);
 
+  // Tenant-scoped actions need a tenantId; without it the mutation would no-op
+  // and leave the dialog hanging, so don't expose the action in that state.
+  const hasScopeContext = !(scope === 'tenant' && !tenantId);
   // You cannot deactivate your own account (the API refuses it too).
   const canDeactivate =
-    user?.status === 'ACTIVE' && user?.id !== authUser?.id;
-  const canReactivate = user?.status === 'INACTIVE';
+    hasScopeContext && user?.status === 'ACTIVE' && user?.id !== authUser?.id;
+  const canReactivate = hasScopeContext && user?.status === 'INACTIVE';
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">

@@ -108,7 +108,7 @@ function renderDrawer(props: {
         onEdit={props.onEdit}
         onResetPassword={props.onResetPassword}
         scope={props.scope}
-        tenantId={props.tenantId}
+        tenantId={props.tenantId ?? 'ten-01'}
       />
     </Wrapper>,
   );
@@ -242,6 +242,23 @@ describe('UserDetailDrawer', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Deactivate' }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it('hides the action in tenant scope when tenantId is missing', () => {
+    // Active user, another account, but no tenant context → the mutation would
+    // no-op, so the action must not be exposed.
+    render(
+      <Wrapper>
+        <UserDetailDrawer
+          userId="usr-01"
+          open
+          onClose={vi.fn()}
+          scope="tenant"
+          tenantId={undefined}
+        />
+      </Wrapper>,
+    );
+    expect(screen.queryByLabelText('Deactivate User')).not.toBeInTheDocument();
   });
 
   it('shows Reactivate (not Deactivate) for an inactive user', () => {
