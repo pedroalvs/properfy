@@ -518,9 +518,11 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   appointmentCode: 'INS-0042',
   branchName: 'Sydney CBD Branch',
   properfyLogoUrl: PROPERFY_LOGO_URL,
-  // The preview has no tenant context, so the platform logo stands in for the
-  // agency's own upload. The real value comes from tenants.settings_json.logoUrl.
-  agencyLogoUrl: PROPERFY_LOGO_URL,
+  // Empty on purpose: when no agency logo can be resolved (no tenant context, or
+  // an agency without an upload) the preview and test-send render nothing —
+  // mirroring the real send — instead of substituting the Properfy platform logo
+  // into the agency-logo slot. The real value comes from tenants.settings_json.logoUrl.
+  agencyLogoUrl: '',
   serviceTypeName: 'Routine inspection',
   cancellationReason: 'Tenant requested a different week',
   userName: 'Admin User',

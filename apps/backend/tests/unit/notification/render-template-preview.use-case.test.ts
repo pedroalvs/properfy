@@ -63,12 +63,12 @@ describe('RenderTemplatePreviewUseCase', () => {
     expect(result.renderError).toBeUndefined();
   });
 
-  it('without tenantId, agencyLogoUrl renders the Properfy sample logo', async () => {
+  it('without tenantId, agencyLogoUrl renders empty — never the Properfy logo', async () => {
     const result = await useCase.execute({
       bodyHtml: '<img src="{{agencyLogoUrl}}">',
       actor: makeActor(),
     });
-    expect(result.htmlRendered).toContain(PROPERFY_LOGO_URL);
+    expect(result.htmlRendered).not.toContain(PROPERFY_LOGO_URL);
     expect(tenantRepo.findById).not.toHaveBeenCalled();
   });
 
@@ -84,14 +84,14 @@ describe('RenderTemplatePreviewUseCase', () => {
     expect(result.htmlRendered).toContain('+61298765432');
   });
 
-  it('with tenantId but no tenant logo, keeps the sample logo fallback', async () => {
+  it('with tenantId but no tenant logo, renders empty — no Properfy fallback', async () => {
     tenantRepo.findById.mockResolvedValue({ id: 'tenant-1', name: 'Acme', settingsJson: {} });
     const result = await useCase.execute({
       bodyHtml: '<img src="{{agencyLogoUrl}}">',
       tenantId: 'tenant-1',
       actor: makeActor(),
     });
-    expect(result.htmlRendered).toContain(PROPERFY_LOGO_URL);
+    expect(result.htmlRendered).not.toContain(PROPERFY_LOGO_URL);
   });
 
   it('CL_ADMIN previews with its own tenant scope regardless of input tenantId', async () => {

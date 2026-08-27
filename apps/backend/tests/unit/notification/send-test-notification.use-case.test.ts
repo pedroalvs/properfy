@@ -182,14 +182,16 @@ describe('SendTestNotificationUseCase', () => {
     expect(passedVars).toHaveProperty('scheduledDate');
   });
 
-  it('calls emailProvider.send with rendered subject/html/text and recipient', async () => {
+  it('calls emailProvider.send with rendered subject/html/text and recipient, from the system identity', async () => {
     await useCase.execute({ templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'test@example.com', actor: makeActor() });
     expect(emailProvider.send).toHaveBeenCalledWith(
       'test@example.com',
       'Inspection at 123 Main St, Sydney NSW 2000',
       '<p>Hello John Smith</p>',
       'Hello John Smith',
-      { identity: 'inspection' },
+      // Every test-send goes out from the system sender/BCC, not the agency-facing
+      // inspection identity — a test email is a platform/ops action.
+      { identity: 'system' },
     );
   });
 
@@ -380,7 +382,7 @@ describe('SendTestNotificationUseCase', () => {
       expect(passedVars.agencyLogoUrl).not.toBe(SAMPLE_DATA.agencyLogoUrl);
     });
 
-    it('sets agencyLogoUrl to empty when the tenant has no logo (real-send parity → properfy fallback)', async () => {
+    it('sets agencyLogoUrl to empty when the tenant has no logo — no Properfy fallback', async () => {
       tenantRepo.findById.mockResolvedValue({ id: 'tenant-x', name: 'No Logo Co', settingsJson: {} });
       vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate({ tenantId: 'tenant-x' }));
       vi.mocked(templateRenderer.render).mockReset().mockImplementation((_src, v) => JSON.stringify(v));
@@ -394,7 +396,7 @@ describe('SendTestNotificationUseCase', () => {
       expect(passedVars.agencyLogoUrl).toBe('');
     });
 
-    it('keeps SAMPLE_DATA branding for a platform template test (tenantId null)', async () => {
+    it('renders no agency logo for a platform template test (tenantId null) — no Properfy fallback', async () => {
       vi.mocked(templateRenderer.render).mockReset().mockImplementation((_src, v) => JSON.stringify(v));
       await makeUseCase().execute({
         templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'a@b.com',
@@ -402,7 +404,9 @@ describe('SendTestNotificationUseCase', () => {
       });
       expect(tenantRepo.findById).not.toHaveBeenCalled();
       const [, passedVars] = vi.mocked(templateRenderer.render).mock.calls[0] as [unknown, Record<string, string>];
-      expect(passedVars.agencyLogoUrl).toBe(SAMPLE_DATA.agencyLogoUrl);
+      // SAMPLE_DATA.agencyLogoUrl is '' — the platform-scoped test-send shows nothing.
+      expect(passedVars.agencyLogoUrl).toBe('');
+      expect(SAMPLE_DATA.agencyLogoUrl).toBe('');
     });
   });
 
