@@ -261,6 +261,21 @@ describe('UserDetailDrawer', () => {
     expect(screen.queryByLabelText('Deactivate User')).not.toBeInTheDocument();
   });
 
+  it('hides the Reactivate action in tenant scope when tenantId is missing', () => {
+    render(
+      <Wrapper>
+        <UserDetailDrawer
+          userId="usr-inactive"
+          open
+          onClose={vi.fn()}
+          scope="tenant"
+          tenantId={undefined}
+        />
+      </Wrapper>,
+    );
+    expect(screen.queryByLabelText('Reactivate User')).not.toBeInTheDocument();
+  });
+
   it('shows Reactivate (not Deactivate) for an inactive user', () => {
     renderDrawer({ userId: 'usr-inactive', open: true });
     expect(screen.getByLabelText('Reactivate User')).toBeInTheDocument();
