@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { AuthContext } from '@properfy/shared';
 import { prepareSmsBody } from '../../domain/sms-content';
-import { TEMPLATE_VARIABLES, SAMPLE_DATA, isSystemTemplate, type AllowedVariable } from '@properfy/shared';
+import { TEMPLATE_VARIABLES, SAMPLE_DATA, type AllowedVariable } from '@properfy/shared';
 import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
@@ -154,10 +154,12 @@ export class SendTestNotificationUseCase {
     }
 
     // Agency override under test: replace the platform SAMPLE_DATA placeholders
-    // (agencyLogoUrl defaults to the PROPERFY logo) with the tenant's real
-    // branding, mirroring the real send (BuildNotificationPayloadService) and
-    // the preview — otherwise the test email shows the Properfy logo instead of
-    // the agency's. Only keys the template actually declares are overridden.
+    // (agencyName/agencyPhone) with the tenant's real branding, and resolve
+    // agencyLogoUrl from the tenant's own upload — mirroring the real send
+    // (BuildNotificationPayloadService) and the preview. When the agency has no
+    // logo the value is '' (SAMPLE_DATA.agencyLogoUrl is empty too), so the slot
+    // renders nothing rather than the Properfy logo. Only keys the template
+    // actually declares are overridden.
     if (tenantId !== null && this.tenantRepo) {
       const tenant = await this.tenantRepo.findById(tenantId);
       if (tenant) {
@@ -193,7 +195,11 @@ export class SendTestNotificationUseCase {
         renderedSubject,
         renderedBodyHtml || renderedBodyText,
         renderedBodyText,
-        { identity: isSystemTemplate(input.templateCode) ? 'system' : 'inspection' },
+        // A test-send is always a platform/ops action: send it from the system
+        // sender/BCC identity, regardless of whether the template itself is
+        // agency-facing. The rendered body (incl. the resolved agency logo) is
+        // unchanged — only the envelope sender differs.
+        { identity: 'system' },
       ));
     } else {
       const renderedBodyText = this.templateRenderer.render(
