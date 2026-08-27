@@ -9,6 +9,7 @@ import { DetailRow } from '@/components/data/DetailRow';
 import { FormSection } from '@/components/forms/FormSection';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TenantStatusChip } from '../components/TenantStatusChip';
+import { DeactivateAgencyModal } from '../components/DeactivateAgencyModal';
 import { BranchSection } from '../components/BranchSection';
 import { PricingRulesSection } from '../components/PricingRulesSection';
 import { EmailLogoSection } from '../components/EmailLogoSection';
@@ -71,9 +72,12 @@ export function TenantDetailPage() {
     setShowDeactivateConfirm(true);
   }, []);
 
-  const handleConfirmDeactivate = useCallback(() => {
-    deactivate();
-  }, [deactivate]);
+  const handleConfirmDeactivate = useCallback(
+    (reason: string) => {
+      deactivate(reason);
+    },
+    [deactivate],
+  );
 
   const handleCancelDeactivate = useCallback(() => {
     setShowDeactivateConfirm(false);
@@ -189,13 +193,9 @@ export function TenantDetailPage() {
         onSaved={handleSaved}
       />
 
-      <ConfirmDialog
+      <DeactivateAgencyModal
         open={showDeactivateConfirm}
-        title="Deactivate Agency"
-        message={`Are you sure you want to deactivate "${tenant.name}"? This will affect all associated branches and appointments.`}
-        confirmLabel="Deactivate"
-        cancelLabel="Cancel"
-        variant="danger"
+        agencyName={tenant.name}
         loading={isDeactivating}
         onConfirm={handleConfirmDeactivate}
         onClose={handleCancelDeactivate}

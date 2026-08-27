@@ -5,18 +5,18 @@ import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
   UserNotFoundError,
-  UserAlreadyInactiveError,
+  UserAlreadyActiveError,
 } from '../../domain/user-management.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 
-export interface DeactivateUserInput {
+export interface ReactivateUserInput {
   tenantId: string | null;
   userId: string;
-  reason: string;
   actor: AuthContext;
+  reason?: string;
 }
 
-export class DeactivateUserUseCase {
+export class ReactivateUserUseCase {
   constructor(
     private readonly userManagementRepo: IUserManagementRepository,
     private readonly tenantRepo: ITenantRepository,
@@ -24,13 +24,13 @@ export class DeactivateUserUseCase {
     private readonly authorizationService: AuthorizationService,
   ) {}
 
-  async execute(input: DeactivateUserInput): Promise<void> {
+  async execute(input: ReactivateUserInput): Promise<void> {
     const { tenantId, userId, reason, actor } = input;
 
-    // RBAC mirrors update-user.use-case: AM crosses tenants and manages internal
-    // (tenant-less) users; CL_ADMIN and OP are scoped to their own tenant.
+    // RBAC mirrors deactivate-user.use-case: AM crosses tenants and manages
+    // internal (tenant-less) users; CL_ADMIN and OP are scoped to their own tenant.
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
-      action: 'user.deactivate',
+      action: 'user.reactivate',
       entityType: 'User',
     });
 
@@ -40,16 +40,15 @@ export class DeactivateUserUseCase {
     ) {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
-        'You can only deactivate users from your own tenant',
+        'You can only reactivate users from your own tenant',
       );
     }
 
-    // Internal (tenant-less) users can only be deactivated by AM.
-    // OP is tenant-scoped per CORRECTION-001 close-it.
+    // Internal (tenant-less) users can only be reactivated by AM.
     if (tenantId === null && actor.role !== 'AM') {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
-        'You are not allowed to deactivate internal users',
+        'You are not allowed to reactivate internal users',
       );
     }
 
@@ -64,15 +63,6 @@ export class DeactivateUserUseCase {
       }
     }
 
-    // Cannot deactivate self
-    if (actor.userId === userId) {
-      throw new ForbiddenError(
-        'AUTH_FORBIDDEN',
-        'You cannot deactivate your own account',
-      );
-    }
-
-    // Find the user
     const user = await this.userManagementRepo.findByIdAndTenantId(
       userId,
       tenantId,
@@ -81,33 +71,23 @@ export class DeactivateUserUseCase {
       throw new UserNotFoundError();
     }
 
-    // Check if already inactive
-    if (user.isInactive()) {
-      throw new UserAlreadyInactiveError();
+    if (user.isActive()) {
+      throw new UserAlreadyActiveError();
     }
 
-    // Flip status to INACTIVE only — do NOT soft-delete. Setting deleted_at
-    // would hide the row from every list (repositories filter deleted_at IS NULL)
-    // and from update()/status-change, so a deactivated user would vanish instead
-    // of showing as "Inactive" and could never be reactivated. Login is already
-    // blocked by the INACTIVE status check in the login use case.
     await this.userManagementRepo.update(userId, tenantId, {
-      status: 'INACTIVE',
+      status: 'ACTIVE',
     });
 
-    // Revoke all sessions
-    await this.userManagementRepo.revokeAllSessions(userId);
-
-    // Audit log
     this.auditService.log({
-      action: 'user.deactivated',
+      action: 'user.reactivated',
       actorType: 'USER',
       actorId: actor.userId,
       entityType: 'User',
       entityId: userId,
       tenantId,
       before: { status: user.status },
-      after: { status: 'INACTIVE' },
+      after: { status: 'ACTIVE' },
       reason,
     });
   }

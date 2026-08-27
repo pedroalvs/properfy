@@ -2,47 +2,45 @@ import { useActionMutation } from '@/hooks/useApiQuery';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import type { UserScope } from '../types';
 
-export interface UseUserDeactivateReturn {
-  deactivate: (reason: string) => void;
-  isDeactivating: boolean;
+export interface UseUserReactivateReturn {
+  reactivate: () => void;
+  isReactivating: boolean;
 }
 
-export function useUserDeactivate(
+export function useUserReactivate(
   userId: string | null,
   tenantId: string | undefined,
   scope: UserScope,
   onSuccess?: () => void,
-): UseUserDeactivateReturn {
+): UseUserReactivateReturn {
   const { showSuccess, showError } = useSnackbar();
 
   const path =
     scope === 'internal'
-      ? `/v1/users/${userId}/deactivate`
-      : `/v1/tenants/${tenantId}/users/${userId}/deactivate`;
+      ? `/v1/users/${userId}/reactivate`
+      : `/v1/tenants/${tenantId}/users/${userId}/reactivate`;
 
   const mutation = useActionMutation(path, [['users']]);
 
-  const deactivate = (reason: string) => {
+  const reactivate = () => {
     if (!userId) return;
     if (scope === 'tenant' && !tenantId) return;
-    const trimmedReason = reason.trim();
-    if (!trimmedReason) return;
     mutation.mutate(
-      { reason: trimmedReason },
+      {},
       {
         onSuccess: () => {
-          showSuccess('User deactivated successfully');
+          showSuccess('User reactivated successfully');
           onSuccess?.();
         },
         onError: (err) => {
-          showError(err.message || 'Failed to deactivate user');
+          showError(err.message || 'Failed to reactivate user');
         },
       },
     );
   };
 
   return {
-    deactivate,
-    isDeactivating: mutation.isPending,
+    reactivate,
+    isReactivating: mutation.isPending,
   };
 }

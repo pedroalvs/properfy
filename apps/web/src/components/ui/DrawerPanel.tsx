@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { lockBodyScroll } from '@/lib/body-scroll-lock';
 
 type DrawerSize = 'narrow' | 'wide';
@@ -17,11 +17,20 @@ const sizeClasses: Record<DrawerSize, string> = {
 };
 
 export function DrawerPanel({ open, onClose, size = 'narrow', ariaLabel, children }: DrawerPanelProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      // A modal dialog stacked inside the drawer (rendered in the panel's
+      // children) closes on its own Escape; don't also close the drawer beneath
+      // it — that would dismiss the whole drawer and discard the dialog's input.
+      if (panelRef.current?.querySelector('[role="dialog"][aria-modal="true"]')) {
+        return;
+      }
+      onClose();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
@@ -49,6 +58,7 @@ export function DrawerPanel({ open, onClose, size = 'narrow', ariaLabel, childre
 
       {/* Panel */}
       <div
+        ref={panelRef}
         className={`fixed right-0 top-0 z-50 h-screen bg-card-bg shadow-xl transition-transform duration-300 ${
           sizeClasses[size]
         } ${open ? 'translate-x-0' : 'translate-x-full'}`}
