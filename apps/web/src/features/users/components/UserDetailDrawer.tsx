@@ -47,8 +47,9 @@ export function UserDetailDrawer({
     tenantId,
     scope,
     () => {
-      // Deactivation soft-deletes the user, so re-fetching the detail would 404.
-      // Close the drawer instead; the mutation already invalidates the list query.
+      // Return the operator to the list after a successful deactivation. The
+      // mutation already invalidates the list query, which re-renders the row as
+      // Inactive; closing the drawer here is the intended post-action cleanup.
       setShowDeactivateConfirm(false);
       setDeactivateReason('');
       setReasonError('');

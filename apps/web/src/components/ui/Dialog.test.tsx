@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Dialog } from './Dialog';
+import { DrawerPanel } from './DrawerPanel';
 
 /**
  * Mirrors the real-world consumer shape (e.g. CancelGroupModal): local state driven by a
@@ -154,5 +155,25 @@ describe('Dialog', () => {
       </Dialog>,
     );
     expect(document.body.style.overflow).toBe('');
+  });
+
+  it('consumes Escape so a Dialog nested in a DrawerPanel does not close the drawer', async () => {
+    const user = userEvent.setup();
+    const onDrawerClose = vi.fn();
+    const onDialogClose = vi.fn();
+
+    render(
+      <DrawerPanel open onClose={onDrawerClose} size="narrow">
+        <p>Drawer body</p>
+        <Dialog open onClose={onDialogClose} title="Nested">
+          <p>Dialog body</p>
+        </Dialog>
+      </DrawerPanel>,
+    );
+
+    await user.keyboard('{Escape}');
+
+    expect(onDialogClose).toHaveBeenCalledTimes(1);
+    expect(onDrawerClose).not.toHaveBeenCalled();
   });
 });

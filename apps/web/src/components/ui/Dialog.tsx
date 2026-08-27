@@ -34,9 +34,16 @@ export function Dialog({
     if (!open) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current();
+      if (e.key === 'Escape') {
+        // A Dialog is often stacked over a DrawerPanel, which also closes on
+        // Escape from its own document listener. Consume the event in the capture
+        // phase so only the dialog closes — otherwise Escape dismisses the whole
+        // drawer and discards what the operator had typed.
+        e.stopImmediatePropagation();
+        onCloseRef.current();
+      }
     };
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, true);
 
     // Focus trap: focus the dialog on open
     dialogRef.current?.focus();
@@ -47,7 +54,7 @@ export function Dialog({
     const releaseScrollLock = lockBodyScroll();
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown, true);
       releaseScrollLock();
     };
   }, [open]);

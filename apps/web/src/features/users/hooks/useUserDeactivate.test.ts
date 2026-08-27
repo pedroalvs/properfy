@@ -67,6 +67,37 @@ describe('useUserDeactivate', () => {
     expect(mockPost).not.toHaveBeenCalled();
   });
 
+  it('does not post when the reason is only whitespace', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(
+      () => useUserDeactivate('user-01', 'ten-01', 'tenant'),
+      { wrapper },
+    );
+
+    act(() => {
+      result.current.deactivate('   ');
+    });
+
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it('trims the reason before posting', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(
+      () => useUserDeactivate('user-01', 'ten-01', 'tenant'),
+      { wrapper },
+    );
+
+    await act(async () => {
+      result.current.deactivate('  Employee left  ');
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      '/v1/tenants/ten-01/users/user-01/deactivate',
+      { body: { reason: 'Employee left' } },
+    );
+  });
+
   it('posts the reason to the tenant-scoped route', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(

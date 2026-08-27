@@ -25,8 +25,10 @@ export function useUserDeactivate(
   const deactivate = (reason: string) => {
     if (!userId) return;
     if (scope === 'tenant' && !tenantId) return;
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) return;
     mutation.mutate(
-      { reason },
+      { reason: trimmedReason },
       {
         onSuccess: () => {
           showSuccess('User deactivated successfully');
