@@ -86,12 +86,13 @@ export class DeactivateUserUseCase {
       throw new UserAlreadyInactiveError();
     }
 
-    const now = new Date();
-
-    // Set status to INACTIVE and deletedAt
+    // Flip status to INACTIVE only — do NOT soft-delete. Setting deleted_at
+    // would hide the row from every list (repositories filter deleted_at IS NULL)
+    // and from update()/status-change, so a deactivated user would vanish instead
+    // of showing as "Inactive" and could never be reactivated. Login is already
+    // blocked by the INACTIVE status check in the login use case.
     await this.userManagementRepo.update(userId, tenantId, {
       status: 'INACTIVE',
-      deletedAt: now,
     });
 
     // Revoke all sessions
@@ -106,7 +107,7 @@ export class DeactivateUserUseCase {
       entityId: userId,
       tenantId,
       before: { status: user.status },
-      after: { status: 'INACTIVE', deletedAt: now },
+      after: { status: 'INACTIVE' },
       reason,
     });
   }

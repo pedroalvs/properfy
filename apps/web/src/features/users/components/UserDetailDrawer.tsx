@@ -34,7 +34,7 @@ export function UserDetailDrawer({
   scope = 'tenant',
 }: UserDetailDrawerProps) {
   const { user: authUser } = useAuth();
-  const { user, isLoading, refetch } = useUserDetail(userId, tenantId, scope);
+  const { user, isLoading } = useUserDetail(userId, tenantId, scope);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
   const [deactivateReason, setDeactivateReason] = useState('');
   const [reasonError, setReasonError] = useState('');
@@ -44,10 +44,11 @@ export function UserDetailDrawer({
     tenantId,
     scope,
     () => {
+      // Deactivation soft-deletes the user, so re-fetching the detail would 404.
+      // Close the drawer instead; the mutation already invalidates the list query.
       setShowDeactivateConfirm(false);
       setDeactivateReason('');
       setReasonError('');
-      refetch();
       onDeactivated?.();
     },
   );

@@ -127,7 +127,6 @@ describe('DeactivateUserUseCase', () => {
 
     expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-1', {
       status: 'INACTIVE',
-      deletedAt: expect.any(Date),
     });
     expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith(
       'user-1',
@@ -148,7 +147,6 @@ describe('DeactivateUserUseCase', () => {
 
     expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', null, {
       status: 'INACTIVE',
-      deletedAt: expect.any(Date),
     });
     expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith('user-1');
   });
@@ -194,7 +192,6 @@ describe('DeactivateUserUseCase', () => {
 
     expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-1', {
       status: 'INACTIVE',
-      deletedAt: expect.any(Date),
     });
   });
 
