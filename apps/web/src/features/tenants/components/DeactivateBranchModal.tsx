@@ -58,7 +58,7 @@ export function DeactivateBranchModal({
         <i className="mdi mdi-alert-outline text-lg text-warning" aria-hidden="true" />
         <p className="text-sm text-text-primary">
           You are about to deactivate <strong>{branchName}</strong>. The branch will no longer
-          accept new appointments. This action cannot be easily undone.
+          accept new appointments. You can reactivate it later from the branch list.
         </p>
       </div>
       <FormField label="Reason" required>
