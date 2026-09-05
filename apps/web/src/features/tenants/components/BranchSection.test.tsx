@@ -17,11 +17,22 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
+vi.mock('@/hooks/usePermissions', () => ({
+  usePermissions: vi.fn(() => ({
+    role: 'AM',
+    hasRole: () => true,
+    canPerform: () => true,
+    hasClUserFlag: () => true,
+  })),
+}));
+
 import { api } from '@/services/api';
+import { usePermissions } from '@/hooks/usePermissions';
 import { BranchSection } from './BranchSection';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
+const mockUsePermissions = usePermissions as unknown as ReturnType<typeof vi.fn>;
 
 const MOCK_BRANCHES = [
   { id: 'br-01', tenantId: 'ten-01', name: 'Centro', address: 'Rua Augusta, 100', contactEmail: 'centro@imob.com', status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
@@ -49,6 +60,12 @@ beforeEach(() => {
     pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 },
   } });
   mockPost.mockResolvedValue({ data: { data: {} } });
+  mockUsePermissions.mockReturnValue({
+    role: 'AM',
+    hasRole: () => true,
+    canPerform: () => true,
+    hasClUserFlag: () => true,
+  });
 });
 
 describe('BranchSection', () => {
@@ -95,6 +112,26 @@ describe('BranchSection', () => {
     // One ACTIVE row (Centro) → Deactivate; one INACTIVE row (Zona Sul) → Activate.
     expect(screen.getAllByRole('button', { name: 'Deactivate' })).toHaveLength(1);
     expect(screen.getAllByRole('button', { name: 'Activate' })).toHaveLength(1);
+  });
+
+  it('hides status actions for roles without AM/OP', async () => {
+    mockUsePermissions.mockReturnValue({
+      role: 'CL_ADMIN',
+      hasRole: (...roles: string[]) => roles.includes('CL_ADMIN'),
+      canPerform: () => false,
+      hasClUserFlag: () => false,
+    });
+    const Wrapper = createWrapper();
+    render(<Wrapper><BranchSection tenantId="ten-01" /></Wrapper>);
+
+    await waitFor(() => {
+      expect(screen.getByText('Centro')).toBeInTheDocument();
+    });
+
+    // Edit stays available; status actions are gated to AM/OP.
+    expect(screen.getAllByRole('button', { name: 'Edit' }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByRole('button', { name: 'Deactivate' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Activate' })).not.toBeInTheDocument();
   });
 
   it('opens the confirmation dialog and activates an inactive branch', async () => {

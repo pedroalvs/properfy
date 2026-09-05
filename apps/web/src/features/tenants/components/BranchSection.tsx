@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
+import { usePermissions } from '@/hooks/usePermissions';
 import { formatInstantDate } from '@/lib/format-date';
 import { TenantStatusChip } from './TenantStatusChip';
 import { BranchFormDrawer } from './BranchFormDrawer';
@@ -19,27 +20,29 @@ interface BranchSectionProps {
 export function BranchSection({ tenantId }: BranchSectionProps) {
   const { data, isLoading, isError, refetch, pagination } = useBranchList(tenantId);
 
+  // Branch activation/deactivation is AM/OP-only server-side (activate/deactivate
+  // use cases assert ['AM','OP']); the tenant detail page also admits CL_ADMIN, so
+  // hide the status actions they cannot perform instead of surfacing a 403 dead-end.
+  const { hasRole } = usePermissions();
+  const canManageStatus = hasRole('AM', 'OP');
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [deactivatingBranch, setDeactivatingBranch] = useState<Branch | null>(null);
   const [activatingBranch, setActivatingBranch] = useState<Branch | null>(null);
 
+  // The hooks invalidate the mounted branch-list query, which refetches it — no
+  // explicit refetch() needed in these callbacks (it would only fire a duplicate).
   const { deactivate, isDeactivating } = useBranchDeactivate(
     tenantId,
     deactivatingBranch?.id ?? null,
-    () => {
-      setDeactivatingBranch(null);
-      refetch();
-    },
+    () => setDeactivatingBranch(null),
   );
 
   const { activate, isActivating } = useBranchActivate(
     tenantId,
     activatingBranch?.id ?? null,
-    () => {
-      setActivatingBranch(null);
-      refetch();
-    },
+    () => setActivatingBranch(null),
   );
 
   const handleAdd = useCallback(() => {
@@ -71,21 +74,15 @@ export function BranchSection({ tenantId }: BranchSectionProps) {
     deactivate(reason);
   }, [deactivate]);
 
+  // Ignore dismissal (Cancel/backdrop/Escape) while the request is in flight so an
+  // in-flight action cannot be abandoned and leak into another branch's dialog.
   const handleCancelDeactivate = useCallback(() => {
-    setDeactivatingBranch(null);
-  }, []);
-
-  const handleActivateClick = useCallback((branch: Branch) => {
-    setActivatingBranch(branch);
-  }, []);
-
-  const handleConfirmActivate = useCallback(() => {
-    activate();
-  }, [activate]);
+    if (!isDeactivating) setDeactivatingBranch(null);
+  }, [isDeactivating]);
 
   const handleCancelActivate = useCallback(() => {
-    setActivatingBranch(null);
-  }, []);
+    if (!isActivating) setActivatingBranch(null);
+  }, [isActivating]);
 
   const columns: DataTableColumn<Branch>[] = [
     {
@@ -128,21 +125,23 @@ export function BranchSection({ tenantId }: BranchSectionProps) {
               label: 'Edit',
               onClick: () => handleEdit(row),
             },
-            ...(row.status === 'ACTIVE'
-              ? [
-                  {
-                    icon: 'mdi-close-circle-outline',
-                    label: 'Deactivate',
-                    onClick: () => handleDeactivateClick(row),
-                  },
-                ]
-              : [
-                  {
-                    icon: 'mdi-check-circle-outline',
-                    label: 'Activate',
-                    onClick: () => handleActivateClick(row),
-                  },
-                ]),
+            ...(!canManageStatus
+              ? []
+              : row.status === 'ACTIVE'
+                ? [
+                    {
+                      icon: 'mdi-close-circle-outline',
+                      label: 'Deactivate',
+                      onClick: () => handleDeactivateClick(row),
+                    },
+                  ]
+                : [
+                    {
+                      icon: 'mdi-check-circle-outline',
+                      label: 'Activate',
+                      onClick: () => setActivatingBranch(row),
+                    },
+                  ]),
           ]}
         />
       ),
@@ -191,9 +190,9 @@ export function BranchSection({ tenantId }: BranchSectionProps) {
       <ConfirmDialog
         open={!!activatingBranch}
         onClose={handleCancelActivate}
-        onConfirm={handleConfirmActivate}
+        onConfirm={activate}
         title="Activate Branch"
-        message={`Are you sure you want to activate "${activatingBranch?.name ?? ''}"? This will restore access to it.`}
+        message={`You are about to activate "${activatingBranch?.name ?? ''}". The branch will accept new appointments again.`}
         confirmLabel="Activate"
         cancelLabel="Cancel"
         variant="warning"

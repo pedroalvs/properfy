@@ -15,7 +15,10 @@ export function useBranchActivate(
 
   const mutation = useActionMutation(
     `/v1/tenants/${tenantId}/branches/${branchId}/activate`,
-    [['tenant-admins', tenantId, 'branches']],
+    // Refresh the tenant branch table and the ACTIVE-filtered branch pickers
+    // (appointment drawer/filters cache under the ['branches', ...] prefix), so a
+    // reactivated branch becomes selectable immediately instead of after staleTime.
+    [['tenant-admins', tenantId, 'branches'], ['branches']],
   );
 
   const activate = () => {
