@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { formatInstantDate } from '@/lib/format-date';
@@ -8,6 +9,7 @@ import { BranchFormDrawer } from './BranchFormDrawer';
 import { DeactivateBranchModal } from './DeactivateBranchModal';
 import { useBranchList } from '../hooks/useBranchList';
 import { useBranchDeactivate } from '../hooks/useBranchDeactivate';
+import { useBranchActivate } from '../hooks/useBranchActivate';
 import type { Branch } from '../types';
 
 interface BranchSectionProps {
@@ -20,12 +22,22 @@ export function BranchSection({ tenantId }: BranchSectionProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [deactivatingBranch, setDeactivatingBranch] = useState<Branch | null>(null);
+  const [activatingBranch, setActivatingBranch] = useState<Branch | null>(null);
 
   const { deactivate, isDeactivating } = useBranchDeactivate(
     tenantId,
     deactivatingBranch?.id ?? null,
     () => {
       setDeactivatingBranch(null);
+      refetch();
+    },
+  );
+
+  const { activate, isActivating } = useBranchActivate(
+    tenantId,
+    activatingBranch?.id ?? null,
+    () => {
+      setActivatingBranch(null);
       refetch();
     },
   );
@@ -61,6 +73,18 @@ export function BranchSection({ tenantId }: BranchSectionProps) {
 
   const handleCancelDeactivate = useCallback(() => {
     setDeactivatingBranch(null);
+  }, []);
+
+  const handleActivateClick = useCallback((branch: Branch) => {
+    setActivatingBranch(branch);
+  }, []);
+
+  const handleConfirmActivate = useCallback(() => {
+    activate();
+  }, [activate]);
+
+  const handleCancelActivate = useCallback(() => {
+    setActivatingBranch(null);
   }, []);
 
   const columns: DataTableColumn<Branch>[] = [
@@ -112,7 +136,13 @@ export function BranchSection({ tenantId }: BranchSectionProps) {
                     onClick: () => handleDeactivateClick(row),
                   },
                 ]
-              : []),
+              : [
+                  {
+                    icon: 'mdi-check-circle-outline',
+                    label: 'Activate',
+                    onClick: () => handleActivateClick(row),
+                  },
+                ]),
           ]}
         />
       ),
@@ -156,6 +186,18 @@ export function BranchSection({ tenantId }: BranchSectionProps) {
         loading={isDeactivating}
         onConfirm={handleConfirmDeactivate}
         onClose={handleCancelDeactivate}
+      />
+
+      <ConfirmDialog
+        open={!!activatingBranch}
+        onClose={handleCancelActivate}
+        onConfirm={handleConfirmActivate}
+        title="Activate Branch"
+        message={`Are you sure you want to activate "${activatingBranch?.name ?? ''}"? This will restore access to it.`}
+        confirmLabel="Activate"
+        cancelLabel="Cancel"
+        variant="warning"
+        loading={isActivating}
       />
     </div>
   );
