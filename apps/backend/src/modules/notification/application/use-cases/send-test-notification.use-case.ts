@@ -196,9 +196,12 @@ export class SendTestNotificationUseCase {
         renderedBodyHtml || renderedBodyText,
         renderedBodyText,
         // A test-send is always a platform/ops action: send it from the system
-        // sender/BCC identity, regardless of whether the template itself is
-        // agency-facing. The rendered body (incl. the resolved agency logo) is
-        // unchanged — only the envelope sender differs.
+        // identity, regardless of whether the template itself is agency-facing.
+        // This changes the whole envelope — the From becomes SYSTEM_EMAIL_FROM
+        // and the BCC becomes the (opt-in) SYSTEM_EMAIL_BCC rather than the
+        // inspection BCC — so a test-send does not exercise the production
+        // inspection sender/BCC. The rendered body (incl. the resolved agency
+        // logo) is unchanged.
         { identity: 'system' },
       ));
     } else {

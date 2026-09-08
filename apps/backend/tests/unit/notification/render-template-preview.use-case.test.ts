@@ -86,6 +86,24 @@ describe('RenderTemplatePreviewUseCase', () => {
     expect(result.htmlRendered).toContain('+61298765432');
   });
 
+  it('with tenantId but no contactPhone, renders no sample phone — parity with delivery', async () => {
+    // A resolved tenant without a phone must not keep the fabricated sample phone
+    // in the preview while the delivered email renders nothing (the same
+    // preview/delivery divergence fixed for the logo).
+    tenantRepo.findById.mockResolvedValue({
+      id: 'tenant-1',
+      name: 'Acme',
+      settingsJson: { logoUrl: 'https://cdn.example.com/acme.png' },
+    });
+    const result = await useCase.execute({
+      bodyHtml: '<p>{{agencyPhone}}</p>',
+      tenantId: 'tenant-1',
+      actor: makeActor(),
+    });
+    expect(result.htmlRendered).not.toContain('9876 5432');
+    expect(result.htmlRendered).toBe('<p></p>');
+  });
+
   it('with tenantId but no tenant logo, renders empty — no Properfy fallback', async () => {
     tenantRepo.findById.mockResolvedValue({ id: 'tenant-1', name: 'Acme', settingsJson: {} });
     const result = await useCase.execute({
