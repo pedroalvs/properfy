@@ -68,6 +68,8 @@ describe('RenderTemplatePreviewUseCase', () => {
       bodyHtml: '<img src="{{agencyLogoUrl}}">',
       actor: makeActor(),
     });
+    // Positive: the slot resolves to an empty src, not just "no Properfy logo".
+    expect(result.htmlRendered).toContain('src=""');
     expect(result.htmlRendered).not.toContain(PROPERFY_LOGO_URL);
     expect(tenantRepo.findById).not.toHaveBeenCalled();
   });
@@ -91,6 +93,8 @@ describe('RenderTemplatePreviewUseCase', () => {
       tenantId: 'tenant-1',
       actor: makeActor(),
     });
+    // Positive: the slot resolves to an empty src, not just "no Properfy logo".
+    expect(result.htmlRendered).toContain('src=""');
     expect(result.htmlRendered).not.toContain(PROPERFY_LOGO_URL);
   });
 
