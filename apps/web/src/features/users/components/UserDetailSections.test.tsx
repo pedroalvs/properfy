@@ -9,7 +9,7 @@ function makeUser(overrides: Partial<UserDetail> = {}): UserDetail {
     id: 'usr-01',
     tenantId: null,
     branchId: null,
-    branchName: 'Filial Centro',
+    branchName: null,
     role: UserRole.AM,
     name: 'Admin Principal',
     email: 'admin@properfy.me',
@@ -56,12 +56,16 @@ describe('UserDetailSections', () => {
 
   it('shows branch name for tenant users, em-dash when null', () => {
     const { rerender } = render(
-      <UserDetailSections user={makeUser({ tenantId: 'tenant-1' })} />,
+      <UserDetailSections
+        user={makeUser({ tenantId: 'tenant-1', role: UserRole.CL_ADMIN, branchName: 'Filial Centro' })}
+      />,
     );
     expect(screen.getByText('Filial Centro')).toBeInTheDocument();
 
     rerender(
-      <UserDetailSections user={makeUser({ tenantId: 'tenant-1', branchName: null })} />,
+      <UserDetailSections
+        user={makeUser({ tenantId: 'tenant-1', role: UserRole.CL_ADMIN, branchName: null })}
+      />,
     );
     const dashes = screen.getAllByText('—');
     expect(dashes.length).toBeGreaterThan(0);

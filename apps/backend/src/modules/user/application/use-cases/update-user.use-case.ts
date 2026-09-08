@@ -34,6 +34,7 @@ export interface UpdateUserOutput {
   phone: string | null;
   timezone: string | null;
   status: string;
+  lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -234,6 +235,7 @@ export class UpdateUserUseCase {
       phone: updatedUser!.phone,
       timezone: updatedUser!.timezone,
       status: updatedUser!.status,
+      lastLoginAt: updatedUser!.lastLoginAt,
       createdAt: updatedUser!.createdAt,
       updatedAt: updatedUser!.updatedAt,
     };

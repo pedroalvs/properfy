@@ -145,8 +145,13 @@ describe('UpdateUserUseCase', () => {
   });
 
   it('should allow AM to update all fields including role', async () => {
+    const lastLogin = new Date('2026-06-15T10:30:00.000Z');
     const user = makeUser();
-    const updatedUser = makeUser({ name: 'Updated Name', role: 'CL_ADMIN' });
+    const updatedUser = makeUser({
+      name: 'Updated Name',
+      role: 'CL_ADMIN',
+      lastLoginAt: lastLogin,
+    });
     vi.mocked(userManagementRepo.findByIdAndTenantId)
       .mockResolvedValueOnce(user)
       .mockResolvedValueOnce(updatedUser);
@@ -160,6 +165,8 @@ describe('UpdateUserUseCase', () => {
 
     expect(result.name).toBe('Updated Name');
     expect(result.role).toBe('CL_ADMIN');
+    // DTO parity with GET/list: the PATCH response surfaces lastLoginAt too.
+    expect(result.lastLoginAt).toEqual(lastLogin);
     expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-1', {
       name: 'Updated Name',
       role: 'CL_ADMIN',
