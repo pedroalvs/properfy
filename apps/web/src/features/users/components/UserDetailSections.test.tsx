@@ -18,8 +18,7 @@ function makeUser(overrides: Partial<UserDetail> = {}): UserDetail {
     lastLoginAt: '2026-03-15T08:00:00Z',
     createdAt: '2025-06-01T10:00:00Z',
     updatedAt: '2026-03-15T08:00:00Z',
-    permissions: ['users.manage', 'tenants.manage', 'billing.manage'],
-    twoFactorEnabled: true,
+    totpEnabled: true,
     ...overrides,
   };
 }
@@ -57,14 +56,14 @@ describe('UserDetailSections', () => {
   it('shows branch name for tenant users, em-dash when null', () => {
     const { rerender } = render(
       <UserDetailSections
-        user={makeUser({ tenantId: 'tenant-1', role: UserRole.CL_ADMIN, branchName: 'Filial Centro' })}
+        user={makeUser({ tenantId: 'tenant-1', role: UserRole.CL_ADMIN, branchId: 'branch-1', branchName: 'Filial Centro' })}
       />,
     );
     expect(screen.getByText('Filial Centro')).toBeInTheDocument();
 
     rerender(
       <UserDetailSections
-        user={makeUser({ tenantId: 'tenant-1', role: UserRole.CL_ADMIN, branchName: null })}
+        user={makeUser({ tenantId: 'tenant-1', role: UserRole.CL_ADMIN, branchId: null, branchName: null })}
       />,
     );
     const dashes = screen.getAllByText('—');
@@ -77,9 +76,11 @@ describe('UserDetailSections', () => {
     expect(screen.queryByText('Filial Centro')).not.toBeInTheDocument();
   });
 
-  it('shows permissions list', () => {
-    render(<UserDetailSections user={makeUser()} />);
-    expect(screen.getByText('users.manage, tenants.manage, billing.manage')).toBeInTheDocument();
+  it('shows role-derived capabilities', () => {
+    // Default fixture role is AM, which the shared matrix grants user.create_internal.
+    render(<UserDetailSections user={makeUser({ role: UserRole.AM })} />);
+    expect(screen.getByText('Capabilities')).toBeInTheDocument();
+    expect(screen.getByText(/User: create internal/)).toBeInTheDocument();
   });
 
   it('shows lastLoginAt when present, em-dash when null', () => {
@@ -91,11 +92,11 @@ describe('UserDetailSections', () => {
     expect(dashes.length).toBeGreaterThan(0);
   });
 
-  it('shows BooleanIcon for twoFactorEnabled', () => {
-    const { rerender } = render(<UserDetailSections user={makeUser({ twoFactorEnabled: true })} />);
+  it('shows BooleanIcon for totpEnabled', () => {
+    const { rerender } = render(<UserDetailSections user={makeUser({ totpEnabled: true })} />);
     expect(screen.getByLabelText('Yes')).toBeInTheDocument();
 
-    rerender(<UserDetailSections user={makeUser({ twoFactorEnabled: false })} />);
+    rerender(<UserDetailSections user={makeUser({ totpEnabled: false })} />);
     expect(screen.getByLabelText('No')).toBeInTheDocument();
   });
 });

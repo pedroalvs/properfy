@@ -161,6 +161,9 @@ export const userResponseSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid().nullable(),
   branchId: z.string().uuid().nullable(),
+  // Joined from the user's branch relation for display (list/detail); absent
+  // for internal users and when no branch is assigned.
+  branchName: z.string().nullable().optional(),
   role: z.string(),
   name: z.string(),
   email: z.string(),

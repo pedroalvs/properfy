@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
+import { DEFAULT_FILTERS, type UserScope } from '../types';
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -113,5 +114,29 @@ describe('useUserList', () => {
 
     expect(result.current.isError).toBe(true);
     expect(result.current.data).toHaveLength(0);
+  });
+
+  it('resets filters and page when the scope changes', async () => {
+    const wrapper = createQueryWrapper();
+    const { result, rerender } = renderHook(
+      ({ scope }: { scope: UserScope }) => useUserList(undefined, scope),
+      { wrapper, initialProps: { scope: 'tenant' as UserScope } },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.setFilters({ search: 'ana', role: 'CL_ADMIN', status: 'ACTIVE' });
+      result.current.pagination.onChange?.(3, 10);
+    });
+    await waitFor(() => expect(result.current.filters.role).toBe('CL_ADMIN'));
+
+    // Switching scope must clear the previous scope's filters and reset to page 1.
+    rerender({ scope: 'internal' });
+
+    await waitFor(() => {
+      expect(result.current.filters).toEqual(DEFAULT_FILTERS);
+    });
+    expect(result.current.pagination.page).toBe(1);
   });
 });

@@ -150,6 +150,9 @@ describe('UpdateUserUseCase', () => {
     const updatedUser = makeUser({
       name: 'Updated Name',
       role: 'CL_ADMIN',
+      branchId: 'branch-1',
+      branchName: 'Filial Centro',
+      totpEnabled: true,
       lastLoginAt: lastLogin,
     });
     vi.mocked(userManagementRepo.findByIdAndTenantId)
@@ -165,8 +168,11 @@ describe('UpdateUserUseCase', () => {
 
     expect(result.name).toBe('Updated Name');
     expect(result.role).toBe('CL_ADMIN');
-    // DTO parity with GET/list: the PATCH response surfaces lastLoginAt too.
+    // DTO parity with GET/list: the PATCH response surfaces lastLoginAt,
+    // branchName and totpEnabled too.
     expect(result.lastLoginAt).toEqual(lastLogin);
+    expect(result.branchName).toBe('Filial Centro');
+    expect(result.totpEnabled).toBe(true);
     expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-1', {
       name: 'Updated Name',
       role: 'CL_ADMIN',

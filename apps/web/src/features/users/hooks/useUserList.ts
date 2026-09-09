@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,6 +22,14 @@ export function useUserList(overrideTenantId?: string, scope: UserScope = 'tenan
   const [filters, setFilters] = useState<UserFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Switching User Scope must not carry the previous scope's filters or page:
+  // an internal list inheriting a CL_* role filter (or a stale page) would
+  // silently render empty. Reset both whenever the scope changes.
+  useEffect(() => {
+    setFilters(DEFAULT_FILTERS);
+    setPage(1);
+  }, [scope]);
   const query = usePaginatedQuery<User>(
     ['users', scope, tenantId],
     scope === 'internal' ? '/v1/users' : `/v1/tenants/${tenantId}/users`,

@@ -20,9 +20,11 @@ export interface ListUsersUserItem {
   role: string;
   tenantId: string | null;
   branchId: string | null;
+  branchName: string | null;
   phone: string | null;
   timezone: string | null;
   status: string;
+  totpEnabled: boolean;
   lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -77,9 +79,11 @@ export class ListUsersUseCase {
         role: user.role,
         tenantId: user.tenantId,
         branchId: user.branchId,
+        branchName: user.branchName,
         phone: user.phone,
         timezone: user.timezone,
         status: user.status,
+        totpEnabled: user.totpEnabled,
         lastLoginAt: user.lastLoginAt,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,

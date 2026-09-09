@@ -31,9 +31,11 @@ export interface UpdateUserOutput {
   role: string;
   tenantId: string | null;
   branchId: string | null;
+  branchName: string | null;
   phone: string | null;
   timezone: string | null;
   status: string;
+  totpEnabled: boolean;
   lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -232,9 +234,11 @@ export class UpdateUserUseCase {
       role: updatedUser!.role,
       tenantId: updatedUser!.tenantId,
       branchId: updatedUser!.branchId,
+      branchName: updatedUser!.branchName,
       phone: updatedUser!.phone,
       timezone: updatedUser!.timezone,
       status: updatedUser!.status,
+      totpEnabled: updatedUser!.totpEnabled,
       lastLoginAt: updatedUser!.lastLoginAt,
       createdAt: updatedUser!.createdAt,
       updatedAt: updatedUser!.updatedAt,

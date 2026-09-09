@@ -6,6 +6,7 @@ import { UserRoleChip } from './UserRoleChip';
 import { UserStatusChip } from './UserStatusChip';
 import type { UserDetail } from '../types';
 import { formatAuPhone } from '@/lib/phone-mask';
+import { getRoleCapabilities } from '@/lib/permissions';
 
 interface UserDetailSectionsProps {
   user: UserDetail;
@@ -24,12 +25,15 @@ export function UserDetailSections({ user }: UserDetailSectionsProps) {
         <DetailRow label="Role" value={<UserRoleChip role={user.role} />} />
         <DetailRow label="Status" value={<UserStatusChip status={user.status} />} />
         {user.tenantId && <DetailRow label="Branch" value={user.branchName} />}
-        <DetailRow label="Permissions" value={(user.permissions ?? []).length > 0 ? user.permissions.join(', ') : null} />
+        <DetailRow
+          label="Capabilities"
+          value={getRoleCapabilities(user.role).join(', ') || null}
+        />
       </FormSection>
 
       <FormSection title="Activity">
         <DetailRow label="Last Login" value={user.lastLoginAt ? formatInstantDateTime(user.lastLoginAt) : null} />
-        <DetailRow label="2FA" value={<BooleanIcon value={user.twoFactorEnabled} />} />
+        <DetailRow label="2FA" value={<BooleanIcon value={user.totpEnabled} />} />
       </FormSection>
 
       <FormSection title="Record">

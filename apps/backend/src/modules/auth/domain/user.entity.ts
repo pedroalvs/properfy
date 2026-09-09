@@ -5,6 +5,12 @@ export interface UserProps {
   id: string;
   tenantId: string | null;
   branchId: string | null;
+  /**
+   * Display-only name of the assigned branch, joined on the user-management
+   * read path. Optional so auth/create factories keep working; defaults to
+   * null when no branch relation was loaded.
+   */
+  branchName?: string | null;
   role: UserRole;
   name: string;
   email: string;
@@ -30,6 +36,7 @@ export interface UserProps {
 export class UserEntity extends BaseEntity {
   readonly tenantId: string | null;
   readonly branchId: string | null;
+  readonly branchName: string | null;
   readonly role: UserRole;
   readonly name: string;
   readonly email: string;
@@ -48,6 +55,7 @@ export class UserEntity extends BaseEntity {
     super(props.id, props.createdAt, props.updatedAt);
     this.tenantId = props.tenantId;
     this.branchId = props.branchId;
+    this.branchName = props.branchName ?? null;
     this.role = props.role;
     this.name = props.name;
     this.email = props.email;

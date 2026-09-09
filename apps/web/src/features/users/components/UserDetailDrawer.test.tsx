@@ -47,7 +47,7 @@ vi.mock('../hooks/useUserDetail', () => ({
       user: {
         id: 'usr-01', name: 'Admin Principal', email: 'admin@properfy.me', phone: '11999999999',
         role: 'AM', status: 'ACTIVE', branchName: null, tenantId: null, branchId: null,
-        lastLoginAt: null, twoFactorEnabled: false, permissions: [],
+        lastLoginAt: null, totpEnabled: false,
         createdAt: '2026-01-01T10:00:00Z', updatedAt: '2026-01-01T10:00:00Z',
       },
       isLoading: false, isError: false, refetch: vi.fn(),
