@@ -254,6 +254,10 @@ describe('DashboardPage — New Appointment shortcut', () => {
     mockRole = 'AM';
   });
 
+  // CL_USER is intentionally offered the shortcut: the UI gate is coarse by
+  // design (mirrors AppointmentListPage's `canCreate`), and the `create_appointments`
+  // flag is enforced server-side on submit. Hiding it here without also hiding the
+  // list's CTA and the `?new=1` drawer-open effect would diverge, not protect.
   it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])(
     'offers the New Appointment shortcut to %s',
     (role) => {
