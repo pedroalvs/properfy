@@ -33,7 +33,7 @@ export function computeTomorrowLabel(): string {
 export function DashboardPage() {
   const navigate = useNavigate();
   const { stats, isLoading } = useDashboardStats();
-  const { hasRole } = usePermissions();
+  const { hasRole, canPerform } = usePermissions();
   const tomorrowLabel = computeTomorrowLabel();
 
   // /dashboard is unguarded and INSP lands here, but the sibling screens are
@@ -42,6 +42,10 @@ export function DashboardPage() {
   // straight back with a permission toast, so each action mirrors its route.
   const canViewAnalytics = hasRole(UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER);
   const canViewWorkload = hasRole(UserRole.AM, UserRole.OP);
+  // Mirrors AppointmentListPage's `canCreate` guard: the create drawer only opens
+  // for `appointment.create` holders, so hide the shortcut from anyone else (INSP
+  // lands on /dashboard too) rather than navigating to a param that gets dropped.
+  const canCreateAppointment = canPerform('appointment.create');
   const secondaryActions = [
     ...(canViewAnalytics
       ? [{ label: 'Analytics', icon: 'mdi-chart-line', onClick: () => navigate('/analytics') }]
@@ -55,6 +59,15 @@ export function DashboardPage() {
     <div>
       <PageHeader
         title="Dashboard"
+        primaryAction={
+          canCreateAppointment
+            ? {
+                label: 'New Appointment',
+                icon: 'mdi-plus',
+                onClick: () => navigate('/appointments?new=1'),
+              }
+            : undefined
+        }
         secondaryActions={secondaryActions.length > 0 ? secondaryActions : undefined}
       />
 
