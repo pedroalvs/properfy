@@ -2989,6 +2989,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "branchName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "role": {
                           "type": "string"
                         },
@@ -3188,6 +3192,10 @@
                           "branchId": {
                             "type": "string",
                             "format": "uuid",
+                            "nullable": true
+                          },
+                          "branchName": {
+                            "type": "string",
                             "nullable": true
                           },
                           "role": {
@@ -3397,6 +3405,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "branchName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "role": {
                           "type": "string"
                         },
@@ -3589,6 +3601,10 @@
                             "format": "uuid",
                             "nullable": true
                           },
+                          "branchName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "role": {
                             "type": "string"
                           },
@@ -3745,6 +3761,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "branchName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "role": {
                           "type": "string"
                         },
@@ -3915,6 +3935,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "branchName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "role": {
                           "type": "string"
                         },
@@ -4034,6 +4058,10 @@
                         "branchId": {
                           "type": "string",
                           "format": "uuid",
+                          "nullable": true
+                        },
+                        "branchName": {
+                          "type": "string",
                           "nullable": true
                         },
                         "role": {
@@ -4195,6 +4223,10 @@
                         "branchId": {
                           "type": "string",
                           "format": "uuid",
+                          "nullable": true
+                        },
+                        "branchName": {
+                          "type": "string",
                           "nullable": true
                         },
                         "role": {

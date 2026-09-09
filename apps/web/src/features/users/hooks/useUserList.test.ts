@@ -139,4 +139,27 @@ describe('useUserList', () => {
     });
     expect(result.current.pagination.page).toBe(1);
   });
+
+  it('resets filters and page when the selected agency changes within tenant scope', async () => {
+    const wrapper = createQueryWrapper();
+    const { result, rerender } = renderHook(
+      ({ agencyId }: { agencyId: string }) => useUserList(agencyId, 'tenant'),
+      { wrapper, initialProps: { agencyId: 'tenant-1' } },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.setFilters({ search: '', role: 'CL_ADMIN', status: '' });
+      result.current.pagination.onChange?.(2, 10);
+    });
+    await waitFor(() => expect(result.current.filters.role).toBe('CL_ADMIN'));
+
+    rerender({ agencyId: 'tenant-2' });
+
+    await waitFor(() => {
+      expect(result.current.filters).toEqual(DEFAULT_FILTERS);
+    });
+    expect(result.current.pagination.page).toBe(1);
+  });
 });

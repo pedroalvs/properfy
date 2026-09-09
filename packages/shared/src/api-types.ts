@@ -1553,6 +1553,7 @@ export interface paths {
                                 tenantId: string | null;
                                 /** Format: uuid */
                                 branchId: string | null;
+                                branchName?: string | null;
                                 role: string;
                                 name: string;
                                 email: string;
@@ -1616,6 +1617,7 @@ export interface paths {
                                 tenantId: string | null;
                                 /** Format: uuid */
                                 branchId: string | null;
+                                branchName?: string | null;
                                 role: string;
                                 name: string;
                                 email: string;
@@ -1676,6 +1678,7 @@ export interface paths {
                                 tenantId: string | null;
                                 /** Format: uuid */
                                 branchId: string | null;
+                                branchName?: string | null;
                                 role: string;
                                 name: string;
                                 email: string;
@@ -1737,6 +1740,7 @@ export interface paths {
                                 tenantId: string | null;
                                 /** Format: uuid */
                                 branchId: string | null;
+                                branchName?: string | null;
                                 role: string;
                                 name: string;
                                 email: string;
@@ -1792,6 +1796,7 @@ export interface paths {
                                 tenantId: string | null;
                                 /** Format: uuid */
                                 branchId: string | null;
+                                branchName?: string | null;
                                 role: string;
                                 name: string;
                                 email: string;
@@ -1851,6 +1856,7 @@ export interface paths {
                                 tenantId: string | null;
                                 /** Format: uuid */
                                 branchId: string | null;
+                                branchName?: string | null;
                                 role: string;
                                 name: string;
                                 email: string;
@@ -1901,6 +1907,7 @@ export interface paths {
                                 tenantId: string | null;
                                 /** Format: uuid */
                                 branchId: string | null;
+                                branchName?: string | null;
                                 role: string;
                                 name: string;
                                 email: string;
@@ -1959,6 +1966,7 @@ export interface paths {
                                 tenantId: string | null;
                                 /** Format: uuid */
                                 branchId: string | null;
+                                branchName?: string | null;
                                 role: string;
                                 name: string;
                                 email: string;
