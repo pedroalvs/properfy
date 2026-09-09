@@ -19,6 +19,7 @@ function mapToEntity(row: {
   name: string;
   email: string;
   phone: string | null;
+  timezone: string | null;
   status: string;
   password_hash: string;
   totp_secret: string | null;
@@ -29,15 +30,19 @@ function mapToEntity(row: {
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
+  // Present only when the branch relation is included in the query.
+  branch?: { name: string } | null;
 }): UserEntity {
   return new UserEntity({
     id: row.id,
     tenantId: row.tenant_id,
     branchId: row.branch_id,
+    branchName: row.branch?.name ?? null,
     role: row.role as UserEntity['role'],
     name: row.name,
     email: row.email,
     phone: row.phone,
+    timezone: row.timezone,
     status: row.status as UserEntity['status'],
     passwordHash: row.password_hash,
     totpSecret: row.totp_secret,
@@ -69,6 +74,7 @@ export class PrismaUserManagementRepository
   ): Promise<UserEntity | null> {
     const row = await this.prisma.user.findFirst({
       where: { id: userId, tenant_id: tenantId, deleted_at: null },
+      include: { branch: { select: { name: true } } },
     });
     return row ? mapToEntity(row) : null;
   }
@@ -109,6 +115,7 @@ export class PrismaUserManagementRepository
     const where = this.buildWhere(tenantId, filters);
     const rows = await this.prisma.user.findMany({
       where,
+      include: { branch: { select: { name: true } } },
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
       orderBy: {

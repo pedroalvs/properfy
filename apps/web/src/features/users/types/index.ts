@@ -18,8 +18,7 @@ export interface User {
 }
 
 export interface UserDetail extends User {
-  permissions: string[];
-  twoFactorEnabled: boolean;
+  totpEnabled: boolean;
 }
 
 export interface UserFiltersState {

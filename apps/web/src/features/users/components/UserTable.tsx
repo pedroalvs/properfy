@@ -11,6 +11,8 @@ interface UserTableProps {
   error?: string;
   onRetryError?: () => void;
   pagination?: DataTablePagination;
+  /** Hide the Branch column (Internal Users scope — internal users have no branch). */
+  hideBranch?: boolean;
   onView?: (user: User) => void;
 }
 
@@ -20,9 +22,10 @@ export function UserTable({
   error,
   onRetryError,
   pagination,
+  hideBranch,
   onView,
 }: UserTableProps) {
-  const columns: DataTableColumn<User>[] = [
+  const allColumns: DataTableColumn<User>[] = [
     {
       key: 'name',
       label: 'Name',
@@ -84,6 +87,9 @@ export function UserTable({
       ),
     },
   ];
+  const columns = allColumns.filter(
+    (col) => !(hideBranch && col.key === 'branchName'),
+  );
 
   return (
     <DataTable<User>

@@ -9,7 +9,7 @@ function makeUser(overrides: Partial<UserDetail> = {}): UserDetail {
     id: 'usr-01',
     tenantId: null,
     branchId: null,
-    branchName: 'Filial Centro',
+    branchName: null,
     role: UserRole.AM,
     name: 'Admin Principal',
     email: 'admin@properfy.me',
@@ -18,8 +18,7 @@ function makeUser(overrides: Partial<UserDetail> = {}): UserDetail {
     lastLoginAt: '2026-03-15T08:00:00Z',
     createdAt: '2025-06-01T10:00:00Z',
     updatedAt: '2026-03-15T08:00:00Z',
-    permissions: ['users.manage', 'tenants.manage', 'billing.manage'],
-    twoFactorEnabled: true,
+    totpEnabled: true,
     ...overrides,
   };
 }
@@ -54,18 +53,34 @@ describe('UserDetailSections', () => {
     expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
-  it('shows branch name, em-dash when null', () => {
-    const { rerender } = render(<UserDetailSections user={makeUser()} />);
+  it('shows branch name for tenant users, em-dash when null', () => {
+    const { rerender } = render(
+      <UserDetailSections
+        user={makeUser({ tenantId: 'tenant-1', role: UserRole.CL_ADMIN, branchId: 'branch-1', branchName: 'Filial Centro' })}
+      />,
+    );
     expect(screen.getByText('Filial Centro')).toBeInTheDocument();
 
-    rerender(<UserDetailSections user={makeUser({ branchName: null })} />);
+    rerender(
+      <UserDetailSections
+        user={makeUser({ tenantId: 'tenant-1', role: UserRole.CL_ADMIN, branchId: null, branchName: null })}
+      />,
+    );
     const dashes = screen.getAllByText('—');
     expect(dashes.length).toBeGreaterThan(0);
   });
 
-  it('shows permissions list', () => {
-    render(<UserDetailSections user={makeUser()} />);
-    expect(screen.getByText('users.manage, tenants.manage, billing.manage')).toBeInTheDocument();
+  it('hides the Branch row for internal users (no tenant)', () => {
+    render(<UserDetailSections user={makeUser({ tenantId: null })} />);
+    expect(screen.queryByText('Branch')).not.toBeInTheDocument();
+    expect(screen.queryByText('Filial Centro')).not.toBeInTheDocument();
+  });
+
+  it('shows role-derived capabilities', () => {
+    // Default fixture role is AM, which the shared matrix grants user.create_internal.
+    render(<UserDetailSections user={makeUser({ role: UserRole.AM })} />);
+    expect(screen.getByText('Capabilities')).toBeInTheDocument();
+    expect(screen.getByText(/User: create internal/)).toBeInTheDocument();
   });
 
   it('shows lastLoginAt when present, em-dash when null', () => {
@@ -77,11 +92,11 @@ describe('UserDetailSections', () => {
     expect(dashes.length).toBeGreaterThan(0);
   });
 
-  it('shows BooleanIcon for twoFactorEnabled', () => {
-    const { rerender } = render(<UserDetailSections user={makeUser({ twoFactorEnabled: true })} />);
+  it('shows BooleanIcon for totpEnabled', () => {
+    const { rerender } = render(<UserDetailSections user={makeUser({ totpEnabled: true })} />);
     expect(screen.getByLabelText('Yes')).toBeInTheDocument();
 
-    rerender(<UserDetailSections user={makeUser({ twoFactorEnabled: false })} />);
+    rerender(<UserDetailSections user={makeUser({ totpEnabled: false })} />);
     expect(screen.getByLabelText('No')).toBeInTheDocument();
   });
 });

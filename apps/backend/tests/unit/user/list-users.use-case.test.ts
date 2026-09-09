@@ -160,6 +160,45 @@ describe('ListUsersUseCase', () => {
     ).toBeUndefined();
   });
 
+  it('should surface lastLoginAt for each user (null and populated)', async () => {
+    const lastLogin = new Date('2024-06-15T10:30:00.000Z');
+    vi.mocked(userManagementRepo.findByTenantId).mockResolvedValue([
+      makeUser({ id: 'user-1', lastLoginAt: lastLogin }),
+      makeUser({ id: 'user-2', lastLoginAt: null }),
+    ]);
+    vi.mocked(userManagementRepo.countByTenantId).mockResolvedValue(2);
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      filters: {},
+      pagination: defaultPagination,
+      actor: amActor,
+    });
+
+    expect(result.data[0]?.lastLoginAt).toEqual(lastLogin);
+    expect(result.data[1]?.lastLoginAt).toBeNull();
+  });
+
+  it('should surface branchName and totpEnabled for each user', async () => {
+    vi.mocked(userManagementRepo.findByTenantId).mockResolvedValue([
+      makeUser({ id: 'user-1', branchId: 'branch-1', branchName: 'Filial Centro', totpEnabled: true }),
+      makeUser({ id: 'user-2', branchId: null, branchName: null, totpEnabled: false }),
+    ]);
+    vi.mocked(userManagementRepo.countByTenantId).mockResolvedValue(2);
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      filters: {},
+      pagination: defaultPagination,
+      actor: amActor,
+    });
+
+    expect(result.data[0]?.branchName).toBe('Filial Centro');
+    expect(result.data[0]?.totpEnabled).toBe(true);
+    expect(result.data[1]?.branchName).toBeNull();
+    expect(result.data[1]?.totpEnabled).toBe(false);
+  });
+
   it('should pass filters and pagination to repository with INSP excluded', async () => {
     vi.mocked(userManagementRepo.findByTenantId).mockResolvedValue([]);
     vi.mocked(userManagementRepo.countByTenantId).mockResolvedValue(0);
