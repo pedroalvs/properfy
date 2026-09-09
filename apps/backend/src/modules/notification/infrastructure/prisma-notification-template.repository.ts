@@ -43,21 +43,36 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
   }
 
   async findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateListItem[]> {
-    const where: Record<string, unknown> = {};
+    // Collect independent predicates into an AND list so the tenant-scope OR and the
+    // search OR do not clobber each other on the same `where.OR` key.
+    const and: Record<string, unknown>[] = [];
 
     if (filters.tenantId !== undefined) {
       if (filters.includeDefaults) {
-        where.OR = [
-          { tenant_id: filters.tenantId },
-          { tenant_id: null },
-        ];
+        and.push({ OR: [{ tenant_id: filters.tenantId }, { tenant_id: null }] });
       } else {
-        where.tenant_id = filters.tenantId;
+        and.push({ tenant_id: filters.tenantId });
       }
     }
 
-    if (filters.templateCode) where.template_code = filters.templateCode;
-    if (filters.channel) where.channel = filters.channel;
+    const searchTerm = filters.search?.trim();
+    if (searchTerm) {
+      const searchOr: Record<string, unknown>[] = [
+        { template_code: { contains: searchTerm, mode: 'insensitive' } },
+        { subject: { contains: searchTerm, mode: 'insensitive' } },
+      ];
+      if (filters.searchCodes && filters.searchCodes.length > 0) {
+        searchOr.push({ template_code: { in: filters.searchCodes } });
+      }
+      and.push({ OR: searchOr });
+    } else if (filters.templateCode) {
+      // Legacy exact filter, kept for any caller not yet using `search`.
+      and.push({ template_code: filters.templateCode });
+    }
+
+    if (filters.channel) and.push({ channel: filters.channel });
+
+    const where: Record<string, unknown> = and.length > 0 ? { AND: and } : {};
 
     const rows = await this.prisma.notificationTemplate.findMany({
       where,

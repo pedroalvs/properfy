@@ -11185,6 +11185,7 @@ export interface paths {
             parameters: {
                 query?: {
                     tenantId?: string;
+                    search?: string;
                     templateCode?: string;
                     channel?: "EMAIL" | "SMS";
                     includeDefaults?: boolean | "true" | "false" | "1" | "0" | 1 | 0;

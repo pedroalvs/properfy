@@ -74,16 +74,21 @@ describe('TemplateRowActions', () => {
     expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
   });
 
-  // UpsertNotificationTemplateUseCase rejects any code outside
-  // MANDATORY_TEMPLATE_CODES with 400 "Invalid template code", so an Edit button
-  // on these rows could only ever lead to a dead end.
+  // Platform-only codes are now editable (as the platform default). The upsert use
+  // case still enforces the AM/OP + null-tenant scope server-side, but the Edit action
+  // is offered on their platform-default rows.
   it.each(['PASSWORD_RESET', 'INSPECTION_STUCK_ALERT', 'INSPECTOR_GROUP_ASSIGNED'])(
-    'hides Edit for the platform-only row %s',
+    'shows Edit for the platform-only row %s',
     (code) => {
       renderRow(makeTemplate({ code, tenantId: null }), true);
-      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
     },
   );
+
+  it('hides Edit for a code outside the editable catalog', () => {
+    renderRow(makeTemplate({ code: 'SOME_CUSTOM_CODE', tenantId: null }), true);
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+  });
 
   it('confirms and calls DELETE, then notifies the parent', async () => {
     const user = userEvent.setup();

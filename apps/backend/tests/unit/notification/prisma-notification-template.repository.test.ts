@@ -146,6 +146,41 @@ describe('PrismaNotificationTemplateRepository', () => {
     expect(items[1]!.tenantName).toBeNull();
   });
 
+  it('findAll builds a search clause over code, subject and matched codes, AND-ed with tenant scope', async () => {
+    prisma.notificationTemplate.findMany.mockResolvedValue([]);
+
+    await repository.findAll({
+      tenantId: 'tenant-1',
+      includeDefaults: true,
+      search: 'notice',
+      searchCodes: ['INSPECTION_NOTICE', 'INSPECTION_NOTICE_SMS'],
+    });
+
+    const where = prisma.notificationTemplate.findMany.mock.calls[0]![0].where as {
+      AND: Record<string, unknown>[];
+    };
+    // Tenant scope and search live in separate AND branches so neither clobbers the other.
+    expect(where.AND).toContainEqual({ OR: [{ tenant_id: 'tenant-1' }, { tenant_id: null }] });
+    expect(where.AND).toContainEqual({
+      OR: [
+        { template_code: { contains: 'notice', mode: 'insensitive' } },
+        { subject: { contains: 'notice', mode: 'insensitive' } },
+        { template_code: { in: ['INSPECTION_NOTICE', 'INSPECTION_NOTICE_SMS'] } },
+      ],
+    });
+  });
+
+  it('findAll uses the legacy exact templateCode filter when no search term is given', async () => {
+    prisma.notificationTemplate.findMany.mockResolvedValue([]);
+
+    await repository.findAll({ templateCode: 'INSPECTION_NOTICE' });
+
+    const where = prisma.notificationTemplate.findMany.mock.calls[0]![0].where as {
+      AND: Record<string, unknown>[];
+    };
+    expect(where.AND).toContainEqual({ template_code: 'INSPECTION_NOTICE' });
+  });
+
   it('findById returns the mapped entity', async () => {
     prisma.notificationTemplate.findUnique.mockResolvedValue(
       makeRow({ id: 'override-9', tenant_id: 'tenant-1' }),

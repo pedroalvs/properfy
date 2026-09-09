@@ -1,12 +1,15 @@
-import type { AuthContext, NotificationChannel } from '@properfy/shared';
+import type { AuthContext, NotificationChannel, NotificationClass } from '@properfy/shared';
 import type {
   INotificationTemplateRepository,
   NotificationTemplateFilters,
 } from '../../domain/notification-template.repository';
+import { matchTemplateCodesBySearch } from '../../domain/notification.constants';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 
 export interface ListNotificationTemplatesInput {
   tenantId?: string;
+  /** Free-text search over code + humanized name + subject (supersedes templateCode). */
+  search?: string;
   templateCode?: string;
   channel?: string;
   includeDefaults?: boolean;
@@ -23,6 +26,9 @@ export interface NotificationTemplateOutputItem {
   bodyHtml: string;
   bodyText: string;
   isActive: boolean;
+  // Feature 018 classification. Dropping it here left the web list coercing every
+  // row to OPERATIONAL, so the "Class" column showed the same value for all rows.
+  notificationClass: NotificationClass;
   variables: string[];
   createdAt: string;
   updatedAt: string;
@@ -61,7 +67,13 @@ export class ListNotificationTemplatesUseCase {
       filters.includeDefaults = input.includeDefaults ?? true;
     }
 
-    if (input.templateCode) {
+    const searchTerm = input.search?.trim();
+    if (searchTerm) {
+      filters.search = searchTerm;
+      // Resolve codes whose code OR humanized label matches, so a search for the
+      // friendly name ("Inspection Notice") reaches the code (INSPECTION_NOTICE).
+      filters.searchCodes = matchTemplateCodesBySearch(searchTerm);
+    } else if (input.templateCode) {
       filters.templateCode = input.templateCode;
     }
     if (input.channel) {
@@ -83,6 +95,7 @@ export class ListNotificationTemplatesUseCase {
         bodyHtml: t.bodyHtml ?? '',
         bodyText: t.bodyText,
         isActive: t.active,
+        notificationClass: t.notificationClass,
         variables: t.variablesJson,
         createdAt: t.createdAt.toISOString(),
         updatedAt: t.updatedAt.toISOString(),

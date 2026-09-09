@@ -2,7 +2,7 @@ import type { AuthContext, NotificationChannel } from '@properfy/shared';
 import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
-import { MANDATORY_TEMPLATE_CODES } from '../../domain/notification.constants';
+import { isEditableTemplateCode } from '../../domain/notification.constants';
 import { PLATFORM_TEMPLATES } from '../../domain/platform-notification-templates';
 
 const VALID_CHANNELS: NotificationChannel[] = ['EMAIL', 'SMS'];
@@ -50,7 +50,7 @@ export class GetTemplateDefaultUseCase {
       entityType: 'NotificationTemplate',
     });
 
-    if (!MANDATORY_TEMPLATE_CODES.includes(input.templateCode as typeof MANDATORY_TEMPLATE_CODES[number])) {
+    if (!isEditableTemplateCode(input.templateCode)) {
       throw new ValidationError('Invalid template code');
     }
     if (!VALID_CHANNELS.includes(input.channel as NotificationChannel)) {

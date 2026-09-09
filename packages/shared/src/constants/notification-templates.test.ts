@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   ALLOWED_VARIABLES,
+  EDITABLE_TEMPLATE_CODES,
   MANDATORY_TEMPLATE_CODES,
   NOTIFICATION_TARGETS,
   PLATFORM_ONLY_TEMPLATE_CODES,
@@ -16,7 +17,10 @@ import {
   getDefaultClass,
   getTemplateCodeLabel,
   getTemplateTarget,
+  isEditableTemplateCode,
+  isPlatformScopedEditableCode,
   isSystemTemplate,
+  matchTemplateCodesBySearch,
 } from './notification-templates';
 import { formatCivilDate, formatWallTimeRange } from '../utils/format-display-date';
 
@@ -273,12 +277,16 @@ describe('TENANT_NOTICE_FORWARDED_AGENCY template', () => {
     expect(getDefaultClass('TENANT_NOTICE_FORWARDED_AGENCY')).toBe('TRANSACTIONAL');
   });
 
-  it('has no TEMPLATE_VARIABLES entry, matching that registry\'s scope', () => {
-    // TEMPLATE_VARIABLES covers the codes whose payloads BuildNotificationPayloadService
-    // assembles, and its header says outright not to "complete" the map for others. The
-    // forward's payload is built in SendNotificationUseCase instead, and carries context
-    // keys (suppressedTemplateLabel/suppressedChannel) outside ALLOWED_VARIABLES.
-    expect(TEMPLATE_VARIABLES).not.toHaveProperty('TENANT_NOTICE_FORWARDED_AGENCY');
+  it('has a TEMPLATE_VARIABLES entry driving only the editor, never the send', () => {
+    // Now editable, so it carries a spec — but its payload is still assembled by hand in
+    // SendNotificationUseCase, not by BuildNotificationPayloadService, so this entry drives
+    // only the editor toolbar / test-send preview and cannot change what is sent. It carries
+    // the suppressed-notice context keys, which live in ALLOWED_VARIABLES.
+    expect(TEMPLATE_VARIABLES.TENANT_NOTICE_FORWARDED_AGENCY.required).toEqual([]);
+    for (const v of ['suppressedTemplateLabel', 'suppressedChannel']) {
+      expect(TEMPLATE_VARIABLES.TENANT_NOTICE_FORWARDED_AGENCY.optional).toContain(v);
+      expect(ALLOWED_VARIABLES).toContain(v);
+    }
   });
 });
 
@@ -293,14 +301,17 @@ describe('agencyLogoUrl variable', () => {
 
   it('is offered exactly where properfyLogoUrl is, for tenant-branded templates', () => {
     // Both logos are injected by the same payload builders for tenant/appointment
-    // emails, so a code that can render one can render the other. System emails
-    // (password reset, reports, ops alerts) use the Properfy-branded system
-    // layout with the Properfy logo only — no agency branding — so they carry
-    // properfyLogoUrl without agencyLogoUrl.
+    // emails, so a code that can render one can render the other. Properfy-branded
+    // emails use the system email layout (Properfy logo only, no agency branding):
+    // the system-identity codes (password reset, reports, ops alerts) AND the
+    // inspector-group mails, which are inspector-facing operational mail on that same
+    // layout. They carry properfyLogoUrl without agencyLogoUrl.
+    const isProperfyBranded = (code: string) =>
+      isSystemTemplate(code) || code.startsWith('INSPECTOR_GROUP');
     let comparedCodes = 0;
     for (const [code, spec] of Object.entries(TEMPLATE_VARIABLES)) {
       const declared = [...spec.required, ...spec.optional];
-      if (isSystemTemplate(code)) {
+      if (isProperfyBranded(code)) {
         expect({ code, agency: declared.includes('agencyLogoUrl') }).toEqual({ code, agency: false });
         continue;
       }
@@ -327,13 +338,79 @@ describe('PASSWORD_RESET template', () => {
   });
 
   it('declares userName and resetLink as required variables', () => {
-    expect(TEMPLATE_VARIABLES.PASSWORD_RESET).toEqual({
-      required: ['userName', 'resetLink'],
-      optional: [],
-    });
+    expect(TEMPLATE_VARIABLES.PASSWORD_RESET.required).toEqual(['userName', 'resetLink']);
+    // properfyLogoUrl comes from the system email layout, so the shipped body can be
+    // saved unchanged; no agency branding on a system email.
+    expect(TEMPLATE_VARIABLES.PASSWORD_RESET.optional).toEqual(['properfyLogoUrl']);
   });
 
   it('allows the resetLink variable', () => {
     expect(ALLOWED_VARIABLES).toContain('resetLink');
+  });
+});
+
+describe('EDITABLE_TEMPLATE_CODES', () => {
+  it('is the union of the mandatory and platform-only catalogs', () => {
+    expect(new Set(EDITABLE_TEMPLATE_CODES)).toEqual(
+      new Set([...MANDATORY_TEMPLATE_CODES, ...PLATFORM_ONLY_TEMPLATE_CODES]),
+    );
+  });
+
+  it('excludes REGION_DEACTIVATED, which is never seeded as a row', () => {
+    expect(EDITABLE_TEMPLATE_CODES as readonly string[]).not.toContain('REGION_DEACTIVATED');
+  });
+
+  it('has a TEMPLATE_VARIABLES spec for every editable code', () => {
+    // The type already enforces this; the runtime assertion guards against a
+    // code being added to the array but forgotten in the registry.
+    for (const code of EDITABLE_TEMPLATE_CODES) {
+      expect(TEMPLATE_VARIABLES[code]).toBeDefined();
+    }
+  });
+});
+
+describe('isEditableTemplateCode', () => {
+  it('accepts mandatory and platform-only codes', () => {
+    expect(isEditableTemplateCode('INSPECTION_NOTICE')).toBe(true);
+    expect(isEditableTemplateCode('PASSWORD_RESET')).toBe(true);
+    expect(isEditableTemplateCode('INSPECTOR_GROUP_ASSIGNED')).toBe(true);
+    expect(isEditableTemplateCode('INSPECTION_STUCK_ALERT')).toBe(true);
+  });
+
+  it('rejects unknown and non-seeded codes', () => {
+    expect(isEditableTemplateCode('REGION_DEACTIVATED')).toBe(false);
+    expect(isEditableTemplateCode('SOME_CUSTOM_CODE')).toBe(false);
+    expect(isEditableTemplateCode('constructor')).toBe(false);
+  });
+});
+
+describe('isPlatformScopedEditableCode', () => {
+  it('is true only for platform-only codes (no per-agency override)', () => {
+    for (const code of PLATFORM_ONLY_TEMPLATE_CODES) {
+      expect(isPlatformScopedEditableCode(code)).toBe(true);
+    }
+    expect(isPlatformScopedEditableCode('INSPECTION_NOTICE')).toBe(false);
+    expect(isPlatformScopedEditableCode('constructor')).toBe(false);
+  });
+});
+
+describe('matchTemplateCodesBySearch', () => {
+  it('matches on the raw code', () => {
+    expect(matchTemplateCodesBySearch('INSPECTION_NOTICE')).toContain('INSPECTION_NOTICE');
+  });
+
+  it('matches on the humanized label, case-insensitively', () => {
+    // Typing the friendly name must still reach the code.
+    expect(matchTemplateCodesBySearch('inspection notice')).toContain('INSPECTION_NOTICE');
+    expect(matchTemplateCodesBySearch('password')).toContain('PASSWORD_RESET');
+  });
+
+  it('returns an empty array for a blank term', () => {
+    expect(matchTemplateCodesBySearch('')).toEqual([]);
+    expect(matchTemplateCodesBySearch('   ')).toEqual([]);
+  });
+
+  it('returns an empty array when nothing matches', () => {
+    expect(matchTemplateCodesBySearch('zzz-no-such-template')).toEqual([]);
   });
 });

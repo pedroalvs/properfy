@@ -109,6 +109,77 @@ describe('UpsertNotificationTemplateUseCase', () => {
     ).rejects.toThrow(ValidationError);
   });
 
+  describe('platform-only editable templates', () => {
+    it('lets AM edit a platform-only code as the platform default (tenant_id null)', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      const result = await useCase.execute(
+        makeInput({
+          templateCode: 'PASSWORD_RESET',
+          subject: 'Reset your password',
+          bodyHtml: '<p>Hi {{userName}}, reset here: {{resetLink}}</p>',
+          actor: makeActor({ role: 'AM', tenantId: null }),
+        }),
+      );
+
+      expect(result.tenantId).toBeNull();
+      expect(templateRepo.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets OP edit an inspector-group code as the platform default', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      const result = await useCase.execute(
+        makeInput({
+          templateCode: 'INSPECTOR_GROUP_ASSIGNED',
+          subject: 'Group {{groupCode}} assigned',
+          bodyHtml: '<p>Hi {{inspectorName}}, group {{groupCode}} is yours.</p>',
+          actor: makeActor({ role: 'OP', tenantId: null }),
+        }),
+      );
+
+      expect(result.tenantId).toBeNull();
+    });
+
+    it('rejects an AM/OP attempt to create a per-agency override of a platform-only code', async () => {
+      await expect(
+        useCase.execute(
+          makeInput({
+            templateCode: 'PASSWORD_RESET',
+            subject: 'Reset your password',
+            bodyHtml: '<p>Hi {{userName}}, reset here: {{resetLink}}</p>',
+            actor: makeActor({ role: 'OP', tenantId: 'tenant-op-1' }),
+          }),
+        ),
+      ).rejects.toThrow(ValidationError);
+      expect(templateRepo.upsert).not.toHaveBeenCalled();
+    });
+
+    it('rejects a CL_ADMIN editing a platform-only code (pinned to its tenant)', async () => {
+      await expect(
+        useCase.execute(
+          makeInput({
+            templateCode: 'PASSWORD_RESET',
+            subject: 'Reset your password',
+            bodyHtml: '<p>Hi {{userName}}, reset here: {{resetLink}}</p>',
+            actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+          }),
+        ),
+      ).rejects.toThrow(ValidationError);
+      expect(templateRepo.upsert).not.toHaveBeenCalled();
+    });
+
+    it('still lets CL_ADMIN override a mandatory (tenant-facing) code', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      const result = await useCase.execute(
+        makeInput({ actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }) }),
+      );
+
+      expect(result.tenantId).toBe('tenant-1');
+    });
+  });
+
   it('should set tenantId to null for AM actor (platform default)', async () => {
     vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
 

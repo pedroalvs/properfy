@@ -72,6 +72,41 @@ export const PLATFORM_ONLY_TEMPLATE_CODES = [
 export type PlatformOnlyTemplateCode = (typeof PLATFORM_ONLY_TEMPLATE_CODES)[number];
 
 /**
+ * Every template code an operator may edit through the templates UI. The
+ * mandatory (tenant-facing) catalog plus the platform-only codes — the latter
+ * are editable ONLY as the platform default (`tenant_id IS NULL`) and ONLY by
+ * AM/OP; they have no per-agency override. `upsert-notification-template.use-case.ts`
+ * enforces both rules.
+ *
+ * REGION_DEACTIVATED is deliberately excluded: it is dispatched with a literal
+ * code and is not seeded into `notification_templates`, so no row of it ever
+ * appears in the list for anyone to edit.
+ */
+export const EDITABLE_TEMPLATE_CODES = [
+  ...MANDATORY_TEMPLATE_CODES,
+  ...PLATFORM_ONLY_TEMPLATE_CODES,
+] as const;
+
+export type EditableTemplateCode = MandatoryTemplateCode | PlatformOnlyTemplateCode;
+
+const EDITABLE_TEMPLATE_CODE_SET: ReadonlySet<string> = new Set(EDITABLE_TEMPLATE_CODES);
+const PLATFORM_ONLY_TEMPLATE_CODE_SET: ReadonlySet<string> = new Set(PLATFORM_ONLY_TEMPLATE_CODES);
+
+/** Whether a template code can be edited/saved through the templates UI. */
+export function isEditableTemplateCode(templateCode: string): boolean {
+  return EDITABLE_TEMPLATE_CODE_SET.has(templateCode);
+}
+
+/**
+ * Whether a code is a platform-only editable template — one that has a single
+ * platform default row (`tenant_id IS NULL`) and no per-agency override, so it
+ * is editable by AM/OP only and never scoped to a tenant.
+ */
+export function isPlatformScopedEditableCode(templateCode: string): boolean {
+  return PLATFORM_ONLY_TEMPLATE_CODE_SET.has(templateCode);
+}
+
+/**
  * Templates sent with the platform's "system" email identity (dedicated
  * from-address and BCC on the Resend config) rather than the inspection one.
  * These are account/operations messages — password resets, report delivery,
@@ -157,6 +192,23 @@ export function getTemplateCodeLabel(templateCode: string): string {
     return PLATFORM_TEMPLATE_CODE_LABELS[templateCode as PlatformOnlyTemplateCode];
   }
   return templateCode;
+}
+
+/**
+ * Resolves a free-text search term to the set of known template codes whose raw
+ * code OR human-readable label contains it (case-insensitive). The templates
+ * list filters on the raw `template_code`, but the UI shows the humanized label,
+ * so a search for "Inspection Notice" must still reach `INSPECTION_NOTICE`.
+ * Returns an empty array for a blank term.
+ */
+export function matchTemplateCodesBySearch(term: string): string[] {
+  const query = term.trim().toLowerCase();
+  if (!query) return [];
+  const codes: string[] = [...MANDATORY_TEMPLATE_CODES, ...PLATFORM_ONLY_TEMPLATE_CODES];
+  return codes.filter(
+    (code) =>
+      code.toLowerCase().includes(query) || getTemplateCodeLabel(code).toLowerCase().includes(query),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -325,31 +377,32 @@ export interface TemplateVariableSpec {
 }
 
 /**
- * Deliberately keyed on `'PASSWORD_RESET'` rather than the whole `PlatformOnlyTemplateCode`
- * union, so widening that catalog does not silently pull the other four codes in here.
+ * The variables each editable template may use, split into `required` (the editor
+ * blocks a save that omits them) and `optional`. Keyed over every editable code —
+ * the mandatory catalog plus the platform-only codes, all of which are now editable
+ * through the UI.
  *
- * **Do not "complete" this registry for INSPECTION_STUCK_ALERT or the INSPECTOR_GROUP_*
- * codes.** An entry is not merely descriptive — it changes what gets SENT.
- * `build-notification-payload.service.ts` filters the outgoing payload down to
- * `required + optional` and throws `MissingRequiredVariableError` when a required key is
- * absent; with no entry it passes every computed variable through untouched. So a spec that
- * is anything less than exactly right would drop variables from live notifications, or fail
- * the send outright. Those codes render variables outside ALLOWED_VARIABLES
- * (INSPECTION_STUCK_ALERT uses `{{appointmentId}}` and `{{hoursStuck}}`), which is precisely
- * why writing a correct spec for them is not a mechanical exercise.
+ * **Two distinct consumers, and the difference is load-bearing:**
  *
- * Note this is NOT about making them editable: those templates cannot be saved from the UI
- * at all today — `useTemplateSave.validate()` falls back to the global ALLOWED_VARIABLES
- * when no spec exists, and `upsert-notification-template.use-case.ts` rejects any code
- * outside MANDATORY_TEMPLATE_CODES server-side. Adding a spec here would not fix that.
+ * 1. `build-notification-payload.service.ts` (appointment-centric codes only) filters
+ *    the outgoing payload down to `required + optional` and throws
+ *    `MissingRequiredVariableError` when a required key is absent. So for those codes a
+ *    `required` entry can drop a live send — never mark a variable required unless the
+ *    appointment builder always produces it. Widening `optional` is safe: the builder
+ *    computes the full appointment var set with `?? ''` fallbacks, and bodies guard
+ *    empties with `{{#if}}`.
+ * 2. The platform-only codes (INSPECTION_STUCK_ALERT, INSPECTOR_GROUP_*,
+ *    TENANT_NOTICE_FORWARDED_AGENCY) build their payloads by hand at the dispatch site
+ *    and NEVER pass through the builder. Their spec here therefore drives ONLY the editor
+ *    variable toolbar, its save validation and the test-send preview — it cannot change
+ *    what those notifications actually send. Their variables (e.g. `{{groupCode}}`,
+ *    `{{hoursStuck}}`) are the exact placeholders their seeded bodies use, and are all in
+ *    ALLOWED_VARIABLES / SAMPLE_DATA so the preview can substitute them.
  */
-export const TEMPLATE_VARIABLES: Record<
-  MandatoryTemplateCode | 'PASSWORD_RESET',
-  TemplateVariableSpec
-> = {
+export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSpec> = {
   INSPECTION_NOTICE: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
-    optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'confirmationLink', 'rescheduleLink', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
+    optional: ['inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'confirmationLink', 'rescheduleLink', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
   },
   INSPECTION_NOTICE_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
@@ -364,15 +417,15 @@ export const TEMPLATE_VARIABLES: Record<
   },
   REMINDER_7_DAYS: {
     required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName', 'confirmationLink'],
+    optional: ['propertyAddress', 'timeSlot', 'inspectorName', 'branchName', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName', 'confirmationLink'],
   },
   REMINDER_5_DAYS: {
     required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName', 'confirmationLink'],
+    optional: ['propertyAddress', 'timeSlot', 'inspectorName', 'branchName', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName', 'confirmationLink'],
   },
   REMINDER_3_DAYS: {
     required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName', 'confirmationLink'],
+    optional: ['propertyAddress', 'timeSlot', 'inspectorName', 'branchName', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName', 'confirmationLink'],
   },
   REMINDER_7_DAYS_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
@@ -388,7 +441,7 @@ export const TEMPLATE_VARIABLES: Record<
   },
   PROPERTY_MANAGER_ESCALATION: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
-    optional: ['branchName', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
+    optional: ['inspectorName', 'branchName', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
   },
   // `rentalTenantName` is optional here, not required: a spec is keyed by code while
   // the SMS and EMAIL variants of a code carry different copy, and neither shipped SMS
@@ -402,15 +455,15 @@ export const TEMPLATE_VARIABLES: Record<
   },
   INSPECTION_CONFIRMED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
-    optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
+    optional: ['inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
   },
   INSPECTION_RESCHEDULED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
-    optional: ['inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
+    optional: ['inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
   },
   INSPECTION_CANCELLED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate'],
-    optional: ['agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
+    optional: ['timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
   },
   // Agency-facing counterpart of INSPECTION_CANCELLED, addressed to the branch
   // contact rather than the rental tenant. `cancellationReason` is deliberately
@@ -421,7 +474,7 @@ export const TEMPLATE_VARIABLES: Record<
   // cancellation. Absent reason simply renders no reason line.
   INSPECTION_CANCELLED_AGENCY: {
     required: ['propertyAddress', 'scheduledDate', 'appointmentCode'],
-    optional: ['rentalTenantName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl', 'cancellationReason'],
+    optional: ['rentalTenantName', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl', 'cancellationReason'],
   },
   // Agency-facing notice that an appointment was rejected and needs rescheduling.
   // `rejectionReason` is OPTIONAL for the same reason `cancellationReason` is above:
@@ -429,11 +482,11 @@ export const TEMPLATE_VARIABLES: Record<
   // MissingRequiredVariableError and lose the notice entirely.
   INSPECTION_REJECTED_AGENCY: {
     required: ['propertyAddress', 'scheduledDate', 'appointmentCode'],
-    optional: ['rentalTenantName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl', 'rejectionReason'],
+    optional: ['rentalTenantName', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl', 'rejectionReason'],
   },
   INSPECTION_UNAVAILABILITY_REPORTED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode'],
-    optional: ['agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
+    optional: ['timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
   },
   REPORT_READY: {
     required: ['userName', 'reportType', 'downloadLink'],
@@ -449,18 +502,49 @@ export const TEMPLATE_VARIABLES: Record<
   // name, so `rentalTenantName` cannot be required of every channel's body.
   TENANT_PORTAL_LINK: {
     required: ['scheduledDate', 'confirmationLink'],
-    optional: ['rentalTenantName', 'rescheduleLink', 'propertyAddress', 'timeSlot', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
+    optional: ['rentalTenantName', 'rescheduleLink', 'propertyAddress', 'timeSlot', 'inspectorName', 'branchName', 'appointmentCode', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
   },
   INSPECTION_SATISFACTION_SURVEY: {
     // Only the link is required. `BuildNotificationPayloadService` throws
     // MissingRequiredVariableError on a missing required key and loses the send
     // outright, so anything the copy can survive without stays optional.
     required: ['surveyLink'],
-    optional: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot', 'inspectorName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
+    optional: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
   },
   PASSWORD_RESET: {
     required: ['userName', 'resetLink'],
-    optional: [],
+    // properfyLogoUrl is rendered by the system email layout the seed body wraps, so it
+    // must be allowed or the editor would reject saving the shipped body unchanged.
+    optional: ['properfyLogoUrl'],
+  },
+  // ── Platform-only editable codes ───────────────────────────────────────────
+  // These build their payloads by hand at the dispatch site and never pass through
+  // BuildNotificationPayloadService, so `required` here only gates the editor (it can
+  // never drop a live send) and the vars below are exactly the placeholders the seeded
+  // bodies use. `required` is left empty on purpose — an operator editing an internal
+  // ops or inspector email must be free to reshape the copy. `properfyLogoUrl` comes
+  // from the shared email layout (no agency branding on these), so it stays allowed.
+  INSPECTION_STUCK_ALERT: {
+    required: [],
+    optional: ['appointmentId', 'inspectorId', 'startedAt', 'hoursStuck', 'properfyLogoUrl'],
+  },
+  INSPECTOR_GROUP_ASSIGNED: {
+    required: [],
+    optional: ['inspectorName', 'groupCode', 'scheduledDate', 'timeWindow', 'jobCount', 'properfyLogoUrl'],
+  },
+  INSPECTOR_GROUP_UNASSIGNED: {
+    required: [],
+    optional: ['inspectorName', 'groupCode', 'scheduledDate', 'timeWindow', 'jobCount', 'properfyLogoUrl'],
+  },
+  INSPECTOR_GROUP_RESCHEDULED: {
+    required: [],
+    optional: ['inspectorName', 'groupCode', 'scheduledDate', 'timeWindow', 'jobCount', 'previousScheduledDate', 'previousTimeWindow', 'properfyLogoUrl'],
+  },
+  // The agency-forward mirror reuses the suppressed occupant payload (appointment vars)
+  // plus the suppressed-notice context keys, all assembled in SendNotificationUseCase.
+  TENANT_NOTICE_FORWARDED_AGENCY: {
+    required: [],
+    optional: ['suppressedTemplateLabel', 'suppressedChannel', 'rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot', 'appointmentCode', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'confirmationLink', 'properfyLogoUrl', 'agencyLogoUrl'],
   },
 };
 
@@ -490,6 +574,19 @@ export const ALLOWED_VARIABLES = [
   'downloadLink',
   'errorMessage',
   'resetLink',
+  // Platform-only editable codes (inspector-group, stuck alert, agency forward).
+  // These are hand-built at their dispatch sites, not by BuildNotificationPayloadService.
+  'groupCode',
+  'timeWindow',
+  'jobCount',
+  'previousScheduledDate',
+  'previousTimeWindow',
+  'hoursStuck',
+  'startedAt',
+  'appointmentId',
+  'inspectorId',
+  'suppressedTemplateLabel',
+  'suppressedChannel',
 ] as const;
 
 export type AllowedVariable = (typeof ALLOWED_VARIABLES)[number];
@@ -530,4 +627,17 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   downloadLink: 'https://app.properfy.me/reports/abc123',
   errorMessage: 'Server timeout — please retry',
   resetLink: 'https://app.properfy.me/reset-password?token=abc123',
+  // Platform-only editable codes. Derived temporal samples mirror the real send
+  // formatters, exactly like scheduledDate/timeSlot above, so the preview cannot drift.
+  groupCode: 'GRP-0042',
+  timeWindow: formatWallTimeRange('09:00', '12:00'),
+  jobCount: '5',
+  previousScheduledDate: formatCivilDate('2026-04-10'),
+  previousTimeWindow: formatWallTimeRange('13:00', '16:00'),
+  hoursStuck: '5',
+  startedAt: `${formatCivilDate('2026-04-15')} 9:00 am`,
+  appointmentId: 'b3f1c2a4-1234-4d56-89ab-000000000000',
+  inspectorId: 'e7d6c5b4-4321-4a98-87cd-000000000000',
+  suppressedTemplateLabel: 'Inspection Notice',
+  suppressedChannel: 'EMAIL',
 };

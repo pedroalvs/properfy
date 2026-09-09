@@ -3,7 +3,7 @@ import { RowActions, type RowAction } from '@/components/data/RowActions';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useTemplateDelete } from '../hooks/useTemplateDelete';
-import { MANDATORY_TEMPLATE_CODES, type NotificationTemplate } from '../types';
+import { isEditableTemplateCode, type NotificationTemplate } from '../types';
 
 interface TemplateRowActionsProps {
   template: NotificationTemplate;
@@ -22,11 +22,11 @@ export function TemplateRowActions({ template, onEdit, onDeleted, canDelete }: T
   const isOverride = template.tenantId !== null;
   const showDelete = !!canDelete && isOverride;
 
-  // The list also shows platform rows for codes outside the mandatory catalog
-  // (PASSWORD_RESET, INSPECTION_STUCK_ALERT, INSPECTOR_GROUP_*). The upsert use
-  // case refuses those with 400 "Invalid template code", so offering Edit only
-  // led operators into a save that could never succeed.
-  const canEdit = (MANDATORY_TEMPLATE_CODES as readonly string[]).includes(template.code);
+  // Every seeded template is editable. Mandatory (tenant-facing) codes can be edited
+  // as a platform default or an agency override; platform-only codes (PASSWORD_RESET,
+  // INSPECTION_STUCK_ALERT, INSPECTOR_GROUP_*, ...) are editable only as the platform
+  // default and only by AM/OP — the upsert use case enforces that scope server-side.
+  const canEdit = isEditableTemplateCode(template.code);
 
   const actions: RowAction[] = [];
   if (canEdit) {

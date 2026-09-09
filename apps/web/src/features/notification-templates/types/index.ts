@@ -6,6 +6,8 @@ export {
   type AllowedVariable,
   SAMPLE_DATA,
   MANDATORY_TEMPLATE_CODES,
+  EDITABLE_TEMPLATE_CODES,
+  isEditableTemplateCode,
   TEMPLATE_CODE_LABELS,
   getTemplateCodeLabel,
   NOTIFICATION_TARGETS,
@@ -53,7 +55,8 @@ export interface TemplateFormErrors {
 }
 
 export interface TemplateFiltersState {
-  templateCode: string;
+  /** Free-text search over template code AND humanized name (and subject). */
+  search: string;
   channel: string;
   includeDefaults: 'true' | 'false';
   /** Agency filter (AM/OP only). Empty string = all agencies. */
@@ -61,7 +64,7 @@ export interface TemplateFiltersState {
 }
 
 export const DEFAULT_TEMPLATE_FILTERS: TemplateFiltersState = {
-  templateCode: '',
+  search: '',
   channel: '',
   includeDefaults: 'true',
   tenantId: '',

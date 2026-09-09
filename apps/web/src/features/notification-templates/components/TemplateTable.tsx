@@ -1,4 +1,5 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { NotificationClassChip } from './NotificationClassChip';
 import { NotificationTargetChip } from './NotificationTargetChip';
 import { TemplateRowActions } from './TemplateRowActions';
@@ -84,6 +85,14 @@ export function TemplateTable({
       key: 'notificationClass',
       label: 'Class',
       width: '130px',
+      headerRender: () => (
+        <Tooltip label="How the message is treated for delivery: Transactional messages are always sent; Operational and Marketing messages respect the recipient's notification opt-out.">
+          <span className="inline-flex items-center gap-1">
+            Class
+            <i className="mdi mdi-information-outline text-text-muted" aria-hidden="true" />
+          </span>
+        </Tooltip>
+      ),
       render: (row) => <NotificationClassChip notificationClass={row.notificationClass} />,
     },
     {

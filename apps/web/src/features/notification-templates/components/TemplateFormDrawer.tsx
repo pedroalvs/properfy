@@ -16,7 +16,7 @@ import { SendTestSmsDialog } from './SendTestSmsDialog';
 import { TemplateEditorFields } from './TemplateEditorFields';
 import { TemplatePreview } from './TemplatePreview';
 import type { NotificationTemplate, TemplateFormData, TemplateFormErrors } from '../types';
-import { TEMPLATE_VARIABLES, MANDATORY_TEMPLATE_CODES } from '../types';
+import { TEMPLATE_VARIABLES, isEditableTemplateCode } from '../types';
 
 interface TemplateFormDrawerProps {
   open: boolean;
@@ -121,12 +121,9 @@ export function TemplateFormDrawer({
   // depend on this. Avoids divergence if code is later refactored.
   const isEmailChannel = template?.channel === 'EMAIL';
 
-  // The list also shows platform rows for codes outside the mandatory catalog
-  // (PASSWORD_RESET, INSPECTION_STUCK_ALERT, ...). GetTemplateDefaultUseCase
-  // rejects those, so the button would only ever produce an error.
-  const canResetToDefault =
-    template !== null &&
-    (MANDATORY_TEMPLATE_CODES as readonly string[]).includes(template.code);
+  // Every editable code has a platform seed to reset to (GetTemplateDefaultUseCase
+  // resolves the platform default, falling back to the factory seed catalog).
+  const canResetToDefault = template !== null && isEditableTemplateCode(template.code);
 
   // Fall back to template.body until the useEffect syncs form state, so the preview
   // starts fetching on the first render when the drawer opens.

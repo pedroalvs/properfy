@@ -134,10 +134,9 @@ describe('NotificationTemplateListPage', () => {
 
   it('renders filter bar with contract-backed controls only', () => {
     renderPage();
-    expect(screen.getByLabelText('Template Code')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
     expect(screen.getByLabelText('Channel')).toBeInTheDocument();
     expect(screen.getByLabelText('Include Platform Defaults')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Search')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Status')).not.toBeInTheDocument();
   });
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   ALLOWED_VARIABLES,
-  MANDATORY_TEMPLATE_CODES,
+  EDITABLE_TEMPLATE_CODES,
   TEMPLATE_VARIABLES,
   findTemplateVariableIssues,
 } from '@properfy/shared';
@@ -20,7 +20,7 @@ import { PLATFORM_TEMPLATES } from '../../../src/modules/notification/domain/pla
  */
 describe('shipped templates satisfy the template editor', () => {
   const editable = PLATFORM_TEMPLATES.filter((t) =>
-    (MANDATORY_TEMPLATE_CODES as readonly string[]).includes(t.code),
+    (EDITABLE_TEMPLATE_CODES as readonly string[]).includes(t.code),
   );
 
   it('covers every editable template', () => {

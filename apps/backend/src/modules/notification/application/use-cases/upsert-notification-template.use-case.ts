@@ -8,7 +8,8 @@ import type { IHtmlSanitizerService } from '../../domain/html-sanitizer.service'
 import type { IHtmlToTextService } from '../../domain/html-to-text.service';
 import { ProtectedTemplateClassificationError } from '../../domain/notification.errors';
 import {
-  MANDATORY_TEMPLATE_CODES,
+  isEditableTemplateCode,
+  isPlatformScopedEditableCode,
   getProtectedClass,
   getDefaultClass,
 } from '../../domain/notification.constants';
@@ -72,8 +73,17 @@ export class UpsertNotificationTemplateUseCase {
     }
 
     // 3. Validate templateCode
-    if (!MANDATORY_TEMPLATE_CODES.includes(input.templateCode as typeof MANDATORY_TEMPLATE_CODES[number])) {
+    if (!isEditableTemplateCode(input.templateCode)) {
       throw new ValidationError('Invalid template code');
+    }
+
+    // Platform-only codes (password reset, ops alerts, inspector-group mails) have a
+    // single platform-default row and no per-agency variant. They are editable ONLY as
+    // that default (tenant_id IS NULL) and ONLY by AM/OP — a resolved tenant scope here
+    // means either a CL_ADMIN (always pinned to its tenant) or an AM/OP that passed a
+    // tenantId, both of which would wrongly create/edit a per-agency override.
+    if (isPlatformScopedEditableCode(input.templateCode) && tenantId !== null) {
+      throw new ValidationError('This template can only be edited as the platform default');
     }
 
     // 4. Validate channel

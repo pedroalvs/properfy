@@ -2,6 +2,13 @@
 export {
   MANDATORY_TEMPLATE_CODES,
   type MandatoryTemplateCode,
+  PLATFORM_ONLY_TEMPLATE_CODES,
+  type PlatformOnlyTemplateCode,
+  EDITABLE_TEMPLATE_CODES,
+  type EditableTemplateCode,
+  isEditableTemplateCode,
+  isPlatformScopedEditableCode,
+  matchTemplateCodesBySearch,
   PROTECTED_TEMPLATE_CLASSIFICATIONS,
   PROTECTED_TEMPLATE_CODES,
   DEFAULT_TEMPLATE_CLASSIFICATIONS,
