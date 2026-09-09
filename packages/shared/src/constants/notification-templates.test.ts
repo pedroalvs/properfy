@@ -283,10 +283,12 @@ describe('TENANT_NOTICE_FORWARDED_AGENCY template', () => {
 });
 
 describe('agencyLogoUrl variable', () => {
-  it('is an allowed variable with sample data', () => {
+  it('is an allowed variable whose sample is empty — no Properfy fallback', () => {
     expect(ALLOWED_VARIABLES).toContain('agencyLogoUrl');
-    expect(SAMPLE_DATA.agencyLogoUrl.trim().length).toBeGreaterThan(0);
-    expect(SAMPLE_DATA.agencyLogoUrl).toMatch(/^https:\/\//);
+    // Deliberately empty: a preview/test-send with no resolved agency logo must
+    // render nothing (parity with the real send), never substitute the Properfy
+    // platform logo into the agency-logo slot.
+    expect(SAMPLE_DATA.agencyLogoUrl).toBe('');
   });
 
   it('is offered exactly where properfyLogoUrl is, for tenant-branded templates', () => {
