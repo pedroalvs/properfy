@@ -15,7 +15,9 @@ export function useBranchDeactivate(
 
   const mutation = useActionMutation(
     `/v1/tenants/${tenantId}/branches/${branchId}/deactivate`,
-    [['tenant-admins', tenantId, 'branches']],
+    // Also drop the ACTIVE-filtered branch pickers (['branches', ...] prefix) so a
+    // deactivated branch stops appearing as selectable without waiting for staleTime.
+    [['tenant-admins', tenantId, 'branches'], ['branches']],
   );
 
   const deactivate = (reason: string) => {

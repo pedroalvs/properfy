@@ -152,7 +152,8 @@ export type UpdateTenantInput = z.infer<typeof updateTenantSchema>;
 
 // Deactivate (used for tenant and branch deactivation)
 export const deactivateSchema = z.object({
-  reason: z.string().min(1).max(500).trim(),
+  // trim() before min(1) so a whitespace-only reason is rejected, not stored as ''.
+  reason: z.string().trim().min(1).max(500),
 });
 export type DeactivateInput = z.infer<typeof deactivateSchema>;
 

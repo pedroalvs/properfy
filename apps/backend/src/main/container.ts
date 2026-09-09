@@ -57,6 +57,7 @@ import { GetUserUseCase } from '../modules/user/application/use-cases/get-user.u
 import { ListUsersUseCase } from '../modules/user/application/use-cases/list-users.use-case';
 import { UpdateUserUseCase } from '../modules/user/application/use-cases/update-user.use-case';
 import { DeactivateUserUseCase } from '../modules/user/application/use-cases/deactivate-user.use-case';
+import { ReactivateUserUseCase } from '../modules/user/application/use-cases/reactivate-user.use-case';
 import { UnlockUserUseCase } from '../modules/user/application/use-cases/unlock-user.use-case';
 import { ResetUserPasswordUseCase } from '../modules/user/application/use-cases/reset-user-password.use-case';
 import type { UserRouteContainer } from '../modules/user/interfaces/user.routes';
@@ -607,6 +608,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listUsersUseCase = new ListUsersUseCase(userManagementRepo);
   const updateUserUseCase = new UpdateUserUseCase(userManagementRepo, tenantRepo, branchRepo, auditService, authorizationService);
   const deactivateUserUseCase = new DeactivateUserUseCase(userManagementRepo, tenantRepo, auditService, authorizationService);
+  const reactivateUserUseCase = new ReactivateUserUseCase(userManagementRepo, tenantRepo, auditService, authorizationService);
   const unlockUserUseCase = new UnlockUserUseCase(userManagementRepo, auditService, authorizationService);
   const resetUserPasswordUseCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo, authorizationService);
 
@@ -1456,6 +1458,7 @@ export function createContainer(logger: Logger): AppContainer {
       listUsersUseCase,
       updateUserUseCase,
       deactivateUserUseCase,
+      reactivateUserUseCase,
       unlockUserUseCase,
       resetUserPasswordUseCase,
       jwtService,

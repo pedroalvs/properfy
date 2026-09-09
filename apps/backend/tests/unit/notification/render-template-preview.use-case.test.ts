@@ -63,12 +63,14 @@ describe('RenderTemplatePreviewUseCase', () => {
     expect(result.renderError).toBeUndefined();
   });
 
-  it('without tenantId, agencyLogoUrl renders the Properfy sample logo', async () => {
+  it('without tenantId, agencyLogoUrl renders empty — never the Properfy logo', async () => {
     const result = await useCase.execute({
       bodyHtml: '<img src="{{agencyLogoUrl}}">',
       actor: makeActor(),
     });
-    expect(result.htmlRendered).toContain(PROPERFY_LOGO_URL);
+    // Positive: the slot resolves to an empty src, not just "no Properfy logo".
+    expect(result.htmlRendered).toContain('src=""');
+    expect(result.htmlRendered).not.toContain(PROPERFY_LOGO_URL);
     expect(tenantRepo.findById).not.toHaveBeenCalled();
   });
 
@@ -84,14 +86,34 @@ describe('RenderTemplatePreviewUseCase', () => {
     expect(result.htmlRendered).toContain('+61298765432');
   });
 
-  it('with tenantId but no tenant logo, keeps the sample logo fallback', async () => {
+  it('with tenantId but no contactPhone, renders no sample phone — parity with delivery', async () => {
+    // A resolved tenant without a phone must not keep the fabricated sample phone
+    // in the preview while the delivered email renders nothing (the same
+    // preview/delivery divergence fixed for the logo).
+    tenantRepo.findById.mockResolvedValue({
+      id: 'tenant-1',
+      name: 'Acme',
+      settingsJson: { logoUrl: 'https://cdn.example.com/acme.png' },
+    });
+    const result = await useCase.execute({
+      bodyHtml: '<p>{{agencyPhone}}</p>',
+      tenantId: 'tenant-1',
+      actor: makeActor(),
+    });
+    expect(result.htmlRendered).not.toContain('9876 5432');
+    expect(result.htmlRendered).toBe('<p></p>');
+  });
+
+  it('with tenantId but no tenant logo, renders empty — no Properfy fallback', async () => {
     tenantRepo.findById.mockResolvedValue({ id: 'tenant-1', name: 'Acme', settingsJson: {} });
     const result = await useCase.execute({
       bodyHtml: '<img src="{{agencyLogoUrl}}">',
       tenantId: 'tenant-1',
       actor: makeActor(),
     });
-    expect(result.htmlRendered).toContain(PROPERFY_LOGO_URL);
+    // Positive: the slot resolves to an empty src, not just "no Properfy logo".
+    expect(result.htmlRendered).toContain('src=""');
+    expect(result.htmlRendered).not.toContain(PROPERFY_LOGO_URL);
   });
 
   it('CL_ADMIN previews with its own tenant scope regardless of input tenantId', async () => {

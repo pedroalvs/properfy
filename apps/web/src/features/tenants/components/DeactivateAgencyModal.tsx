@@ -4,21 +4,21 @@ import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/forms/Textarea';
 import { FormField } from '@/components/forms/FormField';
 
-interface DeactivateBranchModalProps {
+interface DeactivateAgencyModalProps {
   open: boolean;
-  branchName: string;
+  agencyName: string;
   loading?: boolean;
   onClose: () => void;
   onConfirm: (reason: string) => void;
 }
 
-export function DeactivateBranchModal({
+export function DeactivateAgencyModal({
   open,
-  branchName,
+  agencyName,
   loading,
   onClose,
   onConfirm,
-}: DeactivateBranchModalProps) {
+}: DeactivateAgencyModalProps) {
   const [reason, setReason] = useState('');
 
   const handleConfirm = () => {
@@ -36,7 +36,7 @@ export function DeactivateBranchModal({
     <Dialog
       open={open}
       onClose={handleClose}
-      title="Deactivate Branch"
+      title="Deactivate Agency"
       actions={
         <>
           <Button variant="secondary" onClick={handleClose}>
@@ -57,8 +57,8 @@ export function DeactivateBranchModal({
       <div className="mb-4 flex items-start gap-2 rounded border border-warning/30 bg-warning/5 p-3">
         <i className="mdi mdi-alert-outline text-lg text-warning" aria-hidden="true" />
         <p className="text-sm text-text-primary">
-          You are about to deactivate <strong>{branchName}</strong>. The branch will no longer
-          accept new appointments. You can reactivate it later from the branch list.
+          You are about to deactivate <strong>{agencyName}</strong>. This will affect all
+          associated branches and appointments. This action cannot be easily undone.
         </p>
       </div>
       <FormField label="Reason" required>
@@ -67,6 +67,7 @@ export function DeactivateBranchModal({
           onChange={setReason}
           placeholder="Provide a reason for deactivation"
           rows={3}
+          maxLength={500}
           aria-label="Deactivation reason"
         />
       </FormField>

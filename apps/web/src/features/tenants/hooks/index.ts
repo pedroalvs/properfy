@@ -14,4 +14,6 @@ export { useBranchSave } from './useBranchSave';
 export type { UseBranchSaveReturn } from './useBranchSave';
 export { useBranchDeactivate } from './useBranchDeactivate';
 export type { UseBranchDeactivateReturn } from './useBranchDeactivate';
+export { useBranchActivate } from './useBranchActivate';
+export type { UseBranchActivateReturn } from './useBranchActivate';
 export { useBranchById } from './useBranchById';
