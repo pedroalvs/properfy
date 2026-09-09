@@ -382,10 +382,15 @@ export function AppointmentFormDrawer({
   );
 
   const addContact = useCallback(() => {
-    setForm((prev) => ({
-      ...prev,
-      contacts: [...prev.contacts, createEmptyContact()],
-    }));
+    setForm((prev) => {
+      // Keep exactly one primary while any contact exists: the first contact
+      // added to an empty (or primary-less) list becomes primary automatically.
+      const hasPrimary = prev.contacts.some((c) => c.isPrimary);
+      return {
+        ...prev,
+        contacts: [...prev.contacts, { ...createEmptyContact(), isPrimary: !hasPrimary }],
+      };
+    });
   }, []);
 
   const removeContact = useCallback((key: string) => {
@@ -1001,6 +1006,9 @@ export function AppointmentFormDrawer({
                         No contacts. The occupant will not receive any notification for this
                         appointment.
                       </p>
+                    )}
+                    {errors.contacts?.[0]?.isPrimary && (
+                      <p className="text-error text-sm mb-3">{errors.contacts[0].isPrimary}</p>
                     )}
                     <Button variant="secondary" onClick={addContact}>
                       <i className="mdi mdi-plus" aria-hidden="true" />

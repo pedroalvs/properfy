@@ -486,10 +486,42 @@ describe('AppointmentFormDrawer', () => {
     expect(screen.getByLabelText('Inspector')).toBeInTheDocument();
   });
 
-  it('renders contact autocomplete search field in create mode', () => {
+  // Contacts are optional for every flow, so the create form opens with no
+  // contact card at all — the editor appears only when the operator clicks
+  // "Add Contact".
+  it('create mode starts with no contact card and reveals the search field after Add Contact', () => {
     renderDrawer();
+    expect(screen.queryByText('Search existing contact')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Contact 1 Display name')).not.toBeInTheDocument();
+    expect(screen.getByText(/no contacts\./i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Add Contact'));
+
     expect(screen.getByText('Search existing contact')).toBeInTheDocument();
     expect(screen.getByText(/Or fill in the fields below/)).toBeInTheDocument();
+  });
+
+  it('marks the first added contact as primary', () => {
+    renderDrawer();
+    fireEvent.click(screen.getByText('Add Contact'));
+    // Exactly one contact → its Primary radio is checked by default.
+    expect(screen.getByRole('radio')).toBeChecked();
+  });
+
+  it('promotes the surviving contact to primary when the primary is removed', () => {
+    renderDrawer();
+    fireEvent.click(screen.getByText('Add Contact')); // Contact 1 — primary
+    fireEvent.click(screen.getByText('Add Contact')); // Contact 2 — not primary
+
+    const radiosBefore = screen.getAllByRole('radio');
+    expect(radiosBefore).toHaveLength(2);
+    expect(radiosBefore[0]).toBeChecked();
+    expect(radiosBefore[1]).not.toBeChecked();
+
+    fireEvent.click(screen.getByLabelText('Remove contact 1'));
+
+    // One contact left — it must now be primary (always exactly one while any exists).
+    expect(screen.getByRole('radio')).toBeChecked();
   });
 
   it('shows a user-friendly error and keeps drawer open when save returns APPOINTMENT_CONTACT_NOT_FOUND', async () => {

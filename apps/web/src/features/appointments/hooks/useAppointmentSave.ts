@@ -323,6 +323,24 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
         errors.contacts = contactsErrors;
       }
     }
+    // Exactly one primary is required whenever contacts are present (shared
+    // `appointmentContactsArraySchema`). Its refine is pathless, so the issue
+    // lands on the `contacts` root and `zodErrorsToFormErrors` drops it — the
+    // form then submitted a primary-less payload and the backend rejected it
+    // with a mislabeled message. Surface it on the contacts section here so the
+    // submit is blocked client-side with a clear, in-section error. The add/
+    // remove handlers keep this invariant, so this is a backstop.
+    if (data.contacts && data.contacts.length > 0) {
+      const primaryCount = data.contacts.filter((c) => c.isPrimary).length;
+      if (primaryCount !== 1) {
+        const contactsErrors: Record<number, Partial<Record<keyof ContactFormEntry, string>>> =
+          Object.assign({}, errors.contacts);
+        contactsErrors[0] = Object.assign({}, contactsErrors[0], {
+          isPrimary: 'One contact must be marked as primary',
+        });
+        errors.contacts = contactsErrors;
+      }
+    }
     // Custom fields: per-row required + length. Fully-empty rows are dropped on
     // save (see buildCustomFieldsPayload), so they are not flagged here. The
     // shared schema's `.max(4)` issue path is unmapped and silently dropped, so
