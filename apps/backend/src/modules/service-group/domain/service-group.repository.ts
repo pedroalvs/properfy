@@ -327,6 +327,13 @@ export interface IServiceGroupRepository {
   findStatusesByIds(ids: string[]): Promise<Record<string, string>>;
   /** Clear service_group_id on appointments */
   unlinkAppointments(groupId: string): Promise<void>;
+  /**
+   * Clear service_group_id only on the group's terminal members (DONE/CANCELLED/
+   * REJECTED). Used by Cancel, which keeps the live batch linked but must not drag
+   * a settled member (e.g. an already-executed DONE visit) back into a group that
+   * can be republished to DRAFT. Returns the number of members unlinked.
+   */
+  unlinkTerminalAppointments(groupId: string): Promise<number>;
   /** Revert all SCHEDULED appointments in a group back to AWAITING_INSPECTOR and clear inspector_id */
   revertScheduledAppointments(groupId: string): Promise<number>;
   /** Atomically transition all group's appointments to SCHEDULED with inspector */

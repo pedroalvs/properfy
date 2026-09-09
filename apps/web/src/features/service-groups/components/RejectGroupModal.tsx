@@ -50,8 +50,8 @@ export function RejectGroupModal({ open, onClose, onReject, serviceGroupId: _ser
       <div className="mb-4 flex items-start gap-2 rounded border border-warning/30 bg-warning/5 p-3">
         <i className="mdi mdi-alert-outline text-lg text-warning" aria-hidden="true" />
         <p className="text-sm text-text-primary">
-          This action will reject the service group. All associated appointments will be unlinked
-          and any SCHEDULED appointments will be reverted to AWAITING_INSPECTOR.
+          The inspections will leave this group and return to the map, available for inspectors
+          again. The group will be marked Rejected and become read-only.
         </p>
       </div>
       <FormField label="Reason" required>

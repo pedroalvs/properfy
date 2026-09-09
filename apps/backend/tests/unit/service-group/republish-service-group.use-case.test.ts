@@ -254,6 +254,21 @@ describe('RepublishServiceGroupUseCase', () => {
     expect(result.status).toBe('DRAFT');
   });
 
+  it('should keep the linked appointments when republishing (does not unlink)', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({ status: 'CANCELLED', assignedInspectorId: 'insp-1' }),
+    );
+
+    await useCase.execute({
+      groupId: 'group-1',
+      reason: 'Bring the batch back to draft',
+      actor: makeActor(),
+    });
+
+    // A cancelled group keeps its members; republish returns it to DRAFT with them intact.
+    expect(serviceGroupRepo.unlinkAppointments).not.toHaveBeenCalled();
+  });
+
   it('should clear assignedInspectorId and publication fields', async () => {
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
       makeGroupWithAppointments({
