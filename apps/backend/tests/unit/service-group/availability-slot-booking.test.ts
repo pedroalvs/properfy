@@ -12,6 +12,7 @@ import { deriveTenantFixture } from '../../helpers/service-group-fixtures';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import { AvailabilitySlotEntity } from '../../../src/modules/inspector/domain/availability-slot.entity';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import { ServiceGroupInvalidStatusError } from '../../../src/modules/service-group/domain/service-group.errors';
 
 // --- Helpers ---
 
@@ -255,42 +256,28 @@ describe('GAP-003: Availability slot booking integration', () => {
       expect(serviceGroupRepo.revertScheduledAppointments).toHaveBeenCalledWith('group-1');
     });
 
-    it('should cancel DRAFT group without reverting appointments', async () => {
-      const useCase = new CancelServiceGroupUseCase(
-        serviceGroupRepo, auditService, new AuthorizationService(auditService),
-      );
+    it.each(['DRAFT', 'PUBLISHED'] as const)(
+      'should refuse to cancel a %s group and never touch slot capacity',
+      async (status) => {
+        const useCase = new CancelServiceGroupUseCase(
+          serviceGroupRepo, auditService, new AuthorizationService(auditService),
+        );
 
-      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
-        makeGroupWithAppointments({ status: 'DRAFT' }),
-      );
+        vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+          makeGroupWithAppointments({ status }),
+        );
 
-      const result = await useCase.execute({
-        groupId: 'group-1',
-        reason: 'No longer needed',
-        actor: makeAmActor(),
-      });
+        await expect(
+          useCase.execute({
+            groupId: 'group-1',
+            reason: 'Not allowed before acceptance',
+            actor: makeAmActor(),
+          }),
+        ).rejects.toThrow(ServiceGroupInvalidStatusError);
 
-      expect(result.status).toBe('CANCELLED');
-      expect(serviceGroupRepo.revertScheduledAppointments).not.toHaveBeenCalled();
-    });
-
-    it('should cancel PUBLISHED group without reverting appointments', async () => {
-      const useCase = new CancelServiceGroupUseCase(
-        serviceGroupRepo, auditService, new AuthorizationService(auditService),
-      );
-
-      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
-        makeGroupWithAppointments({ status: 'PUBLISHED' }),
-      );
-
-      const result = await useCase.execute({
-        groupId: 'group-1',
-        reason: 'Cancelled before acceptance',
-        actor: makeAmActor(),
-      });
-
-      expect(result.status).toBe('CANCELLED');
-      expect(serviceGroupRepo.revertScheduledAppointments).not.toHaveBeenCalled();
-    });
+        expect(serviceGroupRepo.revertScheduledAppointments).not.toHaveBeenCalled();
+        expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+      },
+    );
   });
 });

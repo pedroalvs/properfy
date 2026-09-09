@@ -41,6 +41,7 @@ vi.mock('@/lib/status-colors', () => ({
     PUBLISHED: { bg: '#FFE0B2', text: '#000', label: 'Awaiting Inspector' },
     ACCEPTED: { bg: '#C8E6C9', text: '#000', label: 'Accepted' },
     CANCELLED: { bg: '#FFCDD2', text: '#000', label: 'Canceled' },
+    REJECTED: { bg: '#FFAB91', text: '#000', label: 'Rejected' },
   },
   APPOINTMENT_STATUS_MAP: {
     DRAFT: { bg: '#E1BEE7', text: '#000', label: 'Draft' },
@@ -106,7 +107,7 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
       isError: false,
       refetch: mockRefetch,
     };
-    // Republished groups arrive empty: cancelling unlinks every appointment.
+    // An empty group (e.g. after the empty-group cleanup) cannot be published.
     if (id === 'empty') return {
       serviceGroup: {
         id: 'empty',
@@ -177,14 +178,43 @@ vi.mock('../hooks/useServiceGroupDetail', () => ({
     if (id === 'cancelled') return {
       serviceGroup: {
         id: 'cancelled',
+        code: '8',
         name: 'Canc Group',
         status: 'CANCELLED',
         tenantId: 't-1',
         regionName: 'Region C',
         inspectorId: null,
         inspectorName: null,
+        // Cancel keeps the members, so a cancelled group is not empty.
         appointmentsCount: 5,
+        appointments: [
+          { id: 'apt-canc-01', appointmentNumber: 6001, status: 'AWAITING_INSPECTOR', scheduledDate: '2026-06-01', propertyAddress: '30 Canc Rd', propertyCode: 'VST-020' },
+        ],
+        scheduledDate: '2026-06-01',
+        timeWindow: '09:00-12:00',
+        description: null,
+        createdAt: '2026-03-01T10:00:00Z',
+        updatedAt: '2026-03-01T10:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+      refetch: mockRefetch,
+    };
+    if (id === 'rejected') return {
+      serviceGroup: {
+        id: 'rejected',
+        code: '12',
+        name: 'Rej Group',
+        status: 'REJECTED',
+        tenantId: 't-1',
+        regionName: 'Region G',
+        inspectorId: null,
+        inspectorName: null,
+        // Reject unlinks every member back to the map.
+        appointmentsCount: 0,
         appointments: [],
+        scheduledDate: '2026-06-01',
+        timeWindow: '09:00-12:00',
         description: null,
         createdAt: '2026-03-01T10:00:00Z',
         updatedAt: '2026-03-01T10:00:00Z',
@@ -383,9 +413,33 @@ describe('ServiceGroupDetailPage', () => {
     expect(button).not.toHaveAttribute('aria-describedby');
   });
 
-  it('shows Cancel Group button for DRAFT status', () => {
-    renderPage();
+  it('shows Cancel Group button only for ACCEPTED status', () => {
+    const { unmount } = renderPage('/service-groups/accepted');
     expect(screen.getByRole('button', { name: /Cancel Group/ })).toBeInTheDocument();
+    unmount();
+
+    // Cancel removes the accepted inspector, so it is hidden before acceptance.
+    for (const entry of ['/service-groups/sg-01', '/service-groups/published']) {
+      const view = renderPage(entry);
+      expect(screen.queryByRole('button', { name: /Cancel Group/ })).toBeNull();
+      view.unmount();
+    }
+  });
+
+  it('shows Reject Group button for PUBLISHED and ACCEPTED, not for DRAFT', () => {
+    for (const entry of ['/service-groups/published', '/service-groups/accepted']) {
+      const view = renderPage(entry);
+      expect(screen.getByRole('button', { name: /Reject Group/ })).toBeInTheDocument();
+      view.unmount();
+    }
+    const draft = renderPage('/service-groups/sg-01');
+    expect(screen.queryByRole('button', { name: /Reject Group/ })).toBeNull();
+    draft.unmount();
+  });
+
+  it('shows Republish button for CANCELLED status', () => {
+    renderPage('/service-groups/cancelled');
+    expect(screen.getByRole('button', { name: /Republish/ })).toBeInTheDocument();
   });
 
   it('shows Unpublish only for PUBLISHED status', () => {
@@ -443,6 +497,20 @@ describe('ServiceGroupDetailPage', () => {
     expect(screen.queryByRole('button', { name: /Send portal link/ })).not.toBeInTheDocument();
   });
 
+  it('renders a REJECTED group as read-only (no actions, no edit)', () => {
+    renderPage('/service-groups/rejected');
+    // Still viewable (kept for tracing) — the status chip renders.
+    expect(screen.getAllByText('Rejected').length).toBeGreaterThanOrEqual(1);
+    // No lifecycle actions and no edit pencil.
+    expect(screen.queryByRole('button', { name: /Publish/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Cancel Group/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Reject Group/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Republish/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('service-group-change-trigger')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Send portal link/ })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Edit service group')).not.toBeInTheDocument();
+  });
+
   it('shows Send portal link button for DRAFT status', () => {
     renderPage();
     expect(screen.getByRole('button', { name: /Send portal link/ })).toBeInTheDocument();
@@ -484,7 +552,7 @@ describe('ServiceGroupDetailPage', () => {
   });
 
   it('opens cancel modal on Cancel Group click', () => {
-    renderPage();
+    renderPage('/service-groups/accepted');
     fireEvent.click(screen.getByRole('button', { name: /Cancel Group/ }));
     expect(screen.getByText('Cancel Service Group')).toBeInTheDocument();
   });

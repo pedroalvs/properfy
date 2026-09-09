@@ -41,21 +41,20 @@ export class CancelServiceGroupUseCase {
     const { group, primaryTenantId } = result;
 
     if (!group.canCancel()) {
-      throw new ServiceGroupInvalidStatusError('DRAFT, PUBLISHED, or ACCEPTED', group.status);
+      throw new ServiceGroupInvalidStatusError('ACCEPTED', group.status);
     }
 
-    // If group was ACCEPTED, revert SCHEDULED appointments back to AWAITING_INSPECTOR
-    if (group.status === 'ACCEPTED') {
-      await this.serviceGroupRepo.revertScheduledAppointments(groupId);
-    }
+    // Release the accepted inspector's scheduled visits back to AWAITING_INSPECTOR.
+    // The appointments stay linked to the group — Cancel keeps the batch intact so
+    // it can be republished to DRAFT later. (Guard above guarantees status ACCEPTED.)
+    await this.serviceGroupRepo.revertScheduledAppointments(groupId);
 
-    // Update group status
+    // Move the group to CANCELLED and drop the group-level inspector assignment.
     await this.serviceGroupRepo.update(groupId, {
       status: 'CANCELLED',
+      assignedInspectorId: null,
+      assignedAt: null,
     });
-
-    // Unlink appointments (clear service_group_id, they stay in AWAITING_INSPECTOR)
-    await this.serviceGroupRepo.unlinkAppointments(groupId);
 
     this.auditService.log({
       action: 'service_group.cancelled',

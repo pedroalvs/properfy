@@ -15,7 +15,7 @@
  * What's covered:
  *   1. The count follows linking: a group reads back the number of appointments
  *      actually pointing at it, not the number it was created with.
- *   2. The count follows UNlinking: cancelling a group (which clears
+ *   2. The count follows UNlinking: rejecting a group (which clears
  *      `service_group_id`) drops it to 0.
  *   3. Soft-deleted appointments do not count. `delete-appointment` sets
  *      `deleted_at` WITHOUT clearing `service_group_id`, so the row stays
@@ -177,13 +177,13 @@ describe('service group size is derived from linked appointments (real DB)', () 
     expect(await sizeViaFindAll(groupId)).toBe(3);
   });
 
-  it('drops to zero when the group is emptied by unlinkAppointments (the cancel path)', async () => {
+  it('drops to zero when the group is emptied by unlinkAppointments (the reject path)', async () => {
     const groupId = await createGroup();
     await createAppointment(groupId);
     await createAppointment(groupId);
     expect(await sizeViaFindById(groupId)).toBe(2);
 
-    // What cancel-service-group / reject-service-group actually do.
+    // What reject-service-group actually does (cancel now keeps its members).
     await repo.unlinkAppointments(groupId);
 
     expect(await sizeViaFindById(groupId)).toBe(0);
