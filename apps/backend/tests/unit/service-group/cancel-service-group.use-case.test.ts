@@ -81,6 +81,7 @@ describe('CancelServiceGroupUseCase', () => {
       countPublishedForInspector: vi.fn(),
       linkAppointments: vi.fn(),
       unlinkAppointments: vi.fn(),
+      unlinkTerminalAppointments: vi.fn(),
       scheduleAppointments: vi.fn(),
       revertScheduledAppointments: vi.fn(),
       findExpiredPublished: vi.fn(),
@@ -112,7 +113,24 @@ describe('CancelServiceGroupUseCase', () => {
       assignedInspectorId: null,
       assignedAt: null,
     });
-    // Members must NOT be unlinked — Cancel keeps the batch so it can be republished.
+    // Live members must NOT be bulk-unlinked — Cancel keeps the batch so it can be republished.
+    expect(serviceGroupRepo.unlinkAppointments).not.toHaveBeenCalled();
+    // Only already-terminal members (e.g. a DONE visit) are detached.
+    expect(serviceGroupRepo.unlinkTerminalAppointments).toHaveBeenCalledWith('group-1');
+  });
+
+  it('detaches terminal members but never bulk-unlinks the live batch', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({ status: 'ACCEPTED', assignedInspectorId: 'insp-1' }),
+    );
+
+    await useCase.execute({
+      groupId: 'group-1',
+      reason: 'Partial batch already executed',
+      actor: makeActor(),
+    });
+
+    expect(serviceGroupRepo.unlinkTerminalAppointments).toHaveBeenCalledWith('group-1');
     expect(serviceGroupRepo.unlinkAppointments).not.toHaveBeenCalled();
   });
 

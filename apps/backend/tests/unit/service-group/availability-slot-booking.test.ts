@@ -138,6 +138,7 @@ function makeServiceGroupRepo(): IServiceGroupRepository {
     countPublishedForInspector: vi.fn(),
     linkAppointments: vi.fn(),
     unlinkAppointments: vi.fn(),
+    unlinkTerminalAppointments: vi.fn(),
     scheduleAppointments: vi.fn(),
     revertScheduledAppointments: vi.fn(),
     findExpiredPublished: vi.fn(),

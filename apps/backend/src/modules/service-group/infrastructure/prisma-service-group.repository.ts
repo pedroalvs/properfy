@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import type { ServiceGroupStatus as PrismaServiceGroupStatus } from '@prisma/client';
+import type { AppointmentStatus as PrismaAppointmentStatus } from '@prisma/client';
 import { ServiceGroupEntity } from '../domain/service-group.entity';
 import type {
   IServiceGroupRepository,
@@ -17,7 +18,7 @@ import type {
   PortalWindowReservation,
 } from '../domain/service-group.repository';
 import type { PropertyType, ServiceGroupStatus } from '@properfy/shared';
-import { computeCentroid, isRentalTenantNotificationsEnabled } from '@properfy/shared';
+import { computeCentroid, isRentalTenantNotificationsEnabled, TERMINAL_APPOINTMENT_STATUSES } from '@properfy/shared';
 import { ADDABLE_GROUP_STATUSES, TERMINAL_GROUP_STATUSES } from '../domain/service-group.validator';
 import { computeWindowAvailability } from '../domain/portal-slot-capacity';
 
@@ -1036,6 +1037,17 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       where: { service_group_id: groupId },
       data: { service_group_id: null },
     });
+  }
+
+  async unlinkTerminalAppointments(groupId: string): Promise<number> {
+    const result = await this.prisma.appointment.updateMany({
+      where: {
+        service_group_id: groupId,
+        status: { in: TERMINAL_APPOINTMENT_STATUSES as unknown as PrismaAppointmentStatus[] },
+      },
+      data: { service_group_id: null },
+    });
+    return result.count;
   }
 
   async revertScheduledAppointments(groupId: string): Promise<number> {

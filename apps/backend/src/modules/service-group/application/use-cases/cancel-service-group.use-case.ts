@@ -45,9 +45,15 @@ export class CancelServiceGroupUseCase {
     }
 
     // Release the accepted inspector's scheduled visits back to AWAITING_INSPECTOR.
-    // The appointments stay linked to the group — Cancel keeps the batch intact so
-    // it can be republished to DRAFT later. (Guard above guarantees status ACCEPTED.)
+    // The live appointments stay linked to the group — Cancel keeps the batch intact
+    // so it can be republished to DRAFT later. (Guard above guarantees status ACCEPTED.)
     await this.serviceGroupRepo.revertScheduledAppointments(groupId);
+
+    // Detach any members that are already terminal (e.g. a visit executed to DONE
+    // before the rest of the batch was cancelled). They have left the workable batch,
+    // and must not ride through republish into a group that gets re-published —
+    // publishing requires every member to be AWAITING_INSPECTOR.
+    await this.serviceGroupRepo.unlinkTerminalAppointments(groupId);
 
     // Move the group to CANCELLED and drop the group-level inspector assignment.
     await this.serviceGroupRepo.update(groupId, {

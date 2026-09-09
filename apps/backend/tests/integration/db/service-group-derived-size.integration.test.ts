@@ -190,6 +190,27 @@ describe('service group size is derived from linked appointments (real DB)', () 
     expect(await sizeViaFindAll(groupId)).toBe(0);
   });
 
+  it('unlinkTerminalAppointments detaches only terminal members, keeping the live batch (the cancel path)', async () => {
+    const groupId = await createGroup();
+    const live = await createAppointment(groupId); // AWAITING_INSPECTOR
+    const done = await createAppointment(groupId);
+    await prisma().appointment.update({ where: { id: done }, data: { status: 'DONE' } });
+    expect(await sizeViaFindById(groupId)).toBe(2);
+
+    // What cancel-service-group does after reverting SCHEDULED members: it detaches
+    // any already-terminal member (e.g. an executed DONE visit) but keeps the rest.
+    const unlinked = await repo.unlinkTerminalAppointments(groupId);
+    expect(unlinked).toBe(1);
+
+    // The live member stays linked; the DONE member is detached.
+    expect(await sizeViaFindById(groupId)).toBe(1);
+    const liveRow = await prisma().appointment.findUniqueOrThrow({ where: { id: live } });
+    const doneRow = await prisma().appointment.findUniqueOrThrow({ where: { id: done } });
+    expect(liveRow.service_group_id).toBe(groupId);
+    expect(doneRow.service_group_id).toBeNull();
+    expect(doneRow.status).toBe('DONE');
+  });
+
   it('grows when appointments are linked into an existing group', async () => {
     const groupId = await createGroup();
     await createAppointment(groupId);
