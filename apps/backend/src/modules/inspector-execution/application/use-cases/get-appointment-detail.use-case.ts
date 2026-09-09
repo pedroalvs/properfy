@@ -26,6 +26,7 @@ export interface GetAppointmentDetailInput {
 export interface JobDetailsAgency {
   id: string;
   name: string;
+  branchName?: string | null;
 }
 
 export interface JobDetailsTenantContact {
@@ -228,7 +229,7 @@ export class GetAppointmentDetailUseCase {
       .join(' | ') || null;
 
     // Build jobDetails payload
-    const jobDetails = await this.buildJobDetails(appointment, contacts);
+    const jobDetails = await this.buildJobDetails(appointment, contacts, result.branchName);
 
     // App credentials surfaced on this appointment: explicit links plus the
     // agency's defaults (live reference — current values).
@@ -315,16 +316,19 @@ export class GetAppointmentDetailUseCase {
   private async buildJobDetails(
     appointment: AppointmentWithRelations['appointment'],
     contacts: AppointmentWithRelations['contacts'],
+    branchName?: string,
   ): Promise<JobDetails | null> {
     const tenant = await this.tenantRepo.findById(appointment.tenantId);
     if (!tenant) {
       return null;
     }
 
-    // 1. Agency
+    // 1. Agency — branch name is carried from the appointment relations; the
+    // repository maps a missing branch to '', which we normalise back to null.
     const agency: JobDetailsAgency = {
       id: tenant.id,
       name: tenant.name,
+      branchName: branchName || null,
     };
 
     // Live-registry enrichment (021): batch-load registry rows for linked

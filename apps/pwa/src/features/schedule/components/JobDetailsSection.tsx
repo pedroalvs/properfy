@@ -28,6 +28,11 @@ export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
         <section className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
           <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Agency</p>
           <p className="mt-1 text-sm font-semibold text-text-primary">{agency.name}</p>
+          {agency.branchName && (
+            <p className="mt-0.5 text-xs text-text-muted" data-testid="job-agency-branch">
+              {agency.branchName}
+            </p>
+          )}
         </section>
       )}
 

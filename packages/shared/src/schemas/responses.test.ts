@@ -767,6 +767,35 @@ describe('inspectorAppointmentDetailResponseSchema — jobDetails.tenantContacts
     });
     expect(result.success).toBe(false);
   });
+
+  it('accepts an optional branchName on jobDetails.agency', () => {
+    const result = inspectorAppointmentDetailResponseSchema.safeParse({
+      ...validBase,
+      jobDetails: {
+        ...jobDetailsBase,
+        agency: { id: 't1', name: 'Agency One', branchName: 'North Shore' },
+        tenantContacts: [],
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a null branchName and agency without the field (legacy)', () => {
+    const withNull = inspectorAppointmentDetailResponseSchema.safeParse({
+      ...validBase,
+      jobDetails: {
+        ...jobDetailsBase,
+        agency: { id: 't1', name: 'Agency One', branchName: null },
+        tenantContacts: [],
+      },
+    });
+    const withoutField = inspectorAppointmentDetailResponseSchema.safeParse({
+      ...validBase,
+      jobDetails: { ...jobDetailsBase, tenantContacts: [] },
+    });
+    expect(withNull.success).toBe(true);
+    expect(withoutField.success).toBe(true);
+  });
 });
 
 describe('inspectorEarningsSummaryResponseSchema', () => {
