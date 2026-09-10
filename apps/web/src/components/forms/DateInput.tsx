@@ -158,9 +158,9 @@ export function DateInput({
     const container = containerRef.current;
     if (!container) return null;
     const rect = container.getBoundingClientRect();
-    // Hide (rather than float detached) when the field has scrolled out of the
-    // viewport inside a scrolling modal body; it reappears, re-anchored, on scroll back.
-    if (rect.bottom < 0 || rect.top > window.innerHeight) return null;
+    // The panel is edge-anchored to the field, so if the field scrolls out of the
+    // viewport the panel simply travels off-screen with it — no detached float, and
+    // (unlike visibility:hidden) keyboard focus is never dropped out of the panel.
     // Real size once mounted; the estimates only apply while the panel has no
     // laid-out box yet (jsdom, or before first paint).
     const panelHeight = panelRef.current?.offsetHeight || PANEL_HEIGHT_ESTIMATE;
