@@ -64,7 +64,11 @@ export function DashboardPage() {
             ? {
                 label: 'New Appointment',
                 icon: 'mdi-plus',
-                onClick: () => navigate('/appointments?new=1'),
+                // Route to the canonical create entry point; the router redirects
+                // it to /appointments?new=1, which opens the create drawer. Going
+                // through the route keeps the `?new=1` param contract owned in one
+                // place (the router) instead of duplicating it here.
+                onClick: () => navigate('/appointments/new'),
               }
             : undefined
         }

@@ -278,7 +278,10 @@ describe('DashboardPage — New Appointment shortcut', () => {
     expect(screen.queryByRole('button', { name: /new appointment/i })).not.toBeInTheDocument();
   });
 
-  it('navigates to /appointments?new=1 (opening the create drawer) when clicked', async () => {
+  it('navigates to the canonical create route (/appointments/new) when clicked', async () => {
+    // /appointments/new is redirected by the router to /appointments?new=1, which
+    // opens the create drawer. The dashboard targets the route so the `?new=1`
+    // contract stays owned in one place; the redirect itself is covered by the router.
     const user = userEvent.setup();
     const Wrapper = createWrapper();
     render(
@@ -290,7 +293,7 @@ describe('DashboardPage — New Appointment shortcut', () => {
 
     await user.click(screen.getAllByRole('button', { name: /new appointment/i })[0]!);
     await waitFor(() => {
-      expect(screen.getByTestId('location-display')).toHaveTextContent('/appointments?new=1');
+      expect(screen.getByTestId('location-display')).toHaveTextContent('/appointments/new');
     });
   });
 });
