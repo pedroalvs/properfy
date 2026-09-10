@@ -547,7 +547,11 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   inspectionAppLink: z.string().nullable().optional(),
   appointmentCode: z.string().optional(),
   jobDetails: z.object({
-    agency: z.object({ id: z.string(), name: z.string() }),
+    agency: z.object({
+      id: z.string(),
+      name: z.string(),
+      branchName: z.string().nullable().optional(),
+    }),
     tenantContacts: z.array(inspectorTenantContactSchema),
     keys: z.object({
       keyRequired: z.boolean(),
