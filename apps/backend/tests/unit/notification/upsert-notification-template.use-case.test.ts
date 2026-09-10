@@ -141,18 +141,23 @@ describe('UpsertNotificationTemplateUseCase', () => {
       expect(result.tenantId).toBeNull();
     });
 
-    it('rejects an AM/OP attempt to create a per-agency override of a platform-only code', async () => {
-      await expect(
-        useCase.execute(
-          makeInput({
-            templateCode: 'PASSWORD_RESET',
-            subject: 'Reset your password',
-            bodyHtml: '<p>Hi {{userName}}, reset here: {{resetLink}}</p>',
-            actor: makeActor({ role: 'OP', tenantId: 'tenant-op-1' }),
-          }),
-        ),
-      ).rejects.toThrow(ValidationError);
-      expect(templateRepo.upsert).not.toHaveBeenCalled();
+    it('writes the platform default for an OP whose JWT carries a tenantId (no override)', async () => {
+      // The exact regression: an OP with a non-null actor.tenantId editing a platform-only
+      // code must still land on the single platform-default row, not be blocked.
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      const result = await useCase.execute(
+        makeInput({
+          templateCode: 'PASSWORD_RESET',
+          subject: 'Reset your password',
+          bodyHtml: '<p>Hi {{userName}}, reset here: {{resetLink}}</p>',
+          actor: makeActor({ role: 'OP', tenantId: 'tenant-op-1' }),
+        }),
+      );
+
+      expect(result.tenantId).toBeNull();
+      const entity = vi.mocked(templateRepo.upsert).mock.calls[0]![0];
+      expect(entity.tenantId).toBeNull();
     });
 
     it('rejects a CL_ADMIN editing a platform-only code (pinned to its tenant)', async () => {

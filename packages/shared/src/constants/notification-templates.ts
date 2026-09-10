@@ -204,8 +204,9 @@ export function getTemplateCodeLabel(templateCode: string): string {
 export function matchTemplateCodesBySearch(term: string): string[] {
   const query = term.trim().toLowerCase();
   if (!query) return [];
-  const codes: string[] = [...MANDATORY_TEMPLATE_CODES, ...PLATFORM_ONLY_TEMPLATE_CODES];
-  return codes.filter(
+  // Every listable template code is an editable one, so reuse that single catalog
+  // rather than re-concatenating the two source arrays.
+  return (EDITABLE_TEMPLATE_CODES as readonly string[]).filter(
     (code) =>
       code.toLowerCase().includes(query) || getTemplateCodeLabel(code).toLowerCase().includes(query),
   );

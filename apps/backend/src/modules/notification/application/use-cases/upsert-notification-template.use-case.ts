@@ -78,12 +78,16 @@ export class UpsertNotificationTemplateUseCase {
     }
 
     // Platform-only codes (password reset, ops alerts, inspector-group mails) have a
-    // single platform-default row and no per-agency variant. They are editable ONLY as
-    // that default (tenant_id IS NULL) and ONLY by AM/OP — a resolved tenant scope here
-    // means either a CL_ADMIN (always pinned to its tenant) or an AM/OP that passed a
-    // tenantId, both of which would wrongly create/edit a per-agency override.
-    if (isPlatformScopedEditableCode(input.templateCode) && tenantId !== null) {
-      throw new ValidationError('This template can only be edited as the platform default');
+    // single platform-default row (tenant_id IS NULL) and no per-agency variant, so they
+    // are editable only by AM/OP and always target that one default row. Force tenantId to
+    // null rather than trusting the resolution above: an OP whose JWT carries a tenantId
+    // would otherwise fall back to actor.tenantId and be unable to edit the default at all.
+    // CL_ADMIN (the only other role past the gate) is refused outright.
+    if (isPlatformScopedEditableCode(input.templateCode)) {
+      if (actor.role !== 'AM' && actor.role !== 'OP') {
+        throw new ValidationError('This template can only be edited as the platform default');
+      }
+      tenantId = null;
     }
 
     // 4. Validate channel
