@@ -313,6 +313,27 @@ describe('DateInput calendar popover', () => {
     expect(onHostEscape).not.toHaveBeenCalled();
   });
 
+  it('closes on Escape without bubbling even when focus is inside the portaled panel', async () => {
+    // The popup is portaled to document.body; pressing Escape while focus is on a
+    // control inside it must still be caught locally and stopped, or the host
+    // Dialog's document-level Escape listener would dismiss the whole modal.
+    const user = userEvent.setup();
+    const onHostEscape = vi.fn();
+    render(
+      <div onKeyDown={onHostEscape}>
+        <ControlledDateInput initial="2026-06-15" />
+      </div>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+    // Move focus into the portal (a control that is NOT inside the field container).
+    await user.click(screen.getByRole('button', { name: 'Next month' }));
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onHostEscape).not.toHaveBeenCalled();
+  });
+
   it('offers no calendar button when disabled', () => {
     render(<ControlledDateInput disabled />);
     expect(screen.queryByRole('button', { name: 'Open calendar' })).toBeNull();

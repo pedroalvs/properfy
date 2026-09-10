@@ -125,8 +125,15 @@ export function DateInput({
       clipTop: 0,
       clipBottom: window.innerHeight,
     });
-    const top =
+    let top =
       placement === 'above' ? rect.top - panelHeight - GUTTER : rect.bottom + GUTTER;
+    // Clamp vertically so the calendar never renders past the viewport edges. A
+    // flip to 'above' can otherwise push `top` negative on a short viewport,
+    // hiding the month header and nav off the top of the screen; the top edge is
+    // pinned last so it always wins and the header stays reachable.
+    const maxTop = window.innerHeight - VIEWPORT_MARGIN - panelHeight;
+    if (top > maxTop) top = maxTop;
+    if (top < VIEWPORT_MARGIN) top = VIEWPORT_MARGIN;
     let left = rect.left;
     const maxLeft = window.innerWidth - VIEWPORT_MARGIN - PANEL_WIDTH;
     if (left > maxLeft) left = maxLeft;
@@ -145,13 +152,23 @@ export function DateInput({
     setCoords(computeCoords());
   }, [open, computeCoords]);
 
-  // Keep the popup anchored to the field if the host scrolls or the window resizes.
+  // Keep the popup anchored to the field if the host scrolls or the window
+  // resizes. Coalesce bursts into one measurement per frame so a fast scroll
+  // (capture phase catches nested scroll containers too) doesn't thrash layout.
   useEffect(() => {
     if (!open) return;
-    const reposition = () => setCoords(computeCoords());
+    let frame = 0;
+    const reposition = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        setCoords(computeCoords());
+      });
+    };
     window.addEventListener('resize', reposition);
     window.addEventListener('scroll', reposition, true);
     return () => {
+      if (frame) cancelAnimationFrame(frame);
       window.removeEventListener('resize', reposition);
       window.removeEventListener('scroll', reposition, true);
     };
