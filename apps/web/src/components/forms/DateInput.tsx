@@ -34,7 +34,7 @@ interface DateInputProps {
 
 /** Panel width, in px, matching the `w-[19rem]` class on the popup. */
 const PANEL_WIDTH = 304;
-/** Height used only when the panel has no laid-out height yet (offsetHeight 0). */
+/** Height used only when the panel has no laid-out height yet (scrollHeight 0). */
 const PANEL_HEIGHT_ESTIMATE = 340;
 /** Breathing room between the field and the popup, and from the viewport edges. */
 const GUTTER = 4;
@@ -301,8 +301,15 @@ export function DateInput({
     if (!open) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      // The calendar is the topmost open layer, so Escape belongs to it: close
-      // only the calendar and shield the host modal from the same keypress.
+      // Only own the Escape when focus is actually inside the widget (it always is
+      // while open — a focus-leave closes the calendar). This shields the host
+      // modal from the keypress without swallowing an Escape meant for some other
+      // page-level handler should focus ever be elsewhere.
+      const active = document.activeElement;
+      const focusInside =
+        (containerRef.current?.contains(active) ?? false) ||
+        (panelRef.current?.contains(active) ?? false);
+      if (!focusInside) return;
       event.stopPropagation();
       setOpen(false);
       inputRef.current?.focus();
