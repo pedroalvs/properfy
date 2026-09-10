@@ -415,6 +415,18 @@ describe('DateInput calendar popover', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('opens the calendar from the field with ArrowDown and moves focus into it', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="2026-06-15" />);
+    getInput().focus();
+
+    await user.keyboard('{ArrowDown}');
+
+    const dialog = screen.getByRole('dialog', { name: 'Choose date' });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+  });
+
   it('advertises the calendar popup on the field for assistive tech', async () => {
     const user = userEvent.setup();
     render(<ControlledDateInput initial="2026-06-15" />);

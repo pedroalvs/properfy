@@ -98,6 +98,9 @@ export function DateInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  // Set when the calendar is opened by keyboard, so focus is moved into the grid
+  // once it mounts (a mouse open leaves focus on the field, keeping it typeable).
+  const focusGridOnOpenRef = useRef(false);
   const hintId = useId();
   const panelId = useId();
   const [open, setOpen] = useState(false);
@@ -136,6 +139,14 @@ export function DateInput({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    // ArrowDown is the standard combobox gesture to open the popup the field
+    // advertises (aria-haspopup="dialog"); once open it steps into the grid.
+    if (!open && variant === 'form' && !disabled && !event.shiftKey && event.key === 'ArrowDown') {
+      event.preventDefault();
+      focusGridOnOpenRef.current = true;
+      openCalendar();
+      return;
+    }
     if (stepIntoCalendar(event)) return; // typing is untouched; only Tab/ArrowDown route in
     if (event.key !== 'Backspace') return;
     const input = event.currentTarget;
@@ -162,8 +173,10 @@ export function DateInput({
     // viewport the panel simply travels off-screen with it — no detached float, and
     // (unlike visibility:hidden) keyboard focus is never dropped out of the panel.
     // Real size once mounted; the estimates only apply while the panel has no
-    // laid-out box yet (jsdom, or before first paint).
-    const panelHeight = panelRef.current?.offsetHeight || PANEL_HEIGHT_ESTIMATE;
+    // laid-out box yet (jsdom, or before first paint). Use scrollHeight — the
+    // natural content height — for the flip decision, so a panel already capped by
+    // maxHeight can still flip to a side with room for its full height.
+    const panelHeight = panelRef.current?.scrollHeight || PANEL_HEIGHT_ESTIMATE;
     const panelWidth = panelRef.current?.offsetWidth || PANEL_WIDTH;
     const spaceBelow = window.innerHeight - rect.bottom - GUTTER;
     const spaceAbove = rect.top - GUTTER;
@@ -212,6 +225,10 @@ export function DateInput({
       return;
     }
     applyCoords();
+    if (focusGridOnOpenRef.current) {
+      focusGridOnOpenRef.current = false;
+      panelFocusables(panelRef.current)[0]?.focus();
+    }
   }, [open, applyCoords]);
 
   // Keep the popup anchored to the field if the host scrolls or the window
