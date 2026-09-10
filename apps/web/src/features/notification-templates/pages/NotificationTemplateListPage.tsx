@@ -96,6 +96,7 @@ export function NotificationTemplateListPage() {
           onClose={handleCloseDrawer}
           template={selectedTemplate}
           onSaved={handleSaved}
+          isGlobalRole={isGlobalRole}
         />
       )}
 

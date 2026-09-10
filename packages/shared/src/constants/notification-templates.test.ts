@@ -392,6 +392,25 @@ describe('isPlatformScopedEditableCode', () => {
     expect(isPlatformScopedEditableCode('INSPECTION_NOTICE')).toBe(false);
     expect(isPlatformScopedEditableCode('constructor')).toBe(false);
   });
+
+  it('keeps the hand-built platform codes free of required variables', () => {
+    // These codes build their payloads by hand at the dispatch site and never pass
+    // through BuildNotificationPayloadService (they carry no appointment context to build
+    // from). Pinning required=[] guarantees that even if one were ever routed through the
+    // builder, it could not throw MissingRequiredVariableError and lose the send — the
+    // more dangerous half of the risk the old "no entry" guard used to cover.
+    // (PASSWORD_RESET is excluded: it deliberately keeps userName/resetLink required for
+    // editor safety, and is likewise never built by the appointment builder.)
+    for (const code of [
+      'INSPECTION_STUCK_ALERT',
+      'INSPECTOR_GROUP_ASSIGNED',
+      'INSPECTOR_GROUP_UNASSIGNED',
+      'INSPECTOR_GROUP_RESCHEDULED',
+      'TENANT_NOTICE_FORWARDED_AGENCY',
+    ] as const) {
+      expect(TEMPLATE_VARIABLES[code].required).toEqual([]);
+    }
+  });
 });
 
 describe('matchTemplateCodesBySearch', () => {

@@ -72,7 +72,7 @@ beforeEach(() => {
   mockPut.mockResolvedValue({ data: { data: { id: 'tpl-01' } } });
 });
 
-function renderDrawer(template: NotificationTemplate | null = MOCK_TEMPLATE) {
+function renderDrawer(template: NotificationTemplate | null = MOCK_TEMPLATE, isGlobalRole = true) {
   const Wrapper = createWrapper();
   const onClose = vi.fn();
   const onSaved = vi.fn();
@@ -84,6 +84,7 @@ function renderDrawer(template: NotificationTemplate | null = MOCK_TEMPLATE) {
           onClose={onClose}
           template={template}
           onSaved={onSaved}
+          isGlobalRole={isGlobalRole}
         />
       </Wrapper>,
     ),
@@ -347,11 +348,17 @@ describe('TemplateFormDrawer — reset to default', () => {
     expect(screen.getByLabelText('Subject')).toHaveValue('Operator subject');
   });
 
-  it('shows Reset for an editable platform-only code (GetTemplateDefault serves it)', () => {
-    // Platform-only codes are now editable and have a platform seed to reset to.
-    renderDrawer({ ...MOCK_TEMPLATE, id: 'tpl-pw', code: 'PASSWORD_RESET', tenantId: null });
+  it('shows Reset for an editable platform-only code to a global role', () => {
+    // Platform-only codes are editable (and reset-able) by AM/OP and have a platform seed.
+    renderDrawer({ ...MOCK_TEMPLATE, id: 'tpl-pw', code: 'PASSWORD_RESET', tenantId: null }, true);
 
     expect(screen.getByRole('button', { name: 'Reset to default' })).toBeInTheDocument();
+  });
+
+  it('hides Reset for a platform-only code when not a global role (GetTemplateDefault 403s)', () => {
+    renderDrawer({ ...MOCK_TEMPLATE, id: 'tpl-pw', code: 'PASSWORD_RESET', tenantId: null }, false);
+
+    expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument();
   });
 
   it('hides Reset for a code outside the editable catalog', () => {

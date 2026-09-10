@@ -16,13 +16,15 @@ import { SendTestSmsDialog } from './SendTestSmsDialog';
 import { TemplateEditorFields } from './TemplateEditorFields';
 import { TemplatePreview } from './TemplatePreview';
 import type { NotificationTemplate, TemplateFormData, TemplateFormErrors } from '../types';
-import { TEMPLATE_VARIABLES, isEditableTemplateCode } from '../types';
+import { TEMPLATE_VARIABLES, isEditableTemplateCode, isPlatformScopedEditableCode } from '../types';
 
 interface TemplateFormDrawerProps {
   open: boolean;
   onClose: () => void;
   template: NotificationTemplate | null;
   onSaved: () => void;
+  /** AM/OP — required to reset/edit platform-only codes (platform default only). */
+  isGlobalRole?: boolean;
 }
 
 export function TemplateFormDrawer({
@@ -30,6 +32,7 @@ export function TemplateFormDrawer({
   onClose,
   template,
   onSaved,
+  isGlobalRole,
 }: TemplateFormDrawerProps) {
   const { save, isSaving, validate } = useTemplateSave();
   const { fetchDefault, isLoading: isResetting } = useTemplateDefault();
@@ -122,8 +125,13 @@ export function TemplateFormDrawer({
   const isEmailChannel = template?.channel === 'EMAIL';
 
   // Every editable code has a platform seed to reset to (GetTemplateDefaultUseCase
-  // resolves the platform default, falling back to the factory seed catalog).
-  const canResetToDefault = template !== null && isEditableTemplateCode(template.code);
+  // resolves the platform default, falling back to the factory seed catalog). Mirrors
+  // the Edit gate in TemplateRowActions: platform-only codes are AM/OP-only, and
+  // GetTemplateDefault refuses a non-global role for them, so don't offer a dead Reset.
+  const canResetToDefault =
+    template !== null &&
+    isEditableTemplateCode(template.code) &&
+    (!isPlatformScopedEditableCode(template.code) || !!isGlobalRole);
 
   // Fall back to template.body until the useEffect syncs form state, so the preview
   // starts fetching on the first render when the drawer opens.
