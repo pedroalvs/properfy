@@ -227,8 +227,8 @@ export function DateInput({
   const applyCoords = useCallback(() => {
     setCoords((prev) => {
       const next = computeCoords();
-      // Skip the re-render (and the CalendarPanel re-mount) when nothing moved —
-      // a scroll where the field stays put relative to the viewport is common.
+      // Skip the re-render when the position is unchanged — a scroll where the
+      // field stays put relative to the viewport is common.
       return sameCoords(prev, next) ? prev : next;
     });
   }, [computeCoords]);
