@@ -334,6 +334,31 @@ describe('DateInput calendar popover', () => {
     expect(onHostEscape).not.toHaveBeenCalled();
   });
 
+  it('does not reach a document-level Escape listener like the host Dialog uses', async () => {
+    // Dialog/DrawerPanel close via document.addEventListener('keydown'), not a
+    // React handler. A React-synthetic assertion cannot prove the native event is
+    // stopped, so exercise the real thing: with focus inside the portaled panel,
+    // Escape must close only the calendar and never trigger the document listener.
+    const user = userEvent.setup();
+    const onDocumentEscape = vi.fn();
+    const listener = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onDocumentEscape();
+    };
+    // Bubble phase, exactly like Dialog.tsx.
+    document.addEventListener('keydown', listener);
+    try {
+      render(<ControlledDateInput initial="2026-06-15" />);
+      await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+      await user.click(screen.getByRole('button', { name: 'Next month' }));
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(onDocumentEscape).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('keydown', listener);
+    }
+  });
+
   it('offers no calendar button when disabled', () => {
     render(<ControlledDateInput disabled />);
     expect(screen.queryByRole('button', { name: 'Open calendar' })).toBeNull();

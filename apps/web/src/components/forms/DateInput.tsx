@@ -34,11 +34,13 @@ interface DateInputProps {
 
 /** Panel width, in px, matching the `w-[19rem]` class on the popup. */
 const PANEL_WIDTH = 304;
-/** Fallback panel height for the first paint, before `panelRef` is measured. */
+/** Height used only when the panel has no laid-out height yet (offsetHeight 0). */
 const PANEL_HEIGHT_ESTIMATE = 340;
 /** Breathing room between the field and the popup, and from the viewport edges. */
 const GUTTER = 4;
 const VIEWPORT_MARGIN = 8;
+/** Above the modal layer (`Dialog`/`DrawerPanel` use `z-50`) so it always wins. */
+const POPUP_Z_INDEX = 60;
 
 /**
  * Fixed-position coordinates for the portaled popup. The panel is anchored to
@@ -124,8 +126,11 @@ export function DateInput({
     const container = containerRef.current;
     if (!container) return null;
     const rect = container.getBoundingClientRect();
-    // Real height once mounted (refs commit before layout effects); the estimate
-    // only ever applies before the first measurement.
+    // Hide (rather than float detached) when the field has scrolled out of the
+    // viewport inside a scrolling modal body; it reappears, re-anchored, on scroll back.
+    if (rect.bottom < 0 || rect.top > window.innerHeight) return null;
+    // Real height once mounted; the estimate only applies while offsetHeight is 0
+    // (jsdom, or a not-yet-laid-out panel).
     const panelHeight = panelRef.current?.offsetHeight || PANEL_HEIGHT_ESTIMATE;
     const spaceBelow = window.innerHeight - rect.bottom - GUTTER;
     const spaceAbove = rect.top - GUTTER;
@@ -198,16 +203,22 @@ export function DateInput({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
-  const handleContainerKeyDown = (event: React.KeyboardEvent) => {
-    if (open && event.key === 'Escape') {
-      // Stop the host Dialog from closing along with the popover. React routes
-      // synthetic events through the component tree, so keydown from the portaled
-      // panel still bubbles here.
+  // Escape closes only the calendar, never the host modal. A document
+  // capture-phase listener runs before the Dialog/DrawerPanel's bubble-phase
+  // document listener, so stopping propagation here is reliable even when focus
+  // sits inside the panel — which is portaled to document.body and therefore does
+  // not bubble through the field's own DOM subtree.
+  useEffect(() => {
+    if (!open) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
       event.stopPropagation();
       setOpen(false);
       inputRef.current?.focus();
-    }
-  };
+    };
+    document.addEventListener('keydown', handleEscape, true);
+    return () => document.removeEventListener('keydown', handleEscape, true);
+  }, [open]);
 
   const containerClass = disabled
     ? formInputContainerDisabled
@@ -251,7 +262,7 @@ export function DateInput({
   if (variant === 'bare') return input;
 
   return (
-    <div ref={containerRef} className={containerClass} onKeyDown={handleContainerKeyDown}>
+    <div ref={containerRef} className={containerClass}>
       <div className="flex items-center">
         <div className="min-w-0 flex-1">{input}</div>
         {!disabled && (
@@ -274,13 +285,13 @@ export function DateInput({
             ref={panelRef}
             role="dialog"
             aria-label="Choose date"
-            className="w-[19rem] overflow-visible rounded border border-black/10 bg-card-bg shadow-lg"
+            className="w-[19rem] max-w-[calc(100vw-16px)] overflow-visible rounded border border-black/10 bg-card-bg shadow-lg"
             style={{
               position: 'fixed',
               top: coords?.top,
               bottom: coords?.bottom,
               left: coords?.left ?? 0,
-              zIndex: 50,
+              zIndex: POPUP_Z_INDEX,
               visibility: coords ? 'visible' : 'hidden',
             }}
           >
