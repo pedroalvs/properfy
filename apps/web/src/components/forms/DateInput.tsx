@@ -15,7 +15,6 @@ import {
   formInputContainerError,
   formInputContainerDisabled,
 } from './form-styles';
-import { resolveDropdownPlacement } from './dropdown-placement';
 import { useMaskedField } from './useMaskedField';
 
 interface DateInputProps {
@@ -40,6 +39,13 @@ const PANEL_HEIGHT_ESTIMATE = 340;
 /** Breathing room between the field and the popup, and from the viewport edges. */
 const GUTTER = 4;
 const VIEWPORT_MARGIN = 8;
+
+/**
+ * Fixed-position coordinates for the portaled popup. The panel is anchored to
+ * the field's near edge — `top` when it opens below, `bottom` when it opens
+ * above — so it always grows away from the field and can never cover it.
+ */
+type PopupCoords = { left: number; top?: number; bottom?: number };
 
 /**
  * A `dd/mm/yyyy` date field that renders identically on every machine.
@@ -76,7 +82,7 @@ export function DateInput({
   const panelRef = useRef<HTMLDivElement>(null);
   const hintId = useId();
   const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const [coords, setCoords] = useState<PopupCoords | null>(null);
 
   const field = useMaskedField({
     value,
@@ -111,34 +117,37 @@ export function DateInput({
   /**
    * Fixed, viewport-relative coordinates for the portaled popup. Because it
    * escapes every overflow ancestor, the viewport is the only thing that clips
-   * it, so placement is decided against the viewport rather than the nearest
-   * scrolling parent. Flip logic is delegated to `resolveDropdownPlacement`.
+   * it, so placement (below vs above) is decided against the viewport using the
+   * panel's real height, and the panel is anchored to the field's near edge.
    */
-  const computeCoords = useCallback((): { top: number; left: number } | null => {
+  const computeCoords = useCallback((): PopupCoords | null => {
     const container = containerRef.current;
     if (!container) return null;
     const rect = container.getBoundingClientRect();
+    // Real height once mounted (refs commit before layout effects); the estimate
+    // only ever applies before the first measurement.
     const panelHeight = panelRef.current?.offsetHeight || PANEL_HEIGHT_ESTIMATE;
-    const { placement } = resolveDropdownPlacement({
-      triggerTop: rect.top,
-      triggerBottom: rect.bottom,
-      clipTop: 0,
-      clipBottom: window.innerHeight,
-    });
-    let top =
-      placement === 'above' ? rect.top - panelHeight - GUTTER : rect.bottom + GUTTER;
-    // Clamp vertically so the calendar never renders past the viewport edges. A
-    // flip to 'above' can otherwise push `top` negative on a short viewport,
-    // hiding the month header and nav off the top of the screen; the top edge is
-    // pinned last so it always wins and the header stays reachable.
-    const maxTop = window.innerHeight - VIEWPORT_MARGIN - panelHeight;
-    if (top > maxTop) top = maxTop;
-    if (top < VIEWPORT_MARGIN) top = VIEWPORT_MARGIN;
+    const spaceBelow = window.innerHeight - rect.bottom - GUTTER;
+    const spaceAbove = rect.top - GUTTER;
+
     let left = rect.left;
     const maxLeft = window.innerWidth - VIEWPORT_MARGIN - PANEL_WIDTH;
     if (left > maxLeft) left = maxLeft;
     if (left < VIEWPORT_MARGIN) left = VIEWPORT_MARGIN;
-    return { top, left };
+
+    // Prefer below (native feel). Flip above only when the panel genuinely does
+    // not fit below but there is more room above — decided against the *real*
+    // panel height, not a fixed threshold.
+    const placeBelow = panelHeight <= spaceBelow || spaceBelow >= spaceAbove;
+    if (placeBelow) {
+      // Anchored to the field's bottom edge; the panel grows downward, so a
+      // taller month never overlaps the field.
+      return { top: rect.bottom + GUTTER, left };
+    }
+    // Anchored to the field's top edge via the viewport's bottom coordinate; the
+    // panel grows *upward* as the month grid changes height, so it likewise never
+    // covers the field and needs no re-measure when its own height changes.
+    return { bottom: window.innerHeight - rect.top + GUTTER, left };
   }, []);
 
   const openCalendar = () => setOpen(true);
@@ -268,7 +277,8 @@ export function DateInput({
             className="w-[19rem] overflow-visible rounded border border-black/10 bg-card-bg shadow-lg"
             style={{
               position: 'fixed',
-              top: coords?.top ?? 0,
+              top: coords?.top,
+              bottom: coords?.bottom,
               left: coords?.left ?? 0,
               zIndex: 50,
               visibility: coords ? 'visible' : 'hidden',
