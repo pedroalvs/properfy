@@ -296,9 +296,11 @@ export class SendNotificationUseCase {
    * `suppressedTemplateLabel` / `suppressedChannel` naming what was withheld, and with
    * address/code re-derived because an SMS payload carries neither.
    *
-   * AGENCY_FORWARD_TEMPLATE_CODE deliberately has no TEMPLATE_VARIABLES entry, matching
-   * that registry's "do not complete this map" rule — the codes in it are the ones whose
-   * payloads are built by BuildNotificationPayloadService, and this one is assembled here.
+   * AGENCY_FORWARD_TEMPLATE_CODE's payload is assembled here by hand, NOT by
+   * BuildNotificationPayloadService — so it never passes through that service's spec
+   * filter. It does carry a TEMPLATE_VARIABLES entry, but that entry only drives the
+   * template editor and test-send preview (the code is editable); it cannot alter what
+   * this path sends.
    *
    * The suppression is already persisted, so a failure here cannot resurrect the occupant
    * message. The outcome is written back to the row and failures retain a recovery schedule,

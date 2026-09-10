@@ -125,6 +125,14 @@ describe('SendTestNotificationUseCase', () => {
     ).rejects.toThrow(NotificationForbiddenError);
   });
 
+  it('rejects a CL_ADMIN test-sending a platform-only code (AM/OP only)', async () => {
+    // CL_ADMIN cannot dispatch a real system/ops email (e.g. PASSWORD_RESET) through
+    // test-send, matching upsert and reset-to-default.
+    await expect(
+      useCase.execute({ templateCode: 'PASSWORD_RESET', channel: 'EMAIL', recipient: 'a@b.com', actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }) }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
   // ── Channel validation ─────────────────────────────────────────────────────
 
   it('runtime guard rejects unsupported channel string with ValidationError', async () => {

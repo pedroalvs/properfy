@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { AuthContext } from '@properfy/shared';
 import { prepareSmsBody } from '../../domain/sms-content';
-import { TEMPLATE_VARIABLES, SAMPLE_DATA, type AllowedVariable } from '@properfy/shared';
+import { TEMPLATE_VARIABLES, SAMPLE_DATA, isPlatformScopedEditableCode, type AllowedVariable } from '@properfy/shared';
 import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
@@ -81,6 +81,16 @@ export class SendTestNotificationUseCase {
       action: 'config.notification_templates',
       entityType: 'NotificationTemplate',
     });
+
+    // Platform-only codes are AM/OP-only everywhere they can be touched (upsert,
+    // reset-to-default and here), so a CL_ADMIN cannot dispatch a real system/ops email
+    // (e.g. PASSWORD_RESET) through the test-send path either.
+    if (isPlatformScopedEditableCode(input.templateCode)) {
+      this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+        action: 'config.notification_templates',
+        entityType: 'NotificationTemplate',
+      });
+    }
 
     if (input.channel !== 'EMAIL' && input.channel !== 'SMS') {
       throw new ValidationError('Test send only supports EMAIL or SMS channel');

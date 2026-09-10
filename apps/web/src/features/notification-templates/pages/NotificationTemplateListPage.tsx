@@ -84,6 +84,7 @@ export function NotificationTemplateListPage() {
           onEdit={handleEdit}
           onDeleted={refetch}
           canDelete={isGlobalRole}
+          isGlobalRole={isGlobalRole}
         />
       </ListFilterTableTemplate>
 
@@ -95,6 +96,7 @@ export function NotificationTemplateListPage() {
           onClose={handleCloseDrawer}
           template={selectedTemplate}
           onSaved={handleSaved}
+          isGlobalRole={isGlobalRole}
         />
       )}
 

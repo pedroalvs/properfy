@@ -8,7 +8,8 @@ import type { IHtmlSanitizerService } from '../../domain/html-sanitizer.service'
 import type { IHtmlToTextService } from '../../domain/html-to-text.service';
 import { ProtectedTemplateClassificationError } from '../../domain/notification.errors';
 import {
-  MANDATORY_TEMPLATE_CODES,
+  isEditableTemplateCode,
+  isPlatformScopedEditableCode,
   getProtectedClass,
   getDefaultClass,
 } from '../../domain/notification.constants';
@@ -72,8 +73,23 @@ export class UpsertNotificationTemplateUseCase {
     }
 
     // 3. Validate templateCode
-    if (!MANDATORY_TEMPLATE_CODES.includes(input.templateCode as typeof MANDATORY_TEMPLATE_CODES[number])) {
+    if (!isEditableTemplateCode(input.templateCode)) {
       throw new ValidationError('Invalid template code');
+    }
+
+    // Platform-only codes (password reset, ops alerts, inspector-group mails) have a
+    // single platform-default row (tenant_id IS NULL) and no per-agency variant, so they
+    // are editable only by AM/OP and always target that one default row. The same
+    // assertRoles(['AM','OP']) check gates the sibling read/test-send paths, so the rule
+    // lives in one place per site. Force tenantId to null rather than trusting the
+    // resolution above: an OP whose JWT carries a tenantId would otherwise fall back to
+    // actor.tenantId and be unable to edit the default at all.
+    if (isPlatformScopedEditableCode(input.templateCode)) {
+      this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+        action: 'config.notification_templates',
+        entityType: 'NotificationTemplate',
+      });
+      tenantId = null;
     }
 
     // 4. Validate channel

@@ -16,13 +16,15 @@ import { SendTestSmsDialog } from './SendTestSmsDialog';
 import { TemplateEditorFields } from './TemplateEditorFields';
 import { TemplatePreview } from './TemplatePreview';
 import type { NotificationTemplate, TemplateFormData, TemplateFormErrors } from '../types';
-import { TEMPLATE_VARIABLES, MANDATORY_TEMPLATE_CODES } from '../types';
+import { TEMPLATE_VARIABLES, isEditableTemplateCode, isPlatformScopedEditableCode } from '../types';
 
 interface TemplateFormDrawerProps {
   open: boolean;
   onClose: () => void;
   template: NotificationTemplate | null;
   onSaved: () => void;
+  /** AM/OP — required to reset/edit platform-only codes (platform default only). */
+  isGlobalRole?: boolean;
 }
 
 export function TemplateFormDrawer({
@@ -30,6 +32,7 @@ export function TemplateFormDrawer({
   onClose,
   template,
   onSaved,
+  isGlobalRole,
 }: TemplateFormDrawerProps) {
   const { save, isSaving, validate } = useTemplateSave();
   const { fetchDefault, isLoading: isResetting } = useTemplateDefault();
@@ -121,12 +124,14 @@ export function TemplateFormDrawer({
   // depend on this. Avoids divergence if code is later refactored.
   const isEmailChannel = template?.channel === 'EMAIL';
 
-  // The list also shows platform rows for codes outside the mandatory catalog
-  // (PASSWORD_RESET, INSPECTION_STUCK_ALERT, ...). GetTemplateDefaultUseCase
-  // rejects those, so the button would only ever produce an error.
+  // Every editable code has a platform seed to reset to (GetTemplateDefaultUseCase
+  // resolves the platform default, falling back to the factory seed catalog). Mirrors
+  // the Edit gate in TemplateRowActions: platform-only codes are AM/OP-only, and
+  // GetTemplateDefault refuses a non-global role for them, so don't offer a dead Reset.
   const canResetToDefault =
     template !== null &&
-    (MANDATORY_TEMPLATE_CODES as readonly string[]).includes(template.code);
+    isEditableTemplateCode(template.code) &&
+    (!isPlatformScopedEditableCode(template.code) || !!isGlobalRole);
 
   // Fall back to template.body until the useEffect syncs form state, so the preview
   // starts fetching on the first render when the drawer opens.

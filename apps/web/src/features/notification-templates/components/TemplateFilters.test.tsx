@@ -4,14 +4,14 @@ import { TemplateFilters } from './TemplateFilters';
 import { DEFAULT_TEMPLATE_FILTERS } from '../types';
 
 describe('TemplateFilters', () => {
-  it('renders template code input', () => {
+  it('renders the search input', () => {
     render(
       <TemplateFilters
         filters={DEFAULT_TEMPLATE_FILTERS}
         onFiltersChange={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText('Template Code')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toBeInTheDocument();
   });
 
   it('renders channel filter', () => {
@@ -34,14 +34,14 @@ describe('TemplateFilters', () => {
     expect(screen.getByLabelText('Include Platform Defaults')).toBeInTheDocument();
   });
 
-  it('displays current template code value', () => {
+  it('displays the current search value', () => {
     render(
       <TemplateFilters
-        filters={{ templateCode: 'INSPECTION_NOTICE', channel: '', includeDefaults: 'true', tenantId: '' }}
+        filters={{ search: 'Inspection Notice', channel: '', includeDefaults: 'true', tenantId: '' }}
         onFiltersChange={vi.fn()}
       />,
     );
-    expect(screen.getByDisplayValue('INSPECTION_NOTICE')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Inspection Notice')).toBeInTheDocument();
   });
 
   it('renders the Agency filter when showTenantFilter is true', () => {
