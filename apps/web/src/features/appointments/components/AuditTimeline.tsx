@@ -190,7 +190,7 @@ export function AuditTimeline({ entries }: AuditTimelineProps) {
                   </p>
                 )}
                 {noteDetail && (
-                  <p className="mt-1 text-xs text-text-secondary">
+                  <p className="mt-1 whitespace-pre-line break-words text-xs text-text-secondary">
                     {noteDetail}
                   </p>
                 )}

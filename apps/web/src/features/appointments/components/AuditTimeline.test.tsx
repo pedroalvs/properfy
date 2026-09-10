@@ -287,4 +287,18 @@ describe('AuditTimeline', () => {
     expect(container.querySelector('.mdi-message-text')).toBeTruthy();
     expect(container.querySelector('.mdi-circle-small')).toBeFalsy();
   });
+
+  it('preserves interior line breaks in the Fy note content', () => {
+    // `content` is only end-trimmed server-side, so interior newlines are valid
+    // and must survive rendering rather than collapse to a single line.
+    const multiline: AuditLogEntry = {
+      ...fyNoteEntry,
+      id: 'log-fy-2',
+      afterJson: { content: 'Line one\nLine two' },
+    };
+    render(<AuditTimeline entries={[multiline]} />);
+    const node = screen.getByText(/Line one/);
+    expect(node.textContent).toBe('Line one\nLine two');
+    expect(node.className).toContain('whitespace-pre-line');
+  });
 });
