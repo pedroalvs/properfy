@@ -81,6 +81,25 @@ function withCurrentOption(
   return [{ value, label }, ...options];
 }
 
+/**
+ * Guarantee exactly one primary contact when the list is non-empty: promote the
+ * first row when none is primary, and demote extras when several are. Only the
+ * standard form path maintains this invariant (add/remove handlers), so
+ * legacy / imported / portal-created contact sets can load primary-less or with
+ * duplicates. Normalizing on load keeps the form aligned with the shared
+ * `appointmentContactsArraySchema` refine, so the primary backstop in
+ * `validate()` never blocks an operator editing an unrelated field on inherited
+ * data. References are preserved where the flag is already correct.
+ */
+function withSinglePrimary(contacts: ContactFormEntry[]): ContactFormEntry[] {
+  if (contacts.length === 0) return contacts;
+  const primaryIndex = contacts.findIndex((c) => c.isPrimary);
+  const keep = primaryIndex === -1 ? 0 : primaryIndex;
+  return contacts.map((c, i) =>
+    c.isPrimary === (i === keep) ? c : { ...c, isPrimary: i === keep },
+  );
+}
+
 interface AppointmentFormDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -182,8 +201,11 @@ export function AppointmentFormDrawer({
   // Populate form in edit mode
   useEffect(() => {
     if (isEditMode && appointment) {
-      // Build contacts array from new-shape or legacy fields
-      const contacts: ContactFormEntry[] =
+      // Build contacts array from new-shape or legacy fields, then normalize to
+      // exactly one primary — inherited data (legacy/imported/portal) can arrive
+      // primary-less or with duplicates, which the primary backstop would
+      // otherwise flag on an unrelated edit.
+      const builtContacts: ContactFormEntry[] =
         appointment.contacts && appointment.contacts.length > 0
           ? appointment.contacts.map((c) => ({
               key: c.id ?? crypto.randomUUID(),
@@ -210,6 +232,7 @@ export function AppointmentFormDrawer({
                 },
               ]
             : [];
+      const contacts = withSinglePrimary(builtContacts);
 
       const operatorRestriction = (appointment.restrictions ?? []).find(
         (r) => r.source !== RestrictionSource.RENTAL_TENANT_PORTAL,
@@ -382,10 +405,15 @@ export function AppointmentFormDrawer({
   );
 
   const addContact = useCallback(() => {
-    setForm((prev) => ({
-      ...prev,
-      contacts: [...prev.contacts, createEmptyContact()],
-    }));
+    setForm((prev) => {
+      // Keep exactly one primary while any contact exists: the first contact
+      // added to an empty (or primary-less) list becomes primary automatically.
+      const hasPrimary = prev.contacts.some((c) => c.isPrimary);
+      return {
+        ...prev,
+        contacts: [...prev.contacts, { ...createEmptyContact(), isPrimary: !hasPrimary }],
+      };
+    });
   }, []);
 
   const removeContact = useCallback((key: string) => {
@@ -1001,6 +1029,9 @@ export function AppointmentFormDrawer({
                         No contacts. The occupant will not receive any notification for this
                         appointment.
                       </p>
+                    )}
+                    {errors.contacts?.[0]?.isPrimary && (
+                      <p className="text-error text-sm mb-3">{errors.contacts[0].isPrimary}</p>
                     )}
                     <Button variant="secondary" onClick={addContact}>
                       <i className="mdi mdi-plus" aria-hidden="true" />

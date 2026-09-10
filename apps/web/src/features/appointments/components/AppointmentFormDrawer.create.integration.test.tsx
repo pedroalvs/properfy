@@ -96,6 +96,9 @@ function fillRequiredFields(overrides: { start?: string; end?: string; date?: st
   fireEvent.change(screen.getByLabelText('Scheduled Date'), { target: { value: overrides.date ?? '2030-06-16' } });
   fireEvent.change(screen.getByLabelText('Start time'), { target: { value: overrides.start ?? '10:00' } });
   fireEvent.change(screen.getByLabelText('End time'), { target: { value: overrides.end ?? '11:00' } });
+  // The create form opens with no contact card — add one before filling it.
+  // The first added contact is primary by default.
+  fireEvent.click(screen.getByText('Add Contact'));
   fireEvent.change(screen.getByLabelText('Contact 1 Display name'), { target: { value: 'Jane Tenant' } });
   fireEvent.change(screen.getByLabelText('Contact 1 Email'), { target: { value: 'jane@test.com' } });
   if (overrides.contactType !== false) selectOption('Contact 1 Contact type', 'Tenant');
