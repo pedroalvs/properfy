@@ -162,7 +162,7 @@ Full detail, including the tenant action link.
   "inspector": { "id": "…", "name": "Kez Anderson" },
   "agency": { "id": "…", "name": "Belle Property St George", "timezone": "Australia/Sydney" },
   "contact": { "name": "John Smith", "email": "john@example.com", "phone": "+61412345678", "confirmed": false },
-  "notes": "[Fy 2026-07-09T10:00:00.000Z] Call tenant 30 min before arrival",
+  "notes": "Call tenant 30 min before arrival",
   "rentalTenantNote": null,
   "confirmationLink": {
     "url": "https://properfy.pedroalvs.com/portal/abc123…",
@@ -234,7 +234,7 @@ Body:
 { "content": "Tenant requested a call 30 minutes before arrival. Contact: +61412345678." }
 ```
 
-Max 2000 characters. No `created_by`/`visibility` fields — authorship (`Fy` + timestamp) and inspector visibility are applied server-side and the write is audit-logged.
+Max 2000 characters. No `created_by`/`visibility` fields. The `content` is stored **verbatim** on the appointment's inspector-facing `notes` (no `[Fy …]` prefix), so the inspector reads a clean instruction. Authorship (`Fy`) and the timestamp are recorded server-side in the audit log and surface on the appointment's history (Timeline) tab for operators — not inside the note text.
 
 `201` (`data`):
 

@@ -12,8 +12,11 @@ export interface AddFyAppointmentNoteInput {
 
 /**
  * Appends the note to the appointment's operational `notes` column, which the
- * inspector PWA already surfaces — no dedicated notes table in v1. Each entry
- * is timestamp-prefixed so authorship and ordering stay readable.
+ * inspector PWA already surfaces — no dedicated notes table in v1. The content
+ * is stored verbatim, with no `[Fy <timestamp>]` prefix, so the inspector reads
+ * a clean instruction. Fy authorship and the timestamp live only in the audit
+ * log (`fy.note_added`), which the web surfaces on the appointment history
+ * (Timeline) tab for operators to consult.
  */
 export class AddFyAppointmentNoteUseCase {
   constructor(
@@ -23,9 +26,8 @@ export class AddFyAppointmentNoteUseCase {
 
   async execute(input: AddFyAppointmentNoteInput): Promise<FyNoteCreated> {
     const createdAt = new Date();
-    const line = `[Fy ${createdAt.toISOString()}] ${input.content}`;
 
-    const appended = await this.fyRepo.appendAppointmentNote(input.appointmentId, line);
+    const appended = await this.fyRepo.appendAppointmentNote(input.appointmentId, input.content);
     if (!appended) {
       throw new AppointmentNotFoundError();
     }
