@@ -415,16 +415,28 @@ describe('DateInput calendar popover', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('opens the calendar from the field with ArrowDown and moves focus into it', async () => {
+  it('opens the calendar from the field with ArrowDown and focuses the selected day', async () => {
     const user = userEvent.setup();
     render(<ControlledDateInput initial="2026-06-15" />);
     getInput().focus();
 
     await user.keyboard('{ArrowDown}');
 
-    const dialog = screen.getByRole('dialog', { name: 'Choose date' });
-    expect(dialog).toBeInTheDocument();
-    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(screen.getByRole('dialog', { name: 'Choose date' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /15 June 2026/ })).toHaveFocus();
+  });
+
+  it('does not trap Tab: tabbing off the end of the panel closes it and returns to the field', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="2026-06-15" />);
+
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+    // Shift+Tab off the first control (Previous month) is a valid backward exit.
+    screen.getByRole('button', { name: 'Previous month' }).focus();
+    await user.tab({ shift: true });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(getInput()).toHaveFocus();
   });
 
   it('advertises the calendar popup on the field for assistive tech', async () => {

@@ -57,6 +57,15 @@ function panelFocusables(panel: HTMLElement | null): HTMLButtonElement[] {
   return Array.from(panel.querySelectorAll<HTMLButtonElement>('button:not([disabled])'));
 }
 
+/** Where keyboard focus should land when the calendar opens: the selected day
+ *  (marked `aria-pressed`), else the first control. */
+function panelInitialFocus(panel: HTMLElement | null): HTMLButtonElement | null {
+  const selected = panel?.querySelector<HTMLButtonElement>(
+    'button[aria-pressed="true"]:not([disabled])',
+  );
+  return selected ?? panelFocusables(panel)[0] ?? null;
+}
+
 function sameCoords(a: PopupCoords | null, b: PopupCoords | null): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
@@ -227,7 +236,7 @@ export function DateInput({
     applyCoords();
     if (focusGridOnOpenRef.current) {
       focusGridOnOpenRef.current = false;
-      panelFocusables(panelRef.current)[0]?.focus();
+      panelInitialFocus(panelRef.current)?.focus();
     }
   }, [open, applyCoords]);
 
@@ -303,10 +312,12 @@ export function DateInput({
     return () => document.removeEventListener('focusin', handleFocusIn);
   }, [open]);
 
-  // Trap Tab within the field ⇄ panel loop while open. The panel is portaled to
-  // the end of the document, so without this Tab would jump straight past the
-  // calendar to whatever follows the field. Shift+Tab from the first control
-  // returns to the input; Tab from the last wraps to the first.
+  // Tabbing off either end of the panel closes the calendar and returns focus to
+  // the field, from which normal tabbing resumes. The panel is portaled to the end
+  // of the document, so letting Tab fall through would strand focus at the end of
+  // the page; returning to the in-flow field gives a predictable, non-trapping
+  // exit in both directions (WCAG 2.1.2). Tab between controls inside the panel is
+  // left to the browser.
   const handlePanelKeyDown = (event: React.KeyboardEvent) => {
     if (event.key !== 'Tab') return;
     const focusables = panelFocusables(panelRef.current);
@@ -314,12 +325,12 @@ export function DateInput({
     const last = focusables[focusables.length - 1];
     if (!first || !last) return;
     const active = document.activeElement;
-    if (event.shiftKey && active === first) {
+    const leavingBackwards = event.shiftKey && active === first;
+    const leavingForwards = !event.shiftKey && active === last;
+    if (leavingBackwards || leavingForwards) {
       event.preventDefault();
+      setOpen(false);
       inputRef.current?.focus();
-    } else if (!event.shiftKey && active === last) {
-      event.preventDefault();
-      first.focus();
     }
   };
 
