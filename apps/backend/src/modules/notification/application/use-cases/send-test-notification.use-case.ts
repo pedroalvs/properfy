@@ -85,8 +85,11 @@ export class SendTestNotificationUseCase {
     // Platform-only codes are AM/OP-only everywhere they can be touched (upsert,
     // reset-to-default and here), so a CL_ADMIN cannot dispatch a real system/ops email
     // (e.g. PASSWORD_RESET) through the test-send path either.
-    if (isPlatformScopedEditableCode(input.templateCode) && actor.role !== 'AM' && actor.role !== 'OP') {
-      throw new NotificationForbiddenError();
+    if (isPlatformScopedEditableCode(input.templateCode)) {
+      this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+        action: 'config.notification_templates',
+        entityType: 'NotificationTemplate',
+      });
     }
 
     if (input.channel !== 'EMAIL' && input.channel !== 'SMS') {

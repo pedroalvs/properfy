@@ -310,9 +310,17 @@ export function getTemplateTarget(templateCode: string): NotificationTarget | un
 // ---------------------------------------------------------------------------
 
 /**
- * Template codes whose `notificationClass` is immutable and MUST remain TRANSACTIONAL.
- * Per FR-005, these are appointment-action templates — recipients must always receive them
- * regardless of any opt-out.
+ * Template codes whose `notificationClass` is immutable and MUST remain TRANSACTIONAL —
+ * recipients must always receive them regardless of any opt-out. Two families:
+ *
+ * - Appointment-action templates (FR-005): the occupant/agency actions a recipient
+ *   must always be told about.
+ * - System / inspector must-deliver templates: password resets, internal ops alerts and
+ *   inspector schedule-change mail. These are seeded TRANSACTIONAL and are now editable
+ *   through the templates UI, so they MUST be protected here — otherwise an upsert that
+ *   omits (or changes) notificationClass would resolve to OPERATIONAL via getDefaultClass
+ *   and silently make a password reset consent-suppressible. `getProtectedClass` returning
+ *   a value here both pins the seed default and rejects any reclassification in upsert.
  */
 export const PROTECTED_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClass> = {
   INSPECTION_CONFIRMED: 'TRANSACTIONAL',
@@ -326,6 +334,13 @@ export const PROTECTED_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClas
   // and then neither the occupant nor the agency ever learns of the inspection, which
   // is precisely the hole this forward exists to close.
   TENANT_NOTICE_FORWARDED_AGENCY: 'TRANSACTIONAL',
+  // System / inspector must-deliver codes — seeded TRANSACTIONAL, now editable, so pinned
+  // here to keep them consent-bypassed (matches platform-notification-templates.ts).
+  PASSWORD_RESET: 'TRANSACTIONAL',
+  INSPECTION_STUCK_ALERT: 'TRANSACTIONAL',
+  INSPECTOR_GROUP_ASSIGNED: 'TRANSACTIONAL',
+  INSPECTOR_GROUP_UNASSIGNED: 'TRANSACTIONAL',
+  INSPECTOR_GROUP_RESCHEDULED: 'TRANSACTIONAL',
 };
 
 /** Protected code strings — used by UI to disable reclassification. */

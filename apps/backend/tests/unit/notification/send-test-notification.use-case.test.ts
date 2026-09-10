@@ -130,7 +130,7 @@ describe('SendTestNotificationUseCase', () => {
     // test-send, matching upsert and reset-to-default.
     await expect(
       useCase.execute({ templateCode: 'PASSWORD_RESET', channel: 'EMAIL', recipient: 'a@b.com', actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }) }),
-    ).rejects.toThrow(NotificationForbiddenError);
+    ).rejects.toThrow(ForbiddenError);
   });
 
   // ── Channel validation ─────────────────────────────────────────────────────

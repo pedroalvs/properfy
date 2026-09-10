@@ -160,7 +160,7 @@ describe('UpsertNotificationTemplateUseCase', () => {
       expect(entity.tenantId).toBeNull();
     });
 
-    it('rejects a CL_ADMIN editing a platform-only code (pinned to its tenant)', async () => {
+    it('rejects a CL_ADMIN editing a platform-only code (AM/OP only)', async () => {
       await expect(
         useCase.execute(
           makeInput({
@@ -170,7 +170,7 @@ describe('UpsertNotificationTemplateUseCase', () => {
             actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
           }),
         ),
-      ).rejects.toThrow(ValidationError);
+      ).rejects.toThrow(ForbiddenError);
       expect(templateRepo.upsert).not.toHaveBeenCalled();
     });
 
@@ -182,6 +182,39 @@ describe('UpsertNotificationTemplateUseCase', () => {
       );
 
       expect(result.tenantId).toBe('tenant-1');
+    });
+
+    it('forces TRANSACTIONAL on a must-deliver system code when class is omitted', async () => {
+      // Regression guard: editing PASSWORD_RESET must not silently downgrade it to
+      // OPERATIONAL and make password resets consent-suppressible.
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      const result = await useCase.execute(
+        makeInput({
+          templateCode: 'PASSWORD_RESET',
+          subject: 'Reset your password',
+          bodyHtml: '<p>Hi {{userName}}, reset here: {{resetLink}}</p>',
+          notificationClass: undefined,
+          actor: makeActor({ role: 'AM', tenantId: null }),
+        }),
+      );
+
+      expect(result.notificationClass).toBe('TRANSACTIONAL');
+    });
+
+    it('rejects reclassifying a must-deliver system code to OPERATIONAL', async () => {
+      await expect(
+        useCase.execute(
+          makeInput({
+            templateCode: 'INSPECTOR_GROUP_ASSIGNED',
+            subject: 'Group {{groupCode}} assigned',
+            bodyHtml: '<p>Hi {{inspectorName}}, group {{groupCode}} is yours.</p>',
+            notificationClass: 'OPERATIONAL',
+            actor: makeActor({ role: 'OP', tenantId: null }),
+          }),
+        ),
+      ).rejects.toThrow(ProtectedTemplateClassificationError);
+      expect(templateRepo.upsert).not.toHaveBeenCalled();
     });
   });
 

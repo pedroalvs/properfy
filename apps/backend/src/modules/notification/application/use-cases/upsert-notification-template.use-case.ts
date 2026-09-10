@@ -79,14 +79,16 @@ export class UpsertNotificationTemplateUseCase {
 
     // Platform-only codes (password reset, ops alerts, inspector-group mails) have a
     // single platform-default row (tenant_id IS NULL) and no per-agency variant, so they
-    // are editable only by AM/OP and always target that one default row. Force tenantId to
-    // null rather than trusting the resolution above: an OP whose JWT carries a tenantId
-    // would otherwise fall back to actor.tenantId and be unable to edit the default at all.
-    // CL_ADMIN (the only other role past the gate) is refused outright.
+    // are editable only by AM/OP and always target that one default row. The same
+    // assertRoles(['AM','OP']) check gates the sibling read/test-send paths, so the rule
+    // lives in one place per site. Force tenantId to null rather than trusting the
+    // resolution above: an OP whose JWT carries a tenantId would otherwise fall back to
+    // actor.tenantId and be unable to edit the default at all.
     if (isPlatformScopedEditableCode(input.templateCode)) {
-      if (actor.role !== 'AM' && actor.role !== 'OP') {
-        throw new ValidationError('This template can only be edited as the platform default');
-      }
+      this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
+        action: 'config.notification_templates',
+        entityType: 'NotificationTemplate',
+      });
       tenantId = null;
     }
 

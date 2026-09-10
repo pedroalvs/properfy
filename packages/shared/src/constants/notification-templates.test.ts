@@ -393,6 +393,21 @@ describe('isPlatformScopedEditableCode', () => {
     expect(isPlatformScopedEditableCode('constructor')).toBe(false);
   });
 
+  it('protects the seeded-TRANSACTIONAL system/inspector codes now that they are editable', () => {
+    // These must stay consent-bypassed. Without protection, an upsert omitting
+    // notificationClass would resolve to OPERATIONAL and make e.g. a password reset
+    // consent-suppressible.
+    for (const code of [
+      'PASSWORD_RESET',
+      'INSPECTION_STUCK_ALERT',
+      'INSPECTOR_GROUP_ASSIGNED',
+      'INSPECTOR_GROUP_UNASSIGNED',
+      'INSPECTOR_GROUP_RESCHEDULED',
+    ] as const) {
+      expect(getDefaultClass(code)).toBe('TRANSACTIONAL');
+    }
+  });
+
   it('keeps the hand-built platform codes free of required variables', () => {
     // These codes build their payloads by hand at the dispatch site and never pass
     // through BuildNotificationPayloadService (they carry no appointment context to build

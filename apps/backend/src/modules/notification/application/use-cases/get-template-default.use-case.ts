@@ -1,5 +1,5 @@
 import type { AuthContext, NotificationChannel } from '@properfy/shared';
-import { ForbiddenError, NotFoundError, ValidationError } from '../../../../shared/domain/errors';
+import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
 import { isEditableTemplateCode, isPlatformScopedEditableCode } from '../../domain/notification.constants';
@@ -55,8 +55,11 @@ export class GetTemplateDefaultUseCase {
     }
     // Platform-only codes are AM/OP-only wherever they are touched: a CL_ADMIN cannot
     // pull their default body here, matching upsert and test-send.
-    if (isPlatformScopedEditableCode(input.templateCode) && input.actor.role !== 'AM' && input.actor.role !== 'OP') {
-      throw new ForbiddenError('FORBIDDEN', 'This template can only be managed as the platform default');
+    if (isPlatformScopedEditableCode(input.templateCode)) {
+      this.authorizationService.assertRoles(input.actor, ['AM', 'OP'], {
+        action: 'config.notification_templates',
+        entityType: 'NotificationTemplate',
+      });
     }
     if (!VALID_CHANNELS.includes(input.channel as NotificationChannel)) {
       throw new ValidationError('Invalid notification channel');
