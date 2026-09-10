@@ -50,8 +50,8 @@ export function CancelGroupModal({ open, onClose, onCancel, serviceGroupId: _ser
       <div className="mb-4 flex items-start gap-2 rounded border border-warning/30 bg-warning/5 p-3">
         <i className="mdi mdi-alert-outline text-lg text-warning" aria-hidden="true" />
         <p className="text-sm text-text-primary">
-          This action will cancel the service group and release all associated appointments.
-          This cannot be undone easily.
+          The assigned inspector will be removed and the group will be marked Cancelled.
+          The appointments stay in the group — republish it to bring the group back to Draft.
         </p>
       </div>
       <FormField label="Reason" required>

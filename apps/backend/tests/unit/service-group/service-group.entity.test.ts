@@ -131,21 +131,16 @@ describe('ServiceGroupEntity', () => {
   });
 
   describe('canCancel()', () => {
-    it('returns true for DRAFT status', () => {
-      expect(makeServiceGroup({ status: 'DRAFT' }).canCancel()).toBe(true);
-    });
-
-    it('returns true for PUBLISHED status', () => {
-      expect(makeServiceGroup({ status: 'PUBLISHED' }).canCancel()).toBe(true);
-    });
-
     it('returns true for ACCEPTED status', () => {
       expect(makeServiceGroup({ status: 'ACCEPTED' }).canCancel()).toBe(true);
     });
 
-    it('returns false for CANCELLED status', () => {
-      expect(makeServiceGroup({ status: 'CANCELLED' }).canCancel()).toBe(false);
-    });
+    it.each(['DRAFT', 'PUBLISHED', 'CANCELLED', 'REJECTED'] as const)(
+      'returns false for %s status (only ACCEPTED groups can be cancelled)',
+      (status) => {
+        expect(makeServiceGroup({ status }).canCancel()).toBe(false);
+      },
+    );
   });
 
   describe('canReject()', () => {

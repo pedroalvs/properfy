@@ -39,7 +39,7 @@ export function useTemplateList(): UseTemplateListReturn {
   const [filters, setFilters] = useState<TemplateFiltersState>(DEFAULT_TEMPLATE_FILTERS);
 
   const params: ListParams = {
-    templateCode: filters.templateCode || undefined,
+    search: filters.search || undefined,
     channel: filters.channel || undefined,
     includeDefaults: filters.includeDefaults === 'true',
     tenantId: filters.tenantId || undefined,

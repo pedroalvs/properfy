@@ -72,7 +72,7 @@ beforeEach(() => {
   mockPut.mockResolvedValue({ data: { data: { id: 'tpl-01' } } });
 });
 
-function renderDrawer(template: NotificationTemplate | null = MOCK_TEMPLATE) {
+function renderDrawer(template: NotificationTemplate | null = MOCK_TEMPLATE, isGlobalRole = true) {
   const Wrapper = createWrapper();
   const onClose = vi.fn();
   const onSaved = vi.fn();
@@ -84,6 +84,7 @@ function renderDrawer(template: NotificationTemplate | null = MOCK_TEMPLATE) {
           onClose={onClose}
           template={template}
           onSaved={onSaved}
+          isGlobalRole={isGlobalRole}
         />
       </Wrapper>,
     ),
@@ -347,11 +348,21 @@ describe('TemplateFormDrawer — reset to default', () => {
     expect(screen.getByLabelText('Subject')).toHaveValue('Operator subject');
   });
 
-  it('hides Reset for codes the default endpoint does not serve', async () => {
-    // The list shows platform rows for codes outside MANDATORY_TEMPLATE_CODES
-    // (PASSWORD_RESET, INSPECTION_STUCK_ALERT, ...). GetTemplateDefaultUseCase
-    // rejects those, so offering the button there is a dead action.
-    renderDrawer({ ...MOCK_TEMPLATE, id: 'tpl-pw', code: 'PASSWORD_RESET' });
+  it('shows Reset for an editable platform-only code to a global role', () => {
+    // Platform-only codes are editable (and reset-able) by AM/OP and have a platform seed.
+    renderDrawer({ ...MOCK_TEMPLATE, id: 'tpl-pw', code: 'PASSWORD_RESET', tenantId: null }, true);
+
+    expect(screen.getByRole('button', { name: 'Reset to default' })).toBeInTheDocument();
+  });
+
+  it('hides Reset for a platform-only code when not a global role (GetTemplateDefault 403s)', () => {
+    renderDrawer({ ...MOCK_TEMPLATE, id: 'tpl-pw', code: 'PASSWORD_RESET', tenantId: null }, false);
+
+    expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument();
+  });
+
+  it('hides Reset for a code outside the editable catalog', () => {
+    renderDrawer({ ...MOCK_TEMPLATE, id: 'tpl-x', code: 'SOME_CUSTOM_CODE' });
 
     expect(screen.queryByRole('button', { name: 'Reset to default' })).not.toBeInTheDocument();
   });
@@ -360,6 +371,25 @@ describe('TemplateFormDrawer — reset to default', () => {
     renderDrawer(MOCK_TEMPLATE);
 
     expect(screen.getByRole('button', { name: 'Reset to default' })).toBeInTheDocument();
+  });
+
+  it('offers a platform-only code its own variables, not inspection ones', () => {
+    renderDrawer({
+      ...MOCK_TEMPLATE,
+      id: 'tpl-grp',
+      code: 'INSPECTOR_GROUP_ASSIGNED',
+      tenantId: null,
+      subject: 'Group {{groupCode}} assigned',
+      body: '<p>Hi {{inspectorName}}, group {{groupCode}} ({{jobCount}} jobs).</p>',
+      requiredVariables: [],
+    });
+
+    // Its own producible variables are offered...
+    expect(screen.getByRole('button', { name: 'Insert groupCode' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Insert jobCount' })).toBeInTheDocument();
+    // ...but appointment/occupant variables it can never produce are not.
+    expect(screen.queryByRole('button', { name: 'Insert propertyAddress' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Insert confirmationLink' })).not.toBeInTheDocument();
   });
 
   it('leaves the form untouched when the fetch fails', async () => {

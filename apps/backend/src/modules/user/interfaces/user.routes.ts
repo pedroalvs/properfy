@@ -18,6 +18,7 @@ import type { GetUserUseCase } from '../application/use-cases/get-user.use-case'
 import type { ListUsersUseCase } from '../application/use-cases/list-users.use-case';
 import type { UpdateUserUseCase } from '../application/use-cases/update-user.use-case';
 import type { DeactivateUserUseCase } from '../application/use-cases/deactivate-user.use-case';
+import type { ReactivateUserUseCase } from '../application/use-cases/reactivate-user.use-case';
 import type { UnlockUserUseCase } from '../application/use-cases/unlock-user.use-case';
 import type { ResetUserPasswordUseCase } from '../application/use-cases/reset-user-password.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
@@ -28,6 +29,7 @@ export interface UserRouteContainer {
   listUsersUseCase: ListUsersUseCase;
   updateUserUseCase: UpdateUserUseCase;
   deactivateUserUseCase: DeactivateUserUseCase;
+  reactivateUserUseCase: ReactivateUserUseCase;
   unlockUserUseCase: UnlockUserUseCase;
   resetUserPasswordUseCase: ResetUserPasswordUseCase;
   jwtService: JwtService;
@@ -327,6 +329,92 @@ export async function registerUserRoutes(
         tenantId: params.data.tenantId,
         userId: params.data.userId,
         reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/users/:userId/deactivate (internal users only)
+  app.post(
+    '/v1/users/:userId/deactivate',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: internalUserIdParam,
+        body: deactivateSchema,
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      const params = internalUserIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid parameters',
+          params.error.errors,
+        );
+      const parsed = deactivateSchema.safeParse(request.body);
+      if (!parsed.success)
+        throw new ValidationError(
+          'Request payload is invalid',
+          parsed.error.errors,
+        );
+      await container.deactivateUserUseCase.execute({
+        tenantId: null,
+        userId: params.data.userId,
+        reason: parsed.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/tenants/:tenantId/users/:userId/reactivate
+  app.post(
+    '/v1/tenants/:tenantId/users/:userId/reactivate',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: userIdParam,
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      const params = userIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid parameters',
+          params.error.errors,
+        );
+      await container.reactivateUserUseCase.execute({
+        tenantId: params.data.tenantId,
+        userId: params.data.userId,
+        actor: request.authContext!,
+      });
+      return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/users/:userId/reactivate (internal users only)
+  app.post(
+    '/v1/users/:userId/reactivate',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: internalUserIdParam,
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      const params = internalUserIdParam.safeParse(request.params);
+      if (!params.success)
+        throw new ValidationError(
+          'Invalid parameters',
+          params.error.errors,
+        );
+      await container.reactivateUserUseCase.execute({
+        tenantId: null,
+        userId: params.data.userId,
         actor: request.authContext!,
       });
       return reply.status(204).send();

@@ -85,4 +85,52 @@ describe('ListNotificationTemplatesUseCase', () => {
     expect(result.data[0]!.tenantName).toBe('Acme Realty');
     expect(result.data[1]!.tenantName).toBeNull();
   });
+
+  it('should expose the notificationClass per row (not defaulted client-side)', async () => {
+    const transactional = new NotificationTemplateEntity({
+      id: 'tpl-tx',
+      tenantId: null,
+      templateCode: 'INSPECTION_CANCELLED',
+      channel: 'EMAIL',
+      subject: 'x',
+      bodyHtml: '<p>x</p>',
+      bodyText: 'x',
+      variablesJson: [],
+      isActive: true,
+      notificationClass: 'TRANSACTIONAL',
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01'),
+    });
+    vi.mocked(templateRepo.findAll).mockResolvedValue([makeListItem(transactional)]);
+
+    const useCase = new ListNotificationTemplatesUseCase(templateRepo, authorizationService);
+    const result = await useCase.execute({ actor: makeActor('AM') });
+
+    expect(result.data[0]!.notificationClass).toBe('TRANSACTIONAL');
+  });
+
+  it('resolves a search term to matching codes and passes it to the repository', async () => {
+    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
+
+    const useCase = new ListNotificationTemplatesUseCase(templateRepo, authorizationService);
+    // Search on the friendly NAME, which never appears in the raw code.
+    await useCase.execute({ actor: makeActor('AM'), search: 'inspection notice' });
+
+    const filters = vi.mocked(templateRepo.findAll).mock.calls[0]![0];
+    expect(filters.search).toBe('inspection notice');
+    expect(filters.searchCodes).toContain('INSPECTION_NOTICE');
+    // The legacy exact filter must not be set when searching.
+    expect(filters.templateCode).toBeUndefined();
+  });
+
+  it('falls back to the legacy templateCode filter when no search term is given', async () => {
+    vi.mocked(templateRepo.findAll).mockResolvedValue([]);
+
+    const useCase = new ListNotificationTemplatesUseCase(templateRepo, authorizationService);
+    await useCase.execute({ actor: makeActor('AM'), templateCode: 'INSPECTION_NOTICE' });
+
+    const filters = vi.mocked(templateRepo.findAll).mock.calls[0]![0];
+    expect(filters.templateCode).toBe('INSPECTION_NOTICE');
+    expect(filters.search).toBeUndefined();
+  });
 });

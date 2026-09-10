@@ -45,10 +45,10 @@ export function TemplateFilters({
         />
       )}
       <FilterInput
-        label="Template Code"
-        placeholder="INSPECTION_NOTICE"
-        value={filters.templateCode}
-        onChange={(templateCode) => onFiltersChange({ ...filters, templateCode })}
+        label="Search"
+        placeholder="Search by name or code"
+        value={filters.search}
+        onChange={(search) => onFiltersChange({ ...filters, search })}
       />
       <FilterSelect
         label="Channel"

@@ -99,7 +99,7 @@ describe('useTemplateList', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useTemplateList(), { wrapper });
 
-    expect(result.current.filters).toEqual({ templateCode: '', channel: '', includeDefaults: 'true', tenantId: '' });
+    expect(result.current.filters).toEqual({ search: '', channel: '', includeDefaults: 'true', tenantId: '' });
     expect(typeof result.current.setFilters).toBe('function');
   });
 
@@ -113,7 +113,7 @@ describe('useTemplateList', () => {
 
     act(() => {
       result.current.setFilters({
-        templateCode: 'INSPECTION_NOTICE',
+        search: 'Inspection Notice',
         channel: 'EMAIL',
         includeDefaults: 'false',
         tenantId: '',
@@ -126,7 +126,7 @@ describe('useTemplateList', () => {
         expect.objectContaining({
           params: {
             query: {
-              templateCode: 'INSPECTION_NOTICE',
+              search: 'Inspection Notice',
               channel: 'EMAIL',
               includeDefaults: 'false',
             },
@@ -146,7 +146,7 @@ describe('useTemplateList', () => {
 
     act(() => {
       result.current.setFilters({
-        templateCode: '',
+        search: '',
         channel: '',
         includeDefaults: 'true',
         tenantId: 'tenant-1',

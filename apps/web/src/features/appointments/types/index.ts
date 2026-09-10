@@ -287,7 +287,10 @@ export const EMPTY_FORM_DATA: AppointmentFormData = {
   contactName: '',
   contactPhone: '',
   contactEmail: '',
-  contacts: [{ ...createEmptyContact(), isPrimary: true }],
+  // No contact card by default — contacts are optional for every flow, so the
+  // editor appears only when the operator clicks "Add Contact". The Add handler
+  // marks the first contact primary, keeping exactly one primary while any exist.
+  contacts: [],
   customFields: [],
   appCredentialIds: [],
   keyRequired: false,

@@ -87,12 +87,45 @@ describe('GetUserUseCase', () => {
       role: 'CL_ADMIN',
       tenantId: 'tenant-1',
       branchId: null,
+      branchName: null,
       phone: null,
       timezone: null,
       status: 'ACTIVE',
+      totpEnabled: false,
+      lastLoginAt: null,
       createdAt: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-01'),
     });
+  });
+
+  it('surfaces branchName and totpEnabled from the entity', async () => {
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(
+      makeUser({ branchId: 'branch-1', branchName: 'Filial Centro', totpEnabled: true }),
+    );
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      actor: amActor,
+    });
+
+    expect(result.branchName).toBe('Filial Centro');
+    expect(result.totpEnabled).toBe(true);
+  });
+
+  it('should surface lastLoginAt when the user has logged in', async () => {
+    const lastLogin = new Date('2024-06-15T10:30:00.000Z');
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(
+      makeUser({ lastLoginAt: lastLogin }),
+    );
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-1',
+      userId: 'user-1',
+      actor: amActor,
+    });
+
+    expect(result.lastLoginAt).toEqual(lastLogin);
   });
 
   it('should return user for CL_ADMIN actor (own tenant)', async () => {

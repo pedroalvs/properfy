@@ -10,7 +10,7 @@ import {
 import { ForbiddenError } from '../../../../shared/domain/errors';
 
 export interface DeactivateUserInput {
-  tenantId: string;
+  tenantId: string | null;
   userId: string;
   reason: string;
   actor: AuthContext;
@@ -27,21 +27,34 @@ export class DeactivateUserUseCase {
   async execute(input: DeactivateUserInput): Promise<void> {
     const { tenantId, userId, reason, actor } = input;
 
-    // RBAC: AM/OP can deactivate any user; CL_ADMIN own tenant only
+    // RBAC mirrors update-user.use-case: AM crosses tenants and manages internal
+    // (tenant-less) users; CL_ADMIN and OP are scoped to their own tenant.
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
       action: 'user.deactivate',
       entityType: 'User',
     });
 
-    if (actor.role === 'CL_ADMIN' && actor.tenantId !== tenantId) {
+    if (
+      (actor.role === 'CL_ADMIN' || actor.role === 'OP') &&
+      actor.tenantId !== tenantId
+    ) {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
         'You can only deactivate users from your own tenant',
       );
     }
 
+    // Internal (tenant-less) users can only be deactivated by AM.
+    // OP is tenant-scoped per CORRECTION-001 close-it.
+    if (tenantId === null && actor.role !== 'AM') {
+      throw new ForbiddenError(
+        'AUTH_FORBIDDEN',
+        'You are not allowed to deactivate internal users',
+      );
+    }
+
     // CL_ADMIN can only manage users if the tenant setting allows it
-    if (actor.role === 'CL_ADMIN') {
+    if (actor.role === 'CL_ADMIN' && tenantId) {
       const tenant = await this.tenantRepo.findById(tenantId);
       if (tenant && tenant.settingsJson.allowClientUserManagement !== true) {
         throw new ForbiddenError(
@@ -73,12 +86,13 @@ export class DeactivateUserUseCase {
       throw new UserAlreadyInactiveError();
     }
 
-    const now = new Date();
-
-    // Set status to INACTIVE and deletedAt
+    // Flip status to INACTIVE only — do NOT soft-delete. Setting deleted_at
+    // would hide the row from every list (repositories filter deleted_at IS NULL)
+    // and from update()/status-change, so a deactivated user would vanish instead
+    // of showing as "Inactive" and could never be reactivated. Login is already
+    // blocked by the INACTIVE status check in the login use case.
     await this.userManagementRepo.update(userId, tenantId, {
       status: 'INACTIVE',
-      deletedAt: now,
     });
 
     // Revoke all sessions
@@ -93,7 +107,7 @@ export class DeactivateUserUseCase {
       entityId: userId,
       tenantId,
       before: { status: user.status },
-      after: { status: 'INACTIVE', deletedAt: now },
+      after: { status: 'INACTIVE' },
       reason,
     });
   }

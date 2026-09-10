@@ -82,18 +82,16 @@ export class PublishServiceGroupUseCase {
     // on the way back to DRAFT — republish stays unrestricted precisely so the
     // operator can land in DRAFT and repair the group.
     //
-    // A group with nothing to release is reachable in one click, by two different
-    // routes, so this needs its own guard rather than relying on the status loop
-    // below (which is vacuous over an empty array):
-    //   - operator cancel/reject unlinks every appointment, and republish does not
-    //     re-link them, so those groups come back with no members at all;
-    //   - the empty-group cleanup cancels without unlinking, so *those* groups come
-    //     back still carrying their terminal members.
-    // Counting live members rather than rows covers both. Without that, the second
-    // route reaches the per-appointment status check further down and fails with a
-    // confusing "appointment #N has an invalid status" instead of saying the group
-    // has nothing to publish. Soft-deleted appointments are already excluded by the
-    // repository, so the count is trustworthy.
+    // A group with nothing to release is still reachable, so this needs its own
+    // guard rather than relying on the status loop below (which is vacuous over an
+    // empty array). Operator Cancel keeps its members (they ride through CANCELLED
+    // and republish back to DRAFT intact), but the empty-group cleanup cancels
+    // *without* unlinking, so those groups come back still carrying their terminal
+    // members and must be blocked here. Counting live members rather than rows
+    // covers it: without it, such a group reaches the per-appointment status check
+    // further down and fails with a confusing "appointment #N has an invalid status"
+    // instead of saying the group has nothing to publish. Soft-deleted appointments
+    // are already excluded by the repository, so the count is trustworthy.
     const liveAppointments = appointments.filter((a) => !isTerminalAppointmentStatus(a.status));
     if (liveAppointments.length === 0) {
       throw new ServiceGroupEmptyError();

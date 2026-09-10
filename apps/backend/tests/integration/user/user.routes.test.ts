@@ -10,6 +10,7 @@ const mockGetUserExecute = vi.fn();
 const mockListUsersExecute = vi.fn();
 const mockUpdateUserExecute = vi.fn();
 const mockDeactivateUserExecute = vi.fn();
+const mockReactivateUserExecute = vi.fn();
 const mockResetUserPasswordExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
@@ -25,6 +26,7 @@ vi.mock('../../../src/main/container', () => ({
       listUsersUseCase: { execute: mockListUsersExecute },
       updateUserUseCase: { execute: mockUpdateUserExecute },
       deactivateUserUseCase: { execute: mockDeactivateUserExecute },
+      reactivateUserUseCase: { execute: mockReactivateUserExecute },
       resetUserPasswordUseCase: { execute: mockResetUserPasswordExecute },
       jwtService: { verify: mockJwtVerify },
     },
@@ -506,6 +508,101 @@ describe('POST /v1/tenants/:tenantId/users/:userId/deactivate', () => {
     const res = await supertest(app.server)
       .post(`/v1/tenants/${TENANT_ID}/users/${USER_ID}/deactivate`)
       .send({ reason: 'Employee left' });
+
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('POST /v1/users/:userId/deactivate', () => {
+  it('should resolve (not 404) and return 204 for internal deactivate', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockDeactivateUserExecute.mockResolvedValueOnce(undefined);
+
+    const res = await supertest(app.server)
+      .post(`/v1/users/${USER_ID}/deactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reason: 'Employee left the platform' });
+
+    expect(res.status).toBe(204);
+    expect(mockDeactivateUserExecute).toHaveBeenCalledWith({
+      tenantId: null,
+      userId: USER_ID,
+      reason: 'Employee left the platform',
+      actor: amContext,
+    });
+  });
+
+  it('should return 400 when reason is missing', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/users/${USER_ID}/deactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockDeactivateUserExecute).not.toHaveBeenCalled();
+  });
+
+  it('should return 401 without auth token', async () => {
+    const res = await supertest(app.server)
+      .post(`/v1/users/${USER_ID}/deactivate`)
+      .send({ reason: 'Employee left' });
+
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('POST /v1/tenants/:tenantId/users/:userId/reactivate', () => {
+  it('should return 204 on success', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockReactivateUserExecute.mockResolvedValueOnce(undefined);
+
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/users/${USER_ID}/reactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({});
+
+    expect(res.status).toBe(204);
+    expect(mockReactivateUserExecute).toHaveBeenCalledWith({
+      tenantId: TENANT_ID,
+      userId: USER_ID,
+      actor: amContext,
+    });
+  });
+
+  it('should return 401 without auth token', async () => {
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/users/${USER_ID}/reactivate`)
+      .send({});
+
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('POST /v1/users/:userId/reactivate', () => {
+  it('should resolve (not 404) and return 204 for internal reactivate', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockReactivateUserExecute.mockResolvedValueOnce(undefined);
+
+    const res = await supertest(app.server)
+      .post(`/v1/users/${USER_ID}/reactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({});
+
+    expect(res.status).toBe(204);
+    expect(mockReactivateUserExecute).toHaveBeenCalledWith({
+      tenantId: null,
+      userId: USER_ID,
+      actor: amContext,
+    });
+  });
+
+  it('should return 401 without auth token', async () => {
+    const res = await supertest(app.server)
+      .post(`/v1/users/${USER_ID}/reactivate`)
+      .send({});
 
     expect(res.status).toBe(401);
   });

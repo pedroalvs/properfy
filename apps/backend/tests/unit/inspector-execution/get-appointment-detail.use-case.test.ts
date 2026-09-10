@@ -584,6 +584,38 @@ describe('GetAppointmentDetailUseCase', () => {
     });
   });
 
+  describe('jobDetails.agency.branchName', () => {
+    it('surfaces the branch name loaded on the appointment relations', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue({
+        ...makeAppointmentWithRelations(),
+        branchName: 'North Shore',
+      });
+
+      const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      expect(result.jobDetails!.agency.branchName).toBe('North Shore');
+    });
+
+    it('maps an empty branch name to null (appointment without a branch)', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue({
+        ...makeAppointmentWithRelations(),
+        branchName: '',
+      });
+
+      const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      expect(result.jobDetails!.agency.branchName).toBeNull();
+    });
+
+    it('is null when the relations carry no branch name', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+
+      const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+
+      expect(result.jobDetails!.agency.branchName).toBeNull();
+    });
+  });
+
   describe('apps (effective credentials)', () => {
     it('resolves apps via findEffectiveForAppointment with the appointment tenant/branch scope', async () => {
       const effective = new AppCredentialEntity({

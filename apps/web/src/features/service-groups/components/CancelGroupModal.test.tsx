@@ -36,7 +36,10 @@ describe('CancelGroupModal', () => {
         serviceGroupId="sg-01"
       />,
     );
-    expect(screen.getByText(/This action will cancel the service group/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/The assigned inspector will be removed and the group will be marked Cancelled/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/The appointments stay in the group/)).toBeInTheDocument();
   });
 
   it('has disabled Cancel Group button when reason is empty', () => {

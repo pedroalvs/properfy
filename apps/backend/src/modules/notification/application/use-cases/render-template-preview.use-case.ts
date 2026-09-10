@@ -48,14 +48,17 @@ export class RenderTemplatePreviewUseCase {
     if (tenantId && this.tenantRepo) {
       const tenant = await this.tenantRepo.findById(tenantId);
       if (tenant) {
-        sampleVars.agencyName = tenant.name;
+        // Resolve agency branding with the SAME empty-value semantics as the real
+        // send (BuildNotificationPayloadService) and the test-send: a resolved
+        // tenant always overrides the platform samples, and a missing field
+        // becomes '' rather than keeping a fabricated sample. Without the
+        // unconditional override, a tenant without contactPhone kept the sample
+        // phone in the preview while the delivered email rendered nothing — the
+        // same preview/delivery divergence this fixes for the logo.
         const settings = tenant.settingsJson;
-        if (typeof settings.logoUrl === 'string' && settings.logoUrl) {
-          sampleVars.agencyLogoUrl = settings.logoUrl;
-        }
-        if (typeof settings.contactPhone === 'string' && settings.contactPhone) {
-          sampleVars.agencyPhone = settings.contactPhone;
-        }
+        sampleVars.agencyName = tenant.name;
+        sampleVars.agencyLogoUrl = typeof settings.logoUrl === 'string' ? settings.logoUrl : '';
+        sampleVars.agencyPhone = typeof settings.contactPhone === 'string' ? settings.contactPhone : '';
       }
     }
 

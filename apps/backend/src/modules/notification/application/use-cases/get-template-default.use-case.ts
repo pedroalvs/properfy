@@ -2,7 +2,7 @@ import type { AuthContext, NotificationChannel } from '@properfy/shared';
 import { NotFoundError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
-import { MANDATORY_TEMPLATE_CODES } from '../../domain/notification.constants';
+import { isEditableTemplateCode, isPlatformScopedEditableCode } from '../../domain/notification.constants';
 import { PLATFORM_TEMPLATES } from '../../domain/platform-notification-templates';
 
 const VALID_CHANNELS: NotificationChannel[] = ['EMAIL', 'SMS'];
@@ -50,8 +50,16 @@ export class GetTemplateDefaultUseCase {
       entityType: 'NotificationTemplate',
     });
 
-    if (!MANDATORY_TEMPLATE_CODES.includes(input.templateCode as typeof MANDATORY_TEMPLATE_CODES[number])) {
+    if (!isEditableTemplateCode(input.templateCode)) {
       throw new ValidationError('Invalid template code');
+    }
+    // Platform-only codes are AM/OP-only wherever they are touched: a CL_ADMIN cannot
+    // pull their default body here, matching upsert and test-send.
+    if (isPlatformScopedEditableCode(input.templateCode)) {
+      this.authorizationService.assertRoles(input.actor, ['AM', 'OP'], {
+        action: 'config.notification_templates',
+        entityType: 'NotificationTemplate',
+      });
     }
     if (!VALID_CHANNELS.includes(input.channel as NotificationChannel)) {
       throw new ValidationError('Invalid notification channel');
@@ -61,7 +69,10 @@ export class GetTemplateDefaultUseCase {
     const isEmail = channel === 'EMAIL';
 
     // Editing an agency override: the platform default is what it reverts to.
-    if (input.tenantId) {
+    // Platform-only codes have no override level, so a stray tenantId must NOT resolve to
+    // the platform-default row (that would return the very body being edited — a no-op
+    // reset). They always fall through to the factory seed below, the level above them.
+    if (input.tenantId && !isPlatformScopedEditableCode(input.templateCode)) {
       const platform = await this.templateRepo.findByTenantCodeChannel(null, input.templateCode, channel);
       if (platform) {
         return {

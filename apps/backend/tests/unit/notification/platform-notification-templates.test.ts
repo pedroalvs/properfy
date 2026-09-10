@@ -107,26 +107,24 @@ describe('seeded notification class follows the shared catalogue', () => {
     }
   });
 
-  // These five are TRANSACTIONAL ONLY because their entry declares it — they are
-  // in NEITHER shared classification map, so getDefaultClass alone returns
-  // OPERATIONAL for all of them. Nothing else pins that: deleting the field would
-  // slip past the protected-contradiction test (they are not protected) and past
-  // the membership test above, and PASSWORD_RESET would quietly become
-  // consent-suppressible, locking an opted-out user out of account recovery.
-  //
-  // This PR removes the explicit class from INSPECTION_CANCELLED_AGENCY calling it
-  // a workaround, which is precisely the cleanup that must NOT be applied here.
+  // These five are must-deliver system/inspector emails. They used to be TRANSACTIONAL
+  // only because their seed entry declared it — safe while they were NOT editable. Now
+  // that they are editable through the templates UI, the seed entry alone is not enough
+  // (an upsert can rewrite the DB row's class), so they are pinned in
+  // PROTECTED_TEMPLATE_CLASSIFICATIONS: getProtectedClass returns TRANSACTIONAL, which
+  // both forces the seed default and makes upsert reject any reclassification. The
+  // explicit seed entry now agrees with the catalogue rather than being the sole pin.
   it.each([
     'INSPECTION_STUCK_ALERT',
     'PASSWORD_RESET',
     'INSPECTOR_GROUP_ASSIGNED',
     'INSPECTOR_GROUP_UNASSIGNED',
     'INSPECTOR_GROUP_RESCHEDULED',
-  ])('%s stays TRANSACTIONAL, which only its explicit entry provides', (code) => {
+  ])('%s is pinned TRANSACTIONAL by the shared catalogue and the seed agrees', (code) => {
     const entry = PLATFORM_TEMPLATES.find((t) => t.code === code);
     expect(entry, `${code} missing from PLATFORM_TEMPLATES`).toBeDefined();
-    expect(getProtectedClass(code)).toBeUndefined();
-    expect(getDefaultClass(code)).toBe('OPERATIONAL');
+    expect(getProtectedClass(code)).toBe('TRANSACTIONAL');
+    expect(getDefaultClass(code)).toBe('TRANSACTIONAL');
     expect(resolvePlatformTemplateClass(entry!)).toBe('TRANSACTIONAL');
   });
 

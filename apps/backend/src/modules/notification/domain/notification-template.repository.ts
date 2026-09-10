@@ -4,6 +4,18 @@ import type { NotificationChannel } from '@properfy/shared';
 export interface NotificationTemplateFilters {
   tenantId?: string | null;
   templateCode?: string;
+  /**
+   * Free-text search term matched (case-insensitive) against the raw `template_code`
+   * and the `subject`. Combined with {@link searchCodes} so a search on the humanized
+   * name still reaches rows whose subject does not contain the term.
+   */
+  search?: string;
+  /**
+   * Template codes whose code or humanized label matched the search term, resolved by
+   * the use case via the shared registry. Rows with any of these codes match even when
+   * neither their raw code nor subject contains the term.
+   */
+  searchCodes?: string[];
   channel?: NotificationChannel;
   includeDefaults?: boolean;
 }

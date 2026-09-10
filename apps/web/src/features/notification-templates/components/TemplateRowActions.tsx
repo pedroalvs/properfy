@@ -3,7 +3,7 @@ import { RowActions, type RowAction } from '@/components/data/RowActions';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useTemplateDelete } from '../hooks/useTemplateDelete';
-import { MANDATORY_TEMPLATE_CODES, type NotificationTemplate } from '../types';
+import { isEditableTemplateCode, isPlatformScopedEditableCode, type NotificationTemplate } from '../types';
 
 interface TemplateRowActionsProps {
   template: NotificationTemplate;
@@ -11,9 +11,11 @@ interface TemplateRowActionsProps {
   onDeleted?: () => void;
   /** AM/OP only — hard delete is restricted to operators. */
   canDelete?: boolean;
+  /** AM/OP — required to edit platform-only codes (editable as the platform default only). */
+  isGlobalRole?: boolean;
 }
 
-export function TemplateRowActions({ template, onEdit, onDeleted, canDelete }: TemplateRowActionsProps) {
+export function TemplateRowActions({ template, onEdit, onDeleted, canDelete, isGlobalRole }: TemplateRowActionsProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const { deleteTemplate, isDeleting } = useTemplateDelete();
   const { showSuccess, showError } = useSnackbar();
@@ -22,11 +24,15 @@ export function TemplateRowActions({ template, onEdit, onDeleted, canDelete }: T
   const isOverride = template.tenantId !== null;
   const showDelete = !!canDelete && isOverride;
 
-  // The list also shows platform rows for codes outside the mandatory catalog
-  // (PASSWORD_RESET, INSPECTION_STUCK_ALERT, INSPECTOR_GROUP_*). The upsert use
-  // case refuses those with 400 "Invalid template code", so offering Edit only
-  // led operators into a save that could never succeed.
-  const canEdit = (MANDATORY_TEMPLATE_CODES as readonly string[]).includes(template.code);
+  // Every seeded template is editable. Mandatory (tenant-facing) codes can be edited
+  // as a platform default or an agency override, by any template manager. Platform-only
+  // codes (PASSWORD_RESET, INSPECTION_STUCK_ALERT, INSPECTOR_GROUP_*, ...) are editable
+  // only as the platform default and only by AM/OP — so a CL_ADMIN must NOT see Edit on
+  // them, or the save would dead-end on the server's 400. The upsert use case enforces
+  // the same scope; this gate just keeps the button honest.
+  const canEdit =
+    isEditableTemplateCode(template.code) &&
+    (!isPlatformScopedEditableCode(template.code) || !!isGlobalRole);
 
   const actions: RowAction[] = [];
   if (canEdit) {
