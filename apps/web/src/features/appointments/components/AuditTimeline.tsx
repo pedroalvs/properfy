@@ -22,6 +22,8 @@ const ACTION_LABELS: Record<string, string> = {
   'inspection.finished': 'Inspection Finished',
   'notification.send_failed': 'Notification Failed to Send',
   'notification.dispatch_failed': 'Notification Dispatch Failed',
+  'fy.note_added': 'Note Added via Fy',
+  'fy.contact_updated': 'Contact Updated via Fy',
 };
 
 const ACTION_STYLES: Record<string, { icon: string; color: string }> = {
@@ -41,6 +43,8 @@ const ACTION_STYLES: Record<string, { icon: string; color: string }> = {
   'inspection.finished': { icon: 'mdi-flag-checkered', color: 'border-success' },
   'notification.send_failed': { icon: 'mdi-email-alert', color: 'border-error' },
   'notification.dispatch_failed': { icon: 'mdi-bell-alert', color: 'border-error' },
+  'fy.note_added': { icon: 'mdi-message-text', color: 'border-info' },
+  'fy.contact_updated': { icon: 'mdi-account-edit', color: 'border-info' },
 };
 
 const DEFAULT_STYLE = { icon: 'mdi-circle-small', color: 'border-primary' };
@@ -139,6 +143,20 @@ function notificationFailureDetail(action: string, afterJson: unknown): string |
   return parts.length > 0 ? parts.join(' \u00b7 ') : null;
 }
 
+/**
+ * Detail line for a Fy-agent note. The note text is stored clean in the
+ * appointment `notes` column (inspector-facing); the audit keeps authorship and
+ * timestamp. That audit carries only `after: { content }`, so summarizeChanges()
+ * returns null \u2014 without this the row would show just "Note Added via Fy" and
+ * hide the actual instruction the operator opened the history to read.
+ */
+function fyNoteDetail(action: string, afterJson: unknown): string | null {
+  if (action !== 'fy.note_added') return null;
+  if (!afterJson || typeof afterJson !== 'object' || Array.isArray(afterJson)) return null;
+  const content = (afterJson as Record<string, unknown>)['content'];
+  return typeof content === 'string' && content.length > 0 ? content : null;
+}
+
 export function AuditTimeline({ entries }: AuditTimelineProps) {
   if (entries.length === 0) return null;
 
@@ -151,6 +169,7 @@ export function AuditTimeline({ entries }: AuditTimelineProps) {
           const changeSummary = summarizeChanges(entry.beforeJson, entry.afterJson);
           const badges = getMetadataBadges(entry.metadataJson);
           const failureDetail = notificationFailureDetail(entry.action, entry.afterJson);
+          const noteDetail = fyNoteDetail(entry.action, entry.afterJson);
 
           return (
             <li key={entry.id} className="relative">
@@ -170,6 +189,11 @@ export function AuditTimeline({ entries }: AuditTimelineProps) {
                 {failureDetail && (
                   <p className="mt-1 text-xs font-medium text-error">
                     {failureDetail}
+                  </p>
+                )}
+                {noteDetail && (
+                  <p className="mt-1 text-xs text-text-primary">
+                    {noteDetail}
                   </p>
                 )}
                 {changeSummary && (

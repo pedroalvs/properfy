@@ -250,4 +250,41 @@ describe('AuditTimeline', () => {
     // Both must read as errors, not as neutral activity.
     expect(container.querySelectorAll('.border-error').length).toBe(2);
   });
+
+  // The Fy agent's note text is stored clean in the appointment `notes` column;
+  // its authorship + timestamp live here in the history. The audit carries only
+  // `after: { content }`, so — like notification failures — it needs a dedicated
+  // renderer, otherwise the row would read "Note Added via Fy" and hide the
+  // actual instruction the operator came here to read.
+  const fyNoteEntry: AuditLogEntry = {
+    id: 'log-fy-1',
+    tenantId: 'ten-1',
+    actorType: 'SYSTEM',
+    actorId: 'api-key:k-1',
+    actorName: null,
+    entityType: 'Appointment',
+    entityId: 'apt-01',
+    action: 'fy.note_added',
+    reason: null,
+    beforeJson: null,
+    afterJson: { content: 'Please call the tenant 30 minutes before arriving.' },
+    requestId: null,
+    ipAddress: null,
+    metadataJson: null,
+    createdAt: '2026-08-06T14:34:23.691Z',
+  };
+
+  it('labels and renders the note content for a Fy note entry', () => {
+    render(<AuditTimeline entries={[fyNoteEntry]} />);
+    expect(screen.getByText('Note Added via Fy')).toBeInTheDocument();
+    expect(
+      screen.getByText('Please call the tenant 30 minutes before arriving.'),
+    ).toBeInTheDocument();
+  });
+
+  it('gives the Fy note entry its own icon (not the default dot)', () => {
+    const { container } = render(<AuditTimeline entries={[fyNoteEntry]} />);
+    expect(container.querySelector('.mdi-message-text')).toBeTruthy();
+    expect(container.querySelector('.mdi-circle-small')).toBeFalsy();
+  });
 });

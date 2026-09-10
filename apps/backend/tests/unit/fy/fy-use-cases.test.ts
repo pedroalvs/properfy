@@ -427,7 +427,7 @@ describe('GetFyAvailableDatesUseCase', () => {
 });
 
 describe('AddFyAppointmentNoteUseCase', () => {
-  it('appends a timestamped Fy line and audits', async () => {
+  it('appends the clean note content (no metadata prefix) and audits authorship', async () => {
     const fyRepo = { appendAppointmentNote: vi.fn(async () => ({ tenantId: 't1' })) } as any;
     const useCase = new AddFyAppointmentNoteUseCase(fyRepo, auditService);
 
@@ -437,11 +437,19 @@ describe('AddFyAppointmentNoteUseCase', () => {
       actor,
     });
 
+    // The inspector-facing note stays clean: no `[Fy <timestamp>]` prefix. The
+    // Fy authorship and timestamp live only in the audit log / appointment history.
     const line = fyRepo.appendAppointmentNote.mock.calls[0][1] as string;
-    expect(line).toMatch(/^\[Fy \d{4}-\d{2}-\d{2}T.*\] Call 30 min before arrival$/);
+    expect(line).toBe('Call 30 min before arrival');
+    expect(line).not.toMatch(/\[Fy/);
     expect(result.content).toBe('Call 30 min before arrival');
     expect(auditService.log).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'fy.note_added', actorId: 'api-key:k-1', tenantId: 't1' }),
+      expect.objectContaining({
+        action: 'fy.note_added',
+        actorId: 'api-key:k-1',
+        tenantId: 't1',
+        after: { content: 'Call 30 min before arrival' },
+      }),
     );
   });
 
