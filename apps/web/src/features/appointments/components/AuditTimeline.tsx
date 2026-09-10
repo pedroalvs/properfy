@@ -23,7 +23,6 @@ const ACTION_LABELS: Record<string, string> = {
   'notification.send_failed': 'Notification Failed to Send',
   'notification.dispatch_failed': 'Notification Dispatch Failed',
   'fy.note_added': 'Note Added via Fy',
-  'fy.contact_updated': 'Contact Updated via Fy',
 };
 
 const ACTION_STYLES: Record<string, { icon: string; color: string }> = {
@@ -44,7 +43,6 @@ const ACTION_STYLES: Record<string, { icon: string; color: string }> = {
   'notification.send_failed': { icon: 'mdi-email-alert', color: 'border-error' },
   'notification.dispatch_failed': { icon: 'mdi-bell-alert', color: 'border-error' },
   'fy.note_added': { icon: 'mdi-message-text', color: 'border-info' },
-  'fy.contact_updated': { icon: 'mdi-account-edit', color: 'border-info' },
 };
 
 const DEFAULT_STYLE = { icon: 'mdi-circle-small', color: 'border-primary' };
@@ -192,7 +190,7 @@ export function AuditTimeline({ entries }: AuditTimelineProps) {
                   </p>
                 )}
                 {noteDetail && (
-                  <p className="mt-1 text-xs text-text-primary">
+                  <p className="mt-1 text-xs text-text-secondary">
                     {noteDetail}
                   </p>
                 )}
