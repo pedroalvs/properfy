@@ -110,6 +110,9 @@ export function DateInput({
   // Set when the calendar is opened by keyboard, so focus is moved into the grid
   // once it mounts (a mouse open leaves focus on the field, keeping it typeable).
   const focusGridOnOpenRef = useRef(false);
+  // Placement is decided once per open and kept for its lifetime, so scrolling the
+  // field toward a viewport edge repositions the panel without flipping sides.
+  const placementRef = useRef<'below' | 'above' | null>(null);
   const hintId = useId();
   const panelId = useId();
   const [open, setOpen] = useState(false);
@@ -140,10 +143,10 @@ export function DateInput({
     if (!open || event.shiftKey || (event.key !== 'Tab' && event.key !== 'ArrowDown')) {
       return false;
     }
-    const first = panelFocusables(panelRef.current)[0];
-    if (!first) return false;
+    const target = panelInitialFocus(panelRef.current);
+    if (!target) return false;
     event.preventDefault();
-    first.focus();
+    target.focus();
     return true;
   };
 
@@ -199,8 +202,13 @@ export function DateInput({
     // not fit below but there is more room above — decided against the *real*
     // panel height, not a fixed threshold. `maxHeight` caps the panel to the room
     // on the chosen side so a month taller than that scrolls internally rather
-    // than off the viewport edge.
-    const placeBelow = panelHeight <= spaceBelow || spaceBelow >= spaceAbove;
+    // than off the viewport edge. The side is decided once per open (placementRef)
+    // and reused, so scrolling repositions without flipping mid-scroll.
+    const placeBelow =
+      placementRef.current != null
+        ? placementRef.current === 'below'
+        : panelHeight <= spaceBelow || spaceBelow >= spaceAbove;
+    placementRef.current = placeBelow ? 'below' : 'above';
     if (placeBelow) {
       // Anchored to the field's bottom edge; the panel grows downward, so a
       // taller month never overlaps the field.
@@ -231,14 +239,21 @@ export function DateInput({
   useLayoutEffect(() => {
     if (!open) {
       setCoords(null);
+      placementRef.current = null;
       return;
     }
     applyCoords();
-    if (focusGridOnOpenRef.current) {
+  }, [open, applyCoords]);
+
+  // Move focus into the grid on a keyboard open — but only once coords are applied
+  // and the panel is actually visible. Focusing a still-`visibility:hidden` subtree
+  // is a no-op in real browsers, so this must wait for the visible paint.
+  useLayoutEffect(() => {
+    if (open && coords && focusGridOnOpenRef.current) {
       focusGridOnOpenRef.current = false;
       panelInitialFocus(panelRef.current)?.focus();
     }
-  }, [open, applyCoords]);
+  }, [open, coords]);
 
   // Keep the popup anchored to the field if the host scrolls or the window
   // resizes. Coalesce bursts into one measurement per frame so a fast scroll
