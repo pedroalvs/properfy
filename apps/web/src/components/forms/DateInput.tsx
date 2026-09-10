@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   DATE_PLACEHOLDER,
   backspaceDateText,
@@ -9,14 +10,12 @@ import {
 } from '@properfy/shared';
 import { CalendarPanel } from '@/components/ui/CalendarPanel';
 import {
-  formDropdown,
-  formDropdownAbove,
   formInput,
   formInputContainer,
   formInputContainerError,
   formInputContainerDisabled,
 } from './form-styles';
-import { clippingRect, resolveDropdownPlacement, type DropdownPlacement } from './dropdown-placement';
+import { resolveDropdownPlacement } from './dropdown-placement';
 import { useMaskedField } from './useMaskedField';
 
 interface DateInputProps {
@@ -34,6 +33,14 @@ interface DateInputProps {
   'aria-describedby'?: string;
 }
 
+/** Panel width, in px, matching the `w-[19rem]` class on the popup. */
+const PANEL_WIDTH = 304;
+/** Fallback panel height for the first paint, before `panelRef` is measured. */
+const PANEL_HEIGHT_ESTIMATE = 340;
+/** Breathing room between the field and the popup, and from the viewport edges. */
+const GUTTER = 4;
+const VIEWPORT_MARGIN = 8;
+
 /**
  * A `dd/mm/yyyy` date field that renders identically on every machine.
  *
@@ -45,6 +52,12 @@ interface DateInputProps {
  * clamping silently rewrites what the user meant, and blocking makes it
  * impossible to type an in-range date whose prefix is out of range. The value is
  * still emitted so consumers can render their own message — several already do.
+ *
+ * The calendar popup is rendered into `document.body` via a portal with
+ * `position: fixed` coordinates. It must escape the overflow of whatever hosts
+ * the field — a `Dialog`/`DrawerPanel` body scrolls (`overflow-y-auto`), and an
+ * absolutely-positioned popup would be clipped by it (and add an inner scrollbar)
+ * instead of floating over the page.
  */
 export function DateInput({
   value,
@@ -60,9 +73,10 @@ export function DateInput({
 }: DateInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const hintId = useId();
   const [open, setOpen] = useState(false);
-  const [placement, setPlacement] = useState<DropdownPlacement>('below');
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
 
   const field = useMaskedField({
     value,
@@ -95,32 +109,64 @@ export function DateInput({
   };
 
   /**
-   * Placement is measured once at open time, against whatever actually clips the
-   * popover — without this it is swallowed by a `DrawerPanel`'s overflow. Same
-   * approach as SelectInput.
+   * Fixed, viewport-relative coordinates for the portaled popup. Because it
+   * escapes every overflow ancestor, the viewport is the only thing that clips
+   * it, so placement is decided against the viewport rather than the nearest
+   * scrolling parent. Flip logic is delegated to `resolveDropdownPlacement`.
    */
-  const openCalendar = () => {
-    if (containerRef.current) {
-      const trigger = containerRef.current.getBoundingClientRect();
-      const clip = clippingRect(containerRef.current);
-      setPlacement(
-        resolveDropdownPlacement({
-          triggerTop: trigger.top,
-          triggerBottom: trigger.bottom,
-          clipTop: clip.top,
-          clipBottom: clip.bottom,
-        }).placement,
-      );
+  const computeCoords = useCallback((): { top: number; left: number } | null => {
+    const container = containerRef.current;
+    if (!container) return null;
+    const rect = container.getBoundingClientRect();
+    const panelHeight = panelRef.current?.offsetHeight || PANEL_HEIGHT_ESTIMATE;
+    const { placement } = resolveDropdownPlacement({
+      triggerTop: rect.top,
+      triggerBottom: rect.bottom,
+      clipTop: 0,
+      clipBottom: window.innerHeight,
+    });
+    const top =
+      placement === 'above' ? rect.top - panelHeight - GUTTER : rect.bottom + GUTTER;
+    let left = rect.left;
+    const maxLeft = window.innerWidth - VIEWPORT_MARGIN - PANEL_WIDTH;
+    if (left > maxLeft) left = maxLeft;
+    if (left < VIEWPORT_MARGIN) left = VIEWPORT_MARGIN;
+    return { top, left };
+  }, []);
+
+  const openCalendar = () => setOpen(true);
+
+  // Measure and place the popup once it is mounted (so `panelRef` height is real).
+  useLayoutEffect(() => {
+    if (!open) {
+      setCoords(null);
+      return;
     }
-    setOpen(true);
-  };
+    setCoords(computeCoords());
+  }, [open, computeCoords]);
+
+  // Keep the popup anchored to the field if the host scrolls or the window resizes.
+  useEffect(() => {
+    if (!open) return;
+    const reposition = () => setCoords(computeCoords());
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, true);
+    return () => {
+      window.removeEventListener('resize', reposition);
+      window.removeEventListener('scroll', reposition, true);
+    };
+  }, [open, computeCoords]);
 
   useEffect(() => {
     if (!open) return;
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
+      const target = event.target as Node;
+      // The popup lives in document.body (portal), so it is outside the
+      // container's DOM subtree — check it explicitly or a click on a day closes
+      // the popup before it can register.
+      const insideContainer = containerRef.current?.contains(target) ?? false;
+      const insidePanel = panelRef.current?.contains(target) ?? false;
+      if (!insideContainer && !insidePanel) setOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -128,7 +174,9 @@ export function DateInput({
 
   const handleContainerKeyDown = (event: React.KeyboardEvent) => {
     if (open && event.key === 'Escape') {
-      // Stop the host Dialog from closing along with the popover.
+      // Stop the host Dialog from closing along with the popover. React routes
+      // synthetic events through the component tree, so keydown from the portaled
+      // panel still bubbles here.
       event.stopPropagation();
       setOpen(false);
       inputRef.current?.focus();
@@ -154,6 +202,12 @@ export function DateInput({
         value={field.text}
         onChange={(e) => handleChange(e.target.value)}
         onKeyDown={handleKeyDown}
+        // Clicking anywhere in the field opens the calendar while keeping the
+        // caret for typing. Open-on-click (not focus) avoids re-opening when a day
+        // pick programmatically refocuses the input.
+        onClick={() => {
+          if (!disabled && variant === 'form') openCalendar();
+        }}
         disabled={disabled}
         aria-label={ariaLabel}
         aria-describedby={[ariaDescribedBy, hintId].filter(Boolean).join(' ') || undefined}
@@ -188,24 +242,34 @@ export function DateInput({
         )}
       </div>
 
-      {open && (
-        <div
-          role="dialog"
-          aria-label="Choose date"
-          className={`${placement === 'above' ? formDropdownAbove : formDropdown} w-[19rem] max-h-none overflow-visible`}
-        >
-          <CalendarPanel
-            selected={value}
-            min={min}
-            max={max}
-            onSelect={(next) => {
-              field.setText(isoDateToMasked(next));
-              setOpen(false);
-              inputRef.current?.focus();
+      {open &&
+        createPortal(
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-label="Choose date"
+            className="w-[19rem] overflow-visible rounded border border-black/10 bg-card-bg shadow-lg"
+            style={{
+              position: 'fixed',
+              top: coords?.top ?? 0,
+              left: coords?.left ?? 0,
+              zIndex: 50,
+              visibility: coords ? 'visible' : 'hidden',
             }}
-          />
-        </div>
-      )}
+          >
+            <CalendarPanel
+              selected={value}
+              min={min}
+              max={max}
+              onSelect={(next) => {
+                field.setText(isoDateToMasked(next));
+                setOpen(false);
+                inputRef.current?.focus();
+              }}
+            />
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

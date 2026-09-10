@@ -215,6 +215,41 @@ describe('DateInput calendar popover', () => {
     expect(screen.getByText('June 2026')).toBeInTheDocument();
   });
 
+  it('opens the calendar when the field itself is clicked, not just the icon', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="2026-06-15" />);
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await user.click(getInput());
+
+    expect(screen.getByRole('dialog', { name: 'Choose date' })).toBeInTheDocument();
+  });
+
+  it('still lets the user type a date after clicking the field', async () => {
+    const user = userEvent.setup();
+    const onValue = vi.fn();
+    render(<ControlledDateInput onValue={onValue} />);
+
+    await user.click(getInput());
+    await user.type(getInput(), '15062026');
+
+    expect(getInput().value).toBe('15/06/2026');
+    expect(onValue).toHaveBeenLastCalledWith('2026-06-15');
+  });
+
+  it('renders the popup outside the field container so it overlays everything', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ControlledDateInput initial="2026-06-15" />);
+
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Choose date' });
+    // Portaled to document.body: it must not be nested inside the field's own
+    // container (which lives inside a scrolling modal body in real usage).
+    expect(container.contains(dialog)).toBe(false);
+    expect(dialog).toHaveStyle({ position: 'fixed' });
+  });
+
   it('picking a day sets the value and closes', async () => {
     const user = userEvent.setup();
     const onValue = vi.fn();
