@@ -99,6 +99,7 @@ export function DateInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const hintId = useId();
+  const panelId = useId();
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<PopupCoords | null>(null);
 
@@ -120,18 +121,22 @@ export function DateInput({
     field.setText(wholesale ? isoDateToMasked(wholesale) : maskDateText(next));
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    // While the calendar is open, Tab (and ArrowDown, the combobox affordance)
-    // steps into the grid — the panel is portaled to the end of the document, so
-    // without this a keyboard user could never reach it. Typing is untouched.
-    if (open && !event.shiftKey && (event.key === 'Tab' || event.key === 'ArrowDown')) {
-      const first = panelFocusables(panelRef.current)[0];
-      if (first) {
-        event.preventDefault();
-        first.focus();
-        return;
-      }
+  // While the calendar is open, Tab (and ArrowDown, the combobox affordance) steps
+  // into the grid — the panel is portaled to the end of the document, so without
+  // this a keyboard user could never reach it from either trigger (field or icon).
+  const stepIntoCalendar = (event: React.KeyboardEvent): boolean => {
+    if (!open || event.shiftKey || (event.key !== 'Tab' && event.key !== 'ArrowDown')) {
+      return false;
     }
+    const first = panelFocusables(panelRef.current)[0];
+    if (!first) return false;
+    event.preventDefault();
+    first.focus();
+    return true;
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (stepIntoCalendar(event)) return; // typing is untouched; only Tab/ArrowDown route in
     if (event.key !== 'Backspace') return;
     const input = event.currentTarget;
     // Only intercept a plain caret-at-end delete; a selection or mid-string edit
@@ -265,6 +270,22 @@ export function DateInput({
     return () => document.removeEventListener('keydown', handleEscape, true);
   }, [open]);
 
+  // Close when focus genuinely leaves the widget — e.g. Shift+Tab off the field,
+  // or Tab past the panel. Tab *into* the panel is routed by stepIntoCalendar and
+  // stays inside, so this only fires on a real exit and never strands an open,
+  // unfocused dialog.
+  useEffect(() => {
+    if (!open) return;
+    const handleFocusIn = (event: FocusEvent) => {
+      const target = event.target as Node;
+      const insideContainer = containerRef.current?.contains(target) ?? false;
+      const insidePanel = panelRef.current?.contains(target) ?? false;
+      if (!insideContainer && !insidePanel) setOpen(false);
+    };
+    document.addEventListener('focusin', handleFocusIn);
+    return () => document.removeEventListener('focusin', handleFocusIn);
+  }, [open]);
+
   // Trap Tab within the field ⇄ panel loop while open. The panel is portaled to
   // the end of the document, so without this Tab would jump straight past the
   // calendar to whatever follows the field. Shift+Tab from the first control
@@ -314,6 +335,11 @@ export function DateInput({
         aria-label={ariaLabel}
         aria-describedby={[ariaDescribedBy, hintId].filter(Boolean).join(' ') || undefined}
         aria-invalid={invalid || undefined}
+        // Advertise the calendar popup to assistive tech. Focus stays on the field
+        // (so it stays typeable); AT learns it is expandable and when it is open.
+        aria-haspopup={variant === 'form' && !disabled ? 'dialog' : undefined}
+        aria-expanded={variant === 'form' && !disabled ? open : undefined}
+        aria-controls={open && variant === 'form' ? panelId : undefined}
         data-min={min}
         data-max={max}
       />
@@ -334,9 +360,11 @@ export function DateInput({
           <button
             type="button"
             onClick={() => (open ? setOpen(false) : openCalendar())}
+            onKeyDown={stepIntoCalendar}
             aria-label="Open calendar"
             aria-haspopup="dialog"
             aria-expanded={open}
+            aria-controls={open ? panelId : undefined}
             className="mr-1 shrink-0 rounded p-1 text-text-secondary hover:bg-primary/10 hover:text-primary"
           >
             <i className="mdi mdi-calendar text-base" aria-hidden="true" />
@@ -348,6 +376,7 @@ export function DateInput({
         createPortal(
           <div
             ref={panelRef}
+            id={panelId}
             role="dialog"
             aria-label="Choose date"
             onKeyDown={handlePanelKeyDown}

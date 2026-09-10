@@ -380,6 +380,55 @@ describe('DateInput calendar popover', () => {
     expect(screen.getByRole('button', { name: 'outside' })).not.toHaveFocus();
   });
 
+  it('steps into the calendar with Tab from the calendar button too', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <ControlledDateInput initial="2026-06-15" />
+        <button type="button">outside</button>
+      </>,
+    );
+    const openButton = screen.getByRole('button', { name: 'Open calendar' });
+    await user.click(openButton);
+    openButton.focus();
+    await user.tab();
+
+    const dialog = screen.getByRole('dialog', { name: 'Choose date' });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(screen.getByRole('button', { name: 'outside' })).not.toHaveFocus();
+  });
+
+  it('closes when Shift+Tab moves focus out of the field, leaving no stranded dialog', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <button type="button">before</button>
+        <ControlledDateInput initial="2026-06-15" />
+      </>,
+    );
+    await user.click(getInput());
+    expect(screen.getByRole('dialog', { name: 'Choose date' })).toBeInTheDocument();
+
+    await user.tab({ shift: true });
+
+    expect(screen.getByRole('button', { name: 'before' })).toHaveFocus();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('advertises the calendar popup on the field for assistive tech', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="2026-06-15" />);
+
+    expect(getInput()).toHaveAttribute('aria-haspopup', 'dialog');
+    expect(getInput()).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(getInput());
+
+    expect(getInput()).toHaveAttribute('aria-expanded', 'true');
+    const dialogId = screen.getByRole('dialog', { name: 'Choose date' }).getAttribute('id');
+    expect(getInput().getAttribute('aria-controls')).toBe(dialogId);
+  });
+
   it('returns focus to the input when Escape is pressed from inside the calendar', async () => {
     const user = userEvent.setup();
     render(<ControlledDateInput initial="2026-06-15" />);
