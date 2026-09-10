@@ -170,6 +170,24 @@ const MOCK_APPOINTMENT_TWO_CONTACTS = {
   ],
 };
 
+// Two contacts, NEITHER primary — the shape legacy/imported/portal-created
+// contact sets can arrive in. The form must normalize this to exactly one
+// primary on load, otherwise the primary backstop blocks an unrelated edit.
+const MOCK_APPOINTMENT_NO_PRIMARY = {
+  ...MOCK_APPOINTMENT,
+  id: 'apt-no-primary',
+  contacts: [
+    {
+      id: 'junction-a', contactId: 'registry-a', role: 'RENTAL_TENANT', isPrimary: false,
+      snapshotName: 'Person A', snapshotEmail: 'a@test.com', snapshotPhone: null,
+    },
+    {
+      id: 'junction-b', contactId: 'registry-b', role: 'PROPERTY_MANAGER', isPrimary: false,
+      snapshotName: 'Person B', snapshotEmail: 'b@test.com', snapshotPhone: null,
+    },
+  ],
+};
+
 // A restriction row written by the rental tenant portal on decline: it exists only to
 // carry availableSlotsJson, and holds nothing the operator authored.
 const MOCK_APPOINTMENT_PORTAL_RESTRICTION = {
@@ -228,6 +246,9 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
     }
     if (id === 'apt-two-contacts') {
       return { appointment: MOCK_APPOINTMENT_TWO_CONTACTS, isLoading: false, isError: false, refetch: mockRefetchDetail };
+    }
+    if (id === 'apt-no-primary') {
+      return { appointment: MOCK_APPOINTMENT_NO_PRIMARY, isLoading: false, isError: false, refetch: mockRefetchDetail };
     }
     return { appointment: MOCK_APPOINTMENT, isLoading: false, isError: false, refetch: mockRefetchDetail };
   },
@@ -333,6 +354,19 @@ describe('AppointmentFormDrawer', () => {
     expect(screen.getByText(/no contacts\./i)).toBeInTheDocument();
     // Still recoverable — the section keeps its Add button.
     expect(screen.getByText('Add Contact')).toBeInTheDocument();
+  });
+
+  // Legacy/imported/portal contact sets can load with no primary. The form must
+  // promote exactly one on load, so the primary backstop never blocks an
+  // operator editing an unrelated field on inherited data.
+  it('normalizes a primary-less loaded contact set to exactly one primary (edit)', async () => {
+    renderDrawer({ appointmentId: 'apt-no-primary' });
+
+    const radios = (await screen.findAllByRole('radio')) as HTMLInputElement[];
+    expect(radios).toHaveLength(2);
+    expect(radios.filter((r) => r.checked)).toHaveLength(1);
+    // The first contact is promoted.
+    expect(radios[0]).toBeChecked();
   });
 
   it('renders edit mode with populated fields and correct buttons', () => {
