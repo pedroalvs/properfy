@@ -359,10 +359,9 @@ describe('DateInput calendar popover', () => {
     }
   });
 
-  it('once focus has left the field, Escape still closes the calendar but is not swallowed', async () => {
-    // The document-level Escape guard must only own the key while focus is in the
-    // field/panel; otherwise a stale open calendar would eat an Escape meant for
-    // whatever the user has since focused.
+  it('closes when focus leaves the field, so no stale calendar swallows a later Escape', async () => {
+    // The calendar must not linger open once focus moves away (e.g. Tab-out);
+    // otherwise a later Escape would ambiguously target both it and the host modal.
     const user = userEvent.setup();
     const onDocumentEscape = vi.fn();
     const listener = (e: KeyboardEvent) => {
@@ -377,10 +376,15 @@ describe('DateInput calendar popover', () => {
         </>,
       );
       await user.click(screen.getByRole('button', { name: 'Open calendar' }));
-      screen.getByRole('button', { name: 'outside' }).focus();
-      await user.keyboard('{Escape}');
+      expect(screen.getByRole('dialog', { name: 'Choose date' })).toBeInTheDocument();
 
+      // Tabbing out of the field/panel closes the calendar immediately.
+      await user.tab();
+      expect(screen.getByRole('button', { name: 'outside' })).toHaveFocus();
       expect(screen.queryByRole('dialog')).toBeNull();
+
+      // With no calendar open, Escape reaches its intended target unimpeded.
+      await user.keyboard('{Escape}');
       expect(onDocumentEscape).toHaveBeenCalled();
     } finally {
       document.removeEventListener('keydown', listener);

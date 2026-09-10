@@ -238,21 +238,30 @@ export function DateInput({
     if (!open) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      const active = document.activeElement;
-      const focusInside =
-        (containerRef.current?.contains(active) ?? false) ||
-        (panelRef.current?.contains(active) ?? false);
-      // Only own the Escape while focus is in the field/panel: then close only the
-      // calendar and shield the host modal from it. If focus has since moved
-      // elsewhere, still close the stale calendar but let the key reach its target.
-      if (focusInside) {
-        event.stopPropagation();
-        inputRef.current?.focus();
-      }
+      // While the calendar is open focus is always inside it (a focus-leave closes
+      // it, below), so Escape always belongs to the calendar: close only it and
+      // shield the host modal.
+      event.stopPropagation();
       setOpen(false);
+      inputRef.current?.focus();
     };
     document.addEventListener('keydown', handleEscape, true);
     return () => document.removeEventListener('keydown', handleEscape, true);
+  }, [open]);
+
+  // Close when focus leaves the field and the portaled panel (e.g. Tab-away), so
+  // the calendar never lingers open without focus — which would otherwise let a
+  // later Escape ambiguously target both it and the host modal.
+  useEffect(() => {
+    if (!open) return;
+    const handleFocusIn = (event: FocusEvent) => {
+      const target = event.target as Node;
+      const insideContainer = containerRef.current?.contains(target) ?? false;
+      const insidePanel = panelRef.current?.contains(target) ?? false;
+      if (!insideContainer && !insidePanel) setOpen(false);
+    };
+    document.addEventListener('focusin', handleFocusIn);
+    return () => document.removeEventListener('focusin', handleFocusIn);
   }, [open]);
 
   const containerClass = disabled
