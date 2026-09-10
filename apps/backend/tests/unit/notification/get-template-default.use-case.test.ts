@@ -182,6 +182,26 @@ describe('GetTemplateDefaultUseCase', () => {
     ).rejects.toThrow(ValidationError);
   });
 
+  it('rejects a CL_ADMIN fetching a platform-only default (AM/OP only)', async () => {
+    await expect(
+      useCase.execute({
+        templateCode: 'PASSWORD_RESET',
+        channel: 'EMAIL',
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('lets AM/OP fetch a platform-only default', async () => {
+    vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(null);
+    const result = await useCase.execute({
+      templateCode: 'PASSWORD_RESET',
+      channel: 'EMAIL',
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+    expect(result.source).toBe('FACTORY');
+  });
+
   it('404s when neither a platform row nor a factory entry exists for the pair', async () => {
     vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(null);
 

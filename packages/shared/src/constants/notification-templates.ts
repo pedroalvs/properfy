@@ -628,15 +628,18 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   downloadLink: 'https://app.properfy.me/reports/abc123',
   errorMessage: 'Server timeout — please retry',
   resetLink: 'https://app.properfy.me/reset-password?token=abc123',
-  // Platform-only editable codes. Derived temporal samples mirror the real send
-  // formatters, exactly like scheduledDate/timeSlot above, so the preview cannot drift.
+  // Platform-only editable codes. Where the real send derives a value from a
+  // formatter (the group date/window), the sample uses that same formatter so the
+  // preview cannot drift; the rest mirror the exact shape the dispatch site emits.
   groupCode: 'GRP-0042',
   timeWindow: formatWallTimeRange('09:00', '12:00'),
   jobCount: '5',
   previousScheduledDate: formatCivilDate('2026-04-10'),
   previousTimeWindow: formatWallTimeRange('13:00', '16:00'),
-  hoursStuck: '5',
-  startedAt: `${formatCivilDate('2026-04-15')} 9:00 am`,
+  hoursStuck: '6',
+  // notify-stuck.worker emits execution.startedAt.toISOString(), so the preview
+  // shows that same ISO shape rather than a civil date the send never produces.
+  startedAt: '2026-04-15T09:00:00.000Z',
   appointmentId: 'b3f1c2a4-1234-4d56-89ab-000000000000',
   inspectorId: 'e7d6c5b4-4321-4a98-87cd-000000000000',
   suppressedTemplateLabel: 'Inspection Notice',

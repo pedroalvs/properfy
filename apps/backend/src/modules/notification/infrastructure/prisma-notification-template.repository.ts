@@ -57,8 +57,11 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
 
     const searchTerm = filters.search?.trim();
     if (searchTerm) {
+      // `searchCodes` already holds every catalog code whose code OR label matches the
+      // term (resolved by matchTemplateCodesBySearch), so a `template_code contains`
+      // predicate would be redundant. Match those codes, plus any row whose subject
+      // contains the term.
       const searchOr: Record<string, unknown>[] = [
-        { template_code: { contains: searchTerm, mode: 'insensitive' } },
         { subject: { contains: searchTerm, mode: 'insensitive' } },
       ];
       if (filters.searchCodes && filters.searchCodes.length > 0) {

@@ -163,7 +163,6 @@ describe('PrismaNotificationTemplateRepository', () => {
     expect(where.AND).toContainEqual({ OR: [{ tenant_id: 'tenant-1' }, { tenant_id: null }] });
     expect(where.AND).toContainEqual({
       OR: [
-        { template_code: { contains: 'notice', mode: 'insensitive' } },
         { subject: { contains: 'notice', mode: 'insensitive' } },
         { template_code: { in: ['INSPECTION_NOTICE', 'INSPECTION_NOTICE_SMS'] } },
       ],
