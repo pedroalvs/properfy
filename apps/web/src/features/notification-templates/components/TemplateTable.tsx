@@ -19,6 +19,8 @@ interface TemplateTableProps {
   onDeleted?: () => void;
   /** AM/OP only — enables the delete action on agency overrides. */
   canDelete?: boolean;
+  /** AM/OP — required to edit platform-only codes (editable as the platform default only). */
+  isGlobalRole?: boolean;
 }
 
 export function TemplateTable({
@@ -29,6 +31,7 @@ export function TemplateTable({
   onEdit,
   onDeleted,
   canDelete,
+  isGlobalRole,
 }: TemplateTableProps) {
   const columns: DataTableColumn<NotificationTemplate>[] = [
     {
@@ -122,6 +125,7 @@ export function TemplateTable({
           onEdit={onEdit}
           onDeleted={onDeleted}
           canDelete={canDelete}
+          isGlobalRole={isGlobalRole}
         />
       ),
     },

@@ -8,6 +8,7 @@ export {
   MANDATORY_TEMPLATE_CODES,
   EDITABLE_TEMPLATE_CODES,
   isEditableTemplateCode,
+  isPlatformScopedEditableCode,
   TEMPLATE_CODE_LABELS,
   getTemplateCodeLabel,
   NOTIFICATION_TARGETS,

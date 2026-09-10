@@ -33,14 +33,20 @@ function makeTemplate(overrides: Partial<NotificationTemplate> = {}): Notificati
   };
 }
 
-function renderRow(template: NotificationTemplate, canDelete: boolean) {
+function renderRow(template: NotificationTemplate, canDelete: boolean, isGlobalRole = true) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const onDeleted = vi.fn();
   render(
     <QueryClientProvider client={queryClient}>
       <SnackbarProvider>
         <MemoryRouter>
-          <TemplateRowActions template={template} onEdit={vi.fn()} onDeleted={onDeleted} canDelete={canDelete} />
+          <TemplateRowActions
+            template={template}
+            onEdit={vi.fn()}
+            onDeleted={onDeleted}
+            canDelete={canDelete}
+            isGlobalRole={isGlobalRole}
+          />
         </MemoryRouter>
       </SnackbarProvider>
     </QueryClientProvider>,
@@ -74,16 +80,31 @@ describe('TemplateRowActions', () => {
     expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
   });
 
-  // Platform-only codes are now editable (as the platform default). The upsert use
-  // case still enforces the AM/OP + null-tenant scope server-side, but the Edit action
-  // is offered on their platform-default rows.
+  // Platform-only codes are now editable (as the platform default) by AM/OP. The upsert
+  // use case still enforces the AM/OP + null-tenant scope server-side; the Edit action is
+  // offered on their platform-default rows for global roles.
   it.each(['PASSWORD_RESET', 'INSPECTION_STUCK_ALERT', 'INSPECTOR_GROUP_ASSIGNED'])(
-    'shows Edit for the platform-only row %s',
+    'shows Edit for the platform-only row %s (global role)',
     (code) => {
-      renderRow(makeTemplate({ code, tenantId: null }), true);
+      renderRow(makeTemplate({ code, tenantId: null }), true, true);
       expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
     },
   );
+
+  // A CL_ADMIN (non-global) cannot edit platform-only codes — the server pins their
+  // tenant and rejects the save — so the button must not appear and dead-end.
+  it.each(['PASSWORD_RESET', 'INSPECTION_STUCK_ALERT', 'INSPECTOR_GROUP_ASSIGNED'])(
+    'hides Edit for the platform-only row %s when not a global role',
+    (code) => {
+      renderRow(makeTemplate({ code, tenantId: null }), false, false);
+      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    },
+  );
+
+  it('still shows Edit for a mandatory code to a non-global role (agency override)', () => {
+    renderRow(makeTemplate({ code: 'INSPECTION_NOTICE', tenantId: 'agency-1' }), false, false);
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+  });
 
   it('hides Edit for a code outside the editable catalog', () => {
     renderRow(makeTemplate({ code: 'SOME_CUSTOM_CODE', tenantId: null }), true);

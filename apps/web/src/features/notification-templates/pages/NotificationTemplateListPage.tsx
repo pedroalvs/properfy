@@ -84,6 +84,7 @@ export function NotificationTemplateListPage() {
           onEdit={handleEdit}
           onDeleted={refetch}
           canDelete={isGlobalRole}
+          isGlobalRole={isGlobalRole}
         />
       </ListFilterTableTemplate>
 
