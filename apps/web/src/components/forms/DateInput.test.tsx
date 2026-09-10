@@ -359,36 +359,37 @@ describe('DateInput calendar popover', () => {
     }
   });
 
-  it('closes when focus leaves the field, so no stale calendar swallows a later Escape', async () => {
-    // The calendar must not linger open once focus moves away (e.g. Tab-out);
-    // otherwise a later Escape would ambiguously target both it and the host modal.
+  it('steps into the calendar with Tab and does not jump past it (keyboard access)', async () => {
+    // The panel is portaled to the end of the document, so Tab must be routed into
+    // it explicitly or a keyboard user could never reach the day buttons.
     const user = userEvent.setup();
-    const onDocumentEscape = vi.fn();
-    const listener = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onDocumentEscape();
-    };
-    document.addEventListener('keydown', listener);
-    try {
-      render(
-        <>
-          <ControlledDateInput initial="2026-06-15" />
-          <button type="button">outside</button>
-        </>,
-      );
-      await user.click(screen.getByRole('button', { name: 'Open calendar' }));
-      expect(screen.getByRole('dialog', { name: 'Choose date' })).toBeInTheDocument();
+    render(
+      <>
+        <ControlledDateInput initial="2026-06-15" />
+        <button type="button">outside</button>
+      </>,
+    );
+    getInput().focus();
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
 
-      // Tabbing out of the field/panel closes the calendar immediately.
-      await user.tab();
-      expect(screen.getByRole('button', { name: 'outside' })).toHaveFocus();
-      expect(screen.queryByRole('dialog')).toBeNull();
+    getInput().focus();
+    await user.tab();
 
-      // With no calendar open, Escape reaches its intended target unimpeded.
-      await user.keyboard('{Escape}');
-      expect(onDocumentEscape).toHaveBeenCalled();
-    } finally {
-      document.removeEventListener('keydown', listener);
-    }
+    const dialog = screen.getByRole('dialog', { name: 'Choose date' });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(screen.getByRole('button', { name: 'outside' })).not.toHaveFocus();
+  });
+
+  it('returns focus to the input when Escape is pressed from inside the calendar', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="2026-06-15" />);
+
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+    await user.click(screen.getByRole('button', { name: 'Next month' }));
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(getInput()).toHaveFocus();
   });
 
   it('offers no calendar button when disabled', () => {

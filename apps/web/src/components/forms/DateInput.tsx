@@ -51,6 +51,12 @@ const POPUP_Z_INDEX = 60;
  */
 type PopupCoords = { left: number; maxHeight: number; top?: number; bottom?: number };
 
+/** Enabled, focusable controls inside the calendar panel, in DOM order. */
+function panelFocusables(panel: HTMLElement | null): HTMLButtonElement[] {
+  if (!panel) return [];
+  return Array.from(panel.querySelectorAll<HTMLButtonElement>('button:not([disabled])'));
+}
+
 function sameCoords(a: PopupCoords | null, b: PopupCoords | null): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
@@ -115,6 +121,17 @@ export function DateInput({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    // While the calendar is open, Tab (and ArrowDown, the combobox affordance)
+    // steps into the grid — the panel is portaled to the end of the document, so
+    // without this a keyboard user could never reach it. Typing is untouched.
+    if (open && !event.shiftKey && (event.key === 'Tab' || event.key === 'ArrowDown')) {
+      const first = panelFocusables(panelRef.current)[0];
+      if (first) {
+        event.preventDefault();
+        first.focus();
+        return;
+      }
+    }
     if (event.key !== 'Backspace') return;
     const input = event.currentTarget;
     // Only intercept a plain caret-at-end delete; a selection or mid-string edit
@@ -238,9 +255,8 @@ export function DateInput({
     if (!open) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      // While the calendar is open focus is always inside it (a focus-leave closes
-      // it, below), so Escape always belongs to the calendar: close only it and
-      // shield the host modal.
+      // The calendar is the topmost open layer, so Escape belongs to it: close
+      // only the calendar and shield the host modal from the same keypress.
       event.stopPropagation();
       setOpen(false);
       inputRef.current?.focus();
@@ -249,20 +265,25 @@ export function DateInput({
     return () => document.removeEventListener('keydown', handleEscape, true);
   }, [open]);
 
-  // Close when focus leaves the field and the portaled panel (e.g. Tab-away), so
-  // the calendar never lingers open without focus — which would otherwise let a
-  // later Escape ambiguously target both it and the host modal.
-  useEffect(() => {
-    if (!open) return;
-    const handleFocusIn = (event: FocusEvent) => {
-      const target = event.target as Node;
-      const insideContainer = containerRef.current?.contains(target) ?? false;
-      const insidePanel = panelRef.current?.contains(target) ?? false;
-      if (!insideContainer && !insidePanel) setOpen(false);
-    };
-    document.addEventListener('focusin', handleFocusIn);
-    return () => document.removeEventListener('focusin', handleFocusIn);
-  }, [open]);
+  // Trap Tab within the field ⇄ panel loop while open. The panel is portaled to
+  // the end of the document, so without this Tab would jump straight past the
+  // calendar to whatever follows the field. Shift+Tab from the first control
+  // returns to the input; Tab from the last wraps to the first.
+  const handlePanelKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key !== 'Tab') return;
+    const focusables = panelFocusables(panelRef.current);
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (!first || !last) return;
+    const active = document.activeElement;
+    if (event.shiftKey && active === first) {
+      event.preventDefault();
+      inputRef.current?.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   const containerClass = disabled
     ? formInputContainerDisabled
@@ -329,6 +350,7 @@ export function DateInput({
             ref={panelRef}
             role="dialog"
             aria-label="Choose date"
+            onKeyDown={handlePanelKeyDown}
             className="w-[19rem] max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain rounded border border-black/10 bg-card-bg shadow-lg"
             style={{
               position: 'fixed',
