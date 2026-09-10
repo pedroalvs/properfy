@@ -359,6 +359,34 @@ describe('DateInput calendar popover', () => {
     }
   });
 
+  it('once focus has left the field, Escape still closes the calendar but is not swallowed', async () => {
+    // The document-level Escape guard must only own the key while focus is in the
+    // field/panel; otherwise a stale open calendar would eat an Escape meant for
+    // whatever the user has since focused.
+    const user = userEvent.setup();
+    const onDocumentEscape = vi.fn();
+    const listener = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onDocumentEscape();
+    };
+    document.addEventListener('keydown', listener);
+    try {
+      render(
+        <>
+          <ControlledDateInput initial="2026-06-15" />
+          <button type="button">outside</button>
+        </>,
+      );
+      await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+      screen.getByRole('button', { name: 'outside' }).focus();
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(onDocumentEscape).toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('keydown', listener);
+    }
+  });
+
   it('offers no calendar button when disabled', () => {
     render(<ControlledDateInput disabled />);
     expect(screen.queryByRole('button', { name: 'Open calendar' })).toBeNull();

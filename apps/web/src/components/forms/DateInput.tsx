@@ -46,8 +46,18 @@ const POPUP_Z_INDEX = 60;
  * Fixed-position coordinates for the portaled popup. The panel is anchored to
  * the field's near edge — `top` when it opens below, `bottom` when it opens
  * above — so it always grows away from the field and can never cover it.
+ * `maxHeight` caps it to the room on that side so a tall month scrolls inside the
+ * panel instead of running off the viewport.
  */
-type PopupCoords = { left: number; top?: number; bottom?: number };
+type PopupCoords = { left: number; maxHeight: number; top?: number; bottom?: number };
+
+function sameCoords(a: PopupCoords | null, b: PopupCoords | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.left === b.left && a.top === b.top && a.bottom === b.bottom && a.maxHeight === b.maxHeight
+  );
+}
 
 /**
  * A `dd/mm/yyyy` date field that renders identically on every machine.
@@ -129,42 +139,58 @@ export function DateInput({
     // Hide (rather than float detached) when the field has scrolled out of the
     // viewport inside a scrolling modal body; it reappears, re-anchored, on scroll back.
     if (rect.bottom < 0 || rect.top > window.innerHeight) return null;
-    // Real height once mounted; the estimate only applies while offsetHeight is 0
-    // (jsdom, or a not-yet-laid-out panel).
+    // Real size once mounted; the estimates only apply while the panel has no
+    // laid-out box yet (jsdom, or before first paint).
     const panelHeight = panelRef.current?.offsetHeight || PANEL_HEIGHT_ESTIMATE;
+    const panelWidth = panelRef.current?.offsetWidth || PANEL_WIDTH;
     const spaceBelow = window.innerHeight - rect.bottom - GUTTER;
     const spaceAbove = rect.top - GUTTER;
 
     let left = rect.left;
-    const maxLeft = window.innerWidth - VIEWPORT_MARGIN - PANEL_WIDTH;
+    const maxLeft = window.innerWidth - VIEWPORT_MARGIN - panelWidth;
     if (left > maxLeft) left = maxLeft;
     if (left < VIEWPORT_MARGIN) left = VIEWPORT_MARGIN;
 
     // Prefer below (native feel). Flip above only when the panel genuinely does
     // not fit below but there is more room above — decided against the *real*
-    // panel height, not a fixed threshold.
+    // panel height, not a fixed threshold. `maxHeight` caps the panel to the room
+    // on the chosen side so a month taller than that scrolls internally rather
+    // than off the viewport edge.
     const placeBelow = panelHeight <= spaceBelow || spaceBelow >= spaceAbove;
     if (placeBelow) {
       // Anchored to the field's bottom edge; the panel grows downward, so a
       // taller month never overlaps the field.
-      return { top: rect.bottom + GUTTER, left };
+      return { top: rect.bottom + GUTTER, left, maxHeight: Math.max(0, spaceBelow - VIEWPORT_MARGIN) };
     }
     // Anchored to the field's top edge via the viewport's bottom coordinate; the
     // panel grows *upward* as the month grid changes height, so it likewise never
     // covers the field and needs no re-measure when its own height changes.
-    return { bottom: window.innerHeight - rect.top + GUTTER, left };
+    return {
+      bottom: window.innerHeight - rect.top + GUTTER,
+      left,
+      maxHeight: Math.max(0, spaceAbove - VIEWPORT_MARGIN),
+    };
   }, []);
+
+  const applyCoords = useCallback(() => {
+    setCoords((prev) => {
+      const next = computeCoords();
+      // Skip the re-render (and the CalendarPanel re-mount) when nothing moved —
+      // a scroll where the field stays put relative to the viewport is common.
+      return sameCoords(prev, next) ? prev : next;
+    });
+  }, [computeCoords]);
 
   const openCalendar = () => setOpen(true);
 
-  // Measure and place the popup once it is mounted (so `panelRef` height is real).
+  // Measure and place the popup once it is mounted (so `panelRef` size is real).
   useLayoutEffect(() => {
     if (!open) {
       setCoords(null);
       return;
     }
-    setCoords(computeCoords());
-  }, [open, computeCoords]);
+    applyCoords();
+  }, [open, applyCoords]);
 
   // Keep the popup anchored to the field if the host scrolls or the window
   // resizes. Coalesce bursts into one measurement per frame so a fast scroll
@@ -176,7 +202,7 @@ export function DateInput({
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        setCoords(computeCoords());
+        applyCoords();
       });
     };
     window.addEventListener('resize', reposition);
@@ -186,7 +212,7 @@ export function DateInput({
       window.removeEventListener('resize', reposition);
       window.removeEventListener('scroll', reposition, true);
     };
-  }, [open, computeCoords]);
+  }, [open, applyCoords]);
 
   useEffect(() => {
     if (!open) return;
@@ -212,9 +238,18 @@ export function DateInput({
     if (!open) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      event.stopPropagation();
+      const active = document.activeElement;
+      const focusInside =
+        (containerRef.current?.contains(active) ?? false) ||
+        (panelRef.current?.contains(active) ?? false);
+      // Only own the Escape while focus is in the field/panel: then close only the
+      // calendar and shield the host modal from it. If focus has since moved
+      // elsewhere, still close the stale calendar but let the key reach its target.
+      if (focusInside) {
+        event.stopPropagation();
+        inputRef.current?.focus();
+      }
       setOpen(false);
-      inputRef.current?.focus();
     };
     document.addEventListener('keydown', handleEscape, true);
     return () => document.removeEventListener('keydown', handleEscape, true);
@@ -285,12 +320,13 @@ export function DateInput({
             ref={panelRef}
             role="dialog"
             aria-label="Choose date"
-            className="w-[19rem] max-w-[calc(100vw-16px)] overflow-visible rounded border border-black/10 bg-card-bg shadow-lg"
+            className="w-[19rem] max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain rounded border border-black/10 bg-card-bg shadow-lg"
             style={{
               position: 'fixed',
               top: coords?.top,
               bottom: coords?.bottom,
               left: coords?.left ?? 0,
+              maxHeight: coords?.maxHeight,
               zIndex: POPUP_Z_INDEX,
               visibility: coords ? 'visible' : 'hidden',
             }}
