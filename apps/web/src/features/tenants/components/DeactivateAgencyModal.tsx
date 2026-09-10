@@ -4,20 +4,26 @@ import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/forms/Textarea';
 import { FormField } from '@/components/forms/FormField';
 
-interface CancelGroupModalProps {
+interface DeactivateAgencyModalProps {
   open: boolean;
+  agencyName: string;
+  loading?: boolean;
   onClose: () => void;
-  onCancel: (reason: string) => void;
-  serviceGroupId: string;
+  onConfirm: (reason: string) => void;
 }
 
-export function CancelGroupModal({ open, onClose, onCancel, serviceGroupId: _serviceGroupId }: CancelGroupModalProps) {
+export function DeactivateAgencyModal({
+  open,
+  agencyName,
+  loading,
+  onClose,
+  onConfirm,
+}: DeactivateAgencyModalProps) {
   const [reason, setReason] = useState('');
 
   const handleConfirm = () => {
     if (reason.trim()) {
-      onCancel(reason.trim());
-      setReason('');
+      onConfirm(reason.trim());
     }
   };
 
@@ -30,19 +36,20 @@ export function CancelGroupModal({ open, onClose, onCancel, serviceGroupId: _ser
     <Dialog
       open={open}
       onClose={handleClose}
-      title="Cancel Service Group"
+      title="Deactivate Agency"
       actions={
         <>
           <Button variant="secondary" onClick={handleClose}>
-            Keep Group
+            Cancel
           </Button>
           <Button
             variant="primary"
             onClick={handleConfirm}
-            disabled={!reason.trim()}
+            disabled={!reason.trim() || loading}
+            loading={loading}
             className="!bg-error"
           >
-            Cancel Group
+            Deactivate
           </Button>
         </>
       }
@@ -50,17 +57,18 @@ export function CancelGroupModal({ open, onClose, onCancel, serviceGroupId: _ser
       <div className="mb-4 flex items-start gap-2 rounded border border-warning/30 bg-warning/5 p-3">
         <i className="mdi mdi-alert-outline text-lg text-warning" aria-hidden="true" />
         <p className="text-sm text-text-primary">
-          The assigned inspector will be removed and the group will be marked Cancelled.
-          The appointments stay in the group — republish it to bring the group back to Draft.
+          You are about to deactivate <strong>{agencyName}</strong>. This will affect all
+          associated branches and appointments. This action cannot be easily undone.
         </p>
       </div>
       <FormField label="Reason" required>
         <Textarea
           value={reason}
           onChange={setReason}
-          placeholder="Provide a reason for cancellation"
+          placeholder="Provide a reason for deactivation"
           rows={3}
-          aria-label="Cancellation reason"
+          maxLength={500}
+          aria-label="Deactivation reason"
         />
       </FormField>
     </Dialog>

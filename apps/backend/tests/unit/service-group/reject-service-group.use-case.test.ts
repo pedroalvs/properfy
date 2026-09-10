@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CancelServiceGroupUseCase } from '../../../src/modules/service-group/application/use-cases/cancel-service-group.use-case';
+import { RejectServiceGroupUseCase } from '../../../src/modules/service-group/application/use-cases/reject-service-group.use-case';
 import type { IServiceGroupRepository, ServiceGroupWithAppointments } from '../../../src/modules/service-group/domain/service-group.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
@@ -19,9 +19,9 @@ function makeGroup(
     id: 'group-1',
     tenantId: 'tenant-1',
     serviceTypeId: 'svc-type-1',
-    status: 'DRAFT',
+    status: 'PUBLISHED',
     groupSize: 5,
-    offeredCount: 0,
+    offeredCount: 1,
     confirmedCount: 0,
     scheduledDate: new Date('2026-06-01'),
     timeWindow: '09:00-12:00',
@@ -31,6 +31,7 @@ function makeGroup(
     name: null,
     regionName: null,
     description: null,
+    serviceRegionId: null,
     createdByUserId: 'user-1',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -63,10 +64,10 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   };
 }
 
-describe('CancelServiceGroupUseCase', () => {
+describe('RejectServiceGroupUseCase', () => {
   let serviceGroupRepo: IServiceGroupRepository;
   let auditService: AuditService;
-  let useCase: CancelServiceGroupUseCase;
+  let useCase: RejectServiceGroupUseCase;
 
   beforeEach(() => {
     serviceGroupRepo = {
@@ -88,130 +89,31 @@ describe('CancelServiceGroupUseCase', () => {
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     const authorizationService = new AuthorizationService(auditService);
-    useCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
+    useCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService);
   });
 
-  it('should cancel an ACCEPTED group: revert scheduled, clear inspector, keep members', async () => {
+  it('should reject a PUBLISHED group: unlink members back to the map, clear inspector', async () => {
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
-      makeGroupWithAppointments({ status: 'ACCEPTED', assignedInspectorId: 'insp-1' }),
+      makeGroupWithAppointments({ status: 'PUBLISHED' }),
     );
-    vi.mocked(serviceGroupRepo.revertScheduledAppointments).mockResolvedValue(2);
 
     const result = await useCase.execute({
       groupId: 'group-1',
-      reason: 'Inspector unavailable',
+      reason: 'Batch discarded',
       actor: makeActor(),
     });
 
-    expect(result.id).toBe('group-1');
-    expect(result.status).toBe('CANCELLED');
-    // Scheduled visits are released back to AWAITING_INSPECTOR but stay linked.
-    expect(serviceGroupRepo.revertScheduledAppointments).toHaveBeenCalledWith('group-1');
-    // Group status flips to CANCELLED and the group-level inspector is cleared.
+    expect(result.status).toBe('REJECTED');
     expect(serviceGroupRepo.update).toHaveBeenCalledWith('group-1', {
-      status: 'CANCELLED',
+      status: 'REJECTED',
       assignedInspectorId: null,
       assignedAt: null,
     });
-    // Live members must NOT be bulk-unlinked — Cancel keeps the batch so it can be republished.
-    expect(serviceGroupRepo.unlinkAppointments).not.toHaveBeenCalled();
-    // Only already-terminal members (e.g. a DONE visit) are detached.
-    expect(serviceGroupRepo.unlinkTerminalAppointments).toHaveBeenCalledWith('group-1');
+    // Inspections leave the group and return to the map.
+    expect(serviceGroupRepo.unlinkAppointments).toHaveBeenCalledWith('group-1');
   });
 
-  it('detaches terminal members but never bulk-unlinks the live batch', async () => {
-    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
-      makeGroupWithAppointments({ status: 'ACCEPTED', assignedInspectorId: 'insp-1' }),
-    );
-
-    await useCase.execute({
-      groupId: 'group-1',
-      reason: 'Partial batch already executed',
-      actor: makeActor(),
-    });
-
-    expect(serviceGroupRepo.unlinkTerminalAppointments).toHaveBeenCalledWith('group-1');
-    expect(serviceGroupRepo.unlinkAppointments).not.toHaveBeenCalled();
-  });
-
-  it.each(['DRAFT', 'PUBLISHED', 'CANCELLED', 'REJECTED'] as const)(
-    'should reject cancelling a %s group (only ACCEPTED can be cancelled)',
-    async (status) => {
-      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
-        makeGroupWithAppointments({ status }),
-      );
-
-      await expect(
-        useCase.execute({
-          groupId: 'group-1',
-          reason: 'Not allowed',
-          actor: makeActor(),
-        }),
-      ).rejects.toThrow(ServiceGroupInvalidStatusError);
-
-      expect(serviceGroupRepo.update).not.toHaveBeenCalled();
-    },
-  );
-
-  it('should reject non-AM/OP actors', async () => {
-    await expect(
-      useCase.execute({
-        groupId: 'group-1',
-        reason: 'Forbidden',
-        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
-      }),
-    ).rejects.toThrow(ForbiddenError);
-  });
-
-  it('should reject INSP role', async () => {
-    await expect(
-      useCase.execute({
-        groupId: 'group-1',
-        reason: 'Forbidden',
-        actor: makeActor({ role: 'INSP', tenantId: 'tenant-1' }),
-      }),
-    ).rejects.toThrow(ForbiddenError);
-  });
-
-  it('should throw ServiceGroupNotFoundError when group not found', async () => {
-    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(null);
-
-    await expect(
-      useCase.execute({
-        groupId: 'nonexistent',
-        reason: 'Does not exist',
-        actor: makeActor(),
-      }),
-    ).rejects.toThrow(ServiceGroupNotFoundError);
-  });
-
-  it('should log audit with reason', async () => {
-    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
-      makeGroupWithAppointments({ status: 'ACCEPTED', assignedInspectorId: 'insp-1' }),
-    );
-
-    await useCase.execute({
-      groupId: 'group-1',
-      reason: 'Client requested cancellation',
-      actor: makeActor({ userId: 'op-user-1', role: 'OP', tenantId: 'tenant-1' }),
-    });
-
-    expect(auditService.log).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: 'service_group.cancelled',
-        actorType: 'USER',
-        actorId: 'op-user-1',
-        entityType: 'ServiceGroup',
-        entityId: 'group-1',
-        tenantId: 'tenant-1',
-        before: { status: 'ACCEPTED' },
-        after: { status: 'CANCELLED' },
-        reason: 'Client requested cancellation',
-      }),
-    );
-  });
-
-  it('should revert scheduled appointments before updating the group', async () => {
+  it('should reject an ACCEPTED group: revert scheduled, then unlink', async () => {
     const callOrder: string[] = [];
     vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
       makeGroupWithAppointments({ status: 'ACCEPTED', assignedInspectorId: 'insp-1' }),
@@ -223,13 +125,75 @@ describe('CancelServiceGroupUseCase', () => {
     vi.mocked(serviceGroupRepo.update).mockImplementation(async () => {
       callOrder.push('update');
     });
+    vi.mocked(serviceGroupRepo.unlinkAppointments).mockImplementation(async () => {
+      callOrder.push('unlink');
+    });
 
-    await useCase.execute({
+    const result = await useCase.execute({
       groupId: 'group-1',
-      reason: 'Order check',
+      reason: 'Inspector cannot do it',
       actor: makeActor(),
     });
 
-    expect(callOrder).toEqual(['revert', 'update']);
+    expect(result.status).toBe('REJECTED');
+    expect(serviceGroupRepo.revertScheduledAppointments).toHaveBeenCalledWith('group-1');
+    expect(callOrder).toEqual(['revert', 'update', 'unlink']);
+  });
+
+  it.each(['DRAFT', 'CANCELLED', 'REJECTED'] as const)(
+    'should refuse to reject a %s group',
+    async (status) => {
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+        makeGroupWithAppointments({ status }),
+      );
+
+      await expect(
+        useCase.execute({ groupId: 'group-1', reason: 'Nope', actor: makeActor() }),
+      ).rejects.toThrow(ServiceGroupInvalidStatusError);
+
+      expect(serviceGroupRepo.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it('should log audit with reason', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(
+      makeGroupWithAppointments({ status: 'PUBLISHED' }),
+    );
+
+    await useCase.execute({
+      groupId: 'group-1',
+      reason: 'Not viable',
+      actor: makeActor({ userId: 'op-user-1', role: 'OP', tenantId: 'tenant-1' }),
+    });
+
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'service_group.rejected',
+        actorId: 'op-user-1',
+        entityId: 'group-1',
+        tenantId: 'tenant-1',
+        before: { status: 'PUBLISHED' },
+        after: { status: 'REJECTED' },
+        reason: 'Not viable',
+      }),
+    );
+  });
+
+  it('should reject non-AM/OP actors', async () => {
+    await expect(
+      useCase.execute({
+        groupId: 'group-1',
+        reason: 'Forbidden',
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('should throw ServiceGroupNotFoundError when group not found', async () => {
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({ groupId: 'nonexistent', reason: 'x', actor: makeActor() }),
+    ).rejects.toThrow(ServiceGroupNotFoundError);
   });
 });

@@ -18,7 +18,7 @@ vi.mock('@/services/api', () => ({
 import { api } from '@/services/api';
 import { ContactType } from '@properfy/shared';
 import { useAppointmentSave } from './useAppointmentSave';
-import type { AppointmentFormData } from '../types';
+import type { AppointmentFormData, ContactFormEntry } from '../types';
 import { EMPTY_FORM_DATA, createEmptyContact } from '../types';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
@@ -590,6 +590,53 @@ describe('useAppointmentSave', () => {
     expect(saveResult?.fieldErrors?.customFields?.[1]?.value).toBe('Value is too long');
     expect(saveResult?.fieldErrors?.customFields?.[0]).toBeUndefined();
     expect(saveResult?.error).toBeUndefined();
+  });
+
+  describe('primary contact invariant', () => {
+    // Inline contact with a contactType so the separate inline-contactType guard
+    // never fires — these cases isolate the primary rule.
+    const inlineContact = (over: Partial<ContactFormEntry> = {}): ContactFormEntry => ({
+      ...createEmptyContact(),
+      name: 'Someone',
+      contactType: ContactType.RENTAL_TENANT,
+      ...over,
+    });
+
+    it('flags the contacts section when no contact is marked primary', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+      const errors = result.current.validate(
+        {
+          ...VALID_CREATE_DATA,
+          contacts: [inlineContact({ isPrimary: false }), inlineContact({ isPrimary: false })],
+        },
+        'create',
+      );
+      // The shared refine ("exactly one primary") lands on the pathless
+      // `contacts` root and used to be dropped, surfacing later as a confusing
+      // backend message. It must now be surfaced on the contacts section.
+      expect(errors.contacts?.[0]?.isPrimary).toBeDefined();
+    });
+
+    it('does not flag primary when exactly one contact is primary', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+      const errors = result.current.validate(
+        {
+          ...VALID_CREATE_DATA,
+          contacts: [inlineContact({ isPrimary: true }), inlineContact({ isPrimary: false })],
+        },
+        'create',
+      );
+      expect(errors.contacts?.[0]?.isPrimary).toBeUndefined();
+    });
+
+    it('requires no contact at all for an empty list (no flow gating)', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useAppointmentSave(), { wrapper });
+      const errors = result.current.validate({ ...VALID_CREATE_DATA, contacts: [] }, 'create');
+      expect(errors.contacts).toBeUndefined();
+    });
   });
 
   it('save keeps the summary error when an indexed detail path cannot be mapped to a form row', async () => {

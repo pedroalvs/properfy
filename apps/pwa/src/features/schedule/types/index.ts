@@ -81,7 +81,7 @@ export interface AppointmentRestrictionDetail {
 }
 
 export interface JobDetails {
-  agency: { id: string; name: string };
+  agency: { id: string; name: string; branchName?: string | null };
   tenantContacts: JobDetailsTenantContact[];
   keys: { keyRequired: boolean; keyLocation: string | null };
   keyLocation?: { address: string; mapLinkUrl: string };

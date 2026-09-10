@@ -44,6 +44,9 @@ export type UpsertNotificationTemplateInput = z.infer<typeof upsertNotificationT
 
 export const listNotificationTemplatesQuerySchema = z.object({
   tenantId: z.string().uuid().optional(),
+  // Free-text search over the template code AND its humanized name (and subject),
+  // case-insensitive. Supersedes the legacy exact `templateCode` filter.
+  search: z.string().optional(),
   templateCode: z.string().optional(),
   channel: z.enum(['EMAIL', 'SMS']).optional(),
   includeDefaults: booleanQueryParam().default(true),

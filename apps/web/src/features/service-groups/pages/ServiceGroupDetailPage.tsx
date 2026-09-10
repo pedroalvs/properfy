@@ -145,9 +145,15 @@ export function ServiceGroupDetailPage() {
   const isPublished = serviceGroup.status === ServiceGroupStatus.PUBLISHED;
   const isAccepted = serviceGroup.status === ServiceGroupStatus.ACCEPTED;
   const isCancelled = serviceGroup.status === ServiceGroupStatus.CANCELLED;
-  const canCancel = isDraft || isPublished || isAccepted;
+  // REJECTED is a read-only "soft-deleted" record kept for tracing: it is still
+  // listed, but every mutating action (edit, plan changes, publish, cancel,
+  // reject, portal links) is hidden.
+  const isRejected = serviceGroup.status === ServiceGroupStatus.REJECTED;
+  // Cancel removes the accepted inspector and returns the batch to editing, so it
+  // only applies once an inspector has accepted. PUBLISHED groups use Unpublish.
+  const canCancel = isAccepted;
   const canReject = isPublished || isAccepted;
-  const canEdit = !isAccepted;
+  const canEdit = !isAccepted && !isRejected;
   // Plan edits (inspector, date, time window) are allowed on any live group;
   // a closed one has no schedule left to move and nobody to hand it to.
   const canChangePlan = isDraft || isPublished || isAccepted;

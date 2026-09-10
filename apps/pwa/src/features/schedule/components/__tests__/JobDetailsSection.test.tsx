@@ -20,6 +20,29 @@ describe('JobDetailsSection', () => {
     expect(screen.getByText('Alpha Realty')).toBeInTheDocument();
   });
 
+  it('renders the branch name under the agency when present', () => {
+    const withBranch: JobDetails = {
+      ...baseJobDetails,
+      agency: { ...baseJobDetails.agency, branchName: 'North Shore' },
+    };
+    render(<JobDetailsSection jobDetails={withBranch} />);
+    expect(screen.getByTestId('job-agency-branch')).toHaveTextContent('North Shore');
+  });
+
+  it('does not render a branch line when branchName is absent', () => {
+    render(<JobDetailsSection jobDetails={baseJobDetails} />);
+    expect(screen.queryByTestId('job-agency-branch')).not.toBeInTheDocument();
+  });
+
+  it('does not render a branch line when branchName is null', () => {
+    const withNullBranch: JobDetails = {
+      ...baseJobDetails,
+      agency: { ...baseJobDetails.agency, branchName: null },
+    };
+    render(<JobDetailsSection jobDetails={withNullBranch} />);
+    expect(screen.queryByTestId('job-agency-branch')).not.toBeInTheDocument();
+  });
+
   it('does not show keys section when keys.keyRequired is false', () => {
     render(<JobDetailsSection jobDetails={baseJobDetails} />);
     expect(screen.queryByTestId('job-keys-section')).not.toBeInTheDocument();

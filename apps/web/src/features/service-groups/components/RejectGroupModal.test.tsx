@@ -37,8 +37,9 @@ describe('RejectGroupModal', () => {
       />,
     );
     expect(
-      screen.getByText(/This action will reject the service group/),
+      screen.getByText(/The inspections will leave this group and return to the map/),
     ).toBeInTheDocument();
+    expect(screen.getByText(/marked Rejected and become read-only/)).toBeInTheDocument();
   });
 
   it('has disabled Reject Group button when reason is empty', () => {

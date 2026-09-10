@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
@@ -120,6 +121,36 @@ describe('UserListPage', () => {
     renderPage();
 
     expect(await screen.findByText('Select an agency to view users.')).toBeInTheDocument();
+  });
+
+  it('shows the Agency selector in tenant scope but hides it in Internal Users scope', async () => {
+    const evt = userEvent.setup();
+    mockMe = {
+      id: 'usr-99',
+      name: 'Platform Admin',
+      email: 'am@test.com',
+      role: 'AM',
+      tenantId: null,
+      branchId: null,
+      totpEnabled: false,
+    };
+
+    renderPage();
+
+    // Default scope is "Agency Users" — the Agency selector is present.
+    expect(await screen.findByLabelText('Agency')).toBeInTheDocument();
+
+    // Switch the User Scope selector to "Internal Users".
+    await evt.click(screen.getByLabelText('User Scope'));
+    await evt.click(screen.getByText('Internal Users'));
+
+    // Agency selector is now removed; the explanatory note takes its place.
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
+    });
+    expect(
+      screen.getByText('Internal users are not linked to a specific agency.'),
+    ).toBeInTheDocument();
   });
 
   it('renders filter bar with search, role, and status controls', () => {

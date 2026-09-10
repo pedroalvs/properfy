@@ -55,6 +55,19 @@ describe('TemplateTable', () => {
     expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
+  it('explains the Class column with an info affordance on its header', () => {
+    render(<TemplateTable data={[]} />);
+    // The header pairs the "Class" label with a tooltip-bearing info icon.
+    expect(screen.getByText('Class')).toBeInTheDocument();
+    expect(document.querySelector('.mdi-information-outline')).not.toBeNull();
+  });
+
+  it('renders the per-row notification class chip', () => {
+    const template = makeTemplate({ notificationClass: 'TRANSACTIONAL' });
+    render(<TemplateTable data={[template]} />);
+    expect(screen.getByText('Transactional')).toBeInTheDocument();
+  });
+
   it('renders template data', () => {
     const template = makeTemplate();
     render(<TemplateTable data={[template]} />);

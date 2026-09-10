@@ -49,12 +49,15 @@ export class RejectServiceGroupUseCase {
       await this.serviceGroupRepo.revertScheduledAppointments(groupId);
     }
 
-    // Update group status
+    // Move the group to REJECTED (read-only, kept for tracing) and drop the
+    // group-level inspector assignment.
     await this.serviceGroupRepo.update(groupId, {
       status: 'REJECTED',
+      assignedInspectorId: null,
+      assignedAt: null,
     });
 
-    // Unlink appointments (clear service_group_id)
+    // Unlink appointments: they leave the group and return to the map (AWAITING_INSPECTOR).
     await this.serviceGroupRepo.unlinkAppointments(groupId);
 
     this.auditService.log({

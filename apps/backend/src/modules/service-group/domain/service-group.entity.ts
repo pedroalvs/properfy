@@ -88,7 +88,10 @@ export class ServiceGroupEntity extends BaseEntity {
   }
 
   canCancel(): boolean {
-    return this.status === 'DRAFT' || this.status === 'PUBLISHED' || this.status === 'ACCEPTED';
+    // Cancel is the "pull the accepted batch back to editing" action: it removes
+    // the assigned inspector and keeps the appointments so the group can be
+    // republished. It only makes sense once an inspector has accepted.
+    return this.status === 'ACCEPTED';
   }
 
   canReject(): boolean {

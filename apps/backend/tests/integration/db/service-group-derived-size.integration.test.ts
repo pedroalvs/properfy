@@ -15,7 +15,7 @@
  * What's covered:
  *   1. The count follows linking: a group reads back the number of appointments
  *      actually pointing at it, not the number it was created with.
- *   2. The count follows UNlinking: cancelling a group (which clears
+ *   2. The count follows UNlinking: rejecting a group (which clears
  *      `service_group_id`) drops it to 0.
  *   3. Soft-deleted appointments do not count. `delete-appointment` sets
  *      `deleted_at` WITHOUT clearing `service_group_id`, so the row stays
@@ -177,17 +177,38 @@ describe('service group size is derived from linked appointments (real DB)', () 
     expect(await sizeViaFindAll(groupId)).toBe(3);
   });
 
-  it('drops to zero when the group is emptied by unlinkAppointments (the cancel path)', async () => {
+  it('drops to zero when the group is emptied by unlinkAppointments (the reject path)', async () => {
     const groupId = await createGroup();
     await createAppointment(groupId);
     await createAppointment(groupId);
     expect(await sizeViaFindById(groupId)).toBe(2);
 
-    // What cancel-service-group / reject-service-group actually do.
+    // What reject-service-group actually does (cancel now keeps its members).
     await repo.unlinkAppointments(groupId);
 
     expect(await sizeViaFindById(groupId)).toBe(0);
     expect(await sizeViaFindAll(groupId)).toBe(0);
+  });
+
+  it('unlinkTerminalAppointments detaches only terminal members, keeping the live batch (the cancel path)', async () => {
+    const groupId = await createGroup();
+    const live = await createAppointment(groupId); // AWAITING_INSPECTOR
+    const done = await createAppointment(groupId);
+    await prisma().appointment.update({ where: { id: done }, data: { status: 'DONE' } });
+    expect(await sizeViaFindById(groupId)).toBe(2);
+
+    // What cancel-service-group does after reverting SCHEDULED members: it detaches
+    // any already-terminal member (e.g. an executed DONE visit) but keeps the rest.
+    const unlinked = await repo.unlinkTerminalAppointments(groupId);
+    expect(unlinked).toBe(1);
+
+    // The live member stays linked; the DONE member is detached.
+    expect(await sizeViaFindById(groupId)).toBe(1);
+    const liveRow = await prisma().appointment.findUniqueOrThrow({ where: { id: live } });
+    const doneRow = await prisma().appointment.findUniqueOrThrow({ where: { id: done } });
+    expect(liveRow.service_group_id).toBe(groupId);
+    expect(doneRow.service_group_id).toBeNull();
+    expect(doneRow.status).toBe('DONE');
   });
 
   it('grows when appointments are linked into an existing group', async () => {

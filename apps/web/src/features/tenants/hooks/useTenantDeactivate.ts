@@ -2,7 +2,7 @@ import { useActionMutation } from '@/hooks/useApiQuery';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 export interface UseTenantDeactivateReturn {
-  deactivate: () => void;
+  deactivate: (reason: string) => void;
   isDeactivating: boolean;
 }
 
@@ -17,10 +17,10 @@ export function useTenantDeactivate(
     [['tenant-admins'], ['tenant-admins', tenantId]],
   );
 
-  const deactivate = () => {
+  const deactivate = (reason: string) => {
     if (!tenantId) return;
     mutation.mutate(
-      {},
+      { reason },
       {
         onSuccess: () => {
           showSuccess('Agency deactivated successfully');

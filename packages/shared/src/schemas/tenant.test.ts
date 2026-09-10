@@ -149,6 +149,19 @@ describe('deactivateSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('should reject a whitespace-only reason', () => {
+    const result = deactivateSchema.safeParse({ reason: '   ' });
+    expect(result.success).toBe(false);
+  });
+
+  it('should trim surrounding whitespace from a valid reason', () => {
+    const result = deactivateSchema.safeParse({ reason: '  Client requested  ' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.reason).toBe('Client requested');
+    }
+  });
+
   it('should reject reason exceeding 500 characters', () => {
     const result = deactivateSchema.safeParse({ reason: 'a'.repeat(501) });
     expect(result.success).toBe(false);

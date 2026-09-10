@@ -16,6 +16,8 @@ interface TextareaProps {
   id?: string;
   name?: string;
   'aria-label'?: string;
+  'aria-invalid'?: boolean;
+  'aria-describedby'?: string;
 }
 
 export function Textarea({
@@ -29,6 +31,8 @@ export function Textarea({
   id,
   name,
   'aria-label': ariaLabel,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedby,
 }: TextareaProps) {
   const containerClass = disabled
     ? formInputContainerDisabled
@@ -49,6 +53,8 @@ export function Textarea({
         rows={rows}
         maxLength={maxLength}
         aria-label={ariaLabel}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedby}
       />
     </div>
   );

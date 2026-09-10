@@ -60,6 +60,18 @@ describe('UserTable', () => {
     expect(dashes.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('renders the Branch column by default', () => {
+    render(<UserTable data={[makeUser()]} />);
+    expect(screen.getByText('Branch')).toBeInTheDocument();
+    expect(screen.getByText('Filial Centro')).toBeInTheDocument();
+  });
+
+  it('hides the Branch column when hideBranch is set (Internal Users scope)', () => {
+    render(<UserTable data={[makeUser()]} hideBranch />);
+    expect(screen.queryByText('Branch')).not.toBeInTheDocument();
+    expect(screen.queryByText('Filial Centro')).not.toBeInTheDocument();
+  });
+
   it('renders em dash for null lastLoginAt', () => {
     const user = makeUser({ lastLoginAt: null });
     render(<UserTable data={[user]} />);

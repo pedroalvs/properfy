@@ -1,4 +1,5 @@
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { NotificationClassChip } from './NotificationClassChip';
 import { NotificationTargetChip } from './NotificationTargetChip';
 import { TemplateRowActions } from './TemplateRowActions';
@@ -18,6 +19,8 @@ interface TemplateTableProps {
   onDeleted?: () => void;
   /** AM/OP only — enables the delete action on agency overrides. */
   canDelete?: boolean;
+  /** AM/OP — required to edit platform-only codes (editable as the platform default only). */
+  isGlobalRole?: boolean;
 }
 
 export function TemplateTable({
@@ -28,6 +31,7 @@ export function TemplateTable({
   onEdit,
   onDeleted,
   canDelete,
+  isGlobalRole,
 }: TemplateTableProps) {
   const columns: DataTableColumn<NotificationTemplate>[] = [
     {
@@ -84,6 +88,14 @@ export function TemplateTable({
       key: 'notificationClass',
       label: 'Class',
       width: '130px',
+      headerRender: () => (
+        <Tooltip label="How the message is treated for delivery: Transactional messages are always sent; Operational and Marketing messages respect the recipient's notification opt-out.">
+          <span className="inline-flex items-center gap-1">
+            Class
+            <i className="mdi mdi-information-outline text-text-muted" aria-hidden="true" />
+          </span>
+        </Tooltip>
+      ),
       render: (row) => <NotificationClassChip notificationClass={row.notificationClass} />,
     },
     {
@@ -113,6 +125,7 @@ export function TemplateTable({
           onEdit={onEdit}
           onDeleted={onDeleted}
           canDelete={canDelete}
+          isGlobalRole={isGlobalRole}
         />
       ),
     },
