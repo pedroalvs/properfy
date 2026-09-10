@@ -289,8 +289,9 @@ describe('AuditTimeline', () => {
   });
 
   it('preserves interior line breaks in the Fy note content', () => {
-    // `content` is only end-trimmed server-side, so interior newlines are valid
-    // and must survive rendering rather than collapse to a single line.
+    // Server-side validation only trims the ends (`z.string().trim()`), so
+    // interior newlines are valid and must survive rendering rather than
+    // collapse to a single line.
     const multiline: AuditLogEntry = {
       ...fyNoteEntry,
       id: 'log-fy-2',
