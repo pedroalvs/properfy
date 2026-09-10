@@ -202,6 +202,20 @@ describe('GetTemplateDefaultUseCase', () => {
     expect(result.source).toBe('FACTORY');
   });
 
+  it('resolves a platform-only reset to the factory seed even with a stray tenantId', async () => {
+    // Platform-only codes have no override level, so a tenantId must not make reset
+    // return the platform-default row (the body being edited) — it falls to the factory.
+    const result = await useCase.execute({
+      templateCode: 'PASSWORD_RESET',
+      channel: 'EMAIL',
+      tenantId: '11111111-1111-4111-8111-111111111111',
+      actor: makeActor({ role: 'AM', tenantId: null }),
+    });
+    expect(result.source).toBe('FACTORY');
+    // The platform-default row must not even be consulted for these codes.
+    expect(templateRepo.findByTenantCodeChannel).not.toHaveBeenCalled();
+  });
+
   it('404s when neither a platform row nor a factory entry exists for the pair', async () => {
     vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(null);
 

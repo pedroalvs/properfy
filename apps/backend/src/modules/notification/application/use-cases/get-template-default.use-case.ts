@@ -69,7 +69,10 @@ export class GetTemplateDefaultUseCase {
     const isEmail = channel === 'EMAIL';
 
     // Editing an agency override: the platform default is what it reverts to.
-    if (input.tenantId) {
+    // Platform-only codes have no override level, so a stray tenantId must NOT resolve to
+    // the platform-default row (that would return the very body being edited — a no-op
+    // reset). They always fall through to the factory seed below, the level above them.
+    if (input.tenantId && !isPlatformScopedEditableCode(input.templateCode)) {
       const platform = await this.templateRepo.findByTenantCodeChannel(null, input.templateCode, channel);
       if (platform) {
         return {
