@@ -6,7 +6,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { Button } from '@/components/ui/Button';
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { PLATFORM_TIMEZONE, ServiceGroupStatus } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, ServiceGroupStatus, AppointmentStatus } from '@properfy/shared';
 import { useServiceGroupDetail } from '../hooks/useServiceGroupDetail';
 import { usePublishServiceGroup } from '../hooks/usePublishServiceGroup';
 import { useAssignInspector } from '../hooks/useAssignInspector';
@@ -175,7 +175,7 @@ export function ServiceGroupDetailPage() {
     scheduledDate: serviceGroup.scheduledDate,
     timeWindow: serviceGroup.timeWindow,
     blockingAppointments: (serviceGroup.appointments ?? [])
-      .filter((a) => a.status !== 'AWAITING_INSPECTOR')
+      .filter((a) => a.status !== AppointmentStatus.AWAITING_INSPECTOR)
       .map((a) => ({ label: `#${a.appointmentNumber}`, status: a.status })),
   });
   const publishBlocked = publishBlockReason !== null;

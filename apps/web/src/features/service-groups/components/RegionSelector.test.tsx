@@ -68,6 +68,23 @@ describe('RegionSelector — single banner per state', () => {
     expect(screen.queryByText(/No active regions/i)).not.toBeInTheDocument();
   });
 
+  it('shows ONLY the no-inspectors banner when the selected region has zero inspectors (#765)', () => {
+    mockUseResolveRegions.mockReturnValue({
+      data: {
+        regions: [{ regionId: 'r1', regionName: 'North', color: '#000', matchedAppointmentCount: 1, inspectorCount: 0 }],
+        totalAppointments: 1,
+        unmatchedAppointmentIds: [],
+      },
+      isLoading: false, isError: false, refetch: vi.fn(), error: null,
+    } as any);
+    renderSelector({ selectedRegionId: 'r1' });
+    expect(screen.getByText(/No inspectors are currently assigned/i)).toBeInTheDocument();
+    // Mutually-exclusive guarantee: no sibling banner shows.
+    expect(screen.queryByText(/Failed to load regions/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No active regions/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/could not be matched/i)).not.toBeInTheDocument();
+  });
+
   it('never shows two banners simultaneously', () => {
     mockUseResolveRegions.mockReturnValue({
       data: { regions: [], totalAppointments: 1, unmatchedAppointmentIds: ['apt-1'] },

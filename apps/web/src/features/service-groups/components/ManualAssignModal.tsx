@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -7,12 +7,6 @@ import { FormField } from '@/components/forms/FormField';
 import { Textarea } from '@/components/forms/Textarea';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { api } from '@/services/api';
-
-interface Inspector {
-  id: string;
-  name: string;
-  email: string;
-}
 
 interface ManualAssignModalProps {
   open: boolean;
@@ -55,13 +49,13 @@ export function ManualAssignModal({
   const { data, isLoading } = useQuery({
     queryKey: ['inspectors', 'active', search],
     queryFn: async () => {
-      const { data, error } = await api.GET('/v1/inspectors' as any, {
+      const { data, error } = await api.GET('/v1/inspectors', {
         params: {
-          query: { status: 'ACTIVE', search: search || undefined, page: 1, pageSize: 50 } as any,
+          query: { status: 'ACTIVE', search: search || undefined, page: 1, pageSize: 50 },
         },
       });
       if (error) throw new Error('Failed to load inspectors');
-      return (data as any)?.data as Inspector[] ?? [];
+      return data?.data ?? [];
     },
     enabled: open,
   });
@@ -69,6 +63,41 @@ export function ManualAssignModal({
   // You cannot replace someone with themselves, so the current assignee is not
   // offered — which also keeps "a selection exists" a sufficient submit guard.
   const inspectors = (data ?? []).filter((i) => i.id !== currentInspector?.id);
+
+  // Radiogroup keyboard model (web CLAUDE.md §10.7): each option is a real
+  // focusable radio, only the checked (or, with none checked, the first) is in
+  // the tab order; arrows move focus AND selection, wrapping around.
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const moveSelection = useCallback(
+    (fromIndex: number, delta: number) => {
+      if (inspectors.length === 0) return;
+      const next = (fromIndex + delta + inspectors.length) % inspectors.length;
+      setSelectedId(inspectors[next]!.id);
+      optionRefs.current[next]?.focus();
+    },
+    [inspectors],
+  );
+
+  const handleOptionKeyDown = (e: React.KeyboardEvent, index: number) => {
+    switch (e.key) {
+      case 'ArrowDown':
+      case 'ArrowRight':
+        e.preventDefault();
+        moveSelection(index, 1);
+        break;
+      case 'ArrowUp':
+      case 'ArrowLeft':
+        e.preventDefault();
+        moveSelection(index, -1);
+        break;
+      case ' ':
+      case 'Enter':
+        e.preventDefault();
+        setSelectedId(inspectors[index]!.id);
+        break;
+    }
+  };
 
   const trimmedReason = reason.trim();
   const canSubmit =
@@ -111,7 +140,11 @@ export function ManualAssignModal({
           placeholder="Name or email"
         />
 
-        <div className="max-h-64 overflow-y-auto rounded border border-black/10">
+        <div
+          className="max-h-64 overflow-y-auto rounded border border-black/10"
+          role="radiogroup"
+          aria-label="Inspector"
+        >
           {isLoading && (
             <div className="flex items-center justify-center py-8 text-sm text-text-muted">
               Loading inspectors...
@@ -122,15 +155,25 @@ export function ManualAssignModal({
               No active inspectors found.
             </div>
           )}
-          {!isLoading && inspectors.map((inspector) => (
+          {!isLoading && inspectors.map((inspector, index) => {
+            const isSelected = selectedId === inspector.id;
+            // Roving tabindex: the checked option (or the first when nothing is
+            // checked yet) is the group's single tab stop.
+            const isTabStop = isSelected || (selectedId === null && index === 0);
+            return (
             <button
               key={inspector.id}
+              ref={(el) => { optionRefs.current[index] = el; }}
               type="button"
+              role="radio"
+              aria-checked={isSelected}
+              tabIndex={isTabStop ? 0 : -1}
               onClick={() => setSelectedId(inspector.id)}
+              onKeyDown={(e) => handleOptionKeyDown(e, index)}
               className={[
                 'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors',
                 'hover:bg-black/5 border-b border-black/8 last:border-b-0',
-                selectedId === inspector.id ? 'bg-primary/8' : '',
+                isSelected ? 'bg-primary/8' : '',
               ].join(' ')}
             >
               <div className={[
@@ -148,7 +191,8 @@ export function ManualAssignModal({
                 <p className="truncate text-xs text-text-muted">{inspector.email}</p>
               </div>
             </button>
-          ))}
+            );
+          })}
         </div>
 
         {isReplacement && (
