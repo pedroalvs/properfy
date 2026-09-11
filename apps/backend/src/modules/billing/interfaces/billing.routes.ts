@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import {
   listFinancialEntriesQuerySchema,
@@ -78,6 +78,23 @@ export interface BillingRouteContainer {
 
 const entryIdParam = z.object({ entryId: z.string().uuid() });
 const invoiceIdParam = z.object({ invoiceId: z.string().uuid() });
+
+// Documents the header for OpenAPI while enforcement happens via
+// `requireIdempotencyKey` below — kept optional here so a missing header
+// surfaces the codebase's standard `ValidationError` envelope rather than
+// Fastify's schema-validation error shape (mirrors the pattern used on
+// `POST /v1/appointments/:appointmentId/rental-tenant-availability`).
+const idempotencyKeyHeaders = z.object({
+  'idempotency-key': z.string().min(1).max(200).optional(),
+}).passthrough();
+
+function requireIdempotencyKey(request: FastifyRequest): string {
+  const key = request.headers['idempotency-key'];
+  if (typeof key !== 'string' || key.trim().length === 0) {
+    throw new ValidationError('Idempotency-Key header is required');
+  }
+  return key;
+}
 
 export async function registerBillingRoutes(
   app: FastifyInstance,
@@ -225,7 +242,7 @@ export async function registerBillingRoutes(
   // POST /v1/financial/entries/:entryId/approve
   app.post(
     '/v1/financial/entries/:entryId/approve',
-    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
+    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), headers: idempotencyKeyHeaders, response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const actor = request.authContext!;
       const params = entryIdParam.safeParse(request.params);
@@ -237,8 +254,10 @@ export async function registerBillingRoutes(
         entityType: 'FinancialEntry',
         entityId: params.data.entryId,
       });
+      const idempotencyKey = requireIdempotencyKey(request);
       const result = await container.approveFinancialEntryUseCase.execute({
         entryId: params.data.entryId,
+        idempotencyKey,
         actor,
       });
       return reply.status(200).send(success(result));
@@ -270,7 +289,7 @@ export async function registerBillingRoutes(
   // POST /v1/financial/entries/adjust
   app.post(
     '/v1/financial/entries/adjust',
-    { preHandler: authenticate, schema: { body: createManualAdjustmentSchema, response: { 201: successResponseSchema(financialEntryResponseSchema) } } },
+    { preHandler: authenticate, schema: { headers: idempotencyKeyHeaders, body: createManualAdjustmentSchema, response: { 201: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const actor = request.authContext!;
       container.authorizationService.assertRoles(actor, ['AM', 'OP'], {
@@ -281,7 +300,7 @@ export async function registerBillingRoutes(
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
-      const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
+      const idempotencyKey = requireIdempotencyKey(request);
       const result = await container.createManualAdjustmentUseCase.execute({
         ...parsed.data,
         effectiveAt: parsed.data.effectiveAt ? new Date(parsed.data.effectiveAt) : undefined,
@@ -295,7 +314,7 @@ export async function registerBillingRoutes(
   // POST /v1/financial/entries/:entryId/refund
   app.post(
     '/v1/financial/entries/:entryId/refund',
-    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), body: createRefundSchema, response: { 201: successResponseSchema(financialEntryResponseSchema) } } },
+    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), headers: idempotencyKeyHeaders, body: createRefundSchema, response: { 201: successResponseSchema(financialEntryResponseSchema) } } },
     async (request, reply) => {
       const params = entryIdParam.safeParse(request.params);
       if (!params.success) {
@@ -305,7 +324,7 @@ export async function registerBillingRoutes(
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
-      const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
+      const idempotencyKey = requireIdempotencyKey(request);
       const result = await container.createRefundUseCase.execute({
         entryId: params.data.entryId,
         description: parsed.data.description,
@@ -375,7 +394,7 @@ export async function registerBillingRoutes(
   // POST /v1/billing/invoices/:invoiceId/mark-paid
   app.post(
     '/v1/billing/invoices/:invoiceId/mark-paid',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: markInvoicePaidSchema } },
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), headers: idempotencyKeyHeaders, body: markInvoicePaidSchema } },
     async (request, reply) => {
       const params = invoiceIdParam.safeParse(request.params);
       if (!params.success) {
@@ -385,10 +404,12 @@ export async function registerBillingRoutes(
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
+      const idempotencyKey = requireIdempotencyKey(request);
       const result = await container.markInvoicePaidUseCase.execute({
         invoiceId: params.data.invoiceId,
         paidAt: parsed.data.paidAt,
         paymentReference: parsed.data.paymentReference,
+        idempotencyKey,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -398,16 +419,18 @@ export async function registerBillingRoutes(
   // POST /v1/billing/invoices/batch-mark-paid (feature 017 — US3)
   app.post(
     '/v1/billing/invoices/batch-mark-paid',
-    { preHandler: authenticate, schema: { body: batchMarkInvoicesPaidSchema } },
+    { preHandler: authenticate, schema: { headers: idempotencyKeyHeaders, body: batchMarkInvoicesPaidSchema } },
     async (request, reply) => {
       const parsed = batchMarkInvoicesPaidSchema.safeParse(request.body);
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
+      const idempotencyKey = requireIdempotencyKey(request);
       const result = await container.batchMarkInvoicesPaidUseCase.execute({
         invoiceIds: parsed.data.invoiceIds,
         paidAt: parsed.data.paidAt,
         paymentReference: parsed.data.paymentReference,
+        idempotencyKey,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -417,7 +440,7 @@ export async function registerBillingRoutes(
   // POST /v1/billing/invoices/:invoiceId/reverse-payment (feature 017 — US4)
   app.post(
     '/v1/billing/invoices/:invoiceId/reverse-payment',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: reverseInvoicePaymentSchema } },
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), headers: idempotencyKeyHeaders, body: reverseInvoicePaymentSchema } },
     async (request, reply) => {
       const params = invoiceIdParam.safeParse(request.params);
       if (!params.success) {
@@ -427,9 +450,11 @@ export async function registerBillingRoutes(
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
+      const idempotencyKey = requireIdempotencyKey(request);
       const result = await container.reverseInvoicePaymentUseCase.execute({
         invoiceId: params.data.invoiceId,
         reason: parsed.data.reason,
+        idempotencyKey,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -479,7 +504,7 @@ export async function registerBillingRoutes(
   // POST /v1/financial/entries/:entryId/void (GAP-006)
   app.post(
     '/v1/financial/entries/:entryId/void',
-    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), body: voidFinancialEntrySchema, response: { 200: successResponseSchema(financialEntryResponseSchema.pick({ id: true, status: true })) } } },
+    { preHandler: authenticate, schema: { params: z.object({ entryId: z.string().uuid() }), headers: idempotencyKeyHeaders, body: voidFinancialEntrySchema, response: { 200: successResponseSchema(financialEntryResponseSchema.pick({ id: true, status: true })) } } },
     async (request, reply) => {
       const params = entryIdParam.safeParse(request.params);
       if (!params.success) {
@@ -489,9 +514,11 @@ export async function registerBillingRoutes(
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
+      const idempotencyKey = requireIdempotencyKey(request);
       const result = await container.voidFinancialEntryUseCase.execute({
         entryId: params.data.entryId,
         reason: parsed.data.reason,
+        idempotencyKey,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

@@ -2,8 +2,17 @@ import type { AuthContext } from '@properfy/shared';
 import type { IInspectorInvoiceRepository } from '../../domain/inspector-invoice.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
+import { hashIdempotencyPayload } from '../../../../shared/domain/idempotency-payload-hash';
+import {
+  BillingIdempotencyPayloadMismatchError,
+  BillingIdempotencyInProgressError,
+} from '../../domain/billing.errors';
 import { validatePaidAt } from './mark-invoice-paid.use-case';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
+
+const IDEMPOTENCY_SCOPE = 'batch-mark-invoices-paid';
+const IDEMPOTENCY_TTL_HOURS = 24;
 
 export type BatchSkipReason = 'ALREADY_PAID' | 'NOT_CLOSED' | 'NOT_FOUND' | 'TENANT_SCOPE';
 
@@ -11,6 +20,7 @@ export interface BatchMarkInvoicesPaidInput {
   invoiceIds: string[];
   paidAt?: string;
   paymentReference?: string;
+  idempotencyKey: string;
   actor: AuthContext;
 }
 
@@ -30,15 +40,17 @@ export interface BatchMarkInvoicesPaidOutput {
  * - Validates paidAt once for the whole batch (UTC + 1h grace); per-invoice "before issuedAt"
  *   check is performed inside the loop
  *
- * Note: Idempotency (one Idempotency-Key per batch request — Q3 clarification) is handled at the
- * route layer via `IIdempotencyService`, not inside this use case. The use case itself is the unit
- * of work the idempotency service caches.
+ * Note: Idempotency (one Idempotency-Key per batch request — Q3 clarification) covers the
+ * WHOLE batch as a single unit of replay via the atomic `tryAcquire`/`complete`/`release`
+ * flow — there are no per-invoice sub-keys, and a replay returns the stored per-invoice
+ * `processed`/`skipped` results without re-running any invoice update.
  */
 export class BatchMarkInvoicesPaidUseCase {
   constructor(
     private readonly invoiceRepo: IInspectorInvoiceRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly idempotencyService: IIdempotencyService,
     private readonly clock: Clock = new SystemClock(),
   ) {}
 
@@ -50,6 +62,47 @@ export class BatchMarkInvoicesPaidUseCase {
       action: 'financial.mark_paid',
       entityType: 'InspectorInvoice',
     });
+
+    // 1.5 Idempotency: acquire the claim before any write so a retry (or a
+    // concurrent duplicate) never runs the batch twice. ONE key covers the
+    // whole batch — the batch is the unit of replay.
+    const payloadHash = hashIdempotencyPayload({
+      invoiceIds,
+      paidAt: input.paidAt ?? null,
+      paymentReference: input.paymentReference ?? null,
+      actor: { userId: actor.userId, tenantId: actor.tenantId, role: actor.role },
+    });
+    const claim = await this.idempotencyService.tryAcquire<BatchMarkInvoicesPaidOutput>(
+      input.idempotencyKey,
+      IDEMPOTENCY_SCOPE,
+      payloadHash,
+      IDEMPOTENCY_TTL_HOURS,
+    );
+    if (claim.status !== 'acquired' && claim.payloadHash !== payloadHash) {
+      throw new BillingIdempotencyPayloadMismatchError();
+    }
+    if (claim.status === 'completed') {
+      return claim.response;
+    }
+    if (claim.status === 'in_progress') {
+      throw new BillingIdempotencyInProgressError();
+    }
+    const ownerToken = claim.ownerToken;
+
+    try {
+      return await this.doExecute(input, payloadHash, ownerToken);
+    } catch (error) {
+      await this.idempotencyService.release(input.idempotencyKey, IDEMPOTENCY_SCOPE, payloadHash, ownerToken).catch(() => {});
+      throw error;
+    }
+  }
+
+  private async doExecute(
+    input: BatchMarkInvoicesPaidInput,
+    payloadHash: string,
+    ownerToken: string,
+  ): Promise<BatchMarkInvoicesPaidOutput> {
+    const { invoiceIds, actor } = input;
 
     // 2. Determine and validate shared paidAt (once per batch)
     const now = this.clock.now();
@@ -136,6 +189,20 @@ export class BatchMarkInvoicesPaidUseCase {
       processed.push({ id, status: 'PAID' });
     }
 
-    return { processed, skipped };
+    const result: BatchMarkInvoicesPaidOutput = { processed, skipped };
+
+    const completed = await this.idempotencyService.complete(
+      input.idempotencyKey,
+      IDEMPOTENCY_SCOPE,
+      ownerToken,
+      result,
+      IDEMPOTENCY_TTL_HOURS,
+      payloadHash,
+    );
+    if (!completed) {
+      throw new BillingIdempotencyInProgressError();
+    }
+
+    return result;
   }
 }

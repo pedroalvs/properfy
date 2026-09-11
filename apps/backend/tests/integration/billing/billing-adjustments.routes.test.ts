@@ -90,6 +90,7 @@ describe('QA-002-HIGH-001 — POST /v1/financial/entries/adjust response shape (
     const res = await supertest(app.server)
       .post('/v1/financial/entries/adjust')
       .set('Authorization', 'Bearer am-token')
+      .set('Idempotency-Key', 'test-idem-key')
       .send({
         tenantId: TENANT_ID,
         amount: 150,

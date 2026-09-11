@@ -112,7 +112,8 @@ describe('POST /v1/financial/entries/:entryId/approve — QA-010-HIGH-001', () =
 
     const res = await supertest(app.server)
       .post(`/v1/financial/entries/${ENTRY_ID}/approve`)
-      .set('Authorization', 'Bearer valid-token');
+      .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'approve-key-1');
 
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(ENTRY_ID);
@@ -137,7 +138,8 @@ describe('POST /v1/financial/entries/:entryId/approve — QA-010-HIGH-001', () =
 
     const res = await supertest(app.server)
       .post(`/v1/financial/entries/${ENTRY_ID}/approve`)
-      .set('Authorization', 'Bearer valid-token');
+      .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'approve-key-2');
 
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('ENTRY_NOT_PENDING');
@@ -148,5 +150,17 @@ describe('POST /v1/financial/entries/:entryId/approve — QA-010-HIGH-001', () =
       .post(`/v1/financial/entries/${ENTRY_ID}/approve`);
 
     expect(res.status).toBe(401);
+  });
+
+  it('should return 400 VALIDATION_ERROR without Idempotency-Key header', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/financial/entries/${ENTRY_ID}/approve`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockApproveFinancialEntryExecute).not.toHaveBeenCalled();
   });
 });

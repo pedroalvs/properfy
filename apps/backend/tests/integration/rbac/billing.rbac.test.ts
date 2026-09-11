@@ -122,7 +122,7 @@ describe('POST /v1/financial/entries/adjust — RBAC', () => {
     mockJwtVerify.mockResolvedValue(makeAmContext());
     mockCreateManualAdjustment.mockResolvedValue(entryStub);
     const res = await supertest(app.server)
-      .post('/v1/financial/entries/adjust').set('Authorization', 'Bearer t').send(adjustPayload);
+      .post('/v1/financial/entries/adjust').set('Authorization', 'Bearer t').set('Idempotency-Key', 'rbac-test-key').send(adjustPayload);
     expect(res.status).toBe(201);
   });
 
@@ -130,7 +130,7 @@ describe('POST /v1/financial/entries/adjust — RBAC', () => {
     mockJwtVerify.mockResolvedValue(makeOpContext());
     mockCreateManualAdjustment.mockResolvedValue(entryStub);
     const res = await supertest(app.server)
-      .post('/v1/financial/entries/adjust').set('Authorization', 'Bearer t').send(adjustPayload);
+      .post('/v1/financial/entries/adjust').set('Authorization', 'Bearer t').set('Idempotency-Key', 'rbac-test-key').send(adjustPayload);
     expect(res.status).toBe(201);
   });
 
@@ -138,7 +138,7 @@ describe('POST /v1/financial/entries/adjust — RBAC', () => {
     mockJwtVerify.mockResolvedValue(makeClAdminContext(TENANT_ID));
     mockCreateManualAdjustment.mockRejectedValue(new ForbiddenError('FORBIDDEN', 'Insufficient permissions'));
     const res = await supertest(app.server)
-      .post('/v1/financial/entries/adjust').set('Authorization', 'Bearer t').send(adjustPayload);
+      .post('/v1/financial/entries/adjust').set('Authorization', 'Bearer t').set('Idempotency-Key', 'rbac-test-key').send(adjustPayload);
     expect(res.status).toBe(403);
   });
 
@@ -146,7 +146,7 @@ describe('POST /v1/financial/entries/adjust — RBAC', () => {
     mockJwtVerify.mockResolvedValue(makeClUserContext(TENANT_ID));
     mockCreateManualAdjustment.mockRejectedValue(new ForbiddenError('FORBIDDEN', 'Insufficient permissions'));
     const res = await supertest(app.server)
-      .post('/v1/financial/entries/adjust').set('Authorization', 'Bearer t').send(adjustPayload);
+      .post('/v1/financial/entries/adjust').set('Authorization', 'Bearer t').set('Idempotency-Key', 'rbac-test-key').send(adjustPayload);
     expect(res.status).toBe(403);
   });
 });
