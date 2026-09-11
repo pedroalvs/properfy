@@ -253,10 +253,11 @@ export function AgencySelect({
                     id={optionId(index)}
                     role="option"
                     aria-selected={isSelected}
-                    // Keyboard-active vs selected must read differently (WCAG 2.4.7):
-                    // active rows get a highlight background, the selected row gets
-                    // coloured text plus a check icon.
-                    className={`${isSelected ? formOptionActive : formOption}${isActive ? ' bg-primary/10' : ''} flex items-center justify-between`}
+                    // Keyboard-active vs selected must read differently (WCAG 2.4.7).
+                    // The selected row already carries `bg-primary/10` (formOptionActive),
+                    // so the active cursor uses an inset ring instead of another
+                    // background — it stays visible even when it lands on the selected row.
+                    className={`${isSelected ? formOptionActive : formOption}${isActive ? ' ring-2 ring-inset ring-primary' : ''} flex items-center justify-between`}
                     onClick={() => handleSelect(agency)}
                     onMouseEnter={() => setActiveIndex(index)}
                   >

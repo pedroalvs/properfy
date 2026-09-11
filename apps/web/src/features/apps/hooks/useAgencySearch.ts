@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 
 export interface AgencyOption {
@@ -60,10 +60,14 @@ export function useAgencySearch(enabled = true): UseAgencySearchReturn {
     };
   }, []);
 
+  // Referential stability (web CLAUDE.md §11): key the derived array on the raw
+  // query payload so consumers' effects don't see a new array every render.
+  const results = useMemo(() => data?.data ?? [], [data]);
+
   return {
     search,
     debouncedSearch,
-    results: data?.data ?? [],
+    results,
     total: data?.pagination.total ?? 0,
     isSearching,
     setSearch,
