@@ -149,11 +149,6 @@ export class UpdateInspectorUseCase {
 
     await this.inspectorRepo.update(inspectorId, updateData);
 
-    // Keep the login account in step. Both syncs are driven off the supplied
-    // payload rather than off "did the inspector row change", so a retry after a
-    // failed users write still repairs the divergence — the inspector row already
-    // carries the new value by then, which would make a diff-based check skip the
-    // sync forever while returning 200.
     // Keep the login email in step. Lifecycle status is deliberately NOT synced
     // here: activation/deactivation (and the session revocation it entails) belong
     // exclusively to the deactivate/reactivate flow, which owns the lockout and

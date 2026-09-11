@@ -180,6 +180,28 @@ describe('ConfirmInspectorPhotoUploadUseCase', () => {
     expect(storageService.deleteObject).toHaveBeenCalledWith('inspector-avatars', OLD_KEY);
   });
 
+  // Orphan cleanup is best-effort: the row already points at the new key and S3
+  // DeleteObject is idempotent, so a failed delete of the old object must not fail
+  // an otherwise-successful confirm.
+  it('still succeeds when deleting the previous avatar object fails', async () => {
+    const OLD_KEY = `inspectors/${INSPECTOR_ID}/avatar.png`;
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ photoStorageKey: OLD_KEY }),
+    );
+    vi.mocked(storageService.deleteObject).mockRejectedValue(new Error('S3 down'));
+
+    const result = await useCase.execute({
+      inspectorId: INSPECTOR_ID,
+      storageKey: STORAGE_KEY,
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.inspectorId).toBe(INSPECTOR_ID);
+    expect(inspectorRepo.update).toHaveBeenCalledWith(INSPECTOR_ID, {
+      photoStorageKey: STORAGE_KEY,
+    });
+  });
+
   it('does not delete when re-confirming the same avatar key', async () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue(
       makeInspector({ photoStorageKey: STORAGE_KEY }),
