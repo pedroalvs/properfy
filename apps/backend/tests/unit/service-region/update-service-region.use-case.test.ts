@@ -92,8 +92,10 @@ describe('UpdateServiceRegionUseCase', () => {
     expect(regionRepo.update).toHaveBeenCalledWith('region-1', 'tenant-1', { name: 'Updated by AM' });
   });
 
-  it('should check name uniqueness when changing name', async () => {
-    vi.mocked(regionRepo.findByName).mockResolvedValue(makeRegion());
+  it('propagates the name conflict raised by the DB constraint via the repo (#614)', async () => {
+    // The race-prone pre-check is gone; uniqueness is enforced by the unique
+    // index, whose violation the repository translates before it reaches here.
+    vi.mocked(regionRepo.update).mockRejectedValue(new ServiceRegionNameConflictError());
 
     await expect(
       useCase.execute({
@@ -102,18 +104,17 @@ describe('UpdateServiceRegionUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(ServiceRegionNameConflictError);
-
-    expect(regionRepo.findByName).toHaveBeenCalledWith('tenant-1', 'Existing Name');
   });
 
-  it('should not check name uniqueness when name unchanged', async () => {
+  it('no longer issues an app-level findByName pre-check on rename (#614)', async () => {
     await useCase.execute({
       regionId: 'region-1',
-      name: 'Sydney CBD',
+      name: 'A New Name',
       actor: makeActor(),
     });
 
     expect(regionRepo.findByName).not.toHaveBeenCalled();
+    expect(regionRepo.update).toHaveBeenCalledWith('region-1', 'tenant-1', { name: 'A New Name' });
   });
 
   it('should throw NotFound when region belongs to another tenant', async () => {
@@ -146,5 +147,32 @@ describe('UpdateServiceRegionUseCase', () => {
         actor: makeActor({ role: 'INSP' }),
       }),
     ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('echoes the persisted updatedAt, not a synthetic timestamp (#615)', async () => {
+    const persistedUpdatedAt = new Date('2020-01-02T03:04:05.000Z');
+    const persisted = new ServiceRegionEntity({
+      id: 'region-1',
+      tenantId: 'tenant-1',
+      name: 'Renamed',
+      geojson: {},
+      color: '#3b82f6',
+      status: 'ACTIVE',
+      createdByUserId: 'user-1',
+      createdAt: new Date('2019-01-01T00:00:00.000Z'),
+      updatedAt: persistedUpdatedAt,
+    });
+    // First findById is the guard load, second is the re-read after update.
+    vi.mocked(regionRepo.findById)
+      .mockResolvedValueOnce(makeRegion())
+      .mockResolvedValueOnce(persisted);
+
+    const result = await useCase.execute({
+      regionId: 'region-1',
+      name: 'Renamed',
+      actor: makeActor(),
+    });
+
+    expect(result.updatedAt).toEqual(persistedUpdatedAt);
   });
 });

@@ -14,6 +14,7 @@ import type { UpdateServiceRegionUseCase } from '../application/use-cases/update
 import type { GetServiceRegionUseCase } from '../application/use-cases/get-service-region.use-case';
 import type { ListServiceRegionsUseCase } from '../application/use-cases/list-service-regions.use-case';
 import type { DeactivateServiceRegionUseCase } from '../application/use-cases/deactivate-service-region.use-case';
+import type { ReactivateServiceRegionUseCase } from '../application/use-cases/reactivate-service-region.use-case';
 import type { DeleteServiceRegionUseCase } from '../application/use-cases/delete-service-region.use-case';
 import type { ResolveRegionsUseCase } from '../application/use-cases/resolve-regions.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
@@ -24,6 +25,7 @@ export interface ServiceRegionRouteContainer {
   getServiceRegionUseCase: GetServiceRegionUseCase;
   listServiceRegionsUseCase: ListServiceRegionsUseCase;
   deactivateServiceRegionUseCase: DeactivateServiceRegionUseCase;
+  reactivateServiceRegionUseCase: ReactivateServiceRegionUseCase;
   deleteServiceRegionUseCase: DeleteServiceRegionUseCase;
   resolveRegionsUseCase: ResolveRegionsUseCase;
   jwtService: JwtService;
@@ -133,6 +135,28 @@ export async function registerServiceRegionRoutes(
         throw new ValidationError('Request payload is invalid', body.error.errors);
       }
       const result = await container.deactivateServiceRegionUseCase.execute({
+        regionId: params.data.id,
+        reason: body.data.reason,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/service-regions/:id/reactivate — reactivate (INACTIVE → ACTIVE)
+  app.post(
+    '/v1/service-regions/:id/reactivate',
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const params = regionIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid region ID', params.error.errors);
+      }
+      const body = z.object({ reason: z.string().min(1) }).safeParse(request.body);
+      if (!body.success) {
+        throw new ValidationError('Request payload is invalid', body.error.errors);
+      }
+      const result = await container.reactivateServiceRegionUseCase.execute({
         regionId: params.data.id,
         reason: body.data.reason,
         actor: request.authContext!,

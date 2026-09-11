@@ -27372,6 +27372,25 @@
         }
       }
     },
+    "/v1/service-regions/{id}/reactivate": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/v1/service-regions/resolve": {
       "post": {
         "responses": {

@@ -2,17 +2,13 @@ import type { AuthContext } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
-import {
-  ServiceRegionNotFoundError,
-  ServiceRegionNameConflictError,
-} from '../../domain/service-region.errors';
+import { ServiceRegionNotFoundError } from '../../domain/service-region.errors';
 
 export interface UpdateServiceRegionInput {
   regionId: string;
   name?: string;
   geojson?: Record<string, unknown>;
   color?: string;
-  status?: string;
   actor: AuthContext;
 }
 
@@ -33,7 +29,7 @@ export class UpdateServiceRegionUseCase {
   ) {}
 
   async execute(input: UpdateServiceRegionInput): Promise<UpdateServiceRegionOutput> {
-    const { regionId, name, geojson, color, status, actor } = input;
+    const { regionId, name, geojson, color, actor } = input;
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_region.update', entityType: 'ServiceRegion' });
 
@@ -45,30 +41,26 @@ export class UpdateServiceRegionUseCase {
 
     const tenantId = region.tenantId;
 
-    // Check name uniqueness within tenant if changing name
-    if (name !== undefined && name.toLowerCase() !== region.name.toLowerCase()) {
-      const existing = await this.regionRepo.findByName(tenantId, name);
-      if (existing) {
-        throw new ServiceRegionNameConflictError();
-      }
-    }
+    // No app-level findByName pre-check here: it was race-prone (two concurrent
+    // renames both pass it, then one violates the DB). The case-insensitive
+    // unique index is the source of truth; the repository translates its
+    // violation into ServiceRegionNameConflictError (#614).
 
     const before = {
       name: region.name,
       color: region.color,
-      status: region.status,
     };
 
+    // `status` is deliberately not updatable here — status transitions go
+    // through deactivate/reactivate so they capture a reason + audit (#387).
     const updateData: Partial<{
       name: string;
       geojson: Record<string, unknown>;
       color: string;
-      status: string;
     }> = {};
     if (name !== undefined) updateData.name = name;
     if (geojson !== undefined) updateData.geojson = geojson;
     if (color !== undefined) updateData.color = color;
-    if (status !== undefined) updateData.status = status;
 
     if (Object.keys(updateData).length > 0) {
       await this.regionRepo.update(regionId, tenantId, updateData);
@@ -79,7 +71,6 @@ export class UpdateServiceRegionUseCase {
     const after = {
       name: updated?.name ?? region.name,
       color: updated?.color ?? region.color,
-      status: updated?.status ?? region.status,
     };
 
     this.auditService.log({
@@ -98,7 +89,9 @@ export class UpdateServiceRegionUseCase {
       geojson: updated?.geojson ?? region.geojson,
       color: updated?.color ?? region.color,
       status: updated?.status ?? region.status,
-      updatedAt: new Date(),
+      // Echo the persisted timestamp, not a synthetic one — the re-read entity
+      // is already in hand (#615).
+      updatedAt: updated?.updatedAt ?? region.updatedAt,
     };
   }
 

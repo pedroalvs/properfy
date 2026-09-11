@@ -239,6 +239,14 @@ describe('updateServiceRegionSchema with geometry union', () => {
     };
     expect(updateServiceRegionSchema.safeParse(input).success).toBe(false);
   });
+
+  it('does not carry status through the update payload (status changes go through deactivate/reactivate)', () => {
+    const parsed = updateServiceRegionSchema.safeParse({ name: 'Renamed', status: 'INACTIVE' });
+    expect(parsed.success).toBe(true);
+    // status must be stripped so PATCH can never mutate the region status,
+    // bypassing the reason + audit of the dedicated deactivate/reactivate actions.
+    expect(parsed.success && 'status' in parsed.data).toBe(false);
+  });
 });
 
 function generateUuids(count: number): string[] {
