@@ -77,6 +77,7 @@ describe('Snapshot immutability — T045', () => {
       displayName: 'Original Name',
       primaryEmail: 'original@example.com',
       actorId: 'user-1',
+      actorRole: 'AM',
     });
 
     // Simulate: at appointment link time, the snapshot was captured from savedContact.

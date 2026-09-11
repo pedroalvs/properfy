@@ -6,6 +6,7 @@ import {
   ContactPhoneAlreadyExistsError,
   ContactChannelDuplicatedError,
 } from '../../../src/modules/contact/domain/contact.errors';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 
 const contactRepo = {
   findById: vi.fn(),
@@ -39,6 +40,7 @@ function baseInput(overrides: Record<string, unknown> = {}) {
     primaryPhone: null,
     additionalChannels: [],
     actorId: ACTOR_ID,
+    actorRole: 'AM' as const,
     ...overrides,
   };
 }
@@ -151,6 +153,52 @@ describe('CreateContactUseCase', () => {
 
     expect(contactRepo.existsByEmail).toHaveBeenCalledOnce();
     expect(contactRepo.existsByPhone).not.toHaveBeenCalled();
+  });
+
+  describe('WI-1 — fail-closed actor authorization (centralized in the use case)', () => {
+    it('rejects an INSP actor with ForbiddenError before touching the repository', async () => {
+      const sut = makeSut();
+
+      await expect(sut.execute(baseInput({ actorRole: 'INSP' }))).rejects.toThrow(ForbiddenError);
+
+      expect(contactRepo.existsByEmail).not.toHaveBeenCalled();
+      expect(contactRepo.save).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unknown role string with ForbiddenError before touching the repository', async () => {
+      const sut = makeSut();
+
+      await expect(sut.execute(baseInput({ actorRole: 'HACKER' }))).rejects.toThrow(ForbiddenError);
+
+      expect(contactRepo.save).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+    });
+
+    it('rejects a CL_USER actor — creation is limited to AM/OP/CL_ADMIN (mirror of WRITE_ROLES)', async () => {
+      const sut = makeSut();
+
+      await expect(sut.execute(baseInput({ actorRole: 'CL_USER' }))).rejects.toThrow(ForbiddenError);
+
+      expect(contactRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('allows CL_ADMIN to create (stays within the allowlist)', async () => {
+      const sut = makeSut();
+
+      const result = await sut.execute(baseInput({ actorRole: 'CL_ADMIN' }));
+
+      expect(contactRepo.save).toHaveBeenCalledOnce();
+      expect(result.displayName).toBe('Alice Smith');
+    });
+
+    it.each(['AM', 'OP'] as const)('allows %s to create (cross-tenant operational roles)', async (actorRole) => {
+      const sut = makeSut();
+
+      await sut.execute(baseInput({ actorRole }));
+
+      expect(contactRepo.save).toHaveBeenCalledOnce();
+    });
   });
 
   describe('024 §FR-301 — standalone contact creation', () => {

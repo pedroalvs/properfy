@@ -2,6 +2,7 @@ import type { ContactType } from '@properfy/shared';
 import type { IContactRepository } from '../../domain/contact.repository';
 import type { ContactEntity } from '../../domain/contact.entity';
 import type { ContactScope } from '../../domain/contact.scope';
+import { ForbiddenError } from '../../../../shared/domain/errors';
 
 /**
  * 024 §FR-303 — actor context the route layer passes to the use case so
@@ -57,6 +58,14 @@ export interface ListContactsResult {
 export function resolveScope(actor: ListContactsActor, queryTenantId?: string | null): ContactScope {
   if (actor.role === 'AM' || actor.role === 'OP') {
     return { kind: 'global', explicitTenantId: queryTenantId ?? null };
+  }
+  // WI-1 (#209) — fail closed: only CL_ADMIN/CL_USER map to a tenant-pinned
+  // scope. Any other role (INSP, TNT, an unknown string) must be rejected, not
+  // silently downgraded to tenant-pinned — otherwise a non-HTTP caller reaching
+  // this helper would gain read access. Authorization lives here, not only in
+  // the route allowlist (root CLAUDE.md §7.4).
+  if (actor.role !== 'CL_ADMIN' && actor.role !== 'CL_USER') {
+    throw new ForbiddenError('FORBIDDEN', 'Insufficient permissions to read contacts');
   }
   if (!actor.tenantId) {
     // Defence in depth: a CL_* token without a tenant_id should never

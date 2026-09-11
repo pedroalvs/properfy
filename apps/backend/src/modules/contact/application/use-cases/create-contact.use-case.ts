@@ -3,6 +3,7 @@ import type { IContactRepository } from '../../domain/contact.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AdditionalChannel } from '../../domain/contact.entity';
 import { ContactEntity } from '../../domain/contact.entity';
+import { ForbiddenError } from '../../../../shared/domain/errors';
 import {
   ContactEmailAlreadyExistsError,
   ContactPhoneAlreadyExistsError,
@@ -12,6 +13,14 @@ import {
   validateNoDuplicateChannels,
   validateNoIntraArrayDuplicates,
 } from '../../domain/contact-validation.service';
+
+/**
+ * WI-1 (#211) — roles allowed to create a contact. Mirror of the route's
+ * `WRITE_ROLES`, but enforced here so any non-HTTP caller (job, script, another
+ * module) is validated too — authorization is centralized in the application
+ * layer (root CLAUDE.md §7.4), not only in the Fastify route allowlist.
+ */
+export const CONTACT_CREATE_ROLES = ['AM', 'OP', 'CL_ADMIN'] as const;
 
 export interface CreateContactInput {
   /**
@@ -30,6 +39,11 @@ export interface CreateContactInput {
   notes?: string | null;
   actorId: string;
   /**
+   * WI-1 — the actor's role, validated against {@link CONTACT_CREATE_ROLES}
+   * before any write so authorization does not depend on the route allowlist.
+   */
+  actorRole: string;
+  /**
    * 024 — actor's own JWT tenant, recorded as `metadata.actor_tenant_id`
    * on the audit row so cross-tenant AM/OP creates are still traceable
    * back to the operator's home tenant context (AM may have null).
@@ -44,6 +58,12 @@ export class CreateContactUseCase {
   ) {}
 
   async execute(input: CreateContactInput): Promise<ContactEntity> {
+    // WI-1 — fail closed: reject any actor whose role is not an allowed
+    // creator before running validation, uniqueness checks or the write.
+    if (!(CONTACT_CREATE_ROLES as readonly string[]).includes(input.actorRole)) {
+      throw new ForbiddenError('FORBIDDEN', 'Insufficient permissions to create a contact');
+    }
+
     const email = input.primaryEmail ?? null;
     const phone = input.primaryPhone ?? null;
     const channels = input.additionalChannels ?? [];
