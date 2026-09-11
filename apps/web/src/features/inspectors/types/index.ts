@@ -48,7 +48,6 @@ export interface InspectorFormData {
   password: string;
   confirmPassword: string;
   phone: string;
-  status: string;
   regionIds: string[];
   serviceTypes: string;
   fullName: string;
@@ -69,7 +68,6 @@ export const EMPTY_INSPECTOR_FORM: InspectorFormData = {
   password: '',
   confirmPassword: '',
   phone: '',
-  status: '',
   regionIds: [],
   serviceTypes: '',
   fullName: '',

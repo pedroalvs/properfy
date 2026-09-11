@@ -142,6 +142,80 @@ describe('ConfirmInspectorPhotoUploadUseCase', () => {
     ).rejects.toBeInstanceOf(InspectorPhotoInvalidKeyError);
   });
 
+  // Regression (WI-1 / #288, #320): a well-formed key that embeds a DIFFERENT
+  // inspector's UUID must be rejected. Because avatar keys are deterministic,
+  // without this an AM/OP could bind inspector B's object onto inspector A.
+  it('rejects a key whose embedded UUID is a different inspector', async () => {
+    const OTHER_ID = '00000000-0000-0000-0000-000000000002';
+    await expect(
+      useCase.execute({
+        inspectorId: INSPECTOR_ID,
+        storageKey: `inspectors/${OTHER_ID}/avatar.jpg`,
+        actor: makeActor({ role: 'AM' }),
+      }),
+    ).rejects.toBeInstanceOf(InspectorPhotoInvalidKeyError);
+
+    expect(storageService.headObject).not.toHaveBeenCalled();
+    expect(inspectorRepo.update).not.toHaveBeenCalled();
+  });
+
+  // Regression (WI-1 / #569): the avatar key varies with the MIME extension, so a
+  // re-upload with a different type leaves the previous object orphaned and both
+  // keys valid. Confirm must delete the prior object when the key differs.
+  it('deletes the previously stored avatar object when the new key differs', async () => {
+    const OLD_KEY = `inspectors/${INSPECTOR_ID}/avatar.png`;
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ photoStorageKey: OLD_KEY }),
+    );
+
+    await useCase.execute({
+      inspectorId: INSPECTOR_ID,
+      storageKey: STORAGE_KEY, // avatar.jpg — different extension
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(inspectorRepo.update).toHaveBeenCalledWith(INSPECTOR_ID, {
+      photoStorageKey: STORAGE_KEY,
+    });
+    expect(storageService.deleteObject).toHaveBeenCalledWith('inspector-avatars', OLD_KEY);
+  });
+
+  // Orphan cleanup is best-effort: the row already points at the new key and S3
+  // DeleteObject is idempotent, so a failed delete of the old object must not fail
+  // an otherwise-successful confirm.
+  it('still succeeds when deleting the previous avatar object fails', async () => {
+    const OLD_KEY = `inspectors/${INSPECTOR_ID}/avatar.png`;
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ photoStorageKey: OLD_KEY }),
+    );
+    vi.mocked(storageService.deleteObject).mockRejectedValue(new Error('S3 down'));
+
+    const result = await useCase.execute({
+      inspectorId: INSPECTOR_ID,
+      storageKey: STORAGE_KEY,
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(result.inspectorId).toBe(INSPECTOR_ID);
+    expect(inspectorRepo.update).toHaveBeenCalledWith(INSPECTOR_ID, {
+      photoStorageKey: STORAGE_KEY,
+    });
+  });
+
+  it('does not delete when re-confirming the same avatar key', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ photoStorageKey: STORAGE_KEY }),
+    );
+
+    await useCase.execute({
+      inspectorId: INSPECTOR_ID,
+      storageKey: STORAGE_KEY,
+      actor: makeActor({ role: 'AM' }),
+    });
+
+    expect(storageService.deleteObject).not.toHaveBeenCalled();
+  });
+
   it('should allow OP to confirm', async () => {
     const result = await useCase.execute({
       inspectorId: INSPECTOR_ID,

@@ -19,7 +19,6 @@ export interface UpdateInspectorInput {
     name?: string;
     email?: string;
     phone?: string | null;
-    status?: string;
     paymentSettings?: PaymentSettings;
     regions?: string[];
     regionIds?: string[];
@@ -133,7 +132,6 @@ export class UpdateInspectorUseCase {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.email !== undefined) updateData.email = data.email;
     if (data.phone !== undefined) updateData.phone = data.phone;
-    if (data.status !== undefined) updateData.status = data.status;
     if (data.paymentSettings !== undefined) updateData.paymentSettingsJson = data.paymentSettings;
     if (data.serviceTypes !== undefined) updateData.serviceTypesJson = data.serviceTypes;
     if (data.blockedClients !== undefined) updateData.blockedClientsJson = data.blockedClients;
@@ -151,39 +149,17 @@ export class UpdateInspectorUseCase {
 
     await this.inspectorRepo.update(inspectorId, updateData);
 
-    // Keep the login account in step. Both syncs are driven off the supplied
-    // payload rather than off "did the inspector row change", so a retry after a
-    // failed users write still repairs the divergence — the inspector row already
-    // carries the new value by then, which would make a diff-based check skip the
-    // sync forever while returning 200.
-    if (inspector.userId) {
-      const userUpdate: { email?: string; status?: string } = {};
-
+    // Keep the login email in step. Lifecycle status is deliberately NOT synced
+    // here: activation/deactivation (and the session revocation it entails) belong
+    // exclusively to the deactivate/reactivate flow, which owns the lockout and
+    // audit semantics. Driven off the supplied payload, not a diff, so a retry
+    // after a failed users write still repairs the divergence.
+    if (inspector.userId && data.email !== undefined) {
       // Otherwise the UI shows the new address while authentication still expects
       // the old one, and PWA forgot-password silently no-ops on the unknown email.
-      if (data.email !== undefined) {
-        userUpdate.email = data.email;
-      }
-
-      // This route accepts `status` alongside the dedicated deactivate endpoint.
-      // Without syncing, INACTIVE here leaves a fully usable login, and ACTIVE
-      // never lifts the block that /deactivate applied — leaving a reactivated
-      // inspector assignable but permanently unable to log in.
-      if (data.status !== undefined) {
-        userUpdate.status = data.status;
-      }
-
-      if (Object.keys(userUpdate).length > 0) {
-        await this.requireUserManagementRepo().update(inspector.userId, null, userUpdate);
-      }
-
-      // Payload-gated like the write above, not diff-gated: revoking is idempotent
-      // (it only touches sessions with revoked_at IS NULL), and a diff gate left
-      // the revoke stranded on a retry — the status write would heal while live
-      // sessions survived on an account already marked INACTIVE.
-      if (userUpdate.status === 'INACTIVE') {
-        await this.requireUserManagementRepo().revokeAllSessions(inspector.userId);
-      }
+      await this.requireUserManagementRepo().update(inspector.userId, null, {
+        email: data.email,
+      });
     }
 
     // Update service region links if regionIds provided
@@ -199,7 +175,8 @@ export class UpdateInspectorUseCase {
       name: (updateData.name as string) ?? inspector.name,
       email: (updateData.email as string) ?? inspector.email,
       phone: (updateData.phone as string | null) ?? inspector.phone,
-      status: (updateData.status as string) ?? inspector.status,
+      // Status is never mutated by this path; always echo the current value.
+      status: inspector.status,
       paymentSettingsJson: (updateData.paymentSettingsJson as PaymentSettings) ?? inspector.paymentSettingsJson,
       regionIds: resolvedRegionIds,
       serviceTypesJson: (updateData.serviceTypesJson as ServiceTypeEntry[]) ?? inspector.serviceTypesJson,

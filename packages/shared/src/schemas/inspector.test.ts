@@ -300,6 +300,19 @@ describe('updateInspectorSchema', () => {
       expect(result.data).not.toHaveProperty('password');
     }
   });
+
+  // Lifecycle status must not ride the generic update path: it would bypass the
+  // deactivate/reactivate flow's reason requirement, login lockout, session
+  // revocation and audit semantics. Status changes go exclusively through the
+  // dedicated endpoints, so the field is stripped here.
+  it('should strip status — lifecycle changes go through deactivate/reactivate', () => {
+    const result = updateInspectorSchema.safeParse({ name: 'Updated Name', status: 'INACTIVE' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).not.toHaveProperty('status');
+      expect(result.data.name).toBe('Updated Name');
+    }
+  });
 });
 
 describe('listInspectorsQuerySchema', () => {

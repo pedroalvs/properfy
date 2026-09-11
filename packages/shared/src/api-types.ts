@@ -3500,8 +3500,6 @@ export interface paths {
                         /** Format: email */
                         email?: string;
                         phone?: string | null;
-                        /** @enum {string} */
-                        status?: "ACTIVE" | "INACTIVE";
                         paymentSettings?: {
                             bankName?: string;
                             accountNumber?: string;
@@ -9169,6 +9167,7 @@ export interface paths {
                                     agency: {
                                         id: string;
                                         name: string;
+                                        branchName?: string | null;
                                     };
                                     tenantContacts: {
                                         name: string;

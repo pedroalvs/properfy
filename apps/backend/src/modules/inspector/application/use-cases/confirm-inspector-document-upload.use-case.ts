@@ -45,6 +45,20 @@ export class ConfirmInspectorDocumentUploadUseCase {
       throw new InspectorDocumentInvalidKeyError();
     }
 
+    // Bind the key to the request, not just its shape (#288/#320). The key is
+    // `inspectors/<uuid>/documents/<kind>/<file>.<ext>`: its UUID must be this
+    // inspector, and its kind segment must match the requested kind — otherwise an
+    // insurance object could be recorded as a police check, or attached to another
+    // inspector.
+    const [, keyInspectorId, , keyKind] = storageKey.split('/');
+    const expectedKeyKind = kind === 'INSURANCE' ? 'insurance' : 'police_check';
+    if (
+      keyInspectorId?.toLowerCase() !== inspectorId.toLowerCase() ||
+      keyKind?.toLowerCase() !== expectedKeyKind
+    ) {
+      throw new InspectorDocumentInvalidKeyError();
+    }
+
     const inspector = await this.inspectorRepo.findById(inspectorId);
     if (!inspector || inspector.isDeleted()) {
       throw new InspectorNotFoundError();

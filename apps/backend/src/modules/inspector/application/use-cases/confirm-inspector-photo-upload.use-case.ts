@@ -46,6 +46,14 @@ export class ConfirmInspectorPhotoUploadUseCase {
       throw new InspectorPhotoInvalidKeyError();
     }
 
+    // The key format is deterministic (`inspectors/<uuid>/avatar.<ext>`), so a
+    // shape-only check would let an AM/OP bind another inspector's object onto
+    // this record. Bind the embedded UUID to the request's inspectorId (#288/#320).
+    const keyInspectorId = storageKey.split('/')[1];
+    if (keyInspectorId?.toLowerCase() !== inspectorId.toLowerCase()) {
+      throw new InspectorPhotoInvalidKeyError();
+    }
+
     const inspector = await this.inspectorRepo.findById(inspectorId);
     if (!inspector || inspector.isDeleted()) {
       throw new InspectorNotFoundError();
@@ -56,7 +64,23 @@ export class ConfirmInspectorPhotoUploadUseCase {
       throw new InspectorPhotoObjectNotFoundError();
     }
 
+    const previousKey = inspector.photoStorageKey;
+
     await this.inspectorRepo.update(inspectorId, { photoStorageKey: storageKey });
+
+    // #569: the avatar key varies with the MIME extension, so a re-upload as a
+    // different type leaves the old object orphaned with a still-valid key. Delete
+    // it once the record points at the new key. Best-effort and ordered after the
+    // update: the row already references the new object, and S3 DeleteObject is
+    // idempotent, so a transient failure self-heals on the next confirm rather
+    // than rolling back a successful photo change.
+    if (previousKey && previousKey !== storageKey) {
+      try {
+        await this.storageService.deleteObject(AVATAR_BUCKET, previousKey);
+      } catch {
+        // Orphan cleanup must never fail an otherwise-successful confirm.
+      }
+    }
 
     this.auditService.log({
       action: 'inspector.photo_confirmed',

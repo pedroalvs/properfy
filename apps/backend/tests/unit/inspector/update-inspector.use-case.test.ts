@@ -167,6 +167,51 @@ describe('UpdateInspectorUseCase', () => {
     );
   });
 
+  // Regression (WI-2 / #295): the generic update path must NOT accept lifecycle
+  // status. A status change would otherwise bypass the deactivate flow's reason
+  // requirement, login lockout, session revocation and audit semantics. Even if a
+  // caller smuggles `status` past the (now stripping) schema, the use case must
+  // never write it to the inspector row nor sync/revoke the login account.
+  it('ignores a smuggled lifecycle status and never touches the login account for it', async () => {
+    const userManagementRepo = {
+      findByEmail: vi.fn(),
+      update: vi.fn(),
+      revokeAllSessions: vi.fn(),
+    } as unknown as import('../../../src/modules/user/domain/user-management.repository').IUserManagementRepository;
+    const authorizationService = new AuthorizationService(auditService);
+    useCase = new UpdateInspectorUseCase(
+      inspectorRepo,
+      auditService,
+      undefined,
+      authorizationService,
+      userManagementRepo,
+    );
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(
+      makeInspector({ userId: 'user-linked-1', status: 'ACTIVE' }),
+    );
+
+    await useCase.execute({
+      inspectorId: 'inspector-1',
+      // `status` is not part of UpdateInspectorInput.data; cast simulates a bypass.
+      data: { name: 'Renamed', status: 'INACTIVE' } as unknown as Parameters<
+        typeof useCase.execute
+      >[0]['data'],
+      actor: makeActor(),
+    });
+
+    const updatePayload = vi.mocked(inspectorRepo.update).mock.calls[0]![1] as Record<
+      string,
+      unknown
+    >;
+    expect(updatePayload).not.toHaveProperty('status');
+    expect(vi.mocked(userManagementRepo.revokeAllSessions)).not.toHaveBeenCalled();
+    expect(vi.mocked(userManagementRepo.update)).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ status: expect.anything() }),
+    );
+  });
+
   it('should throw INSPECTOR_EMAIL_CONFLICT on email change', async () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
     vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(
