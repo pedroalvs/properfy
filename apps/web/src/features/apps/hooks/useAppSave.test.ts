@@ -58,9 +58,20 @@ describe('useAppSave.validate', () => {
     const { result } = renderHook(() => useAppSave(), { wrapper: createQueryWrapper() });
 
     await result.current.save({ ...VALID, needsAuthCode: true }, appId);
-    const { body } = vi.mocked(api[method]).mock.calls[0]![1] as unknown as { body: Record<string, unknown> };
-    expect(body.needsAuthCode).toBe(true);
-    expect(body).not.toHaveProperty('authCode');
+    const [path, options] = vi.mocked(api[method]).mock.calls[0]! as unknown as [
+      string,
+      { params?: { path?: { id?: string } }; body: Record<string, unknown> },
+    ];
+    // Typed openapi-fetch routes: templated path + params.path for the {id} form,
+    // never a template-literal path with `as any`.
+    if (appId) {
+      expect(path).toBe('/v1/app-credentials/{id}');
+      expect(options.params).toEqual({ path: { id: appId } });
+    } else {
+      expect(path).toBe('/v1/app-credentials');
+    }
+    expect(options.body.needsAuthCode).toBe(true);
+    expect(options.body).not.toHaveProperty('authCode');
   });
 
   it('rejects invalid urls and accepts valid or empty ones', () => {
@@ -77,10 +88,15 @@ describe('useAppSave.validate', () => {
     const { result } = renderHook(() => useAppSave(), { wrapper: createQueryWrapper() });
 
     await result.current.save({ ...VALID, isDefault: true });
+    expect(vi.mocked(api.POST).mock.calls[0]![0]).toBe('/v1/app-credentials');
     expect(vi.mocked(api.POST).mock.calls[0]![1]).toMatchObject({ body: expect.objectContaining({ isDefault: true }) });
 
     await result.current.save({ ...VALID, isDefault: false }, 'cred-1');
-    expect(vi.mocked(api.PATCH).mock.calls[0]![1]).toMatchObject({ body: expect.objectContaining({ isDefault: false }) });
+    expect(vi.mocked(api.PATCH).mock.calls[0]![0]).toBe('/v1/app-credentials/{id}');
+    expect(vi.mocked(api.PATCH).mock.calls[0]![1]).toMatchObject({
+      params: { path: { id: 'cred-1' } },
+      body: expect.objectContaining({ isDefault: false }),
+    });
   });
 
   it('accepts branch and optional secret fields', () => {

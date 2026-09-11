@@ -9,9 +9,9 @@ import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Checkbox } from '@/components/forms/Checkbox';
-import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { AgencySelect } from './AgencySelect';
 import { useAppSave } from '../hooks/useAppSave';
 import { EMPTY_APP_FORM, type AppFormData, type AppFormErrors, type AppCredentialRow } from '../types';
 
@@ -34,17 +34,6 @@ export function AppFormDrawer({ open, onClose, app, defaultTenantId, onSaved }: 
   const [errors, setErrors] = useState<AppFormErrors>({});
   const [isDirty, setIsDirty] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-
-  const { data: tenantsResp } = usePaginatedQuery<{ id: string; name: string }>(
-    ['tenants', 'app-form'],
-    '/v1/tenants',
-    { page: 1, pageSize: 100, sortBy: 'name', sortOrder: 'asc' },
-    { enabled: open && !isEditMode },
-  );
-  const tenantOptions = useMemo(
-    () => (tenantsResp?.data ?? []).map((t) => ({ value: t.id, label: t.name })),
-    [tenantsResp],
-  );
 
   // Branch scope is optional: no branch = agency-wide credential.
   const effectiveTenantId = app?.tenantId ?? form.tenantId;
@@ -128,10 +117,10 @@ export function AppFormDrawer({ open, onClose, app, defaultTenantId, onSaved }: 
                   </FormField>
                 ) : (
                   <FormField label="Agency" required error={errors.tenantId}>
-                    <SelectInput
+                    <AgencySelect
                       value={form.tenantId}
                       onChange={handleTenantChange}
-                      options={tenantOptions}
+                      enabled={open}
                       placeholder="Select agency"
                       aria-label="Agency"
                     />
