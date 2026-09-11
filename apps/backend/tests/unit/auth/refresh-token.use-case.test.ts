@@ -27,6 +27,7 @@ function makeSession(overrides = {}): SessionEntity {
     id: 'session-1', userId: 'user-1',
     refreshTokenHash: createHash('sha256').update('valid-token').digest('hex'),
     ipAddress: null, userAgent: null,
+    countryCode: null, deviceFingerprint: null, authStage: null,
     expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
     revokedAt: null, createdAt: new Date(),
     ...overrides,
@@ -44,7 +45,7 @@ describe('RefreshTokenUseCase', () => {
 
   beforeEach(() => {
     userRepo = { findByEmail: vi.fn(), findById: vi.fn(), save: vi.fn(), updateLoginSuccess: vi.fn(), updateFailedLogin: vi.fn(), updatePassword: vi.fn() };
-    sessionRepo = { create: vi.fn(), findByRefreshTokenHash: vi.fn(), findById: vi.fn(), findActiveByUserId: vi.fn(), updateRefreshToken: vi.fn(), revoke: vi.fn(), revokeAllForUser: vi.fn() };
+    sessionRepo = { create: vi.fn(), findByRefreshTokenHash: vi.fn(), findById: vi.fn(), findActiveByUserId: vi.fn(), rotateRefreshToken: vi.fn().mockResolvedValue(true), revoke: vi.fn(), revokeAllForUser: vi.fn() } as unknown as ISessionRepository;
     jwtService = { signAccessToken: vi.fn().mockResolvedValue('new-access-token'), verify: vi.fn() } as unknown as JwtService;
     auditService = { log: vi.fn() } as unknown as AuditService;
     inspectorRepo = {
@@ -74,12 +75,48 @@ describe('RefreshTokenUseCase', () => {
     expect(result.refreshToken).toBeDefined();
   });
 
-  it('should rotate refresh token', async () => {
+  it('should rotate refresh token atomically (compare-and-swap on the old hash)', async () => {
     vi.mocked(sessionRepo.findByRefreshTokenHash).mockResolvedValue(makeSession());
     vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
     const result = await useCase.execute({ refreshToken: 'valid-token' });
     expect(result.refreshToken).not.toBe('valid-token');
-    expect(sessionRepo.updateRefreshToken).toHaveBeenCalled();
+    // Rotation is CAS on the exact presented hash — not an unconditional write.
+    expect(sessionRepo.rotateRefreshToken).toHaveBeenCalledWith(
+      'session-1',
+      createHash('sha256').update('valid-token').digest('hex'),
+      expect.any(String),
+      expect.any(Date),
+    );
+  });
+
+  // #117: a refresh token that no longer matches the session (already rotated or
+  // revoked) is reuse. The session is revoked, the event audited, and the
+  // caller forced to re-authenticate.
+  it('revokes the session and audits reuse when rotation loses the CAS race', async () => {
+    vi.mocked(sessionRepo.findByRefreshTokenHash).mockResolvedValue(makeSession());
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
+    vi.mocked(sessionRepo.rotateRefreshToken).mockResolvedValue(false);
+
+    await expect(useCase.execute({ refreshToken: 'valid-token' })).rejects.toThrow(
+      InvalidRefreshTokenError,
+    );
+    expect(sessionRepo.revoke).toHaveBeenCalledWith('session-1', expect.any(Date));
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'auth.refresh_reuse_detected', entityId: 'session-1' }),
+    );
+  });
+
+  // #115: a limited TOTP-setup session must never be extended by refresh.
+  it('refuses to refresh a totp_setup-stage session', async () => {
+    vi.mocked(sessionRepo.findByRefreshTokenHash).mockResolvedValue(
+      makeSession({ authStage: 'totp_setup' }),
+    );
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
+
+    await expect(useCase.execute({ refreshToken: 'valid-token' })).rejects.toThrow(
+      InvalidRefreshTokenError,
+    );
+    expect(sessionRepo.rotateRefreshToken).not.toHaveBeenCalled();
   });
 
   it('should return AUTH_INVALID_REFRESH_TOKEN for unknown token', async () => {
