@@ -12,6 +12,7 @@ import { RegionSelector } from '../components/RegionSelector';
 import { Textarea } from '@/components/forms/Textarea';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
@@ -60,8 +61,12 @@ export function ServiceGroupCreatePage() {
   const effectiveTenantId = isGlobalRole ? selectedTenantId : undefined;
   const requiresTenantSelection = isGlobalRole && !selectedTenantId;
 
-  const { data: eligibleAppointments, isLoading: loadingAppointments } =
-    useEligibleAppointments(serviceTypeId || null, effectiveTenantId);
+  const {
+    data: eligibleAppointments,
+    isLoading: loadingAppointments,
+    isError: eligibleError,
+    refetch: refetchEligible,
+  } = useEligibleAppointments(serviceTypeId || null, effectiveTenantId);
 
   const selectedServiceType = serviceTypeOptions.find((o) => o.value === serviceTypeId);
   const createPayload = {
@@ -223,12 +228,25 @@ export function ServiceGroupCreatePage() {
                   </h3>
                   <SelectionCounter count={selectedIds.length} />
                 </div>
-                <EligibleAppointmentsTable
-                  appointments={eligibleAppointments}
-                  selectedIds={selectedIds}
-                  onSelectionChange={setSelectedIds}
-                  loading={loadingAppointments}
-                />
+                {eligibleError ? (
+                  <InfoBanner variant="error">
+                    <div className="flex flex-col gap-2">
+                      <span>Could not load eligible appointments. Please try again.</span>
+                      <div>
+                        <Button variant="secondary" onClick={() => refetchEligible()}>
+                          Retry
+                        </Button>
+                      </div>
+                    </div>
+                  </InfoBanner>
+                ) : (
+                  <EligibleAppointmentsTable
+                    appointments={eligibleAppointments}
+                    selectedIds={selectedIds}
+                    onSelectionChange={setSelectedIds}
+                    loading={loadingAppointments}
+                  />
+                )}
               </>
             )}
 

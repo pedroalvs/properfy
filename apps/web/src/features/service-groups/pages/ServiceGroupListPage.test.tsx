@@ -103,4 +103,14 @@ describe('ServiceGroupListPage', () => {
     const matches = screen.getAllByText('Region');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('mounts no detail drawer/dialog — detail is a full-page navigation (#455)', async () => {
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('São Paulo - ABC')).toBeInTheDocument();
+    });
+    // The dead ServiceGroupDetailDrawer was removed; the list only navigates to
+    // the full detail page. No drawer/dialog surface should exist here.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });
