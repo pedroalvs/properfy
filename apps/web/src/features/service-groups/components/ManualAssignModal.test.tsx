@@ -1,7 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ManualAssignModal } from './ManualAssignModal';
+import { api } from '@/services/api';
 
 const INSPECTOR = { id: 'insp-9', name: 'Ana Costa', email: 'ana@example.com' };
 
@@ -174,5 +175,60 @@ describe('ManualAssignModal replacement mode', () => {
       { wrapper: Wrapper },
     );
     expect(screen.queryByLabelText('Reason')).not.toBeInTheDocument();
+  });
+});
+
+describe('ManualAssignModal — inspector radiogroup a11y (#642)', () => {
+  const THREE = [
+    { id: 'insp-1', name: 'Ana Costa', email: 'ana@example.com' },
+    { id: 'insp-2', name: 'Bruno Dias', email: 'bruno@example.com' },
+    { id: 'insp-3', name: 'Carla Souza', email: 'carla@example.com' },
+  ];
+
+  beforeEach(() => {
+    (api.GET as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: THREE } });
+  });
+
+  function openModal() {
+    render(
+      <ManualAssignModal open={true} onClose={vi.fn()} onAssign={vi.fn()} serviceGroupId="sg-01" />,
+      { wrapper: Wrapper },
+    );
+  }
+
+  it('exposes each inspector as a radio inside a labelled radiogroup', async () => {
+    openModal();
+    await screen.findByText('Ana Costa');
+    expect(screen.getByRole('radiogroup', { name: 'Inspector' })).toBeInTheDocument();
+    expect(screen.getAllByRole('radio')).toHaveLength(3);
+  });
+
+  it('marks the clicked inspector aria-checked and the rest unchecked', async () => {
+    openModal();
+    await screen.findByText('Ana Costa');
+    const radios = screen.getAllByRole('radio');
+    fireEvent.click(radios[1]!);
+    expect(radios[1]).toHaveAttribute('aria-checked', 'true');
+    expect(radios[0]).toHaveAttribute('aria-checked', 'false');
+    expect(radios[2]).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('moves selection with ArrowDown (roving tabindex)', async () => {
+    openModal();
+    await screen.findByText('Ana Costa');
+    const radios = screen.getAllByRole('radio');
+    fireEvent.click(radios[0]!);
+    fireEvent.keyDown(radios[0]!, { key: 'ArrowDown' });
+    expect(radios[1]).toHaveAttribute('aria-checked', 'true');
+    expect(radios[0]).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('wraps ArrowUp from the first option to the last', async () => {
+    openModal();
+    await screen.findByText('Ana Costa');
+    const radios = screen.getAllByRole('radio');
+    fireEvent.click(radios[0]!);
+    fireEvent.keyDown(radios[0]!, { key: 'ArrowUp' });
+    expect(radios[2]).toHaveAttribute('aria-checked', 'true');
   });
 });

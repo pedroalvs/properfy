@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { AppointmentStatus } from '@properfy/shared';
 import { EligibleAppointmentsTable, type EligibleAppointment } from './EligibleAppointmentsTable';
 
 // Not mocked: the formatters are pure and deterministic (no locale or runtime
@@ -18,9 +19,9 @@ vi.mock('@/lib/status-colors', () => ({
 }));
 
 const MOCK_APPOINTMENTS: EligibleAppointment[] = [
-  { id: 'apt-01', code: 'VST-001', propertyAddress: '123 Main St', scheduledDate: '2026-04-01', status: 'AWAITING_INSPECTOR' },
-  { id: 'apt-02', code: 'VST-002', propertyAddress: '456 Oak Ave', scheduledDate: '2026-04-02', status: 'AWAITING_INSPECTOR' },
-  { id: 'apt-03', code: 'VST-003', propertyAddress: '789 Pine Rd', scheduledDate: '2026-04-03', status: 'AWAITING_INSPECTOR' },
+  { id: 'apt-01', code: 'VST-001', propertyAddress: '123 Main St', scheduledDate: '2026-04-01', status: AppointmentStatus.AWAITING_INSPECTOR },
+  { id: 'apt-02', code: 'VST-002', propertyAddress: '456 Oak Ave', scheduledDate: '2026-04-02', status: AppointmentStatus.AWAITING_INSPECTOR },
+  { id: 'apt-03', code: 'VST-003', propertyAddress: '789 Pine Rd', scheduledDate: '2026-04-03', status: AppointmentStatus.AWAITING_INSPECTOR },
 ];
 
 describe('EligibleAppointmentsTable', () => {
