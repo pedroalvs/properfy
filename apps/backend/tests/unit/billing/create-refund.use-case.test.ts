@@ -5,9 +5,11 @@ import {
   EntryNotFoundError,
   EntryNotRefundableError,
   RefundExceedsOriginalAmountError,
+  BillingIdempotencyInProgressError,
 } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import { InMemoryIdempotencyService } from '../../helpers/in-memory-idempotency.service';
 
 const financialEntryRepo = {
   findById: vi.fn(),
@@ -433,5 +435,41 @@ describe('CreateRefundUseCase', () => {
     ).rejects.toThrow(EntryNotFoundError);
 
     expect(idempotencyService.release).toHaveBeenCalledWith('refund-idem-key', 'refund', expect.any(String), 'token-1');
+  });
+
+  it('does not create a duplicate entry on retry when complete() returns false after the write already committed', async () => {
+    const realIdempotency = new InMemoryIdempotencyService();
+    const originalComplete = realIdempotency.complete.bind(realIdempotency);
+    let completeCalls = 0;
+    vi.spyOn(realIdempotency, 'complete').mockImplementation(async (...args) => {
+      completeCalls += 1;
+      // Simulate the completion write itself failing on the first attempt even
+      // though the refund entry has already been persisted+audited.
+      if (completeCalls === 1) return false;
+      return originalComplete(...args);
+    });
+    vi.spyOn(realIdempotency, 'release');
+
+    const sut = new CreateRefundUseCase(financialEntryRepo, auditService as any, realIdempotency, authorizationService);
+    const input = {
+      entryId: 'debit-1',
+      description: 'Service not executed',
+      reason: 'Inspector did not show up',
+      idempotencyKey: 'flaky-complete-key',
+      actor: opActor,
+    };
+
+    const first = await sut.execute(input);
+
+    expect(financialEntryRepo.save).toHaveBeenCalledOnce();
+    // The write committed; a failed complete() must NOT release the claim.
+    expect(realIdempotency.release).not.toHaveBeenCalled();
+
+    // A retry with the same key must not re-run the mutation — the entry was
+    // already created and the claim is not released, so this is rejected as a
+    // conflict rather than creating a second refund entry.
+    await expect(sut.execute(input)).rejects.toThrow(BillingIdempotencyInProgressError);
+    expect(financialEntryRepo.save).toHaveBeenCalledOnce();
+    expect(first.entryType).toBe('REFUND');
   });
 });

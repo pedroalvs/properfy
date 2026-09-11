@@ -175,6 +175,13 @@ export class CreateRefundUseCase {
       createdAt: now,
     };
 
+    // The refund entry is already persisted and audited at this point. A `false`
+    // here means the completion write itself failed (e.g. the claim's ownership
+    // was lost or the record expired mid-request) — NOT that the mutation
+    // failed. Throwing here would let the caller's release() free the key, and
+    // a retry would re-run doExecute() and create a duplicate refund entry. So
+    // we log and return the authoritative, already-committed result instead of
+    // throwing.
     const completed = await this.idempotencyService.complete(
       input.idempotencyKey,
       IDEMPOTENCY_SCOPE,
@@ -184,7 +191,9 @@ export class CreateRefundUseCase {
       payloadHash,
     );
     if (!completed) {
-      throw new BillingIdempotencyInProgressError();
+      console.warn(
+        `[CreateRefundUseCase] idempotency complete() returned false for key=${input.idempotencyKey} after the refund entry was already persisted (id=${id}) — not releasing the claim to avoid a duplicate on retry.`,
+      );
     }
 
     return result;
