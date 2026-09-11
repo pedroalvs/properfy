@@ -165,6 +165,11 @@ describe('DeactivateBranchUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(BranchHasOpenAppointmentsError);
+
+    expect(appointmentChecker.hasOpenAppointmentsForBranch).toHaveBeenCalledWith(
+      'tenant-1',
+      'branch-1',
+    );
   });
 
   it('should throw BRANCH_NOT_FOUND when branch does not exist', async () => {
