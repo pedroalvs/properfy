@@ -22,8 +22,9 @@ const financialEntryRepo = {
 const auditService = { log: vi.fn() };
 
 const idempotencyService = {
-  get: vi.fn().mockResolvedValue(null),
-  set: vi.fn().mockResolvedValue(undefined),
+  tryAcquire: vi.fn(),
+  complete: vi.fn(),
+  release: vi.fn(),
 };
 
 const tenantRepo = {
@@ -98,7 +99,9 @@ describe('CreateManualAdjustmentUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     financialEntryRepo.save.mockResolvedValue(undefined);
-    idempotencyService.get.mockResolvedValue(null);
+    idempotencyService.tryAcquire.mockResolvedValue({ status: 'acquired', ownerToken: 'token-1' });
+    idempotencyService.complete.mockResolvedValue(true);
+    idempotencyService.release.mockResolvedValue(undefined);
     tenantRepo.findById.mockResolvedValue({
       id: 'tenant-1',
       currency: 'AUD',
@@ -121,7 +124,7 @@ describe('CreateManualAdjustmentUseCase', () => {
     });
   });
 
-  it('should return cached result on duplicate call when idempotencyKey is provided', async () => {
+  it('should return cached result on replay without re-running the mutation', async () => {
     const cachedResult = {
       id: 'cached-id',
       tenantId: 'tenant-1',
@@ -138,7 +141,11 @@ describe('CreateManualAdjustmentUseCase', () => {
       referenceEntryId: null,
       createdAt: new Date('2026-03-17T00:00:00Z'),
     };
-    idempotencyService.get.mockResolvedValue(cachedResult);
+    idempotencyService.tryAcquire.mockImplementation(async (_key: string, _scope: string, payloadHash: string) => ({
+      status: 'completed',
+      response: cachedResult,
+      payloadHash,
+    }));
 
     const sut = makeSut();
     const result = await sut.execute({
@@ -153,10 +160,35 @@ describe('CreateManualAdjustmentUseCase', () => {
 
     expect(result).toEqual(cachedResult);
     expect(financialEntryRepo.save).not.toHaveBeenCalled();
-    expect(idempotencyService.get).toHaveBeenCalledWith('my-idem-key', 'manual-adjustment');
+    expect(idempotencyService.tryAcquire).toHaveBeenCalledWith(
+      'my-idem-key',
+      'manual-adjustment',
+      expect.any(String),
+      24,
+    );
   });
 
-  it('should cache result after successful execution when idempotencyKey is provided', async () => {
+  it('should throw a conflict when a request with the same key is already in progress', async () => {
+    idempotencyService.tryAcquire.mockResolvedValue({
+      status: 'in_progress',
+      payloadHash: 'some-hash',
+    });
+    const sut = makeSut();
+
+    await expect(
+      sut.execute({
+        tenantId: 'tenant-1',
+        amount: 50,
+        description: 'Late fee adjustment',
+        reason: 'Inspector arrived late',
+        idempotencyKey: 'my-idem-key',
+        actor: opActor,
+      }),
+    ).rejects.toThrow();
+    expect(financialEntryRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('should complete the idempotency claim after successful execution', async () => {
     const sut = makeSut();
 
     await sut.execute({
@@ -168,31 +200,35 @@ describe('CreateManualAdjustmentUseCase', () => {
       actor: opActor,
     });
 
-    expect(idempotencyService.set).toHaveBeenCalledWith(
+    expect(idempotencyService.complete).toHaveBeenCalledWith(
       'my-idem-key',
       'manual-adjustment',
+      'token-1',
       expect.objectContaining({
         entryType: 'MANUAL_ADJUSTMENT',
         amount: 50,
       }),
       24,
+      expect.any(String),
     );
   });
 
-  it('should not check idempotency when idempotencyKey is not provided', async () => {
+  it('should release the claim when the mutation fails', async () => {
+    tenantRepo.findById.mockResolvedValue(null);
     const sut = makeSut();
 
-    await sut.execute({
-      tenantId: 'tenant-1',
-      amount: 50,
-      description: 'Late fee adjustment',
-      reason: 'Inspector arrived late',
-      actor: opActor,
-    });
+    await expect(
+      sut.execute({
+        tenantId: 'tenant-1',
+        amount: 50,
+        description: 'Late fee adjustment',
+        reason: 'Inspector arrived late',
+        idempotencyKey: 'my-idem-key',
+        actor: opActor,
+      }),
+    ).rejects.toThrow(TenantNotFoundError);
 
-    expect(idempotencyService.get).not.toHaveBeenCalled();
-    expect(idempotencyService.set).not.toHaveBeenCalled();
-    expect(financialEntryRepo.save).toHaveBeenCalledOnce();
+    expect(idempotencyService.release).toHaveBeenCalledWith('my-idem-key', 'manual-adjustment', expect.any(String), 'token-1');
   });
 
   it('should create a MANUAL_ADJUSTMENT entry with PENDING status', async () => {
@@ -205,6 +241,7 @@ describe('CreateManualAdjustmentUseCase', () => {
       amount: 50,
       description: 'Late fee adjustment',
       reason: 'Inspector arrived late',
+      idempotencyKey: 'idem-key-1',
       actor: opActor,
     });
 
@@ -235,6 +272,7 @@ describe('CreateManualAdjustmentUseCase', () => {
       amount: 100,
       description: 'Correction',
       reason: 'Pricing error',
+      idempotencyKey: 'test-idem-key',
       actor: amActor,
     });
 
@@ -252,6 +290,7 @@ describe('CreateManualAdjustmentUseCase', () => {
       amount: 75,
       description: 'Test adjustment',
       reason: 'Test reason',
+      idempotencyKey: 'test-idem-key',
       actor: opActor,
     });
 
@@ -270,6 +309,7 @@ describe('CreateManualAdjustmentUseCase', () => {
       description: 'Test adjustment',
       reason: 'Test reason',
       effectiveAt: customDate,
+      idempotencyKey: 'test-idem-key',
       actor: opActor,
     });
 
@@ -284,6 +324,7 @@ describe('CreateManualAdjustmentUseCase', () => {
       amount: 75,
       description: 'Test adjustment',
       reason: 'Test reason',
+      idempotencyKey: 'test-idem-key',
       actor: opActor,
     });
 
@@ -308,6 +349,7 @@ describe('CreateManualAdjustmentUseCase', () => {
         amount: 50,
         description: 'Adjustment',
         reason: 'Reason',
+        idempotencyKey: 'test-idem-key',
         actor: inspActor,
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -324,6 +366,7 @@ describe('CreateManualAdjustmentUseCase', () => {
       amount: 50,
       description: 'Test',
       reason: 'Test',
+      idempotencyKey: 'test-idem-key',
       actor: opActor,
     });
 
@@ -342,6 +385,7 @@ describe('CreateManualAdjustmentUseCase', () => {
         amount: 50,
         description: 'Test',
         reason: 'Test',
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(TenantNotFoundError);
@@ -361,6 +405,7 @@ describe('CreateManualAdjustmentUseCase', () => {
         amount: 50,
         description: 'Test',
         reason: 'Test',
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(TenantInactiveError);
@@ -377,6 +422,7 @@ describe('CreateManualAdjustmentUseCase', () => {
         amount: 50,
         description: 'Test',
         reason: 'Test',
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(AppointmentNotFoundError);
@@ -398,6 +444,7 @@ describe('CreateManualAdjustmentUseCase', () => {
         amount: 50,
         description: 'Test',
         reason: 'Test',
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -414,6 +461,7 @@ describe('CreateManualAdjustmentUseCase', () => {
         amount: 50,
         description: 'Test',
         reason: 'Test',
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(EntryNotFoundError);
@@ -433,6 +481,7 @@ describe('CreateManualAdjustmentUseCase', () => {
         amount: 50,
         description: 'Test',
         reason: 'Test',
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -449,6 +498,7 @@ describe('CreateManualAdjustmentUseCase', () => {
         amount: 50,
         description: 'Test',
         reason: 'Test',
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(InspectorNotFoundError);
@@ -469,6 +519,7 @@ describe('CreateManualAdjustmentUseCase', () => {
         amount: 50,
         description: 'Test',
         reason: 'Test',
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -483,6 +534,7 @@ describe('CreateManualAdjustmentUseCase', () => {
       amount: 50,
       description: 'Late fee adjustment',
       reason: 'Inspector arrived late',
+      idempotencyKey: 'test-idem-key',
       actor: opActor,
     });
 

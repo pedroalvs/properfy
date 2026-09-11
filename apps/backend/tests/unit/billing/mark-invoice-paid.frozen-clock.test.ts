@@ -49,6 +49,11 @@ describe('MarkInvoicePaidUseCase — frozen clock grace windows', () => {
     update: ReturnType<typeof vi.fn>;
   };
   const auditService = { log: vi.fn() };
+  const idempotencyService = {
+    tryAcquire: vi.fn(),
+    complete: vi.fn(),
+    release: vi.fn(),
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -56,6 +61,9 @@ describe('MarkInvoicePaidUseCase — frozen clock grace windows', () => {
       findById: vi.fn().mockResolvedValue(makeInvoice()),
       update: vi.fn().mockResolvedValue(undefined),
     };
+    idempotencyService.tryAcquire.mockResolvedValue({ status: 'acquired', ownerToken: 'token-1' });
+    idempotencyService.complete.mockResolvedValue(true);
+    idempotencyService.release.mockResolvedValue(undefined);
   });
 
   function buildUseCase(clock: FakeClock): MarkInvoicePaidUseCase {
@@ -63,6 +71,7 @@ describe('MarkInvoicePaidUseCase — frozen clock grace windows', () => {
       invoiceRepo as any,
       auditService as any,
       new AuthorizationService(auditService as any),
+      idempotencyService,
       clock,
     );
   }
@@ -74,6 +83,7 @@ describe('MarkInvoicePaidUseCase — frozen clock grace windows', () => {
     const result = await uc.execute({
       invoiceId: 'inv-1',
       paidAt: '2026-06-15T15:59:00.000Z',
+      idempotencyKey: 'idem-1',
       actor: opActor,
     });
     expect(result.status).toBe('PAID');
@@ -86,6 +96,7 @@ describe('MarkInvoicePaidUseCase — frozen clock grace windows', () => {
       uc.execute({
         invoiceId: 'inv-1',
         paidAt: '2026-06-15T17:00:01.000Z',
+        idempotencyKey: 'idem-1',
         actor: opActor,
       }),
     ).rejects.toBeInstanceOf(InvoicePaymentDateInvalidError);
@@ -104,6 +115,7 @@ describe('MarkInvoicePaidUseCase — frozen clock grace windows', () => {
     const result = await uc.execute({
       invoiceId: 'inv-1',
       paidAt: '2026-06-15T12:00:00.000Z',
+      idempotencyKey: 'idem-1',
       actor: opActor,
     });
     expect(result.status).toBe('PAID');
@@ -120,6 +132,7 @@ describe('MarkInvoicePaidUseCase — frozen clock grace windows', () => {
       uc.execute({
         invoiceId: 'inv-1',
         paidAt: '2026-06-15T11:58:30.000Z',
+        idempotencyKey: 'idem-1',
         actor: opActor,
       }),
     ).rejects.toBeInstanceOf(InvoicePaymentDateInvalidError);

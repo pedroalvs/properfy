@@ -5,10 +5,17 @@ import {
   InvoiceNotClosedError,
   InvoiceAlreadyPaidError,
   InvoicePaymentDateInvalidError,
+  BillingIdempotencyPayloadMismatchError,
+  BillingIdempotencyInProgressError,
 } from '../../domain/billing.errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
+import { hashIdempotencyPayload } from '../../../../shared/domain/idempotency-payload-hash';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
+
+const IDEMPOTENCY_SCOPE = 'mark-invoice-paid';
+const IDEMPOTENCY_TTL_HOURS = 24;
 
 /** Grace window in milliseconds to absorb clock skew when validating "future" paidAt values (Q4 clarification). */
 const FUTURE_GRACE_MS = 60 * 60 * 1000; // 1 hour
@@ -27,6 +34,7 @@ export interface MarkInvoicePaidInput {
   invoiceId: string;
   paidAt?: string; // ISO datetime, defaults to now
   paymentReference?: string;
+  idempotencyKey: string;
   actor: AuthContext;
 }
 
@@ -58,6 +66,7 @@ export class MarkInvoicePaidUseCase {
     private readonly invoiceRepo: IInspectorInvoiceRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly idempotencyService: IIdempotencyService,
     private readonly clock: Clock = new SystemClock(),
   ) {}
 
@@ -70,6 +79,46 @@ export class MarkInvoicePaidUseCase {
       entityType: 'InspectorInvoice',
       entityId: invoiceId,
     });
+
+    // 1.5 Idempotency: acquire the claim before any write so a retry (or a
+    // concurrent duplicate) never runs the mutation twice.
+    const payloadHash = hashIdempotencyPayload({
+      invoiceId,
+      paidAt: input.paidAt ?? null,
+      paymentReference: input.paymentReference ?? null,
+      actor: { userId: actor.userId, tenantId: actor.tenantId, role: actor.role },
+    });
+    const claim = await this.idempotencyService.tryAcquire<MarkInvoicePaidOutput>(
+      input.idempotencyKey,
+      IDEMPOTENCY_SCOPE,
+      payloadHash,
+      IDEMPOTENCY_TTL_HOURS,
+    );
+    if (claim.status !== 'acquired' && claim.payloadHash !== payloadHash) {
+      throw new BillingIdempotencyPayloadMismatchError();
+    }
+    if (claim.status === 'completed') {
+      return claim.response;
+    }
+    if (claim.status === 'in_progress') {
+      throw new BillingIdempotencyInProgressError();
+    }
+    const ownerToken = claim.ownerToken;
+
+    try {
+      return await this.doExecute(input, payloadHash, ownerToken);
+    } catch (error) {
+      await this.idempotencyService.release(input.idempotencyKey, IDEMPOTENCY_SCOPE, payloadHash, ownerToken).catch(() => {});
+      throw error;
+    }
+  }
+
+  private async doExecute(
+    input: MarkInvoicePaidInput,
+    payloadHash: string,
+    ownerToken: string,
+  ): Promise<MarkInvoicePaidOutput> {
+    const { invoiceId, actor } = input;
 
     // 2. Load invoice
     const invoice = await this.invoiceRepo.findById(invoiceId);
@@ -125,12 +174,26 @@ export class MarkInvoicePaidUseCase {
       },
     });
 
-    return {
+    const result: MarkInvoicePaidOutput = {
       id: invoiceId,
       status: 'PAID',
       paidAt: paidAt.toISOString(),
       paidByUserId: actor.userId,
       paymentReference,
     };
+
+    const completed = await this.idempotencyService.complete(
+      input.idempotencyKey,
+      IDEMPOTENCY_SCOPE,
+      ownerToken,
+      result,
+      IDEMPOTENCY_TTL_HOURS,
+      payloadHash,
+    );
+    if (!completed) {
+      throw new BillingIdempotencyInProgressError();
+    }
+
+    return result;
   }
 }
