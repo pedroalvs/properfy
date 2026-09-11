@@ -30,7 +30,9 @@ export function OfferFeed({ offers, onRefresh, onViewDetail }: OfferFeedProps) {
     );
   }
 
-  const sorted = [...(offers ?? [])].sort((a, b) => {
+  // `offers` is guaranteed non-empty here (the early return above handles empty/
+  // undefined). `toSorted` would be cleaner but the PWA tsconfig targets ES2022.
+  const sorted = [...offers].sort((a, b) => {
     const aState = getState(a.groupId);
     const bState = getState(b.groupId);
     const aResolved = ['ACCEPTED', 'CONFLICT', 'GONE'].includes(aState);
