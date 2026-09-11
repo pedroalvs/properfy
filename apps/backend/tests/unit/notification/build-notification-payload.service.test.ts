@@ -304,6 +304,43 @@ describe('BuildNotificationPayloadService', () => {
   }
 });
 
+// ── SMS variable normalization + rescheduleLink surface in the payload ────
+
+describe('BuildNotificationPayloadService — normalized variables', () => {
+  const svc = new BuildNotificationPayloadService();
+
+  it('surfaces the appointment-agency core on an SMS payload', () => {
+    const result = svc.build(
+      baseCtx({
+        templateCode: 'INSPECTION_NOTICE_SMS',
+        inspectorName: 'Jane Inspector',
+        branchName: 'Sydney CBD',
+        serviceTypeName: 'Routine inspection',
+        rawPortalToken: 'tok-123',
+      }),
+    );
+    expect(result.inspectorName).toBe('Jane Inspector');
+    expect(result.branchName).toBe('Sydney CBD');
+    expect(result.serviceTypeName).toBe('Routine inspection');
+    expect(result.agencyName).toBe('Test Agency');
+    // No images in SMS — the payload must not carry logo URLs for an SMS code.
+    expect(result).not.toHaveProperty('properfyLogoUrl');
+    expect(result).not.toHaveProperty('agencyLogoUrl');
+  });
+
+  it('exposes rescheduleLink on INSPECTION_CONFIRMED (portal URL)', () => {
+    const result = svc.build(baseCtx({ templateCode: 'INSPECTION_CONFIRMED', rawPortalToken: 'tok-abc' }));
+    expect(result.rescheduleLink).toContain('/portal/tok-abc');
+  });
+
+  it('builds rescheduleLink and confirmationLink as the same URL where both are offered', () => {
+    // INSPECTION_NOTICE declares both — they share the portal token/destination.
+    const result = svc.build(baseCtx({ templateCode: 'INSPECTION_NOTICE', rawPortalToken: 'tok-abc' }));
+    expect(result.rescheduleLink).toBe(result.confirmationLink);
+    expect(result.confirmationLink).toContain('/portal/tok-abc');
+  });
+});
+
 // ── Standalone MissingRequiredVariableError ───────────────────────────────
 
 describe('MissingRequiredVariableError', () => {
