@@ -691,7 +691,7 @@ export function createContainer(logger: Logger): AppContainer {
     prisma,
     new Aes256GcmService(appCredentialEncKey),
   );
-  const createAppCredentialUseCase = new CreateAppCredentialUseCase(appCredentialRepo, auditService, branchRepo);
+  const createAppCredentialUseCase = new CreateAppCredentialUseCase(appCredentialRepo, auditService, branchRepo, tenantRepo);
   const updateAppCredentialUseCase = new UpdateAppCredentialUseCase(appCredentialRepo, auditService, branchRepo);
   const getAppCredentialUseCase = new GetAppCredentialUseCase(appCredentialRepo);
   const listAppCredentialsUseCase = new ListAppCredentialsUseCase(appCredentialRepo);
