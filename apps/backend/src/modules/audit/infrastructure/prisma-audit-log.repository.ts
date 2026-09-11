@@ -15,6 +15,15 @@ import type {
   PiiSearchMatch,
 } from '../domain/audit-log.repository';
 
+/** #414: keyset page size for the PII superset scan. */
+const PII_SCAN_PAGE_SIZE = 5000;
+/**
+ * #414: hard upper bound on total PII matches per table. Hitting it means the
+ * scan is unexpectedly huge; we throw rather than risk proceeding on a partial
+ * result, since a silently truncated scan would leave PII un-erased.
+ */
+const PII_SCAN_HARD_CEILING = 100_000;
+
 function mapToEntity(row: any, isArchived = false): AuditLogEntity {
   return new AuditLogEntity({
     id: row.id,
@@ -40,7 +49,14 @@ function mapToEntity(row: any, isArchived = false): AuditLogEntity {
 }
 
 export class PrismaAuditLogRepository implements IAuditLogRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    // #414: keyset page size + hard ceiling for the PII scan. Injectable so
+    // tests can drive the multi-page and ceiling paths without seeding tens of
+    // thousands of rows. Production uses the module defaults.
+    private readonly piiScanPageSize: number = PII_SCAN_PAGE_SIZE,
+    private readonly piiScanHardCeiling: number = PII_SCAN_HARD_CEILING,
+  ) {}
 
   async save(entry: AuditLogEntity): Promise<void> {
     await this.prisma.auditLog.create({
@@ -234,15 +250,19 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
     category: AuditRetentionCategory,
     cutoffDate: Date,
     batchSize: number,
+    afterId?: string,
   ): Promise<AuditLogEntity[]> {
     const rows = await this.prisma.auditLog.findMany({
       where: {
         retention_category: category as PrismaAuditRetentionCategory,
         created_at: { lt: cutoffDate },
         redaction_status: { not: 'IN_PROGRESS' },
+        ...(afterId ? { id: { gt: afterId } } : {}),
       },
       take: batchSize,
-      orderBy: { created_at: 'asc' },
+      // Keyset pagination by id so the worker can advance the cursor past
+      // preserved rows and never re-query the same page (B3 #136).
+      orderBy: { id: 'asc' },
     });
     return rows.map((r) => mapToEntity(r, false));
   }
@@ -258,51 +278,71 @@ export class PrismaAuditLogRepository implements IAuditLogRepository {
     // column. This is deliberately coarse: the scan is a superset filter and
     // the erasure use case refines field-level matches using the registry.
     const likePatterns = values.map((v) => `%${v}%`);
-    const matchCondition = `(
-      before_json::text ILIKE ANY($1::text[])
-      OR after_json::text ILIKE ANY($1::text[])
-      OR metadata_json::text ILIKE ANY($1::text[])
-    )`;
 
-    const hotRows: any[] = await this.prisma.$queryRawUnsafe(
-      `SELECT id, entity_type, entity_id, action, tenant_id, retention_category, redaction_status
-       FROM "audit_logs"
-       WHERE ${matchCondition}
-       LIMIT 5000`,
-      likePatterns,
-    );
-    const hotMatches: PiiSearchMatch[] = hotRows.map((r) => ({
-      id: r.id,
-      entityType: r.entity_type,
-      entityId: r.entity_id,
-      action: r.action,
-      tenantId: r.tenant_id,
-      retentionCategory: r.retention_category ?? null,
-      redactionStatus: r.redaction_status,
-      isArchived: false,
-    }));
-
+    const hotMatches = await this.scanPiiTable('audit_logs', likePatterns, false);
     if (!options.includeArchived) return hotMatches;
 
-    const archiveRows: any[] = await this.prisma.$queryRawUnsafe(
-      `SELECT id, entity_type, entity_id, action, tenant_id, retention_category, redaction_status
-       FROM "audit_logs_archive"
-       WHERE ${matchCondition}
-       LIMIT 5000`,
-      likePatterns,
-    );
-    const archiveMatches: PiiSearchMatch[] = archiveRows.map((r) => ({
-      id: r.id,
-      entityType: r.entity_type,
-      entityId: r.entity_id,
-      action: r.action,
-      tenantId: r.tenant_id,
-      retentionCategory: r.retention_category ?? null,
-      redactionStatus: r.redaction_status,
-      isArchived: true,
-    }));
-
+    const archiveMatches = await this.scanPiiTable('audit_logs_archive', likePatterns, true);
     return [...hotMatches, ...archiveMatches];
+  }
+
+  /**
+   * #414: keyset-paginate the PII superset scan so it returns EVERY match
+   * instead of a silent `LIMIT 5000` truncation (which would let the erasure
+   * flow proceed on an incomplete scan). A hard safety ceiling throws rather
+   * than returning a partial set, so the caller can never mistake a truncated
+   * scan for a complete one.
+   */
+  private async scanPiiTable(
+    table: 'audit_logs' | 'audit_logs_archive',
+    likePatterns: string[],
+    isArchived: boolean,
+  ): Promise<PiiSearchMatch[]> {
+    const matches: PiiSearchMatch[] = [];
+    const pageSize = this.piiScanPageSize;
+    let afterId: string | null = null;
+
+    for (;;) {
+      const rows: any[] = await this.prisma.$queryRawUnsafe(
+        `SELECT id, entity_type, entity_id, action, tenant_id, retention_category, redaction_status
+         FROM "${table}"
+         WHERE (
+           before_json::text ILIKE ANY($1::text[])
+           OR after_json::text ILIKE ANY($1::text[])
+           OR metadata_json::text ILIKE ANY($1::text[])
+         )
+           AND ($2::text IS NULL OR id > $2)
+         ORDER BY id ASC
+         LIMIT ${pageSize}`,
+        likePatterns,
+        afterId,
+      );
+
+      for (const r of rows) {
+        matches.push({
+          id: r.id,
+          entityType: r.entity_type,
+          entityId: r.entity_id,
+          action: r.action,
+          tenantId: r.tenant_id,
+          retentionCategory: r.retention_category ?? null,
+          redactionStatus: r.redaction_status,
+          isArchived,
+        });
+      }
+
+      if (matches.length > this.piiScanHardCeiling) {
+        throw new Error(
+          `PII scan on ${table} exceeded the ${this.piiScanHardCeiling}-row safety ceiling; ` +
+            'refusing to proceed on a potentially incomplete erasure scan',
+        );
+      }
+
+      if (rows.length < pageSize) break;
+      afterId = rows[rows.length - 1].id;
+    }
+
+    return matches;
   }
 
   // ─── Private helpers ─────────────────────────────────────────────────────
