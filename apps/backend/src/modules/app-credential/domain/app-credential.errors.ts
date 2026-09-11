@@ -16,3 +16,14 @@ export class AppCredentialBranchInvalidError extends ValidationError {
     );
   }
 }
+
+/** Thrown when the target tenant does not exist or is not active. */
+export class AppCredentialTenantInvalidError extends ValidationError {
+  constructor() {
+    super(
+      'Tenant not found or not active',
+      [{ field: 'tenantId', message: 'Tenant not found or not active' }],
+      'APP_CREDENTIAL_TENANT_INVALID',
+    );
+  }
+}

@@ -8,6 +8,7 @@ import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
+import { AppCredentialTenantInvalidError } from '../../../src/modules/app-credential/domain/app-credential.errors';
 
 const mockCreate = vi.fn();
 const mockUpdate = vi.fn();
@@ -98,6 +99,28 @@ describe('POST /v1/app-credentials', () => {
       .expect(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('INSP is forbidden (403)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    const res = await supertest(app.server)
+      .post('/v1/app-credentials')
+      .set('Authorization', 'Bearer t')
+      .send({ tenantId: TENANT_A, name: 'A', username: 'u', password: 'p' })
+      .expect(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('surfaces AppCredentialTenantInvalidError as 400 with its code (inactive/unknown tenant)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockCreate.mockRejectedValueOnce(new AppCredentialTenantInvalidError());
+    const res = await supertest(app.server)
+      .post('/v1/app-credentials')
+      .set('Authorization', 'Bearer t')
+      .send({ tenantId: TENANT_A, name: 'A', username: 'u', password: 'p' })
+      .expect(400);
+    expect(res.body.error.code).toBe('APP_CREDENTIAL_TENANT_INVALID');
   });
 
   it('rejects an invalid body with 400', async () => {
@@ -199,6 +222,27 @@ describe('PATCH /v1/app-credentials/:id', () => {
     );
     expect(res.body.data).not.toHaveProperty('authCode');
   });
+
+  it('CL_ADMIN is forbidden (403)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    const res = await supertest(app.server)
+      .patch(`/v1/app-credentials/${CRED_ID}`)
+      .set('Authorization', 'Bearer t')
+      .send({ name: 'x' })
+      .expect(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('INSP is forbidden (403)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    await supertest(app.server)
+      .patch(`/v1/app-credentials/${CRED_ID}`)
+      .set('Authorization', 'Bearer t')
+      .send({ name: 'x' })
+      .expect(403);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
 });
 
 describe('GET /v1/app-credentials', () => {
@@ -215,6 +259,13 @@ describe('GET /v1/app-credentials', () => {
   it('INSP is forbidden (403)', async () => {
     mockJwtVerify.mockResolvedValueOnce(inspContext);
     await supertest(app.server).get('/v1/app-credentials').set('Authorization', 'Bearer t').expect(403);
+    expect(mockList).not.toHaveBeenCalled();
+  });
+
+  it('CL_ADMIN is forbidden (403)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    const res = await supertest(app.server).get('/v1/app-credentials').set('Authorization', 'Bearer t').expect(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
     expect(mockList).not.toHaveBeenCalled();
   });
 
@@ -263,5 +314,65 @@ describe('POST /v1/app-credentials/:id/deactivate', () => {
       .expect(200);
     expect(res.body.data.isActive).toBe(false);
     expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: { isActive: false } }));
+  });
+
+  it('CL_ADMIN is forbidden (403)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    const res = await supertest(app.server)
+      .post(`/v1/app-credentials/${CRED_ID}/deactivate`)
+      .set('Authorization', 'Bearer t')
+      .expect(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('INSP is forbidden (403)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    await supertest(app.server)
+      .post(`/v1/app-credentials/${CRED_ID}/deactivate`)
+      .set('Authorization', 'Bearer t')
+      .expect(403);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /v1/app-credentials/:id', () => {
+  it('AM reads the detail', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockGet.mockResolvedValueOnce(makeCred());
+    const res = await supertest(app.server)
+      .get(`/v1/app-credentials/${CRED_ID}`)
+      .set('Authorization', 'Bearer t')
+      .expect(200);
+    expect(res.body.data.id).toBe(CRED_ID);
+    expect(mockGet).toHaveBeenCalledWith(CRED_ID);
+  });
+
+  it('OP reads the detail', async () => {
+    mockJwtVerify.mockResolvedValueOnce(opContext);
+    mockGet.mockResolvedValueOnce(makeCred());
+    await supertest(app.server)
+      .get(`/v1/app-credentials/${CRED_ID}`)
+      .set('Authorization', 'Bearer t')
+      .expect(200);
+  });
+
+  it('CL_ADMIN is forbidden (403)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    const res = await supertest(app.server)
+      .get(`/v1/app-credentials/${CRED_ID}`)
+      .set('Authorization', 'Bearer t')
+      .expect(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(mockGet).not.toHaveBeenCalled();
+  });
+
+  it('INSP is forbidden (403)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    await supertest(app.server)
+      .get(`/v1/app-credentials/${CRED_ID}`)
+      .set('Authorization', 'Bearer t')
+      .expect(403);
+    expect(mockGet).not.toHaveBeenCalled();
   });
 });
