@@ -38,6 +38,8 @@ vi.mock('@/hooks/useSnackbar', () => ({
   SnackbarProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createElement, type ReactNode } from 'react';
 import { api } from '@/services/api';
 import { useOfferAccept } from './useOfferAccept';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
@@ -51,7 +53,7 @@ beforeEach(() => {
 });
 
 describe('useOfferAccept', () => {
-  it('calls POST with correct path when accepting', async () => {
+  it('calls POST via the generated contract path with the groupId path param', async () => {
     mockPost.mockResolvedValueOnce({ data: { success: true } });
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useOfferAccept(), { wrapper });
@@ -64,14 +66,36 @@ describe('useOfferAccept', () => {
       expect(result.current.isAccepting).toBe(false);
     });
 
+    // The literal contract key + path params, not a template-string `as any`.
     expect(mockPost).toHaveBeenCalledWith(
-      '/v1/marketplace/offers/grp-01/accept',
+      '/v1/marketplace/offers/{groupId}/accept',
       expect.objectContaining({
+        params: { path: { groupId: 'grp-01' } },
         headers: expect.objectContaining({
           'Idempotency-Key': expect.any(String),
         }),
       }),
     );
+  });
+
+  it('invalidates the marketplace-offers query on success (#767)', async () => {
+    mockPost.mockResolvedValueOnce({ data: { success: true } });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const { result } = renderHook(() => useOfferAccept(), { wrapper });
+
+    act(() => {
+      result.current.accept('grp-01');
+    });
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['marketplace-offers'] });
+    });
   });
 
   it('includes Idempotency-Key header', async () => {

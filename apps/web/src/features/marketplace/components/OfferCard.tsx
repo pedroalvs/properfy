@@ -19,17 +19,28 @@ export function OfferCard({ offer, selected, onClick, onAccept }: OfferCardProps
       className={`cursor-pointer rounded border-l-4 bg-card-bg p-4 shadow-sm transition-all hover:shadow-md ${borderColor} ${
         selected ? 'ring-2 ring-secondary/30' : ''
       }`}
-      onClick={onClick}
+      onClick={(e) => {
+        // Ignore clicks that bubbled up from nested controls (Accept / View);
+        // only a direct click on the card selects it.
+        if (e.target !== e.currentTarget) return;
+        onClick();
+      }}
       data-testid="offer-card"
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
+        // Same guard for keyboard: Enter/Space on a nested button must not also
+        // select the card (its keydown bubbles here; stopPropagation lives only
+        // on the buttons' onClick).
+        if (e.target !== e.currentTarget) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onClick();
         }
       }}
-      aria-selected={selected}
+      // aria-pressed (valid on role="button") expresses the toggle-selection
+      // state; aria-selected is only valid on option/tab/row-like roles.
+      aria-pressed={selected}
     >
       <div className="mb-2 flex items-start justify-between">
         <div>
