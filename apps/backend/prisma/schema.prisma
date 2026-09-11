@@ -1500,6 +1500,8 @@ model ServiceRegion {
   // - service_regions_geom_idx ON service_regions USING GIST (geom)
   // - service_regions_tenant_lower_name_key UNIQUE (tenant_id, lower(name))
   //   — case-insensitive name uniqueness within a tenant (#614)
+  // - service_regions_global_lower_name_key UNIQUE (lower(name)) WHERE tenant_id IS NULL
+  //   — same guarantee for global regions, which NULLs-are-distinct leaves out (#614)
   @@map("service_regions")
 }
 

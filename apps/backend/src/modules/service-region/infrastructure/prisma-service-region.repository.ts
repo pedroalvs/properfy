@@ -18,6 +18,7 @@ function toSnakeCase(s: string): string {
 // means a name collision, whichever the database reports first.
 const REGION_NAME_UNIQUE_INDEXES = [
   'service_regions_tenant_lower_name_key',
+  'service_regions_global_lower_name_key',
   'service_regions_tenant_id_name_key',
 ];
 

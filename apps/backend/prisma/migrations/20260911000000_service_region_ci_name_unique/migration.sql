@@ -23,3 +23,14 @@
 
 CREATE UNIQUE INDEX "service_regions_tenant_lower_name_key"
   ON "service_regions" ("tenant_id", lower("name"));
+
+-- Global regions (tenant_id IS NULL) are NOT covered by the index above:
+-- Postgres treats NULLs as distinct in a unique index, so two global rows with
+-- the same name never collide there. A partial index enforces case-insensitive
+-- uniqueness among global regions too, so the update path (which no longer runs
+-- an app-level pre-check) can't silently create duplicate global names (#614).
+-- The GROUP BY pre-check above already groups NULL tenant_id together, so it
+-- also flags any pre-existing global duplicates.
+CREATE UNIQUE INDEX "service_regions_global_lower_name_key"
+  ON "service_regions" (lower("name"))
+  WHERE "tenant_id" IS NULL;
