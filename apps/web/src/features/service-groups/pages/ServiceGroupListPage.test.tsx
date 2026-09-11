@@ -69,7 +69,7 @@ function renderPage() {
 }
 
 describe('ServiceGroupListPage', () => {
-  it('renders page title "Grupos de Serviço"', () => {
+  it('renders the page title "Service Groups"', () => {
     renderPage();
     expect(screen.getByText('Service Groups')).toBeInTheDocument();
   });
@@ -98,10 +98,14 @@ describe('ServiceGroupListPage', () => {
     });
   });
 
-  it('shows loading state initially', () => {
+  it('shows a loading indicator before data resolves', () => {
     renderPage();
-    const matches = screen.getAllByText('Region');
-    expect(matches.length).toBeGreaterThanOrEqual(1);
+    // The table renders LoadingState (role="status", aria-busy) while the query
+    // is in flight — assert the real loading UI, not merely a column header.
+    const busy = screen.getAllByRole('status').filter(
+      (el) => el.getAttribute('aria-busy') === 'true',
+    );
+    expect(busy.length).toBeGreaterThanOrEqual(1);
   });
 
   it('mounts no detail drawer/dialog — detail is a full-page navigation (#455)', async () => {

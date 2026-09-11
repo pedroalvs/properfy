@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ServiceGroupStatus } from '@properfy/shared';
 import { ServiceGroupFilters } from './ServiceGroupFilters';
 import { DEFAULT_FILTERS } from '../types';
 
@@ -44,7 +45,7 @@ describe('ServiceGroupFilters', () => {
     );
     await user.click(screen.getByLabelText('Status'));
     await user.click(screen.getByText('Awaiting Inspector'));
-    expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, status: 'PUBLISHED' });
+    expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, status: ServiceGroupStatus.PUBLISHED });
   });
 
   it('search field advertises what the backend actually matches', () => {
@@ -119,7 +120,7 @@ describe('ServiceGroupFilters', () => {
       // Parent state advances mid-debounce (user picked a status).
       rerender(
         <ServiceGroupFilters
-          filters={{ ...DEFAULT_FILTERS, status: 'PUBLISHED' }}
+          filters={{ ...DEFAULT_FILTERS, status: ServiceGroupStatus.PUBLISHED }}
           onFiltersChange={onChange}
         />,
       );
@@ -128,14 +129,14 @@ describe('ServiceGroupFilters', () => {
         vi.advanceTimersByTime(300);
       });
 
-      expect(onChange).toHaveBeenCalledWith({ search: 'roof', status: 'PUBLISHED' });
+      expect(onChange).toHaveBeenCalledWith({ search: 'roof', status: ServiceGroupStatus.PUBLISHED });
     });
 
     it('preserves the active status when the search changes', () => {
       const onChange = vi.fn();
       render(
         <ServiceGroupFilters
-          filters={{ ...DEFAULT_FILTERS, status: 'PUBLISHED' }}
+          filters={{ ...DEFAULT_FILTERS, status: ServiceGroupStatus.PUBLISHED }}
           onFiltersChange={onChange}
         />,
       );
@@ -145,7 +146,7 @@ describe('ServiceGroupFilters', () => {
         vi.advanceTimersByTime(300);
       });
 
-      expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, status: 'PUBLISHED', search: '77' });
+      expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, status: ServiceGroupStatus.PUBLISHED, search: '77' });
     });
   });
 });
