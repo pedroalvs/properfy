@@ -31,6 +31,14 @@ export class RefreshTokenUseCase {
       throw new InvalidRefreshTokenError();
     }
 
+    // A limited TOTP-setup session must never be extended: it is meant to live
+    // exactly as long as its 15-minute access token so an AM can finish 2FA
+    // enrollment. Refusing refresh keeps the privilege-escalation surface
+    // minimal (#115).
+    if (session.authStage === 'totp_setup') {
+      throw new InvalidRefreshTokenError();
+    }
+
     // Per-session refresh rate limit: 10 requests per 5 minutes
     const rateLimitResult = this.sessionRateLimiter.check(session.id);
     if (!rateLimitResult.allowed) {
@@ -47,7 +55,28 @@ export class RefreshTokenUseCase {
     const newHash = createHash('sha256').update(newRawToken).digest('hex');
     const newExpiresAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
 
-    await this.sessionRepo.updateRefreshToken(session.id, newHash, newExpiresAt);
+    // Atomic compare-and-swap rotation: only succeeds if the session still
+    // holds the exact hash we read. A false return means the token was already
+    // rotated or the session revoked — i.e. this refresh token was replayed.
+    const rotated = await this.sessionRepo.rotateRefreshToken(
+      session.id,
+      hash,
+      newHash,
+      newExpiresAt,
+    );
+    if (!rotated) {
+      // Refresh-token reuse: revoke the whole session and force re-auth (#117).
+      await this.sessionRepo.revoke(session.id, new Date());
+      this.auditService.log({
+        action: 'auth.refresh_reuse_detected',
+        actorType: 'SYSTEM',
+        actorId: session.userId,
+        entityType: 'SESSION',
+        entityId: session.id,
+        tenantId: user.tenantId ?? undefined,
+      });
+      throw new InvalidRefreshTokenError();
+    }
 
     let inspectorId: string | null = null;
     if (user.role === 'INSP') {
