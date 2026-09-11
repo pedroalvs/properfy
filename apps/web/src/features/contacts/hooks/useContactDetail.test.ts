@@ -51,6 +51,33 @@ describe('useContactDetail', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
+  it('exposes the thrown ApiError (with its status) on a failed fetch', async () => {
+    // WI-3 (#206/#201/#213): consumers must be able to tell 403 vs 404 vs
+    // transient apart, so the hook has to surface the error object, not just
+    // an isError boolean.
+    mockGet.mockReset();
+    mockGet.mockResolvedValue({
+      error: { error: { code: 'FORBIDDEN', message: 'No access' } },
+      response: { status: 403 },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useContactDetail('ct-01'), { wrapper });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+
+    expect(result.current.contact).toBeNull();
+    expect(result.current.error?.status).toBe(403);
+  });
+
+  it('has a null error while the fetch is healthy', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useContactDetail('ct-01'), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.error).toBeNull();
+  });
+
   it('keeps a stable contact reference across re-renders with unchanged data', async () => {
     // Regression guard for the PR #961 bug class: an unstable reference here
     // feeds ContactFormDrawer's populate effect (deps [isEditMode, contact]),
