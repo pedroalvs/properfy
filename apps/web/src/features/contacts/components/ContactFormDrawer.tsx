@@ -17,6 +17,7 @@ import { formatAuPhone } from '@/lib/phone-mask';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useContactDetail } from '../hooks/useContactDetail';
 import { useContactSave } from '../hooks/useContactSave';
+import { ContactLoadError } from './ContactLoadError';
 import { CONTACT_TYPE_OPTIONS, CONTACT_CHANNEL_OPTIONS } from '../constants/form-options';
 import { EMPTY_CONTACT_FORM, type ContactFormData, type ContactFormErrors } from '../types';
 
@@ -70,7 +71,12 @@ export function ContactFormDrawer({
   onCreated,
 }: ContactFormDrawerProps) {
   const isEditMode = !!contactId;
-  const { contact, isLoading: isLoadingDetail } = useContactDetail(isEditMode ? contactId : null);
+  const { contact, isLoading: isLoadingDetail, error: detailError, refetch: refetchDetail } =
+    useContactDetail(isEditMode ? contactId : null);
+  // WI-3 (#201): in edit mode, the record must have loaded before the form is
+  // editable. If loading ended with no contact, show a recovery panel instead
+  // of a blank form — otherwise Save would PATCH empty defaults onto the row.
+  const showEditLoadError = isEditMode && !isLoadingDetail && !contact;
   const { save, isSaving, validate } = useContactSave();
   const { showSuccess, showError } = useSnackbar();
 
@@ -205,6 +211,14 @@ export function ContactFormDrawer({
           <DrawerHeader title={isEditMode ? 'Edit Contact' : 'New Contact'} onClose={handleClose} />
           {isEditMode && isLoadingDetail ? (
             <div className="flex-1 px-6 py-4"><LoadingState rows={6} /></div>
+          ) : showEditLoadError ? (
+            <div className="flex-1 px-6 py-4">
+              <ContactLoadError
+                error={detailError}
+                onRetry={refetchDetail}
+                notFoundAction={{ label: 'Close', onClick: onClose }}
+              />
+            </div>
           ) : (
             <>
               <div className="flex-1 overflow-y-auto px-6 py-4">

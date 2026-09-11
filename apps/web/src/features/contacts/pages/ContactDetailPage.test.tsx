@@ -188,6 +188,86 @@ describe('ContactDetailPage — lazy fetch on tab activation (NFR-204)', () => {
   });
 });
 
+describe('ContactDetailPage — distinct detail-fetch failure states (WI-3 #206)', () => {
+  function mockDetailError(status: number, code: string, message: string) {
+    mockGet.mockReset();
+    mockGet.mockImplementation(async (path: string) => {
+      if (typeof path === 'string' && path.startsWith('/v1/contacts/')) {
+        return { error: { error: { code, message } }, response: { status } };
+      }
+      return { data: { data: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 0 } } };
+    });
+  }
+
+  it('renders NoPermissionState on a 403', async () => {
+    mockDetailError(403, 'FORBIDDEN', 'No access');
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByText(/don't have permission/i)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText('Contact not found')).not.toBeInTheDocument();
+  });
+
+  it('renders the not-found EmptyState on a 404', async () => {
+    mockDetailError(404, 'CONTACT_NOT_FOUND', 'Gone');
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Contact not found')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /Back to Contacts/i })).toBeInTheDocument();
+  });
+
+  it('renders a retryable ErrorState on a 500 and refetches on retry', async () => {
+    mockDetailError(500, 'INTERNAL_ERROR', 'Boom');
+    renderPage();
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+
+    const detailCallsBefore = mockGet.mock.calls.filter(([p]) =>
+      String(p).startsWith('/v1/contacts/'),
+    ).length;
+
+    fireEvent.click(screen.getByRole('button', { name: /Try Again/i }));
+
+    await waitFor(() => {
+      const detailCallsAfter = mockGet.mock.calls.filter(([p]) =>
+        String(p).startsWith('/v1/contacts/'),
+      ).length;
+      expect(detailCallsAfter).toBeGreaterThan(detailCallsBefore);
+    });
+  });
+});
+
+describe('ContactDetailPage — Reactivate in-flight state (WI-5 #547)', () => {
+  it('disables the Reactivate button while the mutation is in flight and fires one request', async () => {
+    const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
+    mockGet.mockReset();
+    mockGet.mockImplementation(async (path: string) => {
+      if (typeof path === 'string' && path.startsWith('/v1/contacts/')) {
+        return { data: { data: { ...baseContact, isActive: false } } };
+      }
+      return { data: { data: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 0 } } };
+    });
+
+    let resolvePatch: (v: unknown) => void = () => {};
+    mockPatch.mockReset();
+    mockPatch.mockImplementation(
+      () => new Promise((resolve) => { resolvePatch = resolve; }),
+    );
+
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0));
+
+    const reactivate = screen.getByRole('button', { name: /Reactivate contact/i });
+    fireEvent.click(reactivate);
+
+    await waitFor(() => expect(reactivate).toBeDisabled());
+
+    // A second click while in flight must not fire another request.
+    fireEvent.click(reactivate);
+    expect(mockPatch).toHaveBeenCalledTimes(1);
+
+    resolvePatch({ data: { data: { ...baseContact, isActive: true } } });
+  });
+});
+
 describe('ContactDetailPage — Timeline tab visibility (audit.view RBAC)', () => {
   it('hides the Timeline tab from CL_USER', () => {
     renderPage('CL_USER');
