@@ -119,6 +119,17 @@ export class PrismaUserRepository implements IUserRepository {
     // failed attempts produce a final count of exactly N and lock precisely at
     // the threshold — no read-modify-write window. `::int` guards the numeric
     // param binding gotcha; the enum literal is cast to the Postgres enum type.
+    //
+    // The lock transition is guarded by `status = 'ACTIVE'` (evaluated against
+    // the pre-UPDATE row): only an ACTIVE account may become LOCKED. This
+    // matters because the caller now increments BEFORE the status check (#250),
+    // so wrong passwords also reach here for INACTIVE/PENDING_INVITE/LOCKED
+    // accounts. Without the guard the CASE would (a) clobber an INACTIVE
+    // account's status to LOCKED — which auto-unlock would later flip to ACTIVE,
+    // silently reactivating a deactivated user — and (b) re-extend locked_until
+    // on every attempt against an already-locked account, an indefinite-lockout
+    // DoS. Guarding it leaves count incrementing harmlessly while status and
+    // locked_until stay put for non-ACTIVE accounts.
     const lockedUntil = new Date(Date.now() + lockDurationMs);
     const rows = await this.prisma.$queryRaw<
       Array<{ failed_login_count: number; status: PrismaUserStatus; locked_until: Date | null }>
@@ -126,11 +137,13 @@ export class PrismaUserRepository implements IUserRepository {
       UPDATE users
       SET failed_login_count = failed_login_count + 1,
           status = CASE
-            WHEN failed_login_count + 1 >= ${lockThreshold}::int THEN 'LOCKED'::"UserStatus"
+            WHEN status = 'ACTIVE'::"UserStatus" AND failed_login_count + 1 >= ${lockThreshold}::int
+              THEN 'LOCKED'::"UserStatus"
             ELSE status
           END,
           locked_until = CASE
-            WHEN failed_login_count + 1 >= ${lockThreshold}::int THEN ${lockedUntil}::timestamptz
+            WHEN status = 'ACTIVE'::"UserStatus" AND failed_login_count + 1 >= ${lockThreshold}::int
+              THEN ${lockedUntil}::timestamptz
             ELSE locked_until
           END
       WHERE id = ${userId} AND deleted_at IS NULL
