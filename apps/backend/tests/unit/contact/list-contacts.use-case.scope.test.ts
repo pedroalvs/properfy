@@ -5,6 +5,7 @@ import {
 } from '../../../src/modules/contact/application/use-cases/list-contacts.use-case';
 import type { IContactRepository } from '../../../src/modules/contact/domain/contact.repository';
 import type { ContactScope } from '../../../src/modules/contact/domain/contact.scope';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 
 const TENANT_A = 'aaaaaaaa-0000-0000-0000-000000000001';
 const TENANT_B = 'bbbbbbbb-0000-0000-0000-000000000002';
@@ -55,6 +56,25 @@ describe('resolveScope (024 §FR-303)', () => {
   it('CL_USER without a JWT tenantId throws — defence in depth for misconfigured tokens', () => {
     expect(() => resolveScope({ role: 'CL_USER', tenantId: null }))
       .toThrow(/missing tenantId/);
+  });
+
+  // WI-1 — fail closed: any role outside the known allowlist must be
+  // rejected, not silently downgraded to a tenant-pinned scope. Before this
+  // fix, an INSP (or any unknown role string) carrying a tenantId resolved to
+  // `tenant_pinned` and reached the contact queries.
+  it('INSP with a tenantId throws ForbiddenError — never silently tenant-pinned', () => {
+    expect(() => resolveScope({ role: 'INSP', tenantId: TENANT_A }))
+      .toThrow(ForbiddenError);
+  });
+
+  it('an unknown role string throws ForbiddenError', () => {
+    expect(() => resolveScope({ role: 'HACKER', tenantId: TENANT_A }))
+      .toThrow(ForbiddenError);
+  });
+
+  it('TNT (rental tenant) with a tenantId throws ForbiddenError', () => {
+    expect(() => resolveScope({ role: 'TNT', tenantId: TENANT_A }))
+      .toThrow(ForbiddenError);
   });
 });
 
