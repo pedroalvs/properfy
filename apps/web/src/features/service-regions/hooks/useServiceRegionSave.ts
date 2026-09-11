@@ -34,11 +34,13 @@ export function useServiceRegionSave(): UseServiceRegionSaveReturn {
   const save = useCallback(async (data: ServiceRegionFormData, regionId?: string): Promise<SaveResult> => {
     setIsSaving(true);
     try {
+      // `status` is intentionally never sent: PATCH no longer accepts it and
+      // status transitions go through the dedicated deactivate/reactivate
+      // actions (#387).
       const payload = {
         name: data.name.trim(),
         geojson: data.geojson,
         color: data.color,
-        ...(regionId ? { status: data.status || undefined } : {}),
       };
 
       if (regionId) {

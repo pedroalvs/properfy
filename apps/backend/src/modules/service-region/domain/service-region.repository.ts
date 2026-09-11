@@ -54,6 +54,12 @@ export interface IServiceRegionRepository {
   resolveRegionsForAppointments(appointmentIds: string[]): Promise<ResolvedRegion[]>;
   findContainingPoint(tenantId: string, lat: number, lng: number): Promise<ServiceRegionEntity[]>;
   countActiveInspectorsInRegion(regionId: string): Promise<number>;
+  /**
+   * Batched form of {@link countActiveInspectorsInRegion} — one query for many
+   * regions. Regions with no active inspectors are omitted from the map (callers
+   * treat a missing key as 0), so it avoids the N+1 in ResolveRegionsUseCase.
+   */
+  countActiveInspectorsInRegions(regionIds: string[]): Promise<Map<string, number>>;
   setInspectorRegions(inspectorId: string, regionIds: string[]): Promise<void>;
   getInspectorRegionIds(inspectorId: string): Promise<string[]>;
   getInspectorRegionIdsBatch(inspectorIds: string[]): Promise<Map<string, string[]>>;

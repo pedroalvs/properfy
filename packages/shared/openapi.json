@@ -21088,6 +21088,10 @@
                                 },
                                 "name": {
                                   "type": "string"
+                                },
+                                "branchName": {
+                                  "type": "string",
+                                  "nullable": true
                                 }
                               },
                               "required": [
@@ -25486,6 +25490,14 @@
               "type": "string"
             },
             "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
             "name": "templateCode",
             "required": false
           },
@@ -27317,6 +27329,25 @@
       }
     },
     "/v1/service-regions/{id}/deactivate": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/service-regions/{id}/reactivate": {
       "post": {
         "parameters": [
           {

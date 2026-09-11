@@ -6,6 +6,8 @@ import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { ServiceRegionNameConflictError } from '../../../src/modules/service-region/domain/service-region.errors';
+import { TenantNotFoundError } from '../../../src/modules/tenant/domain/tenant.errors';
+import type { ITenantRepository } from '../../../src/modules/tenant/domain/tenant.repository';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -38,16 +40,24 @@ function createMockRepo(): IServiceRegionRepository {
   };
 }
 
+function createMockTenantRepo(): ITenantRepository {
+  return {
+    findById: vi.fn().mockResolvedValue({ id: 'tenant-1', isActive: () => true }),
+  } as unknown as ITenantRepository;
+}
+
 describe('CreateServiceRegionUseCase', () => {
   let regionRepo: IServiceRegionRepository;
+  let tenantRepo: ITenantRepository;
   let auditService: AuditService;
   let useCase: CreateServiceRegionUseCase;
 
   beforeEach(() => {
     regionRepo = createMockRepo();
+    tenantRepo = createMockTenantRepo();
     auditService = { log: vi.fn() } as unknown as AuditService;
     const authorizationService = new AuthorizationService(auditService);
-    useCase = new CreateServiceRegionUseCase(regionRepo, auditService, authorizationService);
+    useCase = new CreateServiceRegionUseCase(regionRepo, auditService, authorizationService, tenantRepo);
   });
 
   it('should create a region scoped to the actor tenant', async () => {
@@ -120,6 +130,33 @@ describe('CreateServiceRegionUseCase', () => {
     });
 
     expect(result.color).toBe('#3b82f6');
+  });
+
+  it('rejects when an AM supplies a non-existent input.tenantId, without persisting (#385)', async () => {
+    vi.mocked(tenantRepo.findById).mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({
+        name: 'Test',
+        geojson: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] },
+        tenantId: '99999999-9999-9999-9999-999999999999',
+        actor: makeActor({ tenantId: null }),
+      }),
+    ).rejects.toThrow(TenantNotFoundError);
+
+    expect(tenantRepo.findById).toHaveBeenCalledWith('99999999-9999-9999-9999-999999999999');
+    expect(regionRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('does not validate a tenant when AM creates a global region (no input.tenantId)', async () => {
+    await useCase.execute({
+      name: 'Global',
+      geojson: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] },
+      actor: makeActor({ tenantId: null }),
+    });
+
+    expect(tenantRepo.findById).not.toHaveBeenCalled();
+    expect(regionRepo.save).toHaveBeenCalled();
   });
 
   it('should log audit event', async () => {

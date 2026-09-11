@@ -310,6 +310,7 @@ import { UpdateServiceRegionUseCase } from '../modules/service-region/applicatio
 import { GetServiceRegionUseCase } from '../modules/service-region/application/use-cases/get-service-region.use-case';
 import { ListServiceRegionsUseCase } from '../modules/service-region/application/use-cases/list-service-regions.use-case';
 import { DeactivateServiceRegionUseCase } from '../modules/service-region/application/use-cases/deactivate-service-region.use-case';
+import { ReactivateServiceRegionUseCase } from '../modules/service-region/application/use-cases/reactivate-service-region.use-case';
 import { DeleteServiceRegionUseCase } from '../modules/service-region/application/use-cases/delete-service-region.use-case';
 import { ResolveRegionsUseCase } from '../modules/service-region/application/use-cases/resolve-regions.use-case';
 import { NotifyInspectorsOnRegionDeactivationHandler } from '../modules/service-region/application/handlers/notify-inspectors-on-region-deactivation.handler';
@@ -1269,17 +1270,18 @@ export function createContainer(logger: Logger): AppContainer {
   const getInspectorWorkloadUseCase = new GetInspectorWorkloadUseCase(inspectorWorkloadRepo);
 
   // Service region use cases (serviceRegionRepo instantiated earlier for inspector/marketplace use)
-  const createServiceRegionUseCase = new CreateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService);
+  const createServiceRegionUseCase = new CreateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService, tenantRepo);
   const updateServiceRegionUseCase = new UpdateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService);
   const getServiceRegionUseCase = new GetServiceRegionUseCase(serviceRegionRepo, authorizationService, userRepo);
   const listServiceRegionsUseCase = new ListServiceRegionsUseCase(serviceRegionRepo, authorizationService);
   const deactivateServiceRegionUseCase = new DeactivateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService, domainEventBus);
+  const reactivateServiceRegionUseCase = new ReactivateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService, domainEventBus);
   const deleteServiceRegionUseCase = new DeleteServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService);
   const resolveRegionsUseCase = new ResolveRegionsUseCase(serviceRegionRepo, authorizationService);
 
   // Service region event handlers
   const notifyInspectorsOnRegionDeactivationHandler = new NotifyInspectorsOnRegionDeactivationHandler(
-    inspectorRepo, createNotificationUseCase,
+    inspectorRepo, createNotificationUseCase, logger,
   );
   domainEventBus.subscribe(
     SERVICE_REGION_EVENTS.DEACTIVATED,
@@ -1706,6 +1708,7 @@ export function createContainer(logger: Logger): AppContainer {
       getServiceRegionUseCase,
       listServiceRegionsUseCase,
       deactivateServiceRegionUseCase,
+      reactivateServiceRegionUseCase,
       deleteServiceRegionUseCase,
       resolveRegionsUseCase,
       jwtService,
