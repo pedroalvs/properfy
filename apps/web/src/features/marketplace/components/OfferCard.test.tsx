@@ -52,6 +52,35 @@ describe('OfferCard', () => {
     expect(onAccept).toHaveBeenCalledTimes(1);
   });
 
+  it('does not select the card when Enter bubbles from the nested Accept button (#457)', () => {
+    const onClick = vi.fn();
+    const onAccept = vi.fn();
+    render(<OfferCard offer={MOCK_OFFER} selected={false} onClick={onClick} onAccept={onAccept} />);
+
+    const acceptButton = screen
+      .getAllByRole('button', { name: /Accept/i })
+      .find((btn) => btn.tagName === 'BUTTON')!;
+    // A keydown on the nested button bubbles to the card wrapper; the wrapper must
+    // ignore it (target !== currentTarget) instead of also selecting the card.
+    fireEvent.keyDown(acceptButton, { key: 'Enter' });
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('still selects the card when Enter is pressed on the card wrapper itself', () => {
+    const onClick = vi.fn();
+    render(<OfferCard offer={MOCK_OFFER} selected={false} onClick={onClick} onAccept={vi.fn()} />);
+
+    fireEvent.keyDown(screen.getByTestId('offer-card'), { key: 'Enter' });
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes aria-pressed (valid on role="button"), not aria-selected', () => {
+    render(<OfferCard offer={MOCK_OFFER} selected={true} onClick={vi.fn()} onAccept={vi.fn()} />);
+    const card = screen.getByTestId('offer-card');
+    expect(card).toHaveAttribute('aria-pressed', 'true');
+    expect(card).not.toHaveAttribute('aria-selected');
+  });
+
   it('highlights when selected', () => {
     const { container } = render(
       <OfferCard offer={MOCK_OFFER} selected={true} onClick={vi.fn()} onAccept={vi.fn()} />,
