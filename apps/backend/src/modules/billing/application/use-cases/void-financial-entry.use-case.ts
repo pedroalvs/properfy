@@ -60,7 +60,11 @@ export class VoidFinancialEntryUseCase {
       throw new BillingIdempotencyPayloadMismatchError();
     }
     if (claim.status === 'completed') {
-      return claim.response;
+      // The cached response round-trips through JSON storage: `voidedAt` comes
+      // back as a string, not a `Date` instance, even though the first-call
+      // response carries a real `Date`. Coerce it back so callers see the same
+      // shape on replay as on the original call.
+      return { ...claim.response, voidedAt: new Date(claim.response.voidedAt) };
     }
     if (claim.status === 'in_progress') {
       throw new BillingIdempotencyInProgressError();

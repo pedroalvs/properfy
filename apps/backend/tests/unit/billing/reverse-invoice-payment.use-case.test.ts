@@ -4,6 +4,8 @@ import { InspectorInvoiceEntity } from '../../../src/modules/billing/domain/insp
 import {
   InvoiceNotFoundError,
   InvoiceNotPaidError,
+  BillingIdempotencyPayloadMismatchError,
+  BillingIdempotencyInProgressError,
 } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -176,5 +178,60 @@ describe('ReverseInvoicePaymentUseCase', () => {
     await expect(
       sut.execute({ invoiceId: 'inv-1', reason: 'test', idempotencyKey: 'idem-1', actor: clientActor }),
     ).rejects.toThrow(ForbiddenError);
+  });
+
+  describe('idempotency replay', () => {
+    it('returns the cached response on replay without touching the repository', async () => {
+      const cachedResult = {
+        id: 'inv-1',
+        status: 'CLOSED' as const,
+        paidAt: null,
+        paidByUserId: null,
+        paymentReference: null,
+      };
+      idempotencyService.tryAcquire.mockImplementation(async (_key: string, _scope: string, payloadHash: string) => ({
+        status: 'completed',
+        response: cachedResult,
+        payloadHash,
+      }));
+      const sut = makeSut();
+
+      const result = await sut.execute({
+        invoiceId: 'inv-1',
+        reason: 'Bank transfer rejected',
+        idempotencyKey: 'idem-1',
+        actor: opActor,
+      });
+
+      expect(result).toEqual(cachedResult);
+      expect(invoiceRepo.update).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+    });
+
+    it('throws a conflict when the same key is replayed with a different payload', async () => {
+      idempotencyService.tryAcquire.mockResolvedValue({
+        status: 'in_progress',
+        payloadHash: 'a-different-hash',
+      });
+      const sut = makeSut();
+
+      await expect(
+        sut.execute({ invoiceId: 'inv-1', reason: 'test', idempotencyKey: 'idem-1', actor: opActor }),
+      ).rejects.toThrow(BillingIdempotencyPayloadMismatchError);
+      expect(invoiceRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('throws a conflict when a request with the same key and payload is already in progress', async () => {
+      idempotencyService.tryAcquire.mockImplementation(async (_key: string, _scope: string, payloadHash: string) => ({
+        status: 'in_progress',
+        payloadHash,
+      }));
+      const sut = makeSut();
+
+      await expect(
+        sut.execute({ invoiceId: 'inv-1', reason: 'test', idempotencyKey: 'idem-1', actor: opActor }),
+      ).rejects.toThrow(BillingIdempotencyInProgressError);
+      expect(invoiceRepo.update).not.toHaveBeenCalled();
+    });
   });
 });
