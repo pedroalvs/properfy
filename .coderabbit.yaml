@@ -51,16 +51,40 @@ reviews:
         covered by a Postgres-real integration test (mocks can hide tenant-scope bugs).
     - path: "apps/web/**"
       instructions: >-
-        React + TypeScript + Tailwind. Reuse design-system primitives
-        (FilterSelect / FilterMultiSelect / FilterBar / DataTable) instead of raw HTML
-        for filters and tables. Never expose raw IDs in the UI — show readable fields
-        (e.g. number + address + status + date). DataTable sorts client-side via useMemo;
-        do not send sortBy/sortOrder to the API. List pages must show data immediately;
-        selectors filter, they do not gate.
+        React + TypeScript + Tailwind. The OpenAPI-generated client
+        (api = createClient<paths>) is the ONLY way to reach the API: flag any raw
+        fetch, hand-rolled path, local DTO that duplicates a contract type, or `as any`
+        cast on an api path/params/response (a template-literal path can never match the
+        generated union — that cast defeats the check). Import shared DTOs and enums from
+        packages/shared instead of redeclaring them or using magic status strings.
+        React Query owns server state; data hooks must return referentially stable
+        values (wrap payload-derived objects/arrays in useMemo keyed on the raw data —
+        the PR #961 render-loop rule). Every data screen implements loading, error
+        (recoverable, with retry) and empty states — a dropped isError that renders the
+        empty state as if the fetch succeeded is a bug. Dialogs must manage focus
+        (role="dialog", focus move-in, Escape) — reuse Dialog/ConfirmDialog rather than
+        raw overlays; custom widgets must be fully keyboard-operable and an ARIA role
+        (radio/tab/option/…) obliges its keyboard pattern (roving tabindex, arrows,
+        Escape stopPropagation). Prefer design tokens over hardcoded hex. Reuse
+        design-system primitives (FilterSelect / FilterMultiSelect / FilterBar /
+        DataTable) instead of raw HTML for filters and tables. Never expose raw IDs in
+        the UI — show readable fields (e.g. number + address + status + date). DataTable
+        sorts client-side via useMemo; do not send sortBy/sortOrder to the API. List
+        pages must show data immediately; selectors filter, they do not gate.
     - path: "apps/pwa/**"
       instructions: >-
-        Inspector PWA (React + Vite + Tailwind). Reuse the shared design-system
-        primitives and keep parity with the web portal conventions.
+        Inspector PWA (React + Vite + Tailwind). Same API-contract rules as the web
+        portal: the OpenAPI-generated client is the only API access — no raw fetch,
+        hand-rolled path, duplicated DTO, or `as any` on a path/params/response; import
+        DTOs and enums from packages/shared, not local copies or magic strings. React
+        Query owns server state and data hooks return referentially stable values
+        (useMemo on payload-derived arrays — the PR #961 rule). Every screen implements
+        loading, error (with retry), empty and offline states. Touch targets are at
+        least 44px. Geolocation must handle permission-request, denied and error paths;
+        actions taken offline must give clear feedback / queue rather than fail silently.
+        Dialogs and custom widgets follow the same focus-management and keyboard rules as
+        web. Reuse the shared design-system primitives and keep parity with the web
+        portal conventions and visual tokens.
     - path: "packages/shared/**"
       instructions: >-
         Source of truth for shared Zod schemas, types and enums consumed across
@@ -68,9 +92,13 @@ reviews:
         hand-edited; regenerate via the generate:types script instead.
     - path: "**/*.{test,spec}.{ts,tsx}"
       instructions: >-
-        TDD is mandatory. Tests must cover behavior (red-green-refactor), including
-        tenant-scope filters asserted against a real Postgres, since mocks return
-        regardless of the tenant_id argument and can mask isolation bugs.
+        TDD is mandatory. Tests must cover behavior (red-green-refactor), not merely
+        that a component renders: an assertion must fail if the behavior it names is
+        broken (e.g. asserting a column header does not test a loading state; a test
+        named for one string must assert that string). Fixtures must match the real API
+        response shape and use shared enums, not invented fields or magic status
+        literals. Include tenant-scope filters asserted against a real Postgres, since
+        mocks return regardless of the tenant_id argument and can mask isolation bugs.
 
 chat:
   auto_reply: true
