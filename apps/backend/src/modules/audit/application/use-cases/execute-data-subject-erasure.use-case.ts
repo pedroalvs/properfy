@@ -72,7 +72,9 @@ export class ExecuteDataSubjectErasureUseCase {
       'EXECUTING',
     );
     if (!won) {
-      throw new ErasureRequestInvalidStateError(request.status, 'execute');
+      // A concurrent caller already advanced this request past PREVIEW/CONFIRMED.
+      // Bail out before any redaction or meta-audit so the work runs exactly once.
+      throw new ErasureRequestInvalidStateError(request.status, 'execute (already in progress)');
     }
     // Sync the in-memory entity with the persisted EXECUTING status.
     request.markExecuting();
@@ -190,8 +192,11 @@ export class ExecuteDataSubjectErasureUseCase {
     };
 
     // #412: never persist COMPLETED while rows remain IN_PROGRESS. If any
-    // snapshot update failed, mark the request FAILED and keep the skipped ids
-    // in the completion report so a retry/retention pass can pick them up.
+    // snapshot update failed, mark the request FAILED and record the skipped
+    // ids in the completion report. NOTE: FAILED is terminal and those rows
+    // stay IN_PROGRESS — the retention worker excludes IN_PROGRESS rows, so
+    // recovery is a NEW erasure request for the same subject (searchPiiByValues
+    // re-matches them; it has no status filter), not an automatic retry.
     if (failedIds.length > 0) {
       const errorMessage = `erasure incomplete: ${failedIds.length} entr${
         failedIds.length === 1 ? 'y' : 'ies'
