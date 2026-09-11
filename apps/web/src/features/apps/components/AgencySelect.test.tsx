@@ -112,6 +112,23 @@ describe('AgencySelect', () => {
     expect(input).not.toHaveAttribute('aria-activedescendant');
   });
 
+  it('resolves the label of a pre-selected agency it was not handed a name for', async () => {
+    setHook(buildReturn([], 0));
+    const { api } = await import('@/services/api');
+    vi.mocked(api.GET).mockResolvedValue({
+      data: { data: { id: 't9', name: 'Zeta Corp' } },
+      error: undefined,
+    } as never);
+
+    renderSelect({ value: 't9' }); // no initialLabel — must fetch /v1/tenants/{id}
+
+    expect(await screen.findByDisplayValue('Zeta Corp')).toBeInTheDocument();
+    expect(vi.mocked(api.GET)).toHaveBeenCalledWith(
+      '/v1/tenants/t9',
+      expect.anything(),
+    );
+  });
+
   it('marks the selected agency and keeps active highlight distinct', () => {
     setHook(buildReturn(TWO, 2));
     const { input } = renderSelect({ value: 't2', initialLabel: 'Beta Homes' });
