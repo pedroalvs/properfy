@@ -617,14 +617,18 @@ describe('SendTestNotificationUseCase', () => {
     );
   });
 
-  it('SMS sample vars come from TEMPLATE_VARIABLES[INSPECTION_NOTICE_SMS] (no EMAIL-only leak)', async () => {
+  it('SMS sample vars come from TEMPLATE_VARIABLES[INSPECTION_NOTICE_SMS] (no logo leak)', async () => {
     vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(makeSmsTemplate());
     vi.mocked(templateRenderer.render).mockReset().mockReturnValue('rendered');
     await useCase.execute({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', recipient: '+61412345678', actor: makeActor() });
     const [, passedVars] = vi.mocked(templateRenderer.render).mock.calls[0] as [unknown, Record<string, string>];
     expect(passedVars).toHaveProperty('rentalTenantName');
     expect(passedVars).toHaveProperty('scheduledDate');
-    // inspectorName is not in INSPECTION_NOTICE_SMS spec
-    expect(passedVars).not.toHaveProperty('inspectorName');
+    // Normalized: the SMS spec now offers the appointment/agency core.
+    expect(passedVars).toHaveProperty('inspectorName');
+    // Logo URLs are never in an SMS spec (no images), proving the vars are still
+    // filtered to TEMPLATE_VARIABLES rather than dumping the full EMAIL var set.
+    expect(passedVars).not.toHaveProperty('properfyLogoUrl');
+    expect(passedVars).not.toHaveProperty('agencyLogoUrl');
   });
 });

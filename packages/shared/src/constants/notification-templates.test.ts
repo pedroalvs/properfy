@@ -448,3 +448,100 @@ describe('matchTemplateCodesBySearch', () => {
     expect(matchTemplateCodesBySearch('zzz-no-such-template')).toEqual([]);
   });
 });
+
+describe('rescheduleLink on tenant-facing inspection templates', () => {
+  // rescheduleLink === confirmationLink in BuildNotificationPayloadService (same
+  // portal URL), so the builder always populates it. Every tenant-facing
+  // inspection_* code should offer the placeholder in the editor; the internal
+  // ops alert (INSPECTION_STUCK_ALERT) is excluded.
+  const RESCHEDULE_INSPECTION_CODES = [
+    'INSPECTION_NOTICE',
+    'INSPECTION_NOTICE_SMS',
+    'INSPECTION_CONFIRMED',
+    'INSPECTION_RESCHEDULED',
+    'INSPECTION_CANCELLED',
+    'INSPECTION_CANCELLED_AGENCY',
+    'INSPECTION_REJECTED_AGENCY',
+    'INSPECTION_UNAVAILABILITY_REPORTED',
+    'INSPECTION_SATISFACTION_SURVEY',
+  ] as const;
+
+  it.each(RESCHEDULE_INSPECTION_CODES)('offers rescheduleLink as optional on %s', (code) => {
+    const spec = TEMPLATE_VARIABLES[code];
+    expect(spec.optional).toContain('rescheduleLink');
+    // Never required: BuildNotificationPayloadService throws on a missing required
+    // key, and it must never lose a send over a reschedule link.
+    expect(spec.required).not.toContain('rescheduleLink');
+  });
+
+  it('does not offer rescheduleLink on the internal stuck-alert', () => {
+    const spec = TEMPLATE_VARIABLES.INSPECTION_STUCK_ALERT;
+    expect([...spec.required, ...spec.optional]).not.toContain('rescheduleLink');
+  });
+
+  it('offers rescheduleLink on at least every listed inspection code (loop cannot no-op)', () => {
+    const carrying = Object.values(TEMPLATE_VARIABLES).filter((spec) =>
+      spec.optional.includes('rescheduleLink'),
+    );
+    expect(carrying.length).toBeGreaterThanOrEqual(RESCHEDULE_INSPECTION_CODES.length);
+  });
+});
+
+describe('SMS template variable normalization', () => {
+  const SMS_CORE = [
+    'inspectorName',
+    'branchName',
+    'agencyName',
+    'agencyPhone',
+    'serviceTypeName',
+  ] as const;
+
+  it.each(['REMINDER_7_DAYS_SMS', 'REMINDER_5_DAYS_SMS', 'REMINDER_3_DAYS_SMS'] as const)(
+    'gives %s the appointment-agency core plus confirmationLink',
+    (code) => {
+      const declared = new Set([...TEMPLATE_VARIABLES[code].optional]);
+      for (const v of [...SMS_CORE, 'confirmationLink']) expect(declared).toContain(v);
+    },
+  );
+
+  it('gives the three REMINDER_*_SMS codes identical variable sets', () => {
+    const set = (code: 'REMINDER_7_DAYS_SMS' | 'REMINDER_5_DAYS_SMS' | 'REMINDER_3_DAYS_SMS') =>
+      new Set([...TEMPLATE_VARIABLES[code].required, ...TEMPLATE_VARIABLES[code].optional]);
+    expect(set('REMINDER_5_DAYS_SMS')).toEqual(set('REMINDER_7_DAYS_SMS'));
+    expect(set('REMINDER_3_DAYS_SMS')).toEqual(set('REMINDER_7_DAYS_SMS'));
+  });
+
+  it('gives INSPECTION_NOTICE_SMS the appointment-agency core', () => {
+    const declared = new Set([...TEMPLATE_VARIABLES.INSPECTION_NOTICE_SMS.optional]);
+    for (const v of SMS_CORE) expect(declared).toContain(v);
+  });
+
+  it('gives TENANT_SMS_ALERT the appointment-agency core plus timeSlot', () => {
+    const declared = new Set([...TEMPLATE_VARIABLES.TENANT_SMS_ALERT.optional]);
+    for (const v of [...SMS_CORE, 'timeSlot']) expect(declared).toContain(v);
+  });
+
+  it('never offers logo URLs on any SMS template (no images in SMS)', () => {
+    for (const code of Object.keys(TEMPLATE_VARIABLES)) {
+      if (!code.endsWith('_SMS') && code !== 'TENANT_SMS_ALERT') continue;
+      const declared = [
+        ...TEMPLATE_VARIABLES[code as keyof typeof TEMPLATE_VARIABLES].required,
+        ...TEMPLATE_VARIABLES[code as keyof typeof TEMPLATE_VARIABLES].optional,
+      ];
+      expect(declared).not.toContain('properfyLogoUrl');
+      expect(declared).not.toContain('agencyLogoUrl');
+    }
+  });
+});
+
+describe('TEMPLATE_VARIABLES integrity', () => {
+  it('declares only variables present in ALLOWED_VARIABLES and SAMPLE_DATA', () => {
+    const allowed = new Set<string>(ALLOWED_VARIABLES);
+    for (const [code, spec] of Object.entries(TEMPLATE_VARIABLES)) {
+      for (const v of [...spec.required, ...spec.optional]) {
+        expect({ code, v, allowed: allowed.has(v) }).toEqual({ code, v, allowed: true });
+        expect({ code, v, sample: v in SAMPLE_DATA }).toEqual({ code, v, sample: true });
+      }
+    }
+  });
+});

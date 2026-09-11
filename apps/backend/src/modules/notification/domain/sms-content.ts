@@ -1,34 +1,30 @@
 /**
- * SMS content rules per the Mobile Message API: a message may span at most
- * 10 SMS parts — 1,530 septets in GSM-7 encoding or 670 UCS-2 characters.
+ * SMS content preparation for the send path. The encoding detection and length
+ * limits live in `@properfy/shared` so the web template editor counts length with
+ * the exact same rules; this module keeps the delivery-only concern (truncation)
+ * and re-exports the shared helpers so the notification module has one SMS-content
+ * entry point.
  */
-export const SMS_MAX_CHARS_GSM7 = 1530;
-export const SMS_MAX_CHARS_UCS2 = 670;
+import {
+  isGsm7,
+  gsm7SeptetLength,
+  isGsm7ExtensionChar,
+  SMS_MAX_CHARS_GSM7,
+  SMS_MAX_CHARS_UCS2,
+} from '@properfy/shared';
 
-// GSM 03.38 basic charset characters (1 septet each).
-const GSM7_BASIC =
-  '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?' +
-  '¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà';
-// GSM 03.38 extension table characters (escape-prefixed: 2 septets each).
-const GSM7_EXTENSION = '^{}\\[~]|€';
-const GSM7_BASIC_SET = new Set(GSM7_BASIC);
-const GSM7_EXTENSION_SET = new Set(GSM7_EXTENSION);
-
-export function isGsm7(text: string): boolean {
-  for (const char of text) {
-    if (!GSM7_BASIC_SET.has(char) && !GSM7_EXTENSION_SET.has(char)) return false;
-  }
-  return true;
-}
-
-/** Septet cost of a GSM-7 string (extension-table chars cost 2). */
-export function gsm7SeptetLength(text: string): number {
-  let septets = 0;
-  for (const char of text) {
-    septets += GSM7_EXTENSION_SET.has(char) ? 2 : 1;
-  }
-  return septets;
-}
+export {
+  isGsm7,
+  gsm7SeptetLength,
+  measureSms,
+  measureSmsTemplate,
+  describeSmsOverLimit,
+  SMS_MAX_CHARS_GSM7,
+  SMS_MAX_CHARS_UCS2,
+  type SmsEncoding,
+  type SmsMeasurement,
+  type SmsTemplateMeasurement,
+} from '@properfy/shared';
 
 export interface PreparedSmsBody {
   body: string;
@@ -40,7 +36,7 @@ function truncateGsm7(text: string, maxSeptets: number): string {
   let septets = 0;
   let end = 0;
   for (const char of text) {
-    const cost = GSM7_EXTENSION_SET.has(char) ? 2 : 1;
+    const cost = isGsm7ExtensionChar(char) ? 2 : 1;
     if (septets + cost > maxSeptets) break;
     septets += cost;
     end += char.length;

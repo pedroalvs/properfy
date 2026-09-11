@@ -6,6 +6,21 @@ import {
   SMS_MAX_CHARS_GSM7,
   SMS_MAX_CHARS_UCS2,
 } from '../../../src/modules/notification/domain/sms-content';
+import {
+  isGsm7 as sharedIsGsm7,
+  gsm7SeptetLength as sharedGsm7SeptetLength,
+  SMS_MAX_CHARS_GSM7 as SHARED_MAX_GSM7,
+  SMS_MAX_CHARS_UCS2 as SHARED_MAX_UCS2,
+} from '@properfy/shared';
+
+describe('sms-content re-exports the shared counting helpers', () => {
+  it('is the same function/constant identity as @properfy/shared', () => {
+    expect(isGsm7).toBe(sharedIsGsm7);
+    expect(gsm7SeptetLength).toBe(sharedGsm7SeptetLength);
+    expect(SMS_MAX_CHARS_GSM7).toBe(SHARED_MAX_GSM7);
+    expect(SMS_MAX_CHARS_UCS2).toBe(SHARED_MAX_UCS2);
+  });
+});
 
 describe('isGsm7', () => {
   it('accepts plain ASCII text and common GSM symbols', () => {

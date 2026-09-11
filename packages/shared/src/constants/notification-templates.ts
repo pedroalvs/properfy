@@ -420,6 +420,10 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
     optional: ['inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'confirmationLink', 'rescheduleLink', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
   },
+  // SMS specs list every appointment var the builder computes EXCEPT the logo URLs
+  // (no images in SMS). `rescheduleLink === confirmationLink` in the builder, so it
+  // is always populated. `required` stays minimal — a required key the builder omits
+  // throws MissingRequiredVariableError and loses the send.
   INSPECTION_NOTICE_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
     // `timeSlot` is load-bearing beyond the copy: the status-transition dedupe
@@ -429,7 +433,7 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
     // timeSlot here would silently suppress a slot-only re-announcement.
     // Pinned by "email and SMS legs agree on the dedupe comparison keys" in
     // notify-on-status-transition.handler.test.ts.
-    optional: ['propertyAddress', 'confirmationLink', 'appointmentCode', 'timeSlot'],
+    optional: ['propertyAddress', 'confirmationLink', 'rescheduleLink', 'appointmentCode', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName'],
   },
   REMINDER_7_DAYS: {
     required: ['rentalTenantName', 'scheduledDate'],
@@ -445,15 +449,15 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
   },
   REMINDER_7_DAYS_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode'],
+    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'confirmationLink'],
   },
   REMINDER_5_DAYS_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode'],
+    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'confirmationLink'],
   },
   REMINDER_3_DAYS_SMS: {
     required: ['rentalTenantName', 'scheduledDate'],
-    optional: ['propertyAddress', 'timeSlot', 'appointmentCode'],
+    optional: ['propertyAddress', 'timeSlot', 'appointmentCode', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'confirmationLink'],
   },
   PROPERTY_MANAGER_ESCALATION: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
@@ -467,19 +471,19 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
   // BuildNotificationPayloadService throws when the value is absent from the payload.
   TENANT_SMS_ALERT: {
     required: ['propertyAddress', 'scheduledDate'],
-    optional: ['rentalTenantName', 'confirmationLink', 'appointmentCode'],
+    optional: ['rentalTenantName', 'confirmationLink', 'appointmentCode', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName'],
   },
   INSPECTION_CONFIRMED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
-    optional: ['inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
+    optional: ['inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName', 'rescheduleLink'],
   },
   INSPECTION_RESCHEDULED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot'],
-    optional: ['inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
+    optional: ['inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName', 'rescheduleLink'],
   },
   INSPECTION_CANCELLED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate'],
-    optional: ['timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
+    optional: ['timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName', 'rescheduleLink'],
   },
   // Agency-facing counterpart of INSPECTION_CANCELLED, addressed to the branch
   // contact rather than the rental tenant. `cancellationReason` is deliberately
@@ -490,7 +494,7 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
   // cancellation. Absent reason simply renders no reason line.
   INSPECTION_CANCELLED_AGENCY: {
     required: ['propertyAddress', 'scheduledDate', 'appointmentCode'],
-    optional: ['rentalTenantName', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl', 'cancellationReason'],
+    optional: ['rentalTenantName', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl', 'cancellationReason', 'rescheduleLink'],
   },
   // Agency-facing notice that an appointment was rejected and needs rescheduling.
   // `rejectionReason` is OPTIONAL for the same reason `cancellationReason` is above:
@@ -498,11 +502,11 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
   // MissingRequiredVariableError and lose the notice entirely.
   INSPECTION_REJECTED_AGENCY: {
     required: ['propertyAddress', 'scheduledDate', 'appointmentCode'],
-    optional: ['rentalTenantName', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl', 'rejectionReason'],
+    optional: ['rentalTenantName', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl', 'rejectionReason', 'rescheduleLink'],
   },
   INSPECTION_UNAVAILABILITY_REPORTED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode'],
-    optional: ['timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
+    optional: ['timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName', 'rescheduleLink'],
   },
   REPORT_READY: {
     required: ['userName', 'reportType', 'downloadLink'],
@@ -525,7 +529,7 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
     // MissingRequiredVariableError on a missing required key and loses the send
     // outright, so anything the copy can survive without stays optional.
     required: ['surveyLink'],
-    optional: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName'],
+    optional: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'appointmentCode', 'properfyLogoUrl', 'agencyLogoUrl', 'serviceTypeName', 'rescheduleLink'],
   },
   PASSWORD_RESET: {
     required: ['userName', 'resetLink'],
@@ -585,6 +589,7 @@ export const ALLOWED_VARIABLES = [
   'agencyLogoUrl',
   'serviceTypeName',
   'cancellationReason',
+  'rejectionReason',
   'userName',
   'reportType',
   'downloadLink',
@@ -638,6 +643,7 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   agencyLogoUrl: '',
   serviceTypeName: 'Routine inspection',
   cancellationReason: 'Tenant requested a different week',
+  rejectionReason: 'Address could not be located',
   userName: 'Admin User',
   reportType: 'Monthly Report',
   downloadLink: 'https://app.properfy.me/reports/abc123',
