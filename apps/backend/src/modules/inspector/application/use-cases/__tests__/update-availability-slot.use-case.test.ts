@@ -8,7 +8,9 @@ import type { AuthContext } from '@properfy/shared';
 const INSPECTOR_ID = '11111111-1111-4111-8111-111111111111';
 const SLOT_ID = '22222222-2222-4222-8222-222222222222';
 
-function makeSlot(overrides: Partial<{ isOperatorOverride: boolean }> = {}): AvailabilitySlotEntity {
+function makeSlot(
+  overrides: Partial<{ isOperatorOverride: boolean; capacity: number; updatedAt: Date }> = {},
+): AvailabilitySlotEntity {
   return new AvailabilitySlotEntity({
     id: SLOT_ID,
     inspectorId: INSPECTOR_ID,
@@ -16,11 +18,11 @@ function makeSlot(overrides: Partial<{ isOperatorOverride: boolean }> = {}): Ava
     startTime: '08:00',
     endTime: '13:00',
     regionJson: null,
-    capacity: 1,
+    capacity: overrides.capacity ?? 1,
     status: 'AVAILABLE',
     isOperatorOverride: overrides.isOperatorOverride ?? false,
     createdAt: new Date(),
-    updatedAt: new Date(),
+    updatedAt: overrides.updatedAt ?? new Date(),
   });
 }
 
@@ -44,7 +46,7 @@ describe('UpdateAvailabilitySlotUseCase', () => {
     slotRepo = {
       findById: vi.fn(),
       findByDateRange: vi.fn().mockResolvedValue([]),
-      update: vi.fn(),
+      update: vi.fn().mockResolvedValue(makeSlot()),
     } as unknown as IAvailabilitySlotRepository;
   });
 
@@ -94,6 +96,22 @@ describe('UpdateAvailabilitySlotUseCase', () => {
 
     expect(result.capacity).toBe(2);
     expect(slotRepo.update).toHaveBeenCalled();
+  });
+
+  it('returns the persisted row updatedAt, not "now" (#709)', async () => {
+    const persistedAt = new Date('2026-01-01T00:00:00.000Z');
+    vi.mocked(slotRepo.findById).mockResolvedValue(makeSlot());
+    // Repo returns the freshly persisted entity with a known updatedAt.
+    vi.mocked(slotRepo.update).mockResolvedValue(makeSlot({ capacity: 2, updatedAt: persistedAt }));
+
+    const result = await useCase().execute({
+      inspectorId: INSPECTOR_ID,
+      slotId: SLOT_ID,
+      data: { capacity: 2 },
+      actor: makeActor('OP'),
+    });
+
+    expect(result.updatedAt.getTime()).toBe(persistedAt.getTime());
   });
 
   it('rejects an INSP updating another inspector slot', async () => {

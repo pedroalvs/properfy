@@ -261,10 +261,14 @@ export class PrismaInspectorRepository implements IInspectorRepository {
     return { mon: off, tue: off, wed: off, thu: off, fri: off, sat: off, sun: off };
   }
 
-  async updateAvailabilityTemplate(inspectorId: string, template: AvailabilityTemplate): Promise<void> {
-    await this.prisma.inspector.update({
+  async updateAvailabilityTemplate(
+    inspectorId: string,
+    template: AvailabilityTemplate,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    await (tx ?? this.prisma).inspector.update({
       where: { id: inspectorId },
-      data: { availability_template_json: template as any },
+      data: { availability_template_json: template as unknown as Prisma.InputJsonValue },
     });
   }
 

@@ -47,9 +47,9 @@ export interface IAvailabilitySlotRepository {
       endTime: string;
       regionJson: Record<string, unknown> | null;
       capacity: number;
-      status: string;
+      status: AvailabilitySlotStatus;
     }>,
-  ): Promise<void>;
+  ): Promise<AvailabilitySlotEntity | null>;
   /** Find an AVAILABLE slot for the given inspector on a specific date whose time range overlaps the requested window. */
   findMatchingSlot(
     inspectorId: string,
@@ -73,6 +73,7 @@ export interface IAvailabilitySlotRepository {
     inspectorId: string,
     from: Date,
     to: Date,
+    tx?: Prisma.TransactionClient,
   ): Promise<Array<{
     id: string;
     date: Date;
@@ -82,15 +83,33 @@ export interface IAvailabilitySlotRepository {
     isOperatorOverride: boolean;
   }>>;
   /** Hard-delete a slot by ID (used by regenerator when template turns OFF). */
-  deleteById(id: string): Promise<void>;
+  deleteById(id: string, tx?: Prisma.TransactionClient): Promise<void>;
+  /** Batch hard-delete slots by ID (used by regenerator to collapse per-day deletes into one write). */
+  deleteManyByIds(ids: string[], tx?: Prisma.TransactionClient): Promise<void>;
   /** Create a new slot as part of regeneration (always is_operator_override = false). */
-  saveForRegeneration(data: {
-    inspectorId: string;
-    date: Date;
-    startTime: string;
-    endTime: string;
-    capacity: number;
-    status: string;
-    isOperatorOverride: false;
-  }): Promise<void>;
+  saveForRegeneration(
+    data: {
+      inspectorId: string;
+      date: Date;
+      startTime: string;
+      endTime: string;
+      capacity: number;
+      status: AvailabilitySlotStatus;
+      isOperatorOverride: false;
+    },
+    tx?: Prisma.TransactionClient,
+  ): Promise<void>;
+  /** Batch-create regeneration slots (always is_operator_override = false) in a single write. */
+  saveManyForRegeneration(
+    rows: Array<{
+      inspectorId: string;
+      date: Date;
+      startTime: string;
+      endTime: string;
+      capacity: number;
+      status: AvailabilitySlotStatus;
+      isOperatorOverride: false;
+    }>,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void>;
 }

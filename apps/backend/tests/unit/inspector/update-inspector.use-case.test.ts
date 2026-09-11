@@ -212,6 +212,24 @@ describe('UpdateInspectorUseCase', () => {
     );
   });
 
+  // Regression (WI-10 / #580): an explicit null phone clear must survive into both
+  // the audit `after` object and the HTTP response. `?? inspector.phone` silently
+  // rewrites null back to the old number.
+  it('preserves an explicit null phone clear in audit and response', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector({ phone: '+61400000000' }));
+
+    const result = await useCase.execute({
+      inspectorId: 'inspector-1',
+      data: { phone: null },
+      actor: makeActor(),
+    });
+
+    expect(result.phone).toBeNull();
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ after: expect.objectContaining({ phone: null }) }),
+    );
+  });
+
   it('should throw INSPECTOR_EMAIL_CONFLICT on email change', async () => {
     vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
     vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(

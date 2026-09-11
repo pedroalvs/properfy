@@ -57,10 +57,14 @@ export class UpdateInspectorSelfProfileUseCase {
       entityType: 'Inspector',
       entityId: inspectorId,
       before,
+      // Gate on `!== undefined`, not `??`: an explicit `null` clear must be
+      // recorded as null in the audit trail, not silently rewritten to the old
+      // value. Mirrors the `updateData` construction above.
       after: {
-        phone: data.phone ?? inspector.phone,
-        fullName: data.fullName ?? inspector.fullName,
-        paymentSettingsJson: data.paymentSettings ?? inspector.paymentSettingsJson,
+        phone: data.phone !== undefined ? data.phone : inspector.phone,
+        fullName: data.fullName !== undefined ? data.fullName : inspector.fullName,
+        paymentSettingsJson:
+          data.paymentSettings !== undefined ? data.paymentSettings : inspector.paymentSettingsJson,
       },
     });
 

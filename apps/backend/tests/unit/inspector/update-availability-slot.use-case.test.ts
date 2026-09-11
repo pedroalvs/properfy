@@ -51,7 +51,7 @@ describe('UpdateAvailabilitySlotUseCase', () => {
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
-      update: vi.fn(),
+      update: vi.fn().mockResolvedValue(makeSlot()),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new UpdateAvailabilitySlotUseCase(slotRepo, auditService);

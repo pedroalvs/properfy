@@ -136,6 +136,23 @@ describe('UpdateInspectorSelfProfileUseCase', () => {
     });
   });
 
+  // Regression (WI-10 / #568): an explicit null clear must survive into the audit
+  // `after` object. `?? inspector.field` silently rewrites null back to the old
+  // value, so the audit trail would claim the field was never cleared.
+  it('records an explicit null clear in the audit after object', async () => {
+    await useCase.execute({
+      inspectorId: INSPECTOR_ID,
+      data: { phone: null, fullName: null },
+      actor: makeInspActor(),
+    });
+
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        after: expect.objectContaining({ phone: null, fullName: null }),
+      }),
+    );
+  });
+
   it('should throw ForbiddenError when non-INSP role tries to self-update', async () => {
     await expect(
       useCase.execute({

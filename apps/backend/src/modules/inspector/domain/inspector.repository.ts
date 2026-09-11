@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { PaymentSettings, ServiceTypeEntry, AvailabilityTemplate } from '@properfy/shared';
 import type { InspectorEntity } from './inspector.entity';
 
@@ -45,5 +46,9 @@ export interface IInspectorRepository {
   ): Promise<void>;
   findByRegionId(regionId: string): Promise<InspectorEntity[]>;
   getAvailabilityTemplate(inspectorId: string): Promise<AvailabilityTemplate>;
-  updateAvailabilityTemplate(inspectorId: string, template: AvailabilityTemplate): Promise<void>;
+  updateAvailabilityTemplate(
+    inspectorId: string,
+    template: AvailabilityTemplate,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void>;
 }

@@ -171,15 +171,25 @@ export class UpdateInspectorUseCase {
       ? await this.serviceRegionRepo.getInspectorRegionIds(inspectorId)
       : [];
 
+    // Gate on key-presence, not `??`: an explicit `null` clear (e.g. phone) is a
+    // real change and must be reflected in both the audit `after` and the response,
+    // not silently rewritten to the previous value. `updateData` carries a key only
+    // when the field was supplied, so `in` distinguishes "cleared" from "untouched".
     const after = {
-      name: (updateData.name as string) ?? inspector.name,
-      email: (updateData.email as string) ?? inspector.email,
-      phone: (updateData.phone as string | null) ?? inspector.phone,
+      name: 'name' in updateData ? (updateData.name as string) : inspector.name,
+      email: 'email' in updateData ? (updateData.email as string) : inspector.email,
+      phone: 'phone' in updateData ? (updateData.phone as string | null) : inspector.phone,
       // Status is never mutated by this path; always echo the current value.
       status: inspector.status,
-      paymentSettingsJson: (updateData.paymentSettingsJson as PaymentSettings) ?? inspector.paymentSettingsJson,
+      paymentSettingsJson:
+        'paymentSettingsJson' in updateData
+          ? (updateData.paymentSettingsJson as PaymentSettings)
+          : inspector.paymentSettingsJson,
       regionIds: resolvedRegionIds,
-      serviceTypesJson: (updateData.serviceTypesJson as ServiceTypeEntry[]) ?? inspector.serviceTypesJson,
+      serviceTypesJson:
+        'serviceTypesJson' in updateData
+          ? (updateData.serviceTypesJson as ServiceTypeEntry[])
+          : inspector.serviceTypesJson,
     };
 
     this.auditService.log({
