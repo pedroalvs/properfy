@@ -137,6 +137,41 @@ describe('ConfirmInspectorDocumentUploadUseCase', () => {
     expect(storageService.headObject).toHaveBeenCalledWith('inspector-documents', INSURANCE_KEY);
   });
 
+  // Regression (WI-1 / #288, #320): a well-formed key that embeds a DIFFERENT
+  // inspector's UUID must be rejected before any storage/DB write.
+  it('rejects a key whose embedded UUID is a different inspector', async () => {
+    const OTHER_ID = '00000000-0000-0000-0000-000000000002';
+    await expect(
+      useCase.execute({
+        inspectorId: INSPECTOR_ID,
+        kind: 'INSURANCE',
+        storageKey: `inspectors/${OTHER_ID}/documents/insurance/${FILE_ID}.pdf`,
+        fileName: 'insurance.pdf',
+        actor: makeActor({ role: 'AM' }),
+      }),
+    ).rejects.toBeInstanceOf(InspectorDocumentInvalidKeyError);
+
+    expect(storageService.headObject).not.toHaveBeenCalled();
+    expect(inspectorRepo.update).not.toHaveBeenCalled();
+  });
+
+  // Regression (WI-1 / #288, #320): the key's kind segment must match the request
+  // kind, or an insurance object could be recorded as a police check (and vice versa).
+  it('rejects a key whose kind segment does not match the request kind', async () => {
+    await expect(
+      useCase.execute({
+        inspectorId: INSPECTOR_ID,
+        kind: 'POLICE_CHECK',
+        storageKey: INSURANCE_KEY, // key says insurance, request says police_check
+        fileName: 'mismatch.pdf',
+        actor: makeActor({ role: 'AM' }),
+      }),
+    ).rejects.toBeInstanceOf(InspectorDocumentInvalidKeyError);
+
+    expect(storageService.headObject).not.toHaveBeenCalled();
+    expect(inspectorRepo.update).not.toHaveBeenCalled();
+  });
+
   it('should throw InspectorDocumentObjectNotFoundError when object not in storage', async () => {
     vi.mocked(storageService.headObject).mockResolvedValue({ exists: false });
 

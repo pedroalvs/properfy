@@ -157,7 +157,7 @@ describe('UpdateInspectorUseCase — login account email sync', () => {
     );
   });
 
-  it('does not touch the login account when neither email nor status is supplied', async () => {
+  it('does not touch the login account when no email is supplied', async () => {
     await useCase.execute({
       inspectorId: 'inspector-1',
       data: { name: 'Renamed', phone: '+61400000002' },
@@ -194,70 +194,11 @@ describe('UpdateInspectorUseCase — login account email sync', () => {
     expect(inspectorRepo.update).not.toHaveBeenCalled();
   });
 
-  it('deactivates the linked login account and revokes sessions on status INACTIVE', async () => {
-    // The PATCH route accepts `status` and the web edit drawer sends it, so this
-    // path could otherwise deactivate the inspector while leaving a fully usable
-    // login — the exact hole the deactivate endpoint closes.
-    await useCase.execute({
-      inspectorId: 'inspector-1',
-      data: { status: 'INACTIVE' },
-      actor: makeActor(),
-    });
-
-    expect(userManagementRepo.update).toHaveBeenCalledWith(
-      'user-insp-1',
-      null,
-      expect.objectContaining({ status: 'INACTIVE' }),
-    );
-    expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith('user-insp-1');
-  });
-
-  it('reactivates the linked login account on status ACTIVE', async () => {
-    // Without this a reactivated inspector can be assigned work but can never log
-    // in: login gates on users.status and no other path restores it.
-    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector({ status: 'INACTIVE' }));
-
-    await useCase.execute({
-      inspectorId: 'inspector-1',
-      data: { status: 'ACTIVE' },
-      actor: makeActor(),
-    });
-
-    expect(userManagementRepo.update).toHaveBeenCalledWith(
-      'user-insp-1',
-      null,
-      expect.objectContaining({ status: 'ACTIVE' }),
-    );
-    expect(userManagementRepo.revokeAllSessions).not.toHaveBeenCalled();
-  });
-
-  it('re-revokes sessions on a retry after the first revoke failed', async () => {
-    // The status write is payload-driven and self-healing; gating the revoke on a
-    // diff instead left it stranded — the retry sees status already INACTIVE and
-    // never retries the revoke, leaving live sessions on a locked account.
-    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector({ status: 'INACTIVE' }));
-
-    await useCase.execute({
-      inspectorId: 'inspector-1',
-      data: { status: 'INACTIVE' },
-      actor: makeActor(),
-    });
-
-    expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith('user-insp-1');
-  });
-
-  it('does not revoke sessions when the status is resubmitted unchanged', async () => {
-    // The drawer resubmits the prefilled status on every save, so a name-only
-    // edit must not log the inspector out of the PWA.
-    await useCase.execute({
-      inspectorId: 'inspector-1',
-      data: { status: 'ACTIVE', name: 'Renamed' },
-      actor: makeActor(),
-    });
-
-    expect(userManagementRepo.revokeAllSessions).not.toHaveBeenCalled();
-  });
-
+  // Lifecycle status no longer rides the generic update path (WI-2 / #295): it is
+  // stripped from updateInspectorSchema and never written or synced here. The
+  // deactivate flow (see the DeactivateInspectorUseCase suite below) owns the
+  // login-account lockout and session revocation; the update-inspector use-case
+  // test asserts a smuggled status is ignored.
   it('re-syncs the email on retry after a failed login-account write', async () => {
     // The inspector row already carries the new email, so recomputing "changed"
     // from it would skip the sync forever while returning 200.

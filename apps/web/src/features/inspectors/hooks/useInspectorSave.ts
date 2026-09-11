@@ -102,7 +102,6 @@ export function useInspectorSave(): UseInspectorSaveReturn {
       name: data.name.trim() || undefined,
       email: data.email.trim() || undefined,
       phone: data.phone.trim() || undefined,
-      status: data.status || undefined,
       regionIds: data.regionIds,
       serviceTypes,
     });
@@ -125,7 +124,9 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         name: data.name.trim(),
         email: data.email.trim(),
         phone: data.phone.trim() || undefined,
-        status: data.status || undefined,
+        // Lifecycle status is not part of create/update. Activation/deactivation
+        // goes through the dedicated endpoints (see InspectorDetailDrawer's
+        // deactivate action), which enforce reason, lockout and audit.
         regionIds: data.regionIds.length > 0 ? data.regionIds : [],
         serviceTypes: parseServiceTypeEntries(data.serviceTypes),
         fullName: data.fullName?.trim() || undefined,

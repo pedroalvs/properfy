@@ -8103,13 +8103,6 @@
                     "maxLength": 30,
                     "nullable": true
                   },
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "ACTIVE",
-                      "INACTIVE"
-                    ]
-                  },
                   "paymentSettings": {
                     "type": "object",
                     "properties": {
@@ -21088,6 +21081,10 @@
                                 },
                                 "name": {
                                   "type": "string"
+                                },
+                                "branchName": {
+                                  "type": "string",
+                                  "nullable": true
                                 }
                               },
                               "required": [
@@ -25479,6 +25476,14 @@
             },
             "in": "query",
             "name": "tenantId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "search",
             "required": false
           },
           {

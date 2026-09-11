@@ -32,7 +32,6 @@ const VALID_CREATE_DATA: InspectorFormData = {
   password: VALID_PASSWORD,
   confirmPassword: VALID_PASSWORD,
   phone: '11999999999',
-  status: '',
   regionIds: [],
   serviceTypes: '123e4567-e89b-12d3-a456-426614174000',
   fullName: '',

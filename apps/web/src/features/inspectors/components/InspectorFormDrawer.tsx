@@ -12,7 +12,6 @@ import { PasswordStrengthIndicator } from '@/components/forms/PasswordStrengthIn
 import { EmailInput } from '@/components/forms/EmailInput';
 import { PhoneInput } from '@/components/forms/PhoneInput';
 import { DateInput } from '@/components/forms/DateInput';
-import { SelectInput } from '@/components/forms/SelectInput';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
@@ -21,7 +20,6 @@ import { useInspectorDetail } from '../hooks/useInspectorDetail';
 import { useInspectorSave } from '../hooks/useInspectorSave';
 import { useInspectorDocumentUpload } from '../hooks/useInspectorDocumentUpload';
 import { DocumentUploadField } from './DocumentUploadField';
-import { INSPECTOR_STATUS_OPTIONS } from '../constants/form-options';
 import type { InspectorFormData, InspectorFormErrors } from '../types';
 import { EMPTY_INSPECTOR_FORM } from '../types';
 import { formatAuPhone } from '@/lib/phone-mask';
@@ -81,7 +79,6 @@ export function InspectorFormDrawer({
         password: '',
         confirmPassword: '',
         phone: formatAuPhone(inspector.phone ?? ''),
-        status: inspector.status,
         regionIds: inspector.regionIds ?? [],
         serviceTypes: (inspector.serviceTypes ?? []).map((s) => s.serviceTypeId).join(','),
         fullName: inspector.fullName ?? '',
@@ -410,18 +407,6 @@ export function InspectorFormDrawer({
                     </FormSection>
                   )}
 
-                  {isEditMode && (
-                    <FormSection title="Status">
-                      <FormField label="Status" error={errors.status}>
-                        <SelectInput
-                          value={form.status}
-                          onChange={(v) => updateField('status', v)}
-                          options={INSPECTOR_STATUS_OPTIONS}
-                          aria-label="Status"
-                        />
-                      </FormField>
-                    </FormSection>
-                  )}
                 </div>
               </div>
 

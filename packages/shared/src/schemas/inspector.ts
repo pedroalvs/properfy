@@ -61,7 +61,10 @@ export const updateInspectorSchema = z.object({
   name: z.string().min(1).max(200).trim().optional(),
   email: z.string().email().max(254).transform((v) => v.toLowerCase().trim()).optional(),
   phone: auPhoneSchema.nullable().optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+  // Lifecycle status is intentionally NOT here. Activation/deactivation must go
+  // through the dedicated endpoints, which enforce the reason requirement, login
+  // lockout, session revocation and audit semantics that the generic update path
+  // does not. See update-inspector.use-case.ts and deactivate-inspector.use-case.ts.
   paymentSettings: paymentSettingsSchema.optional(),
   regions: z.array(z.string()).optional(),
   regionIds: z.array(z.string().uuid()).optional(),
