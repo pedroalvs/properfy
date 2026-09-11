@@ -29,7 +29,10 @@ export const updateServiceRegionSchema = z.object({
   name: z.string().min(1).max(255).trim().optional(),
   geojson: geojsonGeometrySchema.optional(),
   color: z.string().max(20).trim().optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+  // `status` is intentionally NOT accepted here. Status changes go exclusively
+  // through POST /:id/deactivate and POST /:id/reactivate, which capture a
+  // required reason and write an audit log. Allowing it on PATCH would bypass
+  // both (issue #387).
 });
 export type UpdateServiceRegionInput = z.infer<typeof updateServiceRegionSchema>;
 

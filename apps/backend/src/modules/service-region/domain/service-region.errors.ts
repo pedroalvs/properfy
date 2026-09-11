@@ -33,6 +33,15 @@ export class ServiceRegionHasPublishedGroupsError extends ConflictError {
   }
 }
 
+export class ServiceRegionAlreadyActiveError extends ConflictError {
+  constructor() {
+    super(
+      'SERVICE_REGION_ALREADY_ACTIVE',
+      'Region is already active',
+    );
+  }
+}
+
 export class ServiceRegionStillActiveError extends ConflictError {
   constructor() {
     super(

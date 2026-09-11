@@ -47,6 +47,7 @@ function makeEvent(overrides: Partial<DomainEvent['payload']> = {}): DomainEvent
 describe('NotifyInspectorsOnRegionDeactivationHandler', () => {
   let inspectorRepo: IInspectorRepository;
   let createNotification: CreateNotificationUseCase;
+  let logger: { error: ReturnType<typeof vi.fn> };
   let handler: NotifyInspectorsOnRegionDeactivationHandler;
 
   beforeEach(() => {
@@ -64,7 +65,12 @@ describe('NotifyInspectorsOnRegionDeactivationHandler', () => {
     createNotification = {
       execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
     } as unknown as CreateNotificationUseCase;
-    handler = new NotifyInspectorsOnRegionDeactivationHandler(inspectorRepo, createNotification);
+    logger = { error: vi.fn() };
+    handler = new NotifyInspectorsOnRegionDeactivationHandler(
+      inspectorRepo,
+      createNotification,
+      logger as never,
+    );
   });
 
   it('should send notifications to all inspectors mapped to the deactivated region', async () => {
@@ -112,5 +118,30 @@ describe('NotifyInspectorsOnRegionDeactivationHandler', () => {
     await expect(handler.handle(makeEvent())).resolves.not.toThrow();
 
     expect(createNotification.execute).toHaveBeenCalledTimes(2);
+  });
+
+  it('logs each rejected notification with identifying context and still processes the rest (#611)', async () => {
+    const inspector1 = makeInspector({ id: 'insp-1', name: 'Alice', email: 'alice@example.com' });
+    const inspector2 = makeInspector({ id: 'insp-2', name: 'Bob', email: 'bob@example.com' });
+    vi.mocked(inspectorRepo.findByRegionId).mockResolvedValue([inspector1, inspector2]);
+    vi.mocked(createNotification.execute)
+      .mockRejectedValueOnce(new Error('DB down'))
+      .mockResolvedValueOnce({ notificationId: 'notif-2' });
+
+    await handler.handle(makeEvent());
+
+    // Both attempted — the failure did not short-circuit the loop.
+    expect(createNotification.execute).toHaveBeenCalledTimes(2);
+    // The one rejection was logged with region/tenant/inspector context.
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        regionId: 'region-1',
+        tenantId: 'tenant-1',
+        inspectorId: 'insp-1',
+        recipient: 'alice@example.com',
+      }),
+      expect.stringContaining('Failed to enqueue'),
+    );
   });
 });

@@ -30,6 +30,7 @@ const mockUpdate = vi.fn();
 const mockGet = vi.fn();
 const mockList = vi.fn();
 const mockDeactivate = vi.fn();
+const mockReactivate = vi.fn();
 const mockDelete = vi.fn();
 const mockResolve = vi.fn();
 const mockJwtVerify = vi.fn();
@@ -60,6 +61,7 @@ vi.mock('../../../src/main/container', () => ({
         getServiceRegionUseCase: { execute: mockGet },
         listServiceRegionsUseCase: { execute: mockList },
         deactivateServiceRegionUseCase: { execute: mockDeactivate },
+        reactivateServiceRegionUseCase: { execute: mockReactivate },
         deleteServiceRegionUseCase: { execute: mockDelete },
         resolveRegionsUseCase: { execute: mockResolve },
         jwtService: { verify: mockJwtVerify },
@@ -363,6 +365,23 @@ describe('PATCH /v1/service-regions/:id', () => {
     expect(res.body.data.name).toBe('New Name');
   });
 
+  // #387: PATCH must never mutate status — the schema strips it, so the use case
+  // is invoked without a status field even when the client sends one.
+  it('ignores status in the PATCH body (never forwarded to the use case)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockUpdate.mockResolvedValueOnce({ ...fullRegion });
+
+    const res = await supertest(app.server)
+      .patch(`/v1/service-regions/${REGION_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ name: 'Renamed', status: 'INACTIVE' });
+
+    expect(res.status).toBe(200);
+    const callArg = mockUpdate.mock.calls[0]![0];
+    expect(callArg).not.toHaveProperty('status');
+    expect(callArg).toMatchObject({ name: 'Renamed' });
+  });
+
   // T126: Name conflict on update
   it('returns 409 on name conflict during update', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
@@ -454,6 +473,51 @@ describe('POST /v1/service-regions/:id/deactivate', () => {
 
     const res = await supertest(app.server)
       .post(`/v1/service-regions/${REGION_ID}/deactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reason: 'Test' });
+
+    expect(res.status).toBe(403);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /v1/service-regions/:id/reactivate — Reactivate (#387)
+// ---------------------------------------------------------------------------
+
+describe('POST /v1/service-regions/:id/reactivate', () => {
+  it('AM — reactivates an inactive region', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockReactivate.mockResolvedValueOnce({ id: REGION_ID, name: 'Sydney CBD', status: 'ACTIVE', reactivatedAt: new Date().toISOString() });
+
+    const res = await supertest(app.server)
+      .post(`/v1/service-regions/${REGION_ID}/reactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reason: 'Coverage restored' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe('ACTIVE');
+    expect(mockReactivate).toHaveBeenCalledWith(
+      expect.objectContaining({ regionId: REGION_ID, reason: 'Coverage restored' }),
+    );
+  });
+
+  it('returns 400 when reason is missing', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/service-regions/${REGION_ID}/reactivate`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  it('CL_ADMIN — returns 403 Forbidden', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockReactivate.mockRejectedValueOnce(new ForbiddenError('AUTH_FORBIDDEN', 'Forbidden'));
+
+    const res = await supertest(app.server)
+      .post(`/v1/service-regions/${REGION_ID}/reactivate`)
       .set('Authorization', 'Bearer valid-token')
       .send({ reason: 'Test' });
 

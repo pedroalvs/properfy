@@ -9169,6 +9169,7 @@ export interface paths {
                                     agency: {
                                         id: string;
                                         name: string;
+                                        branchName?: string | null;
                                     };
                                     tenantContacts: {
                                         name: string;
@@ -12054,6 +12055,41 @@ export interface paths {
         trace?: never;
     };
     "/v1/service-regions/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/service-regions/{id}/reactivate": {
         parameters: {
             query?: never;
             header?: never;

@@ -1495,9 +1495,13 @@ model ServiceRegion {
   @@unique([tenant_id, name])
   @@index([tenant_id])
   @@index([status])
-  // GIST index managed in migration SQL (Prisma cannot express an index over an
-  // Unsupported() column, so it reads as drift — do NOT let `migrate dev` drop it):
+  // Indexes managed in migration SQL because Prisma cannot express them — do NOT
+  // let `migrate dev` drop them (see project_prisma_drift_drops_unsupported_indexes):
   // - service_regions_geom_idx ON service_regions USING GIST (geom)
+  // - service_regions_tenant_lower_name_key UNIQUE (tenant_id, lower(name))
+  //   — case-insensitive name uniqueness within a tenant (#614)
+  // - service_regions_global_lower_name_key UNIQUE (lower(name)) WHERE tenant_id IS NULL
+  //   — same guarantee for global regions, which NULLs-are-distinct leaves out (#614)
   @@map("service_regions")
 }
 

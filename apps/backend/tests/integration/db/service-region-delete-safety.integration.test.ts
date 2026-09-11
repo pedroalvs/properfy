@@ -135,6 +135,33 @@ describe('T184 — delete safety', () => {
     expect(deleted).toBeNull();
   });
 
+  it('delete(id, otherTenant) leaves the region AND its inspector links intact (#390)', async () => {
+    // Region + inspector links live under tenant A.
+    const { tenantId: tenantA } = await seedTenant(harness.prisma, 'Cross-Tenant Delete A');
+    const { tenantId: tenantB } = await seedTenant(harness.prisma, 'Cross-Tenant Delete B');
+
+    const { regionId } = await seedServiceRegion(harness.prisma, {
+      tenantId: tenantA,
+      name: 'Tenant A Region',
+      geojson: SYDNEY_POLYGON_GEOJSON,
+      status: 'INACTIVE',
+    });
+
+    const { inspectorId } = await seedInspector(harness.prisma, 'Cross-Tenant Inspector');
+    await repo.setInspectorRegions(inspectorId, [regionId]);
+
+    // Attacker in tenant B tries to delete tenant A's region.
+    await repo.delete(regionId, tenantB);
+
+    // Region survives — scoping aborted the delete before touching anything.
+    const region = await harness.prisma.serviceRegion.findFirst({ where: { id: regionId } });
+    expect(region).not.toBeNull();
+
+    // And, crucially, tenant A's inspector links were NOT wiped.
+    const links = await harness.prisma.inspectorRegion.findMany({ where: { region_id: regionId } });
+    expect(links).toHaveLength(1);
+  });
+
   it('cannot delete region referenced by service group (FK constraint violation)', async () => {
     const { tenantId, userId } = await seedTenant(harness.prisma, 'Delete Safety Tenant D');
     const actor = makeActor(tenantId, userId);

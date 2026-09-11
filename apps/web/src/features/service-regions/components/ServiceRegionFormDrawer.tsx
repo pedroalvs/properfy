@@ -15,6 +15,7 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { useServiceRegionDetail } from '../hooks/useServiceRegionDetail';
 import { useServiceRegionSave } from '../hooks/useServiceRegionSave';
 import { useServiceRegionDeactivate } from '../hooks/useServiceRegionDeactivate';
+import { useServiceRegionReactivate } from '../hooks/useServiceRegionReactivate';
 import { RegionMap } from './RegionMap';
 import { formatInstantDateTime } from '@/lib/format-date';
 import type { ServiceRegionFormData, ServiceRegionFormErrors } from '../types';
@@ -71,8 +72,20 @@ export function ServiceRegionFormDrawer({
     },
   );
 
-  // Activating state
-  const [isActivating, setIsActivating] = useState(false);
+  // Reactivate dialog state
+  const [showReactivateDialog, setShowReactivateDialog] = useState(false);
+  const [reactivateReason, setReactivateReason] = useState('');
+  const [reactivateReasonError, setReactivateReasonError] = useState('');
+
+  const { reactivate, isReactivating } = useServiceRegionReactivate(
+    regionId ?? null,
+    () => {
+      setShowReactivateDialog(false);
+      setReactivateReason('');
+      setReactivateReasonError('');
+      refetch();
+    },
+  );
 
   useEffect(() => {
     if (isEditMode && serviceRegion) {
@@ -158,24 +171,25 @@ export function ServiceRegionFormDrawer({
     setReasonError('');
   }, []);
 
-  const handleActivate = useCallback(async () => {
-    if (!serviceRegion || !regionId) return;
-    setIsActivating(true);
-    try {
-      const result = await save(
-        { name: serviceRegion.name, geojson: serviceRegion.geojson, color: serviceRegion.color, status: 'ACTIVE' },
-        regionId,
-      );
-      if (result.success) {
-        showSuccess(`Region "${serviceRegion.name}" activated`);
-        refetch();
-      } else {
-        showError(result.error ?? 'Failed to activate region');
-      }
-    } finally {
-      setIsActivating(false);
+  const handleActivateClick = useCallback(() => {
+    setReactivateReason('');
+    setReactivateReasonError('');
+    setShowReactivateDialog(true);
+  }, []);
+
+  const handleConfirmReactivate = useCallback(() => {
+    if (!reactivateReason.trim()) {
+      setReactivateReasonError('Reason is required');
+      return;
     }
-  }, [serviceRegion, regionId, save, showSuccess, showError, refetch]);
+    reactivate(reactivateReason.trim());
+  }, [reactivateReason, reactivate]);
+
+  const handleCancelReactivate = useCallback(() => {
+    setShowReactivateDialog(false);
+    setReactivateReason('');
+    setReactivateReasonError('');
+  }, []);
 
   const regionStatus = serviceRegion?.status;
   const isActive = regionStatus === 'ACTIVE';
@@ -274,8 +288,7 @@ export function ServiceRegionFormDrawer({
                           <Button
                             variant="secondary"
                             className="border-success text-success hover:bg-success/5"
-                            onClick={handleActivate}
-                            loading={isActivating}
+                            onClick={handleActivateClick}
                           >
                             Activate Region
                           </Button>
@@ -359,6 +372,44 @@ export function ServiceRegionFormDrawer({
           />
           {reasonError && (
             <p className="text-sm text-error">{reasonError}</p>
+          )}
+        </div>
+      </Dialog>
+
+      {/* Reactivate dialog with reason (mirrors deactivate — status transitions
+          are audited actions, never a PATCH; #387) */}
+      <Dialog
+        open={showReactivateDialog}
+        onClose={handleCancelReactivate}
+        title="Reactivate Service Region"
+        actions={
+          <>
+            <Button variant="secondary" onClick={handleCancelReactivate}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-success text-white hover:brightness-95 active:brightness-90"
+              onClick={handleConfirmReactivate}
+              loading={isReactivating}
+            >
+              Reactivate
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-text-secondary">
+            Are you sure you want to reactivate this region? Please provide a reason.
+          </p>
+          <Textarea
+            value={reactivateReason}
+            onChange={setReactivateReason}
+            rows={3}
+            placeholder="Reason for reactivation"
+            aria-label="Reactivation reason"
+          />
+          {reactivateReasonError && (
+            <p className="text-sm text-error">{reactivateReasonError}</p>
           )}
         </div>
       </Dialog>
