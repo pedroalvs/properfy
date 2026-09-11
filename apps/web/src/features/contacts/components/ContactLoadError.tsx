@@ -22,14 +22,14 @@ interface ContactLoadErrorProps {
  */
 export function ContactLoadError({ error, onRetry, notFoundAction }: ContactLoadErrorProps) {
   if (error?.status === 403) {
-    return <NoPermissionState />;
+    return <NoPermissionState action={notFoundAction} />;
   }
   if (!error || error.status === 404) {
     return (
       <EmptyState
         icon="mdi-account-off-outline"
         title="Contact not found"
-        description="This contact does not exist or you do not have permission to view it."
+        description="This contact does not exist or may have been removed."
         action={notFoundAction}
       />
     );

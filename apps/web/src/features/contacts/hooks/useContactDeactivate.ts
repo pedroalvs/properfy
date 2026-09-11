@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { toApiError, getErrorMessage } from '@/lib/api-error';
+import { toApiError, getErrorMessage, isNetworkError } from '@/lib/api-error';
 
 export interface DeactivateResult {
   success: boolean;
@@ -42,9 +42,10 @@ export function useContactDeactivate(): UseContactDeactivateReturn {
       } catch (err) {
         // WI-5 (#202): a thrown network/API error must not escape as an
         // unhandled rejection — normalize it into the same failure shape.
+        const apiError = toApiError(err);
         return {
           success: false,
-          errorCode: toApiError(err).code ?? 'NETWORK_ERROR',
+          errorCode: apiError.code ?? (isNetworkError(apiError) ? 'NETWORK_ERROR' : 'UNKNOWN_ERROR'),
           errorMessage: getErrorMessage(err, 'Failed to deactivate contact'),
         };
       }
@@ -68,9 +69,10 @@ export function useContactDeactivate(): UseContactDeactivateReturn {
         queryClient.invalidateQueries({ queryKey: ['contacts'] });
         return { success: true };
       } catch (err) {
+        const apiError = toApiError(err);
         return {
           success: false,
-          errorCode: toApiError(err).code ?? 'NETWORK_ERROR',
+          errorCode: apiError.code ?? (isNetworkError(apiError) ? 'NETWORK_ERROR' : 'UNKNOWN_ERROR'),
           errorMessage: getErrorMessage(err, 'Failed to reactivate contact'),
         };
       }
