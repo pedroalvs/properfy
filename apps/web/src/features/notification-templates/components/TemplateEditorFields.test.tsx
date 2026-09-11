@@ -82,4 +82,31 @@ describe('TemplateEditorFields', () => {
     fireEvent.dragStart(chip, { dataTransfer: { setData, effectAllowed: '' } });
     expect(setData).toHaveBeenCalledWith('text/plain', '{{rentalTenantName}}');
   });
+
+  describe('SMS length indicator', () => {
+    it('is not shown on the EMAIL channel', () => {
+      render(<Harness channel="EMAIL" />);
+      expect(screen.queryByTestId('sms-length-indicator')).not.toBeInTheDocument();
+    });
+
+    it('is not shown while the channel is unknown (create drawer, null)', () => {
+      render(<Harness channel={null} />);
+      expect(screen.queryByTestId('sms-length-indicator')).not.toBeInTheDocument();
+    });
+
+    it('is shown on the SMS channel and counts the rendered length', () => {
+      render(<Harness channel="SMS" initial={{ subject: '', body: 'Hi {{rentalTenantName}}', active: true }} />);
+      const indicator = screen.getByTestId('sms-length-indicator');
+      // {{rentalTenantName}} renders to the 10-char sample "John Smith": "Hi John Smith" = 13.
+      expect(indicator.textContent).toContain('13 / 1530');
+      expect(indicator.textContent).toContain('GSM-7');
+    });
+
+    it('flips to Unicode when a non-GSM character is typed', async () => {
+      const user = userEvent.setup();
+      render(<Harness channel="SMS" initial={{ subject: '', body: '', active: true }} />);
+      await user.type(screen.getByLabelText('Body'), 'Olá');
+      expect(screen.getByTestId('sms-length-indicator').textContent).toContain('Unicode (UCS-2)');
+    });
+  });
 });

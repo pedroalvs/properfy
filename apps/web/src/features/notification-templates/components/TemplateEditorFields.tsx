@@ -1,9 +1,10 @@
-import { useCallback, useRef } from 'react';
-import type { NotificationChannel } from '@properfy/shared';
+import { useCallback, useMemo, useRef } from 'react';
+import { measureSmsTemplate, type NotificationChannel } from '@properfy/shared';
 import { FormField } from '@/components/forms/FormField';
 import { TextInput } from '@/components/forms/TextInput';
 import { VariableInsertToolbar } from './VariableInsertToolbar';
-import type { TemplateFormData, TemplateFormErrors } from '../types';
+import { SmsLengthIndicator } from './SmsLengthIndicator';
+import { SAMPLE_DATA, type TemplateFormData, type TemplateFormErrors } from '../types';
 
 interface TemplateEditorFieldsProps {
   form: TemplateFormData;
@@ -41,6 +42,13 @@ export function TemplateEditorFields({
   const lastFocusedRef = useRef<'subject' | 'body' | null>(null);
 
   const isEmailChannel = channel !== 'SMS';
+
+  // SMS only: measure the body as it renders with sample values so the operator
+  // sees the character/segment count that the save-guard enforces.
+  const smsMeasurement = useMemo(
+    () => (channel === 'SMS' ? measureSmsTemplate(form.body, SAMPLE_DATA) : null),
+    [channel, form.body],
+  );
 
   const insertVariable = useCallback(
     (text: string) => {
@@ -121,6 +129,7 @@ export function TemplateEditorFields({
               spellCheck={false}
             />
           </div>
+          {smsMeasurement && <SmsLengthIndicator measurement={smsMeasurement} />}
         </FormField>
       </div>
     </>
