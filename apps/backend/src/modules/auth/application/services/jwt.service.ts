@@ -8,6 +8,12 @@ export interface JwtClaims {
   role: UserRole;
   branch_id: string | null;
   inspector_id: string | null;
+  /**
+   * Limited-privilege marker for the AM TOTP-enrollment session. When set, the
+   * auth middleware rejects the token on every route except the 2FA setup
+   * endpoints, /me and logout. Omitted on normal, fully-authenticated tokens.
+   */
+  auth_stage?: 'totp_setup';
 }
 
 export interface JwtConfig {
@@ -56,6 +62,7 @@ export class JwtService {
       role: claims.role,
       branch_id: claims.branch_id,
       inspector_id: claims.inspector_id,
+      ...(claims.auth_stage ? { auth_stage: claims.auth_stage } : {}),
     })
       .setProtectedHeader({ alg: 'RS256', kid: this.config.keyId })
       .setSubject(claims.sub)
@@ -101,12 +108,14 @@ export class JwtService {
 
     try {
       const { payload } = await jwtVerify(token, key, { algorithms: ['RS256'] });
+      const authStage = payload['auth_stage'] === 'totp_setup' ? ('totp_setup' as const) : undefined;
       return {
         userId: payload.sub as string,
         tenantId: (payload['tenant_id'] as string | null) ?? null,
         role: payload['role'] as UserRole,
         branchId: (payload['branch_id'] as string | null) ?? null,
         inspectorId: (payload['inspector_id'] as string | null) ?? null,
+        ...(authStage ? { authStage } : {}),
         clUserPermissions: [],
       };
     } catch {

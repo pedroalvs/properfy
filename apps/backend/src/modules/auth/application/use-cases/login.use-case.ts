@@ -20,6 +20,16 @@ import {
 // Dummy hash for constant-time comparison when user is not found (prevents email enumeration)
 const DUMMY_HASH = '$2a$12$LNqNXjZxQRf8R5k7uT2zReGXmHNK5BkV5T5f0a8WSAB8X5k7eTEKi';
 
+const FAILED_LOGIN_LOCK_THRESHOLD = 5;
+const FAILED_LOGIN_LOCK_DURATION_MS = 15 * 60 * 1000;
+
+// Correlation token for the anonymous login-failure audit trail. A truncated
+// SHA-256 of the normalized email lets ops group repeated attempts on the same
+// address WITHOUT persisting the raw address (PII) in the audit log (#239).
+function hashEmailForAudit(email: string): string {
+  return createHash('sha256').update(email.toLowerCase()).digest('hex').slice(0, 16);
+}
+
 export class LoginUseCase {
   constructor(
     private readonly userRepo: IUserRepository,
@@ -43,19 +53,62 @@ export class LoginUseCase {
         actorType: 'ANONYMOUS',
         entityType: 'USER',
         ipAddress: input.ipAddress,
-        metadata: { reason: 'INVALID_CREDENTIALS', email: input.email },
+        metadata: { reason: 'INVALID_CREDENTIALS', emailHash: hashEmailForAudit(input.email) },
       });
       throw new InvalidCredentialsError();
     }
 
-    // Auto-unlock if lock has expired
+    // Auto-unlock if the lock has expired. Runs before the password check, but
+    // it produces no caller-visible output — no status oracle.
     if (user.isLockExpired()) {
-      await this.userRepo.updateFailedLogin(user.id, 0, null, 'ACTIVE');
+      await this.userRepo.resetFailedLogin(user.id);
       user.status = 'ACTIVE';
       user.failedLoginCount = 0;
       user.lockedUntil = null;
     }
 
+    // Verify the password FIRST. The account-status branches (inactive / locked)
+    // run only after a correct password, so a wrong password on an inactive or
+    // locked account is byte-for-byte indistinguishable from a wrong password on
+    // an active one (#250) — no account-status enumeration for an
+    // unauthenticated caller.
+    const passwordMatch = await bcrypt.compare(input.password, user.passwordHash);
+    if (!passwordMatch) {
+      // Atomic increment-and-maybe-lock; the lock decision is the database's,
+      // derived from the freshly-incremented value (#246). Increment happens
+      // regardless of current status, matching prior behaviour.
+      const lockState = await this.userRepo.incrementFailedLogin(
+        user.id,
+        FAILED_LOGIN_LOCK_THRESHOLD,
+        FAILED_LOGIN_LOCK_DURATION_MS,
+      );
+
+      // Audit the lock only on the transition into LOCKED (the DB says LOCKED
+      // and the account was not already locked when we loaded it).
+      if (lockState.status === 'LOCKED' && user.status !== 'LOCKED') {
+        this.auditService.log({
+          action: 'auth.account_locked',
+          actorType: 'SYSTEM',
+          entityType: 'USER',
+          entityId: user.id,
+          ipAddress: input.ipAddress,
+          metadata: { lockedUntil: lockState.lockedUntil?.toISOString() },
+        });
+      }
+
+      this.auditService.log({
+        action: 'auth.login_failed',
+        actorType: 'ANONYMOUS',
+        entityType: 'USER',
+        entityId: user.id,
+        ipAddress: input.ipAddress,
+        metadata: { reason: 'INVALID_CREDENTIALS', failedCount: lockState.failedLoginCount },
+      });
+
+      throw new InvalidCredentialsError();
+    }
+
+    // Password is correct — only now enforce account status.
     if (user.isInactive() || user.isPendingInvite()) {
       throw new UserInactiveError();
     }
@@ -64,39 +117,6 @@ export class LoginUseCase {
       throw new AccountLockedError(
         Math.max(0, Math.ceil((user.lockedUntil!.getTime() - Date.now()) / 1000)),
       );
-    }
-
-    const passwordMatch = await bcrypt.compare(input.password, user.passwordHash);
-    if (!passwordMatch) {
-      const newCount = user.failedLoginCount + 1;
-      let newStatus = user.status;
-      let newLockedUntil: Date | null = null;
-
-      if (newCount >= 5) {
-        newStatus = 'LOCKED';
-        newLockedUntil = new Date(Date.now() + 15 * 60 * 1000);
-        this.auditService.log({
-          action: 'auth.account_locked',
-          actorType: 'SYSTEM',
-          entityType: 'USER',
-          entityId: user.id,
-          ipAddress: input.ipAddress,
-          metadata: { lockedUntil: newLockedUntil.toISOString() },
-        });
-      }
-
-      await this.userRepo.updateFailedLogin(user.id, newCount, newLockedUntil, newStatus);
-
-      this.auditService.log({
-        action: 'auth.login_failed',
-        actorType: 'ANONYMOUS',
-        entityType: 'USER',
-        entityId: user.id,
-        ipAddress: input.ipAddress,
-        metadata: { reason: 'INVALID_CREDENTIALS', failedCount: newCount },
-      });
-
-      throw new InvalidCredentialsError();
     }
 
     // Evaluate trust signals (when service is available)
@@ -120,6 +140,7 @@ export class LoginUseCase {
         userAgent: input.userAgent ?? null,
         countryCode: trustSignal?.countryCode ?? null,
         deviceFingerprint: trustSignal?.deviceFingerprint ?? null,
+        authStage: 'totp_setup',
         expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes for setup only
         revokedAt: null,
         createdAt: new Date(),
@@ -131,6 +152,7 @@ export class LoginUseCase {
         role: user.role,
         branch_id: user.branchId,
         inspector_id: null,
+        auth_stage: 'totp_setup',
       });
 
       this.auditService.log({
@@ -189,6 +211,7 @@ export class LoginUseCase {
       userAgent: input.userAgent ?? null,
       countryCode: trustSignal?.countryCode ?? null,
       deviceFingerprint: trustSignal?.deviceFingerprint ?? null,
+      authStage: null,
       expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
       revokedAt: null,
       createdAt: new Date(),

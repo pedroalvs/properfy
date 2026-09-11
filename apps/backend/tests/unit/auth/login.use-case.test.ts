@@ -54,6 +54,7 @@ function makeSession(overrides: Partial<ConstructorParameters<typeof SessionEnti
     deviceFingerprint: null,
     expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
     revokedAt: null,
+    authStage: null,
     createdAt: new Date(),
     ...overrides,
   });
@@ -75,20 +76,25 @@ describe('LoginUseCase', () => {
       findById: vi.fn(),
       save: vi.fn(),
       updateLoginSuccess: vi.fn(),
-      updateFailedLogin: vi.fn(),
+      incrementFailedLogin: vi.fn().mockResolvedValue({
+        failedLoginCount: 1,
+        status: 'ACTIVE',
+        lockedUntil: null,
+      }),
+      resetFailedLogin: vi.fn(),
       updatePassword: vi.fn(),
-    };
+    } as unknown as IUserRepository;
     sessionRepo = {
       create: vi.fn().mockResolvedValue(makeSession()),
       findByRefreshTokenHash: vi.fn(),
       findById: vi.fn(),
       findActiveByUserId: vi.fn(),
-      updateRefreshToken: vi.fn(),
+      rotateRefreshToken: vi.fn().mockResolvedValue(true),
       revoke: vi.fn(),
       revokeAllForUser: vi.fn(),
       findRecentByUserId: vi.fn().mockResolvedValue([]),
       deleteExpiredBefore: vi.fn(),
-    };
+    } as unknown as ISessionRepository;
     jwtService = {
       signAccessToken: vi.fn().mockResolvedValue('access-token'),
       verify: vi.fn(),
@@ -147,24 +153,49 @@ describe('LoginUseCase', () => {
     ).rejects.toThrow(InvalidCredentialsError);
   });
 
-  it('should increment failed_login_count on each failed attempt', async () => {
+  it('should atomically increment failed_login_count on each failed attempt', async () => {
     vi.mocked(userRepo.findByEmail).mockResolvedValue(makeUser({ failedLoginCount: 2 }));
+    vi.mocked(userRepo.incrementFailedLogin).mockResolvedValue({
+      failedLoginCount: 3,
+      status: 'ACTIVE',
+      lockedUntil: null,
+    });
     await expect(
       useCase.execute({ email: 'test@example.com', password: 'WrongPass1!' })
     ).rejects.toThrow(InvalidCredentialsError);
-    expect(userRepo.updateFailedLogin).toHaveBeenCalledWith('user-1', 3, null, 'ACTIVE');
+    // The lock decision is delegated to the repository (single-statement
+    // increment-and-maybe-lock); the use case passes threshold + duration only.
+    expect(userRepo.incrementFailedLogin).toHaveBeenCalledWith('user-1', 5, 15 * 60 * 1000);
   });
 
-  it('should lock account after 5 failed attempts', async () => {
+  it('should audit account_locked only when the atomic result says LOCKED', async () => {
     vi.mocked(userRepo.findByEmail).mockResolvedValue(makeUser({ failedLoginCount: 4 }));
+    const lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+    vi.mocked(userRepo.incrementFailedLogin).mockResolvedValue({
+      failedLoginCount: 5,
+      status: 'LOCKED',
+      lockedUntil,
+    });
     await expect(
       useCase.execute({ email: 'test@example.com', password: 'WrongPass1!' })
     ).rejects.toThrow(InvalidCredentialsError);
-    expect(userRepo.updateFailedLogin).toHaveBeenCalledWith(
-      'user-1',
-      5,
-      expect.any(Date),
-      'LOCKED',
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'auth.account_locked' }),
+    );
+  });
+
+  it('should NOT audit account_locked when the atomic result is still ACTIVE', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(makeUser({ failedLoginCount: 1 }));
+    vi.mocked(userRepo.incrementFailedLogin).mockResolvedValue({
+      failedLoginCount: 2,
+      status: 'ACTIVE',
+      lockedUntil: null,
+    });
+    await expect(
+      useCase.execute({ email: 'test@example.com', password: 'WrongPass1!' })
+    ).rejects.toThrow(InvalidCredentialsError);
+    expect(auditService.log).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'auth.account_locked' }),
     );
   });
 
@@ -206,7 +237,7 @@ describe('LoginUseCase', () => {
 
     const result = await useCase.execute({ email: 'test@example.com', password: 'ValidPass1!' });
     expect(result.accessToken).toBeDefined();
-    expect(userRepo.updateFailedLogin).toHaveBeenCalledWith('user-1', 0, null, 'ACTIVE');
+    expect(userRepo.resetFailedLogin).toHaveBeenCalledWith('user-1');
   });
 
   it('should return AUTH_USER_INACTIVE for INACTIVE users', async () => {
@@ -353,6 +384,77 @@ describe('LoginUseCase', () => {
     expect(jwtService.signAccessToken).toHaveBeenCalledWith(
       expect.objectContaining({ inspector_id: null }),
     );
+  });
+
+  // #250: account-status branches must run AFTER the password check, so a wrong
+  // password reveals nothing about whether the account is inactive or locked.
+  it('throws InvalidCredentials (not UserInactive) for a wrong password on an INACTIVE account', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(makeUser({ status: 'INACTIVE' }));
+    await expect(
+      useCase.execute({ email: 'test@example.com', password: 'WrongPass1!' }),
+    ).rejects.toThrow(InvalidCredentialsError);
+  });
+
+  it('throws InvalidCredentials (not AccountLocked) for a wrong password on a LOCKED account', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(
+      makeUser({ status: 'LOCKED', lockedUntil: new Date(Date.now() + 15 * 60 * 1000) }),
+    );
+    await expect(
+      useCase.execute({ email: 'test@example.com', password: 'WrongPass1!' }),
+    ).rejects.toThrow(InvalidCredentialsError);
+  });
+
+  it('still throws UserInactive for a CORRECT password on an INACTIVE account', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(makeUser({ status: 'INACTIVE' }));
+    await expect(
+      useCase.execute({ email: 'test@example.com', password: 'ValidPass1!' }),
+    ).rejects.toThrow(UserInactiveError);
+  });
+
+  // #239: the anonymous login-failure audit must not persist the raw email.
+  it('records a hashed emailHash, never the raw email, on an unknown-account failure', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(null);
+    await expect(
+      useCase.execute({ email: 'Victim@Example.com', password: 'whatever' }),
+    ).rejects.toThrow(InvalidCredentialsError);
+
+    const failureCall = vi
+      .mocked(auditService.log)
+      .mock.calls.find(([entry]) => entry.action === 'auth.login_failed');
+    const metadata = failureCall?.[0]?.metadata as Record<string, unknown> | undefined;
+    expect(metadata?.['email']).toBeUndefined();
+    expect(typeof metadata?.['emailHash']).toBe('string');
+    // normalized (lowercased) hash — not the raw address in any form
+    expect(metadata?.['emailHash']).not.toContain('Victim');
+    expect(metadata?.['emailHash']).not.toContain('@');
+  });
+
+  // #115: the AM first-login setup session must be marked as a limited stage on
+  // both the access token and the persisted session row.
+  it('marks the TOTP-setup session and token with auth_stage=totp_setup', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(
+      makeUser({ role: 'AM', totpEnabled: false, tenantId: null }),
+    );
+
+    const result = await useCase.execute({ email: 'am@example.com', password: 'ValidPass1!' });
+
+    expect(result.totpSetupRequired).toBe(true);
+    expect(jwtService.signAccessToken).toHaveBeenCalledWith(
+      expect.objectContaining({ auth_stage: 'totp_setup' }),
+    );
+    const createCall = vi.mocked(sessionRepo.create).mock.calls[0]![0]!;
+    expect(createCall.authStage).toBe('totp_setup');
+  });
+
+  it('does NOT set auth_stage on a normal, fully-authenticated login', async () => {
+    vi.mocked(userRepo.findByEmail).mockResolvedValue(makeUser());
+    await useCase.execute({ email: 'test@example.com', password: 'ValidPass1!' });
+
+    expect(jwtService.signAccessToken).toHaveBeenCalledWith(
+      expect.not.objectContaining({ auth_stage: 'totp_setup' }),
+    );
+    const createCall = vi.mocked(sessionRepo.create).mock.calls[0]![0]!;
+    expect(createCall.authStage).toBeNull();
   });
 
   describe('trust signals', () => {

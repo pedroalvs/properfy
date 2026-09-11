@@ -35,6 +35,23 @@ describe('JwtService', () => {
     expect(ctx.branchId).toBeNull();
   });
 
+  it('round-trips auth_stage=totp_setup into authStage on the AuthContext', async () => {
+    const token = await jwtService.signAccessToken({
+      sub: 'user-1', tenant_id: null, role: 'AM', branch_id: null, inspector_id: null,
+      auth_stage: 'totp_setup',
+    });
+    const ctx = await jwtService.verify(token);
+    expect(ctx.authStage).toBe('totp_setup');
+  });
+
+  it('leaves authStage undefined on a normal token', async () => {
+    const token = await jwtService.signAccessToken({
+      sub: 'user-1', tenant_id: null, role: 'CL_ADMIN', branch_id: null, inspector_id: null,
+    });
+    const ctx = await jwtService.verify(token);
+    expect(ctx.authStage).toBeUndefined();
+  });
+
   it('should reject a tampered token', async () => {
     const token = await jwtService.signAccessToken({ sub: 'user-1', tenant_id: null, role: 'AM', branch_id: null, inspector_id: null });
     const parts = token.split('.');

@@ -10,6 +10,7 @@ function mapToEntity(row: {
   user_agent: string | null;
   country_code: string | null;
   device_fingerprint: string | null;
+  auth_stage: string | null;
   expires_at: Date;
   revoked_at: Date | null;
   created_at: Date;
@@ -22,6 +23,7 @@ function mapToEntity(row: {
     userAgent: row.user_agent,
     countryCode: row.country_code,
     deviceFingerprint: row.device_fingerprint,
+    authStage: row.auth_stage,
     expiresAt: row.expires_at,
     revokedAt: row.revoked_at,
     createdAt: row.created_at,
@@ -43,6 +45,7 @@ export class PrismaSessionRepository implements ISessionRepository {
         user_agent: session.userAgent,
         country_code: session.countryCode,
         device_fingerprint: session.deviceFingerprint,
+        auth_stage: session.authStage,
         expires_at: session.expiresAt,
         revoked_at: session.revokedAt,
       },
@@ -75,10 +78,20 @@ export class PrismaSessionRepository implements ISessionRepository {
     return rows.map(mapToEntity);
   }
 
-  async updateRefreshToken(sessionId: string, newHash: string, expiresAt: Date): Promise<void> {
-    await this.prisma.session.update({
+  async rotateRefreshToken(
+    sessionId: string,
+    expectedHash: string,
+    newHash: string,
+    expiresAt: Date,
+  ): Promise<boolean> {
+    // Compare-and-swap: only the row that still holds `expectedHash` and is not
+    // revoked is updated. `updateMany` returns the affected-row count, so two
+    // concurrent refreshes of the same token produce exactly one count === 1
+    // (the winner) and one count === 0 (reuse to be detected by the caller).
+    const result = await this.prisma.session.updateMany({
       where: {
         id: sessionId,
+        refresh_token_hash: expectedHash,
         revoked_at: null,
       },
       data: {
@@ -86,6 +99,7 @@ export class PrismaSessionRepository implements ISessionRepository {
         expires_at: expiresAt,
       },
     });
+    return result.count === 1;
   }
 
   async revoke(sessionId: string, revokedAt: Date): Promise<void> {

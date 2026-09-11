@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { UserRole as PrismaUserRole, UserStatus as PrismaUserStatus } from '@prisma/client';
+import type { UserStatus } from '@properfy/shared';
 import { UserEntity } from '../domain/user.entity';
 import type { IUserRepository } from '../domain/user.repository';
 
@@ -108,34 +109,54 @@ export class PrismaUserRepository implements IUserRepository {
     });
   }
 
-  async updateFailedLogin(
+  async incrementFailedLogin(
     userId: string,
-    failedLoginCount: number,
-    lockedUntil: Date | null,
-    status: string,
-  ): Promise<void> {
-    // Use atomic increment instead of setting a computed value to avoid race conditions
-    // The failedLoginCount param is used to determine if we should lock (>= 5 means lock)
-    if (status === 'LOCKED') {
-      // Lock the account atomically
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: {
-          failed_login_count: { increment: 1 },
-          locked_until: lockedUntil,
-          status: 'LOCKED',
-        },
-      });
-    } else {
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: {
-          failed_login_count: { increment: 1 },
-          locked_until: null,
-          status: 'ACTIVE',
-        },
-      });
+    lockThreshold: number,
+    lockDurationMs: number,
+  ): Promise<{ failedLoginCount: number; status: UserStatus; lockedUntil: Date | null }> {
+    // Single-statement increment-and-maybe-lock. The lock decision is made
+    // inside the UPDATE from the freshly-incremented value, so N concurrent
+    // failed attempts produce a final count of exactly N and lock precisely at
+    // the threshold — no read-modify-write window. `::int` guards the numeric
+    // param binding gotcha; the enum literal is cast to the Postgres enum type.
+    const lockedUntil = new Date(Date.now() + lockDurationMs);
+    const rows = await this.prisma.$queryRaw<
+      Array<{ failed_login_count: number; status: PrismaUserStatus; locked_until: Date | null }>
+    >`
+      UPDATE users
+      SET failed_login_count = failed_login_count + 1,
+          status = CASE
+            WHEN failed_login_count + 1 >= ${lockThreshold}::int THEN 'LOCKED'::"UserStatus"
+            ELSE status
+          END,
+          locked_until = CASE
+            WHEN failed_login_count + 1 >= ${lockThreshold}::int THEN ${lockedUntil}::timestamptz
+            ELSE locked_until
+          END
+      WHERE id = ${userId} AND deleted_at IS NULL
+      RETURNING failed_login_count, status, locked_until
+    `;
+    const row = rows[0];
+    if (!row) {
+      // User vanished (soft-deleted) between read and write: nothing to lock.
+      return { failedLoginCount: 0, status: 'ACTIVE', lockedUntil: null };
     }
+    return {
+      failedLoginCount: row.failed_login_count,
+      status: row.status as UserStatus,
+      lockedUntil: row.locked_until,
+    };
+  }
+
+  async resetFailedLogin(userId: string): Promise<void> {
+    await this.prisma.user.updateMany({
+      where: { id: userId, status: 'LOCKED' },
+      data: {
+        failed_login_count: 0,
+        status: 'ACTIVE',
+        locked_until: null,
+      },
+    });
   }
 
   async updateTimezone(userId: string, timezone: string | null): Promise<void> {

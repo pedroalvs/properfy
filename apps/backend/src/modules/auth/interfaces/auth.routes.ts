@@ -113,7 +113,11 @@ export async function registerAuthRoutes(
   // POST /v1/auth/logout
   app.post(
     '/v1/auth/logout',
-    { preHandler: authenticate, schema: { response: { 204: z.null() } } },
+    {
+      preHandler: authenticate,
+      config: { allowTotpSetupStage: true },
+      schema: { response: { 204: z.null() } },
+    },
     async (request, reply) => {
       await container.logoutUseCase.execute({
         userId: request.authContext!.userId,
@@ -125,7 +129,11 @@ export async function registerAuthRoutes(
   // GET /v1/me
   app.get(
     '/v1/me',
-    { preHandler: authenticate, schema: { response: { 200: meResponseSchema } } },
+    {
+      preHandler: authenticate,
+      config: { allowTotpSetupStage: true },
+      schema: { response: { 200: meResponseSchema } },
+    },
     async (request, reply) => {
       const result = await container.getMeUseCase.execute(request.authContext!.userId);
       return reply.status(200).send(result);
@@ -184,6 +192,7 @@ export async function registerAuthRoutes(
     '/v1/auth/2fa/setup',
     {
       preHandler: authenticate,
+      config: { allowTotpSetupStage: true },
       schema: {
         response: { 200: z.object({ secret: z.string(), qrUri: z.string() }) },
       },
@@ -201,6 +210,7 @@ export async function registerAuthRoutes(
     '/v1/auth/2fa/confirm',
     {
       preHandler: authenticate,
+      config: { allowTotpSetupStage: true },
       schema: {
         body: z.object({ totpCode: z.string().length(6) }),
         response: { 204: z.null() },
