@@ -54,9 +54,16 @@ describe('renderTemplateWithSamples', () => {
     expect(renderTemplateWithSamples('a{{! note }}b', VARS)).toBe('ab');
   });
 
-  it('drops unsupported helper expressions (err short)', () => {
+  it('drops unsupported inline helper expressions (err short)', () => {
     expect(renderTemplateWithSamples('x{{formatDate scheduledDate}}y', VARS)).toBe('xy');
-    expect(renderTemplateWithSamples('{{#each rows}}row{{/each}}', VARS)).toBe('row');
+  });
+
+  it('drops the whole body of a block helper other than if/unless (err short, never over-count)', () => {
+    // #each/#with bodies must NOT be kept literally: an undefined iterable renders
+    // empty at send, so keeping the body would over-count and could block a valid save.
+    expect(renderTemplateWithSamples('{{#each rows}}row{{/each}}', VARS)).toBe('');
+    expect(renderTemplateWithSamples('a{{#each x}}LONG{{/each}}b', VARS)).toBe('ab');
+    expect(renderTemplateWithSamples('{{#with y}}{{name}}{{/with}}', VARS)).toBe('');
   });
 
   it('renders a real appointment-email conditional snippet', () => {

@@ -44,10 +44,12 @@ export function TemplateEditorFields({
   const isEmailChannel = channel !== 'SMS';
 
   // SMS only: measure the body as it renders with sample values so the operator
-  // sees the character/segment count that the save-guard enforces. Skipped for an
-  // empty body — a "0 / 1530 · 0 parts" readout on a blank editor is only noise.
+  // sees the character/segment count that the save-guard enforces. Skipped for a
+  // blank body — a "0 / 1530 · 0 parts" readout on an empty editor is only noise.
+  // Uses trim() to match the save guard, which rejects a whitespace-only body as
+  // empty ("Body is required") rather than measuring it.
   const smsMeasurement = useMemo(
-    () => (channel === 'SMS' && form.body.length > 0 ? measureSmsTemplate(form.body, SAMPLE_DATA) : null),
+    () => (channel === 'SMS' && form.body.trim().length > 0 ? measureSmsTemplate(form.body, SAMPLE_DATA) : null),
     [channel, form.body],
   );
 
