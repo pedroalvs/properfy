@@ -94,6 +94,11 @@ describe('TemplateEditorFields', () => {
       expect(screen.queryByTestId('sms-length-indicator')).not.toBeInTheDocument();
     });
 
+    it('is hidden for an empty SMS body (no 0-parts readout on a blank editor)', () => {
+      render(<Harness channel="SMS" initial={{ subject: '', body: '', active: true }} />);
+      expect(screen.queryByTestId('sms-length-indicator')).not.toBeInTheDocument();
+    });
+
     it('is shown on the SMS channel and counts the rendered length', () => {
       render(<Harness channel="SMS" initial={{ subject: '', body: 'Hi {{rentalTenantName}}', active: true }} />);
       const indicator = screen.getByTestId('sms-length-indicator');
