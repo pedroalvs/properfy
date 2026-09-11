@@ -49,6 +49,31 @@ reviews:
         sensitive transitions require a reason. Apply idempotency on critical commands
         (acceptance, execution, financial entries). Flag any tenant_id WHERE filter not
         covered by a Postgres-real integration test (mocks can hide tenant-scope bugs).
+    - path: "apps/backend/src/**/domain/**/*.ts"
+      instructions: >-
+        Domain layer — pure business logic only. No framework, Prisma, Fastify or
+        pg-boss imports; no I/O. Only entities, value objects, repository ports
+        (interfaces) and domain events belong here. Entities carry behaviour and
+        enforce their own invariants; invalid states must be unrepresentable rather
+        than validated after the fact. Flag any import that reaches outward to
+        application/infrastructure/interfaces — the dependency rule points inward.
+    - path: "apps/backend/src/**/application/**/*.ts"
+      instructions: >-
+        Application layer — one use case per class with an execute() method,
+        orchestrating domain logic through ports. Define DTOs and Zod schemas here.
+        Authorization and idempotency are enforced in this layer, not only in the
+        route (a non-HTTP caller must be validated too). No direct Prisma, Fastify or
+        pg-boss imports — depend on domain interfaces. Cross-module side effects go
+        through domain events. Scope every repository call by tenant_id.
+    - path: "apps/backend/src/**/interfaces/**/*.ts"
+      instructions: >-
+        Interfaces layer — thin Fastify adapters only: parse, validate (Zod), call the
+        use case, map the response. No business logic. Derive tenant scope from the
+        JWT context; never trust tenantId from the request body or query. Propagate
+        request_id. Errors must use the shared envelope { error: { code, message,
+        details } } with the standard code→status mapping (VALIDATION_ERROR 400,
+        FORBIDDEN 403, NOT_FOUND 404, CONFLICT 409). Accept Idempotency-Key on
+        critical operations.
     - path: "apps/web/**"
       instructions: >-
         React + TypeScript + Tailwind. Reuse design-system primitives
@@ -57,6 +82,18 @@ reviews:
         (e.g. number + address + status + date). DataTable sorts client-side via useMemo;
         do not send sortBy/sortOrder to the API. List pages must show data immediately;
         selectors filter, they do not gate.
+    - path: "apps/web/src/**/*.{ts,tsx}"
+      instructions: >-
+        Use the OpenAPI-generated client for every API call — literal route keys with
+        typed path params and bodies; never cast paths, bodies or responses to `as any`
+        or build template-literal paths the typed client cannot match. Consume shared
+        schemas, types and enums from packages/shared rather than redefining them. Use
+        design tokens over hard-coded colours/spacing. All user-facing copy in English.
+        Every data screen must implement loading, empty, error (with retry) and
+        no-permission states, distinguishing 403 vs 404 vs transient failures, plus
+        accessibility (aria-labels, keyboard operability, focus management). Data hooks
+        must return referentially stable values (memoize derived arrays/objects). Keep
+        feature pages thin, responsive and container-based.
     - path: "apps/pwa/**"
       instructions: >-
         Inspector PWA (React + Vite + Tailwind). Reuse the shared design-system
