@@ -23,6 +23,12 @@ const financialEntryRepo = {
 
 const auditService = { log: vi.fn() };
 
+const idempotencyService = {
+  tryAcquire: vi.fn(),
+  complete: vi.fn(),
+  release: vi.fn(),
+};
+
 function makePendingEntry(overrides = {}) {
   return new FinancialEntryEntity({
     id: 'entry-1',
@@ -65,7 +71,7 @@ const amActor = {
 const authorizationService = new AuthorizationService(auditService as any);
 
 function makeSut() {
-  return new ApproveFinancialEntryUseCase(financialEntryRepo, auditService as any, authorizationService);
+  return new ApproveFinancialEntryUseCase(financialEntryRepo, auditService as any, authorizationService, idempotencyService);
 }
 
 function makeApprovedEnrichedEntry(entry: FinancialEntryEntity, approvedByUserId: string, approvedAt: Date) {
@@ -91,12 +97,15 @@ describe('ApproveFinancialEntryUseCase', () => {
     financialEntryRepo.findByIdEnriched.mockImplementation(async () => {
       return makeApprovedEnrichedEntry(pendingEntry, 'op-1', new Date());
     });
+    idempotencyService.tryAcquire.mockResolvedValue({ status: 'acquired', ownerToken: 'token-1' });
+    idempotencyService.complete.mockResolvedValue(true);
+    idempotencyService.release.mockResolvedValue(undefined);
   });
 
   it('should return full enriched entity with status APPROVED after approval', async () => {
     const sut = makeSut();
 
-    const result = await sut.execute({ entryId: 'entry-1', actor: opActor });
+    const result = await sut.execute({ entryId: 'entry-1', idempotencyKey: 'idem-1', actor: opActor });
 
     expect(result.id).toBe('entry-1');
     expect(result.status).toBe('APPROVED');
@@ -130,7 +139,7 @@ describe('ApproveFinancialEntryUseCase', () => {
     );
     const sut = makeSut();
 
-    const result = await sut.execute({ entryId: 'entry-1', actor: amActor });
+    const result = await sut.execute({ entryId: 'entry-1', idempotencyKey: 'idem-1', actor: amActor });
 
     expect(result.status).toBe('APPROVED');
     expect(result.approvedByUserId).toBe('am-1');
@@ -143,7 +152,7 @@ describe('ApproveFinancialEntryUseCase', () => {
     );
 
     await expect(
-      sut.execute({ entryId: 'entry-1', actor: opActor }),
+      sut.execute({ entryId: 'entry-1', idempotencyKey: 'idem-1', actor: opActor }),
     ).rejects.toThrow(ForbiddenError);
   });
 
@@ -154,7 +163,7 @@ describe('ApproveFinancialEntryUseCase', () => {
     );
 
     await expect(
-      sut.execute({ entryId: 'entry-1', actor: opActor }),
+      sut.execute({ entryId: 'entry-1', idempotencyKey: 'idem-1', actor: opActor }),
     ).rejects.toThrow(EntryNotPendingError);
   });
 
@@ -169,7 +178,7 @@ describe('ApproveFinancialEntryUseCase', () => {
     };
 
     await expect(
-      sut.execute({ entryId: 'entry-1', actor: clientActor }),
+      sut.execute({ entryId: 'entry-1', idempotencyKey: 'idem-1', actor: clientActor }),
     ).rejects.toThrow(ForbiddenError);
   });
 
@@ -178,14 +187,14 @@ describe('ApproveFinancialEntryUseCase', () => {
     financialEntryRepo.findById.mockResolvedValue(null);
 
     await expect(
-      sut.execute({ entryId: 'nonexistent', actor: opActor }),
+      sut.execute({ entryId: 'nonexistent', idempotencyKey: 'idem-1', actor: opActor }),
     ).rejects.toThrow(EntryNotFoundError);
   });
 
   it('should audit log the approval', async () => {
     const sut = makeSut();
 
-    await sut.execute({ entryId: 'entry-1', actor: opActor });
+    await sut.execute({ entryId: 'entry-1', idempotencyKey: 'idem-1', actor: opActor });
 
     expect(auditService.log).toHaveBeenCalledOnce();
     expect(auditService.log).toHaveBeenCalledWith(

@@ -1097,7 +1097,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo, auditService);
   const getFinancialSummaryUseCase = new GetFinancialSummaryUseCase(financialEntryRepo, tenantRepo);
   const getFinancialEntryUseCase = new GetFinancialEntryUseCase(financialEntryRepo);
-  const approveFinancialEntryUseCase = new ApproveFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
+  const approveFinancialEntryUseCase = new ApproveFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
   const cancelFinancialEntryUseCase = new CancelFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
   const createManualAdjustmentUseCase = new CreateManualAdjustmentUseCase(
     financialEntryRepo,
@@ -1121,12 +1121,12 @@ export function createContainer(logger: Logger): AppContainer {
     inspectorInvoiceRepo,
     reportStorageService,
   );
-  const markInvoicePaidUseCase = new MarkInvoicePaidUseCase(inspectorInvoiceRepo, auditService, authorizationService);
-  const batchMarkInvoicesPaidUseCase = new BatchMarkInvoicesPaidUseCase(inspectorInvoiceRepo, auditService, authorizationService);
-  const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService);
+  const markInvoicePaidUseCase = new MarkInvoicePaidUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
+  const batchMarkInvoicesPaidUseCase = new BatchMarkInvoicesPaidUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
+  const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
   const getReconciliationSummaryUseCase = new GetReconciliationSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const getInvoiceSummaryUseCase = new GetInvoiceSummaryUseCase(inspectorInvoiceRepo, authorizationService);
-  const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
+  const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
   const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, authorizationService, billingJobQueue);
   const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService);
 

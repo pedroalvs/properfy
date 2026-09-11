@@ -27,6 +27,11 @@ const invoiceRepo = {
 
 const auditService = { log: vi.fn() };
 const authorizationService = new AuthorizationService(auditService as any);
+const idempotencyService = {
+  tryAcquire: vi.fn().mockResolvedValue({ status: 'acquired', ownerToken: 'token-1' }),
+  complete: vi.fn().mockResolvedValue(true),
+  release: vi.fn().mockResolvedValue(undefined),
+};
 
 const opActor = {
   userId: 'op-1',
@@ -70,10 +75,11 @@ describe('FR-068: PENDING_REVIEW invoice cannot be marked PAID', () => {
       invoiceRepo,
       auditService as any,
       authorizationService,
+      idempotencyService,
     );
 
     await expect(
-      sut.execute({ invoiceId: 'inv-pr-1', actor: opActor }),
+      sut.execute({ invoiceId: 'inv-pr-1', idempotencyKey: 'idem-1', actor: opActor }),
     ).rejects.toThrow(InvoiceNotClosedError);
   });
 });

@@ -19,6 +19,12 @@ const invoiceRepo = {
 
 const auditService = { log: vi.fn() };
 
+const idempotencyService = {
+  tryAcquire: vi.fn(),
+  complete: vi.fn(),
+  release: vi.fn(),
+};
+
 function makeInvoice(id: string, overrides: Record<string, unknown> = {}) {
   return new InspectorInvoiceEntity({
     id,
@@ -62,13 +68,16 @@ const clientActor = {
 const authorizationService = new AuthorizationService(auditService as any);
 
 function makeSut() {
-  return new BatchMarkInvoicesPaidUseCase(invoiceRepo, auditService as any, authorizationService);
+  return new BatchMarkInvoicesPaidUseCase(invoiceRepo, auditService as any, authorizationService, idempotencyService);
 }
 
 describe('BatchMarkInvoicesPaidUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     invoiceRepo.update.mockResolvedValue(undefined);
+    idempotencyService.tryAcquire.mockResolvedValue({ status: 'acquired', ownerToken: 'token-1' });
+    idempotencyService.complete.mockResolvedValue(true);
+    idempotencyService.release.mockResolvedValue(undefined);
   });
 
   it('processes all CLOSED invoices and returns an empty skipped list (happy path)', async () => {
@@ -82,7 +91,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
     const result = await sut.execute({
       invoiceIds: ['inv-1', 'inv-2', 'inv-3'],
       paymentReference: 'BATCH-001',
-      actor: opActor,
+      idempotencyKey: 'idem-1', actor: opActor,
     });
 
     expect(result.processed).toHaveLength(3);
@@ -101,7 +110,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
 
     const result = await sut.execute({
       invoiceIds: ['inv-1', 'inv-2', 'inv-3'],
-      actor: opActor,
+      idempotencyKey: 'idem-1', actor: opActor,
     });
 
     expect(result.processed.map((p) => p.id)).toEqual(['inv-1', 'inv-3']);
@@ -119,7 +128,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
 
     const result = await sut.execute({
       invoiceIds: ['inv-1', 'inv-2'],
-      actor: opActor,
+      idempotencyKey: 'idem-1', actor: opActor,
     });
 
     expect(result.processed).toHaveLength(1);
@@ -132,7 +141,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
 
     const result = await sut.execute({
       invoiceIds: ['inv-1', 'missing-id'],
-      actor: opActor,
+      idempotencyKey: 'idem-1', actor: opActor,
     });
 
     expect(result.processed).toHaveLength(1);
@@ -148,7 +157,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
 
     const result = await sut.execute({
       invoiceIds: ['inv-1', 'inv-2'],
-      actor: opActor,
+      idempotencyKey: 'idem-1', actor: opActor,
     });
 
     expect(result.processed).toHaveLength(0);
@@ -169,7 +178,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
 
     await sut.execute({
       invoiceIds: ['inv-1', 'inv-2', 'inv-3', 'inv-4', 'inv-5'],
-      actor: opActor,
+      idempotencyKey: 'idem-1', actor: opActor,
     });
 
     // 5 processed → exactly 5 audit records (not 1, not 6)
@@ -192,7 +201,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
       invoiceIds: ['inv-1', 'inv-2'],
       paidAt: sharedPaidAt,
       paymentReference: 'SHARED-REF',
-      actor: opActor,
+      idempotencyKey: 'idem-1', actor: opActor,
     });
 
     const updateCalls = (invoiceRepo.update as any).mock.calls;
@@ -209,7 +218,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
     const sut = makeSut();
 
     await expect(
-      sut.execute({ invoiceIds: ['inv-1'], actor: clientActor }),
+      sut.execute({ invoiceIds: ['inv-1'], idempotencyKey: 'idem-1', actor: clientActor }),
     ).rejects.toThrow(ForbiddenError);
   });
 
@@ -218,7 +227,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
     const farFuture = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
 
     await expect(
-      sut.execute({ invoiceIds: ['inv-1'], paidAt: farFuture, actor: opActor }),
+      sut.execute({ invoiceIds: ['inv-1'], paidAt: farFuture, idempotencyKey: 'idem-1', actor: opActor }),
     ).rejects.toThrow(InvoicePaymentDateInvalidError);
   });
 });

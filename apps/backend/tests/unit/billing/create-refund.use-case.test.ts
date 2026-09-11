@@ -25,8 +25,9 @@ const financialEntryRepo = {
 const auditService = { log: vi.fn() };
 
 const idempotencyService = {
-  get: vi.fn().mockResolvedValue(null),
-  set: vi.fn().mockResolvedValue(undefined),
+  tryAcquire: vi.fn(),
+  complete: vi.fn(),
+  release: vi.fn(),
 };
 
 function makeApprovedDebit(overrides = {}) {
@@ -81,7 +82,9 @@ describe('CreateRefundUseCase', () => {
     financialEntryRepo.findByReferenceEntryIdAndType.mockResolvedValue(null);
     financialEntryRepo.save.mockResolvedValue(undefined);
     financialEntryRepo.sumRefundsByReferenceEntryId.mockResolvedValue(0);
-    idempotencyService.get.mockResolvedValue(null);
+    idempotencyService.tryAcquire.mockResolvedValue({ status: 'acquired', ownerToken: 'token-1' });
+    idempotencyService.complete.mockResolvedValue(true);
+    idempotencyService.release.mockResolvedValue(undefined);
   });
 
   it('should create a full REFUND entry when no amount specified', async () => {
@@ -91,6 +94,7 @@ describe('CreateRefundUseCase', () => {
       entryId: 'debit-1',
       description: 'Service not executed',
       reason: 'Inspector did not show up',
+      idempotencyKey: 'test-idem-key',
       actor: opActor,
     });
 
@@ -122,6 +126,7 @@ describe('CreateRefundUseCase', () => {
       description: 'Partial refund',
       reason: 'Service partially completed',
       amount: 80,
+      idempotencyKey: 'test-idem-key',
       actor: opActor,
     });
 
@@ -140,6 +145,7 @@ describe('CreateRefundUseCase', () => {
       description: 'Second partial refund',
       reason: 'Additional compensation',
       amount: 120,
+      idempotencyKey: 'test-idem-key',
       actor: opActor,
     });
 
@@ -158,6 +164,7 @@ describe('CreateRefundUseCase', () => {
         description: 'Refund',
         reason: 'Reason',
         amount: 60,
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(RefundExceedsOriginalAmountError);
@@ -174,6 +181,7 @@ describe('CreateRefundUseCase', () => {
         entryId: 'debit-1',
         description: 'Refund',
         reason: 'Reason',
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(RefundExceedsOriginalAmountError);
@@ -191,6 +199,7 @@ describe('CreateRefundUseCase', () => {
         description: 'Refund',
         reason: 'Reason',
         amount: 1,
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(RefundExceedsOriginalAmountError);
@@ -205,6 +214,7 @@ describe('CreateRefundUseCase', () => {
       description: 'Final partial refund',
       reason: 'Remaining balance',
       amount: 50,
+      idempotencyKey: 'test-idem-key',
       actor: opActor,
     });
 
@@ -219,6 +229,7 @@ describe('CreateRefundUseCase', () => {
       entryId: 'debit-1',
       description: 'Refund',
       reason: 'Reason',
+      idempotencyKey: 'test-idem-key',
       actor: amActor,
     });
 
@@ -236,6 +247,7 @@ describe('CreateRefundUseCase', () => {
         entryId: 'debit-1',
         description: 'Refund',
         reason: 'Reason',
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(EntryNotRefundableError);
@@ -252,6 +264,7 @@ describe('CreateRefundUseCase', () => {
         entryId: 'debit-1',
         description: 'Refund',
         reason: 'Reason',
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(EntryNotRefundableError);
@@ -272,6 +285,7 @@ describe('CreateRefundUseCase', () => {
         entryId: 'debit-1',
         description: 'Refund',
         reason: 'Reason',
+        idempotencyKey: 'test-idem-key',
         actor: clientActor,
       }),
     ).rejects.toThrow(ForbiddenError);
@@ -288,6 +302,7 @@ describe('CreateRefundUseCase', () => {
         entryId: 'nonexistent',
         description: 'Refund',
         reason: 'Reason',
+        idempotencyKey: 'test-idem-key',
         actor: opActor,
       }),
     ).rejects.toThrow(EntryNotFoundError);
@@ -301,6 +316,7 @@ describe('CreateRefundUseCase', () => {
       description: 'Service not executed',
       reason: 'Inspector did not show up',
       amount: 75,
+      idempotencyKey: 'test-idem-key',
       actor: opActor,
     });
 
@@ -322,7 +338,7 @@ describe('CreateRefundUseCase', () => {
     );
   });
 
-  it('should return cached result on duplicate call when idempotencyKey is provided', async () => {
+  it('should return cached result on replay without re-running the mutation', async () => {
     const cachedResult = {
       id: 'cached-id',
       tenantId: 'tenant-1',
@@ -337,7 +353,11 @@ describe('CreateRefundUseCase', () => {
       initiatedByUserId: 'op-1',
       createdAt: new Date(),
     };
-    idempotencyService.get.mockResolvedValue(cachedResult);
+    idempotencyService.tryAcquire.mockImplementation(async (_key: string, _scope: string, payloadHash: string) => ({
+      status: 'completed',
+      response: cachedResult,
+      payloadHash,
+    }));
 
     const sut = makeSut();
     const result = await sut.execute({
@@ -350,10 +370,31 @@ describe('CreateRefundUseCase', () => {
 
     expect(result).toEqual(cachedResult);
     expect(financialEntryRepo.save).not.toHaveBeenCalled();
-    expect(idempotencyService.get).toHaveBeenCalledWith('refund-idem-key', 'refund');
+    expect(idempotencyService.tryAcquire).toHaveBeenCalledWith(
+      'refund-idem-key',
+      'refund',
+      expect.any(String),
+      24,
+    );
   });
 
-  it('should cache result after successful refund when idempotencyKey is provided', async () => {
+  it('should throw a conflict when a request with the same key is already in progress', async () => {
+    idempotencyService.tryAcquire.mockResolvedValue({ status: 'in_progress', payloadHash: 'some-hash' });
+    const sut = makeSut();
+
+    await expect(
+      sut.execute({
+        entryId: 'debit-1',
+        description: 'Service not executed',
+        reason: 'Inspector did not show up',
+        idempotencyKey: 'refund-idem-key',
+        actor: opActor,
+      }),
+    ).rejects.toThrow();
+    expect(financialEntryRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('should complete the idempotency claim after a successful refund', async () => {
     const sut = makeSut();
 
     await sut.execute({
@@ -364,28 +405,33 @@ describe('CreateRefundUseCase', () => {
       actor: opActor,
     });
 
-    expect(idempotencyService.set).toHaveBeenCalledWith(
+    expect(idempotencyService.complete).toHaveBeenCalledWith(
       'refund-idem-key',
       'refund',
+      'token-1',
       expect.objectContaining({
         entryType: 'REFUND',
         amount: 200,
       }),
       24,
+      expect.any(String),
     );
   });
 
-  it('should not check idempotency when idempotencyKey is not provided', async () => {
+  it('should release the claim when the mutation fails', async () => {
+    financialEntryRepo.findById.mockResolvedValue(null);
     const sut = makeSut();
 
-    await sut.execute({
-      entryId: 'debit-1',
-      description: 'Service not executed',
-      reason: 'Inspector did not show up',
-      actor: opActor,
-    });
+    await expect(
+      sut.execute({
+        entryId: 'debit-1',
+        description: 'Service not executed',
+        reason: 'Inspector did not show up',
+        idempotencyKey: 'refund-idem-key',
+        actor: opActor,
+      }),
+    ).rejects.toThrow(EntryNotFoundError);
 
-    expect(idempotencyService.get).not.toHaveBeenCalled();
-    expect(idempotencyService.set).not.toHaveBeenCalled();
+    expect(idempotencyService.release).toHaveBeenCalledWith('refund-idem-key', 'refund', expect.any(String), 'token-1');
   });
 });

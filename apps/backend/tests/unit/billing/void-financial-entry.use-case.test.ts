@@ -67,9 +67,14 @@ function makeSut() {
   } as unknown as AuditService;
 
   const authorizationService = new AuthorizationService(auditService);
-  const useCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
+  const idempotencyService = {
+    tryAcquire: vi.fn().mockResolvedValue({ status: 'acquired', ownerToken: 'token-1' }),
+    complete: vi.fn().mockResolvedValue(true),
+    release: vi.fn().mockResolvedValue(undefined),
+  };
+  const useCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
 
-  return { useCase, financialEntryRepo, auditService };
+  return { useCase, financialEntryRepo, auditService, idempotencyService };
 }
 
 describe('VoidFinancialEntryUseCase', () => {
@@ -89,7 +94,7 @@ describe('VoidFinancialEntryUseCase', () => {
     const result = await useCase.execute({
       entryId: 'entry-1',
       reason: 'Entry was created in error',
-      actor: makeActor({ role: 'AM' }),
+      idempotencyKey: 'idem-1', actor: makeActor({ role: 'AM' }),
     });
 
     expect(result.status).toBe('VOIDED');
@@ -126,7 +131,7 @@ describe('VoidFinancialEntryUseCase', () => {
       useCase.execute({
         entryId: 'entry-1',
         reason: 'Test reason',
-        actor: makeActor({ role: 'AM' }),
+        idempotencyKey: 'idem-1', actor: makeActor({ role: 'AM' }),
       }),
     ).rejects.toThrow(EntryNotApprovedError);
 
@@ -142,7 +147,7 @@ describe('VoidFinancialEntryUseCase', () => {
       useCase.execute({
         entryId: 'entry-1',
         reason: 'Test reason',
-        actor: makeActor({ role: 'AM' }),
+        idempotencyKey: 'idem-1', actor: makeActor({ role: 'AM' }),
       }),
     ).rejects.toThrow(EntryNotApprovedError);
   });
@@ -156,7 +161,7 @@ describe('VoidFinancialEntryUseCase', () => {
     const result = await useCase.execute({
       entryId: 'entry-1',
       reason: 'Correction by operator',
-      actor: makeActor({ role: 'OP' }),
+      idempotencyKey: 'idem-1', actor: makeActor({ role: 'OP' }),
     });
 
     expect(result.status).toBe('VOIDED');
@@ -172,7 +177,7 @@ describe('VoidFinancialEntryUseCase', () => {
       useCase.execute({
         entryId: 'entry-1',
         reason: 'Test reason',
-        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+        idempotencyKey: 'idem-1', actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
   });
@@ -184,7 +189,7 @@ describe('VoidFinancialEntryUseCase', () => {
       useCase.execute({
         entryId: 'entry-1',
         reason: 'Test reason',
-        actor: makeActor({ role: 'INSP' }),
+        idempotencyKey: 'idem-1', actor: makeActor({ role: 'INSP' }),
       }),
     ).rejects.toThrow(ForbiddenError);
   });
@@ -196,7 +201,7 @@ describe('VoidFinancialEntryUseCase', () => {
       useCase.execute({
         entryId: 'entry-1',
         reason: 'Test reason',
-        actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
+        idempotencyKey: 'idem-1', actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
   });
@@ -210,7 +215,7 @@ describe('VoidFinancialEntryUseCase', () => {
       useCase.execute({
         entryId: 'non-existent',
         reason: 'Test reason',
-        actor: makeActor({ role: 'AM' }),
+        idempotencyKey: 'idem-1', actor: makeActor({ role: 'AM' }),
       }),
     ).rejects.toThrow(EntryNotFoundError);
   });

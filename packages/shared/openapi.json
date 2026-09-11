@@ -21088,6 +21088,10 @@
                                 },
                                 "name": {
                                   "type": "string"
+                                },
+                                "branchName": {
+                                  "type": "string",
+                                  "nullable": true
                                 }
                               },
                               "required": [
@@ -22618,6 +22622,16 @@
             "in": "path",
             "name": "entryId",
             "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
           }
         ],
         "responses": {
@@ -22869,6 +22883,18 @@
           },
           "required": true
         },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
+          }
+        ],
         "responses": {
           "201": {
             "description": "Default Response",
@@ -23064,6 +23090,16 @@
             "in": "path",
             "name": "entryId",
             "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
           }
         ],
         "responses": {
@@ -23843,6 +23879,16 @@
             "in": "path",
             "name": "invoiceId",
             "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
           }
         ],
         "responses": {
@@ -23887,6 +23933,18 @@
           },
           "required": true
         },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response"
@@ -23926,6 +23984,16 @@
             "in": "path",
             "name": "invoiceId",
             "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
           }
         ],
         "responses": {
@@ -24061,6 +24129,16 @@
             "in": "path",
             "name": "entryId",
             "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
           }
         ],
         "responses": {
@@ -25479,6 +25557,14 @@
             },
             "in": "query",
             "name": "tenantId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "search",
             "required": false
           },
           {

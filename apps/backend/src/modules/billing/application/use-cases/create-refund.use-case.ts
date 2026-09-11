@@ -6,17 +6,23 @@ import {
   EntryNotFoundError,
   EntryNotRefundableError,
   RefundExceedsOriginalAmountError,
+  BillingIdempotencyPayloadMismatchError,
+  BillingIdempotencyInProgressError,
 } from '../../domain/billing.errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
+import { hashIdempotencyPayload } from '../../../../shared/domain/idempotency-payload-hash';
+
+const IDEMPOTENCY_SCOPE = 'refund';
+const IDEMPOTENCY_TTL_HOURS = 24;
 
 export interface CreateRefundInput {
   entryId: string;
   description: string;
   reason: string;
   amount?: number;
-  idempotencyKey?: string;
+  idempotencyKey: string;
   actor: AuthContext;
 }
 
@@ -44,18 +50,51 @@ export class CreateRefundUseCase {
   ) {}
 
   async execute(input: CreateRefundInput): Promise<CreateRefundOutput> {
-    const { entryId, description, reason, actor } = input;
+    const { actor } = input;
 
     // 1. Validate actor role
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'financial.refund', entityType: 'FinancialEntry' });
 
-    // 1.5 Idempotency check
-    if (input.idempotencyKey) {
-      const cached = await this.idempotencyService.get<CreateRefundOutput>(input.idempotencyKey, 'refund');
-      if (cached) {
-        return cached;
-      }
+    // 1.5 Idempotency: acquire the claim before any write so a retry (or a
+    // concurrent duplicate) never runs the mutation twice.
+    const payloadHash = hashIdempotencyPayload({
+      entryId: input.entryId,
+      description: input.description,
+      reason: input.reason,
+      amount: input.amount ?? null,
+      actor: { userId: actor.userId, tenantId: actor.tenantId, role: actor.role },
+    });
+    const claim = await this.idempotencyService.tryAcquire<CreateRefundOutput>(
+      input.idempotencyKey,
+      IDEMPOTENCY_SCOPE,
+      payloadHash,
+      IDEMPOTENCY_TTL_HOURS,
+    );
+    if (claim.status !== 'acquired' && claim.payloadHash !== payloadHash) {
+      throw new BillingIdempotencyPayloadMismatchError();
     }
+    if (claim.status === 'completed') {
+      return claim.response;
+    }
+    if (claim.status === 'in_progress') {
+      throw new BillingIdempotencyInProgressError();
+    }
+    const ownerToken = claim.ownerToken;
+
+    try {
+      return await this.doExecute(input, payloadHash, ownerToken);
+    } catch (error) {
+      await this.idempotencyService.release(input.idempotencyKey, IDEMPOTENCY_SCOPE, payloadHash, ownerToken).catch(() => {});
+      throw error;
+    }
+  }
+
+  private async doExecute(
+    input: CreateRefundInput,
+    payloadHash: string,
+    ownerToken: string,
+  ): Promise<CreateRefundOutput> {
+    const { entryId, description, reason, actor } = input;
 
     // 2. Load original entry
     const original = await this.financialEntryRepo.findById(entryId);
@@ -136,8 +175,16 @@ export class CreateRefundUseCase {
       createdAt: now,
     };
 
-    if (input.idempotencyKey) {
-      await this.idempotencyService.set(input.idempotencyKey, 'refund', result, 24);
+    const completed = await this.idempotencyService.complete(
+      input.idempotencyKey,
+      IDEMPOTENCY_SCOPE,
+      ownerToken,
+      result,
+      IDEMPOTENCY_TTL_HOURS,
+      payloadHash,
+    );
+    if (!completed) {
+      throw new BillingIdempotencyInProgressError();
     }
 
     return result;

@@ -11,7 +11,16 @@ import type { IAppointmentRepository } from '../../../appointment/domain/appoint
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import { TenantInactiveError, TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
 import { AppointmentNotFoundError } from '../../../appointment/domain/appointment.errors';
-import { EntryNotFoundError, InspectorNotFoundError } from '../../domain/billing.errors';
+import {
+  EntryNotFoundError,
+  InspectorNotFoundError,
+  BillingIdempotencyPayloadMismatchError,
+  BillingIdempotencyInProgressError,
+} from '../../domain/billing.errors';
+import { hashIdempotencyPayload } from '../../../../shared/domain/idempotency-payload-hash';
+
+const IDEMPOTENCY_SCOPE = 'manual-adjustment';
+const IDEMPOTENCY_TTL_HOURS = 24;
 
 export interface CreateManualAdjustmentInput {
   tenantId: string;
@@ -22,7 +31,7 @@ export interface CreateManualAdjustmentInput {
   reason: string;
   effectiveAt?: Date;
   referenceEntryId?: string;
-  idempotencyKey?: string;
+  idempotencyKey: string;
   actor: AuthContext;
 }
 
@@ -63,13 +72,50 @@ export class CreateManualAdjustmentUseCase {
     // 1. Validate actor role
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'financial.manual_adjustment', entityType: 'FinancialEntry' });
 
-    // 1.5 Idempotency check (external key from Idempotency-Key header)
-    if (input.idempotencyKey) {
-      const cached = await this.idempotencyService.get<CreateManualAdjustmentOutput>(input.idempotencyKey, 'manual-adjustment');
-      if (cached) {
-        return cached;
-      }
+    // 1.5 Idempotency: acquire the claim before any write so a retry (or a
+    // concurrent duplicate) never runs the mutation twice.
+    const payloadHash = hashIdempotencyPayload({
+      tenantId: input.tenantId,
+      appointmentId: input.appointmentId ?? null,
+      inspectorId: input.inspectorId ?? null,
+      amount: input.amount,
+      description: input.description,
+      reason: input.reason,
+      effectiveAt: input.effectiveAt ? input.effectiveAt.toISOString() : null,
+      referenceEntryId: input.referenceEntryId ?? null,
+      actor: { userId: actor.userId, tenantId: actor.tenantId, role: actor.role },
+    });
+    const claim = await this.idempotencyService.tryAcquire<CreateManualAdjustmentOutput>(
+      input.idempotencyKey,
+      IDEMPOTENCY_SCOPE,
+      payloadHash,
+      IDEMPOTENCY_TTL_HOURS,
+    );
+    if (claim.status !== 'acquired' && claim.payloadHash !== payloadHash) {
+      throw new BillingIdempotencyPayloadMismatchError();
     }
+    if (claim.status === 'completed') {
+      return claim.response;
+    }
+    if (claim.status === 'in_progress') {
+      throw new BillingIdempotencyInProgressError();
+    }
+    const ownerToken = claim.ownerToken;
+
+    try {
+      return await this.doExecute(input, payloadHash, ownerToken);
+    } catch (error) {
+      await this.idempotencyService.release(input.idempotencyKey, IDEMPOTENCY_SCOPE, payloadHash, ownerToken).catch(() => {});
+      throw error;
+    }
+  }
+
+  private async doExecute(
+    input: CreateManualAdjustmentInput,
+    payloadHash: string,
+    ownerToken: string,
+  ): Promise<CreateManualAdjustmentOutput> {
+    const { actor } = input;
 
     // 2. Resolve tenant currency
     const tenant = await this.tenantRepo.findById(input.tenantId);
@@ -186,8 +232,16 @@ export class CreateManualAdjustmentUseCase {
       updatedAt: now,
     };
 
-    if (input.idempotencyKey) {
-      await this.idempotencyService.set(input.idempotencyKey, 'manual-adjustment', result, 24);
+    const completed = await this.idempotencyService.complete(
+      input.idempotencyKey,
+      IDEMPOTENCY_SCOPE,
+      ownerToken,
+      result,
+      IDEMPOTENCY_TTL_HOURS,
+      payloadHash,
+    );
+    if (!completed) {
+      throw new BillingIdempotencyInProgressError();
     }
 
     return result;
