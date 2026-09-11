@@ -49,7 +49,7 @@ export class StartInspectionUseCase {
     private readonly idempotencyService: IIdempotencyService,
     private readonly auditService: AuditService,
     private readonly serviceTypeReader: IServiceTypeReader,
-    private readonly authorizationService?: AuthorizationService,
+    private readonly authorizationService: AuthorizationService,
     /** Cached tenants.timezone lookup; absent → platform-timezone gates. */
     private readonly tenantTimezoneLookup?: ITenantTimezoneLookup,
   ) {}
@@ -58,7 +58,7 @@ export class StartInspectionUseCase {
     const { appointmentId, latitude, longitude, idempotencyKey, actor } = input;
 
     // 1. INSP only
-    this.authorizationService!.assertRoles(actor, ['INSP'], {
+    this.authorizationService.assertRoles(actor, ['INSP'], {
       action: 'appointment.mark_done',
       entityType: 'InspectionExecution',
     });

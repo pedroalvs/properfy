@@ -1,10 +1,12 @@
+import type { Prisma } from '@prisma/client';
+import type { AvailabilitySlotStatus } from '@properfy/shared';
 import type { AvailabilitySlotEntity } from './availability-slot.entity';
 
 export interface AvailabilitySlotFilters {
   inspectorId?: string;
   dateFrom?: string;
   dateTo?: string;
-  status?: string;
+  status?: AvailabilitySlotStatus;
 }
 
 export interface PaginationParams {

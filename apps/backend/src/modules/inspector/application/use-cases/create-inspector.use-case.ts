@@ -51,14 +51,14 @@ export class CreateInspectorUseCase {
     private readonly inspectorRepo: IInspectorRepository,
     private readonly userManagementRepo: IUserManagementRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
     private readonly serviceRegionRepo?: IServiceRegionRepository,
-    private readonly authorizationService?: AuthorizationService,
   ) {}
 
   async execute(input: CreateInspectorInput): Promise<CreateInspectorOutput> {
     const { name, email, password, phone, paymentSettings, regionIds, serviceTypes, actor } = input;
 
-    this.authorizationService!.assertRoles(actor, ['AM', 'OP'], {
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
       action: 'inspector.create',
       entityType: 'Inspector',
     });

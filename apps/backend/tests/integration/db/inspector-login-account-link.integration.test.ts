@@ -103,8 +103,8 @@ describe('CreateInspectorUseCase against real Postgres', () => {
       repo,
       userRepo,
       auditService,
-      undefined,
       new AuthorizationService(auditService),
+      undefined,
     );
 
     const created = await useCase.execute({
@@ -143,8 +143,8 @@ describe('CreateInspectorUseCase against real Postgres', () => {
       repo,
       new PrismaUserManagementRepository(harness.prisma),
       auditService,
-      undefined,
       new AuthorizationService(auditService),
+      undefined,
     );
 
     await useCase.execute({

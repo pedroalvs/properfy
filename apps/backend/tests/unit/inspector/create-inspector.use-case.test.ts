@@ -104,7 +104,7 @@ describe('CreateInspectorUseCase', () => {
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     const authorizationService = new AuthorizationService(auditService);
-    useCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, undefined, authorizationService);
+    useCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, authorizationService, undefined);
   });
 
   it('should create inspector for AM with auto-created user record', async () => {
@@ -338,8 +338,8 @@ describe('CreateInspectorUseCase', () => {
         inspectorRepo,
         userManagementRepo,
         auditService,
-        serviceRegionRepo,
         new AuthorizationService(auditService),
+        serviceRegionRepo,
       );
       vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(null);
       vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);

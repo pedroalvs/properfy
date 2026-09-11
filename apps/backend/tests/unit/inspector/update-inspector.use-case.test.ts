@@ -66,7 +66,7 @@ describe('UpdateInspectorUseCase', () => {
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     const authorizationService = new AuthorizationService(auditService);
-    useCase = new UpdateInspectorUseCase(inspectorRepo, auditService, undefined, authorizationService);
+    useCase = new UpdateInspectorUseCase(inspectorRepo, auditService, authorizationService, undefined);
   });
 
   it('should update inspector for AM', async () => {
@@ -182,8 +182,8 @@ describe('UpdateInspectorUseCase', () => {
     useCase = new UpdateInspectorUseCase(
       inspectorRepo,
       auditService,
-      undefined,
       authorizationService,
+      undefined,
       userManagementRepo,
     );
     vi.mocked(inspectorRepo.findById).mockResolvedValue(
