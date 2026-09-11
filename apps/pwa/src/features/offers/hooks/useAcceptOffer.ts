@@ -1,18 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { apiPost } from '@/hooks/useApiQuery';
-import { ApiError, getErrorMessage } from '@/lib/api-error';
+import { api } from '@/services/api';
+import { ApiError, toApiError, getErrorMessage } from '@/lib/api-error';
 import { generateIdempotencyKey } from '@/lib/idempotency';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import type { OfferAcceptState } from '../types';
-
-interface AcceptResult {
-  groupId: string;
-  status: string;
-  assignedInspectorId: string;
-  appointmentsScheduled: number;
-  acceptedAt: string;
-}
 
 export function useAcceptOffer() {
   const queryClient = useQueryClient();
@@ -50,13 +42,21 @@ export function useAcceptOffer() {
   );
 
   const startConfirm = useCallback(
-    (groupId: string) => setState(groupId, 'CONFIRMING'),
-    [setState],
+    (groupId: string) => {
+      // Clear any pending post-ERROR reset timer: reopening the confirm sheet
+      // within the 4s window must not have the stale timer yank it back to IDLE.
+      clearResetTimer(groupId);
+      setState(groupId, 'CONFIRMING');
+    },
+    [clearResetTimer, setState],
   );
 
   const cancelConfirm = useCallback(
-    (groupId: string) => setState(groupId, 'IDLE'),
-    [setState],
+    (groupId: string) => {
+      clearResetTimer(groupId);
+      setState(groupId, 'IDLE');
+    },
+    [clearResetTimer, setState],
   );
 
   const accept = useCallback(
@@ -67,11 +67,21 @@ export function useAcceptOffer() {
       const idempotencyKey = generateIdempotencyKey();
 
       try {
-        await apiPost<{ data: AcceptResult }>(
-          `/v1/marketplace/offers/${groupId}/accept`,
-          {},
-          { 'Idempotency-Key': idempotencyKey },
-        );
+        // Typed against the generated contract (literal path + path params)
+        // instead of a template-string call with a local response interface.
+        const result = await api.POST('/v1/marketplace/offers/{groupId}/accept', {
+          params: { path: { groupId } },
+          headers: {
+            'Idempotency-Key': idempotencyKey,
+          },
+        });
+        // The endpoint declares only a 200, so `result.error` is typed `never`;
+        // at runtime openapi-fetch still populates it (and a non-ok response) on
+        // failure. Normalize into the same ApiError the branches below expect,
+        // preserving the real HTTP status and the backend error code.
+        if (result.error || result.response?.ok === false) {
+          throw toApiError(result.error, result.response?.status);
+        }
         setState(groupId, 'ACCEPTED');
         showSuccess('You accepted the group!');
         queryClient.invalidateQueries({ queryKey: ['marketplace', 'offers'] });

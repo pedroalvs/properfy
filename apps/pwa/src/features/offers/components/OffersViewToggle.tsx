@@ -10,6 +10,7 @@ export function OffersViewToggle({ value, onChange }: OffersViewToggleProps) {
         <button
           key={option}
           role="tab"
+          aria-selected={value === option}
           data-active={String(value === option)}
           onClick={() => onChange(option)}
           className={`flex-1 rounded-lg py-1.5 text-sm font-medium transition-all ${
