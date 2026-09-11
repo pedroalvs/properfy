@@ -65,14 +65,21 @@ export class PrismaBranchRepository implements IBranchRepository {
     filters: BranchFilters,
     pagination: PaginationParams,
   ): Promise<BranchEntity[]> {
+    const VALID_SORT_FIELDS = new Set([
+      'name',
+      'status',
+      'contact_email',
+      'created_at',
+      'updated_at',
+    ]);
+    const rawSort = toSnakeCase(pagination.sortBy ?? 'created_at');
+    const sortField = VALID_SORT_FIELDS.has(rawSort) ? rawSort : 'created_at';
     const where = this.buildWhere(tenantId, filters);
     const rows = await this.prisma.branch.findMany({
       where,
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
-      orderBy: {
-        [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
-      },
+      orderBy: { [sortField]: pagination.sortOrder },
     });
     return rows.map(mapToEntity);
   }
