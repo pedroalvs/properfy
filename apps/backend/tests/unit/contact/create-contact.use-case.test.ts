@@ -191,6 +191,14 @@ describe('CreateContactUseCase', () => {
       expect(contactRepo.save).toHaveBeenCalledOnce();
       expect(result.displayName).toBe('Alice Smith');
     });
+
+    it.each(['AM', 'OP'] as const)('allows %s to create (cross-tenant operational roles)', async (actorRole) => {
+      const sut = makeSut();
+
+      await sut.execute(baseInput({ actorRole }));
+
+      expect(contactRepo.save).toHaveBeenCalledOnce();
+    });
   });
 
   describe('024 §FR-301 — standalone contact creation', () => {
