@@ -220,6 +220,38 @@ describe('useServiceGroupList', () => {
     expect(result.current.data).toHaveLength(0);
   });
 
+  it('surfaces the backend error message via errorMessage (#652)', async () => {
+    // The hook used to hardcode `errorMessage: null`, so every failure fell back
+    // to the page's generic copy. Guard the real contract: a 4xx envelope with a
+    // message must reach the consumer verbatim.
+    mockGet.mockResolvedValueOnce({
+      data: undefined,
+      error: { error: { code: 'VALIDATION', message: 'Could not load service groups' } },
+      response: { status: 400, headers: { get: () => null } },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.errorMessage).toBe('Could not load service groups');
+  });
+
+  it('keeps errorMessage null while the query is healthy (#652)', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceGroupList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isError).toBe(false);
+    expect(result.current.errorMessage).toBeNull();
+  });
+
   it('keeps a stable data array reference across re-renders with unchanged data', async () => {
     // Regression guard for the PR #961 bug class: an unstable reference here
     // can feed a consumer effect (e.g. deps [isEditMode, entity]) whose

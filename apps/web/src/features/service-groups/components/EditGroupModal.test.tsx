@@ -208,6 +208,60 @@ describe('EditGroupModal', () => {
     expect(payload).not.toHaveProperty('timeWindow');
   });
 
+  it('preserves in-progress edits when the same group is refetched (#448)', () => {
+    const { rerender } = render(
+      <EditGroupModal
+        open={true}
+        onClose={vi.fn()}
+        serviceGroup={mockServiceGroup}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    const descInput = screen.getByLabelText('Service group description');
+    fireEvent.change(descInput, { target: { value: 'Operator was typing this' } });
+    expect(descInput).toHaveValue('Operator was typing this');
+
+    // A React Query background refetch mints a new object of the SAME id.
+    rerender(
+      <EditGroupModal
+        open={true}
+        onClose={vi.fn()}
+        serviceGroup={{ ...mockServiceGroup, description: 'A test group' }}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    // The populate effect must NOT refire and wipe the operator's text.
+    expect(screen.getByLabelText('Service group description')).toHaveValue('Operator was typing this');
+  });
+
+  it('re-initialises the form when a different group is targeted (#448)', () => {
+    const { rerender } = render(
+      <EditGroupModal
+        open={true}
+        onClose={vi.fn()}
+        serviceGroup={mockServiceGroup}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Service group description'), {
+      target: { value: 'edited' },
+    });
+
+    rerender(
+      <EditGroupModal
+        open={true}
+        onClose={vi.fn()}
+        serviceGroup={{ ...mockServiceGroup, id: 'sg-99', description: 'Different group' }}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Service group description')).toHaveValue('Different group');
+  });
+
   it('calls onClose when Cancel is clicked', () => {
     const onClose = vi.fn();
     render(

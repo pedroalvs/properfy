@@ -24,12 +24,18 @@ export function EditGroupModal({ open, onClose, serviceGroup, onSaved }: EditGro
     onClose();
   });
 
+  // Re-initialise only when the modal opens or targets a different group — not on
+  // every `serviceGroup` identity change. React Query background refetches mint a
+  // new object while the modal is open; depending on the whole object would refire
+  // this effect and discard whatever the operator has typed. Initialisation still
+  // reads the latest values at that moment.
   useEffect(() => {
     if (open) {
       setDescription(serviceGroup.description ?? '');
       setServiceRegionId(serviceGroup.serviceRegionId ?? '');
     }
-  }, [open, serviceGroup]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, serviceGroup.id]);
 
   const handleSave = () => {
     const data: UpdateServiceGroupData = {};
