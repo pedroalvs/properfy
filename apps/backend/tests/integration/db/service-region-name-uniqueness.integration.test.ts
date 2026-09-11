@@ -103,6 +103,35 @@ describe('#614 — case-insensitive service region name uniqueness', () => {
     await expect(repo.save(dup)).rejects.toBeInstanceOf(ServiceRegionNameConflictError);
   });
 
+  it('rejects a global region rename that duplicates another global region name (#614 global gap)', async () => {
+    // Global regions (tenant_id NULL) are not covered by the composite index —
+    // NULLs are distinct — so the partial index must guard them. Update path has
+    // no app pre-check, so without the partial index this would silently succeed.
+    await seedServiceRegion(harness.prisma, {
+      tenantId: null as unknown as string,
+      name: 'National North',
+      geojson: SYDNEY_POLYGON_GEOJSON,
+      status: 'ACTIVE',
+    });
+    const { regionId: otherGlobalId } = await seedServiceRegion(harness.prisma, {
+      tenantId: null as unknown as string,
+      name: 'National South',
+      geojson: SYDNEY_POLYGON_GEOJSON,
+      status: 'ACTIVE',
+    });
+
+    const updateUseCase = new UpdateServiceRegionUseCase(repo, silentAuditService(), authorizationService);
+
+    // AM (JWT tenantId null) updating a global region.
+    await expect(
+      updateUseCase.execute({
+        regionId: otherGlobalId,
+        name: 'national north',
+        actor: { userId: 'am-1', tenantId: null, role: 'AM', branchId: null, inspectorId: null },
+      }),
+    ).rejects.toBeInstanceOf(ServiceRegionNameConflictError);
+  });
+
   it('allows the same name under a different tenant (index is tenant-scoped)', async () => {
     const { tenantId: tenantA } = await seedTenant(harness.prisma, 'CI Name Tenant C');
     const { tenantId: tenantB, userId: userB } = await seedTenant(harness.prisma, 'CI Name Tenant D');
