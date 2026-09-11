@@ -88,6 +88,7 @@ describe('ExecuteDataSubjectErasureUseCase', () => {
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
+      transitionStatus: vi.fn().mockResolvedValue(true),
     };
     auditLogRepo = {
       save: vi.fn(),
@@ -265,5 +266,72 @@ describe('ExecuteDataSubjectErasureUseCase', () => {
     await expect(
       useCase.execute({ requestId: 'req-1', actor: amActor() }),
     ).rejects.toThrow(/invalid state|COMPLETED/i);
+  });
+
+  it('atomic CAS: only one of two concurrent executes proceeds; one meta-audit write (#435)', async () => {
+    // Each call gets its own entity instance so a winner's mutation cannot leak.
+    (erasureRequestRepo.findById as any).mockImplementation(async () =>
+      makeRequest('PREVIEW', ['foo@bar.com']),
+    );
+    // First caller wins the compare-and-set, the second loses it.
+    (erasureRequestRepo.transitionStatus as any)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+    (auditLogRepo.searchPiiByValues as any).mockResolvedValue([]);
+
+    const settled = await Promise.allSettled([
+      useCase.execute({ requestId: 'req-1', actor: amActor() }),
+      useCase.execute({ requestId: 'req-1', actor: amActor() }),
+    ]);
+
+    expect(settled.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(settled.filter((r) => r.status === 'rejected')).toHaveLength(1);
+    // The loser must not emit a second meta-audit entry.
+    expect(auditService.log).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists FAILED (not COMPLETED) with skipped ids when a snapshot update fails (#412)', async () => {
+    (erasureRequestRepo.findById as any).mockResolvedValueOnce(
+      makeRequest('PREVIEW', ['foo@bar.com']),
+    );
+    (auditLogRepo.searchPiiByValues as any).mockResolvedValueOnce([
+      { id: 'e1', entityType: 'User', entityId: 'u1', action: 'user.updated', tenantId: null, retentionCategory: 'OPERATIONAL_CRITICAL', redactionStatus: 'NONE', isArchived: false },
+    ]);
+    (piiFieldMappingRepo.findAll as any).mockResolvedValueOnce([makePiiMapping('user.', 'email')]);
+    (auditLogRepo.findByIds as any).mockResolvedValueOnce([
+      makeEntry({ id: 'e1', before: { email: 'foo@bar.com' } }),
+    ]);
+    (auditLogRepo.updateRedactedSnapshots as any).mockRejectedValueOnce(new Error('db down'));
+
+    const result = await useCase.execute({ requestId: 'req-1', actor: amActor() });
+
+    expect(result.status).toBe('FAILED');
+    expect(result.entriesSkipped).toBe(1);
+    const updateCalls = (erasureRequestRepo.update as any).mock.calls;
+    const persisted = updateCalls[updateCalls.length - 1][0];
+    expect(persisted.status).toBe('FAILED');
+    expect((persisted.completionReportJson as any).failedEntryIds).toContain('e1');
+  });
+
+  it('counts a PARTIAL (unstructured) entry as flagged for review AND redacted (#444)', async () => {
+    (erasureRequestRepo.findById as any).mockResolvedValueOnce(
+      makeRequest('PREVIEW', ['secret note']),
+    );
+    (auditLogRepo.searchPiiByValues as any).mockResolvedValueOnce([
+      { id: 'e1', entityType: 'User', entityId: 'u1', action: 'user.updated', tenantId: null, retentionCategory: 'OPERATIONAL_CRITICAL', redactionStatus: 'NONE', isArchived: false },
+    ]);
+    (piiFieldMappingRepo.findAll as any).mockResolvedValueOnce([
+      makePiiMapping('user.', 'notes', 'unstructured'),
+    ]);
+    (auditLogRepo.findByIds as any).mockResolvedValueOnce([
+      makeEntry({ id: 'e1', before: { notes: 'contains secret note text' } }),
+    ]);
+
+    const result = await useCase.execute({ requestId: 'req-1', actor: amActor() });
+
+    expect(result.entriesRedacted).toBe(1);
+    expect(result.entriesFlaggedForReview).toBe(1);
+    const call = (auditLogRepo.updateRedactedSnapshots as any).mock.calls[0];
+    expect(call[4]).toBe('PARTIAL');
   });
 });
