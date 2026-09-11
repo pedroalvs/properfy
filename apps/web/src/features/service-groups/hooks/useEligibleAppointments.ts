@@ -5,6 +5,7 @@ export interface UseEligibleAppointmentsReturn {
   data: EligibleAppointment[];
   isLoading: boolean;
   isError: boolean;
+  refetch: () => void;
 }
 
 export function useEligibleAppointments(
@@ -13,7 +14,7 @@ export function useEligibleAppointments(
 ): UseEligibleAppointmentsReturn {
   const tenantReady = tenantId === undefined || tenantId === null || tenantId.length > 0;
 
-  const { data: response, isLoading, isError } = usePaginatedQuery<EligibleAppointment>(
+  const { data: response, isLoading, isError, refetch } = usePaginatedQuery<EligibleAppointment>(
     ['appointments', 'eligible', serviceTypeId, tenantId ?? null],
     '/v1/appointments',
     {
@@ -29,5 +30,6 @@ export function useEligibleAppointments(
     data: response?.data ?? [],
     isLoading,
     isError,
+    refetch,
   };
 }

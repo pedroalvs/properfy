@@ -28,7 +28,12 @@ export function MapGroupCreateModal({
   selectedAppointments,
   onSuccess,
 }: MapGroupCreateModalProps) {
-  const selectedAppointmentIds = selectedAppointments.map((a) => a.id);
+  // Stable identity per selection: this feeds handleSubmit's useCallback deps and
+  // the Dialog title, so a fresh array every render would needlessly rebuild them.
+  const selectedAppointmentIds = useMemo(
+    () => selectedAppointments.map((a) => a.id),
+    [selectedAppointments],
+  );
   // Groups may span agencies. A single group-level region only applies to a
   // single-agency group; mixed-agency groups rely on per-appointment region
   // matching in the marketplace, so the region selector is hidden for them.

@@ -81,12 +81,11 @@ const MOCK_ELIGIBLE = Array.from({ length: 8 }, (_, i) => ({
   status: 'AWAITING_INSPECTOR',
 }));
 
+const mockUseEligibleAppointments = vi.hoisted(() => vi.fn());
+const mockRefetchEligible = vi.hoisted(() => vi.fn());
+
 vi.mock('../hooks/useEligibleAppointments', () => ({
-  useEligibleAppointments: (serviceTypeId: string | null, tenantId?: string | null) => ({
-    data: serviceTypeId && tenantId ? MOCK_ELIGIBLE : [],
-    isLoading: false,
-    isError: false,
-  }),
+  useEligibleAppointments: mockUseEligibleAppointments,
 }));
 
 vi.mock('@/lib/status-colors', () => ({
@@ -142,6 +141,14 @@ function renderPage() {
 describe('ServiceGroupCreatePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseEligibleAppointments.mockImplementation(
+      (serviceTypeId: string | null, tenantId?: string | null) => ({
+        data: serviceTypeId && tenantId ? MOCK_ELIGIBLE : [],
+        isLoading: false,
+        isError: false,
+        refetch: mockRefetchEligible,
+      }),
+    );
     mockPost.mockImplementation((url: string) => {
       if (url === '/v1/service-regions/resolve') {
         return Promise.resolve({
@@ -340,6 +347,28 @@ describe('ServiceGroupCreatePage', () => {
     await waitFor(() => {
       expect(mockShowSuccess).toHaveBeenCalledWith('Service group G-42 created');
     });
+  });
+
+  it('shows a recoverable error banner (not the empty state) when eligible appointments fail to load (#456)', () => {
+    mockUseEligibleAppointments.mockImplementation(() => ({
+      data: [],
+      isLoading: false,
+      isError: true,
+      refetch: mockRefetchEligible,
+    }));
+
+    renderPage();
+    selectAgency();
+    selectServiceType();
+
+    // The error banner shows with a retry, and the "no eligible appointments"
+    // empty-state copy must NOT be presented as if the query simply returned zero.
+    expect(screen.getByText('Could not load eligible appointments. Please try again.')).toBeInTheDocument();
+    const retry = screen.getByRole('button', { name: 'Retry' });
+    expect(screen.queryByText(/no eligible appointments/i)).not.toBeInTheDocument();
+
+    fireEvent.click(retry);
+    expect(mockRefetchEligible).toHaveBeenCalledTimes(1);
   });
 
   it('shows the generic success toast when the API response has no code', async () => {
