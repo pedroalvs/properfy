@@ -10,8 +10,8 @@
 -- SQL and documented with a schema comment on model ServiceRegion. Do NOT let a
 -- later `migrate dev` drop it (see project_prisma_drift_drops_unsupported_indexes).
 --
--- NULL tenant_id (global regions) keeps the same NULLs-are-distinct semantics as
--- the existing @@unique, so global regions still rely on the app-level check.
+-- NULL tenant_id (global regions) is NOT constrained by this index — Postgres
+-- treats NULLs as distinct — so a second, partial index below covers globals.
 --
 -- PRE-CHECK BEFORE APPLYING TO STAGING/PROD — this index creation FAILS if any
 -- tenant already holds case-variant duplicate names. Run first and resolve any
