@@ -55,8 +55,8 @@ export class UpdateInspectorUseCase {
   constructor(
     private readonly inspectorRepo: IInspectorRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
     private readonly serviceRegionRepo?: IServiceRegionRepository,
-    private readonly authorizationService?: AuthorizationService,
     private readonly userManagementRepo?: IUserManagementRepository,
   ) {}
 
@@ -78,7 +78,7 @@ export class UpdateInspectorUseCase {
   async execute(input: UpdateInspectorInput): Promise<UpdateInspectorOutput> {
     const { inspectorId, data, actor } = input;
 
-    this.authorizationService!.assertRoles(actor, ['AM', 'OP'], {
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
       action: 'inspector.update',
       entityType: 'Inspector',
     });

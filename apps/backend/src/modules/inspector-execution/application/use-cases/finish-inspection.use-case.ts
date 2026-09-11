@@ -35,7 +35,7 @@ export class FinishInspectionUseCase {
     private readonly executeStatusTransition: ExecuteStatusTransitionUseCase,
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
-    private readonly authorizationService?: AuthorizationService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async execute(input: FinishInspectionInput): Promise<FinishInspectionOutput> {
@@ -48,7 +48,7 @@ export class FinishInspectionUseCase {
     } = input;
 
     // 1. INSP only
-    this.authorizationService!.assertRoles(actor, ['INSP'], {
+    this.authorizationService.assertRoles(actor, ['INSP'], {
       action: 'appointment.mark_done',
       entityType: 'InspectionExecution',
     });
