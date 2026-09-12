@@ -90,4 +90,29 @@ describe('useInspectorDocumentUpload', () => {
     expect(result.current.uploadError).toBe('Upload timed out');
     expect(mockShowError).toHaveBeenCalledWith('Upload timed out');
   });
+
+  it('completes the presign → PUT → confirm flow, clears the timer and resets isUploading', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValue({ ok: true } as Response);
+    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useInspectorDocumentUpload(), { wrapper });
+
+    let success!: boolean;
+    await act(async () => {
+      success = await result.current.upload('insp-01', 'INSURANCE', makeFile());
+    });
+
+    expect(success).toBe(true);
+    // presign + confirm
+    expect(mockPost).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    // The timeout timer is cleared on the success path (no leak).
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+    expect(result.current.isUploading).toBe(false);
+    expect(result.current.uploadError).toBeNull();
+    expect(mockShowSuccess).toHaveBeenCalled();
+  });
 });
