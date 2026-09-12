@@ -33,6 +33,7 @@ export interface CreateUserInput {
   /** Personal timezone. Cross-tenant roles only — rejected for CL_* roles. */
   timezone?: string;
   actor: AuthContext;
+  requestId?: string;
 }
 
 export interface CreateUserOutput {
@@ -188,6 +189,7 @@ export class CreateUserUseCase {
       entityType: 'User',
       entityId: user.id,
       tenantId: tenantId ?? undefined,
+      requestId: input.requestId,
       after: {
         id: user.id,
         name: user.name,

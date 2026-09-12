@@ -14,6 +14,7 @@ export interface ReactivateUserInput {
   userId: string;
   actor: AuthContext;
   reason?: string;
+  requestId?: string;
 }
 
 export class ReactivateUserUseCase {
@@ -92,6 +93,7 @@ export class ReactivateUserUseCase {
       entityType: 'User',
       entityId: userId,
       tenantId,
+      requestId: input.requestId,
       before: { status: user.status },
       after: { status: 'ACTIVE' },
       reason,

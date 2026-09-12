@@ -23,6 +23,7 @@ export interface ResetUserPasswordInput {
   userId: string;
   newPassword: string;
   actor: AuthContext;
+  requestId?: string;
 }
 
 export class ResetUserPasswordUseCase {
@@ -92,6 +93,7 @@ export class ResetUserPasswordUseCase {
           entityType: 'User',
           entityId: userId,
           tenantId: tenantId ?? undefined,
+          requestId: input.requestId,
           metadata: {
             resetByRole: actor.role,
             unlockedAccount: user.status === 'LOCKED',

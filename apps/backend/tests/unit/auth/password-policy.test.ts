@@ -53,4 +53,21 @@ describe('validatePasswordStrength', () => {
     expect(result.violations).toContain('Password must contain at least one digit');
     expect(result.violations).toContain('Password must contain at least one special character');
   });
+
+  // WI-12: max-length rule (>128 chars invalid; 128 chars valid).
+  it('should fail for a 129-character password with the max-length violation', () => {
+    const password = 'Aa1!' + 'x'.repeat(125); // 129 chars total
+    expect(password).toHaveLength(129);
+    const result = validatePasswordStrength(password);
+    expect(result.valid).toBe(false);
+    expect(result.violations).toContain('Password must be at most 128 characters');
+  });
+
+  it('should pass for an otherwise-valid 128-character password', () => {
+    const password = 'Aa1!' + 'x'.repeat(124); // 128 chars total
+    expect(password).toHaveLength(128);
+    const result = validatePasswordStrength(password);
+    expect(result.valid).toBe(true);
+    expect(result.violations).toHaveLength(0);
+  });
 });

@@ -90,6 +90,7 @@ describe('POST /v1/tenants/:tenantId/users/:userId/reset-password', () => {
       userId: USER_ID,
       newPassword: 'NewStrong1!',
       actor: amContext,
+      requestId: expect.any(String),
     });
   });
 
@@ -122,6 +123,7 @@ describe('POST /v1/users/:userId/reset-password', () => {
       userId: USER_ID,
       newPassword: 'NewStrong1!',
       actor: amContext,
+      requestId: expect.any(String),
     });
   });
 });
@@ -242,6 +244,7 @@ describe('POST /v1/users', () => {
       password: 'StrongPass1!',
       role: 'OP',
       actor: amContext,
+      requestId: expect.any(String),
     });
   });
 });
@@ -475,6 +478,7 @@ describe('PATCH /v1/users/:userId', () => {
       userId: USER_ID,
       data: { name: 'Ops Lead' },
       actor: amContext,
+      requestId: expect.any(String),
     });
   });
 });
@@ -529,6 +533,7 @@ describe('POST /v1/users/:userId/deactivate', () => {
       userId: USER_ID,
       reason: 'Employee left the platform',
       actor: amContext,
+      requestId: expect.any(String),
     });
   });
 
@@ -569,6 +574,7 @@ describe('POST /v1/tenants/:tenantId/users/:userId/reactivate', () => {
       tenantId: TENANT_ID,
       userId: USER_ID,
       actor: amContext,
+      requestId: expect.any(String),
     });
   });
 
@@ -596,6 +602,7 @@ describe('POST /v1/users/:userId/reactivate', () => {
       tenantId: null,
       userId: USER_ID,
       actor: amContext,
+      requestId: expect.any(String),
     });
   });
 

@@ -26,6 +26,8 @@ import { z } from 'zod';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import type { JwtService } from '../application/services/jwt.service';
 import { ValidationError } from '../../../shared/domain/errors';
+import { totpSetupResponseSchema, confirmTotpBodySchema } from '../application/dtos/totp.dto';
+import { sessionListResponseSchema, sessionIdParamSchema } from '../application/dtos/session.dto';
 
 export interface AuthRouteContainer {
   loginUseCase: LoginUseCase;
@@ -194,7 +196,7 @@ export async function registerAuthRoutes(
       preHandler: authenticate,
       config: { allowTotpSetupStage: true },
       schema: {
-        response: { 200: z.object({ secret: z.string(), qrUri: z.string() }) },
+        response: { 200: totpSetupResponseSchema },
       },
     },
     async (request, reply) => {
@@ -212,12 +214,12 @@ export async function registerAuthRoutes(
       preHandler: authenticate,
       config: { allowTotpSetupStage: true },
       schema: {
-        body: z.object({ totpCode: z.string().length(6) }),
+        body: confirmTotpBodySchema,
         response: { 204: z.null() },
       },
     },
     async (request, reply) => {
-      const parsed = z.object({ totpCode: z.string().length(6) }).safeParse(request.body);
+      const parsed = confirmTotpBodySchema.safeParse(request.body);
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
@@ -235,20 +237,7 @@ export async function registerAuthRoutes(
     {
       preHandler: authenticate,
       schema: {
-        response: {
-          200: z.object({
-            data: z.array(
-              z.object({
-                id: z.string().uuid(),
-                userAgent: z.string().nullable(),
-                ipAddress: z.string().nullable(),
-                lastActiveAt: z.string().datetime(),
-                createdAt: z.string().datetime(),
-                isCurrent: z.boolean(),
-              }),
-            ),
-          }),
-        },
+        response: { 200: sessionListResponseSchema },
       },
     },
     async (request, reply) => {
@@ -267,12 +256,12 @@ export async function registerAuthRoutes(
     {
       preHandler: authenticate,
       schema: {
-        params: z.object({ sessionId: z.string().uuid() }),
+        params: sessionIdParamSchema,
         response: { 204: z.null() },
       },
     },
     async (request, reply) => {
-      const paramsParsed = z.object({ sessionId: z.string().uuid() }).safeParse(request.params);
+      const paramsParsed = sessionIdParamSchema.safeParse(request.params);
       if (!paramsParsed.success) {
         throw new ValidationError('Invalid session ID', paramsParsed.error.errors);
       }

@@ -11,7 +11,6 @@ import {
   paginatedResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
-import { ValidationError } from '../../../shared/domain/errors';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { CreateUserUseCase } from '../application/use-cases/create-user.use-case';
 import type { GetUserUseCase } from '../application/use-cases/get-user.use-case';
@@ -67,22 +66,12 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const params = tenantIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid tenant ID',
-          params.error.errors,
-        );
-      const parsed = createUserSchema.safeParse(request.body);
-      if (!parsed.success)
-        throw new ValidationError(
-          'Request payload is invalid',
-          parsed.error.errors,
-        );
+      const { tenantId } = request.params as z.infer<typeof tenantIdParam>;
       const result = await container.createUserUseCase.execute({
-        tenantId: params.data.tenantId,
-        ...parsed.data,
+        tenantId,
+        ...(request.body as z.infer<typeof createUserSchema>),
         actor: request.authContext!,
+        requestId: request.id,
       });
       return reply.status(201).send(success(result));
     },
@@ -99,16 +88,11 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const parsed = createUserSchema.safeParse(request.body);
-      if (!parsed.success)
-        throw new ValidationError(
-          'Request payload is invalid',
-          parsed.error.errors,
-        );
       const result = await container.createUserUseCase.execute({
         tenantId: null,
-        ...parsed.data,
+        ...(request.body as z.infer<typeof createUserSchema>),
         actor: request.authContext!,
+        requestId: request.id,
       });
       return reply.status(201).send(success(result));
     },
@@ -126,21 +110,11 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const params = tenantIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid tenant ID',
-          params.error.errors,
-        );
-      const parsed = listUsersQuerySchema.safeParse(request.query);
-      if (!parsed.success)
-        throw new ValidationError(
-          'Invalid query parameters',
-          parsed.error.errors,
-        );
-      const { page, pageSize, sortBy, sortOrder, ...filters } = parsed.data;
+      const { tenantId } = request.params as z.infer<typeof tenantIdParam>;
+      const { page, pageSize, sortBy, sortOrder, ...filters } =
+        request.query as z.infer<typeof listUsersQuerySchema>;
       const result = await container.listUsersUseCase.execute({
-        tenantId: params.data.tenantId,
+        tenantId,
         filters,
         pagination: { page, pageSize, sortBy, sortOrder },
         actor: request.authContext!,
@@ -162,13 +136,8 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const parsed = listUsersQuerySchema.safeParse(request.query);
-      if (!parsed.success)
-        throw new ValidationError(
-          'Invalid query parameters',
-          parsed.error.errors,
-        );
-      const { page, pageSize, sortBy, sortOrder, ...filters } = parsed.data;
+      const { page, pageSize, sortBy, sortOrder, ...filters } =
+        request.query as z.infer<typeof listUsersQuerySchema>;
       const result = await container.listUsersUseCase.execute({
         tenantId: null,
         filters,
@@ -192,15 +161,10 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const params = userIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid parameters',
-          params.error.errors,
-        );
+      const { tenantId, userId } = request.params as z.infer<typeof userIdParam>;
       const result = await container.getUserUseCase.execute({
-        tenantId: params.data.tenantId,
-        userId: params.data.userId,
+        tenantId,
+        userId,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -218,15 +182,10 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const params = internalUserIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid parameters',
-          params.error.errors,
-        );
+      const { userId } = request.params as z.infer<typeof internalUserIdParam>;
       const result = await container.getUserUseCase.execute({
         tenantId: null,
-        userId: params.data.userId,
+        userId,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -245,23 +204,13 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const params = userIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid parameters',
-          params.error.errors,
-        );
-      const parsed = updateUserSchema.safeParse(request.body);
-      if (!parsed.success)
-        throw new ValidationError(
-          'Request payload is invalid',
-          parsed.error.errors,
-        );
+      const { tenantId, userId } = request.params as z.infer<typeof userIdParam>;
       const result = await container.updateUserUseCase.execute({
-        tenantId: params.data.tenantId,
-        userId: params.data.userId,
-        data: parsed.data,
+        tenantId,
+        userId,
+        data: request.body as z.infer<typeof updateUserSchema>,
         actor: request.authContext!,
+        requestId: request.id,
       });
       return reply.status(200).send(success(result));
     },
@@ -279,23 +228,13 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const params = internalUserIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid parameters',
-          params.error.errors,
-        );
-      const parsed = updateUserSchema.safeParse(request.body);
-      if (!parsed.success)
-        throw new ValidationError(
-          'Request payload is invalid',
-          parsed.error.errors,
-        );
+      const { userId } = request.params as z.infer<typeof internalUserIdParam>;
       const result = await container.updateUserUseCase.execute({
         tenantId: null,
-        userId: params.data.userId,
-        data: parsed.data,
+        userId,
+        data: request.body as z.infer<typeof updateUserSchema>,
         actor: request.authContext!,
+        requestId: request.id,
       });
       return reply.status(200).send(success(result));
     },
@@ -313,23 +252,14 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const params = userIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid parameters',
-          params.error.errors,
-        );
-      const parsed = deactivateSchema.safeParse(request.body);
-      if (!parsed.success)
-        throw new ValidationError(
-          'Request payload is invalid',
-          parsed.error.errors,
-        );
+      const { tenantId, userId } = request.params as z.infer<typeof userIdParam>;
+      const { reason } = request.body as z.infer<typeof deactivateSchema>;
       await container.deactivateUserUseCase.execute({
-        tenantId: params.data.tenantId,
-        userId: params.data.userId,
-        reason: parsed.data.reason,
+        tenantId,
+        userId,
+        reason,
         actor: request.authContext!,
+        requestId: request.id,
       });
       return reply.status(204).send();
     },
@@ -347,23 +277,14 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const params = internalUserIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid parameters',
-          params.error.errors,
-        );
-      const parsed = deactivateSchema.safeParse(request.body);
-      if (!parsed.success)
-        throw new ValidationError(
-          'Request payload is invalid',
-          parsed.error.errors,
-        );
+      const { userId } = request.params as z.infer<typeof internalUserIdParam>;
+      const { reason } = request.body as z.infer<typeof deactivateSchema>;
       await container.deactivateUserUseCase.execute({
         tenantId: null,
-        userId: params.data.userId,
-        reason: parsed.data.reason,
+        userId,
+        reason,
         actor: request.authContext!,
+        requestId: request.id,
       });
       return reply.status(204).send();
     },
@@ -380,16 +301,12 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const params = userIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid parameters',
-          params.error.errors,
-        );
+      const { tenantId, userId } = request.params as z.infer<typeof userIdParam>;
       await container.reactivateUserUseCase.execute({
-        tenantId: params.data.tenantId,
-        userId: params.data.userId,
+        tenantId,
+        userId,
         actor: request.authContext!,
+        requestId: request.id,
       });
       return reply.status(204).send();
     },
@@ -406,16 +323,12 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const params = internalUserIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid parameters',
-          params.error.errors,
-        );
+      const { userId } = request.params as z.infer<typeof internalUserIdParam>;
       await container.reactivateUserUseCase.execute({
         tenantId: null,
-        userId: params.data.userId,
+        userId,
         actor: request.authContext!,
+        requestId: request.id,
       });
       return reply.status(204).send();
     },
@@ -432,16 +345,12 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const params = userIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid parameters',
-          params.error.errors,
-        );
+      const { tenantId, userId } = request.params as z.infer<typeof userIdParam>;
       await container.unlockUserUseCase.execute({
-        tenantId: params.data.tenantId,
-        userId: params.data.userId,
+        tenantId,
+        userId,
         actor: request.authContext!,
+        requestId: request.id,
       });
       return reply.status(204).send();
     },
@@ -459,23 +368,14 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const params = userIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid parameters',
-          params.error.errors,
-        );
-      const parsed = resetUserPasswordSchema.safeParse(request.body);
-      if (!parsed.success)
-        throw new ValidationError(
-          'Request payload is invalid',
-          parsed.error.errors,
-        );
+      const { tenantId, userId } = request.params as z.infer<typeof userIdParam>;
+      const { newPassword } = request.body as z.infer<typeof resetUserPasswordSchema>;
       await container.resetUserPasswordUseCase.execute({
-        tenantId: params.data.tenantId,
-        userId: params.data.userId,
-        newPassword: parsed.data.newPassword,
+        tenantId,
+        userId,
+        newPassword,
         actor: request.authContext!,
+        requestId: request.id,
       });
       return reply.status(204).send();
     },
@@ -493,23 +393,14 @@ export async function registerUserRoutes(
       },
     },
     async (request, reply) => {
-      const params = internalUserIdParam.safeParse(request.params);
-      if (!params.success)
-        throw new ValidationError(
-          'Invalid parameters',
-          params.error.errors,
-        );
-      const parsed = resetUserPasswordSchema.safeParse(request.body);
-      if (!parsed.success)
-        throw new ValidationError(
-          'Request payload is invalid',
-          parsed.error.errors,
-        );
+      const { userId } = request.params as z.infer<typeof internalUserIdParam>;
+      const { newPassword } = request.body as z.infer<typeof resetUserPasswordSchema>;
       await container.resetUserPasswordUseCase.execute({
         tenantId: null,
-        userId: params.data.userId,
-        newPassword: parsed.data.newPassword,
+        userId,
+        newPassword,
         actor: request.authContext!,
+        requestId: request.id,
       });
       return reply.status(204).send();
     },
