@@ -53,7 +53,7 @@ describe('useUserDeactivate', () => {
     expect(mockPost).not.toHaveBeenCalled();
   });
 
-  it('does not call API in tenant scope when tenantId is missing', () => {
+  it('surfaces an error instead of silently no-opping when tenantId is missing', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(
       () => useUserDeactivate('user-01', undefined, 'tenant'),
@@ -65,6 +65,9 @@ describe('useUserDeactivate', () => {
     });
 
     expect(mockPost).not.toHaveBeenCalled();
+    expect(mockShowError).toHaveBeenCalledWith(
+      expect.stringContaining('agency context'),
+    );
   });
 
   it('does not post when the reason is only whitespace', () => {

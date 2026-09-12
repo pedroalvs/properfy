@@ -27,20 +27,33 @@ function renderLogin() {
   );
 }
 
+// useAuth is mocked, so isAuthenticated never flips on its own the way the real
+// AuthProvider would after a successful login() call. This mutable flag lets
+// tests simulate that flip (mockLogin sets it), so the LoginPage's own
+// isAuthenticated-effect — the ONLY place that should consume and navigate to
+// the stored post-login redirect — actually runs, the same way it does against
+// the real auth context.
+let authIsAuthenticated = false;
+
+function setupAuthMock() {
+  mockUseAuth.mockImplementation(() => ({
+    login: mockLogin,
+    user: null,
+    token: null,
+    isAuthenticated: authIsAuthenticated,
+    isLoading: false,
+    logout: vi.fn(),
+  }));
+}
+
 describe('LoginPage', () => {
   beforeEach(() => {
     mockLogin.mockReset();
     mockNavigate.mockReset();
     mockUseAuth.mockReset();
     sessionStorage.clear();
-    mockUseAuth.mockReturnValue({
-      login: mockLogin,
-      user: null,
-      token: null,
-      isAuthenticated: false,
-      isLoading: false,
-      logout: vi.fn(),
-    });
+    authIsAuthenticated = false;
+    setupAuthMock();
   });
 
   it('renders email and password fields and submit button', () => {
@@ -64,7 +77,9 @@ describe('LoginPage', () => {
   });
 
   it('calls login and navigates on success', async () => {
-    mockLogin.mockResolvedValueOnce(undefined);
+    mockLogin.mockImplementationOnce(async () => {
+      authIsAuthenticated = true;
+    });
     renderLogin();
 
     fireEvent.change(screen.getByLabelText('Work Email'), {
@@ -81,9 +96,11 @@ describe('LoginPage', () => {
     });
   });
 
-  it('restores a persisted route after successful login', async () => {
+  it('restores a persisted route after successful login, consuming it exactly once', async () => {
     sessionStorage.setItem('properfy:web:post-login-redirect', '/appointments/123?tab=timeline');
-    mockLogin.mockResolvedValueOnce(undefined);
+    mockLogin.mockImplementationOnce(async () => {
+      authIsAuthenticated = true;
+    });
     renderLogin();
 
     fireEvent.change(screen.getByLabelText('Work Email'), {
@@ -96,8 +113,14 @@ describe('LoginPage', () => {
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/appointments/123?tab=timeline', { replace: true });
-      expect(sessionStorage.getItem('properfy:web:post-login-redirect')).toBeNull();
     });
+
+    // The double-consume bug: a second consumption site (the old submit-success
+    // handler) would find the redirect already cleared by the effect and fall
+    // back to navigating to '/', clobbering the correct destination. Asserting
+    // a single call — not just "called with" — is what catches that regression.
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(sessionStorage.getItem('properfy:web:post-login-redirect')).toBeNull();
   });
 
   it('shows error message on invalid credentials', async () => {
@@ -150,7 +173,9 @@ describe('LoginPage', () => {
     const { ApiError } = await import('@/lib/api-error');
     mockLogin
       .mockRejectedValueOnce(new ApiError(401, 'TOTP required', 'AUTH_TOTP_REQUIRED'))
-      .mockResolvedValueOnce(undefined);
+      .mockImplementationOnce(async () => {
+        authIsAuthenticated = true;
+      });
     renderLogin();
 
     fireEvent.change(screen.getByLabelText('Work Email'), {
