@@ -60,7 +60,9 @@ export function PendingActionsCard({
     if (a.key === 'processingReports') return canViewReports;
     return true;
   });
-  const counts: Record<string, number> = {
+  // W11 #760: key the lookup by the literal ACTIONS keys (not Record<string,…>)
+  // so a key typo is a compile error.
+  const counts: Record<(typeof ACTIONS)[number]['key'], number> = {
     noResponseRentalTenants,
     pendingOperatorCrossChecks,
     pendingFinancialEntries,
@@ -81,7 +83,7 @@ export function PendingActionsCard({
             className="flex items-center gap-3 px-4 py-3 no-underline hover:bg-gray-50 transition-colors"
             data-testid="pending-action-item"
           >
-            <i className={`mdi ${action.icon} text-xl text-text-secondary`} />
+            <i className={`mdi ${action.icon} text-xl text-text-secondary`} aria-hidden="true" />
             <span className="text-sm text-text-primary flex-1">{action.label}</span>
             <span className="rounded-full bg-real-estate/10 text-real-estate px-2 py-0.5 text-xs font-semibold">
               {counts[action.key]}

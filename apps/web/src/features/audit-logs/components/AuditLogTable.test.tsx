@@ -53,4 +53,11 @@ describe('AuditLogTable', () => {
     render(<AuditLogTable data={MOCK_DATA} onView={onView} />);
     expect(screen.getByLabelText('View')).toBeInTheDocument();
   });
+
+  it('W7 #426: actor chip styles use design-token vars, not raw hex', () => {
+    const { container } = render(<AuditLogTable data={MOCK_DATA} />);
+    container.querySelectorAll('[style]').forEach((el) => {
+      expect(el.getAttribute('style') ?? '').not.toContain('#');
+    });
+  });
 });

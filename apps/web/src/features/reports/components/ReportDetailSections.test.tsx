@@ -65,6 +65,15 @@ describe('ReportDetailSections', () => {
     ).toBeInTheDocument();
   });
 
+  it('#632: renders an em-dash for null fileKey, fileSize, and filters', () => {
+    const sparse: ReportDetail = { ...baseReport, fileKey: null, fileSize: null, filters: null };
+    render(<ReportDetailSections report={sparse} />);
+    // File name, file size, and filters all fall back to the em-dash.
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3);
+    expect(screen.queryByText('appointments-march-2026.xlsx')).not.toBeInTheDocument();
+    expect(screen.queryByText('1.00 MB')).not.toBeInTheDocument();
+  });
+
   it('shows the report error message when present', () => {
     render(
       <ReportDetailSections
