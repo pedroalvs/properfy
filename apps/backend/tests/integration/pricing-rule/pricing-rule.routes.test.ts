@@ -70,6 +70,10 @@ const fullPricingRule = {
   status: 'ACTIVE',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
+  // The list contract always carries the joined names (WI-9); the base
+  // create/update response schema simply ignores the extra keys.
+  serviceTypeName: 'Routine Inspection',
+  branchName: null,
 };
 
 describe('POST /v1/pricing-rules', () => {
@@ -128,6 +132,37 @@ describe('GET /v1/pricing-rules', () => {
     expect(res.body).toHaveProperty('data');
     expect(res.body).toHaveProperty('pagination');
     expect(res.body.data).toHaveLength(1);
+  });
+
+  it('carries serviceTypeName and branchName through serialization (WI-9)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockListPricingRulesExecute.mockResolvedValueOnce({
+      data: [
+        { ...fullPricingRule, serviceTypeName: 'Routine Inspection', branchName: null },
+        {
+          ...fullPricingRule,
+          id: 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a56',
+          branchId: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a99',
+          serviceTypeName: 'Ingoing Inspection',
+          branchName: 'Main Branch',
+        },
+      ],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/pricing-rules')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    // Fails if the list response schema is reverted to the base
+    // pricingRuleResponseSchema — Fastify would strip the two joined fields.
+    expect(res.body.data[0].serviceTypeName).toBe('Routine Inspection');
+    expect(res.body.data[0].branchName).toBeNull();
+    expect(res.body.data[1].serviceTypeName).toBe('Ingoing Inspection');
+    expect(res.body.data[1].branchName).toBe('Main Branch');
   });
 });
 

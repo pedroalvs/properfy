@@ -169,7 +169,6 @@ export function TenantDetailPage() {
           <PricingRulesSection
             tenantId={id}
             tenantName={tenant.name}
-            currency={tenant.currency}
           />
         )}
 

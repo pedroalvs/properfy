@@ -239,6 +239,17 @@ export const pricingRuleResponseSchema = z.object({
   updatedAt: instantStr(),
 });
 
+/**
+ * List-item variant: the pricing rule plus the joined service-type and branch
+ * names, so the list view never resolves ids against a capped options fetch
+ * (#674). Only the list endpoint returns these; create/update keep the base
+ * schema.
+ */
+export const pricingRuleListItemSchema = pricingRuleResponseSchema.extend({
+  serviceTypeName: z.string(),
+  branchName: z.string().nullable(),
+});
+
 // ─── Inspector ─────────────────────────────────────────────────────────────
 
 export const inspectorResponseSchema = z.object({
@@ -1177,6 +1188,7 @@ export type UserResponse = z.infer<typeof userResponseSchema>;
 export type PropertyResponse = z.infer<typeof propertyResponseSchema>;
 export type ServiceTypeResponse = z.infer<typeof serviceTypeResponseSchema>;
 export type PricingRuleResponse = z.infer<typeof pricingRuleResponseSchema>;
+export type PricingRuleListItemResponse = z.infer<typeof pricingRuleListItemSchema>;
 /**
  * One satisfaction response, as shown to an operator or the owning agency.
  *

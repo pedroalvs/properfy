@@ -7065,6 +7065,13 @@
                                 "format": "date-time"
                               }
                             ]
+                          },
+                          "serviceTypeName": {
+                            "type": "string"
+                          },
+                          "branchName": {
+                            "type": "string",
+                            "nullable": true
                           }
                         },
                         "required": [
@@ -7079,7 +7086,9 @@
                           "bonusRuleJson",
                           "status",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "serviceTypeName",
+                          "branchName"
                         ],
                         "additionalProperties": false
                       }
@@ -21088,6 +21097,10 @@
                                 },
                                 "name": {
                                   "type": "string"
+                                },
+                                "branchName": {
+                                  "type": "string",
+                                  "nullable": true
                                 }
                               },
                               "required": [
@@ -25479,6 +25492,14 @@
             },
             "in": "query",
             "name": "tenantId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "search",
             "required": false
           },
           {

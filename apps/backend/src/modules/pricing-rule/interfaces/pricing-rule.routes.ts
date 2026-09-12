@@ -5,6 +5,7 @@ import {
   updatePricingRuleSchema,
   listPricingRulesQuerySchema,
   pricingRuleResponseSchema,
+  pricingRuleListItemSchema,
   successResponseSchema,
   paginatedResponseSchema,
 } from '@properfy/shared';
@@ -60,7 +61,7 @@ export async function registerPricingRuleRoutes(
   // GET /v1/pricing-rules
   app.get(
     '/v1/pricing-rules',
-    { preHandler: authenticate, schema: { querystring: listPricingRulesQuerySchema, response: { 200: paginatedResponseSchema(pricingRuleResponseSchema) } } },
+    { preHandler: authenticate, schema: { querystring: listPricingRulesQuerySchema, response: { 200: paginatedResponseSchema(pricingRuleListItemSchema) } } },
     async (request, reply) => {
       const parsed = listPricingRulesQuerySchema.safeParse(request.query);
       if (!parsed.success)
