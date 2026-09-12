@@ -11,9 +11,12 @@ export function useUpdateInspectorSelf() {
 
   return useMutation({
     mutationFn: async (input: UpdateInspectorSelfInput) => {
-      const { error } = await api.PATCH('/v1/inspectors/me' as never, { body: input } as never);
+      const { error } = await api.PATCH('/v1/inspectors/me', { body: input });
       if (error) {
-        const msg = (error as { error?: { message?: string } })?.error?.message;
+        const msg =
+          error && typeof error === 'object' && 'error' in error
+            ? (error as { error?: { message?: string } }).error?.message
+            : undefined;
         throw new Error(msg ?? 'Failed to update profile');
       }
     },

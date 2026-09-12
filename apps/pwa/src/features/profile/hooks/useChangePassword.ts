@@ -8,11 +8,11 @@ export function useChangePassword() {
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     setIsSubmitting(true);
     try {
-      const { error, response } = await api.POST('/v1/auth/change-password' as any, {
-        body: { currentPassword, newPassword } as any,
+      const { error, response } = await api.POST('/v1/auth/change-password', {
+        body: { currentPassword, newPassword },
       });
       if (error) {
-        const apiError = toApiError(error, response?.status);
+        const apiError = toApiError(error, (response as Response | undefined)?.status);
         apiError.message = getErrorMessage(apiError, 'Failed to change password');
         throw apiError;
       }

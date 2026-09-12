@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { AvailabilityCell } from '../AvailabilityCell';
 
 describe('AvailabilityCell', () => {
@@ -26,5 +26,23 @@ describe('AvailabilityCell', () => {
     render(<AvailabilityCell active={false} override={true} label="PM" />);
     const cell = screen.getByTestId('availability-cell');
     expect(cell).toHaveAttribute('data-state', 'off-override');
+  });
+
+  it('renders as a button and fires onToggle when clickable', () => {
+    const onToggle = vi.fn();
+    render(<AvailabilityCell active={false} override={false} label="AM" onToggle={onToggle} />);
+    const cell = screen.getByRole('button', { name: 'AM' });
+
+    expect(cell).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(cell);
+
+    expect(onToggle).toHaveBeenCalledOnce();
+  });
+
+  it('reflects the active state via aria-pressed when clickable', () => {
+    render(<AvailabilityCell active={true} override={false} label="PM" onToggle={() => {}} />);
+    const cell = screen.getByRole('button', { name: 'PM' });
+    expect(cell).toHaveAttribute('aria-pressed', 'true');
   });
 });

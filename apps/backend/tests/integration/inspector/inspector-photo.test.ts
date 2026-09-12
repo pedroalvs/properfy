@@ -63,6 +63,7 @@ describe('POST /v1/inspectors/:inspectorId/photo/presign', () => {
     mockGeneratePhotoUploadUrlExecute.mockResolvedValueOnce({
       uploadUrl: 'https://supabase.example/signed-upload',
       storageKey: `inspectors/${INSPECTOR_ID}/avatar.jpg`,
+      expiresAt: '2099-01-01T00:00:00.000Z',
     });
 
     const res = await supertest(app.server)
@@ -71,10 +72,12 @@ describe('POST /v1/inspectors/:inspectorId/photo/presign', () => {
       .send({ mimeType: 'image/jpeg' });
 
     expect(res.status).toBe(200);
-    // UX-baseline cleanup: response is now wrapped in `{ data: {...} }`.
+    // Response is wrapped in `{ data: {...} }` and now carries a declared schema
+    // (WI-15/#276) — the serializer would 500 if the body omitted a declared field.
     expect(res.body).toHaveProperty('data');
     expect(res.body.data).toHaveProperty('uploadUrl');
     expect(res.body.data).toHaveProperty('storageKey');
+    expect(res.body.data).toHaveProperty('expiresAt');
   });
 
   it('returns 200 with uploadUrl for OP', async () => {
@@ -82,6 +85,7 @@ describe('POST /v1/inspectors/:inspectorId/photo/presign', () => {
     mockGeneratePhotoUploadUrlExecute.mockResolvedValueOnce({
       uploadUrl: 'https://supabase.example/signed-upload',
       storageKey: `inspectors/${INSPECTOR_ID}/avatar.png`,
+      expiresAt: '2099-01-01T00:00:00.000Z',
     });
 
     const res = await supertest(app.server)
@@ -97,6 +101,7 @@ describe('POST /v1/inspectors/:inspectorId/photo/presign', () => {
     mockGeneratePhotoUploadUrlExecute.mockResolvedValueOnce({
       uploadUrl: 'https://supabase.example/signed-upload',
       storageKey: `inspectors/${INSPECTOR_ID}/avatar.webp`,
+      expiresAt: '2099-01-01T00:00:00.000Z',
     });
 
     const res = await supertest(app.server)
@@ -142,9 +147,9 @@ describe('POST /v1/inspectors/:inspectorId/photo/presign', () => {
 });
 
 describe('POST /v1/inspectors/:inspectorId/photo/confirm', () => {
-  it('returns 200 for AM on valid confirm', async () => {
+  it('returns 200 with the inspectorId envelope for AM on valid confirm', async () => {
     mockJwtVerify.mockResolvedValueOnce(makeAmContext());
-    mockConfirmPhotoUploadExecute.mockResolvedValueOnce(undefined);
+    mockConfirmPhotoUploadExecute.mockResolvedValueOnce({ inspectorId: INSPECTOR_ID });
 
     const res = await supertest(app.server)
       .post(`/v1/inspectors/${INSPECTOR_ID}/photo/confirm`)
@@ -152,6 +157,9 @@ describe('POST /v1/inspectors/:inspectorId/photo/confirm', () => {
       .send({ storageKey: `inspectors/${INSPECTOR_ID}/avatar.jpg` });
 
     expect(res.status).toBe(200);
+    // Declared response schema (WI-15/#276): body must carry the inspectorId,
+    // or the serializer 500s after the handler commits.
+    expect(res.body.data).toEqual({ inspectorId: INSPECTOR_ID });
   });
 
   it('returns 400 when use case throws ValidationError', async () => {

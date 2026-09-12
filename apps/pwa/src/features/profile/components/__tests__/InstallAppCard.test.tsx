@@ -41,4 +41,17 @@ describe('InstallAppCard', () => {
       expect(promptInstall).toHaveBeenCalled();
     });
   });
+
+  it('renders nothing when the app is already installed', () => {
+    mockUseInstallPrompt.mockReturnValue({
+      isInstalled: true,
+      canInstall: false,
+      manualInstructions: null,
+      promptInstall: vi.fn(),
+    });
+
+    const { container } = render(<InstallAppCard />);
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByTestId('install-app-card')).not.toBeInTheDocument();
+  });
 });

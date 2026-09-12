@@ -74,4 +74,35 @@ describe('SessionsSection', () => {
       expect(revokeSession).toHaveBeenCalledWith('session-2');
     });
   });
+
+  it('classifies a real iPad Safari user agent as Tablet, not Mobile', () => {
+    // iPadOS 13+ Safari UAs include "Mobile", so a naive Mobile-first check
+    // would misclassify this as a phone.
+    const IPAD_SAFARI_UA =
+      'Mozilla/5.0 (iPad; CPU OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) ' +
+      'Version/17.4 Mobile/15E148 Safari/604.1';
+
+    mockUseSessions.mockReturnValue({
+      sessions: [
+        {
+          id: 'session-ipad',
+          userAgent: IPAD_SAFARI_UA,
+          ipAddress: '127.0.0.3',
+          createdAt: '2026-03-24T12:00:00Z',
+          isCurrent: false,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+      revokeSession: vi.fn().mockResolvedValue(undefined),
+      revokingId: null,
+    });
+
+    render(<SessionsSection />);
+    fireEvent.click(screen.getByRole('button', { name: /active sessions/i }));
+
+    expect(screen.getByText('Tablet')).toBeInTheDocument();
+    expect(screen.queryByText('Mobile')).not.toBeInTheDocument();
+  });
 });
