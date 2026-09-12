@@ -86,7 +86,8 @@ describe('useBranchSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/ten-01/branches', {
+    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/{tenantId}/branches', {
+      params: { path: { tenantId: 'ten-01' } },
       body: {
         name: VALID_DATA.name,
         address: {
@@ -114,7 +115,8 @@ describe('useBranchSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/ten-01/branches/br-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/{tenantId}/branches/{branchId}', {
+      params: { path: { tenantId: 'ten-01', branchId: 'br-01' } },
       body: {
         name: VALID_DATA.name,
         address: {
@@ -141,7 +143,8 @@ describe('useBranchSave', () => {
       await result.current.save(noAddress, 'ten-01');
     });
 
-    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/ten-01/branches', {
+    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/{tenantId}/branches', {
+      params: { path: { tenantId: 'ten-01' } },
       body: { name: 'Filial', address: undefined, contactEmail: undefined },
     });
   });
@@ -158,7 +161,8 @@ describe('useBranchSave', () => {
       await result.current.save(zeroCoordData, 'ten-01');
     });
 
-    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/ten-01/branches', {
+    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/{tenantId}/branches', {
+      params: { path: { tenantId: 'ten-01' } },
       body: expect.objectContaining({
         address: expect.objectContaining({ latitude: 0, longitude: 0 }),
       }),
@@ -177,7 +181,8 @@ describe('useBranchSave', () => {
       await result.current.save(zeroCoordData, 'ten-01', 'br-01');
     });
 
-    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/ten-01/branches/br-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/{tenantId}/branches/{branchId}', {
+      params: { path: { tenantId: 'ten-01', branchId: 'br-01' } },
       body: expect.objectContaining({
         address: expect.objectContaining({ latitude: 0, longitude: 0 }),
       }),

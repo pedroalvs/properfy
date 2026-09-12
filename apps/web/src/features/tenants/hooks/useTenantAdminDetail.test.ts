@@ -29,7 +29,7 @@ const MOCK_TENANT = {
   branchCount: 3,
   timezone: 'America/Sao_Paulo',
   currency: 'AUD',
-  settings: {},
+  settingsJson: {},
   notes: 'Test notes',
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',

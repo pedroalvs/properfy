@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
 vi.mock('@/config/env', () => ({
@@ -19,19 +18,16 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
-vi.mock('@/lib/auth-storage', () => ({
-  authStorage: {
-    getAccessToken: vi.fn(() => null),
-    hasTokens: vi.fn(() => false),
-    setTokens: vi.fn(),
-    clearTokens: vi.fn(),
-  },
+const mockUseAuth = vi.fn();
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => mockUseAuth(),
 }));
 
 import { api } from '@/services/api';
 import { TenantDetailPage } from './TenantDetailPage';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
+const mockPost = api.POST as ReturnType<typeof vi.fn>;
 
 const MOCK_TENANT = {
   id: 'ten-01',
@@ -41,10 +37,15 @@ const MOCK_TENANT = {
   branchCount: 3,
   timezone: 'America/Sao_Paulo',
   currency: 'AUD',
-  settings: {},
+  settingsJson: {},
   notes: 'Some notes',
   createdAt: '2026-01-15T10:00:00Z',
   updatedAt: '2026-01-15T10:00:00Z',
+};
+
+const MOCK_INACTIVE_TENANT = {
+  ...MOCK_TENANT,
+  status: 'INACTIVE',
 };
 
 const MOCK_BRANCHES = {
@@ -59,15 +60,13 @@ function createWrapper() {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <SnackbarProvider>
-            <MemoryRouter initialEntries={['/tenants/ten-01']}>
-              <Routes>
-                <Route path="/tenants/:tenantId" element={children} />
-              </Routes>
-            </MemoryRouter>
-          </SnackbarProvider>
-        </AuthProvider>
+        <SnackbarProvider>
+          <MemoryRouter initialEntries={['/tenants/ten-01']}>
+            <Routes>
+              <Route path="/tenants/:tenantId" element={children} />
+            </Routes>
+          </MemoryRouter>
+        </SnackbarProvider>
       </QueryClientProvider>
     );
   };
@@ -75,12 +74,15 @@ function createWrapper() {
 
 beforeEach(() => {
   mockGet.mockReset();
+  mockPost.mockReset();
+  mockUseAuth.mockReturnValue({ user: { id: 'u1', role: 'AM' } });
   mockGet.mockImplementation((path: string) => {
     if (path.includes('/branches')) {
       return Promise.resolve({ data: MOCK_BRANCHES });
     }
     return Promise.resolve({ data: { data: MOCK_TENANT } });
   });
+  mockPost.mockResolvedValue({ data: { data: {} } });
 });
 
 function renderPage() {
@@ -140,10 +142,110 @@ describe('TenantDetailPage', () => {
   });
 
   it('shows empty state when tenant is not found', async () => {
-    mockGet.mockResolvedValueOnce({ data: undefined, error: { message: 'Not found' } });
+    // A successful response whose envelope carries no tenant → tenant is
+    // undefined WITHOUT isError (distinct from the recoverable-error path).
+    mockGet.mockImplementation((path: string) => {
+      if (path.includes('/branches')) {
+        return Promise.resolve({ data: MOCK_BRANCHES });
+      }
+      return Promise.resolve({ data: { data: null }, error: undefined });
+    });
     renderPage();
     await waitFor(() => {
       expect(screen.getByText('Agency not found')).toBeInTheDocument();
+    });
+  });
+
+  it('shows a recoverable error state and retries on click', async () => {
+    let detailCalls = 0;
+    mockGet.mockImplementation((path: string) => {
+      if (path.includes('/branches')) {
+        return Promise.resolve({ data: MOCK_BRANCHES });
+      }
+      detailCalls += 1;
+      return Promise.resolve({ data: undefined, error: { message: 'Network error' } });
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Agency not found')).not.toBeInTheDocument();
+
+    const callsBeforeRetry = detailCalls;
+    fireEvent.click(screen.getByText('Try again'));
+
+    await waitFor(() => {
+      expect(detailCalls).toBeGreaterThan(callsBeforeRetry);
+    });
+  });
+
+  it('opens the deactivate dialog and confirms deactivation for an active agency', async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Imob Alpha').length).toBeGreaterThanOrEqual(1);
+    });
+
+    fireEvent.click(screen.getAllByText('Deactivate')[0]!);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Deactivate Agency' });
+    fireEvent.change(within(dialog).getByLabelText('Deactivation reason'), {
+      target: { value: 'No longer active' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Deactivate' }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        '/v1/tenants/ten-01/deactivate',
+        { body: { reason: 'No longer active' } },
+      );
+    });
+  });
+
+  it('opens the activate dialog and confirms activation for an inactive agency', async () => {
+    mockGet.mockImplementation((path: string) => {
+      if (path.includes('/branches')) {
+        return Promise.resolve({ data: MOCK_BRANCHES });
+      }
+      return Promise.resolve({ data: { data: MOCK_INACTIVE_TENANT } });
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Imob Alpha').length).toBeGreaterThanOrEqual(1);
+    });
+
+    fireEvent.click(screen.getAllByText('Activate')[0]!);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Activate Agency' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Activate' }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith('/v1/tenants/ten-01/activate', { body: {} });
+    });
+  });
+
+  it('hides Activate/Deactivate actions for CL_ADMIN', async () => {
+    mockUseAuth.mockReturnValue({ user: { id: 'u1', role: 'CL_ADMIN' } });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Imob Alpha').length).toBeGreaterThanOrEqual(1);
+    });
+
+    expect(screen.queryAllByText('Deactivate')).toHaveLength(0);
+    expect(screen.queryAllByText('Activate')).toHaveLength(0);
+  });
+
+  it('shows Activate/Deactivate actions for OP', async () => {
+    mockUseAuth.mockReturnValue({ user: { id: 'u1', role: 'OP' } });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Deactivate').length).toBeGreaterThanOrEqual(1);
     });
   });
 });

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/forms/Textarea';
@@ -20,6 +20,12 @@ export function DeactivateBranchModal({
   onConfirm,
 }: DeactivateBranchModalProps) {
   const [reason, setReason] = useState('');
+
+  // Reset on the open transition so a prior confirm (which does not call
+  // handleClose) or reopening for a different branch never leaves stale text.
+  useEffect(() => {
+    if (open) setReason('');
+  }, [open]);
 
   const handleConfirm = () => {
     if (reason.trim()) {

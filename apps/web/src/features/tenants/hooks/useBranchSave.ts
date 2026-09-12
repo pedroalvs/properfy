@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { getErrorMessage } from '@properfy/shared';
 import { api } from '@/services/api';
 import { isValidEmail } from '@/lib/validation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -70,11 +71,17 @@ export function useBranchSave(): UseBranchSaveReturn {
         contactEmail: data.contactEmail || undefined,
       };
       if (branchId) {
-        const { error } = await api.PATCH(`/v1/tenants/${tenantId}/branches/${branchId}` as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        const { error } = await api.PATCH('/v1/tenants/{tenantId}/branches/{branchId}', {
+          params: { path: { tenantId, branchId } },
+          body: payload,
+        });
+        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
       } else {
-        const { error } = await api.POST(`/v1/tenants/${tenantId}/branches` as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        const { error } = await api.POST('/v1/tenants/{tenantId}/branches', {
+          params: { path: { tenantId } },
+          body: payload,
+        });
+        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
       }
       queryClient.invalidateQueries({ queryKey: ['tenant-admins', tenantId, 'branches'] });
       return { success: true };
