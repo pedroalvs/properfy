@@ -75,9 +75,15 @@ export class ReactivateUserUseCase {
       throw new UserAlreadyActiveError();
     }
 
-    await this.userManagementRepo.update(userId, tenantId, {
+    const updated = await this.userManagementRepo.update(userId, tenantId, {
       status: 'ACTIVE',
     });
+    // update() now reports whether a live row matched (#240). If the user was
+    // soft-deleted between the find above and this write, do not audit a
+    // reactivation that never happened.
+    if (!updated) {
+      throw new UserNotFoundError();
+    }
 
     this.auditService.log({
       action: 'user.reactivated',

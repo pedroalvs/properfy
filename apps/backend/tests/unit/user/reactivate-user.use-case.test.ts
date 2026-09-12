@@ -95,7 +95,7 @@ describe('ReactivateUserUseCase', () => {
       findByTenantId: vi.fn(),
       countByTenantId: vi.fn(),
       save: vi.fn(),
-      update: vi.fn(),
+      update: vi.fn().mockResolvedValue(true),
       resetPassword: vi.fn(),
       revokeAllSessions: vi.fn(),
     };
@@ -174,6 +174,18 @@ describe('ReactivateUserUseCase', () => {
     await expect(
       useCase.execute({ tenantId: 'tenant-1', userId: 'user-1', actor: clAdminActor }),
     ).rejects.toThrow('Client user management is not enabled for this agency');
+  });
+
+  it('should throw USER_NOT_FOUND when the row was soft-deleted between find and update (#240 TOCTOU)', async () => {
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(makeUser());
+    vi.mocked(userManagementRepo.update).mockResolvedValue(false); // no live row matched
+    await expect(
+      useCase.execute({ tenantId: 'tenant-1', userId: 'user-1', actor: amActor }),
+    ).rejects.toThrow(UserNotFoundError);
+    // Must NOT audit a reactivation that never happened.
+    expect(auditService.log).not.toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'user.reactivated' }),
+    );
   });
 
   it('should throw USER_NOT_FOUND when user does not exist', async () => {
