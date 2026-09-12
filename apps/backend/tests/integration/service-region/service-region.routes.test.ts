@@ -220,10 +220,9 @@ describe('POST /v1/service-regions', () => {
 
   it('returns 400 on invalid payload (missing geojson)', async () => {
     // The route now declares a Fastify body schema, so validation runs BEFORE the
-    // auth preHandler (jwtVerify) — a missing geojson is rejected without auth
-    // running. Use a persistent mock (not a queued Once) so the unconsumed value
-    // can't pollute the jwtVerify queue for the next test.
-    mockJwtVerify.mockResolvedValue(amContext);
+    // auth preHandler — a missing geojson is rejected without jwtVerify ever being
+    // called. Intentionally set NO jwtVerify mock here: a queued Once would leak to
+    // the next test, and a persistent default would silently survive clearAllMocks.
 
     const res = await supertest(app.server)
       .post('/v1/service-regions')
