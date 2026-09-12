@@ -4,8 +4,6 @@ import type { ISessionRepository } from '../../domain/session.repository';
 
 export interface ListSessionsInput {
   actor: AuthContext;
-  currentIpAddress?: string | null;
-  currentUserAgent?: string | null;
 }
 
 export interface SessionListItem {
@@ -21,7 +19,7 @@ export class ListSessionsUseCase {
   constructor(private readonly sessionRepo: ISessionRepository) {}
 
   async execute(input: ListSessionsInput): Promise<SessionListItem[]> {
-    const { actor, currentIpAddress, currentUserAgent } = input;
+    const { actor } = input;
 
     if (!actor.userId) {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
@@ -33,11 +31,14 @@ export class ListSessionsUseCase {
       id: session.id,
       userAgent: session.userAgent,
       ipAddress: session.ipAddress,
-      lastActiveAt: session.createdAt.toISOString(),
+      // Real activity: the last refresh-rotation time, falling back to creation
+      // for a session that has never been refreshed (#261). No longer fabricated
+      // from createdAt.
+      lastActiveAt: (session.lastUsedAt ?? session.createdAt).toISOString(),
       createdAt: session.createdAt.toISOString(),
-      isCurrent:
-        session.ipAddress === (currentIpAddress ?? null)
-        && session.userAgent === (currentUserAgent ?? null),
+      // Identify the current session by the `sid` carried in the caller's token,
+      // not by matching ip/user-agent (which collide behind NAT/shared UAs).
+      isCurrent: session.id === actor.sessionId,
     }));
   }
 }

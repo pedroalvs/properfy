@@ -141,6 +141,7 @@ export class LoginUseCase {
         countryCode: trustSignal?.countryCode ?? null,
         deviceFingerprint: trustSignal?.deviceFingerprint ?? null,
         authStage: 'totp_setup',
+        lastUsedAt: null,
         expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes for setup only
         revokedAt: null,
         createdAt: new Date(),
@@ -152,6 +153,7 @@ export class LoginUseCase {
         role: user.role,
         branch_id: user.branchId,
         inspector_id: null,
+        sid: session.id,
         auth_stage: 'totp_setup',
       });
 
@@ -212,6 +214,7 @@ export class LoginUseCase {
       countryCode: trustSignal?.countryCode ?? null,
       deviceFingerprint: trustSignal?.deviceFingerprint ?? null,
       authStage: null,
+      lastUsedAt: null,
       expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
       revokedAt: null,
       createdAt: new Date(),
@@ -250,6 +253,7 @@ export class LoginUseCase {
       role: user.role,
       branch_id: user.branchId,
       inspector_id: inspectorId,
+      sid: session.id,
     });
 
     this.auditService.log({

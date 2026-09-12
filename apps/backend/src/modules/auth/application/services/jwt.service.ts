@@ -8,6 +8,8 @@ export interface JwtClaims {
   role: UserRole;
   branch_id: string | null;
   inspector_id: string | null;
+  /** Id of the session this token belongs to (enables current-session identity + per-session revocation). */
+  sid: string;
   /**
    * Limited-privilege marker for the AM TOTP-enrollment session. When set, the
    * auth middleware rejects the token on every route except the 2FA setup
@@ -84,6 +86,7 @@ export class JwtService {
       role: claims.role,
       branch_id: claims.branch_id,
       inspector_id: claims.inspector_id,
+      sid: claims.sid,
       ...(claims.auth_stage ? { auth_stage: claims.auth_stage } : {}),
     })
       .setProtectedHeader({ alg: 'RS256', kid: this.config.keyId })
@@ -145,6 +148,7 @@ export class JwtService {
         branchId: (payload['branch_id'] as string | null) ?? null,
         inspectorId: (payload['inspector_id'] as string | null) ?? null,
         ...(authStage ? { authStage } : {}),
+        ...(typeof payload['sid'] === 'string' ? { sessionId: payload['sid'] } : {}),
         clUserPermissions: [],
       };
     } catch {

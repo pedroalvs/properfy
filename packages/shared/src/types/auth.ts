@@ -6,6 +6,8 @@ export interface JwtPayload {
   role: UserRole;
   branch_id: string | null;
   inspector_id: string | null;
+  /** Session id the token was minted for; enables per-session identity/revocation. */
+  sid?: string;
   kid: string;
   iat: number;
   exp: number;
@@ -38,6 +40,8 @@ export interface AuthContext {
    * fully-authenticated principals.
    */
   authStage?: 'totp_setup';
+  /** Id of the session that minted this token — used to flag the current session and for per-session revocation. */
+  sessionId?: string;
   /** CL_USER permission flags from tenant settings. Empty array for non-CL_USER roles. */
   clUserPermissions?: string[];
   /** API-key scopes for machine principals. Absent for JWT (human) principals. */
