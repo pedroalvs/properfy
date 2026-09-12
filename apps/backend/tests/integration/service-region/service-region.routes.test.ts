@@ -219,7 +219,11 @@ describe('POST /v1/service-regions', () => {
   });
 
   it('returns 400 on invalid payload (missing geojson)', async () => {
-    mockJwtVerify.mockResolvedValueOnce(amContext);
+    // The route now declares a Fastify body schema, so validation runs BEFORE the
+    // auth preHandler (jwtVerify) — a missing geojson is rejected without auth
+    // running. Use a persistent mock (not a queued Once) so the unconsumed value
+    // can't pollute the jwtVerify queue for the next test.
+    mockJwtVerify.mockResolvedValue(amContext);
 
     const res = await supertest(app.server)
       .post('/v1/service-regions')

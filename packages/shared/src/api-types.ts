@@ -11969,7 +11969,31 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": {
+                        name: string;
+                        geojson: {
+                            /** @enum {string} */
+                            type: "Polygon";
+                            coordinates: [
+                                number,
+                                number
+                            ][][];
+                        } | {
+                            /** @enum {string} */
+                            type: "MultiPolygon";
+                            coordinates: [
+                                number,
+                                number
+                            ][][][];
+                        };
+                        color?: string;
+                        /** Format: uuid */
+                        tenantId?: string;
+                    };
+                };
+            };
             responses: {
                 /** @description Default Response */
                 200: {
@@ -12046,7 +12070,29 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        geojson?: {
+                            /** @enum {string} */
+                            type: "Polygon";
+                            coordinates: [
+                                number,
+                                number
+                            ][][];
+                        } | {
+                            /** @enum {string} */
+                            type: "MultiPolygon";
+                            coordinates: [
+                                number,
+                                number
+                            ][][][];
+                        };
+                        color?: string;
+                    };
+                };
+            };
             responses: {
                 /** @description Default Response */
                 200: {
