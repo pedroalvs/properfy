@@ -121,31 +121,10 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       },
     });
 
-    // Post-filter by tenantId eligibility if needed
-    if (filters.tenantId) {
-      return rows
-        .map(mapToEntity)
-        .filter((i) => i.isEligibleForTenant(filters.tenantId!));
-    }
-
     return rows.map(mapToEntity);
   }
 
   async count(filters: InspectorFilters): Promise<number> {
-    if (filters.tenantId) {
-      // For tenant filtering, we need to post-filter, so count all matching first
-      const where = this.buildWhere(filters);
-      const rows = await this.prisma.inspector.findMany({
-        where,
-        select: { blocked_clients_json: true },
-      });
-      return rows.filter((r) => {
-        // Blocked-clients deny-list: an inspector is eligible unless the
-        // tenant is in its block list.
-        const blocked = Array.isArray(r.blocked_clients_json) ? (r.blocked_clients_json as string[]) : [];
-        return !blocked.includes(filters.tenantId!);
-      }).length;
-    }
     const where = this.buildWhere(filters);
     return this.prisma.inspector.count({ where });
   }
@@ -286,6 +265,14 @@ export class PrismaInspectorRepository implements IInspectorRepository {
     }
     if (filters.serviceTypeId) {
       where['service_types_json'] = { array_contains: [filters.serviceTypeId] };
+    }
+    if (filters.tenantId) {
+      // Tenant-eligibility (blocked-clients deny-list) applied at the DB level so
+      // pagination (skip/take) and count() agree with the actual eligible set —
+      // an in-memory post-filter after LIMIT can return a short page. A legacy
+      // row whose blocked-clients entries are not plain tenant-id strings simply
+      // never matches `array_contains`, which is the safe (eligible) default.
+      where['NOT'] = { blocked_clients_json: { array_contains: [filters.tenantId] } };
     }
     return where;
   }

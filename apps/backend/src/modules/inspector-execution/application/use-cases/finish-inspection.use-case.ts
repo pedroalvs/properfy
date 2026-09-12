@@ -1,3 +1,4 @@
+import type { PrismaClient } from '@prisma/client';
 import type { AuthContext } from '@properfy/shared';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import type { IIdempotencyService } from '../../domain/idempotency.service';
@@ -11,6 +12,7 @@ import {
   ExecutionAlreadyFinishedError,
 } from '../../domain/inspection-execution.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import { runInTransaction } from '../../../../shared/application/unit-of-work';
 
 export interface FinishInspectionInput {
   appointmentId: string;
@@ -36,6 +38,14 @@ export class FinishInspectionUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    /**
+     * Optional: when wired, the execution-finished persist and the SCHEDULED ->
+     * DONE transition commit together in one transaction, so a transition
+     * failure rolls back finishedAt instead of leaving a half-finished
+     * execution (WI-4 / #119). Without it, degrades to the prior
+     * non-transactional behaviour.
+     */
+    private readonly prisma?: PrismaClient,
   ) {}
 
   async execute(input: FinishInspectionInput): Promise<FinishInspectionOutput> {
@@ -81,19 +91,24 @@ export class FinishInspectionUseCase {
     }
     const { appointment } = appointmentResult;
 
-    // 6. Update execution
+    // 6-7. Persist finishedAt and trigger the SCHEDULED -> DONE transition atomically:
+    // if the transition is refused, the finishedAt write must not survive it either.
     const now = new Date();
-    await this.executionRepo.update(execution.id, {
-      finishedAt: now,
-      finishLatitude: latitude,
-      finishLongitude: longitude,
-    });
+    let appointmentStatus = '';
+    await runInTransaction(this.prisma, async ({ tx, defer }) => {
+      await this.executionRepo.update(execution.id, {
+        finishedAt: now,
+        finishLatitude: latitude,
+        finishLongitude: longitude,
+      }, tx);
 
-    // 7. Trigger SCHEDULED -> DONE transition
-    const transitionResult = await this.executeStatusTransition.execute({
-      appointmentId,
-      targetStatus: 'DONE',
-      actor,
+      const transitionResult = await this.executeStatusTransition.executeInTransaction({
+        appointmentId,
+        targetStatus: 'DONE',
+        actor,
+      }, tx);
+      appointmentStatus = transitionResult.output.status;
+      defer(transitionResult.runAfterCommit);
     });
 
     // 8. Audit log
@@ -128,7 +143,7 @@ export class FinishInspectionUseCase {
       appointmentId,
       startedAt: execution.startedAt.toISOString(),
       finishedAt: now.toISOString(),
-      appointmentStatus: transitionResult.status,
+      appointmentStatus,
     };
 
     await this.idempotencyService.set(idempotencyKey, 'finish', output, 24);
