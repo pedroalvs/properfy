@@ -34,6 +34,25 @@ describe('LoginPage', () => {
     expect(screen.getByTestId('login-button')).toBeInTheDocument();
   });
 
+  it('shows a validation message and does not call login when fields are empty', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<LoginPage />);
+
+    // The inputs are HTML-required, so bypass native validation to exercise the
+    // component's own empty-field guard.
+    screen.getByTestId('login-form').removeAttribute('novalidate');
+    screen.getByTestId('email-input').removeAttribute('required');
+    screen.getByTestId('password-input').removeAttribute('required');
+
+    await user.click(screen.getByTestId('login-button'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Please enter your email and password.')).toBeInTheDocument();
+    });
+    expect(mockLogin).not.toHaveBeenCalled();
+  });
+
   it('submits form with credentials', async () => {
     mockLogin.mockResolvedValue(undefined);
     const user = userEvent.setup();
