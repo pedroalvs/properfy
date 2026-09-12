@@ -24,7 +24,34 @@ const PII_SCAN_PAGE_SIZE = 5000;
  */
 const PII_SCAN_HARD_CEILING = 100_000;
 
-function mapToEntity(row: any, isArchived = false): AuditLogEntity {
+/**
+ * #745: explicit row shape for the audit-log mapper. Both the Prisma model
+ * rows (`audit_logs` / `audit_logs_archive`) and the raw `$queryRaw` rows carry
+ * these snake_case columns, so a single interface types the mapper without
+ * `any` while staying compatible with every read path.
+ */
+interface AuditLogRow {
+  id: string;
+  tenant_id: string | null;
+  actor_type: 'USER' | 'SYSTEM' | 'ANONYMOUS';
+  actor_id: string | null;
+  entity_type: string;
+  entity_id: string | null;
+  action: string;
+  reason: string | null;
+  before_json: unknown;
+  after_json: unknown;
+  request_id: string | null;
+  ip_address: string | null;
+  metadata_json: unknown;
+  created_at: Date;
+  retention_category: AuditRetentionCategory | null;
+  redaction_status: AuditRedactionStatus | null;
+  cold_storage: boolean | null;
+  preservation_rule_id: string | null;
+}
+
+function mapToEntity(row: AuditLogRow, isArchived = false): AuditLogEntity {
   return new AuditLogEntity({
     id: row.id,
     tenantId: row.tenant_id,

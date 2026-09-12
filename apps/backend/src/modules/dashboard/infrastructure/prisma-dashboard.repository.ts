@@ -217,18 +217,25 @@ export class PrismaDashboardRepository implements DashboardRepository {
       // Quick stats: active inspectors available to this tenant.
       // An ACTIVE inspector is available unless the tenant is in its
       // deny-list (`blocked_clients_json`). AM/OP (no tenant scope) count all.
+      // #752: count in the DB rather than loading every platform-wide inspector
+      // and filtering in JS. `array_contains` never matches a NULL/absent
+      // deny-list, so "available = total ACTIVE − those explicitly blocking this
+      // tenant" preserves the "no deny-list = available to all" semantics
+      // (a plain `NOT array_contains` would drop NULL-list inspectors via SQL's
+      // three-valued logic).
       tenantId
-        ? this.prisma.inspector.findMany({
-            where: { status: 'ACTIVE', deleted_at: null },
-            select: { blocked_clients_json: true },
-          }).then((rows) =>
-            rows.filter((r) => {
-              const blocked = Array.isArray(r.blocked_clients_json)
-                ? (r.blocked_clients_json as string[])
-                : [];
-              return !blocked.includes(tenantId);
-            }).length,
-          )
+        ? Promise.all([
+            this.prisma.inspector.count({
+              where: { status: 'ACTIVE', deleted_at: null },
+            }),
+            this.prisma.inspector.count({
+              where: {
+                status: 'ACTIVE',
+                deleted_at: null,
+                blocked_clients_json: { array_contains: tenantId },
+              },
+            }),
+          ]).then(([total, blocked]) => total - blocked)
         : this.prisma.inspector.count({
             where: { status: 'ACTIVE', deleted_at: null },
           }),
