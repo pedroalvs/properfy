@@ -305,6 +305,7 @@ export async function registerAuthRoutes(
     }
     await container.requestPasswordResetUseCase.execute({
       email: parsed.data.email,
+      requestId: request.id,
     });
     return reply.status(204).send();
   });

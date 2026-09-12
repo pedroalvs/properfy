@@ -2,6 +2,7 @@ import type {
   AuthContext,
   PaymentSettings,
   ServiceTypeEntry,
+  UserStatus,
 } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
@@ -157,7 +158,9 @@ export class UpdateInspectorUseCase {
     // carries the new value by then, which would make a diff-based check skip the
     // sync forever while returning 200.
     if (inspector.userId) {
-      const userUpdate: { email?: string; status?: string } = {};
+      // status here is the inspector-update payload's validated status; the
+      // user-management repo types it as UserStatus (#552).
+      const userUpdate: { email?: string; status?: UserStatus } = {};
 
       // Otherwise the UI shows the new address while authentication still expects
       // the old one, and PWA forgot-password silently no-ops on the unknown email.
@@ -170,7 +173,7 @@ export class UpdateInspectorUseCase {
       // never lifts the block that /deactivate applied — leaving a reactivated
       // inspector assignable but permanently unable to log in.
       if (data.status !== undefined) {
-        userUpdate.status = data.status;
+        userUpdate.status = data.status as UserStatus;
       }
 
       if (Object.keys(userUpdate).length > 0) {

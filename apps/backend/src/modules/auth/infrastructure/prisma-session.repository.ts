@@ -1,6 +1,8 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import { SessionEntity } from '../domain/session.entity';
 import type { ISessionRepository } from '../domain/session.repository';
+
+type DbClient = PrismaClient | Prisma.TransactionClient;
 
 function mapToEntity(row: {
   id: string;
@@ -32,6 +34,10 @@ function mapToEntity(row: {
 
 export class PrismaSessionRepository implements ISessionRepository {
   constructor(private readonly prisma: PrismaClient) {}
+
+  private db(tx?: Prisma.TransactionClient): DbClient {
+    return tx ?? this.prisma;
+  }
 
   async create(
     session: Omit<SessionEntity, 'isValid' | 'isRevoked' | 'isExpired' | 'updatedAt'>,
@@ -109,8 +115,8 @@ export class PrismaSessionRepository implements ISessionRepository {
     });
   }
 
-  async revokeAllForUser(userId: string, revokedAt: Date): Promise<void> {
-    await this.prisma.session.updateMany({
+  async revokeAllForUser(userId: string, revokedAt: Date, tx?: Prisma.TransactionClient): Promise<void> {
+    await this.db(tx).session.updateMany({
       where: {
         user_id: userId,
         revoked_at: null,

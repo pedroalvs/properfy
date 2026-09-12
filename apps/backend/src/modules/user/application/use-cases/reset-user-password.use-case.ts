@@ -1,9 +1,11 @@
 import bcrypt from 'bcryptjs';
+import type { PrismaClient } from '@prisma/client';
 import type { AuthContext } from '@properfy/shared';
 import type { IUserManagementRepository } from '../../domain/user-management.repository';
 import type { IPasswordHistoryRepository } from '../../../auth/domain/password-history.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import { runInTransaction } from '../../../../shared/application/unit-of-work';
 import { UserNotFoundError } from '../../domain/user-management.errors';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import { validatePasswordStrength } from '../../../auth/domain/password-policy';
@@ -29,6 +31,7 @@ export class ResetUserPasswordUseCase {
     private readonly auditService: AuditService,
     private readonly passwordHistoryRepo: IPasswordHistoryRepository,
     private readonly authorizationService: AuthorizationService,
+    private readonly prisma?: PrismaClient,
   ) {}
 
   async execute(input: ResetUserPasswordInput): Promise<void> {
@@ -72,23 +75,29 @@ export class ResetUserPasswordUseCase {
 
     const oldHash = user.passwordHash;
     const passwordHash = await bcrypt.hash(newPassword, 12);
-    await this.userManagementRepo.resetPassword(userId, tenantId, passwordHash);
 
-    await this.passwordHistoryRepo.save(userId, oldHash);
-    await this.passwordHistoryRepo.pruneOldEntries(userId, 5);
-    await this.userManagementRepo.revokeAllSessions(userId);
+    // Reset password, record history and revoke every session atomically; audit
+    // deferred to after-commit so it never records a rolled-back reset.
+    await runInTransaction(this.prisma, async (ctx) => {
+      await this.userManagementRepo.resetPassword(userId, tenantId, passwordHash, ctx.tx);
+      await this.passwordHistoryRepo.save(userId, oldHash, ctx.tx);
+      await this.passwordHistoryRepo.pruneOldEntries(userId, 5, ctx.tx);
+      await this.userManagementRepo.revokeAllSessions(userId, ctx.tx);
 
-    this.auditService.log({
-      action: 'user.password_reset',
-      actorType: 'USER',
-      actorId: actor.userId,
-      entityType: 'User',
-      entityId: userId,
-      tenantId: tenantId ?? undefined,
-      metadata: {
-        resetByRole: actor.role,
-        unlockedAccount: user.status === 'LOCKED',
-      },
+      ctx.defer(async () => {
+        this.auditService.log({
+          action: 'user.password_reset',
+          actorType: 'USER',
+          actorId: actor.userId,
+          entityType: 'User',
+          entityId: userId,
+          tenantId: tenantId ?? undefined,
+          metadata: {
+            resetByRole: actor.role,
+            unlockedAccount: user.status === 'LOCKED',
+          },
+        });
+      });
     });
   }
 }

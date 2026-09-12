@@ -1,8 +1,10 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import type { UserRole as PrismaUserRole, UserStatus as PrismaUserStatus } from '@prisma/client';
 import type { UserStatus } from '@properfy/shared';
 import { UserEntity } from '../domain/user.entity';
 import type { IUserRepository } from '../domain/user.repository';
+
+type DbClient = PrismaClient | Prisma.TransactionClient;
 
 function mapToEntity(row: {
   id: string;
@@ -48,6 +50,10 @@ function mapToEntity(row: {
 
 export class PrismaUserRepository implements IUserRepository {
   constructor(private readonly prisma: PrismaClient) {}
+
+  private db(tx?: Prisma.TransactionClient): DbClient {
+    return tx ?? this.prisma;
+  }
 
   async findByEmail(email: string): Promise<UserEntity | null> {
     const row = await this.prisma.user.findFirst({
@@ -179,8 +185,8 @@ export class PrismaUserRepository implements IUserRepository {
     });
   }
 
-  async updatePassword(userId: string, passwordHash: string): Promise<void> {
-    await this.prisma.user.update({
+  async updatePassword(userId: string, passwordHash: string, tx?: Prisma.TransactionClient): Promise<void> {
+    await this.db(tx).user.update({
       where: { id: userId },
       data: { password_hash: passwordHash },
     });
