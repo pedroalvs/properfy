@@ -90,6 +90,7 @@ export class RefreshTokenUseCase {
       role: user.role,
       branch_id: user.branchId,
       inspector_id: inspectorId,
+      sid: session.id,
     });
 
     this.auditService.log({

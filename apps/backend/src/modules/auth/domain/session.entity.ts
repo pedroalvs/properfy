@@ -14,6 +14,8 @@ export interface SessionProps {
    * extend a setup session.
    */
   authStage: string | null;
+  /** Last time this session was used (bumped on refresh-token rotation); null until first refresh. */
+  lastUsedAt: Date | null;
   expiresAt: Date;
   revokedAt: Date | null;
   createdAt: Date;
@@ -27,6 +29,7 @@ export class SessionEntity extends BaseEntity {
   readonly countryCode: string | null;
   readonly deviceFingerprint: string | null;
   readonly authStage: string | null;
+  readonly lastUsedAt: Date | null;
   readonly expiresAt: Date;
   revokedAt: Date | null;
 
@@ -39,6 +42,7 @@ export class SessionEntity extends BaseEntity {
     this.countryCode = props.countryCode;
     this.deviceFingerprint = props.deviceFingerprint;
     this.authStage = props.authStage;
+    this.lastUsedAt = props.lastUsedAt;
     this.expiresAt = props.expiresAt;
     this.revokedAt = props.revokedAt;
   }

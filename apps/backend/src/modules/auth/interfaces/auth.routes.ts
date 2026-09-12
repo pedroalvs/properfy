@@ -243,8 +243,6 @@ export async function registerAuthRoutes(
     async (request, reply) => {
       const result = await container.listSessionsUseCase.execute({
         actor: request.authContext!,
-        currentIpAddress: request.ip,
-        currentUserAgent: request.headers['user-agent'] ?? null,
       });
       return reply.status(200).send({ data: result });
     },

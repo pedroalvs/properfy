@@ -53,6 +53,23 @@ describe('JwtService', () => {
     expect(ctx.authStage).toBeUndefined();
   });
 
+  it('round-trips sid into sessionId on the AuthContext (#261)', async () => {
+    const token = await jwtService.signAccessToken({
+      sub: 'user-1', tenant_id: 'tenant-1', role: 'CL_ADMIN', branch_id: null, inspector_id: null,
+      sid: 'sess-1',
+    });
+    const ctx = await jwtService.verify(token);
+    expect(ctx.sessionId).toBe('sess-1');
+  });
+
+  it('leaves sessionId undefined when the token carries no sid claim', async () => {
+    const token = await jwtService.signAccessToken({
+      sub: 'user-1', tenant_id: null, role: 'CL_ADMIN', branch_id: null, inspector_id: null,
+    } as Parameters<typeof jwtService.signAccessToken>[0]);
+    const ctx = await jwtService.verify(token);
+    expect(ctx.sessionId).toBeUndefined();
+  });
+
   it('should reject a tampered token', async () => {
     const token = await jwtService.signAccessToken({ sub: 'user-1', tenant_id: null, role: 'AM', branch_id: null, inspector_id: null });
     const parts = token.split('.');

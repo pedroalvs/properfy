@@ -13,6 +13,7 @@ function mapToEntity(row: {
   country_code: string | null;
   device_fingerprint: string | null;
   auth_stage: string | null;
+  last_used_at: Date | null;
   expires_at: Date;
   revoked_at: Date | null;
   created_at: Date;
@@ -26,6 +27,7 @@ function mapToEntity(row: {
     countryCode: row.country_code,
     deviceFingerprint: row.device_fingerprint,
     authStage: row.auth_stage,
+    lastUsedAt: row.last_used_at,
     expiresAt: row.expires_at,
     revokedAt: row.revoked_at,
     createdAt: row.created_at,
@@ -103,6 +105,9 @@ export class PrismaSessionRepository implements ISessionRepository {
       data: {
         refresh_token_hash: newHash,
         expires_at: expiresAt,
+        // A successful rotation is a real use of the session; stamp it so the
+        // session list can show genuine last-active time (#261).
+        last_used_at: new Date(),
       },
     });
     return result.count === 1;
