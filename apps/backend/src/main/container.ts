@@ -132,6 +132,7 @@ import { PrismaDataSubjectErasureRequestRepository } from '../modules/audit/infr
 import { PrismaErasurePiiResolver } from '../modules/audit/infrastructure/prisma-erasure-pii-resolver';
 import { PrismaTenantPortalActivityScanner } from '../modules/audit/infrastructure/prisma-tenant-portal-activity-scanner';
 import { ListAuditLogsUseCase } from '../modules/audit/application/use-cases/list-audit-logs.use-case';
+import { PrismaAuditEntityLabelResolver } from '../modules/audit/infrastructure/prisma-audit-entity-label-resolver';
 import type { AuditRouteContainer } from '../modules/audit/interfaces/audit.routes';
 import type { AuditErasureRouteContainer } from '../modules/audit/interfaces/audit-erasure.routes';
 import type { AuditRetentionRouteContainer } from '../modules/audit/interfaces/audit-retention.routes';
@@ -955,11 +956,13 @@ export function createContainer(logger: Logger): AppContainer {
   );
 
   // Audit use cases
+  const auditEntityLabelResolver = new PrismaAuditEntityLabelResolver(prisma);
   const listAuditLogsUseCase = new ListAuditLogsUseCase(
     auditLogRepo,
     userManagementRepo,
     piiFieldMappingRepo,
     tenantRepo,
+    auditEntityLabelResolver,
   );
 
   // Feature 020: data subject erasure workflow (AM-only, LGPD compliance)
