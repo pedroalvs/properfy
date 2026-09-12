@@ -264,15 +264,14 @@ export function UserFormDrawer({
 
                   {isEditMode && (
                     <FormSection title="Status">
-                      <div>
-                        <p className="text-xs text-text-muted">Status</p>
-                        <div className="mt-1 flex items-center gap-2">
+                      <FormField label="Status">
+                        <div className="flex items-center gap-2">
                           <UserStatusChip status={form.status as UserStatus} />
                           <span className="text-xs text-text-muted">
                             Use the Deactivate / Reactivate action to change status.
                           </span>
                         </div>
-                      </div>
+                      </FormField>
                     </FormSection>
                   )}
                 </div>
