@@ -670,6 +670,13 @@ export async function registerInspectorRoutes(
       schema: {
         params: inspectorIdParam,
         body: z.object({ mimeType: z.string().min(1) }),
+        // Declared so the generated OpenAPI client types this 200 (PWA WI-15/#276);
+        // must match exactly what the handler sends via success().
+        response: {
+          200: successResponseSchema(
+            z.object({ uploadUrl: z.string(), storageKey: z.string(), expiresAt: z.string() }),
+          ),
+        },
       },
     },
     async (request, reply) => {
@@ -696,6 +703,11 @@ export async function registerInspectorRoutes(
       schema: {
         params: inspectorIdParam,
         body: z.object({ storageKey: z.string().min(1) }),
+        // Declared so the generated OpenAPI client types this 200 (PWA WI-15/#276);
+        // must match exactly what the handler sends via success().
+        response: {
+          200: successResponseSchema(z.object({ inspectorId: z.string() })),
+        },
       },
     },
     async (request, reply) => {
