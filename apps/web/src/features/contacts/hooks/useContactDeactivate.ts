@@ -9,6 +9,18 @@ export interface DeactivateResult {
   errorMessage?: string;
 }
 
+/** Backend error envelope shape (openapi-fetch types these routes' `error` loosely). */
+type ApiErrorEnvelope = { error?: { code?: string; message?: string } };
+
+function toEnvelopeFailure(error: unknown, fallbackMessage: string): DeactivateResult {
+  const envelope = error as ApiErrorEnvelope;
+  return {
+    success: false,
+    errorCode: envelope?.error?.code ?? 'UNKNOWN_ERROR',
+    errorMessage: envelope?.error?.message ?? fallbackMessage,
+  };
+}
+
 export interface UseContactDeactivateReturn {
   deactivate: (contactId: string) => Promise<DeactivateResult>;
   reactivate: (contactId: string) => Promise<DeactivateResult>;
@@ -29,14 +41,10 @@ export function useContactDeactivate(): UseContactDeactivateReturn {
     setIsPending(true);
     try {
       try {
-        const { error } = await api.POST(`/v1/contacts/${contactId}/deactivate` as any, { body: {} as any });
-        if (error) {
-          return {
-            success: false,
-            errorCode: (error as any)?.error?.code ?? 'UNKNOWN_ERROR',
-            errorMessage: (error as any)?.error?.message ?? 'Request failed',
-          };
-        }
+        const { error } = await api.POST('/v1/contacts/{contactId}/deactivate', {
+          params: { path: { contactId } },
+        });
+        if (error) return toEnvelopeFailure(error, 'Request failed');
         queryClient.invalidateQueries({ queryKey: ['contacts'] });
         return { success: true };
       } catch (err) {
@@ -58,14 +66,11 @@ export function useContactDeactivate(): UseContactDeactivateReturn {
     setIsPending(true);
     try {
       try {
-        const { error } = await api.PATCH(`/v1/contacts/${contactId}` as any, { body: { isActive: true } as any });
-        if (error) {
-          return {
-            success: false,
-            errorCode: (error as any)?.error?.code ?? 'UNKNOWN_ERROR',
-            errorMessage: (error as any)?.error?.message ?? 'Request failed',
-          };
-        }
+        const { error } = await api.PATCH('/v1/contacts/{contactId}', {
+          params: { path: { contactId } },
+          body: { isActive: true },
+        });
+        if (error) return toEnvelopeFailure(error, 'Request failed');
         queryClient.invalidateQueries({ queryKey: ['contacts'] });
         return { success: true };
       } catch (err) {

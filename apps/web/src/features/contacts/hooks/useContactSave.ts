@@ -5,12 +5,21 @@ import {
   getErrorMessage,
   getFieldErrors,
   type ContactChannelType,
+  type paths,
 } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { identityFieldMapper } from '@/lib/server-field-errors';
 import type { ContactFormData, ContactFormErrors } from '../types';
+
+/**
+ * WI-4 (#205) — the generated request-body types for the two write routes, so
+ * the payload builders are checked against the OpenAPI contract instead of
+ * being cast to `any`.
+ */
+type CreateContactBody = NonNullable<paths['/v1/contacts']['post']['requestBody']>['content']['application/json'];
+type UpdateContactBody = NonNullable<paths['/v1/contacts/{contactId}']['patch']['requestBody']>['content']['application/json'];
 
 /** Backend VALIDATION_ERROR detail paths that mirror the flat registry schema. */
 const flatFieldMapper = identityFieldMapper<keyof ContactFormData>([
@@ -53,13 +62,16 @@ function buildAdditionalChannels(channels: ContactFormData['additionalChannels']
  *   - `company` / `additionalChannels` / `notes` are omitted entirely when
  *     empty so dedicated and inline payloads agree on key presence.
  */
-export function toCreatePayload(data: ContactFormData, tenantId?: string | null) {
+export function toCreatePayload(data: ContactFormData, tenantId?: string | null): CreateContactBody {
   const channels = buildAdditionalChannels(data.additionalChannels);
   const company = trimToOptionalString(data.company);
   const notes = trimToOptionalString(data.notes);
   return {
-    type: data.type || undefined,
-    displayName: trimToOptionalString(data.displayName),
+    // `type` is constrained to the enum by the form's SelectInput and is
+    // guaranteed present by validate() before save(); narrow it to the
+    // contract's enum here rather than casting the whole body.
+    type: data.type as CreateContactBody['type'],
+    displayName: data.displayName.trim(),
     ...(company !== undefined ? { company } : {}),
     primaryEmail: trimToNullableString(data.primaryEmail),
     primaryPhone: trimToNullableString(data.primaryPhone),
@@ -71,9 +83,9 @@ export function toCreatePayload(data: ContactFormData, tenantId?: string | null)
   };
 }
 
-function toUpdatePayload(data: ContactFormData) {
+function toUpdatePayload(data: ContactFormData): UpdateContactBody {
   return {
-    type: data.type || undefined,
+    type: (data.type || undefined) as UpdateContactBody['type'],
     displayName: trimToOptionalString(data.displayName),
     company: trimToNullableString(data.company),
     primaryEmail: trimToNullableString(data.primaryEmail),
@@ -84,7 +96,16 @@ function toUpdatePayload(data: ContactFormData) {
 }
 
 function isRequiredError(issue: { code?: string; message: string }): boolean {
-  return issue.code === 'invalid_type' || issue.message === 'Required';
+  // WI-4: the typed payload builders now emit '' (not undefined) for empty
+  // required fields, so an empty `type`/`displayName` surfaces as
+  // invalid_enum_value / too_small rather than invalid_type. Treat those as
+  // "required" too so the empty-field message stays "Required field".
+  return (
+    issue.code === 'invalid_type' ||
+    issue.code === 'invalid_enum_value' ||
+    issue.code === 'too_small' ||
+    issue.message === 'Required'
+  );
 }
 
 function zodErrorsToFormErrors(issues: { path: (string | number)[]; message: string; code?: string }[]): ContactFormErrors {
@@ -215,18 +236,21 @@ export function useContactSave(): UseContactSaveReturn {
     try {
       let newId: string | undefined;
       if (contactId) {
-        const payload = toUpdatePayload(data);
-        const { error } = await api.PATCH(`/v1/contacts/${contactId}` as any, { body: payload as any });
+        const { error } = await api.PATCH('/v1/contacts/{contactId}', {
+          params: { path: { contactId } },
+          body: toUpdatePayload(data),
+        });
         if (error) return toFailureResult(error, data);
       } else {
         // 024 §FR-308 — distinguish "AM/OP picked Standalone" (override === null,
         // post tenantId: null) from "fall back to JWT" (override === undefined).
         // CL roles always fall back to JWT — they can't reach the Standalone path.
         const resolvedTenantId = tenantIdOverride !== undefined ? tenantIdOverride : (user?.tenantId ?? null);
-        const payload = toCreatePayload(data, resolvedTenantId);
-        const { data: responseData, error } = await api.POST('/v1/contacts' as any, { body: payload as any });
+        const { data: responseData, error } = await api.POST('/v1/contacts', {
+          body: toCreatePayload(data, resolvedTenantId),
+        });
         if (error) return toFailureResult(error, data);
-        newId = (responseData as any)?.data?.id;
+        newId = responseData?.data?.id;
       }
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       return { success: true, id: newId };
