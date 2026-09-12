@@ -27,6 +27,7 @@ describe('useAutoSave', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mockSave.mockClear();
+    mockSave.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -58,16 +59,37 @@ describe('useAutoSave', () => {
     );
   });
 
-  it('does not re-save if state has not changed', () => {
+  it('does not re-save if state has not changed', async () => {
     const state = makeState({ phase: 'IN_PROGRESS' });
     renderHook(() => useAutoSave(state));
 
-    vi.advanceTimersByTime(2000);
+    await vi.advanceTimersByTimeAsync(2000);
     const callCount = mockSave.mock.calls.length;
 
-    vi.advanceTimersByTime(2000);
+    await vi.advanceTimersByTimeAsync(2000);
     // Should not save again because state hasn't changed
     expect(mockSave).toHaveBeenCalledTimes(callCount);
+  });
+
+  it('keeps retrying the same snapshot on rejection, then stops once the save resolves', async () => {
+    mockSave.mockReset();
+    mockSave.mockRejectedValueOnce(new Error('idb write failed'));
+    mockSave.mockResolvedValueOnce(undefined);
+
+    const state = makeState({ phase: 'IN_PROGRESS', startedAt: '2026-03-24T09:00:00.000Z' });
+    renderHook(() => useAutoSave(state));
+
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(mockSave).toHaveBeenCalledTimes(1);
+
+    // Save rejected, so lastSavedRef must not have advanced: same snapshot is retried.
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(mockSave).toHaveBeenCalledTimes(2);
+
+    // This save resolves, so lastSavedRef advances and the unchanged snapshot is
+    // no longer re-saved on the next tick.
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(mockSave).toHaveBeenCalledTimes(2);
   });
 
   it('cleans up interval on unmount', () => {

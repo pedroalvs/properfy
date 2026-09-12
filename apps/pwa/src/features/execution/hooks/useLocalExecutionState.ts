@@ -28,15 +28,19 @@ export function useLocalExecutionState(appointmentId: string) {
     });
   }, [appointmentId]);
 
+  // Persist from an effect keyed on the committed `state`, not from inside the
+  // `setState` updater — React (StrictMode in particular) can invoke an updater
+  // function more than once per commit, which would double-write to IndexedDB.
+  useEffect(() => {
+    if (!isRestored) return;
+    saveExecutionState(appointmentId, state);
+  }, [appointmentId, isRestored, state]);
+
   const updateState = useCallback(
     (updater: Partial<ExecutionState> | ((prev: ExecutionState) => ExecutionState)) => {
-      setState((prev) => {
-        const next = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
-        saveExecutionState(appointmentId, next);
-        return next;
-      });
+      setState((prev) => (typeof updater === 'function' ? updater(prev) : { ...prev, ...updater }));
     },
-    [appointmentId],
+    [],
   );
 
   const clearState = useCallback(() => {

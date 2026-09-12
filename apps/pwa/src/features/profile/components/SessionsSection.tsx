@@ -5,8 +5,9 @@ import { formatInstantDateTime } from '@/lib/format-date';
 
 function formatDevice(userAgent: string | null): string {
   if (!userAgent) return 'Unknown device';
-  if (/Mobile|Android|iPhone/i.test(userAgent)) return 'Mobile';
+  // iPad Safari UAs also contain "Mobile", so the Tablet check must come first.
   if (/iPad|Tablet/i.test(userAgent)) return 'Tablet';
+  if (/Mobile|Android|iPhone/i.test(userAgent)) return 'Mobile';
   return 'Desktop';
 }
 

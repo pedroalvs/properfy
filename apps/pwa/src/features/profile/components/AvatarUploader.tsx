@@ -27,13 +27,11 @@ export function AvatarUploader({ inspectorId, onUploaded }: AvatarUploaderProps)
     setIsUploading(true);
     try {
       const { data: presignData, error: presignErr } = await api.POST(
-        `/v1/inspectors/{inspectorId}/photo/presign` as never,
-        { params: { path: { inspectorId } }, body: { mimeType: file.type } } as never,
+        '/v1/inspectors/{inspectorId}/photo/presign',
+        { params: { path: { inspectorId } }, body: { mimeType: file.type } },
       );
       if (presignErr || !presignData) throw new Error('Failed to get upload URL');
-      // UX-baseline cleanup: backend now wraps the response in
-      // `{ data: { uploadUrl, storageKey, expiresAt } }`.
-      const { uploadUrl, storageKey } = (presignData as { data: { uploadUrl: string; storageKey: string } }).data;
+      const { uploadUrl, storageKey } = presignData.data;
 
       const putRes = await fetch(uploadUrl, {
         method: 'PUT',
@@ -43,8 +41,8 @@ export function AvatarUploader({ inspectorId, onUploaded }: AvatarUploaderProps)
       if (!putRes.ok) throw new Error('Upload failed');
 
       const { error: confirmErr } = await api.POST(
-        `/v1/inspectors/{inspectorId}/photo/confirm` as never,
-        { params: { path: { inspectorId } }, body: { storageKey } } as never,
+        '/v1/inspectors/{inspectorId}/photo/confirm',
+        { params: { path: { inspectorId } }, body: { storageKey } },
       );
       if (confirmErr) throw new Error('Failed to confirm upload');
 

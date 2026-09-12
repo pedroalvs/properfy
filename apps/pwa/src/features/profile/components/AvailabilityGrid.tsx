@@ -1,7 +1,7 @@
-import type { InspectorAvailabilityResponse } from '@properfy/shared';
+import type { InspectorAvailabilityResponse, AvailabilityTemplate } from '@properfy/shared';
 import { AvailabilityCell } from './AvailabilityCell';
 
-type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+type DayKey = keyof AvailabilityTemplate;
 
 const DAYS: { key: DayKey; label: string }[] = [
   { key: 'mon', label: 'Mon' },
