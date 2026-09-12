@@ -72,10 +72,11 @@ export function AuditLogTable({
       sortable: true,
     },
     {
-      key: 'entityId',
-      label: 'Entity ID',
+      // W1 #409: show the resolved human-readable label, never the raw UUID.
+      key: 'entityName',
+      label: 'Entity',
       width: '180px',
-      render: (row) => <>{row.entityId ?? '—'}</>,
+      render: (row) => <>{row.entityName ?? '—'}</>,
     },
     {
       key: 'action',

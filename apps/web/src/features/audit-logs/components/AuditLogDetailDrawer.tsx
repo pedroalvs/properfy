@@ -31,26 +31,31 @@ export function AuditLogDetailDrawer({ log, open, onClose }: AuditLogDetailDrawe
         {log ? (
           <div className="flex-1 overflow-y-auto px-6 py-4">
             <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-2 gap-3">
+              {/* W8 #417: single column on narrow viewports, two on >= sm. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-text-muted">Timestamp</p>
                   <p className="text-sm font-medium">{formatInstantDateTime(log.createdAt)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-text-muted">Actor</p>
-                  <p className="text-sm font-medium">{formatAuditActor(log.actorType, log.actorId)}</p>
+                  {/* W2 #423: pass the resolved names so the drawer matches the list. */}
+                  <p className="text-sm font-medium">
+                    {formatAuditActor(log.actorType, log.actorId, log.actorName)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-text-muted">Agency</p>
-                  <p className="text-sm font-medium">{formatAuditTenant(log.tenantId)}</p>
+                  <p className="text-sm font-medium">{formatAuditTenant(log.tenantId, log.tenantName)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-text-muted">Entity Type</p>
                   <p className="text-sm font-medium">{log.entityType}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-text-muted">Entity ID</p>
-                  <p className="text-sm font-medium">{log.entityId ?? '—'}</p>
+                  <p className="text-xs text-text-muted">Entity</p>
+                  {/* W1 #409: readable label, never the raw UUID. */}
+                  <p className="text-sm font-medium">{log.entityName ?? '—'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-text-muted">Action</p>
@@ -60,7 +65,7 @@ export function AuditLogDetailDrawer({ log, open, onClose }: AuditLogDetailDrawe
                   <p className="text-xs text-text-muted">IP Address</p>
                   <p className="text-sm font-medium">{log.ipAddress ?? '—'}</p>
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <p className="text-xs text-text-muted">Changed Fields</p>
                   <p className="text-sm font-medium">{summarizeAuditChanges(log)}</p>
                 </div>

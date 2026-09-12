@@ -96,19 +96,15 @@ describe('DashboardSummaryCards', () => {
 
   // ─── Links ────────────────────────────────────────────────────────────────
 
-  it('builds scheduled link with today date range', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 2, 25, 23, 30));
-
+  it('W5 #418: scheduled drill-down matches the full aggregate (no date scope)', () => {
     render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
 
-    // Link accessible name includes the value e.g. "4 Scheduled".
-    // The date range uses startDate/endDate to match the appointment list's
-    // URL filter vocabulary (FIX 2) — fromDate/toDate were silently ignored.
-    expect(screen.getByRole('link', { name: /scheduled$/i })).toHaveAttribute(
-      'href',
-      '/appointments?status=SCHEDULED&startDate=2026-03-25&endDate=2026-03-25',
-    );
+    // The card shows the full `scheduled` aggregate, so the link must not scope
+    // to today; `status=SCHEDULED` alone is a faithful drill-down.
+    const href = screen.getByRole('link', { name: /scheduled$/i }).getAttribute('href');
+    expect(href).toBe('/appointments?status=SCHEDULED');
+    expect(href).not.toContain('startDate');
+    expect(href).not.toContain('endDate');
   });
 
   it('builds done this month link with month range', () => {

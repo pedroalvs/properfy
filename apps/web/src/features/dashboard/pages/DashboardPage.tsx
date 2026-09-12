@@ -1,6 +1,7 @@
 import { PLATFORM_TIMEZONE, UserRole, addCivilDays, todayInTzDateString } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LoadingState } from '@/components/feedback/LoadingState';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardStats } from '../hooks';
 import { DashboardSummaryCards, RecentAppointmentsList, PendingActionsCard, StatCard, InspectorBreakdownSection } from '../components';
@@ -32,7 +33,7 @@ export function computeTomorrowLabel(): string {
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { stats, isLoading } = useDashboardStats();
+  const { stats, isLoading, isError, refetch } = useDashboardStats();
   const { hasRole, canPerform } = usePermissions();
   const tomorrowLabel = computeTomorrowLabel();
 
@@ -77,7 +78,15 @@ export function DashboardPage() {
 
       <IntegrationWarnings />
 
-      {isLoading || !stats ? (
+      {/* W4 #421: a failed load must show a recoverable error, not spin
+          forever. The error branch precedes the loading check. */}
+      {isError ? (
+        <ErrorState
+          message="Couldn't load the dashboard."
+          detail="Please try again."
+          onRetry={refetch}
+        />
+      ) : isLoading || !stats ? (
         <LoadingState rows={8} />
       ) : (
         <>
