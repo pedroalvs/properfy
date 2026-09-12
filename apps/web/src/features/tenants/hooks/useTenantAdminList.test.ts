@@ -94,6 +94,19 @@ describe('useTenantAdminList', () => {
 
     expect(result.current.isError).toBe(true);
     expect(result.current.data).toHaveLength(0);
+    expect(result.current.errorMessage).toEqual(expect.any(String));
+    expect(result.current.errorMessage).not.toBeNull();
+  });
+
+  it('errorMessage is null on a successful fetch', async () => {
+    const wrapper = createRouterQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminList(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.errorMessage).toBeNull();
   });
 
   it('exposes filters and setFilters', async () => {
