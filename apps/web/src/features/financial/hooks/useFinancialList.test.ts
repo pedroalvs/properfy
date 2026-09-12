@@ -95,6 +95,9 @@ describe('useFinancialList', () => {
     const lastCall = mockGet.mock.calls.at(-1)?.[1];
     expect(lastCall?.params?.query).not.toHaveProperty('entryType');
     expect(lastCall?.params?.query).not.toHaveProperty('search');
+    // Sorting is applied client-side (DataTable) — the query must never carry sortBy/sortOrder (#146).
+    expect(lastCall?.params?.query).not.toHaveProperty('sortBy');
+    expect(lastCall?.params?.query).not.toHaveProperty('sortOrder');
   });
 
   it('pagination total reflects API response', async () => {

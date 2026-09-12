@@ -64,6 +64,14 @@ describe('InvoiceTable', () => {
     expect(screen.getByText('Monthly')).toBeInTheDocument();
   });
 
+  it('renders "Unknown inspector" fallback when resolveInspectorLabel is not provided, never the raw id (#530)', () => {
+    render(<InvoiceTable data={MOCK_INVOICES} />);
+    const fallbacks = screen.getAllByText('Unknown inspector');
+    expect(fallbacks.length).toBe(2);
+    expect(screen.queryByText('insp-01')).not.toBeInTheDocument();
+    expect(screen.queryByText('insp-02')).not.toBeInTheDocument();
+  });
+
   it('renders action buttons', () => {
     const onView = vi.fn();
     const onDownload = vi.fn();
@@ -74,5 +82,38 @@ describe('InvoiceTable', () => {
 
     const downloadButtons = screen.getAllByLabelText('Download');
     expect(downloadButtons.length).toBe(2);
+  });
+
+  it('selection checkbox keeps a readable accessible name even when the row is not selectable (#538/#542)', () => {
+    render(
+      <InvoiceTable
+        data={MOCK_INVOICES}
+        resolveInspectorLabel={(id) => (id === 'insp-01' ? 'Diego' : 'Carlos')}
+        canModifyPayments
+        selectedIds={new Set()}
+        onToggleSelect={vi.fn()}
+      />,
+    );
+    // inv-02 is PAID (not selectable); its checkbox must still have a readable name.
+    const paidCheckbox = screen.getByRole('checkbox', { name: /Carlos/ });
+    expect(paidCheckbox).toBeDisabled();
+  });
+
+  it('selection checkbox accessible name never contains the raw invoice id', () => {
+    render(
+      <InvoiceTable
+        data={MOCK_INVOICES}
+        resolveInspectorLabel={(id) => (id === 'insp-01' ? 'Diego' : 'Carlos')}
+        canModifyPayments
+        selectedIds={new Set()}
+        onToggleSelect={vi.fn()}
+      />,
+    );
+    const checkboxes = screen.getAllByRole('checkbox');
+    for (const checkbox of checkboxes) {
+      const label = checkbox.getAttribute('aria-label') ?? '';
+      expect(label).not.toContain('inv-01');
+      expect(label).not.toContain('inv-02');
+    }
   });
 });

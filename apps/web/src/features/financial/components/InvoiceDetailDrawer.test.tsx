@@ -122,4 +122,70 @@ describe('InvoiceDetailDrawer', () => {
 
     expect(screen.getByLabelText('Download invoice')).toBeDisabled();
   });
+
+  it('falls back to "Unknown inspector" when resolveInspectorLabel is missing, never showing the raw inspectorId', () => {
+    mockUseInvoiceDetail.mockReturnValue({
+      invoice: {
+        id: 'inv-03',
+        inspectorId: 'insp-03',
+        periodStart: '2026-03-01',
+        periodEnd: '2026-03-15',
+        invoiceNumber: null,        invoiceNumberDisplay: null,        periodType: 'FORTNIGHTLY',
+        totalAmount: 1800,
+        currency: 'AUD',
+        status: 'CLOSED',
+        fileKey: 'invoices/inv-03.pdf',
+        issuedAt: '2026-03-16T10:00:00Z',
+        paidAt: null,
+        paidByUserId: null,
+        paymentReference: null,
+        notes: null,
+        createdAt: '2026-03-16T10:00:00Z',
+        updatedAt: '2026-03-16T10:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    render(
+      <InvoiceDetailDrawer invoiceId="inv-03" open={true} onClose={vi.fn()} />,
+      { wrapper: createQueryWrapper() },
+    );
+
+    expect(screen.getByText('Invoice - Unknown inspector')).toBeInTheDocument();
+    expect(screen.queryByText('insp-03')).not.toBeInTheDocument();
+  });
+
+  it('never renders the raw paidByUserId in the "Paid by" row for a PAID invoice', () => {
+    mockUseInvoiceDetail.mockReturnValue({
+      invoice: {
+        id: 'inv-04',
+        inspectorId: 'insp-04',
+        periodStart: '2026-03-01',
+        periodEnd: '2026-03-15',
+        invoiceNumber: null,        invoiceNumberDisplay: null,        periodType: 'FORTNIGHTLY',
+        totalAmount: 1800,
+        currency: 'AUD',
+        status: 'PAID',
+        fileKey: 'invoices/inv-04.pdf',
+        issuedAt: '2026-03-16T10:00:00Z',
+        paidAt: '2026-03-20T10:00:00Z',
+        paidByUserId: 'usr-99999999-aaaa-bbbb-cccc-dddddddddddd',
+        paymentReference: 'PAY-004',
+        notes: null,
+        createdAt: '2026-03-16T10:00:00Z',
+        updatedAt: '2026-03-16T10:00:00Z',
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    render(
+      <InvoiceDetailDrawer invoiceId="inv-04" open={true} onClose={vi.fn()} resolveInspectorLabel={() => 'Sam'} />,
+      { wrapper: createQueryWrapper() },
+    );
+
+    expect(screen.getByText('Paid by')).toBeInTheDocument();
+    expect(screen.queryByText('usr-99999999-aaaa-bbbb-cccc-dddddddddddd')).not.toBeInTheDocument();
+  });
 });

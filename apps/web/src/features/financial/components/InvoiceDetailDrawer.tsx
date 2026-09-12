@@ -48,7 +48,7 @@ export function InvoiceDetailDrawer({
   const canModifyPayments = hasRole('AM', 'OP');
   const canReviewDraft = hasRole('AM', 'OP');
   const inspectorLabel = invoice
-    ? (resolveInspectorLabel?.(invoice.inspectorId) ?? invoice.inspectorId)
+    ? (resolveInspectorLabel?.(invoice.inspectorId) ?? 'Unknown inspector')
     : '';
   const canDownload = !!invoice && invoice.status !== 'PENDING_REVIEW' && !!invoice.fileKey;
 
@@ -239,9 +239,12 @@ export function InvoiceDetailDrawer({
                   <DetailRow label="Paid at" value={invoice.paidAt ? formatInstantDateTime(invoice.paidAt) : 'Not paid'} />
                   {invoice.status === 'PAID' && (
                     <>
+                      {/* The invoice detail API does not yet resolve `paidByUserId` to a display
+                          name (no `paidByUserName` field on InvoiceDetail). Never render the raw
+                          UUID — show an em-dash via DetailRow until the response is enriched. */}
                       <DetailRow
                         label="Paid by"
-                        value={invoice.paidByUserId ?? 'Unknown user'}
+                        value={null}
                       />
                       <DetailRow
                         label="Payment reference"
