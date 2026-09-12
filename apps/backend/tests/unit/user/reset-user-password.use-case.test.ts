@@ -87,8 +87,9 @@ describe('ResetUserPasswordUseCase', () => {
       'user-1',
       'tenant-1',
       expect.any(String),
+      undefined,
     );
-    expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith('user-1');
+    expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith('user-1', undefined);
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'user.password_reset',
@@ -194,8 +195,8 @@ describe('ResetUserPasswordUseCase', () => {
       actor: amActor,
     });
 
-    expect(passwordHistoryRepo.save).toHaveBeenCalledWith('user-1', expect.any(String));
-    expect(passwordHistoryRepo.pruneOldEntries).toHaveBeenCalledWith('user-1', 5);
+    expect(passwordHistoryRepo.save).toHaveBeenCalledWith('user-1', expect.any(String), undefined);
+    expect(passwordHistoryRepo.pruneOldEntries).toHaveBeenCalledWith('user-1', 5, undefined);
   });
 
   it('rejects resetting to the same password', async () => {
@@ -209,5 +210,34 @@ describe('ResetUserPasswordUseCase', () => {
         actor: amActor,
       }),
     ).rejects.toThrow(PasswordSameAsCurrentError);
+  });
+
+  it('rolls back and never audits when a write mid-transaction fails', async () => {
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(makeUser());
+    vi.mocked(passwordHistoryRepo.save).mockRejectedValue(new Error('db down'));
+
+    const txObject = {} as never;
+    const fakePrisma = {
+      $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) => fn(txObject)),
+    } as never;
+
+    const txUseCase = new ResetUserPasswordUseCase(
+      userManagementRepo,
+      auditService,
+      passwordHistoryRepo,
+      authorizationService,
+      fakePrisma,
+    );
+
+    await expect(
+      txUseCase.execute({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        newPassword: 'NewStrong1!',
+        actor: amActor,
+      }),
+    ).rejects.toThrow('db down');
+
+    expect(auditService.log).not.toHaveBeenCalled();
   });
 });

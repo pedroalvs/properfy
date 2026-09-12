@@ -117,13 +117,6 @@ export class InvalidPasswordResetTokenError extends DomainError {
   }
 }
 
-export class PasswordResetRateLimitError extends TooManyRequestsError {
-  constructor() {
-    super('AUTH_PASSWORD_RESET_RATE_LIMIT', 'Too many password reset requests. Please try again later.', 3600);
-    this.name = 'PasswordResetRateLimitError';
-  }
-}
-
 export class PasswordRecentlyUsedError extends DomainError {
   constructor() {
     super('AUTH_PASSWORD_RECENTLY_USED', 'Password was recently used. Please choose a different password.', 400);

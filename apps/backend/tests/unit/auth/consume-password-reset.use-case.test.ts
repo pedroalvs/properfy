@@ -67,6 +67,7 @@ describe('ConsumePasswordResetUseCase', () => {
       save: vi.fn(),
       findByTokenHash: vi.fn(),
       markUsed: vi.fn(),
+      consumeIfUnused: vi.fn().mockResolvedValue(true),
       countRecentByUserId: vi.fn(),
       deleteExpired: vi.fn(),
     };
@@ -95,7 +96,7 @@ describe('ConsumePasswordResetUseCase', () => {
     useCase = new ConsumePasswordResetUseCase(passwordResetTokenRepo, userRepo, sessionRepo, auditService, passwordHistoryRepo);
   });
 
-  it('should reset password, revoke sessions, mark token used and log audit on valid input', async () => {
+  it('should reset password, revoke sessions, consume the token and log audit on valid input', async () => {
     vi.mocked(passwordResetTokenRepo.findByTokenHash).mockResolvedValue(makeTokenEntity());
     vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
 
@@ -103,9 +104,9 @@ describe('ConsumePasswordResetUseCase', () => {
 
     expect(passwordResetTokenRepo.findByTokenHash).toHaveBeenCalledWith(TOKEN_HASH);
     expect(userRepo.findById).toHaveBeenCalledWith('user-1');
-    expect(userRepo.updatePassword).toHaveBeenCalledWith('user-1', expect.any(String));
-    expect(sessionRepo.revokeAllForUser).toHaveBeenCalledWith('user-1', expect.any(Date));
-    expect(passwordResetTokenRepo.markUsed).toHaveBeenCalledWith('token-1');
+    expect(userRepo.updatePassword).toHaveBeenCalledWith('user-1', expect.any(String), undefined);
+    expect(sessionRepo.revokeAllForUser).toHaveBeenCalledWith('user-1', expect.any(Date), undefined);
+    expect(passwordResetTokenRepo.consumeIfUnused).toHaveBeenCalledWith('token-1', undefined);
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'auth.password_reset_consumed',
@@ -194,8 +195,8 @@ describe('ConsumePasswordResetUseCase', () => {
 
     await useCase.execute({ token: RAW_TOKEN, newPassword: 'NewStr0ng!Pass' });
 
-    expect(passwordHistoryRepo.save).toHaveBeenCalledWith('user-1', expect.any(String));
-    expect(passwordHistoryRepo.pruneOldEntries).toHaveBeenCalledWith('user-1', 5);
+    expect(passwordHistoryRepo.save).toHaveBeenCalledWith('user-1', expect.any(String), undefined);
+    expect(passwordHistoryRepo.pruneOldEntries).toHaveBeenCalledWith('user-1', 5, undefined);
   });
 
   it('should throw InvalidPasswordResetTokenError when user is not found', async () => {
@@ -207,5 +208,59 @@ describe('ConsumePasswordResetUseCase', () => {
     ).rejects.toThrow(InvalidPasswordResetTokenError);
 
     expect(userRepo.updatePassword).not.toHaveBeenCalled();
+  });
+
+  // #256: a token that is otherwise valid must still be rejected when the
+  // owning user is no longer active — and rejected BEFORE any write, so a
+  // deactivated account can never have its password silently rotated.
+  it('should throw InvalidPasswordResetTokenError when the token is valid but the user is inactive (#256)', async () => {
+    vi.mocked(passwordResetTokenRepo.findByTokenHash).mockResolvedValue(makeTokenEntity());
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser({ status: 'INACTIVE' }));
+
+    await expect(
+      useCase.execute({ token: RAW_TOKEN, newPassword: 'NewStr0ng!Pass' }),
+    ).rejects.toThrow(InvalidPasswordResetTokenError);
+
+    expect(userRepo.updatePassword).not.toHaveBeenCalled();
+    expect(passwordResetTokenRepo.consumeIfUnused).not.toHaveBeenCalled();
+  });
+
+  it('should throw InvalidPasswordResetTokenError when consumeIfUnused reports the token was already consumed (race)', async () => {
+    vi.mocked(passwordResetTokenRepo.findByTokenHash).mockResolvedValue(makeTokenEntity());
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
+    vi.mocked(passwordResetTokenRepo.consumeIfUnused).mockResolvedValue(false);
+
+    await expect(
+      useCase.execute({ token: RAW_TOKEN, newPassword: 'NewStr0ng!Pass' }),
+    ).rejects.toThrow(InvalidPasswordResetTokenError);
+
+    expect(userRepo.updatePassword).not.toHaveBeenCalled();
+  });
+
+  it('rolls back and never audits when a write mid-transaction fails', async () => {
+    vi.mocked(passwordResetTokenRepo.findByTokenHash).mockResolvedValue(makeTokenEntity());
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
+    vi.mocked(passwordHistoryRepo.save).mockRejectedValue(new Error('db down'));
+
+    const txObject = {} as never;
+    const fakePrisma = {
+      $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) => fn(txObject)),
+    } as never;
+
+    const txUseCase = new ConsumePasswordResetUseCase(
+      passwordResetTokenRepo,
+      userRepo,
+      sessionRepo,
+      auditService,
+      passwordHistoryRepo,
+      fakePrisma,
+    );
+
+    await expect(
+      txUseCase.execute({ token: RAW_TOKEN, newPassword: 'NewStr0ng!Pass' }),
+    ).rejects.toThrow('db down');
+
+    // Audit is deferred to after-commit: a rolled-back transaction never flushes it.
+    expect(auditService.log).not.toHaveBeenCalled();
   });
 });

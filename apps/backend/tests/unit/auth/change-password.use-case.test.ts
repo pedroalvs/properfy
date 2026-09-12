@@ -43,7 +43,7 @@ describe('ChangePasswordUseCase', () => {
   it('should update password hash on valid input', async () => {
     vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
     await useCase.execute({ userId: 'user-1', currentPassword: 'OldPass1!', newPassword: 'NewPass2@' });
-    expect(userRepo.updatePassword).toHaveBeenCalledWith('user-1', expect.any(String));
+    expect(userRepo.updatePassword).toHaveBeenCalledWith('user-1', expect.any(String), undefined);
   });
 
   it('should return AUTH_INVALID_CURRENT_PASSWORD on wrong current password', async () => {
@@ -76,7 +76,7 @@ describe('ChangePasswordUseCase', () => {
   it('should revoke all active sessions after password change', async () => {
     vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
     await useCase.execute({ userId: 'user-1', currentPassword: 'OldPass1!', newPassword: 'NewPass2@' });
-    expect(sessionRepo.revokeAllForUser).toHaveBeenCalledWith('user-1', expect.any(Date));
+    expect(sessionRepo.revokeAllForUser).toHaveBeenCalledWith('user-1', expect.any(Date), undefined);
   });
 
   it('should reject weak new password', async () => {
@@ -99,13 +99,31 @@ describe('ChangePasswordUseCase', () => {
   it('should save old hash to history and prune after successful change', async () => {
     vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
     await useCase.execute({ userId: 'user-1', currentPassword: 'OldPass1!', newPassword: 'NewPass2@' });
-    expect(passwordHistoryRepo.save).toHaveBeenCalledWith('user-1', expect.any(String));
-    expect(passwordHistoryRepo.pruneOldEntries).toHaveBeenCalledWith('user-1', 5);
+    expect(passwordHistoryRepo.save).toHaveBeenCalledWith('user-1', expect.any(String), undefined);
+    expect(passwordHistoryRepo.pruneOldEntries).toHaveBeenCalledWith('user-1', 5, undefined);
   });
 
   it('should emit audit event', async () => {
     vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
     await useCase.execute({ userId: 'user-1', currentPassword: 'OldPass1!', newPassword: 'NewPass2@' });
     expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'auth.password_changed' }));
+  });
+
+  it('rolls back and never audits when a write mid-transaction fails', async () => {
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
+    vi.mocked(passwordHistoryRepo.save).mockRejectedValue(new Error('db down'));
+
+    const txObject = {} as never;
+    const fakePrisma = {
+      $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) => fn(txObject)),
+    } as never;
+
+    const txUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo, fakePrisma);
+
+    await expect(
+      txUseCase.execute({ userId: 'user-1', currentPassword: 'OldPass1!', newPassword: 'NewPass2@' }),
+    ).rejects.toThrow('db down');
+
+    expect(auditService.log).not.toHaveBeenCalled();
   });
 });

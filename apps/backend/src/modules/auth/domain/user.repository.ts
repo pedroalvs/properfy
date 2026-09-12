@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { UserStatus } from '@properfy/shared';
 import type { UserEntity } from './user.entity';
 
@@ -20,7 +21,7 @@ export interface IUserRepository {
   ): Promise<{ failedLoginCount: number; status: UserStatus; lockedUntil: Date | null }>;
   /** Clear an expired lock: reset count to 0 and status to ACTIVE. No-op unless currently LOCKED. */
   resetFailedLogin(userId: string): Promise<void>;
-  updatePassword(userId: string, passwordHash: string): Promise<void>;
+  updatePassword(userId: string, passwordHash: string, tx?: Prisma.TransactionClient): Promise<void>;
   /** Personal timezone for cross-tenant roles; null clears back to the platform default. */
   updateTimezone(userId: string, timezone: string | null): Promise<void>;
   updateTotpSecret(userId: string, totpSecret: string): Promise<void>;
