@@ -41,7 +41,11 @@ export function InspectorAvailabilityTab({ inspectorId }: InspectorAvailabilityT
 
   const handleSaved = () => {
     closeOverride();
-    queryClient.invalidateQueries({ queryKey: ['inspector-availability-template', inspectorId] });
+    // Refresh the composite template/override view so a saved override is
+    // reflected immediately (WI-14 #291).
+    void queryClient.invalidateQueries({
+      queryKey: ['inspector-availability-template', inspectorId],
+    });
   };
 
   if (isLoading) {
