@@ -455,4 +455,56 @@ describe('ListAuditLogsUseCase', () => {
       expect(result.data[0]!.isArchived).toBe(true);
     });
   });
+
+  describe('W1 #409: entityName enrichment', () => {
+    it('resolves labels grouped by type (one query per type); unresolvable -> null', async () => {
+      const localRepo = {
+        save: vi.fn(),
+        saveMany: vi.fn(),
+        findAll: vi.fn().mockResolvedValue([
+          makeAuditLog({ id: 'e1', entityType: 'Appointment', entityId: 'appt-1' }),
+          makeAuditLog({ id: 'e2', entityType: 'Property', entityId: 'prop-1' }),
+          makeAuditLog({ id: 'e3', entityType: 'ServiceGroup', entityId: 'sg-1' }),
+        ]),
+        count: vi.fn().mockResolvedValue(3),
+      };
+      const resolver = {
+        resolveLabels: vi.fn(async (entityType: string) => {
+          if (entityType === 'Appointment') return new Map([['appt-1', '#42']]);
+          if (entityType === 'Property') return new Map([['prop-1', 'PREFIX-PROP-0001']]);
+          return new Map<string, string>(); // ServiceGroup -> unresolvable
+        }),
+      };
+      const localUseCase = new ListAuditLogsUseCase(
+        localRepo as unknown as IAuditLogRepository,
+        undefined,
+        undefined,
+        undefined,
+        resolver as any,
+      );
+
+      const result = await localUseCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
+        actor: amActor,
+      });
+
+      const byId = Object.fromEntries(result.data.map((d) => [d.id, d.entityName]));
+      expect(byId['e1']).toBe('#42');
+      expect(byId['e2']).toBe('PREFIX-PROP-0001');
+      expect(byId['e3']).toBeNull();
+      // One resolveLabels call per distinct entity type per page (no N+1).
+      expect(resolver.resolveLabels).toHaveBeenCalledTimes(3);
+      expect(resolver.resolveLabels).toHaveBeenCalledWith('Appointment', ['appt-1']);
+    });
+
+    it('leaves entityName null when no resolver is configured', async () => {
+      const result = await useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
+        actor: amActor,
+      });
+      expect(result.data[0]!.entityName).toBeNull();
+    });
+  });
 });

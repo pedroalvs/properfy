@@ -18767,6 +18767,10 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "entityName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "action": {
                             "type": "string"
                           },

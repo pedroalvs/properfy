@@ -708,6 +708,10 @@ export const auditLogResponseSchema = z.object({
   actorName: z.string().nullable(),
   entityType: z.string(),
   entityId: z.string().nullable(),
+  // W1 #409: human-readable label for the entity the entry refers to (e.g. an
+  // appointment number, property code, user/inspector/tenant name). Null when
+  // the entity type has no resolvable label. Keeps raw UUIDs out of the UI.
+  entityName: z.string().nullable().optional(),
   action: z.string(),
   reason: z.string().nullable(),
   beforeJson: z.unknown().nullable(),
