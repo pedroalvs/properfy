@@ -24,7 +24,10 @@ export function useUserDeactivate(
 
   const deactivate = (reason: string) => {
     if (!userId) return;
-    if (scope === 'tenant' && !tenantId) return;
+    if (scope === 'tenant' && !tenantId) {
+      showError('Missing agency context — unable to deactivate this user.');
+      return;
+    }
     const trimmedReason = reason.trim();
     if (!trimmedReason) return;
     mutation.mutate(

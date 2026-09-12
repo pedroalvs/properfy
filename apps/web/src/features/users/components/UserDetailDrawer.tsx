@@ -6,6 +6,8 @@ import { Dialog } from '@/components/ui/Dialog';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Textarea } from '@/components/forms/Textarea';
 import { LoadingState } from '@/components/feedback/LoadingState';
+import { ErrorState } from '@/components/feedback/ErrorState';
+import { EmptyState } from '@/components/feedback/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserDetail } from '../hooks/useUserDetail';
 import { useUserDeactivate } from '../hooks/useUserDeactivate';
@@ -36,7 +38,7 @@ export function UserDetailDrawer({
   scope = 'tenant',
 }: UserDetailDrawerProps) {
   const { user: authUser } = useAuth();
-  const { user, isLoading, refetch } = useUserDetail(userId, tenantId, scope);
+  const { user, isLoading, isError, refetch } = useUserDetail(userId, tenantId, scope);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
   const [deactivateReason, setDeactivateReason] = useState('');
   const [reasonError, setReasonError] = useState('');
@@ -122,6 +124,13 @@ export function UserDetailDrawer({
               <LoadingState rows={6} />
             </div>
           </>
+        ) : isError ? (
+          <>
+            <DrawerHeader title="Error" onClose={onClose} />
+            <div className="flex-1 px-6 py-4">
+              <ErrorState message="Failed to load user details" onRetry={refetch} />
+            </div>
+          </>
         ) : user ? (
           <>
             <DrawerHeader
@@ -165,6 +174,16 @@ export function UserDetailDrawer({
             />
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <UserDetailSections user={user} />
+            </div>
+          </>
+        ) : userId ? (
+          <>
+            <DrawerHeader title="Not Found" onClose={onClose} />
+            <div className="flex-1 px-6 py-4">
+              <EmptyState
+                title="User not found"
+                description="This user may have been removed or you no longer have access."
+              />
             </div>
           </>
         ) : null}

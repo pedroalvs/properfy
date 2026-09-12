@@ -66,7 +66,7 @@ function renderDialog() {
 describe('UserResetPasswordDialog', () => {
   beforeEach(() => {
     mockPost.mockReset();
-    mockPost.mockResolvedValue({ data: null, error: undefined });
+    mockPost.mockResolvedValue({ data: null, error: undefined, response: { status: 204 } });
   });
 
   it('validates required and matching fields', async () => {
@@ -90,8 +90,9 @@ describe('UserResetPasswordDialog', () => {
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith(
-        '/v1/tenants/tenant-1/users/user-1/reset-password',
+        '/v1/tenants/{tenantId}/users/{userId}/reset-password',
         expect.objectContaining({
+          params: { path: { tenantId: 'tenant-1', userId: 'user-1' } },
           body: { newPassword: 'NewStrong1!' },
         }),
       );

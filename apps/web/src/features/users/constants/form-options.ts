@@ -12,9 +12,3 @@ export const INTERNAL_USER_ROLE_OPTIONS: SelectOption[] = [
   { label: 'Admin Manager', value: 'AM' },
   { label: 'Operator', value: 'OP' },
 ];
-
-export const USER_STATUS_OPTIONS: SelectOption[] = [
-  { label: 'Active', value: 'ACTIVE' },
-  { label: 'Inactive', value: 'INACTIVE' },
-  { label: 'Blocked', value: 'LOCKED' },
-];

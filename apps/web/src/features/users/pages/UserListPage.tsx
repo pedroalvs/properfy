@@ -11,11 +11,12 @@ import { useFormOptions } from '@/hooks/useFormOptions';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { FormField } from '@/components/forms/FormField';
 import { FilterRequiredState } from '@/components/feedback/FilterRequiredState';
+import { UserRole } from '@properfy/shared';
 import type { UserScope } from '../types';
 
 export function UserListPage() {
   const { user: authUser } = useAuth();
-  const isGlobalRole = authUser?.role === 'AM' || authUser?.role === 'OP';
+  const isGlobalRole = authUser?.role === UserRole.AM || authUser?.role === UserRole.OP;
   const [scope, setScope] = useState<UserScope>('tenant');
   const [selectedTenantId, setSelectedTenantId] = useState('');
   const requiresTenantSelection = isGlobalRole && scope === 'tenant' && !selectedTenantId;
@@ -48,7 +49,7 @@ export function UserListPage() {
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
   const [resetUserId, setResetUserId] = useState<string | null>(null);
   const [resetUserName, setResetUserName] = useState<string | null>(null);
-  const canResetPassword = authUser?.role === 'AM' || authUser?.role === 'OP';
+  const canResetPassword = authUser?.role === UserRole.AM || authUser?.role === UserRole.OP;
 
   return (
     <>

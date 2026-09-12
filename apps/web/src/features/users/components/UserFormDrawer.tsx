@@ -17,14 +17,15 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useUserDetail } from '../hooks/useUserDetail';
 import { useUserSave } from '../hooks/useUserSave';
+import { UserStatusChip } from './UserStatusChip';
 import {
   TENANT_USER_ROLE_OPTIONS,
   INTERNAL_USER_ROLE_OPTIONS,
-  USER_STATUS_OPTIONS,
 } from '../constants/form-options';
 import type { UserFormData, UserFormErrors, UserScope } from '../types';
 import { EMPTY_USER_FORM } from '../types';
 import { formatAuPhone } from '@/lib/phone-mask';
+import type { UserStatus } from '@properfy/shared';
 
 interface UserFormDrawerProps {
   open: boolean;
@@ -263,14 +264,15 @@ export function UserFormDrawer({
 
                   {isEditMode && (
                     <FormSection title="Status">
-                      <FormField label="Status" error={errors.status}>
-                        <SelectInput
-                          value={form.status}
-                          onChange={(v) => updateField('status', v)}
-                          options={USER_STATUS_OPTIONS}
-                          aria-label="Status"
-                        />
-                      </FormField>
+                      <div>
+                        <p className="text-xs text-text-muted">Status</p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <UserStatusChip status={form.status as UserStatus} />
+                          <span className="text-xs text-text-muted">
+                            Use the Deactivate / Reactivate action to change status.
+                          </span>
+                        </div>
+                      </div>
                     </FormSection>
                   )}
                 </div>
