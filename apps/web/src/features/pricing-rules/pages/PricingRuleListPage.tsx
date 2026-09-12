@@ -71,14 +71,10 @@ export function PricingRuleListPage() {
     [branchesResp],
   );
 
-  const tenantMap = useMemo(
-    () => Object.fromEntries((tenantsResp?.data ?? []).map((t) => [t.id, t.name])),
-    [tenantsResp],
-  );
-  const serviceTypeMap = useMemo(
-    () => Object.fromEntries((serviceTypesResp?.data ?? []).map((s) => [s.id, s.name])),
-    [serviceTypesResp],
-  );
+  // tenantName / serviceTypeName now come from the server on each list row (#389),
+  // so the old display maps (capped at pageSize 100, rendering raw UUIDs beyond
+  // that) are gone. Branch is not server-enriched, so it keeps a client map — the
+  // option list is loaded for the filter/drawer anyway.
   const branchMap = useMemo(
     () => Object.fromEntries((branchesResp?.data ?? []).map((b) => [b.id, b.name])),
     [branchesResp],
@@ -88,11 +84,9 @@ export function PricingRuleListPage() {
     () =>
       data.map((rule) => ({
         ...rule,
-        tenantName: tenantMap[rule.tenantId],
-        serviceTypeName: serviceTypeMap[rule.serviceTypeId],
         branchName: rule.branchId ? branchMap[rule.branchId] : null,
       })),
-    [data, tenantMap, serviceTypeMap, branchMap],
+    [data, branchMap],
   );
 
   const [formOpen, setFormOpen] = useState(false);

@@ -69,7 +69,11 @@ export function PricingRuleFormDrawer({
       setInitialData(data);
       setErrors({});
     }
-  }, [isEditMode, rule]);
+    // `open` is in the deps so reopening the same rule rehydrates from the
+    // persisted values instead of showing the abandoned in-memory edits — the
+    // drawer keeps its children mounted across opens (#610). Matches the
+    // create-mode effect below.
+  }, [isEditMode, rule, open]);
 
   useEffect(() => {
     if (open && !isEditMode) {

@@ -78,7 +78,15 @@ describe('useServiceTypeSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/service-types/st-01', { body: VALID_DATA });
+    // Typed path + params, and the update body omits the immutable `code` (#738).
+    expect(mockPatch).toHaveBeenCalledWith('/v1/service-types/{serviceTypeId}', {
+      params: { path: { serviceTypeId: 'st-01' } },
+      body: {
+        name: VALID_DATA.name,
+        flowType: VALID_DATA.flowType,
+        requiresRentalTenantConfirmation: VALID_DATA.requiresRentalTenantConfirmation,
+      },
+    });
   });
 
   it('save returns failure on API error', async () => {
