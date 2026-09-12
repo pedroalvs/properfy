@@ -56,10 +56,12 @@ describe('ReportDetailSections', () => {
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows filters when present, em-dash when null', () => {
+  it('shows filters as readable labels (W6 #406), em-dash when null', () => {
     render(<ReportDetailSections report={baseReport} />);
+    // Readable labels + formatted dates; groupProperties:false is omitted; no
+    // raw camelCase keys.
     expect(
-      screen.getByText('fromDate: 2026-03-01, toDate: 2026-03-15, dateAxis: SCHEDULED, groupProperties: false'),
+      screen.getByText('From: 1 Mar 2026, To: 15 Mar 2026, Date basis: Scheduled'),
     ).toBeInTheDocument();
   });
 

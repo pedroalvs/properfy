@@ -6,10 +6,11 @@ export interface UseDashboardStatsReturn {
   stats: DashboardStats | null;
   isLoading: boolean;
   isError: boolean;
+  refetch: () => void;
 }
 
 export function useDashboardStats(): UseDashboardStatsReturn {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard', 'stats'],
     queryFn: async () => {
       const { data, error } = await api.GET('/v1/dashboard/stats');
@@ -22,5 +23,6 @@ export function useDashboardStats(): UseDashboardStatsReturn {
     stats: (data?.data as DashboardStats) ?? null,
     isLoading,
     isError,
+    refetch,
   };
 }
