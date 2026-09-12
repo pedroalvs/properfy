@@ -64,9 +64,14 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
   // Unbounded (all-pages) fetches: the inspector's own service types, regions
   // or blocked agencies can reference a record beyond the backend's 100-row
   // page cap. A raw `?? id` fallback there would leak the UUID into the UI.
+  // Only resolve the catalogs the inspector actually references, and keep them
+  // briefly fresh — otherwise every drawer open pays up to 50 sequential page
+  // fetches even to resolve zero ids.
   const { data: serviceTypesData } = useAllPagesQuery<{ id: string; name: string }>(
     ['service-types', 'inspector-detail'],
     '/v1/service-types',
+    undefined,
+    { enabled: inspector.serviceTypes.length > 0, staleTime: 5 * 60 * 1000 },
   );
   const serviceTypeNameMap = new Map((serviceTypesData?.data ?? []).map((item) => [item.id, item.name]));
   const serviceTypeLabels = inspector.serviceTypes.map((entry) => {
@@ -77,6 +82,8 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
   const { data: regionsData } = useAllPagesQuery<{ id: string; name: string }>(
     ['service-regions', 'inspector-detail'],
     '/v1/service-regions',
+    undefined,
+    { enabled: (inspector.regionIds ?? []).length > 0, staleTime: 5 * 60 * 1000 },
   );
   const regionNameMap = new Map((regionsData?.data ?? []).map((item) => [item.id, item.name]));
   const regionLabels = (inspector.regionIds ?? []).map(
@@ -86,6 +93,8 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
   const { data: tenantsData } = useAllPagesQuery<{ id: string; name: string }>(
     ['tenants', 'inspector-detail'],
     '/v1/tenants',
+    undefined,
+    { enabled: (inspector.blockedClients ?? []).length > 0, staleTime: 5 * 60 * 1000 },
   );
   const tenantNameMap = new Map((tenantsData?.data ?? []).map((item) => [item.id, item.name]));
   const blockedClientLabels = (inspector.blockedClients ?? []).map(
