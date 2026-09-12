@@ -38,6 +38,7 @@ import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
 import type { CreateNotificationUseCase } from '../../../src/modules/notification/application/use-cases/create-notification.use-case';
+import { SlidingWindowRateLimiter } from '../../../src/shared/infrastructure/sliding-window-rate-limiter';
 import type { AuthContext } from '@properfy/shared';
 
 // ---------------------------------------------------------------------------
@@ -143,6 +144,7 @@ function makePasswordResetTokenRepo(): IPasswordResetTokenRepository {
     save: vi.fn(),
     findByTokenHash: vi.fn(),
     markUsed: vi.fn(),
+    consumeIfUnused: vi.fn().mockResolvedValue(true),
     countRecentByUserId: vi.fn().mockResolvedValue(0),
     deleteExpired: vi.fn(),
   };
@@ -200,7 +202,7 @@ function makeUserManagementRepo(user: UserEntity | null = makeUser()): IUserMana
     findByTenantId: vi.fn().mockResolvedValue([]),
     countByTenantId: vi.fn().mockResolvedValue(0),
     save: vi.fn(),
-    update: vi.fn(),
+    update: vi.fn().mockResolvedValue(true),
     resetPassword: vi.fn(),
     unlock: vi.fn(),
     revokeAllSessions: vi.fn(),
@@ -298,15 +300,22 @@ describe('Audit completeness: every identity write-path emits exactly one audit 
   describe('RequestPasswordResetUseCase', () => {
     it('emits exactly one audit record on success', async () => {
       const auditService = makeAuditService();
+      const rateLimiter = new SlidingWindowRateLimiter({
+        maxRequests: 3,
+        windowMs: 60 * 60 * 1000,
+        cleanupIntervalMs: 0,
+      });
       const useCase = new RequestPasswordResetUseCase(
         makeUserRepo(),
         makePasswordResetTokenRepo(),
         makeCreateNotificationUseCase(),
         auditService,
         { webAppBaseUrl: 'https://app.example.com', pwaBaseUrl: 'https://pwa.example.com' },
+        rateLimiter,
       );
 
-      await useCase.execute({ email: 'test@example.com' });
+      await useCase.execute({ email: 'test@example.com', requestId: 'req-1' });
+      rateLimiter.destroy();
 
       assertSingleAuditRecord(auditService);
     });

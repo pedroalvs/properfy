@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { SessionEntity } from './session.entity';
 
 export interface ISessionRepository {
@@ -19,7 +20,7 @@ export interface ISessionRepository {
     expiresAt: Date,
   ): Promise<boolean>;
   revoke(sessionId: string, revokedAt: Date): Promise<void>;
-  revokeAllForUser(userId: string, revokedAt: Date): Promise<void>;
+  revokeAllForUser(userId: string, revokedAt: Date, tx?: Prisma.TransactionClient): Promise<void>;
   findRecentByUserId(userId: string, days: number): Promise<SessionEntity[]>;
   deleteExpiredBefore(date: Date): Promise<number>;
 }

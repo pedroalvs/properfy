@@ -561,7 +561,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getMeUseCase = new GetMeUseCase(userRepo, inspectorRepo, storageService, tenantRepo, logger);
   const updateMyTimezoneUseCase = new UpdateMyTimezoneUseCase(userRepo, auditService);
   const passwordHistoryRepo = new PrismaPasswordHistoryRepository(prisma);
-  const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo);
+  const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo, prisma);
   const revokeSessionUseCase = new RevokeSessionUseCase(sessionRepo, auditService);
   const listSessionsUseCase = new ListSessionsUseCase(sessionRepo);
   const setupTotpUseCase = new SetupTotpUseCase(userRepo, totpService, auditService, totpEncryptionService);
@@ -607,10 +607,10 @@ export function createContainer(logger: Logger): AppContainer {
   const getUserUseCase = new GetUserUseCase(userManagementRepo);
   const listUsersUseCase = new ListUsersUseCase(userManagementRepo);
   const updateUserUseCase = new UpdateUserUseCase(userManagementRepo, tenantRepo, branchRepo, auditService, authorizationService);
-  const deactivateUserUseCase = new DeactivateUserUseCase(userManagementRepo, tenantRepo, auditService, authorizationService);
+  const deactivateUserUseCase = new DeactivateUserUseCase(userManagementRepo, tenantRepo, auditService, authorizationService, prisma);
   const reactivateUserUseCase = new ReactivateUserUseCase(userManagementRepo, tenantRepo, auditService, authorizationService);
   const unlockUserUseCase = new UnlockUserUseCase(userManagementRepo, auditService, authorizationService);
-  const resetUserPasswordUseCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo, authorizationService);
+  const resetUserPasswordUseCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo, authorizationService, prisma);
 
   // Outbound integration credentials (Resend / MobileMessage / Mapbox) managed
   // by AM via the Integrations Hub. Database config overrides env vars; when
@@ -741,7 +741,7 @@ export function createContainer(logger: Logger): AppContainer {
     webAppBaseUrl: env.WEB_APP_BASE_URL,
     pwaBaseUrl: env.PWA_BASE_URL,
   });
-  const consumePasswordResetUseCase = new ConsumePasswordResetUseCase(passwordResetTokenRepo, userRepo, sessionRepo, auditService, passwordHistoryRepo);
+  const consumePasswordResetUseCase = new ConsumePasswordResetUseCase(passwordResetTokenRepo, userRepo, sessionRepo, auditService, passwordHistoryRepo, prisma);
 
 
   // Shared idempotency service (used across modules)
