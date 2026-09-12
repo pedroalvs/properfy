@@ -244,8 +244,11 @@ export class AuditRetentionWorker {
       }
 
       // Advance the cursor past the whole page (preserved rows included) so the
-      // next query never returns a row we have already evaluated.
-      afterId = batch[batch.length - 1].id;
+      // next query never returns a row we have already evaluated. `batch` is
+      // non-empty here (the length-0 case broke out above); the guard satisfies
+      // noUncheckedIndexedAccess.
+      const lastRow = batch[batch.length - 1];
+      if (lastRow) afterId = lastRow.id;
 
       // A short page means we reached the end of the eligible set.
       if (batch.length < this.batchSize) {

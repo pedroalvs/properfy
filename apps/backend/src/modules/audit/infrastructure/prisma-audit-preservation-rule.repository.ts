@@ -55,10 +55,17 @@ export class PrismaAuditPreservationRuleRepository implements IAuditPreservation
   }
 
   async update(entity: AuditPreservationRuleEntity): Promise<void> {
+    // #446: persist every mutable field the upsert use case may have edited,
+    // mirroring save()'s column mapping. Previously only name/is_active were
+    // written, silently dropping ruleType/entityType/entityId/tenantId changes.
     await this.prisma.auditPreservationRule.update({
       where: { id: entity.id },
       data: {
         name: entity.name,
+        rule_type: entity.ruleType as PrismaPreservationRuleType,
+        entity_type: entity.entityType,
+        entity_id: entity.entityId,
+        tenant_id: entity.tenantId,
         is_active: entity.isActive,
       },
     });

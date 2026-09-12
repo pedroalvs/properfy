@@ -359,6 +359,37 @@ describe('ListAuditLogsUseCase', () => {
       expect(after.other).toBe('keep');
     });
 
+    it('#757: AM bypasses masking so it never queries the PII registry; OP does', async () => {
+      const localPiiRepo = {
+        findAll: vi.fn().mockResolvedValue(piiMappings),
+        findByAction: vi.fn(),
+        findById: vi.fn(),
+        save: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+      };
+      const localUseCase = new ListAuditLogsUseCase(
+        repo as unknown as IAuditLogRepository,
+        undefined,
+        localPiiRepo as any,
+      );
+      repo.findAll.mockResolvedValue([makeUserEntry()]);
+
+      await localUseCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
+        actor: amActor,
+      });
+      expect(localPiiRepo.findAll).not.toHaveBeenCalled();
+
+      await localUseCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 20, sortOrder: 'desc' },
+        actor: opActor,
+      });
+      expect(localPiiRepo.findAll).toHaveBeenCalledTimes(1);
+    });
+
     it('CL_ADMIN sees blanket [MASKED]', async () => {
       repo.findAll.mockResolvedValue([makeUserEntry()]);
       const result = await useCase.execute({

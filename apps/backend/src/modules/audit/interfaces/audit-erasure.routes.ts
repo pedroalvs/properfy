@@ -1,7 +1,10 @@
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { dataSubjectErasureRequestInputSchema, paginationSchema } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
+
+const idParamSchema = z.object({ id: z.string().uuid() });
 import { paginated } from '../../../shared/interfaces/response';
 import type { PreviewDataSubjectErasureUseCase } from '../application/use-cases/preview-data-subject-erasure.use-case';
 import type { ExecuteDataSubjectErasureUseCase } from '../application/use-cases/execute-data-subject-erasure.use-case';
@@ -58,9 +61,12 @@ export async function registerAuditErasureRoutes(
     '/v1/audit-erasure-requests/:id',
     { preHandler: authenticate },
     async (request, reply) => {
-      const { id } = request.params as { id: string };
+      const parsed = idParamSchema.safeParse(request.params);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid erasure request id', parsed.error.errors);
+      }
       const result = await container.getDataSubjectErasureRequestUseCase.execute({
-        requestId: id,
+        requestId: parsed.data.id,
         actor: request.authContext!,
       });
       return reply.status(200).send(result);
@@ -72,9 +78,12 @@ export async function registerAuditErasureRoutes(
     '/v1/audit-erasure-requests/:id/confirm',
     { preHandler: authenticate },
     async (request, reply) => {
-      const { id } = request.params as { id: string };
+      const parsed = idParamSchema.safeParse(request.params);
+      if (!parsed.success) {
+        throw new ValidationError('Invalid erasure request id', parsed.error.errors);
+      }
       const result = await container.executeDataSubjectErasureUseCase.execute({
-        requestId: id,
+        requestId: parsed.data.id,
         actor: request.authContext!,
       });
       return reply.status(200).send(result);
