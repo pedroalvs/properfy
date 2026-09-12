@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { FinancialEntryType, FinancialEntryStatus } from '@properfy/shared';
 import { FinancialEntryDetailSections } from './FinancialEntryDetailSections';
 import type { FinancialEntryDetail } from '../types';
@@ -70,9 +70,11 @@ describe('FinancialEntryDetailSections', () => {
     expect(matches.length).toBeGreaterThanOrEqual(1);
 
     const noApprover = { ...baseEntry, approvedByName: null };
-    render(<FinancialEntryDetailSections entry={noApprover} />);
-    const emDashes = screen.getAllByText('—');
-    expect(emDashes.length).toBeGreaterThanOrEqual(1);
+    const { container } = render(<FinancialEntryDetailSections entry={noApprover} />);
+    // Scope to the "Approved By" row so the assertion protects that specific
+    // field, not any incidental em-dash elsewhere in the render.
+    const row = within(container).getByText('Approved By').parentElement as HTMLElement;
+    expect(within(row).getByText('—')).toBeInTheDocument();
   });
 
   it('shows reference number when present, em-dash when null', () => {
@@ -80,9 +82,11 @@ describe('FinancialEntryDetailSections', () => {
     expect(screen.getByText('REF-001')).toBeInTheDocument();
 
     const noReference = { ...baseEntry, referenceNumber: null };
-    render(<FinancialEntryDetailSections entry={noReference} />);
-    const emDashes = screen.getAllByText('—');
-    expect(emDashes.length).toBeGreaterThanOrEqual(1);
+    const { container } = render(<FinancialEntryDetailSections entry={noReference} />);
+    // Scope to the "Reference" row so the assertion can only pass if that
+    // specific field renders the em-dash.
+    const row = within(container).getByText('Reference').parentElement as HTMLElement;
+    expect(within(row).getByText('—')).toBeInTheDocument();
   });
 
   it('shows notes section when present, hides when null', () => {
