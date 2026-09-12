@@ -19,19 +19,17 @@ export function OfferCard({ offer, selected, onClick, onAccept }: OfferCardProps
       className={`cursor-pointer rounded border-l-4 bg-card-bg p-4 shadow-sm transition-all hover:shadow-md ${borderColor} ${
         selected ? 'ring-2 ring-secondary/30' : ''
       }`}
-      onClick={(e) => {
-        // Ignore clicks that bubbled up from nested controls (Accept / View);
-        // only a direct click on the card selects it.
-        if (e.target !== e.currentTarget) return;
-        onClick();
-      }}
+      // The whole card body is a click-to-select surface, so onClick stays
+      // unguarded — the nested Accept/View buttons stopPropagation on their own
+      // clicks, so a bubbled button click never reaches here anyway.
+      onClick={onClick}
       data-testid="offer-card"
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        // Same guard for keyboard: Enter/Space on a nested button must not also
-        // select the card (its keydown bubbles here; stopPropagation lives only
-        // on the buttons' onClick).
+        // Keydown DOES need the guard: Enter/Space on a nested button bubbles
+        // here (the buttons stopPropagation only on onClick, not onKeyDown), and
+        // without this it would also select the card.
         if (e.target !== e.currentTarget) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
