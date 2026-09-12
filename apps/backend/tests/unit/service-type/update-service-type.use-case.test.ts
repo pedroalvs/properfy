@@ -43,11 +43,13 @@ describe('UpdateServiceTypeUseCase', () => {
     serviceTypeRepo = {
       findById: vi.fn(),
       findByCode: vi.fn(),
+      findByCodeAnyStatus: vi.fn(),
       findByName: vi.fn().mockResolvedValue(null),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
-      update: vi.fn(),
+      // update now returns the persisted entity (#618).
+      update: vi.fn().mockImplementation(async () => makeServiceType()),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new UpdateServiceTypeUseCase(serviceTypeRepo, auditService);
@@ -75,6 +77,22 @@ describe('UpdateServiceTypeUseCase', () => {
         after: expect.objectContaining({ name: 'Updated Name' }),
       }),
     );
+  });
+
+  it('echoes the persisted updatedAt from the repo, not a synthetic one (#618)', async () => {
+    const persistedUpdatedAt = new Date('2021-07-08T09:10:11.000Z');
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(serviceTypeRepo.update).mockResolvedValue(
+      makeServiceType({ name: 'Updated Name', updatedAt: persistedUpdatedAt }),
+    );
+
+    const result = await useCase.execute({
+      serviceTypeId: 'st-1',
+      data: { name: 'Updated Name' },
+      actor: makeActor(),
+    });
+
+    expect(result.updatedAt).toEqual(persistedUpdatedAt);
   });
 
   it('should reject non-AM roles', async () => {
