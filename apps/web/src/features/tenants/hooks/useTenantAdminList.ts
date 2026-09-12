@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { getErrorMessage } from '@properfy/shared';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 import type { DataTablePagination } from '@/components/data/DataTable';
 import { useUrlFilters, type FilterSchema } from '@/hooks/useUrlFilters';
@@ -40,7 +41,7 @@ export function useTenantAdminList(): UseTenantAdminListReturn {
     search: filters.search || undefined,
   };
 
-  const { data: response, isLoading, isError, refetch } = usePaginatedQuery<TenantAdmin>(
+  const { data: response, isLoading, isError, error, refetch } = usePaginatedQuery<TenantAdmin>(
     ['tenant-admins'],
     '/v1/tenants',
     params,
@@ -60,7 +61,7 @@ export function useTenantAdminList(): UseTenantAdminListReturn {
     data: response?.data ?? [],
     isLoading,
     isError,
-    errorMessage: null,
+    errorMessage: error ? getErrorMessage(error, 'Failed to load agencies') : null,
     refetch,
     filters,
     setFilters,
