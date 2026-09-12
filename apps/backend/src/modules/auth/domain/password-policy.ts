@@ -9,6 +9,13 @@ export function validatePasswordStrength(password: string): PasswordPolicyResult
   if (password.length < 8) {
     violations.push('Password must be at least 8 characters');
   }
+  // Upper bound guards two things at once: an unbounded-input hashing DoS
+  // (bcrypt on a multi-megabyte string), and the silent bcrypt truncation at 72
+  // bytes — beyond which extra characters add no strength and mislead the user.
+  // 128 chars is comfortably above any real passphrase.
+  if (password.length > 128) {
+    violations.push('Password must be at most 128 characters');
+  }
   if (!/[A-Z]/.test(password)) {
     violations.push('Password must contain at least one uppercase letter');
   }

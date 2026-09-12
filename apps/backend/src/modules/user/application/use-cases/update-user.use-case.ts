@@ -22,6 +22,7 @@ export interface UpdateUserInput {
     timezone?: string | null;
   };
   actor: AuthContext;
+  requestId?: string;
 }
 
 export interface UpdateUserOutput {
@@ -226,6 +227,7 @@ export class UpdateUserUseCase {
       entityType: 'User',
       entityId: userId,
       tenantId: tenantId ?? undefined,
+      requestId: input.requestId,
       before,
       after: updateData,
     });

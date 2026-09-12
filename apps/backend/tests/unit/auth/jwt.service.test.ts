@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi, afterEach } from 'vitest';
 import { JwtService } from '../../../src/modules/auth/application/services/jwt.service';
 import { generateKeyPairSync } from 'crypto';
+import { SignJWT, importPKCS8 } from 'jose';
 
 // Generate test key pair
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -150,16 +151,16 @@ describe('JwtService', () => {
       expect(service.getPreviousKeyDaysRemaining()).toBe(1);
     });
 
-    it('should return null when previousKeyExpiresAt is not set even with previous key', () => {
+    it('defaults to a ~30-day deadline frozen at construction when previousKeyExpiresAt is not set (#254)', () => {
       const service = new JwtService({
         privateKeyPem,
         publicKeyPem,
         keyId: 'test-key-v1',
         previousPublicKeyPem: publicKeyPem,
         previousKeyId: 'prev-key',
-        // no previousKeyExpiresAt
+        // no previousKeyExpiresAt — the constructor freezes one automatically.
       });
-      expect(service.getPreviousKeyDaysRemaining()).toBeNull();
+      expect(service.getPreviousKeyDaysRemaining()).toBe(30);
     });
   });
 
@@ -205,6 +206,88 @@ describe('JwtService', () => {
         previousKeyExpiresAt: new Date(Date.now() - 1000), // already expired
       });
       await expect(rotatedService.verify(token)).rejects.toThrow();
+    });
+  });
+
+  describe('#254 — previous-key grace deadline is frozen at construction', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('rejects a token signed with the previous key once 31 days have passed since construction, even though verify() is called repeatedly in between', async () => {
+      vi.useFakeTimers();
+      const now = new Date('2026-01-01T00:00:00.000Z');
+      vi.setSystemTime(now);
+
+      const { privateKey: prevPriv, publicKey: prevPub } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+      const prevPrivPem = prevPriv.export({ type: 'pkcs8', format: 'pem' }) as string;
+      const prevPubPem = prevPub.export({ type: 'spki', format: 'pem' }) as string;
+
+      // Sign a token with the previous key, using the SAME kid the rotated
+      // service expects for its previous key.
+      const prevService = new JwtService({
+        privateKeyPem: prevPrivPem,
+        publicKeyPem: prevPubPem,
+        keyId: 'prev-key-v1',
+      });
+      const token = await prevService.signAccessToken({
+        sub: 'user-1', tenant_id: null, role: 'AM', branch_id: null, inspector_id: null,
+      });
+
+      // Construct WITHOUT previousKeyExpiresAt — the deadline is frozen ONCE,
+      // here, at construction time (now + 30 days).
+      const rotatedService = new JwtService({
+        privateKeyPem,
+        publicKeyPem,
+        keyId: 'test-key-v2',
+        previousPublicKeyPem: prevPubPem,
+        previousKeyId: 'prev-key-v1',
+      });
+
+      // At T0 the token still verifies.
+      await expect(rotatedService.verify(token)).resolves.toBeDefined();
+
+      // Advance the clock 31 days. A sliding (recomputed-on-each-call) deadline
+      // would still accept this token; the frozen deadline must reject it.
+      vi.setSystemTime(new Date(now.getTime() + 31 * 24 * 60 * 60 * 1000));
+
+      await expect(rotatedService.verify(token)).rejects.toThrow();
+    });
+  });
+
+  describe('issuer/audience enforcement', () => {
+    it('rejects a token signed with a wrong issuer/audience', async () => {
+      const evilService = new JwtService({
+        privateKeyPem,
+        publicKeyPem,
+        keyId: 'test-key-v1',
+        issuer: 'evil',
+        audience: 'evil',
+      });
+      const token = await evilService.signAccessToken({
+        sub: 'user-1', tenant_id: null, role: 'AM', branch_id: null, inspector_id: null,
+      });
+
+      // Default-issuer/audience service must reject it.
+      await expect(jwtService.verify(token)).rejects.toThrow();
+    });
+
+    it('rejects a token lacking iss/aud claims entirely', async () => {
+      const key = await importPKCS8(privateKeyPem, 'RS256');
+      const token = await new SignJWT({
+        tenant_id: null,
+        role: 'AM',
+        branch_id: null,
+        inspector_id: null,
+      })
+        .setProtectedHeader({ alg: 'RS256', kid: 'test-key-v1' })
+        .setSubject('user-1')
+        .setIssuedAt()
+        .setExpirationTime('60m')
+        // Deliberately no setIssuer()/setAudience()
+        .sign(key);
+
+      await expect(jwtService.verify(token)).rejects.toThrow();
     });
   });
 });

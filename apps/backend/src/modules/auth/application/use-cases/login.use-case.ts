@@ -6,7 +6,7 @@ import type { JwtService } from '../services/jwt.service';
 import type { TotpService } from '../services/totp.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
-import type { TotpEncryptionService } from '../../infrastructure/totp-encryption.service';
+import type { ITotpEncryptionService } from '../ports/totp-encryption.port';
 import type { SessionTrustService } from '../services/session-trust.service';
 import type { LoginInput, LoginOutput } from '../dtos/login.dto';
 import {
@@ -38,7 +38,7 @@ export class LoginUseCase {
     private readonly totpService: TotpService,
     private readonly auditService: AuditService,
     private readonly inspectorRepo: IInspectorRepository,
-    private readonly totpEncryptionService: TotpEncryptionService,
+    private readonly totpEncryptionService: ITotpEncryptionService,
     private readonly sessionTrustService?: SessionTrustService,
   ) {}
 
