@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PendingActionsCard } from './PendingActionsCard';
@@ -9,6 +9,11 @@ vi.mock('@/hooks/useAuth', () => ({
 }));
 
 describe('PendingActionsCard', () => {
+  // Reset the mocked user each test so a role override never leaks forward.
+  beforeEach(() => {
+    mockUser.mockReturnValue({ id: 'user-1', role: 'AM', tenantId: null });
+  });
+
   const defaultProps = {
     noResponseRentalTenants: 5,
     pendingOperatorCrossChecks: 4,
@@ -25,6 +30,21 @@ describe('PendingActionsCard', () => {
     render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
     const items = screen.getAllByTestId('pending-action-item');
     expect(items).toHaveLength(4);
+  });
+
+  it('W11 #754: action icons are decorative (aria-hidden)', () => {
+    const { container } = render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+    const icons = container.querySelectorAll('i.mdi');
+    expect(icons.length).toBeGreaterThan(0);
+    icons.forEach((icon) => expect(icon).toHaveAttribute('aria-hidden', 'true'));
+  });
+
+  it('W12 #742: a non-AM/OP role does not see the financial-entries action', () => {
+    mockUser.mockReturnValue({ id: 'u', role: 'CL_ADMIN', tenantId: 'tenant-1' });
+    render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+    // FINANCIAL_ROLES gate: AM/OP only.
+    expect(screen.queryByText('Pending financial entries')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('pending-action-item')).toHaveLength(3);
   });
 
   it('renders correct descriptions', () => {

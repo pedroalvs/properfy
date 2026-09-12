@@ -53,24 +53,21 @@ export function DashboardSummaryCards({
           icon="mdi-file-edit-outline"
           value={draft}
           label="Draft"
-          colorClass="border-l-[#E1BEE7]"
-          iconColorClass="text-[#CE93D8]"
+          variant="draft"
           href="/appointments?status=DRAFT"
         />
         <StatCard
           icon="mdi-clock-outline"
           value={awaitingInspector}
           label="Awaiting Inspector"
-          colorClass="border-l-[#FFE0B2]"
-          iconColorClass="text-warning"
+          variant="awaiting"
           href="/appointments?status=AWAITING_INSPECTOR"
         />
         <StatCard
           icon="mdi-calendar-check"
           value={scheduled}
           label="Scheduled"
-          colorClass="border-l-[#B3E5FC]"
-          iconColorClass="text-info"
+          variant="scheduled"
           // W5 #418: the card shows the full `scheduled` aggregate, so the
           // drill-down must not scope to today. `status=SCHEDULED` alone already
           // overrides showCancelled on the list, so this is a faithful match.
@@ -80,8 +77,7 @@ export function DashboardSummaryCards({
           icon="mdi-close-circle-outline"
           value={rejectedTotal}
           label="Rejected Total"
-          colorClass="border-l-[#FFCDD2]"
-          iconColorClass="text-error"
+          variant="rejected"
           href="/appointments?status=REJECTED"
         />
       </div>
@@ -98,8 +94,7 @@ export function DashboardSummaryCards({
           icon="mdi-check-circle-outline"
           value={doneThisWeek}
           label="Done This Week"
-          colorClass="border-l-[#A5D6A7]"
-          iconColorClass="text-success"
+          variant="done"
           href={`/appointments?status=DONE&startDate=${week.from}&endDate=${week.to}`}
         />
         <StatCard
@@ -107,16 +102,14 @@ export function DashboardSummaryCards({
           value={doneThisMonth}
           label="Done This Month"
           sublabel={donePendingCrossCheck ? `${donePendingCrossCheck} pending review` : undefined}
-          colorClass="border-l-[#C8E6C9]"
-          iconColorClass="text-success"
+          variant="done"
           href={`/appointments?status=DONE&startDate=${month.from}&endDate=${month.to}`}
         />
         <StatCard
           icon="mdi-calendar-week"
           value={scheduledThisWeek}
           label="Scheduled This Week"
-          colorClass="border-l-[#B3E5FC]"
-          iconColorClass="text-info"
+          variant="scheduled"
           href={`/appointments?status=SCHEDULED&startDate=${week.from}&endDate=${week.to}`}
         />
       </div>

@@ -45,12 +45,13 @@ describe('useReportDetail', () => {
     expect(result.current.report?.requestedBy.name).toBe('Admin Principal');
   });
 
-  it('returns null when id is null', () => {
+  it('returns null when id is null and never calls the API (#619: locks enabled guard)', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useReportDetail(null), { wrapper });
 
     expect(result.current.report).toBeNull();
     expect(result.current.isLoading).toBe(false);
+    expect(mockGet).not.toHaveBeenCalled();
   });
 
   it('shows loading state initially', () => {

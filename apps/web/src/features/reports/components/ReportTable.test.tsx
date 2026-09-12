@@ -83,6 +83,15 @@ describe('ReportTable', () => {
     expect(screen.getByLabelText('View')).toBeInTheDocument();
   });
 
+  it('#621: view action calls onView with the row', async () => {
+    const userEvt = userEvent.setup();
+    const onView = vi.fn();
+    const report = makeReport({ status: ReportStatus.PENDING });
+    render(<ReportTable data={[report]} onView={onView} />);
+    await userEvt.click(screen.getByLabelText('View'));
+    expect(onView).toHaveBeenCalledWith(report);
+  });
+
   it('hides retry and falls back to View when a FAILED report has no filters', () => {
     const report = makeReport({ status: ReportStatus.FAILED, filters: null });
     render(<ReportTable data={[report]} />);

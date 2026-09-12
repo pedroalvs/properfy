@@ -10,14 +10,20 @@ vi.mock('@/services/api', () => ({
 }));
 
 import { useDashboardStats } from './useDashboardStats';
+import type { DashboardStats } from '../types';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
-const MOCK_STATS = {
+// #627: typed so the fixture is compiler-checked against the full DashboardStats
+// shape (no `as` cast hiding missing fields).
+const MOCK_STATS: DashboardStats = {
   appointmentsByStatus: {
     draft: 2,
     awaitingInspector: 3,
     scheduled: 4,
     doneThisMonth: 3,
+    doneThisWeek: 7,
+    scheduledThisWeek: 10,
+    rejectedTotal: 5,
   },
   recentAppointments: [
     { id: 'apt-15', code: 'VST-015', propertyAddress: 'Address 15', status: 'SCHEDULED', doneCheckedByUserId: null, scheduledDate: '2026-04-01' },
@@ -36,6 +42,17 @@ const MOCK_STATS = {
     totalProperties: 15,
     activeInspectors: 12,
     activeServiceGroups: 9,
+  },
+  inspectorBreakdowns: {
+    tomorrowByInspector: [
+      { inspectorId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', inspectorName: 'Alice', count: 18, alertLevel: 'red' },
+    ],
+    scheduledThisWeekByInspector: [
+      { inspectorId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', inspectorName: 'Alice', count: 25, alertLevel: null },
+    ],
+    confirmedThisWeekByInspector: [
+      { inspectorId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22', inspectorName: 'Bob', count: 12, alertLevel: null },
+    ],
   },
 };
 

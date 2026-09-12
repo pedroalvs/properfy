@@ -18,7 +18,7 @@ function alertClasses(alertLevel: AlertLevel): {
 } {
   if (alertLevel === 'red') return { dot: 'bg-error', count: 'text-error' };
   if (alertLevel === 'yellow') return { dot: 'bg-warning', count: 'text-warning' };
-  return { dot: 'bg-gray-300', count: 'text-text-primary' };
+  return { dot: 'bg-text-muted', count: 'text-text-primary' };
 }
 
 /**
@@ -43,7 +43,7 @@ interface InspectorListCardProps {
 
 function InspectorListCard({ title, rows, thresholds, unit }: InspectorListCardProps) {
   return (
-    <div className="bg-white shadow-sm rounded p-4 flex flex-col gap-2">
+    <div className="bg-card-bg shadow-sm rounded p-4 flex flex-col gap-2">
       <h3 className="text-base font-bold text-secondary flex items-center gap-2">
         <i className="mdi mdi-account-hard-hat text-xl" />
         {title}
@@ -86,7 +86,7 @@ function InspectorListCard({ title, rows, thresholds, unit }: InspectorListCardP
           inspections/day" was how the text drifted from the logic: those are
           the WEEKLY numbers, and only this card is daily. */}
       <p
-        className="text-xs text-text-secondary mt-2 border-t border-gray-100 pt-2"
+        className="text-xs text-text-secondary mt-2 border-t border-border-subtle pt-2"
         data-testid="breakdown-legend"
       >
         <span className="inline-block w-2 h-2 rounded-full bg-warning mr-1" aria-hidden="true" />

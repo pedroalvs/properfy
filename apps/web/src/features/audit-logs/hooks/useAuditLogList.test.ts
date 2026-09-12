@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -86,13 +86,16 @@ describe('useAuditLogList', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    result.current.setFilters({
-      actorId: 'usr-1',
-      entityType: 'APPOINTMENT',
-      entityId: 'apt-01',
-      action: 'STATUS_TRANSITION',
-      fromDate: '2026-03-01T00:00:00.000Z',
-      toDate: '2026-03-31T23:59:59.999Z',
+    // #763: state updates must be wrapped in act(...).
+    act(() => {
+      result.current.setFilters({
+        actorId: 'usr-1',
+        entityType: 'APPOINTMENT',
+        entityId: 'apt-01',
+        action: 'STATUS_TRANSITION',
+        fromDate: '2026-03-01T00:00:00.000Z',
+        toDate: '2026-03-31T23:59:59.999Z',
+      });
     });
 
     await waitFor(() => {
@@ -114,5 +117,35 @@ describe('useAuditLogList', () => {
     expect(lastCall?.params?.query).not.toHaveProperty('search');
     expect(lastCall?.params?.query).not.toHaveProperty('startDate');
     expect(lastCall?.params?.query).not.toHaveProperty('endDate');
+  });
+
+  it('W3 #430/#743: resets to page 1 when filters change', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useAuditLogList(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    // Go to page 2 and wait for that request.
+    act(() => result.current.pagination.onChange(2, 10));
+    await waitFor(() => {
+      expect(mockGet.mock.calls.at(-1)?.[1]?.params?.query).toMatchObject({ page: '2' });
+    });
+
+    // Applying a filter must snap back to page 1 alongside the new filter.
+    act(() => result.current.setFilters({
+      actorId: 'usr-9',
+      entityType: '',
+      entityId: '',
+      action: '',
+      fromDate: '',
+      toDate: '',
+    }));
+
+    await waitFor(() => {
+      expect(mockGet.mock.calls.at(-1)?.[1]?.params?.query).toMatchObject({
+        page: '1',
+        actorId: 'usr-9',
+      });
+    });
   });
 });

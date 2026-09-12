@@ -4,3 +4,4 @@ export { ReportDetailSections } from './ReportDetailSections';
 export { ReportDetailDrawer } from './ReportDetailDrawer';
 export { ReportFilters } from './ReportFilters';
 export { ReportTable } from './ReportTable';
+export { GenerateReportDialog } from './GenerateReportDialog';

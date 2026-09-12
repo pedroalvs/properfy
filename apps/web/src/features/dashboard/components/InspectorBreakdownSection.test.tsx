@@ -70,13 +70,14 @@ describe('InspectorBreakdownSection', () => {
     expect(yellowCount).not.toBeNull();
   });
 
-  it('applies bg-gray-300 and text-text-primary for alertLevel=null', () => {
+  it('applies the muted token dot (no hardcoded gray) for alertLevel=null', () => {
     const { container } = render(
       <InspectorBreakdownSection breakdowns={makeBreakdowns()} tomorrowLabel={tomorrowLabel} />,
     );
 
-    const grayDot = container.querySelector('.bg-gray-300');
-    expect(grayDot).not.toBeNull();
+    // W7: the no-alert dot uses the design token, not a raw Tailwind gray.
+    expect(container.querySelector('.bg-gray-300')).toBeNull();
+    expect(container.querySelector('.bg-text-muted')).not.toBeNull();
   });
 
   // ─── Empty state ──────────────────────────────────────────────────────────
