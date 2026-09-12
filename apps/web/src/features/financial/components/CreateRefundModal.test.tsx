@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { Snackbar } from '@/components/feedback/Snackbar';
+import { FinancialEntryType, FinancialEntryStatus } from '@properfy/shared';
+import type { FinancialEntry } from '../types';
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -39,6 +41,22 @@ function createWrapper() {
   };
 }
 
+const MOCK_ENTRY: FinancialEntry = {
+  id: '123e4567-e89b-12d3-a456-426614174000',
+  tenantId: 'tenant-1',
+  appointmentCode: 'VIST-001',
+  entryType: FinancialEntryType.TENANT_DEBIT,
+  amount: 350,
+  currency: 'AUD',
+  status: FinancialEntryStatus.APPROVED,
+  description: 'Inspection debit',
+  relatedEntityName: 'Imobiliária Centro',
+  effectiveAt: '2026-03-10T14:00:00Z',
+  approvedByName: 'Admin Principal',
+  createdAt: '2026-03-10T10:00:00Z',
+  updatedAt: '2026-03-10T10:00:00Z',
+};
+
 describe('CreateRefundModal', () => {
   const onClose = vi.fn();
   const onCreated = vi.fn();
@@ -54,37 +72,42 @@ describe('CreateRefundModal', () => {
     const Wrapper = createWrapper();
     const { container } = render(
       <Wrapper>
-        <CreateRefundModal open={false} onClose={onClose} onCreated={onCreated} />
+        <CreateRefundModal open={false} onClose={onClose} onCreated={onCreated} entry={MOCK_ENTRY} />
       </Wrapper>,
     );
     expect(container.querySelector('[role="dialog"]')).not.toBeInTheDocument();
   });
 
-  it('renders dialog when open', () => {
+  it('renders the selected entry read-only, with no free-text ID field', () => {
     const Wrapper = createWrapper();
     render(
       <Wrapper>
-        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} />
+        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} entry={MOCK_ENTRY} />
       </Wrapper>,
     );
     expect(screen.getByText('Create Refund')).toBeInTheDocument();
-    expect(screen.getByLabelText('Financial Entry ID')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Financial Entry ID')).not.toBeInTheDocument();
+    expect(screen.getByText('Agency Debit')).toBeInTheDocument();
+    expect(screen.getByText('Approved')).toBeInTheDocument();
     expect(screen.getByLabelText('Description')).toBeInTheDocument();
     expect(screen.getByLabelText('Reason')).toBeInTheDocument();
+    // The raw entry id must never be exposed as text or as an input value.
+    expect(screen.queryByText(MOCK_ENTRY.id)).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue(MOCK_ENTRY.id)).not.toBeInTheDocument();
   });
 
   it('shows validation errors on empty submit', async () => {
     const Wrapper = createWrapper();
     render(
       <Wrapper>
-        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} />
+        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} entry={MOCK_ENTRY} />
       </Wrapper>,
     );
 
     fireEvent.click(screen.getByText('Create'));
 
     await waitFor(() => {
-      expect(screen.getAllByText('Required field').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('Required').length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -92,7 +115,7 @@ describe('CreateRefundModal', () => {
     const Wrapper = createWrapper();
     render(
       <Wrapper>
-        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} />
+        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} entry={MOCK_ENTRY} />
       </Wrapper>,
     );
 
@@ -100,41 +123,27 @@ describe('CreateRefundModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('shows a description error separately from the reason field', async () => {
+  it('submits a refund against the entry id from the selected entry', async () => {
     const Wrapper = createWrapper();
     render(
       <Wrapper>
-        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} />
+        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} entry={MOCK_ENTRY} />
       </Wrapper>,
     );
 
-    fireEvent.change(screen.getByLabelText('Financial Entry ID'), { target: { value: '123e4567-e89b-12d3-a456-426614174000' } });
-    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Customer overpaid' } });
-    fireEvent.click(screen.getByText('Create'));
-
-    await waitFor(() => {
-      expect(screen.getByText('Required')).toBeInTheDocument();
-    });
-    expect(mockPost).not.toHaveBeenCalled();
-  });
-
-  it('shows an error when financial entry ID is not a UUID', async () => {
-    const Wrapper = createWrapper();
-    render(
-      <Wrapper>
-        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} />
-      </Wrapper>,
-    );
-
-    fireEvent.change(screen.getByLabelText('Financial Entry ID'), { target: { value: 'entry-1' } });
     fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Refund requested' } });
     fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Customer overpaid' } });
     fireEvent.click(screen.getByText('Create'));
 
     await waitFor(() => {
-      expect(screen.getByText('Invalid entry ID')).toBeInTheDocument();
+      expect(mockPost).toHaveBeenCalledWith(
+        `/v1/financial/entries/${MOCK_ENTRY.id}/refund`,
+        expect.objectContaining({
+          body: { description: 'Refund requested', reason: 'Customer overpaid' },
+        }),
+      );
     });
-    expect(mockPost).not.toHaveBeenCalled();
+    expect(onCreated).toHaveBeenCalled();
   });
 
   it('surfaces the backend error message in the snackbar on failure', async () => {
@@ -146,11 +155,10 @@ describe('CreateRefundModal', () => {
     const Wrapper = createWrapper();
     render(
       <Wrapper>
-        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} />
+        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} entry={MOCK_ENTRY} />
       </Wrapper>,
     );
 
-    fireEvent.change(screen.getByLabelText('Financial Entry ID'), { target: { value: '123e4567-e89b-12d3-a456-426614174000' } });
     fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Refund requested' } });
     fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Customer overpaid' } });
     fireEvent.click(screen.getByText('Create'));
@@ -170,11 +178,10 @@ describe('CreateRefundModal', () => {
     const Wrapper = createWrapper();
     render(
       <Wrapper>
-        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} />
+        <CreateRefundModal open={true} onClose={onClose} onCreated={onCreated} entry={MOCK_ENTRY} />
       </Wrapper>,
     );
 
-    fireEvent.change(screen.getByLabelText('Financial Entry ID'), { target: { value: '123e4567-e89b-12d3-a456-426614174000' } });
     fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Refund requested' } });
     fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Customer overpaid' } });
     fireEvent.click(screen.getByText('Create'));

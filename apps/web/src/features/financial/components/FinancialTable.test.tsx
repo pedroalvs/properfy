@@ -113,4 +113,31 @@ describe('FinancialTable', () => {
     expect(screen.getByLabelText('View')).toBeInTheDocument();
     expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
   });
+
+  it('selection checkbox keeps a readable accessible name even when the row is not selectable (#538/#542)', () => {
+    const entry = makeEntry({ status: FinancialEntryStatus.APPROVED, appointmentCode: 'VIST-042' });
+    render(
+      <FinancialTable
+        data={[entry]}
+        selectedIds={new Set()}
+        onToggleSelect={vi.fn()}
+      />,
+    );
+    const checkbox = screen.getByRole('checkbox', { name: /VIST-042/ });
+    expect(checkbox).toBeDisabled();
+  });
+
+  it('selection checkbox accessible name is built from readable row content, not a raw id', () => {
+    const entry = makeEntry({ id: 'fin-abc-123', status: FinancialEntryStatus.PENDING, appointmentCode: 'VIST-050' });
+    render(
+      <FinancialTable
+        data={[entry]}
+        selectedIds={new Set()}
+        onToggleSelect={vi.fn()}
+      />,
+    );
+    const checkbox = screen.getByRole('checkbox', { name: /VIST-050/ });
+    expect(checkbox).not.toBeDisabled();
+    expect(checkbox.getAttribute('aria-label')).not.toContain('fin-abc-123');
+  });
 });

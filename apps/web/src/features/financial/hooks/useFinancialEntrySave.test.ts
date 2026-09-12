@@ -110,6 +110,47 @@ describe('useFinancialEntrySave', () => {
     expect(mockPatch).toHaveBeenCalledWith('/v1/financial/entries/fin-01', { body: expect.any(Object) });
   });
 
+  it('save resolves { success: false, error } with the mapped message on a failed request (#681)', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: { error: { message: 'Amount exceeds limit' } },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useFinancialEntrySave(), { wrapper });
+
+    let saveResult: { success: boolean; error?: string } | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA);
+    });
+
+    expect(saveResult).toEqual({ success: false, error: 'Amount exceeds limit' });
+  });
+
+  it('the in-flight guard makes a second concurrent save a no-op while the first is pending (#681)', async () => {
+    let resolvePost!: (value: unknown) => void;
+    mockPost.mockReturnValueOnce(new Promise((resolve) => { resolvePost = resolve; }));
+
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useFinancialEntrySave(), { wrapper });
+
+    let firstSave!: Promise<{ success: boolean }>;
+    let secondSave!: Promise<{ success: boolean; error?: string }>;
+    act(() => {
+      firstSave = result.current.save(VALID_CREATE_DATA);
+      secondSave = result.current.save(VALID_CREATE_DATA);
+    });
+
+    const secondResult = await secondSave;
+    expect(secondResult.success).toBe(false);
+
+    await act(async () => {
+      resolvePost({ data: { data: { id: 'new-fin' } } });
+      await firstSave;
+    });
+
+    expect(mockPost).toHaveBeenCalledTimes(1);
+  });
+
   it('isSaving is true during save operation', async () => {
     let resolvePost!: (value: unknown) => void;
     mockPost.mockReturnValueOnce(new Promise((resolve) => { resolvePost = resolve; }));

@@ -18,6 +18,7 @@ import { CreateRefundModal } from '../components/CreateRefundModal';
 import { FilterRequiredState } from '@/components/feedback/FilterRequiredState';
 import { NoPermissionState } from '@/components/feedback/NoPermissionState';
 import { useFinancialList } from '../hooks/useFinancialList';
+import type { FinancialEntry } from '../types';
 
 export function FinancialEntriesPage() {
   const navigate = useNavigate();
@@ -53,6 +54,7 @@ export function FinancialEntriesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
+  const [refundEntry, setRefundEntry] = useState<FinancialEntry | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
@@ -114,8 +116,19 @@ export function FinancialEntriesPage() {
 
   const handleRefundCreated = useCallback(() => {
     setRefundOpen(false);
+    setRefundEntry(null);
     refetch();
   }, [refetch]);
+
+  const handleRefundRowAction = useCallback((entry: FinancialEntry) => {
+    setRefundEntry(entry);
+    setRefundOpen(true);
+  }, []);
+
+  const handleCloseRefund = useCallback(() => {
+    setRefundOpen(false);
+    setRefundEntry(null);
+  }, []);
 
   if (user && !canViewFinancial) {
     return (
@@ -139,12 +152,6 @@ export function FinancialEntriesPage() {
             label: 'Adjustment',
             icon: 'mdi-tune-vertical',
             onClick: () => setAdjustmentOpen(true),
-            disabled: requiresTenantSelection,
-          },
-          {
-            label: 'Refund',
-            icon: 'mdi-cash-refund',
-            onClick: () => setRefundOpen(true),
             disabled: requiresTenantSelection,
           },
         ]}
@@ -179,6 +186,7 @@ export function FinancialEntriesPage() {
                 onRetryError={refetch}
                 pagination={pagination}
                 onView={handleView}
+                onRefund={handleRefundRowAction}
                 selectedIds={selectedIds}
                 onToggleSelect={handleToggleSelect}
                 onSelectAllPending={handleSelectAllPending}
@@ -225,8 +233,9 @@ export function FinancialEntriesPage() {
       />
       <CreateRefundModal
         open={refundOpen}
-        onClose={() => setRefundOpen(false)}
+        onClose={handleCloseRefund}
         onCreated={handleRefundCreated}
+        entry={refundEntry}
       />
     </>
   );
