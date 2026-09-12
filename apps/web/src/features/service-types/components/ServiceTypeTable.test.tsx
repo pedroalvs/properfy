@@ -31,10 +31,11 @@ describe('ServiceTypeTable', () => {
     expect(screen.getByText('Outgoing')).toBeInTheDocument();
   });
 
-  it('renders action buttons', () => {
-    const onView = vi.fn();
-    render(<ServiceTypeTable data={MOCK_DATA} onView={onView} />);
-    const viewButtons = screen.getAllByLabelText('View');
-    expect(viewButtons).toHaveLength(2);
+  it('renders an Edit action per row (the affordance edits, so it is labelled Edit) (#728)', () => {
+    const onEdit = vi.fn();
+    render(<ServiceTypeTable data={MOCK_DATA} onEdit={onEdit} />);
+    const editButtons = screen.getAllByLabelText('Edit');
+    expect(editButtons).toHaveLength(2);
+    expect(screen.queryByLabelText('View')).not.toBeInTheDocument();
   });
 });

@@ -68,7 +68,10 @@ export async function registerServiceRegionRoutes(
   // POST /v1/service-regions — create
   app.post(
     '/v1/service-regions',
-    { preHandler: authenticate },
+    // Declaring the body schema documents the request body in the OpenAPI spec
+    // (so the generated web client is typed) — consistent with the service-type
+    // and pricing-rule routes. The handler still safeParses for its typed value.
+    { preHandler: authenticate, schema: { body: createServiceRegionSchema } },
     async (request, reply) => {
       const parsed = createServiceRegionSchema.safeParse(request.body);
       if (!parsed.success) {
@@ -102,7 +105,7 @@ export async function registerServiceRegionRoutes(
   // PATCH /v1/service-regions/:id — update
   app.patch(
     '/v1/service-regions/:id',
-    { preHandler: authenticate },
+    { preHandler: authenticate, schema: { body: updateServiceRegionSchema } },
     async (request, reply) => {
       const params = regionIdParam.safeParse(request.params);
       if (!params.success) {

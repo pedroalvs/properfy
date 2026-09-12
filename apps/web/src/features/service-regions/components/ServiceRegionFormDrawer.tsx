@@ -3,8 +3,11 @@ import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/feedback/LoadingState';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Dialog } from '@/components/ui/Dialog';
+import { StatusChip } from '@/components/ui/StatusChip';
+import { SERVICE_TYPE_STATUS_MAP } from '@/lib/status-colors';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
@@ -18,6 +21,7 @@ import { useServiceRegionDeactivate } from '../hooks/useServiceRegionDeactivate'
 import { useServiceRegionReactivate } from '../hooks/useServiceRegionReactivate';
 import { RegionMap } from './RegionMap';
 import { formatInstantDateTime } from '@/lib/format-date';
+import type { GeojsonGeometry } from '@properfy/shared';
 import type { ServiceRegionFormData, ServiceRegionFormErrors } from '../types';
 import { EMPTY_SERVICE_REGION_FORM } from '../types';
 
@@ -46,7 +50,7 @@ export function ServiceRegionFormDrawer({
   onSaved,
 }: ServiceRegionFormDrawerProps) {
   const isEditMode = !!regionId;
-  const { serviceRegion, isLoading: isLoadingDetail, refetch } = useServiceRegionDetail(
+  const { serviceRegion, isLoading: isLoadingDetail, isError: isDetailError, refetch } = useServiceRegionDetail(
     isEditMode ? regionId : null,
   );
   const { save, isSaving, validate } = useServiceRegionSave();
@@ -126,7 +130,7 @@ export function ServiceRegionFormDrawer({
     [],
   );
 
-  const handleDraw = useCallback((geojson: object) => {
+  const handleDraw = useCallback((geojson: GeojsonGeometry) => {
     updateField('geojson', geojson);
   }, [updateField]);
 
@@ -208,6 +212,15 @@ export function ServiceRegionFormDrawer({
             <div className="flex-1 px-6 py-4">
               <LoadingState rows={5} />
             </div>
+          ) : isEditMode && isDetailError ? (
+            // A failed detail fetch must not fall through to an empty form (#613).
+            <div className="flex-1 px-6 py-4">
+              <ErrorState
+                message="Failed to load service region."
+                detail="Please try again."
+                onRetry={refetch}
+              />
+            </div>
           ) : (
             <>
               <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -266,15 +279,16 @@ export function ServiceRegionFormDrawer({
                   {isEditMode && serviceRegion && (
                     <FormSection title="Status">
                       <div className="flex items-center gap-4">
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${
-                            isActive
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {isActive ? 'Active' : 'Inactive'}
-                        </span>
+                        {(() => {
+                          // Token-based StatusChip (#735), sharing ServiceType's
+                          // ACTIVE/INACTIVE colour map — no hardcoded Tailwind colours.
+                          const chipStyle = SERVICE_TYPE_STATUS_MAP[
+                            (isActive ? 'ACTIVE' : 'INACTIVE') as keyof typeof SERVICE_TYPE_STATUS_MAP
+                          ];
+                          return (
+                            <StatusChip label={chipStyle.label} bg={chipStyle.bg} text={chipStyle.text} />
+                          );
+                        })()}
                         {isActive && (
                           <Button
                             variant="secondary"

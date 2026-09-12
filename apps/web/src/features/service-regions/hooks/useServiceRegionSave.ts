@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
+import { getErrorMessage } from '@/lib/api-error';
 import type { ServiceRegionFormData, ServiceRegionFormErrors } from '../types';
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
@@ -34,21 +35,29 @@ export function useServiceRegionSave(): UseServiceRegionSaveReturn {
   const save = useCallback(async (data: ServiceRegionFormData, regionId?: string): Promise<SaveResult> => {
     setIsSaving(true);
     try {
+      if (!data.geojson) {
+        // validate() blocks this in the UI; the guard also narrows geojson from
+        // GeojsonGeometry | null to the geometry the body type requires.
+        return { success: false, error: 'A polygon must be drawn on the map' };
+      }
       // `status` is intentionally never sent: PATCH no longer accepts it and
       // status transitions go through the dedicated deactivate/reactivate
       // actions (#387).
-      const payload = {
+      const body = {
         name: data.name.trim(),
         geojson: data.geojson,
         color: data.color,
       };
 
       if (regionId) {
-        const { error } = await api.PATCH(`/v1/service-regions/${regionId}` as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        const { error } = await api.PATCH('/v1/service-regions/{id}', {
+          params: { path: { id: regionId } },
+          body,
+        });
+        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
       } else {
-        const { error } = await api.POST('/v1/service-regions' as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        const { error } = await api.POST('/v1/service-regions', { body });
+        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
       }
       queryClient.invalidateQueries({ queryKey: ['service-regions'] });
       return { success: true };

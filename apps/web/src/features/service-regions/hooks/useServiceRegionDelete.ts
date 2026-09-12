@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from '@/hooks/useSnackbar';
+import { getErrorMessage } from '@/lib/api-error';
 
 export interface UseServiceRegionDeleteReturn {
   remove: () => void;
@@ -20,12 +21,12 @@ export function useServiceRegionDelete(
     if (!regionId) return;
     setIsDeleting(true);
     try {
-      const { error } = await api.DELETE(`/v1/service-regions/${regionId}` as any, {} as any);
-      const apiError = error as any;
+      const { error } = await api.DELETE('/v1/service-regions/{id}', {
+        params: { path: { id: regionId } },
+      });
 
-      if (apiError) {
-        const message = apiError?.error?.message ?? 'Request failed';
-        showError(message);
+      if (error) {
+        showError(getErrorMessage(error, 'Request failed'));
         return;
       }
 

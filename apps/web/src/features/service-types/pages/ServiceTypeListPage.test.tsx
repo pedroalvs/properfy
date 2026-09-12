@@ -90,4 +90,27 @@ describe('ServiceTypeListPage', () => {
       expect(screen.getByText('Outgoing Inspection')).toBeInTheDocument();
     });
   });
+
+  // ── Behavioral coverage (#729) ──────────────────────────────────────────
+
+  it('shows a recoverable error state with a retry affordance when the list fetch fails', async () => {
+    mockGet.mockReset();
+    mockGet.mockResolvedValue({ data: undefined, error: { error: { code: 'X', message: 'boom' } } });
+    renderPage();
+
+    // Recoverable: the failure surfaces an error message + a Try Again control,
+    // instead of the old happy-path-only render.
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByText('Try Again')).toBeInTheDocument();
+    expect(screen.queryByText('ROUTINE_IN')).not.toBeInTheDocument();
+  });
+
+  it('renders the empty state when the list is empty', async () => {
+    mockGet.mockReset();
+    mockGet.mockResolvedValue({ data: { data: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 0 } } });
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('No records found')).toBeInTheDocument());
+    expect(screen.queryByText('ROUTINE_IN')).not.toBeInTheDocument();
+  });
 });
