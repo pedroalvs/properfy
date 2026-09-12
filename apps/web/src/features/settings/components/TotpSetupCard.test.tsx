@@ -139,4 +139,27 @@ describe('TotpSetupCard', () => {
 
     window.removeEventListener('unhandledrejection', onUnhandledRejection);
   });
+
+  it('fires the enrollment request and renders the confirm step when Setup 2FA is clicked', async () => {
+    mockSetupTotp.mockResolvedValue({
+      secret: 'SECRET123',
+      totpUri: 'otpauth://totp/Properfy:admin@test.com?secret=SECRET123&issuer=Properfy',
+    });
+    mockToDataURL.mockResolvedValue('data:image/png;base64,fake-qr');
+
+    const Wrapper = createWrapper();
+    render(<Wrapper><TotpSetupCard /></Wrapper>);
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Setup 2FA'));
+    });
+
+    expect(mockSetupTotp).toHaveBeenCalledTimes(1);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('totp-qr')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('totp-secret')).toHaveTextContent('SECRET123');
+    expect(screen.getByLabelText('Confirmation Code')).toBeInTheDocument();
+  });
 });
