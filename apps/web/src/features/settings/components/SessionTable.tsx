@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { RowActions } from '@/components/data/RowActions';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -7,7 +7,6 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { useSessionList } from '../hooks/useSessionList';
 import { useSessionRevoke } from '../hooks/useSessionRevoke';
 import type { Session } from '../types';
-import { useState } from 'react';
 
 export function SessionTable() {
   const { sessions, isLoading, isError, isNotFound, refetch } = useSessionList();

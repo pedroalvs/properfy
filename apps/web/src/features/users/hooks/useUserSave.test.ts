@@ -50,8 +50,8 @@ const VALID_CREATE_DATA: UserFormData = {
 beforeEach(() => {
   mockPost.mockReset();
   mockPatch.mockReset();
-  mockPost.mockResolvedValue({ data: { data: { id: 'new-usr' } } });
-  mockPatch.mockResolvedValue({ data: { data: { id: 'usr-01' } } });
+  mockPost.mockResolvedValue({ data: { data: { id: 'new-usr' } }, response: { status: 201 } });
+  mockPatch.mockResolvedValue({ data: { data: { id: 'usr-01' } }, response: { status: 200 } });
 });
 
 describe('useUserSave', () => {
@@ -99,7 +99,10 @@ describe('useUserSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/tenant-1/users', { body: expect.any(Object) });
+    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/{tenantId}/users', {
+      params: { path: { tenantId: 'tenant-1' } },
+      body: expect.any(Object),
+    });
   });
 
   it('save returns success on edit', async () => {
@@ -112,7 +115,30 @@ describe('useUserSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/tenant-1/users/usr-01', { body: expect.any(Object) });
+    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/{tenantId}/users/{userId}', {
+      params: { path: { tenantId: 'tenant-1', userId: 'usr-01' } },
+      body: expect.any(Object),
+    });
+  });
+
+  it('sends the concrete PATCH body and never includes status (edit has no status field)', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_CREATE_DATA, status: 'INACTIVE', branchId: 'branch-1' }, 'usr-01');
+    });
+
+    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/{tenantId}/users/{userId}', {
+      params: { path: { tenantId: 'tenant-1', userId: 'usr-01' } },
+      body: {
+        name: VALID_CREATE_DATA.name,
+        phone: VALID_CREATE_DATA.phone,
+        role: VALID_CREATE_DATA.role,
+        branchId: 'branch-1',
+      },
+    });
+    expect(mockPatch.mock.calls[0]![1].body).not.toHaveProperty('status');
   });
 
   it('isSaving is true during save operation', async () => {
@@ -132,7 +158,7 @@ describe('useUserSave', () => {
     expect(result.current.isSaving).toBe(true);
 
     await act(async () => {
-      resolvePost({ data: { data: { id: 'new' } } });
+      resolvePost({ data: { data: { id: 'new' } }, response: { status: 201 } });
       await savePromise!;
     });
 
@@ -150,6 +176,24 @@ describe('useUserSave', () => {
 
     expect(saveResult?.success).toBe(true);
     expect(mockPost).toHaveBeenCalledWith('/v1/users', { body: expect.any(Object) });
+  });
+
+  it('sends the required status envelope back through toApiError on failure', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: { error: { message: 'Email already in use' } },
+      response: { status: 409 },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserSave(), { wrapper });
+
+    let saveResult: { success: boolean; error?: string } | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.error).toBe('Email already in use');
   });
 
   it('sends the personal timezone on internal-scope create and omits it when unset', async () => {
@@ -176,7 +220,8 @@ describe('useUserSave', () => {
       await result.current.save({ ...VALID_CREATE_DATA, role: 'OP', timezone: '' }, 'usr-01');
     });
 
-    expect(mockPatch).toHaveBeenCalledWith('/v1/users/usr-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/users/{userId}', {
+      params: { path: { userId: 'usr-01' } },
       body: expect.objectContaining({ timezone: null }),
     });
   });

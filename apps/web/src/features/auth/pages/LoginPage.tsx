@@ -62,8 +62,10 @@ export function LoginPage() {
 
       setIsSubmitting(true);
       try {
+        // Navigation happens in the isAuthenticated effect below, once auth
+        // state actually flips — consuming the stored redirect here too would
+        // double-consume it (the effect already read and cleared it first).
         await login(email.trim(), password, requiresTotp ? totpCode.trim() : undefined);
-        navigate(consumePostLoginRedirect() ?? '/', { replace: true });
       } catch (err) {
         if (err instanceof ApiError && err.code === 'AUTH_TOTP_REQUIRED') {
           setRequiresTotp(true);

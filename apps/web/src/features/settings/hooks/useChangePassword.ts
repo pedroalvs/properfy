@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api } from '@/services/api';
+import { getErrorMessage, toApiError } from '@/lib/api-error';
 import type { ChangePasswordFormData, ChangePasswordFormErrors } from '../types';
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -55,17 +56,21 @@ export function useChangePassword(): UseChangePasswordReturn {
   const changePassword = useCallback(async (data: ChangePasswordFormData): Promise<SaveResult> => {
     setIsChanging(true);
     try {
-      const { error } = await api.POST('/v1/auth/change-password' as any, {
+      const { error, response } = await api.POST('/v1/auth/change-password', {
         body: {
           currentPassword: data.currentPassword,
           newPassword: data.newPassword,
-        } as any,
+        },
       });
-      if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+      // Read response.status BEFORE narrowing on `error`: this endpoint's
+      // OpenAPI schema declares no error response shape, so `error`'s type is
+      // `never` — inside `if (error)` TS treats the branch as unreachable and
+      // collapses every other binding (including `response`) to `never` too.
+      const status = response.status;
+      if (error) throw toApiError(error, status);
       return { success: true };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to change password';
-      return { success: false, error: message };
+      return { success: false, error: getErrorMessage(err, 'Failed to change password') };
     } finally {
       setIsChanging(false);
     }

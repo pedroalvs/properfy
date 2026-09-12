@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { useAuth } from '@/hooks/useAuth';
+import { getErrorMessage, toApiError } from '@/lib/api-error';
 import type { UserScope } from '../types';
 
 const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,128}$/;
@@ -56,16 +57,25 @@ export function useUserResetPassword(
 
     setIsResetting(true);
     try {
-      const path = scope === 'internal'
-        ? `/v1/users/${userId}/reset-password`
-        : `/v1/tenants/${tenantId}/users/${userId}/reset-password`;
-      const { error } = await api.POST(
-        path as any,
-        {
-          body: { newPassword: data.newPassword } as any,
-        },
-      );
-      if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+      // response.status is read before narrowing on `error` — these endpoints
+      // declare no error response shape in the OpenAPI schema, so `error`'s
+      // type is `never`; inside `if (error)` TS treats the branch as
+      // unreachable and collapses every other binding (incl. `response`) too.
+      if (scope === 'internal') {
+        const { error, response } = await api.POST('/v1/users/{userId}/reset-password', {
+          params: { path: { userId } },
+          body: { newPassword: data.newPassword },
+        });
+        const status = response.status;
+        if (error) throw toApiError(error, status);
+      } else {
+        const { error, response } = await api.POST('/v1/tenants/{tenantId}/users/{userId}/reset-password', {
+          params: { path: { tenantId: tenantId as string, userId } },
+          body: { newPassword: data.newPassword },
+        });
+        const status = response.status;
+        if (error) throw toApiError(error, status);
+      }
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['users'] }),
@@ -74,8 +84,7 @@ export function useUserResetPassword(
 
       return { success: true };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to reset password';
-      return { success: false, error: message };
+      return { success: false, error: getErrorMessage(err, 'Failed to reset password') };
     } finally {
       setIsResetting(false);
     }

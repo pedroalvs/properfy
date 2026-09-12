@@ -90,4 +90,19 @@ describe('ChangePasswordForm', () => {
 
     expect(logout).toHaveBeenCalled();
   });
+
+  it('submits when Enter is pressed in a field, not just via button click', async () => {
+    const Wrapper = createWrapper();
+    render(<Wrapper><ChangePasswordForm /></Wrapper>);
+
+    fireEvent.change(screen.getByLabelText('Current Password'), { target: { value: 'OldPass1!' } });
+    fireEvent.change(screen.getByLabelText('New Password'), { target: { value: 'NewPass2@' } });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'NewPass2@' } });
+
+    await act(async () => {
+      fireEvent.submit(screen.getByLabelText('Confirm Password').closest('form')!);
+    });
+
+    expect(changePassword).toHaveBeenCalled();
+  });
 });
