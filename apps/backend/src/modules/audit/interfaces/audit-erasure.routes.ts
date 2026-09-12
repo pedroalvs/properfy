@@ -3,14 +3,14 @@ import { z } from 'zod';
 import { dataSubjectErasureRequestInputSchema, paginationSchema } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
-
-const idParamSchema = z.object({ id: z.string().uuid() });
 import { paginated } from '../../../shared/interfaces/response';
 import type { PreviewDataSubjectErasureUseCase } from '../application/use-cases/preview-data-subject-erasure.use-case';
 import type { ExecuteDataSubjectErasureUseCase } from '../application/use-cases/execute-data-subject-erasure.use-case';
 import type { GetDataSubjectErasureRequestUseCase } from '../application/use-cases/get-data-subject-erasure-request.use-case';
 import type { ListDataSubjectErasureRequestsUseCase } from '../application/use-cases/list-data-subject-erasure-requests.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
+
+const idParamSchema = z.object({ id: z.string().uuid() });
 
 /**
  * Feature 020: AM-only data subject erasure routes. Deliberately isolated
