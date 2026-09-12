@@ -6,10 +6,24 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png'];
 const MAX_SIZE_BYTES = 20 * 1024 * 1024;
 
+/** No existing upload-timeout convention in the codebase to reuse — 60s default. */
+const UPLOAD_TIMEOUT_MS = 60_000;
+
 export interface UseInspectorDocumentUploadReturn {
   upload: (inspectorId: string, kind: 'INSURANCE' | 'POLICE_CHECK', file: File) => Promise<boolean>;
   isUploading: boolean;
   uploadError: string | null;
+}
+
+/**
+ * `/documents/presign` and `/documents/confirm` declare no Fastify response
+ * schema, so the generated OpenAPI type has `content?: never` for their 200s
+ * (same gap as WI-15's PWA photo routes). Fixing that is a backend change out
+ * of this PR's web-only scope, so the response body shape is asserted here —
+ * request paths/params/bodies are fully typed from the generated contract.
+ */
+interface PresignResponseBody {
+  data: { uploadUrl: string; storageKey: string; expiresAt: string };
 }
 
 export function useInspectorDocumentUpload(): UseInspectorDocumentUploadReturn {
@@ -35,24 +49,41 @@ export function useInspectorDocumentUpload(): UseInspectorDocumentUploadReturn {
     setIsUploading(true);
     try {
       const { data: presignData, error: presignErr } = await api.POST(
-        `/v1/inspectors/{inspectorId}/documents/presign` as never,
-        { params: { path: { inspectorId } }, body: { kind, mimeType: file.type, fileName: file.name } } as never,
+        '/v1/inspectors/{inspectorId}/documents/presign',
+        {
+          params: { path: { inspectorId } },
+          body: { kind, mimeType: file.type, fileName: file.name },
+        },
       );
       if (presignErr || !presignData) throw new Error('Failed to get upload URL');
-      // UX-baseline cleanup: backend now wraps the response in
-      // `{ data: { uploadUrl, storageKey, expiresAt } }`.
-      const { uploadUrl, storageKey } = (presignData as { data: { uploadUrl: string; storageKey: string } }).data;
+      const { uploadUrl, storageKey } = (presignData as unknown as PresignResponseBody).data;
 
-      const putRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type },
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+      let putRes: Response;
+      try {
+        putRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': file.type },
+          signal: controller.signal,
+        });
+      } catch (fetchErr) {
+        if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
+          throw new Error('Upload timed out');
+        }
+        throw fetchErr;
+      } finally {
+        clearTimeout(timeoutId);
+      }
       if (!putRes.ok) throw new Error('Upload failed');
 
       const { error: confirmErr } = await api.POST(
-        `/v1/inspectors/{inspectorId}/documents/confirm` as never,
-        { params: { path: { inspectorId } }, body: { kind, storageKey, fileName: file.name, mimeType: file.type, sizeBytes: file.size } } as never,
+        '/v1/inspectors/{inspectorId}/documents/confirm',
+        {
+          params: { path: { inspectorId } },
+          body: { kind, storageKey, fileName: file.name },
+        },
       );
       if (confirmErr) throw new Error('Failed to confirm upload');
 

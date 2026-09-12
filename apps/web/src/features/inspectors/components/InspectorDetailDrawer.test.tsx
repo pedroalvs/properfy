@@ -94,8 +94,15 @@ function SnackbarDisplay() {
   );
 }
 
-const testQueryClient = new QueryClient({
-  defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+// Fresh QueryClient per test (#710) — a client shared across the whole file
+// lets one test's cached inspector-detail lookups (service-types/regions/
+// tenants) leak into the next instead of each test starting from a clean cache.
+let testQueryClient: QueryClient;
+
+beforeEach(() => {
+  testQueryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+  });
 });
 
 function Wrapper({ children }: { children: React.ReactNode }) {
