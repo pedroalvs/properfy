@@ -113,6 +113,7 @@ import { ConfirmInspectorDocumentUploadUseCase } from '../modules/inspector/appl
 import { GetInspectorDocumentDownloadUrlUseCase } from '../modules/inspector/application/use-cases/get-inspector-document-download-url.use-case';
 import { GetInspectorAvailabilityTemplateUseCase } from '../modules/inspector/application/use-cases/get-inspector-availability-template.use-case';
 import { UpdateInspectorAvailabilityTemplateUseCase } from '../modules/inspector/application/use-cases/update-inspector-availability-template.use-case';
+import { RegenerateInspectorAvailabilitySlotsUseCase } from '../modules/inspector/application/use-cases/regenerate-inspector-availability-slots.use-case';
 import { GetInspectorAvailabilityTemplateForOperatorUseCase } from '../modules/inspector/application/use-cases/get-inspector-availability-template-for-operator.use-case';
 import { PrismaInspectorAppointmentChecker } from '../modules/inspector/infrastructure/prisma-inspector-appointment-checker';
 import type { InspectorRouteContainer } from '../modules/inspector/interfaces/inspector.routes';
@@ -701,11 +702,11 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Inspector use cases
   const availabilitySlotRepo = new PrismaAvailabilitySlotRepository(prisma);
-  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, serviceRegionRepo, authorizationService);
+  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, authorizationService, serviceRegionRepo);
   const inspectorRatingReader = new PrismaInspectorRatingReader(prisma);
   const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo, serviceRegionRepo, inspectorRatingReader);
   const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo, serviceRegionRepo, inspectorRatingReader);
-  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, serviceRegionRepo, authorizationService, userManagementRepo);
+  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, authorizationService, serviceRegionRepo, userManagementRepo);
   const createAvailabilitySlotUseCase = new CreateAvailabilitySlotUseCase(inspectorRepo, availabilitySlotRepo, auditService);
   const listAvailabilitySlotsUseCase = new ListAvailabilitySlotsUseCase(availabilitySlotRepo);
   const updateAvailabilitySlotUseCase = new UpdateAvailabilitySlotUseCase(availabilitySlotRepo, auditService);
@@ -720,8 +721,9 @@ export function createContainer(logger: Logger): AppContainer {
   const confirmInspectorDocumentUploadUseCase = new ConfirmInspectorDocumentUploadUseCase(inspectorRepo, storageService, auditService);
   const getInspectorDocumentDownloadUrlUseCase = new GetInspectorDocumentDownloadUrlUseCase(inspectorRepo, storageService);
   const getInspectorAvailabilityTemplateUseCase = new GetInspectorAvailabilityTemplateUseCase(inspectorRepo, availabilitySlotRepo);
-  const updateInspectorAvailabilityTemplateUseCase = new UpdateInspectorAvailabilityTemplateUseCase(inspectorRepo, availabilitySlotRepo, auditService);
-  const getInspectorAvailabilityTemplateForOperatorUseCase = new GetInspectorAvailabilityTemplateForOperatorUseCase(inspectorRepo, availabilitySlotRepo);
+  const regenerateInspectorAvailabilitySlotsUseCase = new RegenerateInspectorAvailabilitySlotsUseCase(availabilitySlotRepo);
+  const updateInspectorAvailabilityTemplateUseCase = new UpdateInspectorAvailabilityTemplateUseCase(inspectorRepo, availabilitySlotRepo, prisma, regenerateInspectorAvailabilitySlotsUseCase, auditService);
+  const getInspectorAvailabilityTemplateForOperatorUseCase = new GetInspectorAvailabilityTemplateForOperatorUseCase(inspectorRepo, availabilitySlotRepo, authorizationService);
 
   // Notification repositories and create use case (needed before appointments for handler wiring)
   const notificationRepo = new PrismaNotificationRepository(prisma);
@@ -940,6 +942,7 @@ export function createContainer(logger: Logger): AppContainer {
   const finishInspectionUseCase = new FinishInspectionUseCase(
     inspectionExecutionRepo, idempotencyService,
     executeStatusTransitionUseCase, appointmentRepo, auditService, authorizationService,
+    prisma,
   );
   const getAvailablePeriodsUseCase = new GetAvailablePeriodsUseCase(inspectorRepo);
   const getInspectorEarningsSummaryUseCase = new GetInspectorEarningsSummaryUseCase(financialEntryRepo);

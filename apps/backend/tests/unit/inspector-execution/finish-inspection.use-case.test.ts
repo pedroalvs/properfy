@@ -23,6 +23,7 @@ const idempotencyService = {
 
 const executeStatusTransition = {
   execute: vi.fn(),
+  executeInTransaction: vi.fn(),
 };
 
 const appointmentRepo = {
@@ -76,7 +77,7 @@ describe('FinishInspectionUseCase', () => {
     idempotencyService.get.mockResolvedValue(null);
     idempotencyService.set.mockResolvedValue(undefined);
     executionRepo.update.mockResolvedValue(undefined);
-    executeStatusTransition.execute.mockResolvedValue({
+    const transitionOutput = {
       id: 'appt-1',
       status: 'DONE',
       previousStatus: 'SCHEDULED',
@@ -86,6 +87,11 @@ describe('FinishInspectionUseCase', () => {
       doneCheckedByUserId: null,
       doneCheckedAt: null,
       updatedAt: new Date(),
+    };
+    executeStatusTransition.execute.mockResolvedValue(transitionOutput);
+    executeStatusTransition.executeInTransaction.mockResolvedValue({
+      output: transitionOutput,
+      runAfterCommit: vi.fn().mockResolvedValue(undefined),
     });
     appointmentRepo.findById.mockResolvedValue({
       appointment: {
@@ -117,13 +123,17 @@ describe('FinishInspectionUseCase', () => {
         finishLatitude: -33.900,
         finishLongitude: 151.300,
       }),
+      undefined,
     );
 
-    expect(executeStatusTransition.execute).toHaveBeenCalledWith({
-      appointmentId: 'appt-1',
-      targetStatus: 'DONE',
-      actor: inspActor,
-    });
+    expect(executeStatusTransition.executeInTransaction).toHaveBeenCalledWith(
+      {
+        appointmentId: 'appt-1',
+        targetStatus: 'DONE',
+        actor: inspActor,
+      },
+      undefined,
+    );
   });
 
   it('should return cached response when same idempotency key is used', async () => {
@@ -197,7 +207,7 @@ describe('FinishInspectionUseCase', () => {
       }),
     ).rejects.toThrow(ExecutionAppointmentNotFoundError);
 
-    expect(executeStatusTransition.execute).not.toHaveBeenCalled();
+    expect(executeStatusTransition.executeInTransaction).not.toHaveBeenCalled();
     expect(auditService.log).not.toHaveBeenCalled();
   });
 
@@ -227,12 +237,15 @@ describe('FinishInspectionUseCase', () => {
       actor: inspActor,
     });
 
-    expect(executeStatusTransition.execute).toHaveBeenCalledOnce();
-    expect(executeStatusTransition.execute).toHaveBeenCalledWith({
-      appointmentId: 'appt-1',
-      targetStatus: 'DONE',
-      actor: inspActor,
-    });
+    expect(executeStatusTransition.executeInTransaction).toHaveBeenCalledOnce();
+    expect(executeStatusTransition.executeInTransaction).toHaveBeenCalledWith(
+      {
+        appointmentId: 'appt-1',
+        targetStatus: 'DONE',
+        actor: inspActor,
+      },
+      undefined,
+    );
   });
 
   it('should call audit log after finishing execution', async () => {

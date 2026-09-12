@@ -16,14 +16,19 @@ interface StubSlot {
 }
 
 const mockFindForRegeneration = vi.fn<[], Promise<StubSlot[]>>();
-const mockDeleteSlot = vi.fn<[string], Promise<void>>();
-const mockCreateSlot = vi.fn<[unknown], Promise<void>>();
+const mockDeleteMany = vi.fn<[string[]], Promise<void>>();
+const mockCreateMany = vi.fn<[unknown[]], Promise<void>>();
 
 const slotRepo = {
   findSlotsForRegeneration: mockFindForRegeneration,
-  deleteById: mockDeleteSlot,
-  saveForRegeneration: mockCreateSlot,
+  deleteManyByIds: mockDeleteMany,
+  saveManyForRegeneration: mockCreateMany,
 };
+
+/** All rows passed to the single saveManyForRegeneration batch call (empty if none). */
+function createdRows(): Array<Record<string, unknown>> {
+  return (mockCreateMany.mock.calls[0]?.[0] as Array<Record<string, unknown>>) ?? [];
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -74,8 +79,8 @@ function makeSut() {
 describe('RegenerateInspectorAvailabilitySlotsUseCase — 6 merge rules', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockDeleteSlot.mockResolvedValue(undefined);
-    mockCreateSlot.mockResolvedValue(undefined);
+    mockDeleteMany.mockResolvedValue(undefined);
+    mockCreateMany.mockResolvedValue(undefined);
   });
 
   // Rule 1: capacity consumed (capacity === 0) → untouched
@@ -87,8 +92,8 @@ describe('RegenerateInspectorAvailabilitySlotsUseCase — 6 merge rules', () => 
     const sut = makeSut();
     await sut.execute({ inspectorId: INSP_ID, template: allOffTemplate });
 
-    expect(mockDeleteSlot).not.toHaveBeenCalled();
-    expect(mockCreateSlot).not.toHaveBeenCalled();
+    expect(mockDeleteMany).not.toHaveBeenCalled();
+    expect(mockCreateMany).not.toHaveBeenCalled();
   });
 
   // Rule 2: operator override → immutable
@@ -100,8 +105,8 @@ describe('RegenerateInspectorAvailabilitySlotsUseCase — 6 merge rules', () => 
     const sut = makeSut();
     await sut.execute({ inspectorId: INSP_ID, template: allOffTemplate });
 
-    expect(mockDeleteSlot).not.toHaveBeenCalled();
-    expect(mockCreateSlot).not.toHaveBeenCalled();
+    expect(mockDeleteMany).not.toHaveBeenCalled();
+    expect(mockCreateMany).not.toHaveBeenCalled();
   });
 
   // Rule 3: intact, no-override, capacity available, template ON → keep the slot, do NOT re-create it
@@ -113,10 +118,10 @@ describe('RegenerateInspectorAvailabilitySlotsUseCase — 6 merge rules', () => 
     const sut = makeSut();
     await sut.execute({ inspectorId: INSP_ID, template: monAmOnTemplate });
 
-    // The slot must not be deleted
-    expect(mockDeleteSlot).not.toHaveBeenCalledWith('slot-intact');
-    // The slot must not be re-created (would be a duplicate on the same date+window)
-    expect(mockCreateSlot).not.toHaveBeenCalledWith(
+    // The intact slot must not be deleted (nothing else on the horizon needs deleting either)
+    expect(mockDeleteMany).not.toHaveBeenCalled();
+    // The intact slot must not be re-created (would be a duplicate on the same date+window)
+    expect(createdRows()).not.toContainEqual(
       expect.objectContaining({ date: monday, startTime: '08:00' }),
     );
   });
@@ -131,8 +136,9 @@ describe('RegenerateInspectorAvailabilitySlotsUseCase — 6 merge rules', () => 
     // allOffTemplate: mon AM = false → should delete existing slot
     await sut.execute({ inspectorId: INSP_ID, template: allOffTemplate });
 
-    expect(mockDeleteSlot).toHaveBeenCalledWith('slot-to-delete');
-    expect(mockCreateSlot).not.toHaveBeenCalled();
+    expect(mockDeleteMany).toHaveBeenCalledTimes(1);
+    expect(mockDeleteMany.mock.calls[0]?.[0]).toEqual(['slot-to-delete']);
+    expect(mockCreateMany).not.toHaveBeenCalled();
   });
 
   // Rule 5: no slot exists, template ON → create
@@ -142,12 +148,11 @@ describe('RegenerateInspectorAvailabilitySlotsUseCase — 6 merge rules', () => 
     const sut = makeSut();
     await sut.execute({ inspectorId: INSP_ID, template: monAmOnTemplate });
 
-    // Should create one slot per Monday in 8-week horizon
-    expect(mockCreateSlot).toHaveBeenCalled();
-    const calls = mockCreateSlot.mock.calls;
-    expect(calls.length).toBeGreaterThanOrEqual(1);
-    const firstCall = calls[0]?.[0] as Record<string, unknown>;
-    expect(firstCall).toMatchObject({
+    // Should create one slot per Monday in 8-week horizon, in a single batch
+    expect(mockCreateMany).toHaveBeenCalledTimes(1);
+    const rows = createdRows();
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+    expect(rows[0]).toMatchObject({
       inspectorId: INSP_ID,
       startTime: '08:00',
       endTime: '13:00',
@@ -163,8 +168,8 @@ describe('RegenerateInspectorAvailabilitySlotsUseCase — 6 merge rules', () => 
     const sut = makeSut();
     await sut.execute({ inspectorId: INSP_ID, template: allOffTemplate });
 
-    expect(mockDeleteSlot).not.toHaveBeenCalled();
-    expect(mockCreateSlot).not.toHaveBeenCalled();
+    expect(mockDeleteMany).not.toHaveBeenCalled();
+    expect(mockCreateMany).not.toHaveBeenCalled();
   });
 
   // Combination: same window has override AND consumed-capacity slot
@@ -181,8 +186,8 @@ describe('RegenerateInspectorAvailabilitySlotsUseCase — 6 merge rules', () => 
     // template OFF means delete any non-override, non-consumed → but both are protected
     await sut.execute({ inspectorId: INSP_ID, template: allOffTemplate });
 
-    expect(mockDeleteSlot).not.toHaveBeenCalled();
-    expect(mockCreateSlot).not.toHaveBeenCalled();
+    expect(mockDeleteMany).not.toHaveBeenCalled();
+    expect(mockCreateMany).not.toHaveBeenCalled();
   });
 
   // 8 weeks: exactly 8 Mondays created when template has mon.am=true and no existing slots
@@ -192,6 +197,32 @@ describe('RegenerateInspectorAvailabilitySlotsUseCase — 6 merge rules', () => 
     const sut = makeSut();
     await sut.execute({ inspectorId: INSP_ID, template: monAmOnTemplate });
 
-    expect(mockCreateSlot).toHaveBeenCalledTimes(8);
+    expect(mockCreateMany).toHaveBeenCalledTimes(1);
+    expect(createdRows()).toHaveLength(8);
+  });
+
+  // Batching: deletes and creates each collapse into ONE repo call, not N one-by-one calls
+  it('issues exactly one batched delete and one batched create across a multi-slot regeneration', async () => {
+    const monday = nextMonday();
+    const tuesday = new Date(monday);
+    tuesday.setUTCDate(tuesday.getUTCDate() + 1);
+    const tuesday2 = new Date(tuesday);
+    tuesday2.setUTCDate(tuesday2.getUTCDate() + 7);
+
+    // Two existing Tuesday-AM slots; template has tue OFF → both must be deleted.
+    // Template has mon.am ON with no existing slots → 8 Mondays must be created.
+    const toDelete1 = makeSlot({ id: 'del-tue-1', date: tuesday, startTime: '08:00' });
+    const toDelete2 = makeSlot({ id: 'del-tue-2', date: tuesday2, startTime: '08:00' });
+    mockFindForRegeneration.mockResolvedValue([toDelete1, toDelete2]);
+
+    const sut = makeSut();
+    await sut.execute({ inspectorId: INSP_ID, template: monAmOnTemplate });
+
+    expect(mockDeleteMany).toHaveBeenCalledTimes(1);
+    expect(mockDeleteMany.mock.calls[0]?.[0]).toEqual(
+      expect.arrayContaining(['del-tue-1', 'del-tue-2']),
+    );
+    expect(mockCreateMany).toHaveBeenCalledTimes(1);
+    expect(createdRows()).toHaveLength(8);
   });
 });

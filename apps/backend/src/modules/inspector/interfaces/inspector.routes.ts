@@ -878,13 +878,11 @@ export async function registerInspectorRoutes(
     },
     async (request, reply) => {
       const ctx = request.authContext!;
-      if (ctx.role !== 'AM' && ctx.role !== 'OP') {
-        throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can view inspector availability');
-      }
       const params = inspectorIdParam.safeParse(request.params);
       if (!params.success) throw new ValidationError('Invalid inspector ID', params.error.errors);
       const result = await container.getInspectorAvailabilityTemplateForOperatorUseCase.execute({
         inspectorId: params.data.inspectorId,
+        actor: ctx,
       });
       return reply.status(200).send(success(result));
     },

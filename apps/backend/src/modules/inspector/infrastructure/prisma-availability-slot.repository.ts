@@ -9,6 +9,9 @@ import type {
 } from '../domain/availability-slot.repository';
 import type { AvailabilitySlotStatus } from '@properfy/shared';
 
+/** Same idiom as prisma-confirmation-cycle.repository.ts — the tx client is a narrowed PrismaClient. */
+type DbClient = PrismaClient | Prisma.TransactionClient;
+
 function toSnakeCase(s: string): string {
   return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 }
@@ -62,6 +65,10 @@ export class PrismaAvailabilitySlotRepository
   implements IAvailabilitySlotRepository
 {
   constructor(private readonly prisma: PrismaClient) {}
+
+  private db(tx?: Prisma.TransactionClient): DbClient {
+    return tx ?? this.prisma;
+  }
 
   async findById(
     id: string,
@@ -147,9 +154,9 @@ export class PrismaAvailabilitySlotRepository
       endTime: string;
       regionJson: Record<string, unknown> | null;
       capacity: number;
-      status: string;
+      status: AvailabilitySlotStatus;
     }>,
-  ): Promise<void> {
+  ): Promise<AvailabilitySlotEntity | null> {
     const updateData: Record<string, unknown> = {};
     if (data.date !== undefined) updateData['date'] = data.date;
     if (data.startTime !== undefined)
@@ -159,10 +166,17 @@ export class PrismaAvailabilitySlotRepository
       updateData['region_json'] = data.regionJson;
     if (data.capacity !== undefined) updateData['capacity'] = data.capacity;
     if (data.status !== undefined) updateData['status'] = data.status;
-    await this.prisma.inspectorAvailabilitySlot.updateMany({
+    // updateMany keeps the (id, inspector_id) guard against cross-inspector writes,
+    // but can't return the row — mirror decrementCapacity's two-step read to fetch it.
+    const result = await this.prisma.inspectorAvailabilitySlot.updateMany({
       where: { id, inspector_id: inspectorId },
       data: updateData,
     });
+    if (result.count === 0) return null;
+    const row = await this.prisma.inspectorAvailabilitySlot.findFirst({
+      where: { id, inspector_id: inspectorId },
+    });
+    return row ? mapToEntity(row) : null;
   }
 
   async findMatchingSlot(
@@ -228,8 +242,9 @@ export class PrismaAvailabilitySlotRepository
     inspectorId: string,
     from: Date,
     to: Date,
+    tx?: Prisma.TransactionClient,
   ): Promise<Array<{ id: string; date: Date; startTime: string; endTime: string; capacity: number; isOperatorOverride: boolean }>> {
-    const rows = await (this.prisma.inspectorAvailabilitySlot as any).findMany({
+    const rows = await this.db(tx).inspectorAvailabilitySlot.findMany({
       where: {
         inspector_id: inspectorId,
         date: { gte: from, lte: to },
@@ -244,7 +259,7 @@ export class PrismaAvailabilitySlotRepository
         is_operator_override: true,
       },
     });
-    return rows.map((r: any) => ({
+    return rows.map((r) => ({
       id: r.id,
       date: r.date,
       startTime: r.start_time,
@@ -254,20 +269,30 @@ export class PrismaAvailabilitySlotRepository
     }));
   }
 
-  async deleteById(id: string): Promise<void> {
-    await this.prisma.inspectorAvailabilitySlot.delete({ where: { id } });
+  async deleteById(id: string, tx?: Prisma.TransactionClient): Promise<void> {
+    await this.db(tx).inspectorAvailabilitySlot.delete({ where: { id } });
   }
 
-  async saveForRegeneration(data: {
-    inspectorId: string;
-    date: Date;
-    startTime: string;
-    endTime: string;
-    capacity: number;
-    status: string;
-    isOperatorOverride: false;
-  }): Promise<void> {
-    await (this.prisma.inspectorAvailabilitySlot as any).create({
+  async deleteManyByIds(ids: string[], tx?: Prisma.TransactionClient): Promise<void> {
+    if (ids.length === 0) return;
+    await this.db(tx).inspectorAvailabilitySlot.deleteMany({
+      where: { id: { in: ids } },
+    });
+  }
+
+  async saveForRegeneration(
+    data: {
+      inspectorId: string;
+      date: Date;
+      startTime: string;
+      endTime: string;
+      capacity: number;
+      status: AvailabilitySlotStatus;
+      isOperatorOverride: false;
+    },
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    await this.db(tx).inspectorAvailabilitySlot.create({
       data: {
         id: crypto.randomUUID(),
         inspector_id: data.inspectorId,
@@ -275,9 +300,36 @@ export class PrismaAvailabilitySlotRepository
         start_time: data.startTime,
         end_time: data.endTime,
         capacity: data.capacity,
-        status: data.status,
+        status: data.status as PrismaAvailabilitySlotStatus,
         is_operator_override: false,
       },
+    });
+  }
+
+  async saveManyForRegeneration(
+    rows: Array<{
+      inspectorId: string;
+      date: Date;
+      startTime: string;
+      endTime: string;
+      capacity: number;
+      status: AvailabilitySlotStatus;
+      isOperatorOverride: false;
+    }>,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    if (rows.length === 0) return;
+    await this.db(tx).inspectorAvailabilitySlot.createMany({
+      data: rows.map((data) => ({
+        id: crypto.randomUUID(),
+        inspector_id: data.inspectorId,
+        date: data.date,
+        start_time: data.startTime,
+        end_time: data.endTime,
+        capacity: data.capacity,
+        status: data.status as PrismaAvailabilitySlotStatus,
+        is_operator_override: false,
+      })),
     });
   }
 
