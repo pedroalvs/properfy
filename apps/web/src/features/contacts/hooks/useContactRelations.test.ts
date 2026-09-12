@@ -101,6 +101,81 @@ describe('useContactRelations', () => {
     expect(mockGet.mock.calls.some((_, i) => getPathArg(i).includes('propertiesPage=2'))).toBe(true);
   });
 
+  it('paginates appointments with load-more independently of properties', async () => {
+    mockGet.mockImplementation(async (path: string) => {
+      const isApptPage2 = String(path).includes('appointmentsPage=2');
+      return {
+        data: {
+          data: {
+            properties: {
+              data: [prop('1')],
+              pagination: { page: 1, pageSize: 2, total: 1, totalPages: 1 },
+            },
+            appointments: {
+              data: isApptPage2
+                ? [{ appointmentId: 'a3', appointmentNumber: 3, status: 'DONE', scheduledDate: '2026-01-01', role: 'TENANT', isPrimary: false, propertyId: '1', propertyCode: 'AG-PROP-1' }]
+                : [{ appointmentId: 'a1', appointmentNumber: 1, status: 'SCHEDULED', scheduledDate: '2026-01-01', role: 'TENANT', isPrimary: false, propertyId: '1', propertyCode: 'AG-PROP-1' }],
+              pagination: { page: isApptPage2 ? 2 : 1, pageSize: 1, total: 2, totalPages: 2 },
+            },
+          },
+        },
+      };
+    });
+
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(
+      () => useContactRelations('c-1', { enabled: true, appointmentsPageSize: 1 }),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.appointments.length).toBe(1));
+    expect(result.current.hasMoreAppointments).toBe(true);
+
+    act(() => result.current.loadMoreAppointments());
+
+    await waitFor(() => expect(result.current.appointments.length).toBe(2));
+    expect(result.current.appointments.map((a) => a.appointmentId)).toEqual(['a1', 'a3']);
+    expect(result.current.hasMoreAppointments).toBe(false);
+    expect(mockGet.mock.calls.some((_, i) => getPathArg(i).includes('appointmentsPage=2'))).toBe(true);
+  });
+
+  it('resets accumulated pagination when the contactId changes', async () => {
+    mockGet.mockImplementation(async (path: string) => {
+      const id = /\/v1\/contacts\/([^?]+)/.exec(String(path))?.[1];
+      const isPage2 = String(path).includes('propertiesPage=2');
+      return {
+        data: {
+          data: {
+            properties: {
+              data: isPage2 ? [prop(`${id}-p2`)] : [prop(`${id}-p1`)],
+              pagination: { page: isPage2 ? 2 : 1, pageSize: 1, total: 2, totalPages: 2 },
+            },
+            appointments: { data: [], pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0 } },
+          },
+        },
+      };
+    });
+
+    const wrapper = createQueryWrapper();
+    const { result, rerender } = renderHook(
+      ({ id }) => useContactRelations(id, { enabled: true, propertiesPageSize: 1 }),
+      { wrapper, initialProps: { id: 'contact-a' } },
+    );
+
+    await waitFor(() => expect(result.current.properties.length).toBe(1));
+    act(() => result.current.loadMoreProperties());
+    await waitFor(() => expect(result.current.properties.length).toBe(2));
+
+    // Switch contact — accumulated pages and pagination must reset to page 1.
+    rerender({ id: 'contact-b' });
+    await waitFor(() =>
+      expect(result.current.properties.some((p) => p.propertyId === 'contact-b-p1')).toBe(true),
+    );
+    expect(result.current.properties.every((p) => p.propertyId.startsWith('contact-b'))).toBe(true);
+    expect(result.current.properties.length).toBe(1);
+    expect(result.current.hasMoreProperties).toBe(true);
+  });
+
   it('exposes pagination meta and hasMore flags', async () => {
     mockGet.mockResolvedValue({
       data: {

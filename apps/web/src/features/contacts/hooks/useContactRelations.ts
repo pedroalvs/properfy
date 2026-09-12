@@ -49,6 +49,8 @@ export interface UseContactRelationsReturn {
   loadMoreProperties: () => void;
   loadMoreAppointments: () => void;
   isLoading: boolean;
+  /** True while any page (initial or a load-more) is in flight. */
+  isFetching: boolean;
   isError: boolean;
   errorMessage: string | null;
   refetch: () => void;
@@ -156,6 +158,7 @@ export function useContactRelations(
     loadMoreProperties,
     loadMoreAppointments,
     isLoading: query.isLoading,
+    isFetching: query.isFetching,
     isError: query.isError,
     errorMessage: query.error?.message ?? null,
     refetch: query.refetch,
