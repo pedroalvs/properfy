@@ -44,23 +44,58 @@ reviews:
         Clean Architecture: domain has no external dependencies; application
         orchestrates; infrastructure implements ports. Enforce multi-tenant safety:
         every business query and repository must be scoped by tenant_id (no business
-        query without tenant scope). Validate all API payloads with Zod. Appointment
-        state-machine transitions must register an audit log and validate actor RBAC;
-        sensitive transitions require a reason. Apply idempotency on critical commands
-        (acceptance, execution, financial entries). Flag any tenant_id WHERE filter not
-        covered by a Postgres-real integration test (mocks can hide tenant-scope bugs).
+        query without tenant scope); for tenant routes never trust tenant_id from the
+        request body/query — derive it from the JWT (claims: userId, tenantId, role).
+        Authorization is centralized in the application layer (RBAC/ABAC) — flag
+        route-layer-only permission checks and optional-then-dereferenced
+        authorization services. Validate all API payloads with Zod. REST under the
+        /v1 prefix; errors use the envelope { error: { code, message, details } }
+        with the standard codes (VALIDATION_ERROR 400, UNAUTHORIZED 401, FORBIDDEN
+        403, NOT_FOUND 404, CONFLICT 409, INTERNAL_ERROR 500). request_id is
+        mandatory on every request and job. Async work uses pg-boss (PostgreSQL-backed)
+        — no Redis. Appointment state-machine transitions must register an audit log
+        and validate actor RBAC; sensitive transitions require a reason. Financial
+        rules: tenant debit and inspector payout happen at DONE and require an
+        operator cross-check; cancellation has no cost; a refund is only valid when a
+        service was marked done but not actually executed. Apply idempotency on
+        critical commands (acceptance, start/finish execution, notifications,
+        financial entries). Multi-write invariants (a persist plus a status
+        transition) must be atomic — one transaction, side effects deferred to after
+        commit. Flag any tenant_id WHERE filter not covered by a Postgres-real
+        integration test (mocks can hide tenant-scope bugs).
     - path: "apps/web/**"
       instructions: >-
-        React + TypeScript + Tailwind. Reuse design-system primitives
-        (FilterSelect / FilterMultiSelect / FilterBar / DataTable) instead of raw HTML
-        for filters and tables. Never expose raw IDs in the UI — show readable fields
-        (e.g. number + address + status + date). DataTable sorts client-side via useMemo;
-        do not send sortBy/sortOrder to the API. List pages must show data immediately;
-        selectors filter, they do not gate.
+        React + TypeScript + Vite + Tailwind, React Query for server state. The
+        OpenAPI-generated client (packages/shared/src/api-types.ts) is the source of
+        truth for API contracts — call the typed api.GET/POST/PATCH overloads; do not
+        hand-roll API clients or cast around the generated types with as any / as never.
+        Use shared DTOs, enums and Zod schemas from @properfy/shared — never redefine
+        them locally. Reuse design-system primitives (FilterSelect / FilterMultiSelect /
+        FilterBar / DataTable / SelectInput / Dialog / DrawerPanel) instead of raw HTML
+        for filters, tables, selects and dialogs; use design tokens, no hardcoded colors,
+        and do not let the UI look like a generic Tailwind template. Never expose raw IDs
+        in the UI — show readable fields (e.g. number + address + status + date).
+        DataTable sorts client-side via useMemo; do not send sortBy/sortOrder to the API.
+        List pages must show data immediately; selectors filter, they do not gate.
+        Accessibility baseline: every custom widget must be fully keyboard-operable — an
+        ARIA role (listbox/option/combobox/tab) obliges its keyboard pattern; Escape must
+        stopPropagation so it does not dismiss the surrounding dialog; dialogs manage
+        focus; action icons need aria-label. Data hooks must return referentially stable
+        values (wrap derived objects/arrays in useMemo keyed on the raw query data) to
+        avoid render-loop freezes.
     - path: "apps/pwa/**"
       instructions: >-
-        Inspector PWA (React + Vite + Tailwind). Reuse the shared design-system
-        primitives and keep parity with the web portal conventions.
+        Inspector PWA (React + Vite + Tailwind, React Query). Same contracts as web:
+        consume the OpenAPI-generated client and shared DTOs/enums from @properfy/shared
+        — no hand-rolled clients or casts around generated types. Reuse the shared
+        design-system primitives, tokens and status-chip colors and keep parity with the
+        web portal conventions. Mobile-first: large touch targets (min 44px), offline
+        support (cached schedule, queued actions with clear feedback). Execution flow is
+        SCHEDULED -> start (capture geo) -> finish (capture geo) -> DONE; finish is
+        geolocation + timestamp only — there is no inspector checklist or finish-notes,
+        and evidence uploads are optional and NOT a prerequisite for finishing. Always
+        handle geolocation permission, denial and errors. Data hooks must return
+        referentially stable values (useMemo keyed on the raw query data).
     - path: "packages/shared/**"
       instructions: >-
         Source of truth for shared Zod schemas, types and enums consumed across
