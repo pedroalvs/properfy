@@ -50,7 +50,8 @@ export function ExecutionPage() {
     }
   }, [isRestored, state.phase, showInfo]);
 
-  const isInProgress = state.phase === 'IN_PROGRESS' || state.phase === 'FINISHING';
+  const isInProgress =
+    state.phase === 'IN_PROGRESS' || state.phase === 'FINISHING' || state.phase === 'SUBMITTING';
   const blocker = useBlocker(isInProgress);
 
   if (aptLoading || !isRestored) {

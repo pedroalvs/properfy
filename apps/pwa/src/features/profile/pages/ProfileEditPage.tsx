@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { applyPhoneMask, formatAuPhone, maxPhoneDigits, stripNonDigits, toE164Au } from '@properfy/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { TopBar } from '@/components/shell/TopBar';
@@ -25,11 +25,23 @@ export function ProfileEditPage() {
   const [timezoneError, setTimezoneError] = useState<string | null>(null);
   const [timezoneSuccess, setTimezoneSuccess] = useState(false);
 
+  const [isAvailabilityDirty, setIsAvailabilityDirty] = useState(false);
+
   const isPhoneDirty = phone !== formatAuPhone(user?.phone ?? '');
   const isTimezoneDirty = timezone !== (user?.personalTimezone ?? '');
-  const isAnyDirty = isPhoneDirty || isTimezoneDirty;
+  const isAnyDirty = isPhoneDirty || isTimezoneDirty || isAvailabilityDirty;
 
   useUnsavedChangesPrompt(isAnyDirty);
+
+  const phoneSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timezoneSuccessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (phoneSuccessTimeoutRef.current) clearTimeout(phoneSuccessTimeoutRef.current);
+      if (timezoneSuccessTimeoutRef.current) clearTimeout(timezoneSuccessTimeoutRef.current);
+    };
+  }, []);
 
   const handlePhoneChange = useCallback((raw: string) => {
     const stripped = stripNonDigits(raw);
@@ -53,7 +65,8 @@ export function ProfileEditPage() {
       await updateSelf({ phone: phone || null });
       setPhoneSuccess(true);
       refreshUser();
-      setTimeout(() => setPhoneSuccess(false), 3000);
+      if (phoneSuccessTimeoutRef.current) clearTimeout(phoneSuccessTimeoutRef.current);
+      phoneSuccessTimeoutRef.current = setTimeout(() => setPhoneSuccess(false), 3000);
     } catch (err) {
       setPhoneError(err instanceof Error ? err.message : 'Failed to save');
     }
@@ -73,7 +86,8 @@ export function ProfileEditPage() {
       await updateTimezone({ timezone: timezone === '' ? null : timezone });
       await refreshUser();
       setTimezoneSuccess(true);
-      setTimeout(() => setTimezoneSuccess(false), 3000);
+      if (timezoneSuccessTimeoutRef.current) clearTimeout(timezoneSuccessTimeoutRef.current);
+      timezoneSuccessTimeoutRef.current = setTimeout(() => setTimezoneSuccess(false), 3000);
     } catch (err) {
       setTimezoneError(err instanceof Error ? err.message : 'Failed to save');
     }
@@ -174,7 +188,7 @@ export function ProfileEditPage() {
           <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Availability</p>
           <div className="mt-4">
             {availability ? (
-              <EditableAvailabilityGrid availability={availability} />
+              <EditableAvailabilityGrid availability={availability} onDirtyChange={setIsAvailabilityDirty} />
             ) : (
               <p className="text-sm text-text-muted">Loading availability…</p>
             )}

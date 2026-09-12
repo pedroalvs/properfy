@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { InspectorAvailabilityResponse, AvailabilityTemplate } from '@properfy/shared';
 import { AvailabilityCell } from './AvailabilityCell';
+import { Button } from '@/components/ui/Button';
 import { useUpdateInspectorAvailabilityTemplate } from '../hooks/useUpdateInspectorAvailabilityTemplate';
 
 type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
@@ -18,12 +19,25 @@ const DAYS: { key: DayKey; label: string }[] = [
 
 interface EditableAvailabilityGridProps {
   availability: InspectorAvailabilityResponse;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
-export function EditableAvailabilityGrid({ availability }: EditableAvailabilityGridProps) {
+export function EditableAvailabilityGrid({ availability, onDirtyChange }: EditableAvailabilityGridProps) {
   const [localTemplate, setLocalTemplate] = useState<AvailabilityTemplate>(availability.template);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const { mutateAsync, isPending } = useUpdateInspectorAvailabilityTemplate();
+
+  // Resync local state whenever the source-of-truth template changes underneath
+  // us (e.g. a query cache refetch/rollback), so the grid never shows stale data.
+  useEffect(() => {
+    setLocalTemplate(availability.template);
+  }, [availability.template]);
+
+  const isDirty = JSON.stringify(localTemplate) !== JSON.stringify(availability.template);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const toggle = useCallback((day: DayKey, slot: SlotKey) => {
     setLocalTemplate((prev) => ({
@@ -65,14 +79,14 @@ export function EditableAvailabilityGrid({ availability }: EditableAvailabilityG
         <p role="alert" className="text-xs text-red-600">{errorMsg}</p>
       )}
 
-      <button
+      <Button
         type="button"
         onClick={handleSave}
-        disabled={isPending}
-        className="w-full rounded-2xl bg-real-estate py-2.5 text-sm font-bold text-white disabled:opacity-50"
+        loading={isPending}
+        className="w-full rounded-2xl py-2.5"
       >
         {isPending ? 'Saving…' : 'Save'}
-      </button>
+      </Button>
     </div>
   );
 }

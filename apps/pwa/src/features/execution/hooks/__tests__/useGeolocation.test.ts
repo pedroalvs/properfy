@@ -90,4 +90,36 @@ describe('useGeolocation', () => {
     expect(result.current.status).toBe('error');
     expect(result.current.error).toContain('timed out');
   });
+
+  it('automatically requests location on mount when autoCapture is true', () => {
+    mockGetCurrentPosition.mockImplementation((success) => {
+      success({
+        coords: { latitude: -37.8, longitude: 144.9, accuracy: 10 },
+      });
+    });
+
+    const { result } = renderHook(() => useGeolocation({ autoCapture: true }));
+
+    expect(mockGetCurrentPosition).toHaveBeenCalledOnce();
+    expect(result.current.status).toBe('success');
+  });
+
+  it('does not request location on mount when autoCapture is false (default)', () => {
+    renderHook(() => useGeolocation());
+    expect(mockGetCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it('reports an error when navigator.geolocation is missing', () => {
+    vi.stubGlobal('navigator', { ...navigator, geolocation: undefined });
+
+    const { result } = renderHook(() => useGeolocation());
+
+    act(() => {
+      result.current.requestLocation();
+    });
+
+    expect(result.current.status).toBe('error');
+    expect(result.current.error).toContain('not supported');
+    expect(mockGetCurrentPosition).not.toHaveBeenCalled();
+  });
 });
