@@ -33,6 +33,8 @@ export interface ListPricingRulesOutput {
     status: string;
     createdAt: Date;
     updatedAt: Date;
+    serviceTypeName: string;
+    branchName: string | null;
   }>;
   total: number;
   page: number;
@@ -79,24 +81,26 @@ export class ListPricingRulesUseCase {
     };
 
     const [data, total] = await Promise.all([
-      this.pricingRuleRepo.findAll(resolvedFilters, pagination),
+      this.pricingRuleRepo.findAllWithNames(resolvedFilters, pagination),
       this.pricingRuleRepo.count(resolvedFilters),
     ]);
 
     return {
-      data: data.map((r) => ({
-        id: r.id,
-        tenantId: r.tenantId,
-        currency: r.currency,
-        serviceTypeId: r.serviceTypeId,
-        branchId: r.branchId,
-        priceAmount: r.priceAmount,
-        payoutType: r.payoutType,
-        payoutValue: r.payoutValue,
-        bonusRuleJson: r.bonusRuleJson,
-        status: r.status,
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
+      data: data.map((item) => ({
+        id: item.rule.id,
+        tenantId: item.rule.tenantId,
+        currency: item.rule.currency,
+        serviceTypeId: item.rule.serviceTypeId,
+        branchId: item.rule.branchId,
+        priceAmount: item.rule.priceAmount,
+        payoutType: item.rule.payoutType,
+        payoutValue: item.rule.payoutValue,
+        bonusRuleJson: item.rule.bonusRuleJson,
+        status: item.rule.status,
+        createdAt: item.rule.createdAt,
+        updatedAt: item.rule.updatedAt,
+        serviceTypeName: item.serviceTypeName,
+        branchName: item.branchName,
       })),
       total,
       page: pagination.page,

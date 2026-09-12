@@ -5,6 +5,7 @@ import type {
   IPricingRuleRepository,
   PricingRuleFilters,
   PaginationParams,
+  PricingRuleListItem,
 } from '../domain/pricing-rule.repository';
 import type { PayoutType, PriceRuleStatus, BonusRule } from '@properfy/shared';
 
@@ -86,6 +87,33 @@ export class PrismaPricingRuleRepository implements IPricingRuleRepository {
       },
     });
     return rows.map(mapToEntity);
+  }
+
+  async findAllWithNames(
+    filters: PricingRuleFilters,
+    pagination: PaginationParams,
+  ): Promise<PricingRuleListItem[]> {
+    const where = this.buildWhere(filters);
+    // Join the related names in one query (no per-row lookups): the list view
+    // shows service-type and branch names, and resolving them client-side
+    // against a capped options fetch dropped rows past the first 100 (#674).
+    const rows = await this.prisma.servicePriceRule.findMany({
+      where,
+      skip: (pagination.page - 1) * pagination.pageSize,
+      take: pagination.pageSize,
+      orderBy: {
+        [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
+      },
+      include: {
+        service_type: { select: { name: true } },
+        branch: { select: { name: true } },
+      },
+    });
+    return rows.map((row) => ({
+      rule: mapToEntity(row),
+      serviceTypeName: row.service_type.name,
+      branchName: row.branch?.name ?? null,
+    }));
   }
 
   async count(filters: PricingRuleFilters): Promise<number> {

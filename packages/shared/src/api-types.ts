@@ -3049,6 +3049,8 @@ export interface paths {
                                 status: string;
                                 createdAt: string;
                                 updatedAt: string;
+                                serviceTypeName: string;
+                                branchName: string | null;
                             }[];
                             pagination: {
                                 page: number;
@@ -9169,6 +9171,7 @@ export interface paths {
                                     agency: {
                                         id: string;
                                         name: string;
+                                        branchName?: string | null;
                                     };
                                     tenantContacts: {
                                         name: string;

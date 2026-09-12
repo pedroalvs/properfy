@@ -20,10 +20,9 @@ const STATUS_OPTIONS = [
 interface PricingRulesSectionProps {
   tenantId: string;
   tenantName: string;
-  currency: string;
 }
 
-export function PricingRulesSection({ tenantId, tenantName, currency: _currency }: PricingRulesSectionProps) {
+export function PricingRulesSection({ tenantId, tenantName }: PricingRulesSectionProps) {
   const {
     data,
     isLoading,
@@ -61,24 +60,19 @@ export function PricingRulesSection({ tenantId, tenantName, currency: _currency 
     [branchesResp],
   );
 
-  const serviceTypeMap = useMemo(
-    () => Object.fromEntries((serviceTypesResp?.data ?? []).map((s) => [s.id, s.name])),
-    [serviceTypesResp],
-  );
-  const branchMap = useMemo(
-    () => Object.fromEntries((branchesResp?.data ?? []).map((b) => [b.id, b.name])),
-    [branchesResp],
-  );
-
+  // Names are joined server-side and travel on each rule row (#674); the two
+  // capped queries above remain ONLY as filter-dropdown options. Resolving
+  // names from those capped option lists previously left any rule referencing
+  // an id beyond the first 100 rendering blank.
   const enrichedData = useMemo(
     () =>
       data.map((rule) => ({
         ...rule,
         tenantName,
-        serviceTypeName: serviceTypeMap[rule.serviceTypeId],
-        branchName: rule.branchId ? branchMap[rule.branchId] : null,
+        serviceTypeName: rule.serviceTypeName,
+        branchName: rule.branchName ?? null,
       })),
-    [data, tenantName, serviceTypeMap, branchMap],
+    [data, tenantName],
   );
 
   const [formOpen, setFormOpen] = useState(false);
