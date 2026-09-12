@@ -191,7 +191,10 @@ describe('useInspectorSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/inspectors/insp-01', { body: expect.any(Object) });
+    expect(mockPatch).toHaveBeenCalledWith('/v1/inspectors/{inspectorId}', {
+      params: { path: { inspectorId: 'insp-01' } },
+      body: expect.any(Object),
+    });
   });
 
   it('save returns errorCode on 409 conflict', async () => {

@@ -1,7 +1,7 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { formatCivilDate, formatInstantDateTime, toLocalISODate } from '@/lib/format-date';
-import { usePaginatedQuery } from '@/hooks/useApiQuery';
+import { usePaginatedQuery, useAllPagesQuery } from '@/hooks/useApiQuery';
 import { useInspectorDocumentDownload } from '../hooks/useInspectorDocumentDownload';
 import type { InspectorDetail } from '../types';
 import { formatAuPhone } from '@/lib/phone-mask';
@@ -11,8 +11,23 @@ interface InspectorDetailSectionsProps {
   inspector: InspectorDetail;
 }
 
+/** Neutral label for a genuine lookup miss — never render the raw id. */
+const UNKNOWN_LABEL = 'Unknown';
+
 function formatList(items: string[] | undefined | null): string | null {
   return items && items.length > 0 ? items.join(', ') : null;
+}
+
+/** A document is "on file" once a storage key exists, whether or not the
+ * upload metadata carries a human-readable file name. */
+function documentLabel(
+  meta: { fileName?: string | null } | null | undefined,
+  fileKey: string | null | undefined,
+  genericLabel: string,
+): string | null {
+  if (meta?.fileName) return meta.fileName;
+  if (fileKey) return genericLabel;
+  return null;
 }
 
 function useInspectorWorkload(inspectorId: string) {
@@ -44,37 +59,37 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
   const { scheduledCount, weekCount, isLoading: workloadLoading } = useInspectorWorkload(inspector.id);
   const { download, isDownloading } = useInspectorDocumentDownload();
 
-  const insuranceMeta = inspector.insuranceMetaJson as { fileName?: string | null; uploadedAt?: string | null } | null | undefined;
-  const policeMeta = inspector.policeCheckMetaJson as { fileName?: string | null; uploadedAt?: string | null } | null | undefined;
-  const { data: serviceTypesData } = usePaginatedQuery<{ id: string; name: string }>(
+  const insuranceMeta = inspector.insuranceMetaJson;
+  const policeMeta = inspector.policeCheckMetaJson;
+  // Unbounded (all-pages) fetches: the inspector's own service types, regions
+  // or blocked agencies can reference a record beyond the backend's 100-row
+  // page cap. A raw `?? id` fallback there would leak the UUID into the UI.
+  const { data: serviceTypesData } = useAllPagesQuery<{ id: string; name: string }>(
     ['service-types', 'inspector-detail'],
     '/v1/service-types',
-    { pageSize: 100 },
   );
   const serviceTypeNameMap = new Map((serviceTypesData?.data ?? []).map((item) => [item.id, item.name]));
   const serviceTypeLabels = inspector.serviceTypes.map((entry) => {
     const id = typeof entry === 'string' ? entry : entry.serviceTypeId;
-    return serviceTypeNameMap.get(id) ?? id;
+    return serviceTypeNameMap.get(id) ?? UNKNOWN_LABEL;
   });
 
-  const { data: regionsData } = usePaginatedQuery<{ id: string; name: string }>(
+  const { data: regionsData } = useAllPagesQuery<{ id: string; name: string }>(
     ['service-regions', 'inspector-detail'],
     '/v1/service-regions',
-    { pageSize: 100 },
   );
   const regionNameMap = new Map((regionsData?.data ?? []).map((item) => [item.id, item.name]));
   const regionLabels = (inspector.regionIds ?? []).map(
-    (regionId) => regionNameMap.get(regionId) ?? regionId,
+    (regionId) => regionNameMap.get(regionId) ?? UNKNOWN_LABEL,
   );
 
-  const { data: tenantsData } = usePaginatedQuery<{ id: string; name: string }>(
+  const { data: tenantsData } = useAllPagesQuery<{ id: string; name: string }>(
     ['tenants', 'inspector-detail'],
     '/v1/tenants',
-    { pageSize: 100 },
   );
   const tenantNameMap = new Map((tenantsData?.data ?? []).map((item) => [item.id, item.name]));
   const blockedClientLabels = (inspector.blockedClients ?? []).map(
-    (id) => tenantNameMap.get(id) ?? id,
+    (id) => tenantNameMap.get(id) ?? UNKNOWN_LABEL,
   );
 
   return (
@@ -102,7 +117,7 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
       <FormSection title="Insurance &amp; Police Check">
         <DetailRow
           label="Insurance File"
-          value={insuranceMeta?.fileName ?? inspector.insuranceFileKey ?? null}
+          value={documentLabel(insuranceMeta, inspector.insuranceFileKey, 'Insurance document')}
           action={
             insuranceMeta?.fileName || inspector.insuranceFileKey ? (
               <button
@@ -122,7 +137,7 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
         />
         <DetailRow
           label="Police Check File"
-          value={policeMeta?.fileName ?? inspector.policeCheckFileKey ?? null}
+          value={documentLabel(policeMeta, inspector.policeCheckFileKey, 'Police check document')}
           action={
             policeMeta?.fileName || inspector.policeCheckFileKey ? (
               <button

@@ -127,7 +127,7 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         // Lifecycle status is not part of create/update. Activation/deactivation
         // goes through the dedicated endpoints (see InspectorDetailDrawer's
         // deactivate action), which enforce reason, lockout and audit.
-        regionIds: data.regionIds.length > 0 ? data.regionIds : [],
+        regionIds: data.regionIds,
         serviceTypes: parseServiceTypeEntries(data.serviceTypes),
         fullName: data.fullName?.trim() || undefined,
         abn: data.abn?.trim() || undefined,
@@ -136,21 +136,25 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         insuranceExpiresAt: data.insuranceExpiresAt || undefined,
         policeCheckFileKey: data.policeCheckFileKey?.trim() || undefined,
         policeCheckExpiresAt: data.policeCheckExpiresAt || undefined,
-        blockedClients: data.blockedClients.length > 0 ? data.blockedClients : [],
+        blockedClients: data.blockedClients,
       };
 
-      let apiError: { error?: { code?: string; message?: string } } | undefined;
+      type ApiErrorEnvelope = { error?: { code?: string; message?: string } };
+      let apiError: ApiErrorEnvelope | undefined;
       if (inspectorId) {
         // Deliberately excludes `password`: updateInspectorSchema is a plain
         // z.object, so it would be silently stripped server-side — putting a
         // plaintext password on the wire with no error to signal it.
-        const { error } = await api.PATCH(`/v1/inspectors/${inspectorId}` as any, { body: sharedFields as any });
-        apiError = error as any;
-      } else {
-        const { error } = await api.POST('/v1/inspectors' as any, {
-          body: { ...sharedFields, password: data.password } as any,
+        const { error } = await api.PATCH('/v1/inspectors/{inspectorId}', {
+          params: { path: { inspectorId } },
+          body: sharedFields,
         });
-        apiError = error as any;
+        apiError = error as ApiErrorEnvelope | undefined;
+      } else {
+        const { error } = await api.POST('/v1/inspectors', {
+          body: { ...sharedFields, password: data.password },
+        });
+        apiError = error as ApiErrorEnvelope | undefined;
       }
 
       if (apiError) {
