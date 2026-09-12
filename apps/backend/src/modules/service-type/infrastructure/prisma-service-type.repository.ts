@@ -51,6 +51,16 @@ export class PrismaServiceTypeRepository implements IServiceTypeRepository {
     return row ? mapToEntity(row) : null;
   }
 
+  async findByCodeAnyStatus(code: string): Promise<ServiceTypeEntity | null> {
+    // No status filter: an INACTIVE type still reserves its code, so the create
+    // uniqueness check must see it too (#393). Match findByCode's exact (case-
+    // sensitive) code semantics deliberately — only the status filter is dropped.
+    const row = await this.prisma.serviceType.findFirst({
+      where: { code },
+    });
+    return row ? mapToEntity(row) : null;
+  }
+
   async findByName(name: string): Promise<ServiceTypeEntity | null> {
     const row = await this.prisma.serviceType.findFirst({
       where: { name: { equals: name, mode: 'insensitive' } },
@@ -100,7 +110,7 @@ export class PrismaServiceTypeRepository implements IServiceTypeRepository {
       requiresRentalTenantConfirmation: boolean;
       status: string;
     }>,
-  ): Promise<void> {
+  ): Promise<ServiceTypeEntity> {
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData['name'] = data.name;
     if (data.flowType !== undefined)
@@ -109,7 +119,8 @@ export class PrismaServiceTypeRepository implements IServiceTypeRepository {
       updateData['requires_rental_tenant_confirmation'] =
         data.requiresRentalTenantConfirmation;
     if (data.status !== undefined) updateData['status'] = data.status;
-    await this.prisma.serviceType.update({ where: { id }, data: updateData });
+    const row = await this.prisma.serviceType.update({ where: { id }, data: updateData });
+    return mapToEntity(row);
   }
 
   private buildWhere(filters: ServiceTypeFilters) {

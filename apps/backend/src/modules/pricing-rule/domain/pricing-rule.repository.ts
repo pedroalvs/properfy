@@ -1,11 +1,11 @@
-import type { BonusRule } from '@properfy/shared';
+import type { BonusRule, PayoutType, PriceRuleStatus } from '@properfy/shared';
 import type { PricingRuleEntity } from './pricing-rule.entity';
 
 export interface PricingRuleFilters {
   tenantId: string;
   serviceTypeId?: string;
   branchId?: string;
-  status?: string;
+  status?: PriceRuleStatus;
 }
 
 export interface PaginationParams {
@@ -13,6 +13,13 @@ export interface PaginationParams {
   pageSize: number;
   sortBy?: string;
   sortOrder: 'asc' | 'desc';
+}
+
+/** A list row plus the server-resolved display names for its tenant + service type (#389). */
+export interface PricingRuleListRow {
+  rule: PricingRuleEntity;
+  tenantName: string;
+  serviceTypeName: string;
 }
 
 export interface IPricingRuleRepository {
@@ -26,6 +33,11 @@ export interface IPricingRuleRepository {
     filters: PricingRuleFilters,
     pagination: PaginationParams,
   ): Promise<PricingRuleEntity[]>;
+  /** Like findAll, but joins tenant + service-type names for list display (#389). */
+  findAllWithNames(
+    filters: PricingRuleFilters,
+    pagination: PaginationParams,
+  ): Promise<PricingRuleListRow[]>;
   count(filters: PricingRuleFilters): Promise<number>;
   save(rule: PricingRuleEntity): Promise<void>;
   update(
@@ -33,10 +45,10 @@ export interface IPricingRuleRepository {
     tenantId: string,
     data: Partial<{
       priceAmount: number;
-      payoutType: string;
+      payoutType: PayoutType;
       payoutValue: number;
       bonusRuleJson: BonusRule | null;
-      status: string;
+      status: PriceRuleStatus;
     }>,
   ): Promise<void>;
 }
