@@ -23,6 +23,17 @@ describe('PrismaPricingRuleRepository — sortBy allowlist (#608)', () => {
     );
   });
 
+  it('falls back to created_at for an empty-string sortBy (schema accepts it) — no invalid orderBy (#608)', async () => {
+    const { repo, findMany } = makeRepo();
+
+    const pagination: PaginationParams = { page: 1, pageSize: 10, sortBy: '', sortOrder: 'asc' };
+    await expect(repo.findAll(filters, pagination)).resolves.toEqual([]);
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { created_at: 'asc' } }),
+    );
+  });
+
   it('maps an allowlisted camelCase sortBy to its snake_case column', async () => {
     const { repo, findMany } = makeRepo();
 

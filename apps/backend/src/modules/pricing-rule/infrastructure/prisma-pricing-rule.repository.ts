@@ -22,7 +22,10 @@ const SORTABLE_COLUMNS: Record<string, string> = {
 };
 
 function resolveSortColumn(sortBy: string | undefined): string {
-  return (sortBy && SORTABLE_COLUMNS[sortBy]) ?? 'created_at';
+  // Index with the coalesced key so an empty string (which the pagination schema
+  // accepts) misses the allowlist and falls back — `sortBy && …` would return the
+  // empty string itself and produce an invalid `orderBy: { '': … }` (#608).
+  return SORTABLE_COLUMNS[sortBy ?? ''] ?? 'created_at';
 }
 
 function mapToEntity(row: {
