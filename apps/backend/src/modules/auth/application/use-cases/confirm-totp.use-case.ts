@@ -1,6 +1,6 @@
 import type { IUserRepository } from '../../domain/user.repository';
 import type { TotpService } from '../services/totp.service';
-import type { TotpEncryptionService } from '../../infrastructure/totp-encryption.service';
+import type { ITotpEncryptionService } from '../ports/totp-encryption.port';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { NotFoundError } from '../../../../shared/domain/errors';
 import { TotpInvalidError, TotpNotConfiguredError } from '../../domain/auth.errors';
@@ -15,7 +15,7 @@ export class ConfirmTotpUseCase {
     private readonly userRepo: IUserRepository,
     private readonly totpService: TotpService,
     private readonly auditService: AuditService,
-    private readonly encryptionService: TotpEncryptionService,
+    private readonly encryptionService: ITotpEncryptionService,
   ) {}
 
   async execute(input: ConfirmTotpInput): Promise<void> {

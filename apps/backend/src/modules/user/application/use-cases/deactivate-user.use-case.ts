@@ -16,6 +16,7 @@ export interface DeactivateUserInput {
   userId: string;
   reason: string;
   actor: AuthContext;
+  requestId?: string;
 }
 
 export class DeactivateUserUseCase {
@@ -108,6 +109,7 @@ export class DeactivateUserUseCase {
           entityType: 'User',
           entityId: userId,
           tenantId,
+          requestId: input.requestId,
           before: { status: user.status },
           after: { status: 'INACTIVE' },
           reason,

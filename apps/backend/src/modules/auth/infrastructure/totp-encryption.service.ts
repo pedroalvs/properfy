@@ -1,7 +1,8 @@
 import { Aes256GcmService } from '../../../shared/infrastructure/crypto/aes-256-gcm.service';
+import type { ITotpEncryptionService } from '../application/ports/totp-encryption.port';
 
 /** Thin wrapper around Aes256GcmService for TOTP secret encryption. */
-export class TotpEncryptionService {
+export class TotpEncryptionService implements ITotpEncryptionService {
   private readonly aes: Aes256GcmService;
 
   constructor(encryptionKey: string) {

@@ -212,8 +212,6 @@ export const COMMON_PASSWORDS = new Set([
   'ironman1',
   'pokemon',
   'pokemon1',
-  'starwars',
-  'starwars1',
 
   // Dates and years
   'january1',
@@ -237,7 +235,6 @@ export const COMMON_PASSWORDS = new Set([
   'google1',
 
   // Misc common
-  'trustno1',
   'lucky',
   'lucky1',
   'harley',
@@ -255,8 +252,6 @@ export const COMMON_PASSWORDS = new Set([
   'cheese1',
   'tigers',
   'tigers1',
-  'pepper',
-  'pepper1',
   'thunder',
   'thunder1',
   'hammer',
@@ -298,7 +293,6 @@ export const COMMON_PASSWORDS = new Set([
   'marvin',
   'golfer',
   'golfer1',
-  'cheese',
   'bernie',
   'jackson',
   'jackson1',

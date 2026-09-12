@@ -12,6 +12,7 @@ export interface UnlockUserInput {
   tenantId: string;
   userId: string;
   actor: AuthContext;
+  requestId?: string;
 }
 
 export class UnlockUserUseCase {
@@ -62,6 +63,7 @@ export class UnlockUserUseCase {
       entityType: 'User',
       entityId: userId,
       tenantId,
+      requestId: input.requestId,
       before: {
         status: user.status,
         failedLoginCount: user.failedLoginCount,
