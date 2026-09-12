@@ -111,10 +111,10 @@ describe('POST /v1/pricing-rules', () => {
 });
 
 describe('GET /v1/pricing-rules', () => {
-  it('should return 200 with paginated response', async () => {
+  it('should return 200 with paginated response including server-provided display names (#389)', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockListPricingRulesExecute.mockResolvedValueOnce({
-      data: [fullPricingRule],
+      data: [{ ...fullPricingRule, tenantName: 'Acme Realty', serviceTypeName: 'Routine Inspection' }],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -128,6 +128,9 @@ describe('GET /v1/pricing-rules', () => {
     expect(res.body).toHaveProperty('data');
     expect(res.body).toHaveProperty('pagination');
     expect(res.body.data).toHaveLength(1);
+    // Names must be declared in the response schema, else they'd be stripped.
+    expect(res.body.data[0].tenantName).toBe('Acme Realty');
+    expect(res.body.data[0].serviceTypeName).toBe('Routine Inspection');
   });
 });
 

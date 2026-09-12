@@ -239,6 +239,19 @@ export const pricingRuleResponseSchema = z.object({
   updatedAt: instantStr(),
 });
 
+/**
+ * List rows carry the server-resolved display names so the client never has to
+ * stitch tenant/service-type lookups (which capped at pageSize 100 and rendered
+ * raw UUIDs beyond that) or fall back to a raw id (#389). Required — the list
+ * use case always populates them. Built by spreading `.shape` (a fresh object,
+ * so the base schema and its create/update siblings are untouched).
+ */
+export const pricingRuleListItemSchema = z.object({
+  ...pricingRuleResponseSchema.shape,
+  tenantName: z.string(),
+  serviceTypeName: z.string(),
+});
+
 // ─── Inspector ─────────────────────────────────────────────────────────────
 
 export const inspectorResponseSchema = z.object({
@@ -1177,6 +1190,7 @@ export type UserResponse = z.infer<typeof userResponseSchema>;
 export type PropertyResponse = z.infer<typeof propertyResponseSchema>;
 export type ServiceTypeResponse = z.infer<typeof serviceTypeResponseSchema>;
 export type PricingRuleResponse = z.infer<typeof pricingRuleResponseSchema>;
+export type PricingRuleListItem = z.infer<typeof pricingRuleListItemSchema>;
 /**
  * One satisfaction response, as shown to an operator or the owning agency.
  *

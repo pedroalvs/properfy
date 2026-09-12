@@ -43,6 +43,7 @@ describe('CreateServiceTypeUseCase', () => {
     serviceTypeRepo = {
       findById: vi.fn(),
       findByCode: vi.fn(),
+      findByCodeAnyStatus: vi.fn().mockResolvedValue(null),
       findByName: vi.fn().mockResolvedValue(null),
       findAll: vi.fn(),
       count: vi.fn(),
@@ -120,7 +121,7 @@ describe('CreateServiceTypeUseCase', () => {
   });
 
   it('should throw SERVICE_TYPE_CODE_CONFLICT when code already exists', async () => {
-    vi.mocked(serviceTypeRepo.findByCode).mockResolvedValue(makeServiceType());
+    vi.mocked(serviceTypeRepo.findByCodeAnyStatus).mockResolvedValue(makeServiceType());
 
     await expect(
       useCase.execute({
@@ -130,5 +131,26 @@ describe('CreateServiceTypeUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(ServiceTypeCodeConflictError);
+  });
+
+  it('blocks a code reused from an INACTIVE service type via the any-status lookup (#393)', async () => {
+    // findByCode (ACTIVE-only) would miss this; findByCodeAnyStatus must catch it.
+    vi.mocked(serviceTypeRepo.findByCode).mockResolvedValue(null);
+    vi.mocked(serviceTypeRepo.findByCodeAnyStatus).mockResolvedValue(
+      makeServiceType({ code: 'RETIRED', status: 'INACTIVE' }),
+    );
+
+    await expect(
+      useCase.execute({
+        code: 'RETIRED',
+        name: 'Reused Code',
+        flowType: 'ROUTINE',
+        requiresRentalTenantConfirmation: false,
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow(ServiceTypeCodeConflictError);
+
+    expect(serviceTypeRepo.findByCodeAnyStatus).toHaveBeenCalledWith('RETIRED');
+    expect(serviceTypeRepo.save).not.toHaveBeenCalled();
   });
 });

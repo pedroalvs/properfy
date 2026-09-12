@@ -1,4 +1,4 @@
-import type { AuthContext, BonusRule } from '@properfy/shared';
+import type { AuthContext, BonusRule, PriceRuleStatus } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type {
   IPricingRuleRepository,
@@ -13,7 +13,7 @@ export interface ListPricingRulesInput {
     tenantId?: string;
     serviceTypeId?: string;
     branchId?: string;
-    status?: string;
+    status?: PriceRuleStatus;
   };
   pagination: PaginationParams;
   actor: AuthContext;
@@ -23,8 +23,10 @@ export interface ListPricingRulesOutput {
   data: Array<{
     id: string;
     tenantId: string;
+    tenantName: string;
     currency: string;
     serviceTypeId: string;
+    serviceTypeName: string;
     branchId: string | null;
     priceAmount: number;
     payoutType: string;
@@ -58,8 +60,12 @@ export class ListPricingRulesUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    // Only AM is cross-tenant per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
-    const isGlobal = actor.role === 'AM';
+    // AM and OP are both cross-tenant (Constitution v1.3.0; CORRECTION-001, which
+    // had narrowed this to AM only, is consciously superseded — create/update
+    // already treat OP as cross-tenant, so an OP list was silently empty). A
+    // global actor with no tenant filter still gets an empty page (the web's
+    // tenant-selection gate). CL_ADMIN/CL_USER stay scoped to their JWT tenant.
+    const isGlobal = actor.role === 'AM' || actor.role === 'OP';
     const resolvedTenantId = isGlobal ? filters.tenantId : actor.tenantId;
 
     if (!resolvedTenantId) {
@@ -78,17 +84,19 @@ export class ListPricingRulesUseCase {
       status: filters.status,
     };
 
-    const [data, total] = await Promise.all([
-      this.pricingRuleRepo.findAll(resolvedFilters, pagination),
+    const [rows, total] = await Promise.all([
+      this.pricingRuleRepo.findAllWithNames(resolvedFilters, pagination),
       this.pricingRuleRepo.count(resolvedFilters),
     ]);
 
     return {
-      data: data.map((r) => ({
+      data: rows.map(({ rule: r, tenantName, serviceTypeName }) => ({
         id: r.id,
         tenantId: r.tenantId,
+        tenantName,
         currency: r.currency,
         serviceTypeId: r.serviceTypeId,
+        serviceTypeName,
         branchId: r.branchId,
         priceAmount: r.priceAmount,
         payoutType: r.payoutType,

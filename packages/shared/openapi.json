@@ -7065,6 +7065,12 @@
                                 "format": "date-time"
                               }
                             ]
+                          },
+                          "tenantName": {
+                            "type": "string"
+                          },
+                          "serviceTypeName": {
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -7079,7 +7085,9 @@
                           "bonusRuleJson",
                           "status",
                           "createdAt",
-                          "updatedAt"
+                          "updatedAt",
+                          "tenantName",
+                          "serviceTypeName"
                         ],
                         "additionalProperties": false
                       }

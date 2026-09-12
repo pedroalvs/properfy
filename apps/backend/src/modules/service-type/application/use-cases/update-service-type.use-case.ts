@@ -69,7 +69,7 @@ export class UpdateServiceTypeUseCase {
       updateData.requiresRentalTenantConfirmation = data.requiresRentalTenantConfirmation;
     if (data.status !== undefined) updateData.status = data.status;
 
-    await this.serviceTypeRepo.update(serviceTypeId, updateData);
+    const updated = await this.serviceTypeRepo.update(serviceTypeId, updateData);
 
     const after = {
       name: (updateData.name as string) ?? serviceType.name,
@@ -98,7 +98,8 @@ export class UpdateServiceTypeUseCase {
       requiresRentalTenantConfirmation: after.requiresRentalTenantConfirmation,
       status: after.status,
       createdAt: serviceType.createdAt,
-      updatedAt: new Date(),
+      // Echo the persisted timestamp from the update, not a synthetic one (#618).
+      updatedAt: updated.updatedAt,
     };
   }
 }

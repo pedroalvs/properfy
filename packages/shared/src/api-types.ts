@@ -3049,6 +3049,8 @@ export interface paths {
                                 status: string;
                                 createdAt: string;
                                 updatedAt: string;
+                                tenantName: string;
+                                serviceTypeName: string;
                             }[];
                             pagination: {
                                 page: number;
