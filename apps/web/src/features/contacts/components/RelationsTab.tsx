@@ -71,6 +71,7 @@ export function RelationsTab({ contactId, enabled }: RelationsTabProps) {
     appointments,
     isLoading,
     isError,
+    isFetching,
     errorMessage,
     refetch,
     hasMoreProperties,
@@ -192,12 +193,24 @@ export function RelationsTab({ contactId, enabled }: RelationsTabProps) {
       {(hasMoreProperties || hasMoreAppointments) ? (
         <div className="flex flex-wrap gap-2">
           {hasMoreProperties ? (
-            <Button variant="outlined" onClick={loadMoreProperties} aria-label="Load more properties">
+            <Button
+              variant="outlined"
+              onClick={loadMoreProperties}
+              loading={isFetching}
+              disabled={isFetching}
+              aria-label="Load more properties"
+            >
               Load more properties
             </Button>
           ) : null}
           {hasMoreAppointments ? (
-            <Button variant="outlined" onClick={loadMoreAppointments} aria-label="Load more appointments">
+            <Button
+              variant="outlined"
+              onClick={loadMoreAppointments}
+              loading={isFetching}
+              disabled={isFetching}
+              aria-label="Load more appointments"
+            >
               Load more appointments
             </Button>
           ) : null}
