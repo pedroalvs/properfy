@@ -306,6 +306,7 @@ model Session {
   country_code       String?   @db.VarChar(2)
   device_fingerprint String?   @db.VarChar(64)
   auth_stage         String?   @db.VarChar(16)
+  last_used_at       DateTime?
   expires_at         DateTime
   revoked_at         DateTime?
   created_at         DateTime  @default(now())

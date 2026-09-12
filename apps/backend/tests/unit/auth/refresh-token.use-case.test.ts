@@ -29,7 +29,7 @@ function makeSession(overrides = {}): SessionEntity {
     ipAddress: null, userAgent: null,
     countryCode: null, deviceFingerprint: null, authStage: null,
     expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
-    revokedAt: null, createdAt: new Date(),
+    revokedAt: null, lastUsedAt: null, createdAt: new Date(),
     ...overrides,
   });
 }
@@ -73,6 +73,20 @@ describe('RefreshTokenUseCase', () => {
     const result = await useCase.execute({ refreshToken: 'valid-token' });
     expect(result.accessToken).toBe('new-access-token');
     expect(result.refreshToken).toBeDefined();
+  });
+
+  // #261: the access token's `sid` claim must identify the session being
+  // refreshed, and rotation must still be invoked on a successful refresh.
+  it('should sign the new access token with sid set to the session id and call rotateRefreshToken', async () => {
+    vi.mocked(sessionRepo.findByRefreshTokenHash).mockResolvedValue(makeSession());
+    vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
+
+    await useCase.execute({ refreshToken: 'valid-token' });
+
+    expect(jwtService.signAccessToken).toHaveBeenCalledWith(
+      expect.objectContaining({ sid: 'session-1' }),
+    );
+    expect(sessionRepo.rotateRefreshToken).toHaveBeenCalled();
   });
 
   it('should rotate refresh token atomically (compare-and-swap on the old hash)', async () => {

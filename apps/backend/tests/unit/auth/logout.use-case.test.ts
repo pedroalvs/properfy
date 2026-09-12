@@ -24,7 +24,7 @@ describe('LogoutUseCase', () => {
       id: 'session-1', userId: 'user-1', refreshTokenHash: 'hash',
       ipAddress: null, userAgent: null,
       expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
-      revokedAt: null, createdAt: new Date(),
+      revokedAt: null, lastUsedAt: null, createdAt: new Date(),
     });
     vi.mocked(sessionRepo.findById).mockResolvedValue(session);
 
