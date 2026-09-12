@@ -40,6 +40,17 @@ describe('OfferCard', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it('selects the card when its body content (not just the padding) is clicked', () => {
+    // Regression guard: the whole card is a click-to-select surface. A
+    // target===currentTarget guard on onClick would break clicks on the title,
+    // tenant name and info grid — only the bare padding would select.
+    const onClick = vi.fn();
+    render(<OfferCard offer={MOCK_OFFER} selected={false} onClick={onClick} onAccept={vi.fn()} />);
+
+    fireEvent.click(screen.getByText('Routine Inspection'));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
   it('calls onAccept when Accept button is clicked', () => {
     const onAccept = vi.fn();
     const onClick = vi.fn();
