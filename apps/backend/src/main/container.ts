@@ -130,7 +130,9 @@ import { PrismaAuditLegalHoldRepository } from '../modules/audit/infrastructure/
 import { PrismaPiiFieldMappingRepository } from '../modules/audit/infrastructure/prisma-pii-field-mapping.repository';
 import { PrismaDataSubjectErasureRequestRepository } from '../modules/audit/infrastructure/prisma-data-subject-erasure-request.repository';
 import { PrismaErasurePiiResolver } from '../modules/audit/infrastructure/prisma-erasure-pii-resolver';
+import { PrismaTenantPortalActivityScanner } from '../modules/audit/infrastructure/prisma-tenant-portal-activity-scanner';
 import { ListAuditLogsUseCase } from '../modules/audit/application/use-cases/list-audit-logs.use-case';
+import { PrismaAuditEntityLabelResolver } from '../modules/audit/infrastructure/prisma-audit-entity-label-resolver';
 import type { AuditRouteContainer } from '../modules/audit/interfaces/audit.routes';
 import type { AuditErasureRouteContainer } from '../modules/audit/interfaces/audit-erasure.routes';
 import type { AuditRetentionRouteContainer } from '../modules/audit/interfaces/audit-retention.routes';
@@ -145,6 +147,10 @@ import { ReleaseLegalHoldUseCase } from '../modules/audit/application/use-cases/
 import { UpsertPiiFieldMappingUseCase } from '../modules/audit/application/use-cases/upsert-pii-field-mapping.use-case';
 import { TriggerRetentionRunUseCase } from '../modules/audit/application/use-cases/trigger-retention-run.use-case';
 import { ListRetentionRunsUseCase } from '../modules/audit/application/use-cases/list-retention-runs.use-case';
+import { ListRetentionCategoriesUseCase } from '../modules/audit/application/use-cases/list-retention-categories.use-case';
+import { ListPreservationRulesUseCase } from '../modules/audit/application/use-cases/list-preservation-rules.use-case';
+import { ListPiiFieldMappingsUseCase } from '../modules/audit/application/use-cases/list-pii-field-mappings.use-case';
+import { DeletePreservationRuleUseCase } from '../modules/audit/application/use-cases/delete-preservation-rule.use-case';
 
 // Service group module
 import { PrismaServiceGroupRepository } from '../modules/service-group/infrastructure/prisma-service-group.repository';
@@ -950,21 +956,24 @@ export function createContainer(logger: Logger): AppContainer {
   );
 
   // Audit use cases
+  const auditEntityLabelResolver = new PrismaAuditEntityLabelResolver(prisma);
   const listAuditLogsUseCase = new ListAuditLogsUseCase(
     auditLogRepo,
     userManagementRepo,
     piiFieldMappingRepo,
     tenantRepo,
+    auditEntityLabelResolver,
   );
 
   // Feature 020: data subject erasure workflow (AM-only, LGPD compliance)
   const erasurePiiResolver = new PrismaErasurePiiResolver(userManagementRepo, auditLogRepo);
+  const tenantPortalActivityScanner = new PrismaTenantPortalActivityScanner(prisma);
   const previewDataSubjectErasureUseCase = new PreviewDataSubjectErasureUseCase(
     dataSubjectErasureRequestRepo,
     auditLogRepo,
     piiFieldMappingRepo,
     erasurePiiResolver,
-    prisma,
+    tenantPortalActivityScanner,
   );
   const executeDataSubjectErasureUseCase = new ExecuteDataSubjectErasureUseCase(
     dataSubjectErasureRequestRepo,
@@ -1405,6 +1414,13 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
   );
   const listRetentionRunsUseCase = new ListRetentionRunsUseCase(auditLogRepo);
+  const listRetentionCategoriesUseCase = new ListRetentionCategoriesUseCase(auditRetentionCategoryRepo);
+  const listPreservationRulesUseCase = new ListPreservationRulesUseCase(auditPreservationRuleRepo);
+  const listPiiFieldMappingsUseCase = new ListPiiFieldMappingsUseCase(piiFieldMappingRepo);
+  const deletePreservationRuleUseCase = new DeletePreservationRuleUseCase(
+    auditPreservationRuleRepo,
+    auditService,
+  );
 
   const appointmentImportCommitWorker = new AppointmentImportCommitWorker(
     appointmentImportRepo, reportStorageService, propertyRepo, tenantRepo, appointmentImportRowResolver,
@@ -1562,15 +1578,16 @@ export function createContainer(logger: Logger): AppContainer {
     auditRetention: {
       upsertRetentionCategoryUseCase,
       upsertPreservationRuleUseCase,
+      deletePreservationRuleUseCase,
       placeLegalHoldUseCase,
       releaseLegalHoldUseCase,
       upsertPiiFieldMappingUseCase,
       triggerRetentionRunUseCase,
       listRetentionRunsUseCase,
-      retentionCategoryRepo: auditRetentionCategoryRepo,
-      preservationRuleRepo: auditPreservationRuleRepo,
+      listRetentionCategoriesUseCase,
+      listPreservationRulesUseCase,
+      listPiiFieldMappingsUseCase,
       legalHoldRepo: auditLegalHoldRepo,
-      piiFieldMappingRepo,
       jwtService,
       tenantRepo,
     },

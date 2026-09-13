@@ -138,6 +138,22 @@ describe('PrismaErasurePiiResolver (Feature 020 FR-019 / FR-019a / FR-019b)', ()
     expect(result.piiValues).toContain('Phone User');
   });
 
+  it('#623: includes the live user phone even when no snapshot carries it', async () => {
+    (userRepo.findById as any).mockResolvedValueOnce({
+      id: 'u9',
+      email: 'u9@example.com',
+      name: 'Nine',
+      phone: '+61400000000',
+    });
+    // No lifecycle snapshots at all — the phone must still surface from the
+    // canonical user projection, not from history.
+    (auditLogRepo.findAll as any).mockResolvedValue([]);
+
+    const result = await resolver.resolve({ type: 'user_id', value: 'u9' });
+
+    expect(result.piiValues).toContain('+61400000000');
+  });
+
   it('missing user_id: returns null canonicalUserId + raw input only', async () => {
     (userRepo.findById as any).mockResolvedValueOnce(null);
 
