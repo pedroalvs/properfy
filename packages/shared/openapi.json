@@ -19921,6 +19921,7 @@
                           "type": "string",
                           "enum": [
                             "NO_PRIMARY_CONTACT",
+                            "NO_DISPATCH_CHANNEL",
                             "DISPATCH_FAILED",
                             "NOTIFY_DISABLED"
                           ]

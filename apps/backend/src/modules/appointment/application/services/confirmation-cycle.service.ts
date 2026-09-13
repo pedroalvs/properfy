@@ -23,7 +23,12 @@ export class ConfirmationCycleService {
   /**
    * Inserts first PENDING cycle OR links existing active cycle to new token.
    * Called inside outer tx from GeneratePortalTokenUseCase.
-   * Handles P2002 concurrent-insert race via retry-once.
+   *
+   * P2002 concurrent-insert race: when this service owns the transaction it
+   * retries once via a fresh `$transaction`. When it was handed a caller-owned
+   * `tx`, Postgres has already aborted that transaction, so it cannot retry
+   * inside it — it rethrows the original P2002 for the transaction owner
+   * (GeneratePortalTokenUseCase) to replay in a fresh transaction.
    */
   async createInitial(
     appointmentId: string,
@@ -98,7 +103,11 @@ export class ConfirmationCycleService {
       return await this.prisma.$transaction(run);
     } catch (err: unknown) {
       if (!this.isUniqueViolation(err)) throw err;
-      // P2002: concurrent createInitial race — retry once via link-to-existing
+      // A caller-owned tx is already aborted by the P2002 (Postgres 25P02), so
+      // retrying inside it is impossible. Rethrow the original error and let the
+      // transaction owner replay the whole transaction in a fresh one.
+      if (tx) throw err;
+      // Self-owned: retry once via a fresh transaction, linking to the existing cycle.
       const retry = async (client: Tx): Promise<ConfirmationCycleEntity> => {
         const existing = await this.cycleRepo.findActiveByAppointmentId(appointmentId, client);
         if (!existing) throw err;
@@ -107,7 +116,6 @@ export class ConfirmationCycleService {
         await this.linkTokenToCycle(tokenId, existing.id, client);
         return linked;
       };
-      if (tx) return await retry(tx);
       return await this.prisma.$transaction(retry);
     }
   }

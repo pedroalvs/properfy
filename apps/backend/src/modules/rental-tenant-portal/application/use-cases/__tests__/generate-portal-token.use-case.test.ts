@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { portalTokenResponseSchema } from '@properfy/shared';
 import { GeneratePortalTokenUseCase } from '../generate-portal-token.use-case';
 import { AppointmentEntity } from '../../../../appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../../appointment/domain/appointment-contact.entity';
@@ -285,5 +286,100 @@ describe('GeneratePortalTokenUseCase — generate-only (notify: false)', () => {
 
     expect(result.dispatched).toBe(false);
     expect((result as { reason?: string }).reason).toBe('NOTIFY_DISABLED');
+  });
+});
+
+describe('GeneratePortalTokenUseCase — WI-B3: truthful dispatched + no recipient PII (#510, #480)', () => {
+  it('returns dispatched:false with NO_DISPATCH_CHANNEL when no notification use case is wired', async () => {
+    // createNotificationUseCase omitted → nothing is ever attempted. The old
+    // `attempted > 0 && succeeded === 0` guard was skipped, so it lied dispatched:true.
+    const { uc } = makeUseCase({});
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    expect(result.dispatched).toBe(false);
+    expect((result as { reason?: string }).reason).toBe('NO_DISPATCH_CHANNEL');
+  });
+
+  it('returns dispatched:false with NO_DISPATCH_CHANNEL when the primary contact has no email or phone', async () => {
+    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }) };
+    const { uc } = makeUseCase({
+      createNotificationUseCase,
+      contact: makeContact({ withEmail: false, withPhone: false }),
+    });
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    expect(result.dispatched).toBe(false);
+    expect((result as { reason?: string }).reason).toBe('NO_DISPATCH_CHANNEL');
+    expect(createNotificationUseCase.execute).not.toHaveBeenCalled();
+    // The route serializes this via portalTokenResponseSchema; the wire enum must
+    // accept NO_DISPATCH_CHANNEL or the 201 becomes a post-commit 500.
+    expect(() => portalTokenResponseSchema.parse(result)).not.toThrow();
+  });
+
+  it('does not log the recipient (PII) when a dispatch fails', async () => {
+    const logger = makeLogger();
+    const createNotificationUseCase = { execute: vi.fn().mockRejectedValue(new Error('enqueue failed')) };
+    const { uc } = makeUseCase({ logger, createNotificationUseCase });
+
+    await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    const logArg = logger.error.mock.calls[0]![0] as Record<string, unknown>;
+    expect(logArg).not.toHaveProperty('recipient');
+    expect(logArg).toMatchObject({ channel: 'EMAIL', appointmentId: 'appt-1', tenantId: 'tenant-1' });
+  });
+});
+
+describe('GeneratePortalTokenUseCase — cycle P2002 replay (WI-B2 / #1056)', () => {
+  // The confirmation cycle's @@unique([appointment_id, cycle_number]) can lose a
+  // concurrent-insert race. createInitial rethrows that P2002 to its transaction
+  // owner (this use case), whose retryOnUniqueConflict must whitelist cycle_number
+  // and replay the whole transaction — re-reading the now-committed cycle.
+  it('retries the transaction when createInitial rejects with a cycle P2002 and then succeeds', async () => {
+    const cycleP2002 = { code: 'P2002', meta: { target: ['appointment_id', 'cycle_number'] } };
+
+    const contact = makeContact();
+    const appointment = makeAppointment();
+
+    const tokenRepo = { findActiveByAppointmentId: vi.fn(), save: vi.fn(), revokeAndSave: vi.fn() };
+    const appointmentRepo = {
+      findById: vi.fn().mockResolvedValue({ appointment, contact, contacts: [contact], restrictions: [] }),
+    };
+    const tenantRepo = {
+      findById: vi.fn().mockResolvedValue({ id: 'tenant-1', name: 'Test Agency', settingsJson: {} }),
+    };
+    const mintPortalTokenService = {
+      mint: vi.fn().mockResolvedValue({ rawToken: 'raw-token-abc', tokenId: 'token-1', expiresAt: new Date(Date.now() + 86400000) }),
+    };
+    const auditService = { log: vi.fn() };
+    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }) };
+    const cycleService = {
+      createInitial: vi.fn().mockRejectedValueOnce(cycleP2002).mockResolvedValueOnce(undefined),
+    };
+    const prisma = {
+      // Each attempt opens a fresh transaction; the callback runs against a stub tx.
+      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn({})),
+    };
+
+    const uc = new GeneratePortalTokenUseCase(
+      tokenRepo as any,
+      appointmentRepo as any,
+      tenantRepo as any,
+      mintPortalTokenService as any,
+      auditService as any,
+      'https://portal.example.test',
+      createNotificationUseCase as any,
+      cycleService as any,
+      prisma as any,
+      makeLogger() as any,
+    );
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    expect(result.token).toBe('raw-token-abc');
+    // First attempt threw the cycle P2002; the second linked to the existing cycle.
+    expect(cycleService.createInitial).toHaveBeenCalledTimes(2);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
   });
 });

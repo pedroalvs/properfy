@@ -8748,7 +8748,7 @@ export interface paths {
                                 expiresAt: string;
                                 dispatched?: boolean;
                                 /** @enum {string} */
-                                reason?: "NO_PRIMARY_CONTACT" | "DISPATCH_FAILED" | "NOTIFY_DISABLED";
+                                reason?: "NO_PRIMARY_CONTACT" | "NO_DISPATCH_CHANNEL" | "DISPATCH_FAILED" | "NOTIFY_DISABLED";
                             };
                         };
                     };

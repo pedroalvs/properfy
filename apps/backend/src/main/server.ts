@@ -6,6 +6,7 @@ import { createContainer } from './container';
 import { registerErrorHandler } from '../shared/interfaces/error-handler';
 import { validateEnv, getEnv } from './env';
 import { runWithRequestContext } from '../shared/infrastructure/request-context';
+import { requestContextMixin } from '../shared/infrastructure/logger-mixin';
 import { checkMandatoryTemplates, syncPlatformTemplates } from '../shared/infrastructure/template-startup-check';
 
 const SHUTDOWN_TIMEOUT_MS = 30_000;
@@ -54,6 +55,9 @@ async function createApp() {
         service: 'properfy-api',
         env: env.NODE_ENV,
       },
+      // Stamp request_id (+ tenant_id/user_id) on every log line emitted inside
+      // a request's or job's AsyncLocalStorage context — HTTP and workers alike.
+      mixin: requestContextMixin,
       serializers: {
         req(request) {
           return {

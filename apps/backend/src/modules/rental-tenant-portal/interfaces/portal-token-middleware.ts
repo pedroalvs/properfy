@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { IRentalTenantPortalTokenRepository } from '../domain/rental-tenant-portal-token.repository';
+import type { Logger } from '../../../shared/infrastructure/logger';
 import {
   PortalTokenInvalidError,
   PortalTokenRevokedError,
@@ -27,6 +28,7 @@ export type TokenHasher = (rawToken: string) => string;
 export function createPortalTokenMiddleware(
   tokenRepo: IRentalTenantPortalTokenRepository,
   hashToken: TokenHasher,
+  logger?: Logger,
 ) {
   return async function resolvePortalToken(
     request: FastifyRequest,
@@ -59,8 +61,18 @@ export function createPortalTokenMiddleware(
 
     if (tokenEntity.isActive() && tokenEntity.isExpired(now)) {
       tokenEntity.markExpired();
-      await tokenRepo.updateStatus(tokenEntity.id, tokenEntity.appointmentId, 'EXPIRED');
       isReadOnly = true;
+      // Best-effort status sync. The read-only view is already derived above, so
+      // a failed write must never turn a valid read into a 500 — the 15-min
+      // rental-tenant-portal.expire-tokens cron reconciles the row later.
+      try {
+        await tokenRepo.updateStatus(tokenEntity.id, tokenEntity.appointmentId, 'EXPIRED');
+      } catch (err) {
+        logger?.warn(
+          { err, tokenId: tokenEntity.id, appointmentId: tokenEntity.appointmentId },
+          'Failed to persist EXPIRED status for portal token; serving read-only anyway',
+        );
+      }
     } else if (tokenEntity.status === 'EXPIRED') {
       isReadOnly = true;
     }

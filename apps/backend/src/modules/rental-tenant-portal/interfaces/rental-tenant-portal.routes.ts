@@ -60,8 +60,10 @@ export async function registerRentalTenantPortalRoutes(
   app: FastifyInstance,
   container: RentalTenantPortalRouteContainer,
 ): Promise<void> {
-  const portalAuth = createPortalTokenMiddleware(container.tokenRepo, (raw) =>
-    container.tokenService.hashToken(raw),
+  const portalAuth = createPortalTokenMiddleware(
+    container.tokenRepo,
+    (raw) => container.tokenService.hashToken(raw),
+    app.log,
   );
   const authenticate = createAuthMiddleware(
     (token) => container.jwtService.verify(token),

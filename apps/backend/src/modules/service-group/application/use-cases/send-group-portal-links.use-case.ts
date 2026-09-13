@@ -231,9 +231,10 @@ export class SendGroupPortalLinksUseCase {
         }
 
         if (dispatch.dispatched === false) {
-          if (dispatch.reason === 'NO_PRIMARY_CONTACT') {
-            // No canonical recipient — a stable outcome; cache it so a same-day
-            // retry is a no-op (matches bulk-resend).
+          if (dispatch.reason === 'NO_PRIMARY_CONTACT' || dispatch.reason === 'NO_DISPATCH_CHANNEL') {
+            // No canonical recipient (no primary contact, or one without any
+            // email/phone) — a stable outcome; cache it so a same-day retry is a
+            // no-op (matches bulk-resend). Not a retryable failure.
             const result: SendGroupPortalLinksResultItem = { appointmentId: row.id, status: 'NO_PRIMARY_CONTACT' };
             await this.idempotency.set(idemKey, IDEMPOTENCY_SCOPE, result, IDEMPOTENCY_TTL_HOURS);
             results.push(result);

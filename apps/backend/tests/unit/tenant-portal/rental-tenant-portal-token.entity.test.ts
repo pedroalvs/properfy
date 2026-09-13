@@ -35,11 +35,13 @@ describe('RentalTenantPortalTokenEntity', () => {
       expect(token.isExpired(now)).toBe(false);
     });
 
-    it('should return false when now equals expiresAt', () => {
+    it('should return true when now equals expiresAt (inclusive at the deadline, #656)', () => {
+      // The repository treats only `expires_at > now` as active, so the entity
+      // must consider the exact expiry instant already expired.
       const token = new RentalTenantPortalTokenEntity(makeTokenProps());
       const now = new Date('2026-04-10T08:00:00Z');
 
-      expect(token.isExpired(now)).toBe(false);
+      expect(token.isExpired(now)).toBe(true);
     });
   });
 
