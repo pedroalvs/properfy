@@ -272,7 +272,7 @@ export async function registerNotificationRoutes(
         ...parsed.data,
         actor: request.authContext!,
       });
-      return reply.status(200).send(paginated(result.data, result.data.length, 1, result.data.length || 10));
+      return reply.status(200).send(paginated(result.data, result.total, result.page, result.pageSize));
     },
   );
 

@@ -18,6 +18,13 @@ export interface NotificationTemplateFilters {
   searchCodes?: string[];
   channel?: NotificationChannel;
   includeDefaults?: boolean;
+  /**
+   * Pagination window. When omitted, all matching rows are returned (callers that
+   * do not paginate keep their previous behaviour). `total` in the result always
+   * reflects the full filtered set, independent of this window.
+   */
+  skip?: number;
+  take?: number;
 }
 
 /**
@@ -29,13 +36,22 @@ export interface NotificationTemplateListItem {
   tenantName: string | null;
 }
 
+/**
+ * Paginated read-model: the page of list items plus the true count of all rows
+ * matching the filters (ignoring skip/take).
+ */
+export interface NotificationTemplateListResult {
+  items: NotificationTemplateListItem[];
+  total: number;
+}
+
 export interface INotificationTemplateRepository {
   findByTenantCodeChannel(
     tenantId: string | null,
     templateCode: string,
     channel: NotificationChannel,
   ): Promise<NotificationTemplateEntity | null>;
-  findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateListItem[]>;
+  findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateListResult>;
   findById(templateId: string): Promise<NotificationTemplateEntity | null>;
   upsert(template: NotificationTemplateEntity): Promise<void>;
   /**

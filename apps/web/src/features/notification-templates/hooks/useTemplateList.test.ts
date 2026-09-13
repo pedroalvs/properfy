@@ -129,6 +129,10 @@ describe('useTemplateList', () => {
               search: 'Inspection Notice',
               channel: 'EMAIL',
               includeDefaults: 'false',
+              // useAllPagesQuery drives paging: it walks every page at the backend
+              // cap (pageSize 100) so the whole catalogue is shown without a pager.
+              page: '1',
+              pageSize: '100',
             },
           },
         }),

@@ -241,7 +241,9 @@ describe('GET /v1/notification-templates', () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockListNotificationTemplatesExecute.mockResolvedValueOnce({
       data: [fullTemplate],
-      pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+      total: 1,
+      page: 1,
+      pageSize: 20,
     });
 
     const res = await supertest(app.server)
@@ -250,6 +252,26 @@ describe('GET /v1/notification-templates', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
+  });
+
+  it('echoes real pagination metadata from the use case, not the returned slice length', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    // One row on this page, but 42 total across pages 2 @ pageSize 20 — the route
+    // must report the query's real page/pageSize/total, never data.length.
+    mockListNotificationTemplatesExecute.mockResolvedValueOnce({
+      data: [fullTemplate],
+      total: 42,
+      page: 2,
+      pageSize: 20,
+    });
+
+    const res = await supertest(app.server)
+      .get('/v1/notification-templates?page=2&pageSize=20')
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.pagination).toEqual({ page: 2, pageSize: 20, total: 42, totalPages: 3 });
   });
 });
 

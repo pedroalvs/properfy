@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { paths } from '@properfy/shared';
-import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
+import { useAllPagesQuery, type ListParams } from '@/hooks/useApiQuery';
 import { DEFAULT_TEMPLATE_FILTERS, type NotificationTemplate, type TemplateFiltersState } from '../types';
 
 /**
@@ -45,7 +45,12 @@ export function useTemplateList(): UseTemplateListReturn {
     tenantId: filters.tenantId || undefined,
   };
 
-  const { data: response, isLoading, isError, refetch } = usePaginatedQuery<TemplateListItem>(
+  // The list endpoint now paginates for real (backend default pageSize 20), but this
+  // screen has no pager and must show the whole catalogue at once — including the
+  // AM/OP cross-tenant view (no tenant filter), where per-agency overrides can push
+  // the row count past a single page. useAllPagesQuery walks every page (backend
+  // pageSize cap 100, hard stop at 5,000 rows) so nothing is silently truncated.
+  const { data: response, isLoading, isError, refetch } = useAllPagesQuery<TemplateListItem>(
     ['notification-templates'],
     '/v1/notification-templates',
     params,
