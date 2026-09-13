@@ -12,6 +12,7 @@ import type { AuthorizationService } from '../../../../shared/domain/authorizati
 import { NotFoundError } from '../../../../shared/domain/errors';
 import { classifyPortalLinkAction } from '../../../appointment/domain/portal-link-eligibility';
 import { isTenantNotificationsBlockedError } from '../../../appointment/domain/tenant-notifications-blocked';
+import { PortalAppointmentDatePastError } from '../../../rental-tenant-portal/domain/rental-tenant-portal.errors';
 import { dayKeyInTz } from '../../../appointment/application/use-cases/bulk-action-shared';
 import { runInTransaction, type AfterCommitResult } from '../../../../shared/application/unit-of-work';
 import { retryOnUniqueConflict } from '../../../../shared/domain/retry-on-unique-conflict';
@@ -261,6 +262,13 @@ export class SendGroupPortalLinksUseCase {
         // planned skip rather than as a generic dispatch error.
         if (isTenantNotificationsBlockedError(e)) {
           results.push({ appointmentId: row.id, status: 'TENANT_NOTIFICATIONS_BLOCKED' });
+          continue;
+        }
+        // #33: a past-dated member would get a born-expired link. That is a clean,
+        // non-error skip (the operator reschedules first), not a retryable dispatch
+        // failure. Not cached — a later reschedule to a future date must re-evaluate.
+        if (e instanceof PortalAppointmentDatePastError) {
+          results.push({ appointmentId: row.id, status: 'NOT_SENDABLE' });
           continue;
         }
         const message = e instanceof Error ? e.message : 'Dispatch failed';
