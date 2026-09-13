@@ -651,9 +651,10 @@ export class SendNotificationUseCase {
             notificationId: notification.id,
             tenantId: notification.tenantId,
             // WI-2 (c): flag platform-scope exhaustion so operators can alert on it
-            // distinctly — a capped platform send (tenant_id NULL) is the shared-budget
-            // starvation this fix guards against, whereas a capped tenant send is that
-            // agency's own configured limit doing its job.
+            // distinctly from a tenant hitting its own configured cap. Post-fix,
+            // platform TRANSACTIONAL is exempt above and never reaches here, so
+            // platformScope:true means an unexpected volume of platform-scoped
+            // NON-transactional mail exhausting the shared bucket — still worth an alert.
             platformScope: notification.tenantId === null,
             channel: notification.channel,
             todayCount,
