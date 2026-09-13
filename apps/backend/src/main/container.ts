@@ -1206,7 +1206,7 @@ export function createContainer(logger: Logger): AppContainer {
     // Resolve the email logo from this environment's web app (dev/staging/prod).
     properfyLogoUrl: buildProperfyLogoUrl(env.WEB_APP_BASE_URL),
   });
-  const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
+  const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService, notificationJobQueue, logger);
   const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo, logger);
   const webhookSignatureValidator = createWebhookSignatureValidator({
     resendWebhookSecret: env.RESEND_WEBHOOK_SECRET,
