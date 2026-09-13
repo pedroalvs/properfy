@@ -101,6 +101,37 @@ describe('useReportList', () => {
         },
       });
     });
+
+    // #625: reports sort client-side, so the query must never send sortBy/sortOrder.
+    const query = mockGet.mock.calls.at(-1)?.[1]?.params?.query;
+    expect(query).not.toHaveProperty('sortBy');
+    expect(query).not.toHaveProperty('sortOrder');
+  });
+
+  it('W3 #630: resets to page 1 when filters change', async () => {
+    const wrapper = createRouterQueryWrapper();
+    const { result } = renderHook(() => useReportList(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => result.current.pagination.onChange(2, 10));
+    await waitFor(() => {
+      expect(mockGet.mock.calls.at(-1)?.[1]?.params?.query).toMatchObject({ page: '2' });
+    });
+
+    act(() => result.current.setFilters({
+      reportType: 'FINANCIAL',
+      status: '',
+      fromDate: '',
+      toDate: '',
+    }));
+
+    await waitFor(() => {
+      expect(mockGet.mock.calls.at(-1)?.[1]?.params?.query).toMatchObject({
+        page: '1',
+        reportType: 'FINANCIAL',
+      });
+    });
   });
 
   it('pagination total reflects API response', async () => {

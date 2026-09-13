@@ -14,16 +14,18 @@ interface AuditLogTableProps {
   onView?: (log: AuditLog) => void;
 }
 
+// W7 #426: map actor types to design-token CSS vars (StatusChip applies `bg`
+// as an inline style value) instead of raw hex.
 function actorChipStyle(actorType: string): { bg: string; text?: string } {
   switch (actorType) {
     case 'USER':
-      return { bg: '#B3E5FC' };
+      return { bg: 'var(--color-status-scheduled)' };
     case 'SYSTEM':
-      return { bg: '#C8E6C9' };
+      return { bg: 'var(--color-status-done)' };
     case 'ANONYMOUS':
-      return { bg: '#FFE0B2' };
+      return { bg: 'var(--color-status-awaiting-inspector)' };
     default:
-      return { bg: '#E0E0E0' };
+      return { bg: 'var(--color-border-subtle)' };
   }
 }
 
@@ -72,10 +74,11 @@ export function AuditLogTable({
       sortable: true,
     },
     {
-      key: 'entityId',
-      label: 'Entity ID',
+      // W1 #409: show the resolved human-readable label, never the raw UUID.
+      key: 'entityName',
+      label: 'Entity',
       width: '180px',
-      render: (row) => <>{row.entityId ?? '—'}</>,
+      render: (row) => <>{row.entityName ?? '—'}</>,
     },
     {
       key: 'action',

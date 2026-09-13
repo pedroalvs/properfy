@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GenerateReportDialog } from './GenerateReportDialog';
+import { REPORT_TYPE_MAP } from '@/lib/status-colors';
 
 const mockUseAuth = vi.fn();
 const mockUseFormOptions = vi.fn();
@@ -41,7 +42,7 @@ describe('GenerateReportDialog', () => {
     });
   });
 
-  it('offers exactly the four report types', () => {
+  it('W10 #749: offers exactly one option per REPORT_TYPE_MAP entry', () => {
     mockUseAuth.mockReturnValue({ user: { id: 'u-1', role: 'AM', tenantId: null } });
 
     render(
@@ -49,10 +50,13 @@ describe('GenerateReportDialog', () => {
     );
 
     fireEvent.click(screen.getByLabelText('Report Type'));
-    expect(screen.getByRole('option', { name: 'Appointments' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Financial' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Performance' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Agencies' })).toBeInTheDocument();
+    // Iterate the imported map so adding a report type cannot silently drift
+    // out of this dialog.
+    const labels = Object.values(REPORT_TYPE_MAP).map((c) => c.label);
+    for (const label of labels) {
+      expect(screen.getByRole('option', { name: label })).toBeInTheDocument();
+    }
+    expect(screen.getAllByRole('option')).toHaveLength(labels.length);
   });
 
   it('lets global roles generate a cross-agency report without selecting an agency', () => {

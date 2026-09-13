@@ -35,6 +35,12 @@ export class PreservationRuleConflictError extends DomainError {
   }
 }
 
+export class PreservationRuleNotFoundError extends NotFoundError {
+  constructor() {
+    super('PRESERVATION_RULE_NOT_FOUND', 'Preservation rule not found');
+  }
+}
+
 export class LegalHoldAlreadyReleasedError extends DomainError {
   constructor() {
     super('LEGAL_HOLD_ALREADY_RELEASED', 'Legal hold has already been released', 409);

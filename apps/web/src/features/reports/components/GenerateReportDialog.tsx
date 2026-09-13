@@ -15,14 +15,15 @@ import { Checkbox } from '@/components/forms/Checkbox';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
-import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
+import { APPOINTMENT_STATUS_MAP, REPORT_TYPE_MAP } from '@/lib/status-colors';
 
-const REPORT_TYPE_OPTIONS = [
-  { value: ReportType.APPOINTMENTS, label: 'Appointments' },
-  { value: ReportType.FINANCIAL, label: 'Financial' },
-  { value: ReportType.PERFORMANCE, label: 'Performance' },
-  { value: ReportType.AGENCIES, label: 'Agencies' },
-];
+// W10 #749: derive options from the single source of truth (REPORT_TYPE_MAP),
+// mirroring the STATUS_OPTIONS derivation below, so a new report type can't
+// silently drift out of this dialog.
+const REPORT_TYPE_OPTIONS = Object.entries(REPORT_TYPE_MAP).map(([value, config]) => ({
+  value,
+  label: config.label,
+}));
 
 // Agencies compares agencies against one another, so it is operator-only — the
 // backend rejects it for a tenant-scoped actor regardless of what the UI offers.

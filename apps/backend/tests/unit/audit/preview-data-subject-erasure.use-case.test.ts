@@ -6,6 +6,7 @@ import type { IDataSubjectErasureRequestRepository } from '../../../src/modules/
 import type { IAuditLogRepository, PiiSearchMatch } from '../../../src/modules/audit/domain/audit-log.repository';
 import type { IPiiFieldMappingRepository } from '../../../src/modules/audit/domain/pii-field-mapping.repository';
 import type { IErasurePiiResolver } from '../../../src/modules/audit/domain/erasure-pii-resolver';
+import type { ITenantPortalActivityScanner } from '../../../src/modules/audit/domain/tenant-portal-activity-scanner';
 import { PiiFieldMappingEntity } from '../../../src/modules/audit/domain/pii-field-mapping.entity';
 
 function amActor(): AuthContext {
@@ -43,7 +44,7 @@ describe('PreviewDataSubjectErasureUseCase', () => {
   let auditLogRepo: IAuditLogRepository;
   let piiFieldMappingRepo: IPiiFieldMappingRepository;
   let erasurePiiResolver: IErasurePiiResolver;
-  let prisma: any;
+  let portalActivityScanner: ITenantPortalActivityScanner;
   let useCase: PreviewDataSubjectErasureUseCase;
 
   beforeEach(() => {
@@ -79,15 +80,15 @@ describe('PreviewDataSubjectErasureUseCase', () => {
     erasurePiiResolver = {
       resolve: vi.fn().mockResolvedValue({ canonicalUserId: null, piiValues: [] }),
     };
-    prisma = {
-      $queryRawUnsafe: vi.fn().mockResolvedValue([]),
+    portalActivityScanner = {
+      scanByValues: vi.fn().mockResolvedValue({ hot: [], cold: [] }),
     };
     useCase = new PreviewDataSubjectErasureUseCase(
       erasureRequestRepo,
       auditLogRepo,
       piiFieldMappingRepo,
       erasurePiiResolver,
-      prisma,
+      portalActivityScanner,
     );
   });
 
@@ -211,7 +212,7 @@ describe('PreviewDataSubjectErasureUseCase', () => {
     expect(result.entriesFlaggedForReview).toBe(1);
   });
 
-  it('scans rental_tenant_portal_activities in both tiers', async () => {
+  it('scans rental_tenant_portal_activities via the injected scanner (no Prisma dependency)', async () => {
     (erasurePiiResolver.resolve as any).mockResolvedValueOnce({
       canonicalUserId: 'u1',
       piiValues: ['foo@bar.com'],
@@ -220,10 +221,14 @@ describe('PreviewDataSubjectErasureUseCase', () => {
       makePiiMapping('portal.', 'primaryEmail'),
     ]);
     (auditLogRepo.searchPiiByValues as any).mockResolvedValueOnce([]);
-    // 2 hot + 1 cold portal rows
-    prisma.$queryRawUnsafe
-      .mockResolvedValueOnce([{ id: 'tp1' }, { id: 'tp2' }])
-      .mockResolvedValueOnce([{ id: 'tp3' }]);
+    // 2 hot + 1 cold portal rows, returned by the domain-port scanner.
+    (portalActivityScanner.scanByValues as any).mockResolvedValueOnce({
+      hot: [
+        { id: 'tp1', isArchived: false },
+        { id: 'tp2', isArchived: false },
+      ],
+      cold: [{ id: 'tp3', isArchived: true }],
+    });
 
     const result = await useCase.execute({
       subjectIdentifierType: 'email',
@@ -231,6 +236,8 @@ describe('PreviewDataSubjectErasureUseCase', () => {
       actor: amActor(),
     });
 
+    // The scanner is called with the resolved PII values (B5 layer boundary).
+    expect(portalActivityScanner.scanByValues).toHaveBeenCalledWith(['foo@bar.com']);
     expect(result.byTier.rentalTenantPortalHot).toBe(2);
     expect(result.byTier.rentalTenantPortalCold).toBe(1);
     expect(result.totalFound).toBe(3);

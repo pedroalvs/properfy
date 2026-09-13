@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { ReportStatus } from '@properfy/shared';
 import { usePaginatedQuery, type ListParams, type PaginatedResponse } from '@/hooks/useApiQuery';
@@ -30,6 +30,12 @@ export function useReportList(): UseReportListReturn {
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // W3 #630: changing a filter must reset to page 1. Stable reference.
+  const setFiltersAndResetPage = useCallback((next: ReportFiltersState) => {
+    setFilters(next);
+    setPage(1);
+  }, []);
 
   const params: ListParams = {
     page,
@@ -71,7 +77,7 @@ export function useReportList(): UseReportListReturn {
     errorMessage: null,
     refetch,
     filters,
-    setFilters,
+    setFilters: setFiltersAndResetPage,
     pagination,
   };
 }
