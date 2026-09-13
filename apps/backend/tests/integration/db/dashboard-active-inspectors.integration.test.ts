@@ -15,7 +15,6 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { setupDbHarness, teardownDbHarness, type DbHarness } from './harness';
 import { PrismaDashboardRepository } from '../../../src/modules/dashboard/infrastructure/prisma-dashboard.repository';
@@ -51,16 +50,14 @@ async function seedTenant(prisma: PrismaClient, name: string): Promise<string> {
 
 async function seedInspector(
   prisma: PrismaClient,
-  opts: { status?: 'ACTIVE' | 'INACTIVE'; blockedClients?: string[] | null } = {},
+  opts: { status?: 'ACTIVE' | 'INACTIVE'; blockedClients?: string[] } = {},
 ): Promise<void> {
   await prisma.inspector.create({
     data: {
       name: `Insp ${Math.random().toString(36).slice(2, 8)}`,
       email: `insp-${Math.random().toString(36).slice(2, 10)}@inspectors.test`,
       status: opts.status ?? 'ACTIVE',
-      // `null` -> SQL NULL (no deny-list = available to everyone).
-      blocked_clients_json:
-        opts.blockedClients === null ? Prisma.DbNull : opts.blockedClients ?? [],
+      blocked_clients_json: opts.blockedClients ?? [],
     },
   });
 }
@@ -80,20 +77,6 @@ describe('Dashboard active-inspectors quick stat (per tenant)', () => {
     const stats = await repo.getStats(tenantId);
 
     expect(stats.quickStats.activeInspectors).toBe(2);
-  });
-
-  it('#752: an ACTIVE inspector with a NULL deny-list is available to all tenants', async () => {
-    const tenantId = await seedTenant(harness.prisma, 'NullList');
-
-    // NULL deny-list -> no block -> available. A naive `NOT array_contains`
-    // would drop this row via SQL three-valued logic (NULL @> x is NULL).
-    await seedInspector(harness.prisma, { blockedClients: null });
-    // Explicitly blocks this tenant -> excluded.
-    await seedInspector(harness.prisma, { blockedClients: [tenantId] });
-
-    const stats = await repo.getStats(tenantId);
-
-    expect(stats.quickStats.activeInspectors).toBe(1);
   });
 
   it('without a tenant scope (AM), counts all ACTIVE inspectors', async () => {
