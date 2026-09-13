@@ -4,7 +4,7 @@ import { NotificationTemplateEntity } from '../domain/notification-template.enti
 import type {
   INotificationTemplateRepository,
   NotificationTemplateFilters,
-  NotificationTemplateListItem,
+  NotificationTemplateListResult,
 } from '../domain/notification-template.repository';
 
 function mapToEntity(row: any): NotificationTemplateEntity {
@@ -42,7 +42,7 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
     return row ? mapToEntity(row) : null;
   }
 
-  async findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateListItem[]> {
+  async findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateListResult> {
     // Collect independent predicates into an AND list so the tenant-scope OR and the
     // search OR do not clobber each other on the same `where.OR` key.
     const and: Record<string, unknown>[] = [];
@@ -80,14 +80,26 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
 
     const where: Record<string, unknown> = and.length > 0 ? { AND: and } : {};
 
-    const rows = await this.prisma.notificationTemplate.findMany({
-      where,
-      include: { tenant: { select: { name: true } } },
-    });
-    return rows.map((row) => ({
-      template: mapToEntity(row),
-      tenantName: row.tenant?.name ?? null,
-    }));
+    // findMany (paginated slice) and count (true total under the same where) run
+    // together. `skip`/`take` are undefined for unpaginated callers, so Prisma
+    // returns every matching row, preserving the pre-pagination behaviour.
+    const [rows, total] = await Promise.all([
+      this.prisma.notificationTemplate.findMany({
+        where,
+        include: { tenant: { select: { name: true } } },
+        orderBy: { template_code: 'asc' },
+        skip: filters.skip,
+        take: filters.take,
+      }),
+      this.prisma.notificationTemplate.count({ where }),
+    ]);
+    return {
+      items: rows.map((row) => ({
+        template: mapToEntity(row),
+        tenantName: row.tenant?.name ?? null,
+      })),
+      total,
+    };
   }
 
   async findById(templateId: string): Promise<NotificationTemplateEntity | null> {

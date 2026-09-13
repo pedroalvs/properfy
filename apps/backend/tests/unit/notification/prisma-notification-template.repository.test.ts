@@ -26,6 +26,7 @@ describe('PrismaNotificationTemplateRepository', () => {
       findFirst: vi.fn(),
       findUnique: vi.fn(),
       findMany: vi.fn(),
+      count: vi.fn(),
       update: vi.fn(),
       create: vi.fn(),
       deleteMany: vi.fn(),
@@ -127,23 +128,42 @@ describe('PrismaNotificationTemplateRepository', () => {
     );
   });
 
-  it('findAll joins the tenant and returns the agency name per list item', async () => {
+  it('findAll joins the tenant and returns the agency name per list item, with the true total', async () => {
     prisma.notificationTemplate.findMany.mockResolvedValue([
       makeRow({ id: 'override-1', tenant_id: 'tenant-1', tenant: { name: 'Acme Realty' } }),
       makeRow({ id: 'default-1', tenant_id: null, tenant: null }),
     ]);
+    // count under the same filters can exceed the returned page (7 total, 2 on this page).
+    prisma.notificationTemplate.count.mockResolvedValue(7);
 
-    const items = await repository.findAll({ tenantId: 'tenant-1', includeDefaults: true });
+    const result = await repository.findAll({ tenantId: 'tenant-1', includeDefaults: true });
 
     expect(prisma.notificationTemplate.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         include: { tenant: { select: { name: true } } },
       }),
     );
-    expect(items).toHaveLength(2);
-    expect(items[0]!.template.id).toBe('override-1');
-    expect(items[0]!.tenantName).toBe('Acme Realty');
-    expect(items[1]!.tenantName).toBeNull();
+    expect(result.items).toHaveLength(2);
+    expect(result.items[0]!.template.id).toBe('override-1');
+    expect(result.items[0]!.tenantName).toBe('Acme Realty');
+    expect(result.items[1]!.tenantName).toBeNull();
+    // total comes from count(), not from the returned slice length.
+    expect(result.total).toBe(7);
+  });
+
+  it('findAll applies skip/take and counts under the same where clause', async () => {
+    prisma.notificationTemplate.findMany.mockResolvedValue([]);
+    prisma.notificationTemplate.count.mockResolvedValue(42);
+
+    const result = await repository.findAll({ tenantId: 'tenant-1', includeDefaults: false, skip: 20, take: 10 });
+
+    const findManyArg = prisma.notificationTemplate.findMany.mock.calls[0]![0];
+    expect(findManyArg.skip).toBe(20);
+    expect(findManyArg.take).toBe(10);
+    // count must use the identical where, so the total matches the filtered set.
+    const countArg = prisma.notificationTemplate.count.mock.calls[0]![0];
+    expect(countArg.where).toEqual(findManyArg.where);
+    expect(result.total).toBe(42);
   });
 
   it('findAll builds a search clause over code, subject and matched codes, AND-ed with tenant scope', async () => {

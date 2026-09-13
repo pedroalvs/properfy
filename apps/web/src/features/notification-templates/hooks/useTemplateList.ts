@@ -43,6 +43,12 @@ export function useTemplateList(): UseTemplateListReturn {
     channel: filters.channel || undefined,
     includeDefaults: filters.includeDefaults === 'true',
     tenantId: filters.tenantId || undefined,
+    // The list endpoint now paginates for real (backend default pageSize 20). This
+    // screen has no pager and is expected to show the whole template catalogue at
+    // once (~37 codes), so request the max page size to preserve that behaviour.
+    // If a tenant view ever exceeds 100 rows, add pager controls here.
+    page: 1,
+    pageSize: 100,
   };
 
   const { data: response, isLoading, isError, refetch } = usePaginatedQuery<TemplateListItem>(
