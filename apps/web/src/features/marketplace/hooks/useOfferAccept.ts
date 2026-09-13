@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError } from '@/lib/api-error';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 export interface UseOfferAcceptReturn {
@@ -15,16 +15,22 @@ export function useOfferAccept(onSuccess?: () => void): UseOfferAcceptReturn {
   const mutation = useMutation({
     mutationFn: async (groupId: string) => {
       const idempotencyKey = crypto.randomUUID();
-      const { data, error } = await api.POST(`/v1/marketplace/offers/${groupId}/accept` as any, {
+      // Typed against the generated contract — the literal path + path params
+      // replace the template-string `as any` that silenced the check entirely.
+      const result = await api.POST('/v1/marketplace/offers/{groupId}/accept', {
+        params: { path: { groupId } },
         headers: {
           'Idempotency-Key': idempotencyKey,
         },
       });
-      if (error) {
-        const apiError = error as { status?: number; message?: string };
-        throw new ApiError(apiError.status ?? 500, apiError.message ?? 'Failed to accept offer');
+      // The contract declares only a 200, so `result.error` is typed `never`;
+      // at runtime openapi-fetch still populates it (and a non-ok response) on
+      // failure. Normalize with the real HTTP status. (`result.response` is
+      // optional-chained so unit mocks that omit it still take the error path.)
+      if (result.error || result.response?.ok === false) {
+        throw toApiError(result.error, result.response?.status);
       }
-      return data;
+      return result.data;
     },
     onSuccess: () => {
       showSuccess('Offer accepted');

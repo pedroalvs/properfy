@@ -12,13 +12,17 @@ interface OfferDetailPanelProps {
   isAccepting: boolean;
 }
 
+// Locale/currency are static — build the formatter once at module scope instead
+// of per call (once per list row per render).
+const payoutFormatter = new Intl.NumberFormat('en-AU', {
+  style: 'currency',
+  currency: 'AUD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 function formatPayout(amount: number): string {
-  return new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency: 'AUD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  return payoutFormatter.format(amount);
 }
 
 export function OfferDetailPanel({ offer, detail, detailLoading, onAccept, isAccepting }: OfferDetailPanelProps) {

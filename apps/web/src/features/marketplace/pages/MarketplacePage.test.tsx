@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/hooks/useAuth';
@@ -73,6 +73,7 @@ function createWrapper() {
 
 beforeEach(() => {
   mockGet.mockReset();
+  (api.POST as ReturnType<typeof vi.fn>).mockReset();
   mockGet.mockResolvedValue({
     data: {
       data: MOCK_OFFERS,
@@ -148,5 +149,55 @@ describe('MarketplacePage', () => {
   it('shows placeholder text when no offer is selected', () => {
     renderPage();
     expect(screen.getByText('Select an offer to view its summary.')).toBeInTheDocument();
+  });
+
+  it('accepts an offer through the accessible confirm dialog (#764, #454)', async () => {
+    const mockPost = api.POST as ReturnType<typeof vi.fn>;
+    mockPost.mockResolvedValue({ data: { data: { success: true } } });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('offer-card').length).toBeGreaterThan(0);
+    });
+
+    // Accept on the first card opens the confirm dialog.
+    const firstCard = screen.getAllByTestId('offer-card')[0]!;
+    fireEvent.click(within(firstCard).getByRole('button', { name: /Accept/i }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Accept Offer?' });
+    expect(dialog).toBeInTheDocument();
+    // Focus moves into the dialog on open (Dialog primitive focus management).
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+
+    // Confirm fires the accept against the generated contract path for grp-01.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Accept' }));
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        '/v1/marketplace/offers/{groupId}/accept',
+        expect.objectContaining({ params: { path: { groupId: 'grp-01' } } }),
+      );
+    });
+  });
+
+  it('closes the confirm dialog on Escape without accepting (#454)', async () => {
+    const mockPost = api.POST as ReturnType<typeof vi.fn>;
+    mockPost.mockResolvedValue({ data: { data: {} } });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId('offer-card').length).toBeGreaterThan(0);
+    });
+
+    const firstCard = screen.getAllByTestId('offer-card')[0]!;
+    fireEvent.click(within(firstCard).getByRole('button', { name: /Accept/i }));
+    expect(screen.getByRole('dialog', { name: 'Accept Offer?' })).toBeInTheDocument();
+
+    // Dialog closes on Escape (document listener) and no accept request fires.
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(mockPost).not.toHaveBeenCalled();
   });
 });

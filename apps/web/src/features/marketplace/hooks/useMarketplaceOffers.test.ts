@@ -87,7 +87,7 @@ describe('useMarketplaceOffers', () => {
     expect(result.current.data).toHaveLength(0);
   });
 
-  it('calls API with correct path', async () => {
+  it('calls API with the correct path and pagination query', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useMarketplaceOffers(), { wrapper });
 
@@ -95,7 +95,11 @@ describe('useMarketplaceOffers', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(mockGet).toHaveBeenCalledWith('/v1/marketplace/offers', { params: { query: expect.any(Object) } });
+    // Concrete query, not expect.any(Object): a regression to the wrong
+    // page/pageSize must fail here (params are serialized to strings).
+    expect(mockGet).toHaveBeenCalledWith('/v1/marketplace/offers', {
+      params: { query: { page: '1', pageSize: '10' } },
+    });
   });
 
   it('pagination total reflects API response', async () => {
