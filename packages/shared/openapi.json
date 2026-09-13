@@ -19508,8 +19508,33 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "contact": {}
+                    "contact": {
+                      "type": "object",
+                      "properties": {
+                        "rentalTenantName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryEmail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "primaryPhone": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "rentalTenantName",
+                        "primaryEmail",
+                        "primaryPhone"
+                      ],
+                      "additionalProperties": false
+                    }
                   },
+                  "required": [
+                    "contact"
+                  ],
                   "additionalProperties": false
                 }
               }

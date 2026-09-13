@@ -180,6 +180,29 @@ describe('PATCH /v1/rental-tenant-portal/:token/contact — dual-write (FR-053)'
     );
   });
 
+  it('200: serializes all three contact fields through the concrete response schema, including a null one (WI-B6 / #498)', async () => {
+    setupPortalAuth();
+    // The concrete response schema declares rentalTenantName/primaryEmail/primaryPhone
+    // as nullable strings. A field the schema strips, or a null under a non-nullable
+    // declaration (which 500s AFTER commit), is the exact drift this guards against.
+    mockUpdateContactExecute.mockResolvedValue({
+      rentalTenantName: 'John Smith',
+      primaryEmail: 'kept@example.com',
+      primaryPhone: null,
+    });
+
+    const res = await supertest(app.server)
+      .patch('/v1/rental-tenant-portal/valid-raw-token/contact')
+      .send({ primaryEmail: 'kept@example.com' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.contact).toEqual({
+      rentalTenantName: 'John Smith',
+      primaryEmail: 'kept@example.com',
+      primaryPhone: null,
+    });
+  });
+
   it('404: returns 404 for an invalid or not-found token', async () => {
     mockHashToken.mockReturnValue('hashed-bad-token');
     mockFindByTokenHash.mockResolvedValue(null);

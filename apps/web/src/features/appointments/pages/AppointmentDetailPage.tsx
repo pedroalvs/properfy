@@ -5,6 +5,8 @@ import {
   UserRole,
   TENANT_NOTIFICATIONS_BLOCKED_CODE,
   suppressesOccupantNotifications,
+  PLATFORM_TIMEZONE,
+  todayInTzDateString,
 } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsNav } from '@/components/layout/TabsNav';
@@ -58,6 +60,8 @@ const MISSING_PRIMARY_CONTACT_HINT =
   'No primary contact email or phone is available for this appointment. Use Copy Portal Link to send it yourself.';
 const NO_OCCUPANT_HINT =
   'Ingoing and outgoing inspections have no tenant to notify — being scheduled is already the confirmation.';
+const PAST_DATE_HINT =
+  'The scheduled date has passed. Reschedule the appointment to send a new portal link.';
 
 function isPrivilegedRole(role: string): boolean {
   return role === 'AM' || role === 'OP';
@@ -131,13 +135,22 @@ export function AppointmentDetailPage() {
   // policy ("we contact them ourselves") and the missing-contact hint: those
   // describe an occupant we cannot reach, this one says there is none.
   const hasNoOccupant = suppressesOccupantNotifications(appointment?.flowType);
+  // #33: a link sent for a past-dated appointment is born expired (the token's
+  // validity ends with the scheduled day). Mirror the backend PORTAL_APPOINTMENT_DATE_PAST
+  // gate. scheduledDate is a civil date string on the wire (@db.Date, UTC-midnight
+  // pinned) — read the civil date and compare against today in the platform (Sydney)
+  // timezone, never local midnight.
+  const isPastScheduledDate =
+    !!appointment && appointment.scheduledDate.slice(0, 10) < todayInTzDateString(PLATFORM_TIMEZONE);
   const sendPortalLinkDisabledHint = hasNoOccupant
     ? NO_OCCUPANT_HINT
-    : tenantNotificationsBlocked
-      ? TENANT_NOTIFICATIONS_BLOCKED_HINT
-      : !hasPrimaryContact
-        ? MISSING_PRIMARY_CONTACT_HINT
-        : undefined;
+    : isPastScheduledDate
+      ? PAST_DATE_HINT
+      : tenantNotificationsBlocked
+        ? TENANT_NOTIFICATIONS_BLOCKED_HINT
+        : !hasPrimaryContact
+          ? MISSING_PRIMARY_CONTACT_HINT
+          : undefined;
   // Portal link is only meaningful once the appointment leaves DRAFT and is
   // not terminal — mirrors the backend INVALID_APPOINTMENT_STATUS gate.
   const canSendPortalLink = !!appointment &&

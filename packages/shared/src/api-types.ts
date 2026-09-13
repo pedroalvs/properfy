@@ -8530,7 +8530,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            contact?: unknown;
+                            contact: {
+                                rentalTenantName: string | null;
+                                primaryEmail: string | null;
+                                primaryPhone: string | null;
+                            };
                         };
                     };
                 };
