@@ -45,10 +45,35 @@ describe('RentalTenantPortalExpiredView', () => {
     );
 
     expect(screen.getByText('Your Response')).toBeInTheDocument();
-    expect(screen.getByText('CONFIRMED')).toBeInTheDocument();
+    // WI-W6 (#660): a user-facing label, not the raw enum.
+    expect(screen.getByText('Confirmed')).toBeInTheDocument();
+    expect(screen.queryByText('CONFIRMED')).not.toBeInTheDocument();
     expect(
       screen.getByText('Tenant confirmed attendance'),
     ).toBeInTheDocument();
+  });
+
+  it('renders the UNAVAILABLE response with its user-facing label (#660)', () => {
+    render(
+      <RentalTenantPortalExpiredView
+        appointment={MOCK_APPOINTMENT}
+        existingResponse={{ type: 'UNAVAILABLE', createdAt: '2026-04-10T10:00:00Z' }}
+      />,
+    );
+
+    expect(screen.getByText('Unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('UNAVAILABLE')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the raw type for an unknown response value', () => {
+    render(
+      <RentalTenantPortalExpiredView
+        appointment={MOCK_APPOINTMENT}
+        existingResponse={{ type: 'SOMETHING_NEW', createdAt: '2026-04-10T10:00:00Z' }}
+      />,
+    );
+
+    expect(screen.getByText('SOMETHING_NEW')).toBeInTheDocument();
   });
 
   it('does not show response section when no existing response', () => {
