@@ -24,6 +24,17 @@ export function useContactTimeline(
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
+  // WI-7 (#546): reset pagination when the contact changes. The route
+  // component is not remounted on :id change, so without this contact B would
+  // open on contact A's page and show an out-of-range empty list. Only `page`
+  // resets — `pageSize` stays as the user's preference. Render-time reset (the
+  // "previous id in state" pattern) so the first query already carries page 1.
+  const [seenContactId, setSeenContactId] = useState(contactId);
+  if (contactId !== seenContactId) {
+    setSeenContactId(contactId);
+    setPage(1);
+  }
+
   const query = usePaginatedQuery<AuditLog>(
     ['audit-logs', 'contact', contactId, page, pageSize],
     '/v1/audit-logs',

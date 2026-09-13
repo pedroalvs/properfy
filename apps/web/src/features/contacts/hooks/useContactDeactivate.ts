@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { toApiError, getErrorMessage, isNetworkError } from '@/lib/api-error';
 
 export interface DeactivateResult {
   success: boolean;
@@ -27,16 +28,27 @@ export function useContactDeactivate(): UseContactDeactivateReturn {
   const deactivate = useCallback(async (contactId: string): Promise<DeactivateResult> => {
     setIsPending(true);
     try {
-      const { error } = await api.POST(`/v1/contacts/${contactId}/deactivate` as any, { body: {} as any });
-      if (error) {
+      try {
+        const { error } = await api.POST(`/v1/contacts/${contactId}/deactivate` as any, { body: {} as any });
+        if (error) {
+          return {
+            success: false,
+            errorCode: (error as any)?.error?.code ?? 'UNKNOWN_ERROR',
+            errorMessage: (error as any)?.error?.message ?? 'Request failed',
+          };
+        }
+        queryClient.invalidateQueries({ queryKey: ['contacts'] });
+        return { success: true };
+      } catch (err) {
+        // WI-5 (#202): a thrown network/API error must not escape as an
+        // unhandled rejection — normalize it into the same failure shape.
+        const apiError = toApiError(err);
         return {
           success: false,
-          errorCode: (error as any)?.error?.code ?? 'UNKNOWN_ERROR',
-          errorMessage: (error as any)?.error?.message ?? 'Request failed',
+          errorCode: apiError.code ?? (isNetworkError(apiError) ? 'NETWORK_ERROR' : 'UNKNOWN_ERROR'),
+          errorMessage: getErrorMessage(err, 'Failed to deactivate contact'),
         };
       }
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      return { success: true };
     } finally {
       setIsPending(false);
     }
@@ -45,16 +57,25 @@ export function useContactDeactivate(): UseContactDeactivateReturn {
   const reactivate = useCallback(async (contactId: string): Promise<DeactivateResult> => {
     setIsPending(true);
     try {
-      const { error } = await api.PATCH(`/v1/contacts/${contactId}` as any, { body: { isActive: true } as any });
-      if (error) {
+      try {
+        const { error } = await api.PATCH(`/v1/contacts/${contactId}` as any, { body: { isActive: true } as any });
+        if (error) {
+          return {
+            success: false,
+            errorCode: (error as any)?.error?.code ?? 'UNKNOWN_ERROR',
+            errorMessage: (error as any)?.error?.message ?? 'Request failed',
+          };
+        }
+        queryClient.invalidateQueries({ queryKey: ['contacts'] });
+        return { success: true };
+      } catch (err) {
+        const apiError = toApiError(err);
         return {
           success: false,
-          errorCode: (error as any)?.error?.code ?? 'UNKNOWN_ERROR',
-          errorMessage: (error as any)?.error?.message ?? 'Request failed',
+          errorCode: apiError.code ?? (isNetworkError(apiError) ? 'NETWORK_ERROR' : 'UNKNOWN_ERROR'),
+          errorMessage: getErrorMessage(err, 'Failed to reactivate contact'),
         };
       }
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      return { success: true };
     } finally {
       setIsPending(false);
     }

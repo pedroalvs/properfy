@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ApiError } from '@/lib/api-error';
 import { ContactDetailDrawer } from './ContactDetailDrawer';
 import type { Contact } from '../types';
 
@@ -21,13 +22,20 @@ const baseContact: Contact = {
 
 vi.mock('../hooks/useContactDetail', () => ({
   useContactDetail: (id: string | null) => {
+    const base = { isLoading: false, isError: false, error: null, refetch: vi.fn() };
     if (id === 'standalone') {
-      return { contact: { ...baseContact, tenantId: null, displayName: 'Standalone Pat' }, isLoading: false };
+      return { ...base, contact: { ...baseContact, tenantId: null, displayName: 'Standalone Pat' } };
     }
     if (id === 'pinned') {
-      return { contact: baseContact, isLoading: false };
+      return { ...base, contact: baseContact };
     }
-    return { contact: null, isLoading: false };
+    if (id === 'errored') {
+      return { ...base, contact: null, isError: true, error: new ApiError(500, 'Boom', 'INTERNAL_ERROR') };
+    }
+    if (id === 'forbidden') {
+      return { ...base, contact: null, isError: true, error: new ApiError(403, 'No access', 'FORBIDDEN') };
+    }
+    return { ...base, contact: null };
   },
 }));
 
@@ -87,5 +95,32 @@ describe('ContactDetailDrawer — Standalone label (024 §FR-301)', () => {
 
     expect(screen.getByRole('heading', { name: 'Pat Manager' })).toBeInTheDocument();
     expect(screen.queryByLabelText(/Standalone contact \(no agency\)/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('ContactDetailDrawer — failure fallback (WI-3 #213)', () => {
+  it('shows a retryable error fallback (not an empty panel) when the query errors', () => {
+    renderWith('errored');
+
+    // A fallback message and a retry action are rendered — the drawer is not blank.
+    expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument();
+    // Sections must NOT render since there is no contact.
+    expect(screen.queryByText('sections')).not.toBeInTheDocument();
+    // The drawer stays dismissible.
+    expect(screen.getByTestId('drawer')).toBeInTheDocument();
+  });
+
+  it('shows a permission fallback on a 403', () => {
+    renderWith('forbidden');
+
+    expect(screen.getByText(/don't have permission/i)).toBeInTheDocument();
+    expect(screen.queryByText('sections')).not.toBeInTheDocument();
+  });
+
+  it('shows a not-found fallback when the query settles with no contact and no error', () => {
+    renderWith('missing');
+
+    expect(screen.getByText(/not found/i)).toBeInTheDocument();
+    expect(screen.queryByText('sections')).not.toBeInTheDocument();
   });
 });
