@@ -231,7 +231,7 @@ export function TemplateFormDrawer({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
             <div className="flex flex-col gap-6">
               {template && (
-                <div className="flex items-center gap-4 rounded bg-[#F5F5F5] px-4 py-3">
+                <div className="flex items-center gap-4 rounded bg-app-bg px-4 py-3">
                   <div>
                     <span className="text-xs font-semibold text-text-muted">Code</span>
                     <p className="text-sm font-semibold text-text-primary">{template.code}</p>
