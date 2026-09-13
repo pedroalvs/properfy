@@ -17,7 +17,6 @@ export class HtmlToTextService implements IHtmlToTextService {
         { selector: 'h5', options: { uppercase: false } },
         { selector: 'h6', options: { uppercase: false } },
       ],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       formatters: {
         imgAlt: (elem: { attribs?: { alt?: string } }, _walk: unknown, builder: { addInline: (t: string) => void }) => {
           const alt = elem.attribs?.['alt'] ?? '';
