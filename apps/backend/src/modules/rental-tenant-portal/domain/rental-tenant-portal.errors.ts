@@ -25,6 +25,15 @@ export class PortalAppointmentInactiveError extends ConflictError {
   }
 }
 
+export class PortalAppointmentDatePastError extends ConflictError {
+  constructor() {
+    super(
+      'PORTAL_APPOINTMENT_DATE_PAST',
+      'The scheduled date has passed — a portal link sent now would be born expired. Reschedule the appointment first.',
+    );
+  }
+}
+
 export class PortalNoContactFieldsError extends DomainError {
   constructor() {
     super('PORTAL_NO_CONTACT_FIELDS', 'At least one contact field must be provided', 422);
