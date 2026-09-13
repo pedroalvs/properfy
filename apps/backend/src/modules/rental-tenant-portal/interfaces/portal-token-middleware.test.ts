@@ -54,7 +54,7 @@ describe('portal-token-middleware', () => {
     expect(request.portalContext.isReadOnly).toBe(false);
   });
 
-  it('should mark expired ACTIVE tokens as read-only', async () => {
+  it('should mark expired ACTIVE tokens as read-only and persist the EXPIRED status (#654)', async () => {
     const expired = makeToken('ACTIVE', new Date(Date.now() - 1000));
     const tokenRepo = {
       findByTokenHash: vi.fn().mockResolvedValue(expired),
@@ -65,6 +65,25 @@ describe('portal-token-middleware', () => {
 
     await middleware(request, {} as any);
     expect(request.portalContext.isReadOnly).toBe(true);
+    // The EXPIRED sync must actually be attempted, with the right arguments.
+    expect(tokenRepo.updateStatus).toHaveBeenCalledWith('token-1', 'appt-1', 'EXPIRED');
+  });
+
+  it('stays read-only (never 500s) when the best-effort EXPIRED sync fails (#482)', async () => {
+    const expired = makeToken('ACTIVE', new Date(Date.now() - 1000));
+    const tokenRepo = {
+      findByTokenHash: vi.fn().mockResolvedValue(expired),
+      updateStatus: vi.fn().mockRejectedValue(new Error('db down')),
+    };
+    const logger = { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() };
+    const middleware = createPortalTokenMiddleware(tokenRepo as any, (r) => r, logger as any);
+    const request = { params: { token: 'raw-token' }, portalContext: undefined } as any;
+
+    // The derived read-only view must survive a failed status sync; the 15-min
+    // expire-tokens cron reconciles it later.
+    await expect(middleware(request, {} as any)).resolves.toBeUndefined();
+    expect(request.portalContext.isReadOnly).toBe(true);
+    expect(logger.warn).toHaveBeenCalled();
   });
 
   it('should expose isPastConfirmCutoff=true for a valid token past its confirm cutoff', async () => {

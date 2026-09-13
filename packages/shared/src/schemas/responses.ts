@@ -780,7 +780,7 @@ export const portalTokenResponseSchema = z.object({
   token: z.string(),
   expiresAt: instantStr(),
   dispatched: z.boolean().optional(),
-  reason: z.enum(['NO_PRIMARY_CONTACT', 'DISPATCH_FAILED', 'NOTIFY_DISABLED']).optional(),
+  reason: z.enum(['NO_PRIMARY_CONTACT', 'NO_DISPATCH_CHANNEL', 'DISPATCH_FAILED', 'NOTIFY_DISABLED']).optional(),
 });
 
 /**
