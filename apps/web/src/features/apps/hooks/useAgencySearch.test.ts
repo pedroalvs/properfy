@@ -5,6 +5,10 @@ import { useAgencySearch } from './useAgencySearch';
 
 vi.mock('@/services/api', () => ({ api: { GET: vi.fn() } }));
 
+// The typed openapi-fetch overloads collapse mock.calls to `never`; this is the
+// shape we actually record for the /v1/tenants query.
+type GetOptions = { params: { query: Record<string, unknown> } };
+
 function paginated(rows: { id: string; name: string }[], total: number) {
   return {
     data: { data: rows, pagination: { page: 1, pageSize: 100, total, totalPages: 1 } },
@@ -38,8 +42,8 @@ describe('useAgencySearch', () => {
       }),
     );
     // Empty search must not be sent as a param.
-    const firstCallQuery = vi.mocked(api.GET).mock.calls[0]![1]!.params!.query as Record<string, unknown>;
-    expect(firstCallQuery).not.toHaveProperty('search');
+    const firstCall = vi.mocked(api.GET).mock.calls[0]! as unknown as [string, GetOptions];
+    expect(firstCall[1].params.query).not.toHaveProperty('search');
   });
 
   it('sends the debounced search term (300ms) as the `search` query param', async () => {
@@ -50,11 +54,8 @@ describe('useAgencySearch', () => {
       result.current.setSearch('acme');
     });
     // Before the debounce elapses, no request carries the term.
-    expect(
-      vi.mocked(api.GET).mock.calls.some(
-        (c) => (c[1]?.params?.query as Record<string, unknown> | undefined)?.['search'] === 'acme',
-      ),
-    ).toBe(false);
+    const callsSoFar = vi.mocked(api.GET).mock.calls as unknown as [string, GetOptions][];
+    expect(callsSoFar.some((c) => c[1].params.query?.['search'] === 'acme')).toBe(false);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(300);
