@@ -51,16 +51,18 @@ vi.mock('../../../src/main/container', () => ({
         triggerRetentionRunUseCase: { execute: mockTriggerRetentionRunExecute },
         upsertRetentionCategoryUseCase: { execute: mockUpsertRetentionCategoryExecute },
         upsertPreservationRuleUseCase: { execute: vi.fn() },
+        deletePreservationRuleUseCase: { execute: vi.fn() },
         placeLegalHoldUseCase: { execute: vi.fn() },
         releaseLegalHoldUseCase: { execute: vi.fn() },
         upsertPiiFieldMappingUseCase: { execute: vi.fn() },
-        retentionCategoryRepo: { findAll: mockListRetentionCategoriesFindAll },
-        preservationRuleRepo: {
-          findAllActive: mockListPreservationRulesFindAllActive,
-          findById: vi.fn().mockResolvedValue(null),
-        },
+        // PR-2 B6: the GET endpoints now delegate to thin AM-only list use cases
+        // (not the repos directly). These mock fns back each use case's execute;
+        // they resolve to the same entity arrays the old repo-direct handlers
+        // returned, so the response-shape assertions below are unchanged.
+        listRetentionCategoriesUseCase: { execute: mockListRetentionCategoriesFindAll },
+        listPreservationRulesUseCase: { execute: mockListPreservationRulesFindAllActive },
+        listPiiFieldMappingsUseCase: { execute: mockListPiiMappingsFindAll },
         legalHoldRepo: { findAll: vi.fn().mockResolvedValue([]) },
-        piiFieldMappingRepo: { findAll: mockListPiiMappingsFindAll },
         jwtService: { verify: mockJwtVerify },
         tenantRepo: { findById: vi.fn().mockResolvedValue({ isActive: () => true }) },
       },

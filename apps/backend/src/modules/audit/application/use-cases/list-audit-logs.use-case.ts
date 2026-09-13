@@ -147,8 +147,11 @@ export class ListAuditLogsUseCase {
     // Entries already fully-redacted (`redactionStatus = FULL`) bypass masking
     // entirely — the stored `[REDACTED]` sentinel is returned as-is per FR-027.
     const role = actor.role as AuditReaderRole;
+    // #757: only OP applies per-field masking that consults the registry; AM
+    // sees raw PII and CL_ADMIN gets a blanket sentinel, so neither needs the
+    // mappings — skip the query for them.
     const mappings =
-      this.piiFieldMappingRepo && (role === 'AM' || role === 'OP')
+      this.piiFieldMappingRepo && role === 'OP'
         ? await this.piiFieldMappingRepo.findAll()
         : [];
 

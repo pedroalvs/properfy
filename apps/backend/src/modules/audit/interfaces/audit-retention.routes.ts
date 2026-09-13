@@ -1,21 +1,26 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { paginationSchema } from '@properfy/shared';
+import type { AuditRetentionCategory } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
 import { paginated } from '../../../shared/interfaces/response';
+import { CATEGORY_MINIMUM_YEARS } from '../domain/audit-retention';
 import type { UpsertRetentionCategoryUseCase } from '../application/use-cases/upsert-retention-category.use-case';
 import type { UpsertPreservationRuleUseCase } from '../application/use-cases/upsert-preservation-rule.use-case';
+import type { DeletePreservationRuleUseCase } from '../application/use-cases/delete-preservation-rule.use-case';
 import type { PlaceLegalHoldUseCase } from '../application/use-cases/place-legal-hold.use-case';
 import type { ReleaseLegalHoldUseCase } from '../application/use-cases/release-legal-hold.use-case';
 import type { UpsertPiiFieldMappingUseCase } from '../application/use-cases/upsert-pii-field-mapping.use-case';
 import type { TriggerRetentionRunUseCase } from '../application/use-cases/trigger-retention-run.use-case';
 import type { ListRetentionRunsUseCase } from '../application/use-cases/list-retention-runs.use-case';
-import type { IAuditRetentionCategoryRepository } from '../domain/audit-retention-category.repository';
-import type { IAuditPreservationRuleRepository } from '../domain/audit-preservation-rule.repository';
+import type { ListRetentionCategoriesUseCase } from '../application/use-cases/list-retention-categories.use-case';
+import type { ListPreservationRulesUseCase } from '../application/use-cases/list-preservation-rules.use-case';
+import type { ListPiiFieldMappingsUseCase } from '../application/use-cases/list-pii-field-mappings.use-case';
 import type { IAuditLegalHoldRepository } from '../domain/audit-legal-hold.repository';
-import type { IPiiFieldMappingRepository } from '../domain/pii-field-mapping.repository';
 import type { JwtService } from '../../auth/application/services/jwt.service';
+
+const RETENTION_CATEGORY_NAMES = Object.keys(CATEGORY_MINIMUM_YEARS) as [string, ...string[]];
 
 /**
  * Feature 020 US5: AM-only operator controls for the retention subsystem.
@@ -25,16 +30,17 @@ import type { JwtService } from '../../auth/application/services/jwt.service';
 export interface AuditRetentionRouteContainer {
   upsertRetentionCategoryUseCase: UpsertRetentionCategoryUseCase;
   upsertPreservationRuleUseCase: UpsertPreservationRuleUseCase;
+  deletePreservationRuleUseCase: DeletePreservationRuleUseCase;
   placeLegalHoldUseCase: PlaceLegalHoldUseCase;
   releaseLegalHoldUseCase: ReleaseLegalHoldUseCase;
   upsertPiiFieldMappingUseCase: UpsertPiiFieldMappingUseCase;
   triggerRetentionRunUseCase: TriggerRetentionRunUseCase;
   listRetentionRunsUseCase: ListRetentionRunsUseCase;
-  // Read-only repositories for the read endpoints
-  retentionCategoryRepo: IAuditRetentionCategoryRepository;
-  preservationRuleRepo: IAuditPreservationRuleRepository;
+  // Read use cases for the GET endpoints (RBAC enforced in the use case)
+  listRetentionCategoriesUseCase: ListRetentionCategoriesUseCase;
+  listPreservationRulesUseCase: ListPreservationRulesUseCase;
+  listPiiFieldMappingsUseCase: ListPiiFieldMappingsUseCase;
   legalHoldRepo: IAuditLegalHoldRepository;
-  piiFieldMappingRepo: IPiiFieldMappingRepository;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -86,8 +92,10 @@ export async function registerAuditRetentionRoutes(
   );
 
   // ─── Retention categories ────────────────────────────────────────────────
-  app.get('/v1/audit-retention/categories', { preHandler: authenticate }, async (_req, reply) => {
-    const categories = await container.retentionCategoryRepo.findAll();
+  app.get('/v1/audit-retention/categories', { preHandler: authenticate }, async (req, reply) => {
+    const categories = await container.listRetentionCategoriesUseCase.execute({
+      actor: req.authContext!,
+    });
     return reply.status(200).send(
       categories.map((c) => ({
         id: c.id,
@@ -101,24 +109,28 @@ export async function registerAuditRetentionRoutes(
   });
 
   app.put('/v1/audit-retention/categories/:name', { preHandler: authenticate }, async (req, reply) => {
-    const { name } = req.params as { name: string };
+    // #634: validate :name against the known category names instead of `as any`.
+    const nameParsed = z.object({ name: z.enum(RETENTION_CATEGORY_NAMES) }).safeParse(req.params);
+    if (!nameParsed.success) {
+      throw new ValidationError('Invalid retention category name', nameParsed.error.errors);
+    }
     const parsed = upsertRetentionCategorySchema.safeParse(req.body);
     if (!parsed.success) throw new ValidationError('Invalid retention category input', parsed.error.errors);
 
     await container.upsertRetentionCategoryUseCase.execute({
-      name: name as any,
+      name: nameParsed.data.name as AuditRetentionCategory,
       retentionYears: parsed.data.retentionYears,
       hardDeleteEnabled: parsed.data.hardDeleteEnabled,
       description: parsed.data.description ?? undefined,
       actionPatterns: parsed.data.actionPatterns,
       actor: req.authContext!,
     });
-    return reply.status(200).send({ name });
+    return reply.status(200).send({ name: nameParsed.data.name });
   });
 
   // ─── Preservation rules ──────────────────────────────────────────────────
-  app.get('/v1/audit-retention/rules', { preHandler: authenticate }, async (_req, reply) => {
-    const rules = await container.preservationRuleRepo.findAllActive();
+  app.get('/v1/audit-retention/rules', { preHandler: authenticate }, async (req, reply) => {
+    const rules = await container.listPreservationRulesUseCase.execute({ actor: req.authContext! });
     return reply.status(200).send(
       rules.map((r) => ({
         id: r.id,
@@ -144,20 +156,12 @@ export async function registerAuditRetentionRoutes(
   });
 
   app.delete('/v1/audit-retention/rules/:id', { preHandler: authenticate }, async (req, reply) => {
-    const { id } = req.params as { id: string };
-    // Soft-delete via upsert with isActive=false
-    const existing = await container.preservationRuleRepo.findById(id);
-    if (!existing) {
-      return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Preservation rule not found' } });
-    }
-    await container.upsertPreservationRuleUseCase.execute({
-      id,
-      name: existing.name,
-      ruleType: existing.ruleType,
-      entityType: existing.entityType,
-      entityId: existing.entityId,
-      tenantId: existing.tenantId,
-      isActive: false,
+    // #758: atomic soft delete via a dedicated use case (single-column write),
+    // not a full-record upsert replay. Unknown id -> 404 (raised in the use case).
+    const parsed = z.object({ id: z.string().uuid() }).safeParse(req.params);
+    if (!parsed.success) throw new ValidationError('Invalid preservation rule id', parsed.error.errors);
+    await container.deletePreservationRuleUseCase.execute({
+      id: parsed.data.id,
       actor: req.authContext!,
     });
     return reply.status(204).send();
@@ -181,8 +185,8 @@ export async function registerAuditRetentionRoutes(
   });
 
   // ─── PII field mappings ──────────────────────────────────────────────────
-  app.get('/v1/audit-retention/pii-mappings', { preHandler: authenticate }, async (_req, reply) => {
-    const mappings = await container.piiFieldMappingRepo.findAll();
+  app.get('/v1/audit-retention/pii-mappings', { preHandler: authenticate }, async (req, reply) => {
+    const mappings = await container.listPiiFieldMappingsUseCase.execute({ actor: req.authContext! });
     return reply.status(200).send(
       mappings.map((m) => ({
         id: m.id,
