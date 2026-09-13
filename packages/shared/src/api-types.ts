@@ -7798,6 +7798,7 @@ export interface paths {
                                 actorName: string | null;
                                 entityType: string;
                                 entityId: string | null;
+                                entityName?: string | null;
                                 action: string;
                                 reason: string | null;
                                 beforeJson?: unknown;
@@ -9169,6 +9170,7 @@ export interface paths {
                                     agency: {
                                         id: string;
                                         name: string;
+                                        branchName?: string | null;
                                     };
                                     tenantContacts: {
                                         name: string;

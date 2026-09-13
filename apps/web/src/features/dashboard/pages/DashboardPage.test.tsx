@@ -137,6 +137,19 @@ describe('DashboardPage', () => {
     expect(loadingEl).toHaveAttribute('aria-busy', 'true');
   });
 
+  it('W4 #421: shows a recoverable error (not a spinner) on load failure', async () => {
+    mockGET.mockResolvedValue({ data: undefined, error: { message: 'boom' } });
+    renderPage();
+
+    expect(await screen.findByText("Couldn't load the dashboard.")).toBeInTheDocument();
+    // The error branch precedes the loading check, so it is NOT stuck spinning.
+    expect(screen.queryByRole('status')).toBeNull();
+
+    const callsBefore = mockGET.mock.calls.length;
+    await userEvent.click(screen.getByRole('button', { name: /try again/i }));
+    await waitFor(() => expect(mockGET.mock.calls.length).toBeGreaterThan(callsBefore));
+  });
+
   it('renders summary cards after loading', async () => {
     renderPage();
     await waitFor(() => {

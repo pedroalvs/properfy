@@ -1,10 +1,26 @@
-import type { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import type { ErasureRequestStatus as PrismaErasureRequestStatus } from '@prisma/client';
+import type { ErasureRequestStatus } from '@properfy/shared';
 import {
   DataSubjectErasureRequestEntity,
   type DataSubjectIdentifierType,
 } from '../domain/data-subject-erasure-request.entity';
 import type { IDataSubjectErasureRequestRepository } from '../domain/data-subject-erasure-request.repository';
+
+/**
+ * B2 #132: Prisma rejects a plain `null` for a JSON column at runtime
+ * ("null is not a valid InputJsonValue"). Map a JS null/undefined to the
+ * `Prisma.DbNull` sentinel (SQL NULL) instead of casting `null` through
+ * `InputJsonValue`.
+ */
+function toJsonInput(
+  value: unknown,
+): Prisma.InputJsonValue | typeof Prisma.DbNull {
+  return value === null || value === undefined
+    ? Prisma.DbNull
+    : (value as Prisma.InputJsonValue);
+}
 
 function mapToEntity(row: any): DataSubjectErasureRequestEntity {
   return new DataSubjectErasureRequestEntity({
@@ -55,12 +71,12 @@ export class PrismaDataSubjectErasureRequestRepository
         id: entity.id,
         subject_identifier_type: entity.subjectIdentifierType,
         subject_identifier_value: entity.subjectIdentifierValue,
-        resolved_pii_values_json: (entity.resolvedPiiValuesJson ?? null) as unknown as Prisma.InputJsonValue,
+        resolved_pii_values_json: toJsonInput(entity.resolvedPiiValuesJson),
         status: entity.status as PrismaErasureRequestStatus,
         entries_found_count: entity.entriesFoundCount,
         entries_redacted_count: entity.entriesRedactedCount,
         entries_flagged_for_review_count: entity.entriesFlaggedForReviewCount,
-        completion_report_json: (entity.completionReportJson ?? null) as Prisma.InputJsonValue,
+        completion_report_json: toJsonInput(entity.completionReportJson),
         initiated_by_user_id: entity.initiatedByUserId,
         initiated_at: entity.initiatedAt,
         completed_at: entity.completedAt,
@@ -72,14 +88,29 @@ export class PrismaDataSubjectErasureRequestRepository
     await this.prisma.dataSubjectErasureRequest.update({
       where: { id: entity.id },
       data: {
-        resolved_pii_values_json: (entity.resolvedPiiValuesJson ?? null) as unknown as Prisma.InputJsonValue,
+        resolved_pii_values_json: toJsonInput(entity.resolvedPiiValuesJson),
         status: entity.status as PrismaErasureRequestStatus,
         entries_found_count: entity.entriesFoundCount,
         entries_redacted_count: entity.entriesRedactedCount,
         entries_flagged_for_review_count: entity.entriesFlaggedForReviewCount,
-        completion_report_json: (entity.completionReportJson ?? null) as Prisma.InputJsonValue,
+        completion_report_json: toJsonInput(entity.completionReportJson),
         completed_at: entity.completedAt,
       },
     });
+  }
+
+  async transitionStatus(
+    id: string,
+    fromStatuses: ErasureRequestStatus[],
+    to: ErasureRequestStatus,
+  ): Promise<boolean> {
+    const result = await this.prisma.dataSubjectErasureRequest.updateMany({
+      where: {
+        id,
+        status: { in: fromStatuses as PrismaErasureRequestStatus[] },
+      },
+      data: { status: to as PrismaErasureRequestStatus },
+    });
+    return result.count === 1;
   }
 }

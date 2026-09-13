@@ -18767,6 +18767,10 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "entityName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "action": {
                             "type": "string"
                           },
@@ -21088,6 +21092,10 @@
                                 },
                                 "name": {
                                   "type": "string"
+                                },
+                                "branchName": {
+                                  "type": "string",
+                                  "nullable": true
                                 }
                               },
                               "required": [
@@ -25479,6 +25487,14 @@
             },
             "in": "query",
             "name": "tenantId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "search",
             "required": false
           },
           {

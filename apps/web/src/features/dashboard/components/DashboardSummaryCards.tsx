@@ -12,11 +12,6 @@ interface DashboardSummaryCardsProps {
   donePendingCrossCheck?: number;
 }
 
-function todayRange(): { from: string; to: string } {
-  const today = toLocalISODate(new Date());
-  return { from: today, to: today };
-}
-
 function monthRange(): { from: string; to: string } {
   const now = new Date();
   const from = toLocalISODate(new Date(now.getFullYear(), now.getMonth(), 1));
@@ -47,7 +42,6 @@ export function DashboardSummaryCards({
   rejectedTotal,
   donePendingCrossCheck,
 }: DashboardSummaryCardsProps) {
-  const today = todayRange();
   const month = monthRange();
   const week = weekRange();
 
@@ -77,7 +71,10 @@ export function DashboardSummaryCards({
           label="Scheduled"
           colorClass="border-l-[#B3E5FC]"
           iconColorClass="text-info"
-          href={`/appointments?status=SCHEDULED&startDate=${today.from}&endDate=${today.to}`}
+          // W5 #418: the card shows the full `scheduled` aggregate, so the
+          // drill-down must not scope to today. `status=SCHEDULED` alone already
+          // overrides showCancelled on the list, so this is a faithful match.
+          href="/appointments?status=SCHEDULED"
         />
         <StatCard
           icon="mdi-close-circle-outline"

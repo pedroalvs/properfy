@@ -63,13 +63,21 @@ export class ExecuteDataSubjectErasureUseCase {
       throw new ErasureRequestInvalidStateError(request.status, 'execute');
     }
 
-    // Transition PREVIEW → CONFIRMED → EXECUTING
-    if (request.status === 'PREVIEW') {
-      request.markConfirmed();
-      await this.erasureRequestRepo.update(request);
+    // #435: atomic PREVIEW/CONFIRMED → EXECUTING compare-and-set. Only the
+    // caller that flips the row proceeds; a concurrent caller receives `false`
+    // and must not re-run the redaction or emit a second meta-audit entry.
+    const won = await this.erasureRequestRepo.transitionStatus(
+      request.id,
+      ['PREVIEW', 'CONFIRMED'],
+      'EXECUTING',
+    );
+    if (!won) {
+      // A concurrent caller already advanced this request past PREVIEW/CONFIRMED.
+      // Bail out before any redaction or meta-audit so the work runs exactly once.
+      throw new ErasureRequestInvalidStateError(request.status, 'execute (already in progress)');
     }
+    // Sync the in-memory entity with the persisted EXECUTING status.
     request.markExecuting();
-    await this.erasureRequestRepo.update(request);
 
     // Re-resolve PII values from the persisted snapshot to avoid a race where
     // the subject's user record changed between preview and confirm.
@@ -119,6 +127,7 @@ export class ExecuteDataSubjectErasureUseCase {
     let redactedCount = 0;
     let flaggedCount = 0;
     let skippedCount = 0;
+    const failedIds: string[] = [];
 
     const entries = await this.auditLogRepo.findByIds(ids, { includeArchived: true });
     for (const entry of entries) {
@@ -151,6 +160,11 @@ export class ExecuteDataSubjectErasureUseCase {
 
       const finalStatus = hasUnstructured ? 'PARTIAL' : 'FULL';
 
+      // #444: a PARTIAL entry still carries unstructured PII a human must
+      // review, so count it as flagged in addition to (not instead of) the
+      // no-mapping branch above.
+      if (hasUnstructured) flaggedCount++;
+
       try {
         await this.auditLogRepo.updateRedactedSnapshots(
           entry.id,
@@ -165,17 +179,33 @@ export class ExecuteDataSubjectErasureUseCase {
           { err, entryId: entry.id, requestId: request.id },
           'erasure: failed to update snapshot — leaving IN_PROGRESS for retry',
         );
-        skippedCount++;
+        failedIds.push(entry.id);
       }
     }
 
-    // Complete the request
-    request.markCompleted(redactedCount, {
+    const completionReport: Record<string, unknown> = {
       entriesFound: matches.length,
       entriesRedacted: redactedCount,
       entriesFlaggedForReview: flaggedCount,
-      entriesSkipped: skippedCount,
-    });
+      entriesSkipped: skippedCount + failedIds.length,
+      failedEntryIds: failedIds,
+    };
+
+    // #412: never persist COMPLETED while rows remain IN_PROGRESS. If any
+    // snapshot update failed, mark the request FAILED and record the skipped
+    // ids in the completion report. NOTE: FAILED is terminal and those rows
+    // stay IN_PROGRESS — the retention worker excludes IN_PROGRESS rows, so
+    // recovery is a NEW erasure request for the same subject (searchPiiByValues
+    // re-matches them; it has no status filter), not an automatic retry.
+    if (failedIds.length > 0) {
+      const errorMessage = `erasure incomplete: ${failedIds.length} entr${
+        failedIds.length === 1 ? 'y' : 'ies'
+      } left IN_PROGRESS`;
+      request.markFailed(errorMessage);
+      request.completionReportJson = { error: errorMessage, ...completionReport };
+    } else {
+      request.markCompleted(redactedCount, completionReport);
+    }
     await this.erasureRequestRepo.update(request);
 
     this.emitMetaAudit(input.actor, request.id, matches.length, redactedCount, flaggedCount);
@@ -186,7 +216,7 @@ export class ExecuteDataSubjectErasureUseCase {
       entriesFound: matches.length,
       entriesRedacted: redactedCount,
       entriesFlaggedForReview: flaggedCount,
-      entriesSkipped: skippedCount,
+      entriesSkipped: skippedCount + failedIds.length,
     };
   }
 

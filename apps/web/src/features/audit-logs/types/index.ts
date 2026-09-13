@@ -7,6 +7,8 @@ export interface AuditLog {
   actorName: string | null;
   entityType: string;
   entityId: string | null;
+  /** W1 #409: human-readable label for the entity, or null if unresolvable. */
+  entityName: string | null;
   action: string;
   reason: string | null;
   beforeJson: unknown | null;

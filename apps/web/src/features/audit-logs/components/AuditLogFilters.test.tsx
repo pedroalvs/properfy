@@ -84,9 +84,9 @@ describe('AuditLogFilters', () => {
     expect(screen.getByLabelText('Entity Type')).toBeInTheDocument();
   });
 
-  it('renders entity id input', () => {
+  it('W1 #751: does not ship a raw entity-id UUID input', () => {
     renderWithProviders(<AuditLogFilters filters={DEFAULT_FILTERS} onFiltersChange={vi.fn()} />);
-    expect(screen.getByLabelText('Entity ID')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Entity ID')).toBeNull();
   });
 
   it('renders action select', () => {
