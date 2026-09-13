@@ -275,13 +275,13 @@ export class PrismaNotificationRepository implements INotificationRepository {
 
   async countByTenantChannelSince(
     tenantId: string | null,
-    channel: string,
+    channel: NotificationChannel,
     since: Date,
   ): Promise<number> {
     return this.prisma.notification.count({
       where: {
         tenant_id: tenantId,
-        channel: channel as any,
+        channel,
         created_at: { gte: since },
         // The cap exists to bound spend and provider volume, so it must count only
         // what was actually handed to a provider.

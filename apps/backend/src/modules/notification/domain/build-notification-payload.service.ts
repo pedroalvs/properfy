@@ -113,12 +113,18 @@ export class BuildNotificationPayloadService {
     const surveyLink = confirmationLink;
 
     const allVars: Record<string, string> = {
-      surveyLink,
       // Conditional, not `?? ''`: leaving the key ABSENT is what preserves the
       // required-variable guard below. A template that requires rentalTenantName
       // still throws when there is no contact, while one that lists it as
       // optional (the agency cancellation notice) renders it empty.
       ...(ctx.contact ? { rentalTenantName: ctx.contact.effectiveName } : {}),
+      // Same pattern for the portal links: include them only when a token was
+      // minted. Absent (no token) means the required-variable guard throws for a
+      // template that REQUIRES the link (TENANT_PORTAL_LINK needs confirmationLink,
+      // INSPECTION_SATISFACTION_SURVEY needs surveyLink) instead of rendering a dead
+      // ''; templates that list the link as optional still render empty. This is the
+      // defense-in-depth behind issue #1055's handler-level fix.
+      ...(ctx.rawPortalToken ? { confirmationLink, rescheduleLink, surveyLink } : {}),
       propertyAddress: ctx.propertyAddress ?? '',
       scheduledDate,
       timeSlot: formatTimeSlot(ctx.appointment.timeSlotStart, ctx.appointment.timeSlotEnd),
@@ -129,8 +135,6 @@ export class BuildNotificationPayloadService {
         ctx.appointment.appointmentNumber,
         ctx.tenant,
       ),
-      confirmationLink,
-      rescheduleLink,
       branchName: ctx.branchName ?? '',
       properfyLogoUrl: PROPERFY_LOGO_URL,
       // Written only by the dedicated tenant logo upload endpoint; '' for a

@@ -78,17 +78,13 @@ export class NotifyOnAdminRescheduleHandler {
     const property = await this.propertyRepo.findById(appointment.propertyId, appointment.tenantId);
 
     // Mint a portal token so confirmationLink/rescheduleLink reflect the new date.
-    // Failure must not block the notification — links will render empty.
-    let rawPortalToken: string | null = null;
-    try {
-      const minted = await this.mintPortalTokenService.mint(appointment, tenant);
-      rawPortalToken = minted.rawToken;
-    } catch (err) {
-      this.logger?.warn(
-        { err, appointmentId: appointment.id },
-        'Portal token mint failed; confirmationLink omitted',
-      );
-    }
+    // Contract (issue #1055): the whole point of a reschedule email is the new date
+    // and the fresh portal link, so a mint failure must FAIL the job — let the
+    // exception propagate to pg-boss for retry rather than shipping a linkless
+    // notification recorded as SENT. The mint runs before createNotification.execute
+    // below, so nothing has been enqueued yet and a retry cannot duplicate a send.
+    const minted = await this.mintPortalTokenService.mint(appointment, tenant);
+    const rawPortalToken: string | null = minted.rawToken;
 
     const payloadCtx = {
       templateCode: emailCode,
