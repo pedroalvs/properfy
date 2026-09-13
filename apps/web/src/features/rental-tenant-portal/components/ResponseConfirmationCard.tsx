@@ -18,7 +18,7 @@ const BORDER_COLORS: Record<string, string> = {
   RESCHEDULE: 'border-l-info',
 };
 
-const RESPONSE_LABELS: Record<string, string> = {
+export const RESPONSE_LABELS: Record<string, string> = {
   CONFIRMED: 'Confirmed',
   UNAVAILABLE: 'Unavailable',
   RESCHEDULE: 'Reschedule Requested',

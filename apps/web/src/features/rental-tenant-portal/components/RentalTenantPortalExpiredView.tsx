@@ -1,5 +1,6 @@
 import { formatInstantDateTime } from '@/lib/format-date';
 import { AppointmentInfoCard } from './AppointmentInfoCard';
+import { RESPONSE_LABELS } from './ResponseConfirmationCard';
 import type { PortalAppointment } from '../types';
 
 interface ExistingResponse {
@@ -38,7 +39,7 @@ export function RentalTenantPortalExpiredView({
           </h3>
           <p className="text-sm text-text-secondary">
             <span className="font-semibold text-text-primary">
-              {existingResponse.type}
+              {RESPONSE_LABELS[existingResponse.type] ?? existingResponse.type}
             </span>
             {' '}on{' '}
             {formatResponseDate(existingResponse.createdAt)}

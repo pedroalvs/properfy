@@ -65,12 +65,23 @@ describe('PortalErrorState', () => {
     expect(screen.getByText('Validation failed')).toBeInTheDocument();
   });
 
-  it('shows "Connection Error" for generic Error', () => {
-    const error = new Error('Network error');
+  // WI-W2 (#658, #778): a network TypeError keeps the connection copy, but any
+  // other plain Error must surface its own message instead of being masked.
+  it('shows "Connection Error" for a fetch TypeError (network failure)', () => {
+    const error = new TypeError('Failed to fetch');
     render(<PortalErrorState error={error} onRetry={vi.fn()} />);
 
     expect(screen.getByText('Connection Error')).toBeInTheDocument();
     expect(screen.getByText(/check your internet/)).toBeInTheDocument();
+  });
+
+  it('preserves a plain Error message instead of showing the connection copy', () => {
+    const error = new Error('No portal token provided');
+    render(<PortalErrorState error={error} onRetry={vi.fn()} />);
+
+    expect(screen.getByText('Error')).toBeInTheDocument();
+    expect(screen.getByText('No portal token provided')).toBeInTheDocument();
+    expect(screen.queryByText(/check your internet/)).not.toBeInTheDocument();
   });
 
   it('calls onRetry when Try Again is clicked', () => {
