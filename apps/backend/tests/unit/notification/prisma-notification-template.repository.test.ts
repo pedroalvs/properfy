@@ -160,6 +160,14 @@ describe('PrismaNotificationTemplateRepository', () => {
     const findManyArg = prisma.notificationTemplate.findMany.mock.calls[0]![0];
     expect(findManyArg.skip).toBe(20);
     expect(findManyArg.take).toBe(10);
+    // Deterministic paging needs a unique sort: template_code is not unique, so
+    // tiebreakers must follow it or pages skip/duplicate tied rows.
+    expect(findManyArg.orderBy).toEqual([
+      { template_code: 'asc' },
+      { channel: 'asc' },
+      { tenant_id: 'asc' },
+      { id: 'asc' },
+    ]);
     // count must use the identical where, so the total matches the filtered set.
     const countArg = prisma.notificationTemplate.count.mock.calls[0]![0];
     expect(countArg.where).toEqual(findManyArg.where);
