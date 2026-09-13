@@ -1648,6 +1648,29 @@ describe('SendNotificationUseCase', () => {
       );
     });
 
+    // The exemption is pinned to PLATFORM scope. A tenant's own TRANSACTIONAL mail
+    // (e.g. INSPECTION_CONFIRMED) must still respect that agency's configured cap —
+    // this test fails if the tenant_id guard is ever dropped from the exemption.
+    it('still caps a TENANT-scoped TRANSACTIONAL send (exemption is platform-only)', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ channel: 'EMAIL', tenantId: 'tenant-1', notificationClass: 'TRANSACTIONAL' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ tenantId: 'tenant-1', notificationClass: 'TRANSACTIONAL' }),
+      );
+      vi.mocked(sut.getTenantSettings).mockResolvedValue({ notificationDailyCapEmail: 10 });
+      vi.mocked(sut.notificationRepo.countByTenantChannelSince).mockResolvedValue(10);
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.notificationRepo.countByTenantChannelSince).toHaveBeenCalled();
+      const updated = vi.mocked(sut.notificationRepo.update).mock.calls.at(-1)![0];
+      expect(updated.status).toBe('FAILED');
+      expect(updated.failureReason).toBe('BUDGET_EXCEEDED');
+      expect(sut.emailProvider.send).not.toHaveBeenCalled();
+    });
+
     it('flags platformScope=false when a tenant-scoped send exceeds its cap', async () => {
       const sut = makeSut();
       vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification({ channel: 'EMAIL' }));
