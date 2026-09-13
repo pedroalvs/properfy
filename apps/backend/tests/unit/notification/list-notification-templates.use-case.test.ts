@@ -157,6 +157,22 @@ describe('ListNotificationTemplatesUseCase', () => {
     expect(result.data.map((d) => d.id)).toEqual(['tpl-2', 'tpl-3']);
   });
 
+  it('returns an empty page (with the true total) when page is past the last', async () => {
+    const all = Array.from({ length: 3 }, (_, i) => makeListItem(makeTemplate(`tpl-${i}`, `CODE_${i}`)));
+    vi.mocked(templateRepo.findAll).mockImplementation(async (filters) => {
+      const skip = filters.skip ?? 0;
+      const take = filters.take ?? all.length;
+      return { items: all.slice(skip, skip + take), total: all.length };
+    });
+
+    const useCase = new ListNotificationTemplatesUseCase(templateRepo, authorizationService);
+    const result = await useCase.execute({ actor: makeActor('AM'), page: 99, pageSize: 20 });
+
+    expect(result.data).toEqual([]);
+    expect(result.total).toBe(3);
+    expect(result.page).toBe(99);
+  });
+
   it('defaults to page 1 / pageSize 20 when pagination is omitted', async () => {
     vi.mocked(templateRepo.findAll).mockResolvedValue({ items: [], total: 0 });
 

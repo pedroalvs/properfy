@@ -129,8 +129,8 @@ describe('useTemplateList', () => {
               search: 'Inspection Notice',
               channel: 'EMAIL',
               includeDefaults: 'false',
-              // The screen has no pager: it requests the max page size to keep
-              // showing the whole catalogue now that the endpoint paginates.
+              // useAllPagesQuery drives paging: it walks every page at the backend
+              // cap (pageSize 100) so the whole catalogue is shown without a pager.
               page: '1',
               pageSize: '100',
             },

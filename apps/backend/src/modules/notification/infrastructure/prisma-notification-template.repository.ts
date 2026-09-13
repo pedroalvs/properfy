@@ -87,7 +87,16 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
       this.prisma.notificationTemplate.findMany({
         where,
         include: { tenant: { select: { name: true } } },
-        orderBy: { template_code: 'asc' },
+        // template_code is NOT unique (same code across channels and across
+        // tenants), so it cannot order pages on its own — tied rows would sort
+        // arbitrarily and skip/duplicate across page boundaries. Append unique
+        // tiebreakers so paging is deterministic.
+        orderBy: [
+          { template_code: 'asc' },
+          { channel: 'asc' },
+          { tenant_id: 'asc' },
+          { id: 'asc' },
+        ],
         skip: filters.skip,
         take: filters.take,
       }),
