@@ -19,7 +19,7 @@ export function TemplatePreview({
   const showSubject = channel === 'EMAIL';
 
   return (
-    <div className="rounded border border-[#E0E0E0] bg-[#FAFAFA] p-4">
+    <div className="rounded border border-border-subtle bg-hover-row p-4">
       <h4 className="mb-3 text-sm font-bold text-text-secondary">
         Preview
         {isLoading && (
@@ -59,7 +59,7 @@ export function TemplatePreview({
             sandbox="allow-same-origin"
             title="Email preview"
             data-testid="preview-body"
-            className="mt-1 w-full rounded border border-[#E0E0E0] bg-white"
+            className="mt-1 w-full rounded border border-border-subtle bg-white"
             style={{ minHeight: 200, height: 'auto' }}
             onLoad={(e) => {
               // Auto-resize to content height

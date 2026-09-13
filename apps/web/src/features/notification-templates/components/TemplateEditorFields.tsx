@@ -72,7 +72,7 @@ export function TemplateEditorFields({
 
   const bodyContainerClass = errors.body
     ? 'rounded border border-error bg-white shadow-[inset_0_-1px_0_0_var(--color-error)]'
-    : 'rounded border border-[#E0E0E0] bg-white shadow-[inset_0_-1px_0_0_#E0E0E0] focus-within:border-primary';
+    : 'rounded border border-border-subtle bg-white shadow-[inset_0_-1px_0_0_var(--color-border-subtle)] focus-within:border-primary';
 
   return (
     <>
