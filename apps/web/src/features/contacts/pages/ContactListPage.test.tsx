@@ -178,6 +178,69 @@ describe('ContactListPage — row open-detail link', () => {
   });
 });
 
+describe('ContactListPage — Agency change clears branch filter (WI-8 #203)', () => {
+  const TENANT_B = 'bbbbbbbb-0000-4000-8000-000000000002';
+
+  function contactsCalls() {
+    return mockGet.mock.calls.filter(([p]) => String(p) === '/v1/contacts');
+  }
+  function lastContactsQuery(): Record<string, unknown> {
+    const calls = contactsCalls();
+    return (calls[calls.length - 1]?.[1] as { params?: { query?: Record<string, unknown> } })?.params?.query ?? {};
+  }
+
+  it('clears branchIds when the Agency selector changes to another tenant', async () => {
+    setUser('AM', null);
+    mockGet.mockImplementation(async (path: string) => {
+      const p = String(path);
+      if (p === '/v1/tenants') {
+        return {
+          data: {
+            data: [
+              { id: TENANT_A, name: 'Acme Realty' },
+              { id: TENANT_B, name: 'Other Agency' },
+            ],
+            pagination: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
+          },
+        };
+      }
+      if (p === `/v1/tenants/${TENANT_A}/branches`) {
+        return { data: { data: [{ id: 'branch-1', name: 'Branch One' }], pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1 } } };
+      }
+      if (p === `/v1/tenants/${TENANT_B}/branches`) {
+        return { data: { data: [{ id: 'branch-2', name: 'Branch Two' }], pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1 } } };
+      }
+      return { data: EMPTY_LIST };
+    });
+
+    renderPage();
+
+    // Select Acme as the agency.
+    fireEvent.click(await screen.findByLabelText('Agency'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Acme Realty' }));
+
+    // Open the Branches multiselect (enabled once a tenant is selected) and pick one.
+    const branchesTrigger = await screen.findByRole('button', { name: 'Branches' });
+    await waitFor(() => expect(branchesTrigger).not.toBeDisabled());
+    fireEvent.click(branchesTrigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'Branch One' }));
+
+    await waitFor(() => {
+      expect(lastContactsQuery().branchIds).toContain('branch-1');
+    });
+
+    // Change the agency — the stale branch filter must not survive the switch.
+    fireEvent.click(await screen.findByLabelText('Agency'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Other Agency' }));
+
+    await waitFor(() => {
+      const query = lastContactsQuery();
+      expect(query.tenantId).toBe(TENANT_B);
+      expect(query.branchIds).toBeUndefined();
+    });
+  });
+});
+
 describe('ContactListPage — Standalone sentinel option (024 §FR-308)', () => {
   function mockTenantsResponse(tenants: Array<{ id: string; name: string }>) {
     mockGet.mockImplementation(async (path: string) => {

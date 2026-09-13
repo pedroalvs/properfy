@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { Button } from '@/components/ui/Button';
 import { useContactRelations } from '../hooks/useContactRelations';
 import type { ContactAppointmentItem, ContactPropertyAggregate } from '../types';
 
@@ -65,8 +66,19 @@ function summarise(appointments: ContactAppointmentItem[]): { total: number; pen
 
 export function RelationsTab({ contactId, enabled }: RelationsTabProps) {
   const navigate = useNavigate();
-  const { properties, appointments, isLoading, isError, errorMessage, refetch } =
-    useContactRelations(contactId, { enabled });
+  const {
+    properties,
+    appointments,
+    isLoading,
+    isError,
+    isFetching,
+    errorMessage,
+    refetch,
+    hasMoreProperties,
+    hasMoreAppointments,
+    loadMoreProperties,
+    loadMoreAppointments,
+  } = useContactRelations(contactId, { enabled });
   const [expandState, setExpandState] = useState<Record<string, boolean>>(() => readExpandState(contactId));
 
   const groups = useMemo<PropertyGroup[]>(() => {
@@ -109,6 +121,7 @@ export function RelationsTab({ contactId, enabled }: RelationsTabProps) {
   }
 
   return (
+    <div className="flex flex-col gap-4">
     <ul className="flex flex-col divide-y divide-default">
       {groups.map((g) => {
         const expanded = !!expandState[g.propertyId];
@@ -177,6 +190,33 @@ export function RelationsTab({ contactId, enabled }: RelationsTabProps) {
         );
       })}
     </ul>
+      {(hasMoreProperties || hasMoreAppointments) ? (
+        <div className="flex flex-wrap gap-2">
+          {hasMoreProperties ? (
+            <Button
+              variant="outlined"
+              onClick={loadMoreProperties}
+              loading={isFetching}
+              disabled={isFetching}
+              aria-label="Load more properties"
+            >
+              Load more properties
+            </Button>
+          ) : null}
+          {hasMoreAppointments ? (
+            <Button
+              variant="outlined"
+              onClick={loadMoreAppointments}
+              loading={isFetching}
+              disabled={isFetching}
+              aria-label="Load more appointments"
+            >
+              Load more appointments
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
