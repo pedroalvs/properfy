@@ -13,6 +13,8 @@ export interface ListNotificationTemplatesInput {
   templateCode?: string;
   channel?: string;
   includeDefaults?: boolean;
+  page?: number;
+  pageSize?: number;
   actor: AuthContext;
 }
 
@@ -36,7 +38,13 @@ export interface NotificationTemplateOutputItem {
 
 export interface ListNotificationTemplatesOutput {
   data: NotificationTemplateOutputItem[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
 
 export class ListNotificationTemplatesUseCase {
   constructor(
@@ -80,12 +88,21 @@ export class ListNotificationTemplatesUseCase {
       filters.channel = input.channel as NotificationChannel;
     }
 
-    // 3. Fetch
-    const templates = await this.templateRepo.findAll(filters);
+    // 3. Pagination window
+    const page = input.page ?? DEFAULT_PAGE;
+    const pageSize = input.pageSize ?? DEFAULT_PAGE_SIZE;
+    filters.skip = (page - 1) * pageSize;
+    filters.take = pageSize;
 
-    // 4. Map to output
+    // 4. Fetch (repo returns the page plus the true total under the same filters)
+    const { items, total } = await this.templateRepo.findAll(filters);
+
+    // 5. Map to output
     return {
-      data: templates.map(({ template: t, tenantName }) => ({
+      total,
+      page,
+      pageSize,
+      data: items.map(({ template: t, tenantName }) => ({
         id: t.id,
         tenantId: t.tenantId,
         tenantName,

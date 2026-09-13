@@ -21088,6 +21088,10 @@
                                 },
                                 "name": {
                                   "type": "string"
+                                },
+                                "branchName": {
+                                  "type": "string",
+                                  "nullable": true
                                 }
                               },
                               "required": [
@@ -25486,6 +25490,14 @@
               "type": "string"
             },
             "in": "query",
+            "name": "search",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
             "name": "templateCode",
             "required": false
           },
@@ -25548,6 +25560,27 @@
             },
             "in": "query",
             "name": "includeDefaults",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "in": "query",
+            "name": "pageSize",
             "required": false
           }
         ],
