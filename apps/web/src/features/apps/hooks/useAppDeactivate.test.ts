@@ -6,6 +6,8 @@ import { useAppDeactivate } from './useAppDeactivate';
 
 vi.mock('@/services/api', () => ({ api: { POST: vi.fn(), PATCH: vi.fn() } }));
 
+type CallOptions = { params?: { path?: { id?: string } }; body?: unknown };
+
 const APP_ID = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
 
 describe('useAppDeactivate', () => {
@@ -21,7 +23,9 @@ describe('useAppDeactivate', () => {
     const res = await result.current.deactivate(APP_ID);
 
     expect(res.success).toBe(true);
-    const [path, options] = vi.mocked(api.POST).mock.calls[0]!;
+    // The typed openapi-fetch overloads collapse mock.calls to `never`; cast to
+    // read the recorded call shape.
+    const [path, options] = vi.mocked(api.POST).mock.calls[0]! as unknown as [string, CallOptions];
     expect(path).toBe('/v1/app-credentials/{id}/deactivate');
     expect(options).toEqual({ params: { path: { id: APP_ID } } });
     // The generated route has requestBody?: never — no body must be sent.
@@ -36,7 +40,7 @@ describe('useAppDeactivate', () => {
     const res = await result.current.reactivate(APP_ID);
 
     expect(res.success).toBe(true);
-    const [path, options] = vi.mocked(api.PATCH).mock.calls[0]!;
+    const [path, options] = vi.mocked(api.PATCH).mock.calls[0]! as unknown as [string, CallOptions];
     expect(path).toBe('/v1/app-credentials/{id}');
     expect(options).toMatchObject({ params: { path: { id: APP_ID } }, body: { isActive: true } });
   });
