@@ -130,6 +130,23 @@ describe('NotifyOnAdminRescheduleHandler', () => {
     );
   });
 
+  it('fails the job (does not send) when the portal token mint fails (#1055)', async () => {
+    appointmentRepo.findById.mockResolvedValue({
+      appointment: makeAppointment(),
+      contact: makeContact(),
+      restrictions: [],
+    });
+    tenantRepo.findById.mockResolvedValue(makeTenant());
+    mintPortalTokenService.mint.mockRejectedValueOnce(new Error('mint down'));
+
+    await expect(
+      makeHandler().execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' }),
+    ).rejects.toThrow('mint down');
+
+    // A reschedule email without the fresh link must not go out recorded as SENT.
+    expect(createNotification.execute).not.toHaveBeenCalled();
+  });
+
   // Email-only: INSPECTION_RESCHEDULED_SMS was retired with the other three
   // occupant-action twins. The email carries the new date and a fresh portal link,
   // neither of which fits an SMS worth sending.
@@ -205,22 +222,6 @@ describe('NotifyOnAdminRescheduleHandler', () => {
     await makeHandler().execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' });
 
     expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
-  });
-
-  it('still sends the email when portal token mint fails (links render empty)', async () => {
-    appointmentRepo.findById.mockResolvedValue({
-      appointment: makeAppointment(),
-      contact: makeContact(),
-      restrictions: [],
-    });
-    tenantRepo.findById.mockResolvedValue(makeTenant());
-    mintPortalTokenService.mint.mockRejectedValue(new Error('mint failed'));
-
-    await makeHandler().execute({ appointmentId: 'appt-1', tenantId: 'tenant-1' });
-
-    expect(createNotification.execute).toHaveBeenCalledWith(
-      expect.objectContaining({ templateCode: 'INSPECTION_RESCHEDULED' }),
-    );
   });
 
   it('skips silently when the tenant is not found', async () => {

@@ -996,18 +996,21 @@ describe('NotifyOnStatusTransitionHandler', () => {
     );
   });
 
-  it('continues sending notification when mint portal token fails', async () => {
+  it('propagates a mint failure and sends nothing (#1055 — reversed from the old swallow)', async () => {
     mintPortalTokenService.mint.mockRejectedValueOnce(new Error('Mint failed'));
 
     const handler = makeHandler();
-    await handler.execute({
-      appointmentId: 'appt-1',
-      previousStatus: 'AWAITING_INSPECTOR',
-      targetStatus: 'SCHEDULED',
-    });
+    await expect(
+      handler.execute({
+        appointmentId: 'appt-1',
+        previousStatus: 'AWAITING_INSPECTOR',
+        targetStatus: 'SCHEDULED',
+      }),
+    ).rejects.toThrow('Mint failed');
 
-    expect(createNotification.execute).toHaveBeenCalledTimes(2);
-    expect(logger.warn).toHaveBeenCalledOnce();
+    // Was previously "continues sending" (2 sends + a WARN); a SCHEDULED notice
+    // without its portal link must now fail the job so pg-boss retries.
+    expect(createNotification.execute).not.toHaveBeenCalled();
   });
 });
 
