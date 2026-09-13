@@ -9,6 +9,7 @@ import {
   type NotificationClass,
 } from '@properfy/shared';
 import { prepareSmsBody } from '../../domain/sms-content';
+import { maskRecipient } from '../../domain/mask-recipient';
 import type { INotificationRepository } from '../../domain/notification.repository';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
 import type { INotificationConsentRepository } from '../../domain/notification-consent.repository';
@@ -64,11 +65,6 @@ const AUDITABLE_FAILURE_CODES: ReadonlySet<string> = new Set([
   'EMPTY_SMS_BODY',
 ]);
 
-
-/** Phone numbers are PII: log at most the last 4 digits. */
-function maskRecipient(recipient: string): string {
-  return `***${recipient.slice(-4)}`;
-}
 
 /** Collapse anything that is not one of our own codes to a PII-free constant. */
 function auditableFailureReason(reason: string | null): string {

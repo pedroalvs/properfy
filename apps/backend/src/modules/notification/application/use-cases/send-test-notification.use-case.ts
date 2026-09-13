@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { AuthContext } from '@properfy/shared';
 import { prepareSmsBody } from '../../domain/sms-content';
+import { maskRecipient } from '../../domain/mask-recipient';
 import { TEMPLATE_VARIABLES, SAMPLE_DATA, isPlatformScopedEditableCode, type AllowedVariable } from '@properfy/shared';
 import { ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
@@ -242,7 +243,10 @@ export class SendTestNotificationUseCase {
       after: {
         templateCode: input.templateCode,
         channel: input.channel,
-        recipient: input.recipient,
+        // Recipient is PII: store only the masked form. The erasure workflow
+        // redacts by registered field paths and cannot reach a raw address in
+        // audit free text (same rule as send-notification.use-case).
+        recipientMasked: maskRecipient(input.recipient),
         messageId,
         draft: hasDraft,
       },
