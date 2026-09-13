@@ -66,14 +66,21 @@ function makeSut() {
     log: vi.fn(),
   } as unknown as AuditService;
   const authorizationService = new AuthorizationService(auditService);
+  const jobQueue = { enqueue: vi.fn().mockResolvedValue(undefined) };
 
-  const useCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
-  return { notificationRepo, auditService, useCase };
+  const useCase = new RetryNotificationUseCase(
+    notificationRepo,
+    auditService,
+    authorizationService,
+    jobQueue,
+  );
+  return { notificationRepo, auditService, jobQueue, useCase };
 }
 
 describe('RetryNotificationUseCase', () => {
   let notificationRepo: INotificationRepository;
   let auditService: AuditService;
+  let jobQueue: { enqueue: ReturnType<typeof vi.fn> };
   let useCase: RetryNotificationUseCase;
 
   beforeEach(() => {
@@ -81,6 +88,7 @@ describe('RetryNotificationUseCase', () => {
     const sut = makeSut();
     notificationRepo = sut.notificationRepo;
     auditService = sut.auditService;
+    jobQueue = sut.jobQueue;
     useCase = sut.useCase;
   });
 
@@ -162,6 +170,37 @@ describe('RetryNotificationUseCase', () => {
     });
 
     expect(result.status).toBe('PENDING');
+  });
+
+  it('enqueues the send job (after the repo update) so the retry poller can pick it up', async () => {
+    const notification = makeNotification();
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
+    const updateOrder = { updated: -1, enqueued: -1 };
+    let seq = 0;
+    vi.mocked(notificationRepo.update).mockImplementation(async () => { updateOrder.updated = seq++; });
+    jobQueue.enqueue.mockImplementation(async () => { updateOrder.enqueued = seq++; });
+
+    await useCase.execute({ notificationId: 'notif-1', actor: makeActor({ role: 'AM' }) });
+
+    expect(jobQueue.enqueue).toHaveBeenCalledWith(
+      'notification.send',
+      { notificationId: 'notif-1' },
+      expect.objectContaining({ singletonKey: 'notif-1' }),
+    );
+    // enqueue must happen AFTER the row is reset to PENDING, never before.
+    expect(updateOrder.updated).toBeLessThan(updateOrder.enqueued);
+  });
+
+  it('rejects (and does not audit) when the enqueue fails', async () => {
+    const notification = makeNotification();
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
+    jobQueue.enqueue.mockRejectedValue(new Error('queue down'));
+
+    await expect(
+      useCase.execute({ notificationId: 'notif-1', actor: makeActor({ role: 'AM' }) }),
+    ).rejects.toThrow('queue down');
+
+    expect(auditService.log).not.toHaveBeenCalled();
   });
 
   it('should call audit log', async () => {

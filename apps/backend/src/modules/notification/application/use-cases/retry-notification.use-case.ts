@@ -1,5 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import type { INotificationRepository } from '../../domain/notification.repository';
+import type { IJobQueue } from '../../../../shared/domain/job-queue';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
@@ -28,6 +30,8 @@ export class RetryNotificationUseCase {
     private readonly notificationRepo: INotificationRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly jobQueue: IJobQueue,
+    private readonly logger?: Logger,
   ) {}
 
   async execute(input: RetryNotificationInput): Promise<RetryNotificationOutput> {
@@ -68,6 +72,26 @@ export class RetryNotificationUseCase {
     notification.updatedAt = now;
 
     await this.notificationRepo.update(notification);
+
+    // Enqueue the send job, exactly as CreateNotificationUseCase does. Without
+    // this the row sits PENDING with retryCount=0, which findRetryable ignores
+    // (it requires retry_count > 0), so the manual retry did nothing until the
+    // stuck-pending sweep rescued it ~10-15 min later, mislabeled as a lost
+    // enqueue. Enqueue failure throws (same contract as create) so the caller
+    // learns the retry did not take.
+    const jobName = 'notification.send';
+    this.logger?.info({ notificationId: input.notificationId, jobName }, 'notification.enqueue_start');
+    try {
+      await this.jobQueue.enqueue(jobName, { notificationId: input.notificationId }, {
+        retryLimit: 0,
+        singletonKey: input.notificationId,
+        expireInMinutes: 5,
+      });
+      this.logger?.info({ notificationId: input.notificationId, jobName }, 'notification.enqueue_success');
+    } catch (enqueueError) {
+      this.logger?.error({ notificationId: input.notificationId, jobName, error: enqueueError }, 'notification.enqueue_failed');
+      throw enqueueError;
+    }
 
     this.auditService.log({
       action: 'NOTIFICATION_MANUALLY_RETRIED',
