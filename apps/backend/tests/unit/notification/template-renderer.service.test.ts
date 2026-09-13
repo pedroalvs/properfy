@@ -151,6 +151,15 @@ describe('TemplateRendererService', () => {
         expect(result).toBe('Date: 2026-04-15');
       });
 
+      it('should replace EVERY occurrence of a repeated token, not just the first', () => {
+        // String.replace with a string pattern is first-match-only, so 'DD/MM DD'
+        // left the second DD un-substituted. Date-only tokens keep this TZ-safe.
+        const result = service.render('Date: {{formatDate scheduledDate "DD/MM DD"}}', {
+          scheduledDate: '2026-04-15T10:30:00.000Z',
+        });
+        expect(result).toBe('Date: 15/04 15');
+      });
+
       it('should return empty string for null/undefined date', () => {
         const result = service.render('Date: {{formatDate scheduledDate}}', {});
         expect(result).toBe('Date: ');
