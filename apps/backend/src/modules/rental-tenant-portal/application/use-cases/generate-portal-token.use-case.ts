@@ -25,7 +25,10 @@ import { BuildNotificationPayloadService } from '../../../notification/domain/bu
 import {
   isRentalTenantNotificationsEnabled,
   TENANT_NOTIFICATIONS_BLOCKED_CODE,
+  PLATFORM_TIMEZONE,
+  todayInTzDateString,
 } from '@properfy/shared';
+import { PortalAppointmentDatePastError } from '../../domain/rental-tenant-portal.errors';
 
 export interface AuthContext {
   userId: string;
@@ -241,6 +244,20 @@ export class GeneratePortalTokenUseCase {
         'INVALID_APPOINTMENT_STATUS',
         `Portal link can only be sent for AWAITING_INSPECTOR or SCHEDULED appointments (current: ${appointment.status})`,
       );
+    }
+
+    // #33: dispatching a portal link for a past-dated appointment mints a token
+    // that is born expired (mintOnce derives expiresAt from the end of the
+    // scheduled day). Block the operator dispatch path only — Copy Link
+    // (notify:false) still generates the link the operator explicitly asked for,
+    // and internal reissue (allowAnyStatus, the GAP-004 reschedule) always
+    // targets a new future date. scheduledDate is a @db.Date civil date; compare
+    // civil-date strings against today in the platform (Sydney) timezone.
+    if (!input.allowAnyStatus && input.notify !== false) {
+      const scheduledCivilDate = appointment.scheduledDate.toISOString().slice(0, 10);
+      if (scheduledCivilDate < todayInTzDateString(PLATFORM_TIMEZONE)) {
+        throw new PortalAppointmentDatePastError();
+      }
     }
 
     const tenant = lockedTenant ?? (ctx.tx

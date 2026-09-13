@@ -1,8 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
-import { portalTokenResponseSchema } from '@properfy/shared';
+import { portalTokenResponseSchema, PLATFORM_TIMEZONE, todayInTzDateString, addCivilDays } from '@properfy/shared';
 import { GeneratePortalTokenUseCase } from '../generate-portal-token.use-case';
+import { PortalAppointmentDatePastError } from '../../../domain/rental-tenant-portal.errors';
 import { AppointmentEntity } from '../../../../appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../../appointment/domain/appointment-contact.entity';
+
+/** UTC-midnight Date for a Sydney civil date offset by `deltaDays` from today. */
+function civilDatePlus(deltaDays: number): Date {
+  const civil = addCivilDays(todayInTzDateString(PLATFORM_TIMEZONE), deltaDays);
+  return new Date(`${civil}T00:00:00.000Z`);
+}
 
 /**
  * Unit tests for GeneratePortalTokenUseCase — logger behavior (T007)
@@ -27,7 +34,11 @@ function makeLogger() {
   };
 }
 
-function makeAppointment(): AppointmentEntity {
+// Default to a week ahead so the WI-B8 past-date guard never trips the
+// happy-path fixtures; the past-date tests below override this explicitly.
+const FUTURE_SCHEDULED_DATE = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+function makeAppointment(scheduledDate: Date = FUTURE_SCHEDULED_DATE): AppointmentEntity {
   return new AppointmentEntity({
     id: 'appt-1',
     appointmentNumber: 1,
@@ -37,7 +48,7 @@ function makeAppointment(): AppointmentEntity {
     serviceTypeId: 'svc-1',
     inspectorId: null,
     status: 'SCHEDULED',
-    scheduledDate: new Date('2026-06-01'),
+    scheduledDate,
     timeSlotStart: '09:00', timeSlotEnd: '10:00',
     keyRequired: false,
     meetingLocation: null,
@@ -85,10 +96,11 @@ function makeUseCase(options: {
   logger?: ReturnType<typeof makeLogger>;
   createNotificationUseCase?: { execute: ReturnType<typeof vi.fn> };
   contact?: AppointmentContactEntity | null;
+  scheduledDate?: Date;
 }) {
   const logger = options.logger ?? makeLogger();
   const contact = options.contact !== undefined ? options.contact : makeContact();
-  const appointment = makeAppointment();
+  const appointment = options.scheduledDate ? makeAppointment(options.scheduledDate) : makeAppointment();
 
   const tokenRepo = {
     findActiveByAppointmentId: vi.fn().mockResolvedValue(null),
@@ -126,7 +138,7 @@ function makeUseCase(options: {
     logger as any,
   );
 
-  return { uc, logger, auditService };
+  return { uc, logger, auditService, mintPortalTokenService };
 }
 
 describe('GeneratePortalTokenUseCase — logger behavior on notification dispatch failure', () => {
@@ -328,6 +340,44 @@ describe('GeneratePortalTokenUseCase — WI-B3: truthful dispatched + no recipie
     const logArg = logger.error.mock.calls[0]![0] as Record<string, unknown>;
     expect(logArg).not.toHaveProperty('recipient');
     expect(logArg).toMatchObject({ channel: 'EMAIL', appointmentId: 'appt-1', tenantId: 'tenant-1' });
+  });
+});
+
+describe('GeneratePortalTokenUseCase — WI-B8: block dispatch for past-dated appointments (#33)', () => {
+  it('rejects the dispatch path when the scheduled date is in the past, minting no token', async () => {
+    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }) };
+    const { uc, mintPortalTokenService } = makeUseCase({
+      createNotificationUseCase,
+      scheduledDate: civilDatePlus(-1), // yesterday (Sydney civil)
+    });
+
+    await expect(
+      uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR }),
+    ).rejects.toBeInstanceOf(PortalAppointmentDatePastError);
+    // A born-expired token must never be minted.
+    expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
+  });
+
+  it('allows the dispatch path when the scheduled date is today', async () => {
+    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }) };
+    const { uc } = makeUseCase({
+      createNotificationUseCase,
+      scheduledDate: civilDatePlus(0), // today (Sydney civil) — token stays valid to end of day
+    });
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    expect(result.dispatched).toBe(true);
+  });
+
+  it('does NOT block the Copy Link path (notify:false) for a past date — the operator asked for the link', async () => {
+    const { uc, mintPortalTokenService } = makeUseCase({ scheduledDate: civilDatePlus(-1) });
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR, notify: false });
+
+    expect(result.dispatched).toBe(false);
+    expect((result as { reason?: string }).reason).toBe('NOTIFY_DISABLED');
+    expect(mintPortalTokenService.mint).toHaveBeenCalled();
   });
 });
 

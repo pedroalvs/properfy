@@ -56,6 +56,16 @@ export interface RentalTenantPortalRouteContainer {
 
 const appointmentIdParam = z.object({ appointmentId: z.string().uuid() });
 
+// Concrete response shape of UpdateContactUseCase.execute — modelled on the code
+// (update-contact.use-case.ts), not the finding text. All three are nullable:
+// the serializer strips undeclared fields and 500s (post-commit) on a null under
+// a non-nullable declaration, so the contract must match the handler exactly.
+const portalContactResponseSchema = z.object({
+  rentalTenantName: z.string().nullable(),
+  primaryEmail: z.string().nullable(),
+  primaryPhone: z.string().nullable(),
+});
+
 export async function registerRentalTenantPortalRoutes(
   app: FastifyInstance,
   container: RentalTenantPortalRouteContainer,
@@ -179,7 +189,7 @@ export async function registerRentalTenantPortalRoutes(
   // PATCH /v1/rental-tenant-portal/:token/contact
   app.patch(
     '/v1/rental-tenant-portal/:token/contact',
-    { preHandler: portalAuth, config: { rateLimit: { max: 30, timeWindow: '1 minute' } }, schema: { params: z.object({ token: z.string() }), body: updateContactPortalSchema, response: { 200: z.object({ contact: z.unknown() }) } } },
+    { preHandler: portalAuth, config: { rateLimit: { max: 30, timeWindow: '1 minute' } }, schema: { params: z.object({ token: z.string() }), body: updateContactPortalSchema, response: { 200: z.object({ contact: portalContactResponseSchema }) } } },
     async (request, reply) => {
       const ctx = request.portalContext!;
       const parsed = updateContactPortalSchema.safeParse(request.body);

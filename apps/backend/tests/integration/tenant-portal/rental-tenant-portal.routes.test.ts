@@ -190,7 +190,8 @@ describe('POST /v1/rental-tenant-portal/:token/reschedule — removed', () => {
 describe('PATCH /v1/rental-tenant-portal/:token/contact', () => {
   it('should return 200 on successful contact update', async () => {
     setupPortalAuth();
-    const useCaseResult = { primaryEmail: 'new@email.com' };
+    // Mirror the real UpdateContactUseCase output shape: all three nullable fields.
+    const useCaseResult = { rentalTenantName: null, primaryEmail: 'new@email.com', primaryPhone: null };
     mockUpdateContactExecute.mockResolvedValueOnce(useCaseResult);
 
     const res = await supertest(app.server)
