@@ -149,7 +149,7 @@ describe('PUT /v1/notification-templates/:templateCode/:channel — raw-HTML aut
 
 describe('GET /v1/notification-templates — returns bodyHtml on list/detail (Q2)', () => {
   it('should return bodyHtml in the template list response', async () => {
-    mockListTemplatesExecute.mockResolvedValue({ data: [mockTemplateResponse] });
+    mockListTemplatesExecute.mockResolvedValue({ data: [mockTemplateResponse], total: 1, page: 1, pageSize: 20 });
 
     const res = await supertest(app.server)
       .get('/v1/notification-templates')
