@@ -75,16 +75,19 @@ export function useAppSave(): UseAppSaveReturn {
     try {
       let newId: string | undefined;
       if (appId) {
-        const { error } = await api.PATCH(`/v1/app-credentials/${appId}` as any, { body: toUpdatePayload(data) as any });
+        const { error } = await api.PATCH('/v1/app-credentials/{id}', {
+          params: { path: { id: appId } },
+          body: toUpdatePayload(data),
+        });
         if (error) {
           return { success: false, errorCode: (error as any)?.error?.code, errorMessage: (error as any)?.error?.message ?? 'Request failed' };
         }
       } else {
-        const { data: responseData, error } = await api.POST('/v1/app-credentials' as any, { body: toCreatePayload(data) as any });
+        const { data: responseData, error } = await api.POST('/v1/app-credentials', { body: toCreatePayload(data) });
         if (error) {
           return { success: false, errorCode: (error as any)?.error?.code, errorMessage: (error as any)?.error?.message ?? 'Request failed' };
         }
-        newId = (responseData as any)?.data?.id;
+        newId = responseData?.data?.id;
       }
       queryClient.invalidateQueries({ queryKey: ['app-credentials'] });
       return { success: true, id: newId };
