@@ -3,8 +3,11 @@
  *
  * Only for values the caller can regenerate — a randomly minted token, say —
  * where a fresh attempt is genuinely expected to succeed. The retry is narrowed
- * to a single column on purpose: a blanket `P2002` catch would also swallow an
- * id collision or a duplicated foreign key and quietly paper over a real bug.
+ * to an explicit whitelist of columns on purpose: a blanket `P2002` catch would
+ * also swallow an id collision or a duplicated foreign key and quietly paper
+ * over a real bug. Pass an array to whitelist more than one replayable column
+ * (e.g. a token hash plus a cycle-number index that a concurrent insert can
+ * lose); the conflict is retried when its target hits *any* listed column.
  *
  * The work function must own its transaction. Postgres aborts the whole
  * transaction on a constraint violation, so retrying *inside* someone else's
@@ -17,7 +20,7 @@
  * the code — the column narrowing here is stricter, not established precedent.
  */
 export async function retryOnUniqueConflict<T>(
-  column: string,
+  column: string | string[],
   work: () => Promise<T>,
   attempts = 3,
 ): Promise<T> {
@@ -32,7 +35,7 @@ export async function retryOnUniqueConflict<T>(
   }
 }
 
-function isUniqueConflictOn(error: unknown, column: string): boolean {
+function isUniqueConflictOn(error: unknown, column: string | string[]): boolean {
   if (typeof error !== 'object' || error === null || !('code' in error)) {
     return false;
   }
@@ -40,12 +43,14 @@ function isUniqueConflictOn(error: unknown, column: string): boolean {
     return false;
   }
 
+  const columns = Array.isArray(column) ? column : [column];
+
   // On Postgres, Prisma reports `meta.target` as an array of column names even
   // for a single-column index — that is the shape this code actually sees. The
   // string branch covers connectors that report a bare constraint name.
   const target = (error as { meta?: { target?: unknown } }).meta?.target;
   if (typeof target === 'string') {
-    return target === column;
+    return columns.includes(target);
   }
-  return Array.isArray(target) && target.includes(column);
+  return Array.isArray(target) && target.some((t) => columns.includes(t as string));
 }

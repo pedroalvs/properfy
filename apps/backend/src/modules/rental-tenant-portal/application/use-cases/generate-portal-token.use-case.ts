@@ -56,7 +56,10 @@ export type GeneratePortalTokenOutput =
       token: string;
       expiresAt: Date;
       dispatched: false;
-      reason: 'NOTIFY_DISABLED' | 'NO_PRIMARY_CONTACT' | 'DISPATCH_FAILED';
+      // NO_DISPATCH_CHANNEL: a primary contact exists but carries no email or
+      // phone (or no notification use case is wired), so nothing could be sent.
+      // Distinct from NO_PRIMARY_CONTACT, which means no isPrimary contact row.
+      reason: 'NOTIFY_DISABLED' | 'NO_PRIMARY_CONTACT' | 'NO_DISPATCH_CHANNEL' | 'DISPATCH_FAILED';
     };
 
 /**
@@ -102,8 +105,12 @@ export class GeneratePortalTokenUseCase {
         this.cycleService ? this.prisma : undefined,
         (ctx) => this.executeInTransaction(input, ctx),
       );
+    // Replay the whole transaction on either regenerable/replayable conflict:
+    // the minted token hash, or the confirmation cycle's
+    // @@unique([appointment_id, cycle_number]) that a concurrent createInitial
+    // can lose (createInitial rethrows that P2002 for us to replay here).
     const prepared = this.cycleService && this.prisma
-      ? await retryOnUniqueConflict(TOKEN_HASH_COLUMN, prepare)
+      ? await retryOnUniqueConflict([TOKEN_HASH_COLUMN, 'cycle_number'], prepare)
       : await prepare();
     return prepared.runAfterCommit();
   }
@@ -364,7 +371,7 @@ export class GeneratePortalTokenUseCase {
           // fire-and-forget; token is already saved — failure must not turn the endpoint into a 500.
           // Log the error so dispatch failures are observable (Regras invariant A.2).
           this.logger?.error(
-            { notificationDispatchError, appointmentId: input.appointmentId, tenantId: appointment.tenantId, channel: 'EMAIL', recipient: recipientEmail },
+            { notificationDispatchError, appointmentId: input.appointmentId, tenantId: appointment.tenantId, channel: 'EMAIL' },
             'rental_tenant_portal.notification_dispatch_failed',
           );
         }
@@ -387,19 +394,23 @@ export class GeneratePortalTokenUseCase {
           // fire-and-forget; token is already saved — failure must not turn the endpoint into a 500.
           // Log the error so dispatch failures are observable (Regras invariant A.2).
           this.logger?.error(
-            { notificationDispatchError, appointmentId: input.appointmentId, tenantId: appointment.tenantId, channel: 'SMS', recipient: recipientPhone },
+            { notificationDispatchError, appointmentId: input.appointmentId, tenantId: appointment.tenantId, channel: 'SMS' },
             'rental_tenant_portal.notification_dispatch_failed',
           );
         }
       }
     }
 
-    if (attemptedDispatches > 0 && succeededDispatches === 0) {
+    // Anything short of one successful dispatch is a false "Email sent". Two
+    // shapes reach here: every attempt failed (DISPATCH_FAILED), or nothing was
+    // ever attempted because the primary contact carries no email/phone or no
+    // notification use case is wired (NO_DISPATCH_CHANNEL).
+    if (succeededDispatches === 0) {
       return {
         token: rawToken,
         expiresAt,
         dispatched: false as const,
-        reason: 'DISPATCH_FAILED' as const,
+        reason: attemptedDispatches > 0 ? ('DISPATCH_FAILED' as const) : ('NO_DISPATCH_CHANNEL' as const),
       };
     }
 

@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ReportUnavailabilityUseCase } from '../report-unavailability.use-case';
 import { PortalAppointmentInactiveError } from '../../../domain/rental-tenant-portal.errors';
+import {
+  ConfirmationCycleNotFoundError,
+  ConfirmationCycleAlreadyTerminalError,
+} from '../../../../appointment/domain/confirmation-cycle.errors';
 
 function makeUseCase(overrides: { status?: string; rentalTenantConfirmationStatus?: string } = {}) {
   const appointment = {
@@ -217,5 +221,78 @@ describe('ReportUnavailabilityUseCase — dead statuses', () => {
     const { uc } = makeUseCase({ status });
 
     await expect(uc.execute(BASE_INPUT)).rejects.toBeInstanceOf(PortalAppointmentInactiveError);
+  });
+});
+
+describe('ReportUnavailabilityUseCase — WI-B1: narrow the cycle-service fallback (#484, #495)', () => {
+  function makeUseCaseWithCycle(markUnavailableImpl: () => Promise<unknown>) {
+    const appointment = { id: 'appt-1', tenantId: 'tenant-1', status: 'SCHEDULED', rentalTenantConfirmationStatus: 'PENDING' };
+    const activityRepo = { save: vi.fn() };
+    const appointmentRepo = {
+      findById: vi.fn().mockResolvedValue({ appointment, contact: null, contacts: [], restrictions: [] }),
+      update: vi.fn(),
+      replaceRestrictions: vi.fn(),
+    };
+    const auditService = { log: vi.fn() };
+    const tokenRepo = { tryClaim: vi.fn().mockResolvedValue(true), releaseClaim: vi.fn().mockResolvedValue(undefined) };
+    const statusTransition = { execute: vi.fn().mockResolvedValue({}) };
+    const logger = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
+    const cycleService = { markUnavailable: vi.fn().mockImplementation(markUnavailableImpl) };
+    const uc = new ReportUnavailabilityUseCase(
+      activityRepo as any,
+      appointmentRepo as any,
+      auditService as any,
+      statusTransition as any,
+      undefined,
+      undefined,
+      undefined,
+      tokenRepo as any,
+      cycleService as any,
+      logger as any,
+    );
+    return { uc, appointmentRepo, tokenRepo, statusTransition };
+  }
+
+  it('rethrows a terminal-cycle error and does NOT fall back to a denorm write', async () => {
+    const { uc, appointmentRepo, tokenRepo } = makeUseCaseWithCycle(() =>
+      Promise.reject(new ConfirmationCycleAlreadyTerminalError()),
+    );
+
+    await expect(uc.execute(BASE_INPUT)).rejects.toBeInstanceOf(ConfirmationCycleAlreadyTerminalError);
+    expect(appointmentRepo.update).not.toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.objectContaining({ rentalTenantConfirmationStatus: 'UNAVAILABLE' }),
+    );
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+  });
+
+  it('rethrows a transient DB error and does NOT fall back to a denorm write', async () => {
+    const { uc, appointmentRepo } = makeUseCaseWithCycle(() => Promise.reject(new Error('db down')));
+
+    await expect(uc.execute(BASE_INPUT)).rejects.toThrow('db down');
+    expect(appointmentRepo.update).not.toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.objectContaining({ rentalTenantConfirmationStatus: 'UNAVAILABLE' }),
+    );
+  });
+
+  it('falls back to the denorm write only for a missing cycle (pre-feature appointment)', async () => {
+    const { uc, appointmentRepo, statusTransition } = makeUseCaseWithCycle(() =>
+      Promise.reject(new ConfirmationCycleNotFoundError()),
+    );
+
+    const result = await uc.execute(BASE_INPUT);
+
+    expect(result.rentalTenantConfirmationStatus).toBe('UNAVAILABLE');
+    expect(appointmentRepo.update).toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.objectContaining({ rentalTenantConfirmationStatus: 'UNAVAILABLE' }),
+    );
+    expect(statusTransition.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ targetStatus: 'REJECTED' }),
+    );
   });
 });
