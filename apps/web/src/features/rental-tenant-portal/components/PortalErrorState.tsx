@@ -1,4 +1,4 @@
-import { ApiError } from '@/lib/api-error';
+import { ApiError, isNetworkError } from '@/lib/api-error';
 
 interface PortalErrorStateProps {
   error: ApiError | Error;
@@ -46,7 +46,14 @@ function getPortalErrorMessage(error: ApiError | Error): { title: string; messag
     }
     return { title: 'Error', message: error.message };
   }
-  return { title: 'Connection Error', message: 'Could not connect to the server. Please check your internet connection.' };
+  // Non-ApiError: only a genuine network failure (a fetch TypeError, or one already
+  // normalized to a NETWORK_ERROR ApiError) gets the connection copy. Any other
+  // Error must show its own message — otherwise real failures like
+  // `new Error('No portal token provided')` were masked as a connection problem.
+  if (isNetworkError(error)) {
+    return { title: 'Connection Error', message: 'Could not connect to the server. Please check your internet connection.' };
+  }
+  return { title: 'Error', message: error.message };
 }
 
 export function PortalErrorState({ error, onRetry }: PortalErrorStateProps) {
