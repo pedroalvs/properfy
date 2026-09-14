@@ -50,7 +50,7 @@ export function useTemplateList(): UseTemplateListReturn {
   // AM/OP cross-tenant view (no tenant filter), where per-agency overrides can push
   // the row count past a single page. useAllPagesQuery walks every page (backend
   // pageSize cap 100, hard stop at 5,000 rows) so nothing is silently truncated.
-  const { data: response, isLoading, isError, refetch } = useAllPagesQuery<TemplateListItem>(
+  const { data: response, isLoading, isError, error, refetch } = useAllPagesQuery<TemplateListItem>(
     ['notification-templates'],
     '/v1/notification-templates',
     params,
@@ -85,7 +85,9 @@ export function useTemplateList(): UseTemplateListReturn {
     data: templates,
     isLoading,
     isError,
-    errorMessage: null,
+    // Surface the query error instead of hardcoding null, so the list can show a
+    // real failure message (the API client's ApiError carries `.message`).
+    errorMessage: isError ? (error?.message ?? 'Failed to load notification templates') : null,
     refetch,
     filters,
     setFilters,

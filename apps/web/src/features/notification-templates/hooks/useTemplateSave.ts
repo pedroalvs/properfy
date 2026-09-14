@@ -119,7 +119,12 @@ export function useTemplateSave(): UseTemplateSaveReturn {
     allowedVariables?: readonly string[],
     channel?: NotificationChannel,
   ): TemplateFormErrors => {
-    return validateTemplate(data, requiredVariables, allowedVariables, channel);
+    const errors = validateTemplate(data, requiredVariables, allowedVariables, channel);
+    // Publish the result to state so the form renders inline errors when it aborts
+    // a save. Previously validate() only returned the errors and nothing wrote them,
+    // so validationErrors stayed {} forever and the messages never showed.
+    setValidationErrors(errors);
+    return errors;
   }, []);
 
   const save = useCallback(async (

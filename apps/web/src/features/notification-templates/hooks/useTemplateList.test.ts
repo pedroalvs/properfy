@@ -93,6 +93,17 @@ describe('useTemplateList', () => {
 
     expect(result.current.isError).toBe(true);
     expect(result.current.data).toHaveLength(0);
+    // #598: the hook must surface a real message, not the hardcoded null.
+    expect(result.current.errorMessage).toEqual(expect.any(String));
+    expect(result.current.errorMessage).not.toBe('');
+  });
+
+  it('clears errorMessage back to null on a successful fetch', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateList(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isError).toBe(false);
+    expect(result.current.errorMessage).toBeNull();
   });
 
   it('exposes filters and setFilters', () => {
