@@ -120,9 +120,10 @@ export function useTemplateSave(): UseTemplateSaveReturn {
     channel?: NotificationChannel,
   ): TemplateFormErrors => {
     const errors = validateTemplate(data, requiredVariables, allowedVariables, channel);
-    // Publish the result to state so the form renders inline errors when it aborts
-    // a save. Previously validate() only returned the errors and nothing wrote them,
-    // so validationErrors stayed {} forever and the messages never showed.
+    // `validationErrors` is part of this hook's exposed return contract, but before
+    // this it stayed {} forever because validate() only ever returned the errors and
+    // nothing wrote them (#383). Publish the latest result so the exposed field is
+    // truthful for any consumer that reads it; the return value is unchanged.
     setValidationErrors(errors);
     return errors;
   }, []);

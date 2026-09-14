@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { paths } from '@properfy/shared';
 import { useAllPagesQuery, type ListParams } from '@/hooks/useApiQuery';
+import { getErrorMessage } from '@/lib/api-error';
 import { DEFAULT_TEMPLATE_FILTERS, type NotificationTemplate, type TemplateFiltersState } from '../types';
 
 /**
@@ -85,9 +86,10 @@ export function useTemplateList(): UseTemplateListReturn {
     data: templates,
     isLoading,
     isError,
-    // Surface the query error instead of hardcoding null, so the list can show a
-    // real failure message (the API client's ApiError carries `.message`).
-    errorMessage: isError ? (error?.message ?? 'Failed to load notification templates') : null,
+    // Surface the query error instead of hardcoding null. Use the shared
+    // getErrorMessage policy (like the other feature hooks) so an unsafe 5xx is
+    // collapsed to a generic string rather than leaking a raw backend message.
+    errorMessage: isError ? getErrorMessage(error, 'Failed to load notification templates') : null,
     refetch,
     filters,
     setFilters,
