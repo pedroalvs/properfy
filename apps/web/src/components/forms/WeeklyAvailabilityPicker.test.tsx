@@ -55,6 +55,15 @@ describe('WeeklyAvailabilityPicker', () => {
     expect(onChange).toHaveBeenCalledWith([{ dayOfWeek: 'WED', start: '09:00', end: '12:00' }]);
   });
 
+  // WI-W4 (#491): the time selects must have an accessible name (day + role).
+  it('gives each time select an accessible name from its day', () => {
+    const slots: AvailableSlot[] = [{ dayOfWeek: 'MON', start: '09:00', end: '17:00' }];
+    render(<WeeklyAvailabilityPicker value={slots} onChange={vi.fn()} />);
+
+    expect(screen.getByLabelText('Mon start time')).toBe(screen.getByTestId('start-MON'));
+    expect(screen.getByLabelText('Mon end time')).toBe(screen.getByTestId('end-MON'));
+  });
+
   it('should be disabled when disabled prop is true', () => {
     render(<WeeklyAvailabilityPicker value={[]} onChange={vi.fn()} disabled />);
     const monChip = screen.getByText('Mon');

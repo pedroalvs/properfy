@@ -18,8 +18,8 @@ export function getAvailableGroupSlotKey(group: Pick<AvailableGroup, 'groupId' |
 function SkeletonRow() {
   return (
     <div className="animate-pulse rounded-xl border border-border-subtle bg-card-bg p-4">
-      <div className="mb-2 h-4 w-1/3 rounded bg-gray-200" />
-      <div className="h-3 w-1/2 rounded bg-gray-100" />
+      <div className="mb-2 h-4 w-1/3 rounded bg-black/10" />
+      <div className="h-3 w-1/2 rounded bg-black/5" />
     </div>
   );
 }
@@ -61,13 +61,13 @@ export function AvailableGroupsList({
 
   if (isError) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-center">
-        <p className="mb-3 text-sm text-red-700">Failed to load available times. Please try again.</p>
+      <div className="rounded-xl border border-error/20 bg-error/5 p-4 text-center">
+        <p className="mb-3 text-sm text-error">Failed to load available times. Please try again.</p>
         {onRetry && (
           <button
             type="button"
             onClick={onRetry}
-            className="rounded-full bg-red-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+            className="rounded-full bg-error px-4 py-1.5 text-sm font-medium text-white transition hover:brightness-95"
           >
             Retry
           </button>
@@ -120,6 +120,7 @@ export function AvailableGroupsList({
               key={slotKey}
               type="button"
               data-testid="group-row"
+              aria-pressed={isSelected}
               onClick={() => onSelect(group)}
               className={[
                 'w-full rounded-xl border-[1.5px] bg-card-bg p-3.5 text-left transition-colors',
