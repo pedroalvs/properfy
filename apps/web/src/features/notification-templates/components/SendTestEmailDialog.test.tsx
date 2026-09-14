@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -172,7 +172,12 @@ describe('SendTestEmailDialog', () => {
     await user.click(screen.getByText('Send'));
     await screen.findByText(/valid email/i);
 
-    fireEvent.click(screen.getByText('Cancel'));
+    await user.click(screen.getByText('Cancel'));
+
+    // #724: assert what the title claims — handleClose resets both the input and
+    // the validation error (mirrors SendTestSmsDialog's clear-on-close test).
     expect(onClose).toHaveBeenCalled();
+    expect(screen.queryByText(/valid email/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Recipient email')).toHaveValue('');
   });
 });

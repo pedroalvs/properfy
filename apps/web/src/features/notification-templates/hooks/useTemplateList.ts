@@ -45,7 +45,7 @@ export function useTemplateList(): UseTemplateListReturn {
     tenantId: filters.tenantId || undefined,
   };
 
-  const { data: response, isLoading, isError, refetch } = usePaginatedQuery<TemplateListItem>(
+  const { data: response, isLoading, isError, error, refetch } = usePaginatedQuery<TemplateListItem>(
     ['notification-templates'],
     '/v1/notification-templates',
     params,
@@ -80,7 +80,9 @@ export function useTemplateList(): UseTemplateListReturn {
     data: templates,
     isLoading,
     isError,
-    errorMessage: null,
+    // Surface the query error instead of hardcoding null, so the list can show a
+    // real failure message (the API client's ApiError carries `.message`).
+    errorMessage: isError ? (error?.message ?? 'Failed to load notification templates') : null,
     refetch,
     filters,
     setFilters,
