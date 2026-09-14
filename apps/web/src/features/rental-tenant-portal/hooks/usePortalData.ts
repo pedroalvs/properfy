@@ -33,32 +33,35 @@ function toApiError(error: unknown, response?: Response): ApiError {
   );
 }
 
-// openapi-fetch checks the path template, `params.path` and the request `body`
-// against the generated contract. The response is returned as the feature's
-// curated view-model type (`T`) — the local `../types` shapes remain the app's
-// source of truth for what the UI consumes.
-async function portalGet<T, P extends GetPath = GetPath>(path: P, init: FetchOptions<paths[P]['get']>): Promise<T> {
+// `P` is the sole generic so it is inferred from the `path` argument — that makes
+// openapi-fetch check the path template, `params.path` AND the request `body`
+// against the specific endpoint's contract (not a union of all of them). The
+// returned `data` is the generated response type; the two query call sites cast it
+// to the feature's curated `../types` view-model, which stays the app's source of
+// truth for what the UI consumes.
+async function portalGet<P extends GetPath>(path: P, init: FetchOptions<paths[P]['get']>) {
   const { data, error, response } = await api.GET(path, init);
   if (error) throw toApiError(error, response);
-  return data as T;
+  return data;
 }
 
-async function portalPost<T, P extends PostPath = PostPath>(path: P, init: FetchOptions<paths[P]['post']>): Promise<T> {
+async function portalPost<P extends PostPath>(path: P, init: FetchOptions<paths[P]['post']>) {
   const { data, error, response } = await api.POST(path, init);
   if (error) throw toApiError(error, response);
-  return data as T;
+  return data;
 }
 
-async function portalPatch<T, P extends PatchPath = PatchPath>(path: P, init: FetchOptions<paths[P]['patch']>): Promise<T> {
+async function portalPatch<P extends PatchPath>(path: P, init: FetchOptions<paths[P]['patch']>) {
   const { data, error, response } = await api.PATCH(path, init);
   if (error) throw toApiError(error, response);
-  return data as T;
+  return data;
 }
 
 export function usePortalData(token: string) {
   return useQuery<PortalData, ApiError>({
     queryKey: portalQueryKey(token),
-    queryFn: () => portalGet<PortalData>('/v1/rental-tenant-portal/{token}', { params: { path: { token } } }),
+    queryFn: async () =>
+      (await portalGet('/v1/rental-tenant-portal/{token}', { params: { path: { token } } })) as PortalData,
     enabled: !!token,
     retry: false,
   });
@@ -100,7 +103,8 @@ export function useReportUnavailability(token: string) {
 export function useAvailableGroups(token: string, enabled: boolean) {
   return useQuery<AvailableGroupsData, ApiError>({
     queryKey: [...portalQueryKey(token), 'available-groups'],
-    queryFn: () => portalGet<AvailableGroupsData>('/v1/rental-tenant-portal/{token}/available-groups', { params: { path: { token } } }),
+    queryFn: async () =>
+      (await portalGet('/v1/rental-tenant-portal/{token}/available-groups', { params: { path: { token } } })) as AvailableGroupsData,
     enabled: !!token && enabled,
     retry: false,
   });
