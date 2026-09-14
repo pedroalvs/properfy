@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { ApiError } from '@/lib/api-error';
@@ -22,6 +22,7 @@ interface ConsentOverrideModalProps {
 export function ConsentOverrideModal({ consent, onClose, onSuccess }: ConsentOverrideModalProps) {
   const [reason, setReason] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const mutation = useMutation<void, ApiError, string>({
     mutationFn: async (overrideReason) => {
@@ -68,8 +69,8 @@ export function ConsentOverrideModal({ consent, onClose, onSuccess }: ConsentOve
           </Button>
           <Button
             variant="primary"
-            type="submit"
-            form="consent-override-form"
+            type="button"
+            onClick={() => formRef.current?.requestSubmit()}
             loading={mutation.isPending}
             disabled={!reason.trim()}
           >
@@ -84,7 +85,7 @@ export function ConsentOverrideModal({ consent, onClose, onSuccess }: ConsentOve
         action is audited.
       </p>
 
-      <form id="consent-override-form" onSubmit={handleSubmit}>
+      <form ref={formRef} onSubmit={handleSubmit}>
         <label htmlFor="consent-override-reason" className="mb-2 block text-sm font-medium">
           Reason <span className="text-error">*</span>
         </label>

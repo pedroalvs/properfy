@@ -90,7 +90,10 @@ describe('ConsentOverrideModal', () => {
     );
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Customer called in' } });
-    fireEvent.submit(screen.getByRole('textbox').closest('form')!);
+    // Click the real footer button (not fireEvent.submit on the form): this is the
+    // wiring that ships — the Confirm button lives in Dialog's actions and submits
+    // the form via requestSubmit(), so a broken button would fail here.
+    fireEvent.click(screen.getByRole('button', { name: /Confirm Override/ }));
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce());
     expect(api.POST).toHaveBeenCalledWith(
@@ -113,7 +116,7 @@ describe('ConsentOverrideModal', () => {
     );
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Customer called in' } });
-    fireEvent.submit(screen.getByRole('textbox').closest('form')!);
+    fireEvent.click(screen.getByRole('button', { name: /Confirm Override/ }));
 
     await waitFor(() => expect(screen.getByText(/Already opted in/)).toBeInTheDocument());
     expect(onSuccess).not.toHaveBeenCalled();
