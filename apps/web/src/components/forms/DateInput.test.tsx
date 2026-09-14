@@ -215,6 +215,41 @@ describe('DateInput calendar popover', () => {
     expect(screen.getByText('June 2026')).toBeInTheDocument();
   });
 
+  it('opens the calendar when the field itself is clicked, not just the icon', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="2026-06-15" />);
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await user.click(getInput());
+
+    expect(screen.getByRole('dialog', { name: 'Choose date' })).toBeInTheDocument();
+  });
+
+  it('still lets the user type a date after clicking the field', async () => {
+    const user = userEvent.setup();
+    const onValue = vi.fn();
+    render(<ControlledDateInput onValue={onValue} />);
+
+    await user.click(getInput());
+    await user.type(getInput(), '15062026');
+
+    expect(getInput().value).toBe('15/06/2026');
+    expect(onValue).toHaveBeenLastCalledWith('2026-06-15');
+  });
+
+  it('renders the popup outside the field container so it overlays everything', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<ControlledDateInput initial="2026-06-15" />);
+
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Choose date' });
+    // Portaled to document.body: it must not be nested inside the field's own
+    // container (which lives inside a scrolling modal body in real usage).
+    expect(container.contains(dialog)).toBe(false);
+    expect(dialog).toHaveStyle({ position: 'fixed' });
+  });
+
   it('picking a day sets the value and closes', async () => {
     const user = userEvent.setup();
     const onValue = vi.fn();
@@ -276,6 +311,158 @@ describe('DateInput calendar popover', () => {
 
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(onHostEscape).not.toHaveBeenCalled();
+  });
+
+  it('closes on Escape without bubbling even when focus is inside the portaled panel', async () => {
+    // The popup is portaled to document.body; pressing Escape while focus is on a
+    // control inside it must still be caught locally and stopped, or the host
+    // Dialog's document-level Escape listener would dismiss the whole modal.
+    const user = userEvent.setup();
+    const onHostEscape = vi.fn();
+    render(
+      <div onKeyDown={onHostEscape}>
+        <ControlledDateInput initial="2026-06-15" />
+      </div>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+    // Move focus into the portal (a control that is NOT inside the field container).
+    await user.click(screen.getByRole('button', { name: 'Next month' }));
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onHostEscape).not.toHaveBeenCalled();
+  });
+
+  it('does not reach a document-level Escape listener like the host Dialog uses', async () => {
+    // Dialog/DrawerPanel close via document.addEventListener('keydown'), not a
+    // React handler. A React-synthetic assertion cannot prove the native event is
+    // stopped, so exercise the real thing: with focus inside the portaled panel,
+    // Escape must close only the calendar and never trigger the document listener.
+    const user = userEvent.setup();
+    const onDocumentEscape = vi.fn();
+    const listener = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onDocumentEscape();
+    };
+    // Bubble phase, exactly like Dialog.tsx.
+    document.addEventListener('keydown', listener);
+    try {
+      render(<ControlledDateInput initial="2026-06-15" />);
+      await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+      await user.click(screen.getByRole('button', { name: 'Next month' }));
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(onDocumentEscape).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('keydown', listener);
+    }
+  });
+
+  it('steps into the calendar with Tab and does not jump past it (keyboard access)', async () => {
+    // The panel is portaled to the end of the document, so Tab must be routed into
+    // it explicitly or a keyboard user could never reach the day buttons.
+    const user = userEvent.setup();
+    render(
+      <>
+        <ControlledDateInput initial="2026-06-15" />
+        <button type="button">outside</button>
+      </>,
+    );
+    getInput().focus();
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+
+    getInput().focus();
+    await user.tab();
+
+    const dialog = screen.getByRole('dialog', { name: 'Choose date' });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(screen.getByRole('button', { name: 'outside' })).not.toHaveFocus();
+  });
+
+  it('steps into the calendar with Tab from the calendar button too', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <ControlledDateInput initial="2026-06-15" />
+        <button type="button">outside</button>
+      </>,
+    );
+    const openButton = screen.getByRole('button', { name: 'Open calendar' });
+    await user.click(openButton);
+    openButton.focus();
+    await user.tab();
+
+    const dialog = screen.getByRole('dialog', { name: 'Choose date' });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(screen.getByRole('button', { name: 'outside' })).not.toHaveFocus();
+  });
+
+  it('closes when Shift+Tab moves focus out of the field, leaving no stranded dialog', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <button type="button">before</button>
+        <ControlledDateInput initial="2026-06-15" />
+      </>,
+    );
+    await user.click(getInput());
+    expect(screen.getByRole('dialog', { name: 'Choose date' })).toBeInTheDocument();
+
+    await user.tab({ shift: true });
+
+    expect(screen.getByRole('button', { name: 'before' })).toHaveFocus();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('opens the calendar from the field with ArrowDown and focuses the selected day', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="2026-06-15" />);
+    getInput().focus();
+
+    await user.keyboard('{ArrowDown}');
+
+    expect(screen.getByRole('dialog', { name: 'Choose date' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /15 June 2026/ })).toHaveFocus();
+  });
+
+  it('does not trap Tab: tabbing off the end of the panel closes it and returns to the field', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="2026-06-15" />);
+
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+    // Shift+Tab off the first control (Previous month) is a valid backward exit.
+    screen.getByRole('button', { name: 'Previous month' }).focus();
+    await user.tab({ shift: true });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(getInput()).toHaveFocus();
+  });
+
+  it('advertises the calendar popup on the field for assistive tech', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="2026-06-15" />);
+
+    expect(getInput()).toHaveAttribute('aria-haspopup', 'dialog');
+    expect(getInput()).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(getInput());
+
+    expect(getInput()).toHaveAttribute('aria-expanded', 'true');
+    const dialogId = screen.getByRole('dialog', { name: 'Choose date' }).getAttribute('id');
+    expect(getInput().getAttribute('aria-controls')).toBe(dialogId);
+  });
+
+  it('returns focus to the input when Escape is pressed from inside the calendar', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput initial="2026-06-15" />);
+
+    await user.click(screen.getByRole('button', { name: 'Open calendar' }));
+    await user.click(screen.getByRole('button', { name: 'Next month' }));
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(getInput()).toHaveFocus();
   });
 
   it('offers no calendar button when disabled', () => {
