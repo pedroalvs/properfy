@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SatisfactionSurveyForm } from './SatisfactionSurveyForm';
 
@@ -100,7 +100,8 @@ describe('SatisfactionSurveyForm', () => {
     await user.click(screen.getAllByRole('radio')[4]!);
     setOnline(false);
 
-    expect(await screen.findByRole('button', { name: /submit rating/i })).toBeDisabled();
+    const submitButton = screen.getByRole('button', { name: /submit rating/i });
+    await waitFor(() => expect(submitButton).toBeDisabled());
   });
 
   it('states who sees the answer before it is given', async () => {
