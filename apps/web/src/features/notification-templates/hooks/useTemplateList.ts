@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { paths } from '@properfy/shared';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
+import { getErrorMessage } from '@/lib/api-error';
 import { DEFAULT_TEMPLATE_FILTERS, type NotificationTemplate, type TemplateFiltersState } from '../types';
 
 /**
@@ -45,7 +46,7 @@ export function useTemplateList(): UseTemplateListReturn {
     tenantId: filters.tenantId || undefined,
   };
 
-  const { data: response, isLoading, isError, refetch } = usePaginatedQuery<TemplateListItem>(
+  const { data: response, isLoading, isError, error, refetch } = usePaginatedQuery<TemplateListItem>(
     ['notification-templates'],
     '/v1/notification-templates',
     params,
@@ -80,7 +81,10 @@ export function useTemplateList(): UseTemplateListReturn {
     data: templates,
     isLoading,
     isError,
-    errorMessage: null,
+    // Surface the query error instead of hardcoding null. Use the shared
+    // getErrorMessage policy (like the other feature hooks) so an unsafe 5xx is
+    // collapsed to a generic string rather than leaking a raw backend message.
+    errorMessage: isError ? getErrorMessage(error, 'Failed to load notification templates') : null,
     refetch,
     filters,
     setFilters,

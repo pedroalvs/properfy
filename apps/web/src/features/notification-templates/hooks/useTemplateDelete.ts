@@ -19,8 +19,9 @@ export function useTemplateDelete(): UseTemplateDeleteReturn {
   const deleteTemplate = useCallback(async (templateId: string): Promise<DeleteResult> => {
     setIsDeleting(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (api as any).DELETE(`/v1/notification-templates/${templateId}`);
+      const { error } = await api.DELETE('/v1/notification-templates/{templateId}', {
+        params: { path: { templateId } },
+      });
       if (error) {
         const errObj = error as { error?: { message?: string } };
         return { success: false, error: errObj.error?.message ?? 'Request failed' };

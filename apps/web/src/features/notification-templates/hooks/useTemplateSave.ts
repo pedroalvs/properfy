@@ -106,7 +106,13 @@ export function useTemplateSave(): UseTemplateSaveReturn {
     allowedVariables?: readonly string[],
     channel?: NotificationChannel,
   ): TemplateFormErrors => {
-    return validateTemplate(data, requiredVariables, allowedVariables, channel);
+    const errors = validateTemplate(data, requiredVariables, allowedVariables, channel);
+    // `validationErrors` is part of this hook's exposed return contract, but before
+    // this it stayed {} forever because validate() only ever returned the errors and
+    // nothing wrote them (#383). Publish the latest result so the exposed field is
+    // truthful for any consumer that reads it; the return value is unchanged.
+    setValidationErrors(errors);
+    return errors;
   }, []);
 
   const save = useCallback(async (

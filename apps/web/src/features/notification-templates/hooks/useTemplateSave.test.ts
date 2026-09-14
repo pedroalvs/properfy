@@ -386,4 +386,36 @@ describe('useTemplateSave', () => {
     expect(saveResult?.fieldErrors).toBeUndefined();
     expect(saveResult?.error).toBe('Validation failed');
   });
+
+  // #383: validate() must publish its result to validationErrors state, or the
+  // form's inline messages never render (state stayed {} forever).
+  it('populates validationErrors when validate() finds problems', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+    expect(result.current.validationErrors).toEqual({});
+
+    act(() => {
+      result.current.validate({ subject: '', body: '', active: true }, []);
+    });
+
+    expect(result.current.validationErrors.body).toBe('Body is required');
+    expect(result.current.validationErrors.subject).toBe('Subject is required');
+  });
+
+  it('clears validationErrors after a successful save', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+    act(() => {
+      result.current.validate({ subject: '', body: '', active: true }, []);
+    });
+    expect(Object.keys(result.current.validationErrors).length).toBeGreaterThan(0);
+
+    await act(async () => {
+      await result.current.save('INSPECTION_NOTICE', 'EMAIL', VALID_DATA);
+    });
+
+    expect(result.current.validationErrors).toEqual({});
+  });
 });

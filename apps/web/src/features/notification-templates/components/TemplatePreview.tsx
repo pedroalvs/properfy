@@ -27,7 +27,7 @@ export function TemplatePreview({
         )}
       </h4>
 
-      {showSubject && subject && (
+      {showSubject && (
         <div className="mb-3">
           <span className="text-xs font-semibold text-text-muted">Subject</span>
           <p className="mt-1 text-sm text-text-primary" data-testid="preview-subject">
