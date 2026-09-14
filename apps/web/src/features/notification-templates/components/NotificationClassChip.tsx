@@ -9,12 +9,12 @@ import type { NotificationClass } from '@properfy/shared';
 
 const CLASS_STYLES: Record<NotificationClass, { color: string; label: string; title: string }> = {
   TRANSACTIONAL: {
-    color: 'bg-[#C8E6C9] text-[#1B5E20]',
+    color: 'bg-status-done text-status-done-text',
     label: 'Transactional',
     title: 'Always delivered. Recipients cannot opt out of transactional notifications.',
   },
   OPERATIONAL: {
-    color: 'bg-[#B3E5FC] text-[#01579B]',
+    color: 'bg-status-scheduled text-status-scheduled-text',
     label: 'Operational',
     title: 'Delivered unless the recipient has opted out of this notification class.',
   },
@@ -34,6 +34,7 @@ export function NotificationClassChip({ notificationClass, className = '' }: Not
   const style = CLASS_STYLES[notificationClass];
   return (
     <span
+      data-variant={notificationClass}
       className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${style.color} ${className}`}
       title={style.title}
     >
