@@ -40,6 +40,17 @@ describe('OfferCard', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it('selects the card when its body content (not just the padding) is clicked', () => {
+    // Regression guard: the whole card is a click-to-select surface. A
+    // target===currentTarget guard on onClick would break clicks on the title,
+    // tenant name and info grid — only the bare padding would select.
+    const onClick = vi.fn();
+    render(<OfferCard offer={MOCK_OFFER} selected={false} onClick={onClick} onAccept={vi.fn()} />);
+
+    fireEvent.click(screen.getByText('Routine Inspection'));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
   it('calls onAccept when Accept button is clicked', () => {
     const onAccept = vi.fn();
     const onClick = vi.fn();
@@ -50,6 +61,35 @@ describe('OfferCard', () => {
     const acceptButton = buttons.find((btn) => btn.tagName === 'BUTTON')!;
     fireEvent.click(acceptButton);
     expect(onAccept).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not select the card when Enter bubbles from the nested Accept button (#457)', () => {
+    const onClick = vi.fn();
+    const onAccept = vi.fn();
+    render(<OfferCard offer={MOCK_OFFER} selected={false} onClick={onClick} onAccept={onAccept} />);
+
+    const acceptButton = screen
+      .getAllByRole('button', { name: /Accept/i })
+      .find((btn) => btn.tagName === 'BUTTON')!;
+    // A keydown on the nested button bubbles to the card wrapper; the wrapper must
+    // ignore it (target !== currentTarget) instead of also selecting the card.
+    fireEvent.keyDown(acceptButton, { key: 'Enter' });
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('still selects the card when Enter is pressed on the card wrapper itself', () => {
+    const onClick = vi.fn();
+    render(<OfferCard offer={MOCK_OFFER} selected={false} onClick={onClick} onAccept={vi.fn()} />);
+
+    fireEvent.keyDown(screen.getByTestId('offer-card'), { key: 'Enter' });
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes aria-pressed (valid on role="button"), not aria-selected', () => {
+    render(<OfferCard offer={MOCK_OFFER} selected={true} onClick={vi.fn()} onAccept={vi.fn()} />);
+    const card = screen.getByTestId('offer-card');
+    expect(card).toHaveAttribute('aria-pressed', 'true');
+    expect(card).not.toHaveAttribute('aria-selected');
   });
 
   it('highlights when selected', () => {
