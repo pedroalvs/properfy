@@ -112,7 +112,9 @@ test.describe('date and time inputs are locale-proof', () => {
     await modal.getByLabel('Set scheduled date').pressSequentially('15062026');
     await modal.getByRole('button', { name: 'Open calendar' }).click();
 
-    const calendar = modal.getByRole('dialog', { name: 'Choose date' });
+    // The calendar is rendered into a React portal on document.body, outside the
+    // modal's own DOM subtree, so it must be located from the page, not the modal.
+    const calendar = page.getByRole('dialog', { name: 'Choose date' });
     await expect(calendar).toBeVisible();
 
     // en-AU spells the day before the month; en-US would say 'June 15, 2026'.
