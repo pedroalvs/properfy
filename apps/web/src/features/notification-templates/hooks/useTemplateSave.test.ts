@@ -386,4 +386,56 @@ describe('useTemplateSave', () => {
     expect(saveResult?.fieldErrors).toBeUndefined();
     expect(saveResult?.error).toBe('Validation failed');
   });
+
+  describe('SMS length guard', () => {
+    it('rejects an SMS body that renders over the GSM-7 limit', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const data: TemplateFormData = { subject: '', body: 'a'.repeat(1531), active: true };
+      const errors = result.current.validate(data, [], undefined, 'SMS');
+      expect(errors.body).toMatch(/over the 1530/i);
+    });
+
+    it('rejects an SMS body that renders over the UCS-2 limit', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const data: TemplateFormData = { subject: '', body: 'ç' + 'a'.repeat(670), active: true };
+      const errors = result.current.validate(data, [], undefined, 'SMS');
+      expect(errors.body).toMatch(/over the 670/i);
+    });
+
+    it('accepts an SMS body at the limit', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const data: TemplateFormData = { subject: '', body: 'a'.repeat(1530), active: true };
+      const errors = result.current.validate(data, [], undefined, 'SMS');
+      expect(errors.body).toBeUndefined();
+    });
+
+    it('does not length-check the same body on EMAIL', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const data: TemplateFormData = { subject: 'Subject', body: 'a'.repeat(2000), active: true };
+      const errors = result.current.validate(data, [], undefined, 'EMAIL');
+      expect(errors.body).toBeUndefined();
+    });
+
+    it('appends the length error after an invalid-variable error', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const data: TemplateFormData = {
+        subject: '',
+        body: '{{bogusVar}}' + 'a'.repeat(1531),
+        active: true,
+      };
+      const errors = result.current.validate(data, [], ['rentalTenantName'], 'SMS');
+      expect(errors.body).toMatch(/Invalid variables: bogusVar/);
+      expect(errors.body).toMatch(/over the 1530/i);
+    });
+  });
 });

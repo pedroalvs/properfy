@@ -12,7 +12,9 @@ import {
   isPlatformScopedEditableCode,
   getProtectedClass,
   getDefaultClass,
+  SAMPLE_DATA,
 } from '../../domain/notification.constants';
+import { measureSmsTemplate, describeSmsOverLimit } from '../../domain/sms-content';
 import { NotificationTemplateEntity } from '../../domain/notification-template.entity';
 
 const VALID_CHANNELS: NotificationChannel[] = ['EMAIL', 'SMS'];
@@ -96,6 +98,7 @@ export class UpsertNotificationTemplateUseCase {
     if (!VALID_CHANNELS.includes(input.channel as NotificationChannel)) {
       throw new ValidationError('Invalid notification channel');
     }
+    const isEmail = input.channel.toUpperCase() === 'EMAIL';
 
     // 5. Reject content that would deliver nothing.
     //
@@ -114,10 +117,24 @@ export class UpsertNotificationTemplateUseCase {
       ]);
     }
     // SMS has no subject line — the column stays null for those templates.
-    if (input.channel.toUpperCase() === 'EMAIL' && !input.subject?.trim()) {
+    if (isEmail && !input.subject?.trim()) {
       throw new ValidationError('Subject is required', [
         { code: 'custom', message: 'Subject is required', field: 'subject' },
       ]);
+    }
+
+    // 5b. Reject an SMS body that would exceed the provider's 10-part limit and be
+    // truncated at send. Measured on the SAMPLE_DATA-rendered text (the same source
+    // the editor preview uses), not the raw template: representative values, not
+    // maximal ones, so an atypically long real value can still truncate — the send
+    // path's prepareSmsBody stays the last line of defence. Runs before the sanitizer
+    // (EMAIL-only) so a rejected SMS lands under the Body field, like the empty guard.
+    if (!isEmail) {
+      const measured = measureSmsTemplate(input.bodyHtml, SAMPLE_DATA);
+      if (measured.overLimit) {
+        const message = describeSmsOverLimit(measured);
+        throw new ValidationError(message, [{ code: 'custom', message, field: 'bodyHtml' }]);
+      }
     }
 
     // 6. Resolve notification classification (FR-004, FR-005)
@@ -133,7 +150,7 @@ export class UpsertNotificationTemplateUseCase {
     }
 
     // 7. Sanitizer save-profile validation (EMAIL channel only — SMS uses plain text)
-    if (input.channel.toUpperCase() === 'EMAIL' && this.htmlSanitizer) {
+    if (isEmail && this.htmlSanitizer) {
       const sanitizeResult = this.htmlSanitizer.validateForSave(input.bodyHtml);
       if (!sanitizeResult.safe) {
         throw new UnprocessableEntityError(
@@ -151,7 +168,6 @@ export class UpsertNotificationTemplateUseCase {
     // the send path derive the message from HTML (sanitize → html-to-text), so the
     // delivered SMS was word-wrapped at 120 chars with hrefs expanded while the
     // test-send rendered body_text raw. One template, two different messages.
-    const isEmail = input.channel.toUpperCase() === 'EMAIL';
     const bodyHtml = isEmail ? input.bodyHtml : null;
     const bodyText = isEmail && this.htmlToText ? this.htmlToText.convert(input.bodyHtml) : input.bodyHtml;
 

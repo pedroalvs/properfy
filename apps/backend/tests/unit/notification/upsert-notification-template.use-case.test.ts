@@ -492,6 +492,79 @@ describe('UpsertNotificationTemplateUseCase', () => {
       expect(entity.variablesJson).toContain('scheduledDate');
     });
   });
+
+  describe('SMS length guard', () => {
+    // Guard measures the SAMPLE_DATA-rendered body, so a body of literal chars
+    // maps 1:1. Over the 1530 GSM-7 limit must be refused at save.
+    it('rejects an over-limit GSM-7 SMS body and does not persist it', async () => {
+      const err = await useCase
+        .execute({
+          templateCode: 'INSPECTION_NOTICE_SMS',
+          channel: 'SMS',
+          bodyHtml: 'a'.repeat(1531),
+          isActive: true,
+          actor: makeActor(),
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ValidationError);
+      expect((err as ValidationError).details).toEqual([
+        { code: 'custom', message: expect.any(String), field: 'bodyHtml' },
+      ]);
+      expect(templateRepo.upsert).not.toHaveBeenCalled();
+    });
+
+    it('mentions the sample-value basis in the error message', async () => {
+      await expect(
+        useCase.execute({
+          templateCode: 'INSPECTION_NOTICE_SMS',
+          channel: 'SMS',
+          bodyHtml: 'a'.repeat(1531),
+          isActive: true,
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(/sample values/i);
+    });
+
+    it('rejects an over-limit UCS-2 SMS body at the 670 boundary', async () => {
+      await expect(
+        useCase.execute({
+          templateCode: 'INSPECTION_NOTICE_SMS',
+          channel: 'SMS',
+          bodyHtml: 'ç' + 'a'.repeat(670), // 671 UTF-16 units, non-GSM → UCS-2
+          isActive: true,
+          actor: makeActor(),
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(templateRepo.upsert).not.toHaveBeenCalled();
+    });
+
+    it('accepts an SMS body exactly at the GSM-7 limit', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      await useCase.execute({
+        templateCode: 'INSPECTION_NOTICE_SMS',
+        channel: 'SMS',
+        bodyHtml: 'a'.repeat(1530),
+        isActive: true,
+        actor: makeActor(),
+      });
+
+      expect(templateRepo.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not length-check EMAIL bodies', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      await useCase.execute(
+        makeInput({
+          templateCode: 'INSPECTION_NOTICE',
+          bodyHtml: '<p>' + 'a'.repeat(5000) + '</p>',
+        }),
+      );
+
+      expect(templateRepo.upsert).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 
 describe('notification error codes', () => {
