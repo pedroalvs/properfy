@@ -222,7 +222,7 @@ describe('SendTestNotificationUseCase', () => {
 
   // ── Audit log (EMAIL) ──────────────────────────────────────────────────────
 
-  it('emits audit log with templateCode, recipient, messageId, and channel=EMAIL', async () => {
+  it('audits the MASKED recipient, never the raw address (PII / erasure)', async () => {
     await useCase.execute({ templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL', recipient: 'test@example.com', actor: makeActor() });
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -231,11 +231,15 @@ describe('SendTestNotificationUseCase', () => {
         after: expect.objectContaining({
           templateCode: 'INSPECTION_NOTICE',
           channel: 'EMAIL',
-          recipient: 'test@example.com',
+          recipientMasked: '***.com',
           messageId: 'msg-abc',
         }),
       }),
     );
+    // The raw address must never reach the audit payload.
+    const auditArg = vi.mocked(auditService.log).mock.calls[0]![0] as { after: Record<string, unknown> };
+    expect(auditArg.after).not.toHaveProperty('recipient');
+    expect(JSON.stringify(auditArg.after)).not.toContain('test@example.com');
   });
 
   // ── Sample vars scoping ────────────────────────────────────────────────────
@@ -303,7 +307,7 @@ describe('SendTestNotificationUseCase', () => {
     expect(emailProvider.send).not.toHaveBeenCalled();
   });
 
-  it('SMS audit log has channel=SMS and recipient (not recipientEmail)', async () => {
+  it('SMS audit log has channel=SMS and the MASKED recipient (never the raw phone)', async () => {
     vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(makeSmsTemplate());
     vi.mocked(templateRenderer.render).mockReset().mockReturnValue('Hi John Smith');
     await useCase.execute({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', recipient: '+61412345678', actor: makeActor() });
@@ -312,11 +316,13 @@ describe('SendTestNotificationUseCase', () => {
         action: 'NOTIFICATION_TEMPLATE_TEST_SENT',
         after: expect.objectContaining({
           channel: 'SMS',
-          recipient: '+61412345678',
+          recipientMasked: '***5678',
           messageId: 'sms-msg-xyz',
         }),
       }),
     );
+    const auditArg = vi.mocked(auditService.log).mock.calls[0]![0] as { after: Record<string, unknown> };
+    expect(JSON.stringify(auditArg.after)).not.toContain('+61412345678');
   });
 
   it('SMS returns { messageId, recipient, sentAt }', async () => {

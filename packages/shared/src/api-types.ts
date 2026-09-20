@@ -9169,6 +9169,7 @@ export interface paths {
                                     agency: {
                                         id: string;
                                         name: string;
+                                        branchName?: string | null;
                                     };
                                     tenantContacts: {
                                         name: string;
@@ -11189,6 +11190,8 @@ export interface paths {
                     templateCode?: string;
                     channel?: "EMAIL" | "SMS";
                     includeDefaults?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
+                    page?: number;
+                    pageSize?: number;
                 };
                 header?: never;
                 path?: never;

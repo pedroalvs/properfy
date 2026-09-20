@@ -26,7 +26,11 @@ describe('useTemplateDelete', () => {
       res = await result.current.deleteTemplate('override-1');
     });
 
-    expect(mockDelete).toHaveBeenCalledWith('/v1/notification-templates/override-1');
+    // #373: typed generated-client call, not a string-interpolated URL — a
+    // regression to `/v1/notification-templates/${id}` fails here.
+    expect(mockDelete).toHaveBeenCalledWith('/v1/notification-templates/{templateId}', {
+      params: { path: { templateId: 'override-1' } },
+    });
     expect(res?.success).toBe(true);
   });
 

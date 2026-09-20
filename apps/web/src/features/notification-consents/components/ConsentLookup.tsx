@@ -1,12 +1,23 @@
 import { useState } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { formatInstantDateTime } from '@/lib/format-date';
+import { Button } from '@/components/ui/Button';
+import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
+import { EmptyState } from '@/components/feedback/EmptyState';
+import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { useConsentLookup, type ConsentRecord } from '../hooks/useConsentLookup';
 import { ConsentOverrideModal } from './ConsentOverrideModal';
 
 /**
  * Feature 018 US3: operator consent inspection.
  * Visible only to AM/OP. Recipient search + results table + skipped count.
+ *
+ * This is a submit-based lookup, not a live filter: an operator types a full
+ * email/phone and searches once. That is why it keeps an explicit search form
+ * (design-system Button) rather than the debounced FilterInput / live-filter
+ * FilterBar — those fire on every keystroke, which is wrong for a recipient
+ * lookup. The results table is the shared DataTable and the pre-search prompt is
+ * the shared EmptyState.
  */
 export function ConsentLookup() {
   const { hasRole } = usePermissions();
@@ -21,9 +32,7 @@ export function ConsentLookup() {
   if (!hasRole('AM', 'OP')) {
     return (
       <div className="p-6">
-        <div className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          You do not have permission to view this page.
-        </div>
+        <InfoBanner variant="error">You do not have permission to view this page.</InfoBanner>
       </div>
     );
   }
@@ -36,11 +45,47 @@ export function ConsentLookup() {
     }
   };
 
+  const columns: DataTableColumn<ConsentRecord>[] = [
+    { key: 'channel', label: 'Channel', render: (row) => row.channel },
+    { key: 'notificationClass', label: 'Class', render: (row) => row.notificationClass },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (row) => (
+        <span
+          data-optout={row.optedOut}
+          className={`inline-block rounded px-2 py-0.5 text-xs font-semibold text-text-primary ${
+            row.optedOut ? 'bg-status-cancelled' : 'bg-status-done'
+          }`}
+        >
+          {row.optedOut ? 'Opted Out' : 'Opted In'}
+        </span>
+      ),
+    },
+    { key: 'changeSource', label: 'Source', render: (row) => row.changeSource ?? '—' },
+    {
+      key: 'changedAt',
+      label: 'Changed at',
+      render: (row) => (row.changedAt ? formatInstantDateTime(row.changedAt) : '—'),
+    },
+    {
+      key: 'actions',
+      label: '',
+      align: 'right',
+      render: (row) =>
+        row.optedOut ? (
+          <Button variant="outlined" onClick={() => setSelectedConsent(row)}>
+            Override
+          </Button>
+        ) : null,
+    },
+  ];
+
   return (
     <div className="p-6">
       <h1 className="mb-4 text-2xl font-bold text-secondary">Consent Lookup</h1>
       <p className="mb-6 text-sm text-text-secondary">
-        Look up a recipient's opt-out status across channels and classifications.
+        Look up a recipient&apos;s opt-out status across channels and classifications.
       </p>
 
       <form onSubmit={handleSearch} className="mb-6 flex gap-2">
@@ -49,89 +94,41 @@ export function ConsentLookup() {
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Enter email or phone"
-          className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          className="flex-1 rounded border border-border-subtle px-3 py-2 text-sm focus:border-primary focus:outline-none"
           aria-label="Recipient (email or phone)"
         />
-        <button
-          type="submit"
-          disabled={!searchInput.trim()}
-          className="rounded bg-[#F37A76] px-4 py-2 text-sm font-semibold text-white hover:bg-[#E8665F] disabled:opacity-50"
-        >
+        <Button type="submit" variant="primary" disabled={!searchInput.trim()}>
           Search
-        </button>
+        </Button>
       </form>
 
-      {activeRecipient && (
-        <div className="rounded border border-gray-200 bg-white p-4">
-          {isLoading && <div className="text-sm text-text-secondary">Loading consents…</div>}
-          {isError && (
-            <div className="text-sm text-red-600">
-              Failed to load consents: {error?.message ?? 'Unknown error'}
+      {activeRecipient === null ? (
+        <EmptyState
+          icon="mdi-account-search-outline"
+          title="Enter a recipient to search"
+          description="Search by email or phone to see a recipient's opt-out status across channels and classifications."
+        />
+      ) : (
+        <div className="rounded border border-border-subtle bg-card-bg p-4">
+          {!isLoading && !isError && data && (
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-sm">
+                Recipient: <span className="font-semibold">{data.recipient}</span>
+              </div>
+              <div className="text-xs text-text-muted">
+                Skipped notifications: <span className="font-semibold">{data.skippedCount}</span>
+              </div>
             </div>
           )}
-          {!isLoading && !isError && data && (
-            <>
-              <div className="mb-3 flex items-center justify-between">
-                <div className="text-sm">
-                  Recipient: <span className="font-semibold">{data.recipient}</span>
-                </div>
-                <div className="text-xs text-text-muted">
-                  Skipped notifications: <span className="font-semibold">{data.skippedCount}</span>
-                </div>
-              </div>
-              {data.entries.length === 0 ? (
-                <div className="py-6 text-center text-sm text-text-muted">
-                  No consent records for this recipient.
-                </div>
-              ) : (
-                <table className="w-full text-left text-sm">
-                  <thead className="border-b border-gray-200 text-xs font-bold text-text-secondary">
-                    <tr>
-                      <th className="py-2">Channel</th>
-                      <th className="py-2">Class</th>
-                      <th className="py-2">Status</th>
-                      <th className="py-2">Source</th>
-                      <th className="py-2">Changed at</th>
-                      <th className="py-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.entries.map((entry) => (
-                      <tr key={entry.id} className="border-b border-gray-100">
-                        <td className="py-2">{entry.channel}</td>
-                        <td className="py-2">{entry.notificationClass}</td>
-                        <td className="py-2">
-                          <span
-                            className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${
-                              entry.optedOut
-                                ? 'bg-[#FFCDD2] text-[#B71C1C]'
-                                : 'bg-[#C8E6C9] text-[#1B5E20]'
-                            }`}
-                          >
-                            {entry.optedOut ? 'Opted Out' : 'Opted In'}
-                          </span>
-                        </td>
-                        <td className="py-2">{entry.changeSource ?? '—'}</td>
-                        <td className="py-2 text-text-secondary">
-                          {entry.changedAt ? formatInstantDateTime(entry.changedAt) : '—'}
-                        </td>
-                        <td className="py-2">
-                          {entry.optedOut && (
-                            <button
-                              onClick={() => setSelectedConsent(entry)}
-                              className="text-xs text-primary underline hover:text-primary/80"
-                            >
-                              Override
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </>
-          )}
+          <DataTable
+            columns={columns}
+            data={data?.entries ?? []}
+            loading={isLoading}
+            error={isError ? `Failed to load consents: ${error?.message ?? 'Unknown error'}` : undefined}
+            onRetryError={refetch}
+            emptyMessage="No consent records for this recipient."
+            keyExtractor={(row) => row.id}
+          />
         </div>
       )}
 

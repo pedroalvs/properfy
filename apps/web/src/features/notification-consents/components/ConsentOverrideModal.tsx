@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { ApiError } from '@/lib/api-error';
+import { Dialog } from '@/components/ui/Dialog';
+import { Button } from '@/components/ui/Button';
+import { InfoBanner } from '@/components/feedback/InfoBanner';
 import type { ConsentRecord } from '../hooks/useConsentLookup';
 
 interface ConsentOverrideModalProps {
@@ -12,11 +15,14 @@ interface ConsentOverrideModalProps {
 
 /**
  * Feature 018 US4: operator override modal. Mandatory reason. On success,
- * calls onSuccess (the parent refetches).
+ * calls onSuccess (the parent refetches). Built on the shared Dialog primitive,
+ * so labelling, focus trap and Escape handling come from the design system
+ * rather than a hand-rolled `fixed inset-0` overlay.
  */
 export function ConsentOverrideModal({ consent, onClose, onSuccess }: ConsentOverrideModalProps) {
   const [reason, setReason] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const mutation = useMutation<void, ApiError, string>({
     mutationFn: async (overrideReason) => {
@@ -52,52 +58,53 @@ export function ConsentOverrideModal({ consent, onClose, onSuccess }: ConsentOve
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded bg-white p-6 shadow-lg">
-        <h2 className="mb-4 text-lg font-medium text-secondary">Override Opt-Out</h2>
-        <p className="mb-4 text-sm text-text-secondary">
-          You are re-subscribing <strong>{consent.recipient}</strong> on{' '}
-          <strong>{consent.channel}</strong> ({consent.notificationClass}) on their behalf. This
-          action is audited.
-        </p>
+    <Dialog
+      open
+      onClose={onClose}
+      title="Override Opt-Out"
+      actions={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            type="button"
+            onClick={() => formRef.current?.requestSubmit()}
+            loading={mutation.isPending}
+            disabled={!reason.trim()}
+          >
+            Confirm Override
+          </Button>
+        </>
+      }
+    >
+      <p className="mb-4 text-sm text-text-secondary">
+        You are re-subscribing <strong>{consent.recipient}</strong> on{' '}
+        <strong>{consent.channel}</strong> ({consent.notificationClass}) on their behalf. This
+        action is audited.
+      </p>
 
-        <form onSubmit={handleSubmit}>
-          <label className="mb-2 block text-sm font-medium">
-            Reason <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={4}
-            maxLength={1000}
-            className="mb-3 w-full rounded border border-gray-300 p-2 text-sm focus:border-primary focus:outline-none"
-            placeholder="Contact called in to confirm they want to receive notifications"
-            required
-          />
-          {errorMsg && (
-            <div className="mb-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-800">
-              {errorMsg}
-            </div>
-          )}
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
-              disabled={mutation.isPending}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={mutation.isPending || !reason.trim()}
-              className="rounded bg-[#F37A76] px-4 py-2 text-sm font-semibold text-white hover:bg-[#E8665F] disabled:opacity-50"
-            >
-              {mutation.isPending ? 'Overriding…' : 'Confirm Override'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      <form ref={formRef} onSubmit={handleSubmit}>
+        <label htmlFor="consent-override-reason" className="mb-2 block text-sm font-medium">
+          Reason <span className="text-error">*</span>
+        </label>
+        <textarea
+          id="consent-override-reason"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={4}
+          maxLength={1000}
+          className="w-full rounded border border-border-subtle p-2 text-sm focus:border-primary focus:outline-none"
+          placeholder="Contact called in to confirm they want to receive notifications"
+          required
+        />
+        {errorMsg && (
+          <InfoBanner variant="error" className="mt-3">
+            {errorMsg}
+          </InfoBanner>
+        )}
+      </form>
+    </Dialog>
   );
 }

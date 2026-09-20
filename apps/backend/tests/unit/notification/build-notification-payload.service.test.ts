@@ -211,10 +211,31 @@ describe('BuildNotificationPayloadService', () => {
     expect(result.confirmationLink).toContain('tok%2Ben%3Dspecial');
   });
 
-  it('H3: confirmationLink and rescheduleLink are empty when no rawPortalToken', () => {
+  it('H3: confirmationLink and rescheduleLink are empty when no rawPortalToken (optional-link template)', () => {
+    // INSPECTION_NOTICE lists confirmationLink as OPTIONAL, so a missing token
+    // renders empty rather than throwing.
     const result = svc.build(baseCtx({ rawPortalToken: null }));
     expect(result.confirmationLink).toBe('');
     expect(result.rescheduleLink).toBe('');
+  });
+
+  it('#1055: throws for a template that REQUIRES the link when no token was minted', () => {
+    // TENANT_PORTAL_LINK requires confirmationLink; INSPECTION_SATISFACTION_SURVEY
+    // requires surveyLink. With rawPortalToken null the link key is now absent, so
+    // the required-variable guard throws instead of shipping a dead ''.
+    expect(() =>
+      svc.build(baseCtx({ templateCode: 'TENANT_PORTAL_LINK', rawPortalToken: null })),
+    ).toThrow(MissingRequiredVariableError);
+    expect(() =>
+      svc.build(baseCtx({ templateCode: 'INSPECTION_SATISFACTION_SURVEY', rawPortalToken: null })),
+    ).toThrow(MissingRequiredVariableError);
+  });
+
+  it('#1055: renders the required link when a token IS minted', () => {
+    const result = svc.build(
+      baseCtx({ templateCode: 'TENANT_PORTAL_LINK', rawPortalToken: 'tok', portalBaseUrl: 'https://app.properfy.me' }),
+    );
+    expect(result.confirmationLink).toBe('https://app.properfy.me/portal/tok');
   });
 
   // ── Tenant mismatch guard ─────────────────────────────────────────────────

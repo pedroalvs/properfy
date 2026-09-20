@@ -50,6 +50,10 @@ export const listNotificationTemplatesQuerySchema = z.object({
   templateCode: z.string().optional(),
   channel: z.enum(['EMAIL', 'SMS']).optional(),
   includeDefaults: booleanQueryParam().default(true),
+  // Real pagination (bounds mirror the shared paginationSchema). The route used to
+  // fabricate `total = data.length`; the use case now honours these.
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 export type ListNotificationTemplatesQuery = z.infer<typeof listNotificationTemplatesQuerySchema>;
 
