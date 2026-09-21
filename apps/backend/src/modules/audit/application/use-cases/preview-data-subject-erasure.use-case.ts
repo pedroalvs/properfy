@@ -1,5 +1,4 @@
 import type { AuthContext } from '@properfy/shared';
-import type { PrismaClient } from '@prisma/client';
 import type { IDataSubjectErasureRequestRepository } from '../../domain/data-subject-erasure-request.repository';
 import type { IAuditLogRepository, PiiSearchMatch } from '../../domain/audit-log.repository';
 import type { IPiiFieldMappingRepository } from '../../domain/pii-field-mapping.repository';
@@ -7,6 +6,7 @@ import type {
   IErasurePiiResolver,
   DataSubjectIdentifierType,
 } from '../../domain/erasure-pii-resolver';
+import type { ITenantPortalActivityScanner } from '../../domain/tenant-portal-activity-scanner';
 import { DataSubjectErasureRequestEntity } from '../../domain/data-subject-erasure-request.entity';
 import { ErasureForbiddenError } from '../../domain/audit.errors';
 
@@ -37,11 +37,6 @@ export interface PreviewDataSubjectErasureOutput {
   entriesFlaggedForReview: number;
 }
 
-interface RentalTenantPortalMatch {
-  id: string;
-  isArchived: boolean;
-}
-
 /**
  * Feature 020 FR-014 / FR-019: AM-only preview phase of the data subject
  * erasure workflow.
@@ -65,7 +60,7 @@ export class PreviewDataSubjectErasureUseCase {
     private readonly auditLogRepo: IAuditLogRepository,
     private readonly piiFieldMappingRepo: IPiiFieldMappingRepository,
     private readonly erasurePiiResolver: IErasurePiiResolver,
-    private readonly prisma: PrismaClient,
+    private readonly portalActivityScanner: ITenantPortalActivityScanner,
   ) {}
 
   async execute(input: PreviewDataSubjectErasureInput): Promise<PreviewDataSubjectErasureOutput> {
@@ -111,9 +106,11 @@ export class PreviewDataSubjectErasureUseCase {
           })
         : [];
 
-    // 5. Scan hot + cold rental_tenant_portal_activities
+    // 5. Scan hot + cold rental_tenant_portal_activities (via the domain port)
     const portalMatches =
-      resolved.piiValues.length > 0 ? await this.scanRentalTenantPortalActivities(resolved.piiValues) : { hot: [], cold: [] };
+      resolved.piiValues.length > 0
+        ? await this.portalActivityScanner.scanByValues(resolved.piiValues)
+        : { hot: [], cold: [] };
 
     // 6. Classify
     const byCategory = {
@@ -129,11 +126,6 @@ export class PreviewDataSubjectErasureUseCase {
       rentalTenantPortalCold: portalMatches.cold.length,
     };
     let flaggedForReview = 0;
-
-    const mappingsByActionPrefix = new Map<string, boolean>();
-    for (const mapping of mappings) {
-      mappingsByActionPrefix.set(mapping.actionPattern, true);
-    }
 
     for (const match of auditMatches) {
       if (match.isArchived) byTier.cold++;
@@ -166,38 +158,6 @@ export class PreviewDataSubjectErasureUseCase {
       byCategory,
       byTier,
       entriesFlaggedForReview: flaggedForReview,
-    };
-  }
-
-  /**
-   * Scans `rental_tenant_portal_activities` and `rental_tenant_portal_activities_archive`
-   * using the same ILIKE-ANY strategy as `searchPiiByValues`. Returns id-only
-   * matches grouped by tier.
-   */
-  private async scanRentalTenantPortalActivities(
-    values: string[],
-  ): Promise<{ hot: RentalTenantPortalMatch[]; cold: RentalTenantPortalMatch[] }> {
-    if (values.length === 0) return { hot: [], cold: [] };
-    const likePatterns = values.map((v) => `%${v}%`);
-
-    const hotRows: Array<{ id: string }> = await this.prisma.$queryRawUnsafe(
-      `SELECT id FROM "rental_tenant_portal_activities"
-       WHERE previous_values_json::text ILIKE ANY($1::text[])
-          OR new_values_json::text ILIKE ANY($1::text[])
-       LIMIT 5000`,
-      likePatterns,
-    );
-    const coldRows: Array<{ id: string }> = await this.prisma.$queryRawUnsafe(
-      `SELECT id FROM "rental_tenant_portal_activities_archive"
-       WHERE previous_values_json::text ILIKE ANY($1::text[])
-          OR new_values_json::text ILIKE ANY($1::text[])
-       LIMIT 5000`,
-      likePatterns,
-    );
-
-    return {
-      hot: hotRows.map((r) => ({ id: r.id, isArchived: false })),
-      cold: coldRows.map((r) => ({ id: r.id, isArchived: true })),
     };
   }
 }

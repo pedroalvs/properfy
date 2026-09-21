@@ -1,6 +1,7 @@
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { LoadingState } from '@/components/feedback/LoadingState';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import { useReportDetail } from '../hooks/useReportDetail';
 import { ReportStatusChip } from './ReportStatusChip';
 import { ReportDetailSections } from './ReportDetailSections';
@@ -13,7 +14,7 @@ interface ReportDetailDrawerProps {
 }
 
 export function ReportDetailDrawer({ reportId, open, onClose }: ReportDetailDrawerProps) {
-  const { report, isLoading } = useReportDetail(reportId);
+  const { report, isLoading, isError, refetch } = useReportDetail(reportId);
 
   return (
     <DrawerPanel open={open} onClose={onClose} size="narrow">
@@ -23,6 +24,18 @@ export function ReportDetailDrawer({ reportId, open, onClose }: ReportDetailDraw
             <DrawerHeader title="Loading..." onClose={onClose} />
             <div className="flex-1 px-6 py-4">
               <LoadingState rows={6} />
+            </div>
+          </>
+        ) : isError ? (
+          /* W4 #420: recoverable in-drawer error instead of falling through to null. */
+          <>
+            <DrawerHeader title="Report" onClose={onClose} />
+            <div className="flex-1 px-6 py-4">
+              <ErrorState
+                message="Couldn't load the report."
+                detail="Please try again."
+                onRetry={refetch}
+              />
             </div>
           </>
         ) : report ? (

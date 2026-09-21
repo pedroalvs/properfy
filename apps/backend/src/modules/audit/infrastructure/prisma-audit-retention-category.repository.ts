@@ -1,10 +1,15 @@
 import type { PrismaClient } from '@prisma/client';
-import type { AuditRetentionCategory as PrismaAuditRetentionCategory } from '@prisma/client';
+import type {
+  AuditRetentionCategory as PrismaAuditRetentionCategory,
+  AuditRetentionCategoryConfig as PrismaAuditRetentionCategoryConfigRow,
+} from '@prisma/client';
 import type { AuditRetentionCategory } from '@properfy/shared';
 import { AuditRetentionCategoryConfigEntity } from '../domain/audit-retention-category.entity';
 import type { IAuditRetentionCategoryRepository } from '../domain/audit-retention-category.repository';
 
-function mapToEntity(row: any): AuditRetentionCategoryConfigEntity {
+// #756: type the mapper with the generated Prisma row so retention_years /
+// hard_delete_enabled / action_patterns_json are compile-checked.
+function mapToEntity(row: PrismaAuditRetentionCategoryConfigRow): AuditRetentionCategoryConfigEntity {
   return new AuditRetentionCategoryConfigEntity({
     id: row.id,
     name: row.name,

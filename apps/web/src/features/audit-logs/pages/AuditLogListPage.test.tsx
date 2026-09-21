@@ -66,7 +66,8 @@ describe('AuditLogListPage', () => {
     renderPage();
     expect(screen.getByLabelText('Actor')).toBeInTheDocument();
     expect(screen.getByLabelText('Entity Type')).toBeInTheDocument();
-    expect(screen.getByLabelText('Entity ID')).toBeInTheDocument();
+    // W1 #751: the raw entity-id UUID input was removed.
+    expect(screen.queryByLabelText('Entity ID')).toBeNull();
     expect(screen.getByLabelText('Action')).toBeInTheDocument();
   });
 

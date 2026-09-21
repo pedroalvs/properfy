@@ -395,6 +395,108 @@ describe('AuditRetentionWorker (Feature 020 reshape)', () => {
     expect(auditLogRepo.hardDeleteFromArchive).not.toHaveBeenCalled();
   });
 
+  function buildSmallBatchWorker(batchSize: number) {
+    return new AuditRetentionWorker(
+      prisma as any,
+      auditLogRepo,
+      categoryRepo,
+      legalHoldRepo,
+      preservationRuleRepo,
+      auditService,
+      logger,
+      batchSize,
+    );
+  }
+
+  it('terminates on a full page of entirely-preserved rows via the keyset cursor (#136)', async () => {
+    const category = makeCategory('OPERATIONAL_GENERAL', 2);
+    const hold = new AuditLegalHoldEntity({
+      id: 'h1',
+      entityType: 'Property',
+      entityId: 'prop-1',
+      tenantId: null,
+      reason: 'dispute',
+      placedByUserId: 'u1',
+      placedAt: new Date(),
+      releasedByUserId: null,
+      releasedAt: null,
+      isActive: true,
+    });
+    build({ categories: [category], holds: [hold] });
+    worker = buildSmallBatchWorker(2); // a 2-row page is now a "full" page
+
+    const fullPage = [
+      makeEntry({ id: 'a', entityType: 'Property', entityId: 'prop-1', retentionCategory: 'OPERATIONAL_GENERAL' }),
+      makeEntry({ id: 'b', entityType: 'Property', entityId: 'prop-1', retentionCategory: 'OPERATIONAL_GENERAL' }),
+    ];
+    let calls = 0;
+    (auditLogRepo.findEligibleForRetention as any).mockImplementation(
+      async (_c: unknown, _co: unknown, _s: unknown, afterId?: string) => {
+        calls++;
+        if (calls > 20) return []; // safety net so a buggy no-cursor loop can't hang the suite
+        // Keyset semantics: the same full page is returned only for the first
+        // (cursor-less) query; a query past its last id returns nothing.
+        return afterId ? [] : fullPage;
+      },
+    );
+
+    const result = await worker.execute();
+
+    // The fixed worker advances the cursor and finishes in exactly two queries;
+    // the buggy no-cursor worker re-queries the same page and trips the cap.
+    expect(calls).toBeLessThanOrEqual(2);
+    expect(result.movedCount).toBe(0);
+    expect(result.preservedByRule.legalHold).toBe(2);
+    expect(auditLogRepo.moveToCold).not.toHaveBeenCalled();
+  });
+
+  it('processes two eligible keyset pages exactly once each (#136 cursor advance)', async () => {
+    const category = makeCategory('OPERATIONAL_GENERAL', 2);
+    build({ categories: [category] });
+    worker = buildSmallBatchWorker(2);
+
+    const page1 = [
+      makeEntry({ id: 'p1a', retentionCategory: 'OPERATIONAL_GENERAL' }),
+      makeEntry({ id: 'p1b', retentionCategory: 'OPERATIONAL_GENERAL' }),
+    ];
+    const page2 = [
+      makeEntry({ id: 'p2a', retentionCategory: 'OPERATIONAL_GENERAL' }),
+      makeEntry({ id: 'p2b', retentionCategory: 'OPERATIONAL_GENERAL' }),
+    ];
+    let calls = 0;
+    (auditLogRepo.findEligibleForRetention as any).mockImplementation(
+      async (_c: unknown, _co: unknown, _s: unknown, afterId?: string) => {
+        calls++;
+        if (calls > 10) return []; // safety net so a cursor regression can't hang the suite
+        if (!afterId) return page1;
+        if (afterId === 'p1b') return page2;
+        return [];
+      },
+    );
+    (auditLogRepo.moveToCold as any).mockImplementation(async (ids: string[]) => ids.length);
+
+    const result = await worker.execute();
+
+    expect(auditLogRepo.moveToCold).toHaveBeenNthCalledWith(1, ['p1a', 'p1b']);
+    expect(auditLogRepo.moveToCold).toHaveBeenNthCalledWith(2, ['p2a', 'p2b']);
+    expect(result.movedCount).toBe(4);
+  });
+
+  it('stamps a shared runId on the self-audit entry requestId (#636)', async () => {
+    const category = makeCategory('OPERATIONAL_GENERAL', 2);
+    build({ categories: [category] });
+    (auditLogRepo.findEligibleForRetention as any).mockResolvedValueOnce([]);
+
+    await worker.execute();
+
+    const call = (auditService.log as any).mock.calls[0][0];
+    expect(call.action).toBe('audit.retention_run_completed');
+    expect(typeof call.requestId).toBe('string');
+    expect(call.requestId.length).toBeGreaterThan(0);
+    // The metadata.runId and the requestId must be the same correlation id.
+    expect(call.metadata.runId).toBe(call.requestId);
+  });
+
   it('emits a self-audit entry with run summary (FR-028)', async () => {
     const category = makeCategory('OPERATIONAL_GENERAL', 2);
     build({ categories: [category] });

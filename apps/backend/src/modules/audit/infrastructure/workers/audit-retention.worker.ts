@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { PrismaClient } from '@prisma/client';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { PersistentAuditService } from '../../application/services/persistent-audit.service';
@@ -59,6 +60,9 @@ export class AuditRetentionWorker {
 
   async execute(now: Date = new Date()): Promise<AuditRetentionResult> {
     const startedAt = now;
+    // #636: one correlation id for the whole run — stamped on every log line
+    // and on the self-audit entry's requestId (root CLAUDE.md §9).
+    const runId = randomUUID();
     const result: AuditRetentionResult = {
       movedCount: 0,
       preservedCount: 0,
@@ -73,7 +77,7 @@ export class AuditRetentionWorker {
       const categories = await this.retentionCategoryRepo.findAll();
       if (categories.length === 0) {
         this.logger.warn(
-          {},
+          { runId },
           'audit retention: no category config found — run seed migration first',
         );
         return result;
@@ -85,10 +89,10 @@ export class AuditRetentionWorker {
       for (const category of categories) {
         const cutoffDate = new Date(now.getTime() - category.retentionMs());
         try {
-          await this.processCategoryMove(category.name, cutoffDate, legalHolds, result);
+          await this.processCategoryMove(category.name, cutoffDate, legalHolds, result, runId);
         } catch (err) {
           this.logger.error(
-            { err, category: category.name },
+            { err, runId, category: category.name },
             'audit retention: processCategoryMove failed, continuing to next category',
           );
           result.erroredCount++;
@@ -106,7 +110,7 @@ export class AuditRetentionWorker {
           result.hardDeletedCount += count;
         } catch (err) {
           this.logger.error(
-            { err, category: category.name },
+            { err, runId, category: category.name },
             'audit retention: hardDeleteSweep failed',
           );
           result.erroredCount++;
@@ -121,23 +125,27 @@ export class AuditRetentionWorker {
           result.rentalTenantPortalMovedCount += moved;
         } catch (err) {
           this.logger.error(
-            { err, category: category.name },
+            { err, runId, category: category.name },
             'audit retention: tenant portal move failed',
           );
           result.erroredCount++;
         }
       }
     } catch (err) {
-      this.logger.error({ err }, 'audit retention worker fatal error');
+      this.logger.error({ err, runId }, 'audit retention worker fatal error');
       result.erroredCount++;
     }
 
-    // Emit the self-audit entry summarizing the run (FR-028).
+    // Emit the self-audit entry summarizing the run (FR-028). #636: correlate
+    // it with the run via requestId so the log lines and the audit entry share
+    // one id.
     this.auditService.log({
       actorType: 'SYSTEM',
       entityType: 'AuditRetention',
       action: 'audit.retention_run_completed',
+      requestId: runId,
       metadata: {
+        runId,
         movedCount: result.movedCount,
         preservedCount: result.preservedCount,
         preservedByRule: result.preservedByRule,
@@ -150,7 +158,7 @@ export class AuditRetentionWorker {
       },
     });
 
-    this.logger.info(result, 'audit retention sweep completed');
+    this.logger.info({ ...result, runId }, 'audit retention sweep completed');
 
     return result;
   }
@@ -162,14 +170,20 @@ export class AuditRetentionWorker {
     cutoffDate: Date,
     legalHolds: AuditLegalHoldEntity[],
     result: AuditRetentionResult,
+    runId: string,
   ): Promise<void> {
     let hasMore = true;
+    // #136: keyset cursor. Each page queries strictly past the previous page's
+    // last id, so a full page of entirely-preserved rows advances the cursor
+    // instead of being re-queried forever.
+    let afterId: string | undefined;
 
     while (hasMore) {
       const batch = await this.auditLogRepo.findEligibleForRetention(
         category,
         cutoffDate,
         this.batchSize,
+        afterId,
       );
 
       if (batch.length === 0) {
@@ -229,12 +243,23 @@ export class AuditRetentionWorker {
         result.movedCount += moved;
       }
 
-      // Stop iterating when the eligible batch was smaller than the page size
-      // to avoid an infinite loop when every row in the page is preserved.
+      // Advance the cursor past the whole page (preserved rows included) so the
+      // next query never returns a row we have already evaluated. `batch` is
+      // non-empty here (the length-0 case broke out above); the guard satisfies
+      // noUncheckedIndexedAccess.
+      const lastRow = batch[batch.length - 1];
+      if (lastRow) afterId = lastRow.id;
+
+      // A short page means we reached the end of the eligible set.
       if (batch.length < this.batchSize) {
         hasMore = false;
       }
     }
+
+    this.logger.debug(
+      { runId, category },
+      'audit retention: category move pass complete',
+    );
   }
 
   /**
