@@ -39,6 +39,12 @@ export class ListAvailabilitySlotsUseCase {
   async execute(input: ListAvailabilitySlotsInput): Promise<ListAvailabilitySlotsOutput> {
     const { inspectorId, filters, pagination, actor } = input;
 
+    // The inspector filter that is actually applied to the query. For INSP it is
+    // ALWAYS forced to the actor's own id — even when the request omits the param —
+    // so the query can never fall back to an unscoped read over every inspector's
+    // slots (#118). For AM/OP it stays optional (list all, or filter by one).
+    let effectiveInspectorId = inspectorId;
+
     if (actor.role === 'INSP') {
       if (!actor.inspectorId) {
         throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
@@ -47,13 +53,14 @@ export class ListAvailabilitySlotsUseCase {
       if (resolvedInspectorId !== actor.inspectorId) {
         throw new ForbiddenError('FORBIDDEN', "Cannot access another inspector's data");
       }
+      effectiveInspectorId = actor.inspectorId;
     } else if (actor.role !== 'AM' && actor.role !== 'OP') {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
     const fullFilters: AvailabilitySlotFilters = {
       ...filters,
-      ...(inspectorId !== undefined ? { inspectorId } : {}),
+      ...(effectiveInspectorId !== undefined ? { inspectorId: effectiveInspectorId } : {}),
     };
 
     const [data, total] = await Promise.all([

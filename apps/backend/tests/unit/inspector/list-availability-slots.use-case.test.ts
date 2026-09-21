@@ -90,6 +90,27 @@ describe('ListAvailabilitySlotsUseCase', () => {
     expect(result.pageSize).toBe(10);
   });
 
+  // Regression (WI-3 / #118, CRITICAL): an INSP who omits `inspectorId` passes
+  // the role check but must still be scoped to their own slots. Before the fix
+  // `fullFilters` spread the raw (undefined) param, so the repository ran an
+  // UNSCOPED query over every inspector's slots.
+  it('scopes an INSP with no inspectorId param to their own slots', async () => {
+    await useCase.execute({
+      inspectorId: undefined,
+      filters: {},
+      pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+      actor: makeActor({ role: 'INSP', inspectorId: 'inspector-1' }),
+    });
+
+    expect(slotRepo.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ inspectorId: 'inspector-1' }),
+      expect.anything(),
+    );
+    expect(slotRepo.count).toHaveBeenCalledWith(
+      expect.objectContaining({ inspectorId: 'inspector-1' }),
+    );
+  });
+
   it('should throw ForbiddenError when INSP lists another inspector slots', async () => {
     await expect(
       useCase.execute({
