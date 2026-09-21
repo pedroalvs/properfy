@@ -4,6 +4,7 @@ import { TabsNav } from '@/components/layout/TabsNav';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Button } from '@/components/ui/Button';
+import { ContactLoadError } from '../components/ContactLoadError';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useGoBack } from '@/hooks/useGoBack';
@@ -25,7 +26,7 @@ export function ContactDetailPage() {
   const handleBack = useGoBack('/contacts');
   const { showSuccess, showError } = useSnackbar();
   const { canPerform } = usePermissions();
-  const { contact, isLoading, isError, refetch } = useContactDetail(id ?? null);
+  const { contact, isLoading, error, refetch } = useContactDetail(id ?? null);
   const { deactivate, reactivate, isPending: isDeactivating } = useContactDeactivate();
   const canEdit = canPerform('contact.update');
   const canDeactivate = canPerform('contact.deactivate');
@@ -75,13 +76,29 @@ export function ContactDetailPage() {
     );
   }
 
-  if (isError || !contact || !id) {
+  // Missing :id param behaves like a not-found (no contact to load).
+  if (!id) {
     return (
       <div className="px-8 py-6">
         <EmptyState
+          icon="mdi-account-off-outline"
           title="Contact not found"
           description="This contact does not exist or you do not have permission to view it."
           action={{ label: 'Back to Contacts', onClick: () => navigate('/contacts') }}
+        />
+      </div>
+    );
+  }
+
+  // WI-3 (#206): distinguish 403 / 404 (or resolved-with-no-contact) / transient
+  // failures instead of collapsing every failure mode into "Contact not found".
+  if (error || !contact) {
+    return (
+      <div className="px-8 py-6">
+        <ContactLoadError
+          error={error}
+          onRetry={refetch}
+          notFoundAction={{ label: 'Back to Contacts', onClick: () => navigate('/contacts') }}
         />
       </div>
     );
@@ -116,7 +133,13 @@ export function ContactDetailPage() {
             </Button>
           ) : null}
           {canDeactivate && !contact.isActive ? (
-            <Button variant="outlined" onClick={handleReactivate} aria-label="Reactivate contact">
+            <Button
+              variant="outlined"
+              onClick={handleReactivate}
+              loading={isDeactivating}
+              disabled={isDeactivating}
+              aria-label="Reactivate contact"
+            >
               <i className="mdi mdi-restore text-base" aria-hidden="true" /> Reactivate
             </Button>
           ) : null}
