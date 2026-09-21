@@ -1,3 +1,5 @@
+import type { Prisma } from '@prisma/client';
+import type { UserStatus } from '@properfy/shared';
 import type { UserEntity } from '../../auth/domain/user.entity';
 
 export interface UserManagementFilters {
@@ -35,6 +37,12 @@ export interface IUserManagementRepository {
     filters: UserManagementFilters,
   ): Promise<number>;
   save(user: UserEntity): Promise<void>;
+  /**
+   * Applies `data` to the (non-deleted) user in the given tenant scope. Returns
+   * true iff a row was actually updated; false means no matching live user
+   * exists (wrong id, wrong tenant, or soft-deleted), which callers surface as
+   * UserNotFoundError instead of assuming success (#240).
+   */
   update(
     userId: string,
     tenantId: string | null,
@@ -43,19 +51,21 @@ export interface IUserManagementRepository {
       phone: string | null;
       branchId: string | null;
       role: string;
-      status: string;
+      status: UserStatus;
       /** Personal timezone (cross-tenant roles only; CL_* targets are rejected upstream). */
       timezone: string | null;
       /** Kept in sync when an inspector's email — their login identity — changes. */
       email: string;
       deletedAt: Date | null;
     }>,
-  ): Promise<void>;
+    tx?: Prisma.TransactionClient,
+  ): Promise<boolean>;
   resetPassword(
     userId: string,
     tenantId: string | null,
     passwordHash: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<void>;
   unlock(userId: string, tenantId: string): Promise<void>;
-  revokeAllSessions(userId: string): Promise<void>;
+  revokeAllSessions(userId: string, tx?: Prisma.TransactionClient): Promise<void>;
 }

@@ -22,6 +22,7 @@ export interface UpdateUserInput {
     timezone?: string | null;
   };
   actor: AuthContext;
+  requestId?: string;
 }
 
 export interface UpdateUserOutput {
@@ -207,7 +208,16 @@ export class UpdateUserUseCase {
       timezone: user.timezone,
     };
 
-    await this.userManagementRepo.update(userId, tenantId, updateData as Parameters<IUserManagementRepository['update']>[2]);
+    const updated = await this.userManagementRepo.update(
+      userId,
+      tenantId,
+      updateData as Parameters<IUserManagementRepository['update']>[2],
+    );
+    // #240: no live row matched (concurrently deleted / wrong scope) — surface
+    // NotFound instead of dereferencing a stale/absent read below.
+    if (!updated) {
+      throw new UserNotFoundError();
+    }
 
     // Audit log
     this.auditService.log({
@@ -217,6 +227,7 @@ export class UpdateUserUseCase {
       entityType: 'User',
       entityId: userId,
       tenantId: tenantId ?? undefined,
+      requestId: input.requestId,
       before,
       after: updateData,
     });
@@ -226,22 +237,25 @@ export class UpdateUserUseCase {
       userId,
       tenantId,
     );
+    if (!updatedUser) {
+      throw new UserNotFoundError();
+    }
 
     return {
-      id: updatedUser!.id,
-      name: updatedUser!.name,
-      email: updatedUser!.email,
-      role: updatedUser!.role,
-      tenantId: updatedUser!.tenantId,
-      branchId: updatedUser!.branchId,
-      branchName: updatedUser!.branchName,
-      phone: updatedUser!.phone,
-      timezone: updatedUser!.timezone,
-      status: updatedUser!.status,
-      totpEnabled: updatedUser!.totpEnabled,
-      lastLoginAt: updatedUser!.lastLoginAt,
-      createdAt: updatedUser!.createdAt,
-      updatedAt: updatedUser!.updatedAt,
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      tenantId: updatedUser.tenantId,
+      branchId: updatedUser.branchId,
+      branchName: updatedUser.branchName,
+      phone: updatedUser.phone,
+      timezone: updatedUser.timezone,
+      status: updatedUser.status,
+      totpEnabled: updatedUser.totpEnabled,
+      lastLoginAt: updatedUser.lastLoginAt,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
     };
   }
 }

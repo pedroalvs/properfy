@@ -1,9 +1,15 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import type { IPasswordResetTokenRepository } from '../domain/password-reset-token.repository';
 import { PasswordResetTokenEntity } from '../domain/password-reset-token.entity';
 
+type DbClient = PrismaClient | Prisma.TransactionClient;
+
 export class PrismaPasswordResetTokenRepository implements IPasswordResetTokenRepository {
   constructor(private readonly prisma: PrismaClient) {}
+
+  private db(tx?: Prisma.TransactionClient): DbClient {
+    return tx ?? this.prisma;
+  }
 
   async save(token: PasswordResetTokenEntity): Promise<void> {
     await this.prisma.passwordResetToken.create({
@@ -33,11 +39,23 @@ export class PrismaPasswordResetTokenRepository implements IPasswordResetTokenRe
     });
   }
 
-  async markUsed(id: string): Promise<void> {
-    await this.prisma.passwordResetToken.update({
+  async markUsed(id: string, tx?: Prisma.TransactionClient): Promise<void> {
+    await this.db(tx).passwordResetToken.update({
       where: { id },
       data: { used_at: new Date() },
     });
+  }
+
+  async consumeIfUnused(id: string, tx?: Prisma.TransactionClient): Promise<boolean> {
+    // Atomic consume: flip used_at only while it is still null. The affected-row
+    // count tells us whether THIS call consumed the token, so two concurrent
+    // resets with the same token yield exactly one winner and the loser is
+    // rejected — closing the double-use window (#249).
+    const result = await this.db(tx).passwordResetToken.updateMany({
+      where: { id, used_at: null },
+      data: { used_at: new Date() },
+    });
+    return result.count === 1;
   }
 
   async countRecentByUserId(userId: string, sinceMinutes: number): Promise<number> {
@@ -51,10 +69,12 @@ export class PrismaPasswordResetTokenRepository implements IPasswordResetTokenRe
   }
 
   async deleteExpired(): Promise<number> {
+    // Purge expired tokens whether or not they were ever used — the whole point
+    // of the sweep is to drop dead rows. The prior `used_at: { not: null }`
+    // conjunct meant expired-but-unused tokens accumulated forever (#561).
     const result = await this.prisma.passwordResetToken.deleteMany({
       where: {
         expires_at: { lt: new Date() },
-        used_at: { not: null },
       },
     });
     return result.count;

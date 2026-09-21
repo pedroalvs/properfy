@@ -1,5 +1,6 @@
-import type { PrismaClient , UserRole as PrismaUserRole} from '@prisma/client';
+import type { PrismaClient, Prisma, UserRole as PrismaUserRole } from '@prisma/client';
 import { UserStatus as PrismaUserStatus } from '@prisma/client';
+import type { UserStatus } from '@properfy/shared';
 import { UserEntity } from '../../auth/domain/user.entity';
 import type {
   IUserManagementRepository,
@@ -60,6 +61,10 @@ export class PrismaUserManagementRepository
   implements IUserManagementRepository
 {
   constructor(private readonly prisma: PrismaClient) {}
+
+  private db(tx?: Prisma.TransactionClient): PrismaClient | Prisma.TransactionClient {
+    return tx ?? this.prisma;
+  }
 
   async findById(id: string): Promise<UserEntity | null> {
     const row = await this.prisma.user.findFirst({
@@ -163,12 +168,13 @@ export class PrismaUserManagementRepository
       phone: string | null;
       branchId: string | null;
       role: string;
-      status: string;
+      status: UserStatus;
       timezone: string | null;
       email: string;
       deletedAt: Date | null;
     }>,
-  ): Promise<void> {
+    tx?: Prisma.TransactionClient,
+  ): Promise<boolean> {
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData['name'] = data.name;
     if (data.phone !== undefined) updateData['phone'] = data.phone;
@@ -178,15 +184,23 @@ export class PrismaUserManagementRepository
     if (data.status !== undefined) updateData['status'] = data.status;
     if (data.email !== undefined) updateData['email'] = data.email;
     if (data.deletedAt !== undefined) updateData['deleted_at'] = data.deletedAt;
-    await this.prisma.user.updateMany({ where: { id: userId, tenant_id: tenantId }, data: updateData });
+    // Scope to live rows only (deleted_at IS NULL): a soft-deleted user must not
+    // be silently updated, and the affected-row count lets the caller surface
+    // UserNotFoundError instead of dereferencing a stale read (#240).
+    const result = await this.db(tx).user.updateMany({
+      where: { id: userId, tenant_id: tenantId, deleted_at: null },
+      data: updateData,
+    });
+    return result.count > 0;
   }
 
   async resetPassword(
     userId: string,
     tenantId: string | null,
     passwordHash: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    await this.prisma.user.updateMany({
+    await this.db(tx).user.updateMany({
       where: { id: userId, tenant_id: tenantId, deleted_at: null },
       data: {
         password_hash: passwordHash,
@@ -208,8 +222,8 @@ export class PrismaUserManagementRepository
     });
   }
 
-  async revokeAllSessions(userId: string): Promise<void> {
-    await this.prisma.session.updateMany({
+  async revokeAllSessions(userId: string, tx?: Prisma.TransactionClient): Promise<void> {
+    await this.db(tx).session.updateMany({
       where: { user_id: userId, revoked_at: null },
       data: { revoked_at: new Date() },
     });

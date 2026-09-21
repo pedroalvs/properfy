@@ -105,7 +105,7 @@ describe('UpdateUserUseCase', () => {
       findByTenantId: vi.fn(),
       countByTenantId: vi.fn(),
       save: vi.fn(),
-      update: vi.fn(),
+      update: vi.fn().mockResolvedValue(true),
       resetPassword: vi.fn(),
       revokeAllSessions: vi.fn(),
     };
@@ -286,6 +286,21 @@ describe('UpdateUserUseCase', () => {
         actor: amActor,
       }),
     ).rejects.toThrow(BranchNotFoundError);
+  });
+
+  it('should throw USER_NOT_FOUND when update() finds no live row (#240)', async () => {
+    const user = makeUser();
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValueOnce(user);
+    vi.mocked(userManagementRepo.update).mockResolvedValueOnce(false);
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        data: { name: 'Updated' },
+        actor: amActor,
+      }),
+    ).rejects.toThrow(UserNotFoundError);
   });
 
   it('should validate branch exists when branchId is provided', async () => {

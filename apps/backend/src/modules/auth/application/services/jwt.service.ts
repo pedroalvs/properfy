@@ -8,6 +8,14 @@ export interface JwtClaims {
   role: UserRole;
   branch_id: string | null;
   inspector_id: string | null;
+  /** Id of the session this token belongs to (enables current-session identity + per-session revocation). */
+  sid: string;
+  /**
+   * Limited-privilege marker for the AM TOTP-enrollment session. When set, the
+   * auth middleware rejects the token on every route except the 2FA setup
+   * endpoints, /me and logout. Omitted on normal, fully-authenticated tokens.
+   */
+  auth_stage?: 'totp_setup';
 }
 
 export interface JwtConfig {
@@ -20,16 +28,38 @@ export interface JwtConfig {
   previousKeyId?: string;
   /** When the previous key expires (default: 30 days from service creation). Tokens signed with the previous key are rejected after this date. */
   previousKeyExpiresAt?: Date;
+  /** Expected `iss` claim. Default: 'properfy-api'. */
+  issuer?: string;
+  /** Expected `aud` claim. Default: 'properfy'. */
+  audience?: string;
 }
+
+const DEFAULT_ISSUER = 'properfy-api';
+const DEFAULT_AUDIENCE = 'properfy';
+const PREVIOUS_KEY_GRACE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export class JwtService {
   private config: JwtConfig;
+  private readonly issuer: string;
+  private readonly audience: string;
   private privateKey?: Awaited<ReturnType<typeof importPKCS8>>;
   private publicKeys: Map<string, Awaited<ReturnType<typeof importSPKI>>> = new Map();
   private initPromise: Promise<void> | null = null;
 
   constructor(config: JwtConfig) {
     this.config = config;
+    this.issuer = config.issuer ?? DEFAULT_ISSUER;
+    this.audience = config.audience ?? DEFAULT_AUDIENCE;
+    // #254: freeze the previous-key grace deadline ONCE, at construction, so it
+    // no longer slides forward on every verify() call (which effectively never
+    // expired the old key). Only meaningful when a previous key is configured.
+    if (
+      this.config.previousKeyId &&
+      this.config.previousPublicKeyPem &&
+      !this.config.previousKeyExpiresAt
+    ) {
+      this.config.previousKeyExpiresAt = new Date(Date.now() + PREVIOUS_KEY_GRACE_MS);
+    }
   }
 
   private init(): Promise<void> {
@@ -56,9 +86,13 @@ export class JwtService {
       role: claims.role,
       branch_id: claims.branch_id,
       inspector_id: claims.inspector_id,
+      sid: claims.sid,
+      ...(claims.auth_stage ? { auth_stage: claims.auth_stage } : {}),
     })
       .setProtectedHeader({ alg: 'RS256', kid: this.config.keyId })
       .setSubject(claims.sub)
+      .setIssuer(this.issuer)
+      .setAudience(this.audience)
       .setIssuedAt()
       .setExpirationTime(`${this.config.accessTokenTtlMinutes ?? 60}m`)
       .sign(this.privateKey!);
@@ -86,27 +120,35 @@ export class JwtService {
       throw new UnauthorizedError('AUTH_UNAUTHORIZED', 'Authentication required');
     }
 
-    // Reject tokens signed with the previous key if it has expired
+    // Reject tokens signed with the previous key once its (fixed) grace
+    // deadline has passed. The deadline was frozen at construction (#254), so
+    // it no longer slides forward on each call.
     if (
       targetKid &&
       this.config.previousKeyId &&
       targetKid === this.config.previousKeyId
     ) {
-      const expiresAt = this.config.previousKeyExpiresAt
-        ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // default 30 days
-      if (new Date() > expiresAt) {
+      const expiresAt = this.config.previousKeyExpiresAt;
+      if (expiresAt && new Date() > expiresAt) {
         throw new UnauthorizedError('AUTH_UNAUTHORIZED', 'Authentication required');
       }
     }
 
     try {
-      const { payload } = await jwtVerify(token, key, { algorithms: ['RS256'] });
+      const { payload } = await jwtVerify(token, key, {
+        algorithms: ['RS256'],
+        issuer: this.issuer,
+        audience: this.audience,
+      });
+      const authStage = payload['auth_stage'] === 'totp_setup' ? ('totp_setup' as const) : undefined;
       return {
         userId: payload.sub as string,
         tenantId: (payload['tenant_id'] as string | null) ?? null,
         role: payload['role'] as UserRole,
         branchId: (payload['branch_id'] as string | null) ?? null,
         inspectorId: (payload['inspector_id'] as string | null) ?? null,
+        ...(authStage ? { authStage } : {}),
+        ...(typeof payload['sid'] === 'string' ? { sessionId: payload['sid'] } : {}),
         clUserPermissions: [],
       };
     } catch {
