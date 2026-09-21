@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SendGroupPortalLinksUseCase } from '../../../src/modules/service-group/application/use-cases/send-group-portal-links.use-case';
+import { PortalAppointmentDatePastError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 import type {
   IServiceGroupRepository,
   GroupAppointmentConfirmationRow,
@@ -133,6 +134,19 @@ describe('SendGroupPortalLinksUseCase', () => {
     expect(out.results).toEqual([
       { appointmentId: 'a1', status: 'ERROR', error: { code: 'DISPATCH_FAILED', message: 'Notification dispatch failed' } },
     ]);
+    expect(m.idempotency.set).not.toHaveBeenCalled();
+  });
+
+  it('maps a past-dated member (#33) to a clean NOT_SENDABLE skip, not a retryable ERROR', async () => {
+    m.groupRepo.findGroupAppointmentsWithConfirmation.mockResolvedValue([row({ id: 'a1' })]);
+    (m.generatePortalToken.execute as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new PortalAppointmentDatePastError(),
+    );
+
+    const out = await m.useCase.execute({ groupId: 'group-1', actor: makeActor() });
+
+    expect(out.results).toEqual([{ appointmentId: 'a1', status: 'NOT_SENDABLE' }]);
+    // Not cached — a later reschedule to a future date must re-evaluate.
     expect(m.idempotency.set).not.toHaveBeenCalled();
   });
 

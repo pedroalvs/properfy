@@ -40,13 +40,16 @@ export class RentalTenantPortalTokenEntity extends BaseEntity {
     this.confirmationCycleId = props.confirmationCycleId ?? null;
   }
 
+  // Inclusive at the deadline: the repository treats only `expires_at > now` as
+  // active, so at the exact expiry instant the token is already inactive.
   isExpired(now: Date): boolean {
-    return now > this.expiresAt;
+    return now >= this.expiresAt;
   }
 
-  // Legacy rows (minted before confirm_cutoff_at existed) used expires_at as the cutoff.
+  // Legacy rows (minted before confirm_cutoff_at existed) used expires_at as the
+  // cutoff. Inclusive at the boundary, symmetric with isExpired.
   isPastConfirmCutoff(now: Date): boolean {
-    return now > (this.confirmCutoffAt ?? this.expiresAt);
+    return now >= (this.confirmCutoffAt ?? this.expiresAt);
   }
 
   isRevoked(): boolean {

@@ -26,11 +26,17 @@ export function ContactForm({ contact, token, isReadOnly }: ContactFormProps) {
     e.preventDefault();
     setError(null);
 
+    // Only send fields the tenant actually changed, comparing against the incoming
+    // contact. The phone is compared through formatAuPhone (the state is already
+    // formatted) so a pure re-format never counts as an edit.
     const data: UpdateContactInput = {};
-    if (primaryEmail.trim()) data.primaryEmail = primaryEmail.trim();
-    if (primaryPhone.trim()) data.primaryPhone = primaryPhone.trim();
+    const trimmedEmail = primaryEmail.trim();
+    if (trimmedEmail !== (contact?.primaryEmail ?? '')) data.primaryEmail = trimmedEmail;
+    const trimmedPhone = primaryPhone.trim();
+    if (trimmedPhone !== formatAuPhone(contact?.primaryPhone ?? '')) data.primaryPhone = trimmedPhone;
 
     if (Object.keys(data).length === 0) {
+      // Also covers "clicked Save with no edits" — no false success toast.
       setError('Please update at least one contact field.');
       return;
     }
