@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
+import type { ServiceTypeFlowType } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
+import { getErrorMessage } from '@/lib/api-error';
 import type { ServiceTypeFormData, ServiceTypeFormErrors } from '../types';
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
@@ -44,12 +46,29 @@ export function useServiceTypeSave(): UseServiceTypeSaveReturn {
   const save = useCallback(async (data: ServiceTypeFormData, serviceTypeId?: string): Promise<SaveResult> => {
     setIsSaving(true);
     try {
+      // Constrained to the enum by the form's SelectInput options — narrow, not `as any`.
+      const flowType = data.flowType as ServiceTypeFlowType;
       if (serviceTypeId) {
-        const { error } = await api.PATCH(`/v1/service-types/${serviceTypeId}` as any, { body: data as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        // Update never carries `code` (immutable); the old `as any` body wrongly sent it.
+        const { error } = await api.PATCH('/v1/service-types/{serviceTypeId}', {
+          params: { path: { serviceTypeId } },
+          body: {
+            name: data.name,
+            flowType,
+            requiresRentalTenantConfirmation: data.requiresRentalTenantConfirmation,
+          },
+        });
+        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
       } else {
-        const { error } = await api.POST('/v1/service-types' as any, { body: data as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        const { error } = await api.POST('/v1/service-types', {
+          body: {
+            code: data.code,
+            name: data.name,
+            flowType,
+            requiresRentalTenantConfirmation: data.requiresRentalTenantConfirmation,
+          },
+        });
+        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
       }
       queryClient.invalidateQueries({ queryKey: ['service-types'] });
       return { success: true };

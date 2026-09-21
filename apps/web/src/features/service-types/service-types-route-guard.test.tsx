@@ -16,7 +16,9 @@ vi.mock('@/hooks/useSnackbar', () => ({
   useSnackbar: () => ({ showInfo: vi.fn(), showError: vi.fn(), showSuccess: vi.fn() }),
 }));
 
-function renderServiceTypesRoute(_role: string) {
+// Access is driven entirely by mockUseAuth + AuthGuard, so this helper takes no
+// role argument — passing one implied a role-driven render that never happened (#737).
+function renderServiceTypesRoute() {
   return render(
     <MemoryRouter
       initialEntries={['/service-types']}
@@ -44,7 +46,7 @@ describe('service-types route guard', () => {
       isLoading: false,
     });
 
-    renderServiceTypesRoute('AM');
+    renderServiceTypesRoute();
     expect(screen.getByText('Service Type Management Page')).toBeInTheDocument();
   });
 
@@ -57,7 +59,7 @@ describe('service-types route guard', () => {
       isLoading: false,
     });
 
-    renderServiceTypesRoute('OP');
+    renderServiceTypesRoute();
     expect(screen.getByText('Dashboard Redirect')).toBeInTheDocument();
     expect(screen.queryByText('Service Type Management Page')).not.toBeInTheDocument();
   });
@@ -68,7 +70,7 @@ describe('service-types route guard', () => {
       isLoading: false,
     });
 
-    renderServiceTypesRoute('CL_ADMIN');
+    renderServiceTypesRoute();
     expect(screen.getByText('Dashboard Redirect')).toBeInTheDocument();
   });
 });

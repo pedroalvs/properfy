@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
+import type { PayoutType, PriceRuleStatus } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
+import { getErrorMessage } from '@/lib/api-error';
 import type { PricingRuleFormData, PricingRuleFormErrors } from '../types';
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
@@ -56,22 +58,37 @@ export function usePricingRuleSave(): UsePricingRuleSaveReturn {
   const save = useCallback(async (data: PricingRuleFormData, ruleId?: string): Promise<SaveResult> => {
     setIsSaving(true);
     try {
-      const body = {
-        ...(data.tenantId ? { tenantId: data.tenantId } : {}),
-        serviceTypeId: data.serviceTypeId,
-        ...(data.branchId ? { branchId: data.branchId } : {}),
-        priceAmount: Number(data.priceAmount),
-        payoutType: data.payoutType,
-        payoutValue: Number(data.payoutValue),
-        status: data.status,
-      };
+      // The form's payout type / status are constrained to these unions by their
+      // SelectInput options; narrow (not `as any`) so the generated body types apply.
+      const payoutType = data.payoutType as PayoutType;
+      const status = data.status as PriceRuleStatus;
 
       if (ruleId) {
-        const { error } = await api.PATCH(`/v1/pricing-rules/${ruleId}` as any, { body: body as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        // Update takes only the mutable pricing fields — never tenant/service
+        // type/branch (which the old `as any` body wrongly included).
+        const { error } = await api.PATCH('/v1/pricing-rules/{pricingRuleId}', {
+          params: { path: { pricingRuleId: ruleId } },
+          body: {
+            priceAmount: Number(data.priceAmount),
+            payoutType,
+            payoutValue: Number(data.payoutValue),
+            status,
+          },
+        });
+        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
       } else {
-        const { error } = await api.POST('/v1/pricing-rules' as any, { body: body as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        const { error } = await api.POST('/v1/pricing-rules', {
+          body: {
+            ...(data.tenantId ? { tenantId: data.tenantId } : {}),
+            serviceTypeId: data.serviceTypeId,
+            ...(data.branchId ? { branchId: data.branchId } : {}),
+            priceAmount: Number(data.priceAmount),
+            payoutType,
+            payoutValue: Number(data.payoutValue),
+            status,
+          },
+        });
+        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
       }
       queryClient.invalidateQueries({ queryKey: ['pricing-rules'] });
       return { success: true };

@@ -3,8 +3,11 @@ import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/feedback/LoadingState';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Dialog } from '@/components/ui/Dialog';
+import { StatusChip } from '@/components/ui/StatusChip';
+import { SERVICE_TYPE_STATUS_MAP } from '@/lib/status-colors';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
@@ -15,8 +18,10 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { useServiceRegionDetail } from '../hooks/useServiceRegionDetail';
 import { useServiceRegionSave } from '../hooks/useServiceRegionSave';
 import { useServiceRegionDeactivate } from '../hooks/useServiceRegionDeactivate';
+import { useServiceRegionReactivate } from '../hooks/useServiceRegionReactivate';
 import { RegionMap } from './RegionMap';
 import { formatInstantDateTime } from '@/lib/format-date';
+import type { GeojsonGeometry } from '@properfy/shared';
 import type { ServiceRegionFormData, ServiceRegionFormErrors } from '../types';
 import { EMPTY_SERVICE_REGION_FORM } from '../types';
 
@@ -45,7 +50,7 @@ export function ServiceRegionFormDrawer({
   onSaved,
 }: ServiceRegionFormDrawerProps) {
   const isEditMode = !!regionId;
-  const { serviceRegion, isLoading: isLoadingDetail, refetch } = useServiceRegionDetail(
+  const { serviceRegion, isLoading: isLoadingDetail, isError: isDetailError, refetch } = useServiceRegionDetail(
     isEditMode ? regionId : null,
   );
   const { save, isSaving, validate } = useServiceRegionSave();
@@ -71,8 +76,20 @@ export function ServiceRegionFormDrawer({
     },
   );
 
-  // Activating state
-  const [isActivating, setIsActivating] = useState(false);
+  // Reactivate dialog state
+  const [showReactivateDialog, setShowReactivateDialog] = useState(false);
+  const [reactivateReason, setReactivateReason] = useState('');
+  const [reactivateReasonError, setReactivateReasonError] = useState('');
+
+  const { reactivate, isReactivating } = useServiceRegionReactivate(
+    regionId ?? null,
+    () => {
+      setShowReactivateDialog(false);
+      setReactivateReason('');
+      setReactivateReasonError('');
+      refetch();
+    },
+  );
 
   useEffect(() => {
     if (isEditMode && serviceRegion) {
@@ -113,7 +130,7 @@ export function ServiceRegionFormDrawer({
     [],
   );
 
-  const handleDraw = useCallback((geojson: object) => {
+  const handleDraw = useCallback((geojson: GeojsonGeometry) => {
     updateField('geojson', geojson);
   }, [updateField]);
 
@@ -158,24 +175,25 @@ export function ServiceRegionFormDrawer({
     setReasonError('');
   }, []);
 
-  const handleActivate = useCallback(async () => {
-    if (!serviceRegion || !regionId) return;
-    setIsActivating(true);
-    try {
-      const result = await save(
-        { name: serviceRegion.name, geojson: serviceRegion.geojson, color: serviceRegion.color, status: 'ACTIVE' },
-        regionId,
-      );
-      if (result.success) {
-        showSuccess(`Region "${serviceRegion.name}" activated`);
-        refetch();
-      } else {
-        showError(result.error ?? 'Failed to activate region');
-      }
-    } finally {
-      setIsActivating(false);
+  const handleActivateClick = useCallback(() => {
+    setReactivateReason('');
+    setReactivateReasonError('');
+    setShowReactivateDialog(true);
+  }, []);
+
+  const handleConfirmReactivate = useCallback(() => {
+    if (!reactivateReason.trim()) {
+      setReactivateReasonError('Reason is required');
+      return;
     }
-  }, [serviceRegion, regionId, save, showSuccess, showError, refetch]);
+    reactivate(reactivateReason.trim());
+  }, [reactivateReason, reactivate]);
+
+  const handleCancelReactivate = useCallback(() => {
+    setShowReactivateDialog(false);
+    setReactivateReason('');
+    setReactivateReasonError('');
+  }, []);
 
   const regionStatus = serviceRegion?.status;
   const isActive = regionStatus === 'ACTIVE';
@@ -193,6 +211,15 @@ export function ServiceRegionFormDrawer({
           {isEditMode && isLoadingDetail ? (
             <div className="flex-1 px-6 py-4">
               <LoadingState rows={5} />
+            </div>
+          ) : isEditMode && isDetailError ? (
+            // A failed detail fetch must not fall through to an empty form (#613).
+            <div className="flex-1 px-6 py-4">
+              <ErrorState
+                message="Failed to load service region."
+                detail="Please try again."
+                onRetry={refetch}
+              />
             </div>
           ) : (
             <>
@@ -252,15 +279,16 @@ export function ServiceRegionFormDrawer({
                   {isEditMode && serviceRegion && (
                     <FormSection title="Status">
                       <div className="flex items-center gap-4">
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${
-                            isActive
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {isActive ? 'Active' : 'Inactive'}
-                        </span>
+                        {(() => {
+                          // Token-based StatusChip (#735), sharing ServiceType's
+                          // ACTIVE/INACTIVE colour map — no hardcoded Tailwind colours.
+                          const chipStyle = SERVICE_TYPE_STATUS_MAP[
+                            (isActive ? 'ACTIVE' : 'INACTIVE') as keyof typeof SERVICE_TYPE_STATUS_MAP
+                          ];
+                          return (
+                            <StatusChip label={chipStyle.label} bg={chipStyle.bg} text={chipStyle.text} />
+                          );
+                        })()}
                         {isActive && (
                           <Button
                             variant="secondary"
@@ -274,8 +302,7 @@ export function ServiceRegionFormDrawer({
                           <Button
                             variant="secondary"
                             className="border-success text-success hover:bg-success/5"
-                            onClick={handleActivate}
-                            loading={isActivating}
+                            onClick={handleActivateClick}
                           >
                             Activate Region
                           </Button>
@@ -359,6 +386,44 @@ export function ServiceRegionFormDrawer({
           />
           {reasonError && (
             <p className="text-sm text-error">{reasonError}</p>
+          )}
+        </div>
+      </Dialog>
+
+      {/* Reactivate dialog with reason (mirrors deactivate — status transitions
+          are audited actions, never a PATCH; #387) */}
+      <Dialog
+        open={showReactivateDialog}
+        onClose={handleCancelReactivate}
+        title="Reactivate Service Region"
+        actions={
+          <>
+            <Button variant="secondary" onClick={handleCancelReactivate}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-success text-white hover:brightness-95 active:brightness-90"
+              onClick={handleConfirmReactivate}
+              loading={isReactivating}
+            >
+              Reactivate
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-text-secondary">
+            Are you sure you want to reactivate this region? Please provide a reason.
+          </p>
+          <Textarea
+            value={reactivateReason}
+            onChange={setReactivateReason}
+            rows={3}
+            placeholder="Reason for reactivation"
+            aria-label="Reactivation reason"
+          />
+          {reactivateReasonError && (
+            <p className="text-sm text-error">{reactivateReasonError}</p>
           )}
         </div>
       </Dialog>

@@ -1,10 +1,13 @@
+import type { ServiceTypeFlowType, ServiceTypeStatus } from '@properfy/shared';
+
 export interface ServiceType {
   id: string;
   code: string;
   name: string;
-  flowType: 'ROUTINE' | 'INGOING' | 'OUTGOING';
+  // Canonical unions from the shared package — no local re-declaration (#616).
+  flowType: ServiceTypeFlowType;
   requiresRentalTenantConfirmation: boolean;
-  status: 'ACTIVE' | 'INACTIVE';
+  status: ServiceTypeStatus;
   createdAt: string;
   updatedAt: string;
 }

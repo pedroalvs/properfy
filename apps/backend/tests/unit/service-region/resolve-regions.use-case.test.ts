@@ -30,6 +30,7 @@ function createMockRepo(): IServiceRegionRepository {
     findContainingPoint: vi.fn(),
     countPublishedGroupsByRegionId: vi.fn().mockResolvedValue(0).mockResolvedValue([]),
     countActiveInspectorsInRegion: vi.fn().mockResolvedValue(0),
+    countActiveInspectorsInRegions: vi.fn().mockResolvedValue(new Map()),
     setInspectorRegions: vi.fn(),
     getInspectorRegionIds: vi.fn(),
     getInspectorRegionIdsBatch: vi.fn(),
@@ -86,6 +87,30 @@ describe('ResolveRegionsUseCase', () => {
     });
 
     expect(regionRepo.resolveRegionsForAppointments).toHaveBeenCalledWith(['apt-1']);
+  });
+
+  it('issues exactly one batched inspector-count call and maps results, absent region → 0 (#731)', async () => {
+    vi.mocked(regionRepo.resolveRegionsForAppointments).mockResolvedValue([
+      { regionId: 'r1', regionNumber: 1, regionName: 'A', color: '#111', matchedAppointmentIds: ['a1'] },
+      { regionId: 'r2', regionNumber: 2, regionName: 'B', color: '#222', matchedAppointmentIds: ['a2'] },
+      { regionId: 'r3', regionNumber: 3, regionName: 'C', color: '#333', matchedAppointmentIds: ['a3'] },
+    ]);
+    vi.mocked(regionRepo.countActiveInspectorsInRegions).mockResolvedValue(
+      new Map([['r1', 5], ['r2', 0]]), // r3 deliberately absent → must map to 0
+    );
+
+    const result = await useCase.execute({
+      appointmentIds: ['a1', 'a2', 'a3'],
+      actor: makeActor(),
+    });
+
+    expect(regionRepo.countActiveInspectorsInRegions).toHaveBeenCalledTimes(1);
+    expect(regionRepo.countActiveInspectorsInRegions).toHaveBeenCalledWith(['r1', 'r2', 'r3']);
+    // The per-region N+1 loop must be gone.
+    expect(regionRepo.countActiveInspectorsInRegion).not.toHaveBeenCalled();
+
+    const counts = Object.fromEntries(result.regions.map((r) => [r.regionId, r.inspectorCount]));
+    expect(counts).toEqual({ r1: 5, r2: 0, r3: 0 });
   });
 
   it('should reject INSP role', async () => {

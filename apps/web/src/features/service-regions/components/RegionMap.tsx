@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
+import type { GeojsonGeometry } from '@properfy/shared';
 import { env } from '@/config/env';
 
 interface ExistingRegion {
@@ -16,7 +17,7 @@ interface RegionMapProps {
   /** Existing polygon to display/edit (edit mode) */
   geojson?: object;
   /** Called when admin draws or edits a polygon */
-  onDraw?: (geojson: object) => void;
+  onDraw?: (geojson: GeojsonGeometry) => void;
   /** Existing regions to show as background layers */
   existingRegions?: ExistingRegion[];
   /** If true, enables draw tools. If false, display only */
@@ -199,7 +200,9 @@ export function RegionMap({
           if (data && data.features.length > 0) {
             const lastFeature = data.features[data.features.length - 1]!;
             if (lastFeature.geometry && lastFeature.geometry.type === 'Polygon') {
-              onDrawRef.current?.(lastFeature.geometry);
+              // Mapbox positions are number[]; our geometry type uses [number, number]
+              // tuples. Same runtime shape — cast at this external boundary.
+              onDrawRef.current?.(lastFeature.geometry as GeojsonGeometry);
             }
           } else {
             // All features deleted, reset
