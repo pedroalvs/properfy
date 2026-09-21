@@ -116,6 +116,25 @@ describe('useUserList', () => {
     expect(result.current.data).toHaveLength(0);
   });
 
+  it('resets to page 1 whenever filters change', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useUserList(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.pagination.onChange?.(3, 10);
+    });
+    expect(result.current.pagination.page).toBe(3);
+
+    act(() => {
+      result.current.setFilters({ ...DEFAULT_FILTERS, search: 'ana' });
+    });
+
+    expect(result.current.filters.search).toBe('ana');
+    expect(result.current.pagination.page).toBe(1);
+  });
+
   it('resets filters and page when the scope changes', async () => {
     const wrapper = createQueryWrapper();
     const { result, rerender } = renderHook(

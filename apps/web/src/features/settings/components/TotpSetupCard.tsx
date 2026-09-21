@@ -23,11 +23,25 @@ export function TotpSetupCard() {
   const isTotpEnabled = user?.totpEnabled === true || enabledInSession;
 
   useEffect(() => {
-    if (totpData?.totpUri) {
-      QRCode.toDataURL(totpData.totpUri, { width: 200, margin: 2 }).then(setQrDataUrl);
-    } else {
+    if (!totpData?.totpUri) {
       setQrDataUrl(null);
+      return;
     }
+
+    let cancelled = false;
+    QRCode.toDataURL(totpData.totpUri, { width: 200, margin: 2 })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setQrDataUrl(null);
+        console.error('Failed to generate TOTP QR code', err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [totpData?.totpUri]);
 
   const handleSetup = useCallback(async () => {
