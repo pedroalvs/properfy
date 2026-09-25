@@ -143,12 +143,19 @@ export function useInspectorSave(): UseInspectorSaveReturn {
       type ApiErrorEnvelope = { error?: { code?: string; message?: string } };
       let apiError: ApiErrorEnvelope | undefined;
       if (inspectorId) {
+        // Clearing the phone must send an explicit `null`, not the `undefined`
+        // that `sharedFields` carries: `undefined` is dropped from the JSON body,
+        // which the server reads as "leave unchanged", so the old value came back
+        // after a reload. `updateInspectorSchema.phone` is `.nullable()`, so a
+        // `null` persists the clear. Create keeps `undefined` — createInspectorSchema
+        // phone is `.optional()` only, and a `null` there would fail validation.
+        //
         // Deliberately excludes `password`: updateInspectorSchema is a plain
         // z.object, so it would be silently stripped server-side — putting a
         // plaintext password on the wire with no error to signal it.
         const { error } = await api.PATCH('/v1/inspectors/{inspectorId}', {
           params: { path: { inspectorId } },
-          body: sharedFields,
+          body: { ...sharedFields, phone: data.phone.trim() || null },
         });
         apiError = error as ApiErrorEnvelope | undefined;
       } else {
