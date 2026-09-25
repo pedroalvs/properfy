@@ -7,6 +7,7 @@ import { AppCredentialEntity } from '../../../src/modules/app-credential/domain/
 import {
   AppCredentialNotFoundError,
   AppCredentialBranchInvalidError,
+  AppCredentialTenantInvalidError,
 } from '../../../src/modules/app-credential/domain/app-credential.errors';
 
 const repo = {
@@ -22,6 +23,7 @@ const repo = {
 };
 const auditService = { log: vi.fn() };
 const branchRepo = { findById: vi.fn() };
+const tenantRepo = { findById: vi.fn() };
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000001';
 const ACTOR_ID = 'user-1';
@@ -40,11 +42,16 @@ function makeEntity(overrides: Partial<ConstructorParameters<typeof AppCredentia
   });
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Default: an existing, active tenant. Individual tests override with
+  // mockResolvedValueOnce(null) or an inactive tenant to exercise the guard.
+  tenantRepo.findById.mockResolvedValue({ isActive: () => true });
+});
 
 describe('CreateAppCredentialUseCase', () => {
   it('saves the credential with plaintext password and audits without leaking it', async () => {
-    const sut = new CreateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any);
+    const sut = new CreateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any, tenantRepo as any);
     const result = await sut.execute({
       tenantId: TENANT_ID, name: 'Airbnb', username: 'host', password: 'secret',
       actorId: ACTOR_ID, actorTenantId: null,
@@ -63,7 +70,7 @@ describe('CreateAppCredentialUseCase', () => {
   });
 
   it('accepts needsAuthCode=true — the flag is informational, no code is stored', async () => {
-    const sut = new CreateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any);
+    const sut = new CreateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any, tenantRepo as any);
     await sut.execute({
       tenantId: TENANT_ID, name: 'Airbnb', username: 'host', password: 'secret',
       needsAuthCode: true, actorId: ACTOR_ID,
@@ -73,9 +80,47 @@ describe('CreateAppCredentialUseCase', () => {
     expect(saved).not.toHaveProperty('authCode');
   });
 
+  it('rejects a tenant that does not exist (no save)', async () => {
+    tenantRepo.findById.mockReset();
+    tenantRepo.findById.mockResolvedValueOnce(null);
+    const sut = new CreateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any, tenantRepo as any);
+    await expect(
+      sut.execute({
+        tenantId: TENANT_ID, name: 'Airbnb', username: 'host', password: 'secret', actorId: ACTOR_ID,
+      }),
+    ).rejects.toBeInstanceOf(AppCredentialTenantInvalidError);
+    expect(tenantRepo.findById).toHaveBeenCalledWith(TENANT_ID);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects an inactive tenant (no save)', async () => {
+    tenantRepo.findById.mockReset();
+    tenantRepo.findById.mockResolvedValueOnce({ isActive: () => false });
+    const sut = new CreateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any, tenantRepo as any);
+    await expect(
+      sut.execute({
+        tenantId: TENANT_ID, name: 'Airbnb', username: 'host', password: 'secret', actorId: ACTOR_ID,
+      }),
+    ).rejects.toBeInstanceOf(AppCredentialTenantInvalidError);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('checks the tenant before the branch — an invalid tenant short-circuits the branch lookup', async () => {
+    tenantRepo.findById.mockReset();
+    tenantRepo.findById.mockResolvedValueOnce(null);
+    const sut = new CreateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any, tenantRepo as any);
+    await expect(
+      sut.execute({
+        tenantId: TENANT_ID, branchId: 'branch-1',
+        name: 'Airbnb', username: 'host', password: 'secret', actorId: ACTOR_ID,
+      }),
+    ).rejects.toBeInstanceOf(AppCredentialTenantInvalidError);
+    expect(branchRepo.findById).not.toHaveBeenCalled();
+  });
+
   it('validates that branchId belongs to the tenant', async () => {
     branchRepo.findById.mockResolvedValueOnce(null);
-    const sut = new CreateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any);
+    const sut = new CreateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any, tenantRepo as any);
     await expect(
       sut.execute({
         tenantId: TENANT_ID, branchId: 'branch-other-tenant',
@@ -88,7 +133,7 @@ describe('CreateAppCredentialUseCase', () => {
 
   it('persists new fields (branch, urls, instructionsPassword) without leaking secrets', async () => {
     branchRepo.findById.mockResolvedValueOnce({ id: 'branch-1' });
-    const sut = new CreateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any);
+    const sut = new CreateAppCredentialUseCase(repo as any, auditService as any, branchRepo as any, tenantRepo as any);
     await sut.execute({
       tenantId: TENANT_ID, branchId: 'branch-1',
       name: 'Airbnb', username: 'host', password: 'secret',
@@ -223,6 +268,12 @@ describe('app-credential error codes', () => {
   it('AppCredentialBranchInvalidError carries APP_CREDENTIAL_BRANCH_INVALID with status 400', () => {
     const err = new AppCredentialBranchInvalidError();
     expect(err.code).toBe('APP_CREDENTIAL_BRANCH_INVALID');
+    expect(err.statusCode).toBe(400);
+  });
+
+  it('AppCredentialTenantInvalidError carries APP_CREDENTIAL_TENANT_INVALID with status 400', () => {
+    const err = new AppCredentialTenantInvalidError();
+    expect(err.code).toBe('APP_CREDENTIAL_TENANT_INVALID');
     expect(err.statusCode).toBe(400);
   });
 });

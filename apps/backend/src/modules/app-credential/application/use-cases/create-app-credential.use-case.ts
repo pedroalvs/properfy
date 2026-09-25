@@ -1,8 +1,12 @@
 import type { IAppCredentialRepository } from '../../domain/app-credential.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import { AppCredentialEntity } from '../../domain/app-credential.entity';
-import { AppCredentialBranchInvalidError } from '../../domain/app-credential.errors';
+import {
+  AppCredentialBranchInvalidError,
+  AppCredentialTenantInvalidError,
+} from '../../domain/app-credential.errors';
 
 export interface CreateAppCredentialInput {
   tenantId: string;
@@ -25,9 +29,19 @@ export class CreateAppCredentialUseCase {
     private readonly repo: IAppCredentialRepository,
     private readonly auditService: AuditService,
     private readonly branchRepo: Pick<IBranchRepository, 'findById'>,
+    private readonly tenantRepo: Pick<ITenantRepository, 'findById'>,
   ) {}
 
   async execute(input: CreateAppCredentialInput): Promise<AppCredentialEntity> {
+    // AM/OP create credentials cross-tenant (tenantId comes from the body, not
+    // the JWT — AM/OP tokens carry tenantId: null). Validate the supplied tenant
+    // exists and is active before persisting, so a deactivated agency can't be
+    // targeted and a nonexistent id fails as a clean 400 rather than an FK 500.
+    const tenant = await this.tenantRepo.findById(input.tenantId);
+    if (!tenant || !tenant.isActive()) {
+      throw new AppCredentialTenantInvalidError();
+    }
+
     // Multi-tenant safety: the branch (when given) must belong to the owning
     // tenant. findById is tenant-scoped, so a cross-tenant id resolves to null.
     if (input.branchId) {
