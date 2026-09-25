@@ -5,6 +5,7 @@ import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Button } from '@/components/ui/Button';
+import { Dialog } from '@/components/ui/Dialog';
 import { useMarketplaceOffers } from '../hooks/useMarketplaceOffers';
 import { useMarketplaceOfferDetail } from '../hooks/useMarketplaceOfferDetail';
 import { useOfferAccept } from '../hooks/useOfferAccept';
@@ -127,28 +128,30 @@ export function MarketplacePage() {
         />
       </div>
 
-      {/* Confirm Accept Dialog */}
-      {confirmGroupId && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          data-testid="confirm-dialog-overlay"
-        >
-          <div className="w-full max-w-sm rounded-lg bg-card-bg p-6 shadow-xl">
-            <h3 className="mb-2 text-lg font-semibold text-secondary">Accept Offer?</h3>
-            <p className="mb-6 text-sm text-text-secondary">
-              Are you sure you want to accept this offer? This action cannot be undone.
-            </p>
-            <div className="flex items-center justify-end gap-3">
-              <Button variant="secondary" onClick={handleCancelConfirm}>
-                Cancel
-              </Button>
-              <Button variant="primary" onClick={handleConfirmAccept} loading={isAccepting}>
-                Accept
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Confirm Accept — uses the accessible Dialog primitive (focus management,
+          Escape-to-close, role="dialog" with a labelled title) instead of a
+          hand-rolled overlay. Accept stays a positive coral primary action, so
+          Dialog is used directly rather than ConfirmDialog (danger/warning only). */}
+      <Dialog
+        open={confirmGroupId !== null}
+        onClose={handleCancelConfirm}
+        title="Accept Offer?"
+        maxWidth="384px"
+        actions={
+          <>
+            <Button variant="secondary" onClick={handleCancelConfirm}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleConfirmAccept} loading={isAccepting}>
+              Accept
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-text-secondary">
+          Are you sure you want to accept this offer? This action cannot be undone.
+        </p>
+      </Dialog>
     </div>
   );
 }
