@@ -25,7 +25,7 @@ const auditService = { log: vi.fn() } as any;
 describe('CreateServiceTypeUseCase — name uniqueness', () => {
   it('throws ServiceTypeNameConflictError when name already exists (exact match)', async () => {
     const repo = {
-      findByCode: vi.fn().mockResolvedValue(null),
+      findByCodeAnyStatus: vi.fn().mockResolvedValue(null),
       findByName: vi.fn().mockResolvedValue(makeEntity()),
       save: vi.fn(),
     } as any;
@@ -47,7 +47,7 @@ describe('CreateServiceTypeUseCase — name uniqueness', () => {
 
   it('throws ServiceTypeNameConflictError when name matches case-insensitively', async () => {
     const repo = {
-      findByCode: vi.fn().mockResolvedValue(null),
+      findByCodeAnyStatus: vi.fn().mockResolvedValue(null),
       findByName: vi.fn().mockResolvedValue(makeEntity()),
       save: vi.fn(),
     } as any;
@@ -67,7 +67,7 @@ describe('CreateServiceTypeUseCase — name uniqueness', () => {
 
   it('throws ServiceTypeCodeConflictError when code already exists (checked first)', async () => {
     const repo = {
-      findByCode: vi.fn().mockResolvedValue(makeEntity()),
+      findByCodeAnyStatus: vi.fn().mockResolvedValue(makeEntity()),
       findByName: vi.fn(),
       save: vi.fn(),
     } as any;
@@ -89,7 +89,7 @@ describe('CreateServiceTypeUseCase — name uniqueness', () => {
 
   it('saves when both code and name are unique', async () => {
     const repo = {
-      findByCode: vi.fn().mockResolvedValue(null),
+      findByCodeAnyStatus: vi.fn().mockResolvedValue(null),
       findByName: vi.fn().mockResolvedValue(null),
       save: vi.fn(),
     } as any;
@@ -116,7 +116,7 @@ describe('UpdateServiceTypeUseCase — name uniqueness', () => {
     const repo = {
       findById: vi.fn().mockResolvedValue(existing),
       findByName: vi.fn().mockResolvedValue(conflicting),
-      update: vi.fn(),
+      update: vi.fn().mockResolvedValue(makeEntity()),
     } as any;
 
     const useCase = new UpdateServiceTypeUseCase(repo, auditService);
@@ -138,7 +138,7 @@ describe('UpdateServiceTypeUseCase — name uniqueness', () => {
     const repo = {
       findById: vi.fn().mockResolvedValue(existing),
       findByName: vi.fn().mockResolvedValue(existing),
-      update: vi.fn(),
+      update: vi.fn().mockResolvedValue(makeEntity()),
     } as any;
 
     const useCase = new UpdateServiceTypeUseCase(repo, auditService);
@@ -158,7 +158,7 @@ describe('UpdateServiceTypeUseCase — name uniqueness', () => {
     const repo = {
       findById: vi.fn().mockResolvedValue(existing),
       findByName: vi.fn(),
-      update: vi.fn(),
+      update: vi.fn().mockResolvedValue(makeEntity()),
     } as any;
 
     const useCase = new UpdateServiceTypeUseCase(repo, auditService);
