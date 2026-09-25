@@ -116,8 +116,8 @@ describe('UpdateInspectorUseCase — login account email sync', () => {
     useCase = new UpdateInspectorUseCase(
       inspectorRepo,
       auditService,
-      undefined,
       new AuthorizationService(auditService),
+      undefined,
       userManagementRepo,
     );
     vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
@@ -443,8 +443,8 @@ describe('UpdateInspectorUseCase — unlinked legacy inspector', () => {
     useCase = new UpdateInspectorUseCase(
       inspectorRepo,
       auditService,
-      undefined,
       new AuthorizationService(auditService),
+      undefined,
       userManagementRepo,
     );
     vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector({ userId: null }));

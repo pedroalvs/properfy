@@ -4259,7 +4259,15 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: {
+                                uploadUrl: string;
+                                storageKey: string;
+                                expiresAt: string;
+                            };
+                        };
+                    };
                 };
             };
         };
@@ -4300,7 +4308,13 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: {
+                                inspectorId: string;
+                            };
+                        };
+                    };
                 };
             };
         };

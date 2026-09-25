@@ -2,7 +2,11 @@ import { useCallback, useMemo, useState } from 'react';
 import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { useUrlFilters, type FilterSchema } from '@/hooks/useUrlFilters';
+import type { InspectorStatus, ServiceTypeEntry, paths } from '@properfy/shared';
 import type { Inspector, InspectorFiltersState } from '../types';
+
+type InspectorApiRecord =
+  paths['/v1/inspectors']['get']['responses']['200']['content']['application/json']['data'][number];
 
 const FILTER_SCHEMA = {
   search: { type: 'string' as const, default: '' },
@@ -32,7 +36,7 @@ export function useInspectorList(): UseInspectorListReturn {
     }
     setPage(1);
   }, [filters, setFilter]);
-  const query = usePaginatedQuery<Inspector>(
+  const query = usePaginatedQuery<InspectorApiRecord>(
     ['inspectors'],
     '/v1/inspectors',
     {
@@ -55,17 +59,28 @@ export function useInspectorList(): UseInspectorListReturn {
 
   // PR #961 bug class: memoized so consumers get a stable array per fetch result.
   const data: Inspector[] = useMemo(() => {
-    const rawData: any[] = query.data?.data ?? [];
-    return rawData.map((item) => ({
-      ...item,
-      regionsCount: Array.isArray(item.regionIds) ? item.regionIds.length : 0,
-      serviceTypesCount: Array.isArray(item.serviceTypesJson) ? item.serviceTypesJson.length : 0,
-      // Defaults keep a pre-deploy API from rendering undefined cells. null, not
-      // 0, for an unrated inspector — see Inspector.ratingAvg.
-      ratingAvg: item.rating?.average ?? null,
-      ratingCount: item.rating?.responseCount ?? 0,
-      completedCount: item.rating?.doneServicesCount ?? 0,
-    }));
+    const rawData: InspectorApiRecord[] = query.data?.data ?? [];
+    return rawData.map((item): Inspector => {
+      const serviceTypes = Array.isArray(item.serviceTypesJson)
+        ? (item.serviceTypesJson as ServiceTypeEntry[])
+        : [];
+      return {
+        id: item.id,
+        name: item.name,
+        email: item.email,
+        phone: item.phone,
+        status: item.status as InspectorStatus,
+        regionsCount: item.regionIds?.length ?? 0,
+        serviceTypesCount: serviceTypes.length,
+        // Defaults keep a pre-deploy API from rendering undefined cells. null, not
+        // 0, for an unrated inspector — see Inspector.ratingAvg.
+        ratingAvg: item.rating?.average ?? null,
+        ratingCount: item.rating?.responseCount ?? 0,
+        completedCount: item.rating?.doneServicesCount ?? 0,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      };
+    });
   }, [query.data?.data]);
 
   return {

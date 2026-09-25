@@ -55,8 +55,8 @@ export class UpdateInspectorUseCase {
   constructor(
     private readonly inspectorRepo: IInspectorRepository,
     private readonly auditService: AuditService,
+    private readonly authorizationService: AuthorizationService,
     private readonly serviceRegionRepo?: IServiceRegionRepository,
-    private readonly authorizationService?: AuthorizationService,
     private readonly userManagementRepo?: IUserManagementRepository,
   ) {}
 
@@ -78,7 +78,7 @@ export class UpdateInspectorUseCase {
   async execute(input: UpdateInspectorInput): Promise<UpdateInspectorOutput> {
     const { inspectorId, data, actor } = input;
 
-    this.authorizationService!.assertRoles(actor, ['AM', 'OP'], {
+    this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
       action: 'inspector.update',
       entityType: 'Inspector',
     });
@@ -198,14 +198,24 @@ export class UpdateInspectorUseCase {
       ? await this.serviceRegionRepo.getInspectorRegionIds(inspectorId)
       : [];
 
+    // Gate on key-presence, not `??`: an explicit `null` clear (e.g. phone) is a
+    // real change and must be reflected in both the audit `after` and the response,
+    // not silently rewritten to the previous value. `updateData` carries a key only
+    // when the field was supplied, so `in` distinguishes "cleared" from "untouched".
     const after = {
-      name: (updateData.name as string) ?? inspector.name,
-      email: (updateData.email as string) ?? inspector.email,
-      phone: (updateData.phone as string | null) ?? inspector.phone,
+      name: 'name' in updateData ? (updateData.name as string) : inspector.name,
+      email: 'email' in updateData ? (updateData.email as string) : inspector.email,
+      phone: 'phone' in updateData ? (updateData.phone as string | null) : inspector.phone,
       status: (updateData.status as string) ?? inspector.status,
-      paymentSettingsJson: (updateData.paymentSettingsJson as PaymentSettings) ?? inspector.paymentSettingsJson,
+      paymentSettingsJson:
+        'paymentSettingsJson' in updateData
+          ? (updateData.paymentSettingsJson as PaymentSettings)
+          : inspector.paymentSettingsJson,
       regionIds: resolvedRegionIds,
-      serviceTypesJson: (updateData.serviceTypesJson as ServiceTypeEntry[]) ?? inspector.serviceTypesJson,
+      serviceTypesJson:
+        'serviceTypesJson' in updateData
+          ? (updateData.serviceTypesJson as ServiceTypeEntry[])
+          : inspector.serviceTypesJson,
     };
 
     this.auditService.log({

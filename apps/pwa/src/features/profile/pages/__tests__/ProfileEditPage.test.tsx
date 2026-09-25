@@ -8,6 +8,7 @@ const mockMutateInspectorSelf = vi.fn();
 const mockMutateAvailability = vi.fn();
 const mockMutateTimezone = vi.fn();
 const mockUsePrompt = vi.fn();
+const mockUseAvailability = vi.fn();
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
@@ -39,7 +40,7 @@ vi.mock('../../hooks/useUpdateInspectorAvailabilityTemplate', () => ({
 }));
 
 vi.mock('../../hooks/useInspectorAvailabilityTemplate', () => ({
-  useInspectorAvailabilityTemplate: () => ({ data: undefined, isLoading: false }),
+  useInspectorAvailabilityTemplate: () => mockUseAvailability(),
 }));
 
 vi.mock('../../hooks/useUpdateMyTimezone', () => ({
@@ -75,6 +76,7 @@ describe('ProfileEditPage', () => {
     vi.clearAllMocks();
     mockUseAuth.mockReturnValue({ user: MOCK_USER, logout: vi.fn(), refreshUser: vi.fn() });
     mockUsePrompt.mockImplementation(() => {});
+    mockUseAvailability.mockReturnValue({ data: undefined, isLoading: false });
   });
 
   it('renders the three edit sections (photo, phone, availability)', () => {
@@ -105,6 +107,7 @@ describe('ProfileEditPage — AU phone mask and validation', () => {
     vi.clearAllMocks();
     mockUseAuth.mockReturnValue({ user: MOCK_USER, logout: vi.fn(), refreshUser: vi.fn() });
     mockUsePrompt.mockImplementation(() => {});
+    mockUseAvailability.mockReturnValue({ data: undefined, isLoading: false });
   });
 
   it('displays the stored E.164 phone in local masked format', () => {
@@ -162,6 +165,7 @@ describe('ProfileEditPage — Timezone section', () => {
     vi.clearAllMocks();
     mockUseAuth.mockReturnValue({ user: MOCK_USER, logout: vi.fn(), refreshUser: mockRefreshUser });
     mockUsePrompt.mockImplementation(() => {});
+    mockUseAvailability.mockReturnValue({ data: undefined, isLoading: false });
   });
 
   it('renders the picker prefilled from the personal timezone', () => {
@@ -232,5 +236,34 @@ describe('ProfileEditPage — Timezone section', () => {
 
     expect(await screen.findByText('Invalid timezone')).toBeInTheDocument();
     expect(mockRefreshUser).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProfileEditPage — availability grid dirty tracking', () => {
+  const OFF = { am: false, pm: false };
+  const ON = { am: true, pm: true };
+  const AVAILABILITY = {
+    template: { mon: ON, tue: OFF, wed: ON, thu: OFF, fri: ON, sat: OFF, sun: OFF },
+    overrides: { mon: OFF, tue: OFF, wed: OFF, thu: OFF, fri: OFF, sat: OFF, sun: OFF },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({ user: MOCK_USER, logout: vi.fn(), refreshUser: vi.fn() });
+    mockUsePrompt.mockImplementation(() => {});
+    mockUseAvailability.mockReturnValue({ data: AVAILABILITY, isLoading: false });
+  });
+
+  it('toggling a cell in the availability grid marks the page dirty for the unsaved-changes prompt', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileEditPage />);
+
+    expect(mockUsePrompt).toHaveBeenLastCalledWith(false);
+
+    // Tuesday AM is OFF initially.
+    const tuesdayAm = screen.getAllByRole('button', { name: /AM/i })[1]!;
+    await user.click(tuesdayAm);
+
+    expect(mockUsePrompt).toHaveBeenLastCalledWith(true);
   });
 });

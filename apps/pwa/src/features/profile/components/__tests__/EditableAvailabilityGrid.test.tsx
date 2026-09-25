@@ -56,16 +56,42 @@ describe('EditableAvailabilityGrid', () => {
     expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
   });
 
-  it('toggling a cell changes local state', () => {
+  it('toggling a cell flips its aria-pressed/data-state (fails if onToggle is a no-op)', () => {
     const Wrapper = makeWrapper();
     render(
       <Wrapper><EditableAvailabilityGrid availability={AVAILABILITY} /></Wrapper>,
     );
     // Tuesday AM is OFF initially, clicking should toggle it
     const tuesdayAmBtn = screen.getAllByRole('button', { name: /AM/i })[1]!; // index 1 = Tue
+    expect(tuesdayAmBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(tuesdayAmBtn).toHaveAttribute('data-state', 'off');
+
     fireEvent.click(tuesdayAmBtn);
-    // After toggle, the aria-pressed or data-state changes — just verify the click doesn't crash
-    expect(tuesdayAmBtn).toBeInTheDocument();
+
+    expect(tuesdayAmBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(tuesdayAmBtn).toHaveAttribute('data-state', 'on');
+  });
+
+  it('resyncs localTemplate when the availability.template prop changes underneath it', () => {
+    const Wrapper = makeWrapper();
+    const { rerender } = render(
+      <Wrapper><EditableAvailabilityGrid availability={AVAILABILITY} /></Wrapper>,
+    );
+
+    // Wednesday AM starts ON.
+    const wedAmBtn = screen.getAllByRole('button', { name: /AM/i })[2]!;
+    expect(wedAmBtn).toHaveAttribute('aria-pressed', 'true');
+
+    const updated: InspectorAvailabilityResponse = {
+      ...AVAILABILITY,
+      template: { ...AVAILABILITY.template, wed: OFF },
+    };
+    rerender(
+      <Wrapper><EditableAvailabilityGrid availability={updated} /></Wrapper>,
+    );
+
+    const wedAmBtnAfter = screen.getAllByRole('button', { name: /AM/i })[2]!;
+    expect(wedAmBtnAfter).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('Save button calls the mutation with the current template', async () => {

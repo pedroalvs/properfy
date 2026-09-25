@@ -102,9 +102,23 @@ describe('InspectorListPage', () => {
     });
   });
 
-  it('shows loading state initially', () => {
+  // #587: assert the actual loading skeleton, not just a static column header.
+  // Keep the inspectors GET unresolved so the table stays in its loading branch,
+  // which renders LoadingState (role="status" aria-busy). The previous assertion
+  // (a "Name" header, always present) passed even if the skeleton never rendered.
+  it('shows the loading skeleton while the inspectors query is pending', () => {
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/inspectors') {
+        return new Promise(() => {}); // never resolves → stays loading
+      }
+      return Promise.resolve({
+        data: { data: [], pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 } },
+      });
+    });
+
     renderPage();
-    const nameElements = screen.getAllByText('Name');
-    expect(nameElements.length).toBeGreaterThanOrEqual(1);
+
+    expect(screen.getAllByRole('status').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Carlos Silva')).not.toBeInTheDocument();
   });
 });

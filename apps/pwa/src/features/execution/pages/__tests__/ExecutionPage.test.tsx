@@ -14,11 +14,13 @@ vi.mock('@/hooks/useEffectiveTimezone', () => ({
   useEffectiveTimezone: () => 'Australia/Sydney',
 }));
 
+const mockUseBlocker = vi.fn(() => ({ state: 'unblocked' as const, reset: vi.fn(), proceed: vi.fn() }));
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom') as Record<string, unknown>;
   return {
     ...actual,
-    useBlocker: () => ({ state: 'unblocked', reset: vi.fn(), proceed: vi.fn() }),
+    useBlocker: (shouldBlock: boolean) => mockUseBlocker(shouldBlock),
   };
 });
 
@@ -124,6 +126,7 @@ describe('ExecutionPage', () => {
     mockFinishMutateAsync.mockReset();
     mockShowError.mockReset();
     mockShowInfo.mockReset();
+    mockUseBlocker.mockClear();
 
     mockUseStartInspection.mockReturnValue({
       mutateAsync: mockStartMutateAsync,
@@ -294,6 +297,43 @@ describe('ExecutionPage', () => {
 
     renderPage();
     expect(screen.getByTestId('execution-page').classList.contains('pb-safe-b')).toBe(true);
+  });
+
+  it('keeps the navigation blocker active while submission is in flight (SUBMITTING phase)', () => {
+    mockUseInspectorAppointment.mockReturnValue({
+      data: {
+        data: {
+          id: 'apt-1',
+          propertyAddress: '123 Main St',
+          scheduledDate: '2099-12-31',
+          timeSlotStart: '09:00',
+          timeSlotEnd: '11:00',
+        },
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as ReturnType<typeof useInspectorAppointment>);
+
+    mockUseLocalExecutionState.mockReturnValue({
+      state: {
+        appointmentId: 'apt-1',
+        phase: 'SUBMITTING',
+        pendingSync: false,
+        startLocation: null,
+        finishLocation: null,
+        startedAt: null,
+        errorMessage: null,
+        lastSavedAt: null,
+      },
+      updateState: vi.fn(),
+      clearState: vi.fn(),
+      isRestored: true,
+    });
+
+    renderPage();
+
+    expect(mockUseBlocker).toHaveBeenCalledWith(true);
   });
 
   describe('finish confirmation modals', () => {
