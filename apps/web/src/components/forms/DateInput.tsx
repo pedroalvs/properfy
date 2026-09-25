@@ -153,7 +153,7 @@ export function DateInput({
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     // ArrowDown is the standard combobox gesture to open the popup the field
     // advertises (aria-haspopup="dialog"); once open it steps into the grid.
-    if (!open && variant === 'form' && !disabled && !event.shiftKey && event.key === 'ArrowDown') {
+    if (!open && !disabled && !event.shiftKey && event.key === 'ArrowDown') {
       event.preventDefault();
       focusGridOnOpenRef.current = true;
       openCalendar();
@@ -379,7 +379,7 @@ export function DateInput({
         // caret for typing. Open-on-click (not focus) avoids re-opening when a day
         // pick programmatically refocuses the input.
         onClick={() => {
-          if (!disabled && variant === 'form') openCalendar();
+          if (!disabled) openCalendar();
         }}
         disabled={disabled}
         aria-label={ariaLabel}
@@ -387,9 +387,9 @@ export function DateInput({
         aria-invalid={invalid || undefined}
         // Advertise the calendar popup to assistive tech. Focus stays on the field
         // (so it stays typeable); AT learns it is expandable and when it is open.
-        aria-haspopup={variant === 'form' && !disabled ? 'dialog' : undefined}
-        aria-expanded={variant === 'form' && !disabled ? open : undefined}
-        aria-controls={open && variant === 'form' ? panelId : undefined}
+        aria-haspopup={!disabled ? 'dialog' : undefined}
+        aria-expanded={!disabled ? open : undefined}
+        aria-controls={open ? panelId : undefined}
         data-min={min}
         data-max={max}
       />
@@ -399,8 +399,51 @@ export function DateInput({
     </>
   );
 
-  // The filter shell supplies its own chrome and has no room for a popover.
-  if (variant === 'bare') return input;
+  const popover =
+    open &&
+    createPortal(
+      <div
+        ref={panelRef}
+        id={panelId}
+        role="dialog"
+        aria-label="Choose date"
+        onKeyDown={handlePanelKeyDown}
+        className="w-[19rem] max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain rounded border border-black/10 bg-card-bg shadow-lg"
+        style={{
+          position: 'fixed',
+          top: coords?.top,
+          bottom: coords?.bottom,
+          left: coords?.left ?? 0,
+          maxHeight: coords?.maxHeight,
+          zIndex: POPUP_Z_INDEX,
+          visibility: coords ? 'visible' : 'hidden',
+        }}
+      >
+        <CalendarPanel
+          selected={value}
+          min={min}
+          max={max}
+          onSelect={(next) => {
+            field.setText(isoDateToMasked(next));
+            setOpen(false);
+            inputRef.current?.focus();
+          }}
+        />
+      </div>,
+      document.body,
+    );
+
+  // The filter shell supplies its own frame and calendar icon, so the bare variant
+  // drops the container chrome and the icon button — but the field still anchors
+  // and opens the same calendar popover (a ref'd wrapper is needed to position it).
+  if (variant === 'bare') {
+    return (
+      <div ref={containerRef}>
+        {input}
+        {popover}
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className={containerClass}>
@@ -422,38 +465,7 @@ export function DateInput({
         )}
       </div>
 
-      {open &&
-        createPortal(
-          <div
-            ref={panelRef}
-            id={panelId}
-            role="dialog"
-            aria-label="Choose date"
-            onKeyDown={handlePanelKeyDown}
-            className="w-[19rem] max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain rounded border border-black/10 bg-card-bg shadow-lg"
-            style={{
-              position: 'fixed',
-              top: coords?.top,
-              bottom: coords?.bottom,
-              left: coords?.left ?? 0,
-              maxHeight: coords?.maxHeight,
-              zIndex: POPUP_Z_INDEX,
-              visibility: coords ? 'visible' : 'hidden',
-            }}
-          >
-            <CalendarPanel
-              selected={value}
-              min={min}
-              max={max}
-              onSelect={(next) => {
-                field.setText(isoDateToMasked(next));
-                setOpen(false);
-                inputRef.current?.focus();
-              }}
-            />
-          </div>,
-          document.body,
-        )}
+      {popover}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { lockBodyScroll } from '@/lib/body-scroll-lock';
+import { focusFirstFocusable } from '@/lib/focus';
 
 interface DialogProps {
   open: boolean;
@@ -34,12 +35,17 @@ export function Dialog({
     if (!open) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current();
+      if (e.key !== 'Escape') return;
+      // Own the Escape so it closes this dialog without also reaching a
+      // page-level handler behind it.
+      e.stopPropagation();
+      onCloseRef.current();
     };
     document.addEventListener('keydown', handleKeyDown);
 
-    // Focus trap: focus the dialog on open
-    dialogRef.current?.focus();
+    // Move focus into the dialog on open (WCAG 2.4.3): the first focusable
+    // control, or the container itself (tabIndex={-1}) when it has none.
+    focusFirstFocusable(dialogRef.current);
 
     // Lock the page scroll while the dialog is open so wheel events at the end
     // of the dialog body don't chain to (and scroll) the page behind it.

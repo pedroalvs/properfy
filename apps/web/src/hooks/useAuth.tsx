@@ -111,6 +111,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         err?.error?.code,
       );
     }
+    // The account still owes a 2FA enrolment: the backend issues only a
+    // `totp_setup`-stage token, which is rejected by every protected route. Storing
+    // it would authenticate the user and then bounce them to /login with no
+    // explanation. Surface it as an error instead so the login page can tell them
+    // why, reusing the backend's own code. (Building the enrolment screen is a
+    // tracked follow-up — see followups.md.)
+    if (data.totpSetupRequired) {
+      throw new ApiError(
+        response.status,
+        'Two-factor authentication setup required',
+        'AUTH_TOTP_SETUP_REQUIRED',
+      );
+    }
     authStorage.setTokens(data.accessToken, data.refreshToken);
     setToken(data.accessToken);
     setUser(data.user);

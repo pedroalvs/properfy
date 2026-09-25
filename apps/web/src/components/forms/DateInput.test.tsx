@@ -471,6 +471,19 @@ describe('DateInput calendar popover', () => {
   });
 });
 
+describe('DateInput bare variant (filter shell)', () => {
+  it('opens the calendar on click and shows no standalone calendar button', async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateInput variant="bare" />);
+
+    // The filter shell owns the frame/icon, so no dedicated calendar button here.
+    expect(screen.queryByRole('button', { name: 'Open calendar' })).toBeNull();
+
+    await user.click(getInput());
+    expect(await screen.findByRole('dialog', { name: 'Choose date' })).toBeInTheDocument();
+  });
+});
+
 describe('DateInput accessibility and states', () => {
   it('exposes a format hint to screen readers', () => {
     render(<ControlledDateInput />);
