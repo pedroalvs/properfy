@@ -62,7 +62,7 @@ export class DeactivateBranchUseCase {
     }
 
     const hasOpenAppointments =
-      await this.appointmentChecker.hasOpenAppointmentsForBranch(branchId);
+      await this.appointmentChecker.hasOpenAppointmentsForBranch(tenantId, branchId);
     if (hasOpenAppointments) {
       throw new BranchHasOpenAppointmentsError();
     }

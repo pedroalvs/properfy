@@ -37,15 +37,16 @@ describe('PrismaAppointmentChecker', () => {
   });
 
   describe('hasOpenAppointmentsForBranch', () => {
-    it('should return true when count > 0', async () => {
+    it('should return true when count > 0 and scope the query by tenant_id', async () => {
       const prisma = makePrisma(1);
       const checker = new PrismaAppointmentChecker(prisma);
 
-      const result = await checker.hasOpenAppointmentsForBranch('branch-1');
+      const result = await checker.hasOpenAppointmentsForBranch('tenant-1', 'branch-1');
 
       expect(result).toBe(true);
       expect(prisma.appointment.count).toHaveBeenCalledWith({
         where: {
+          tenant_id: 'tenant-1',
           branch_id: 'branch-1',
           status: { in: ['DRAFT', 'AWAITING_INSPECTOR', 'SCHEDULED'] },
         },
@@ -56,22 +57,23 @@ describe('PrismaAppointmentChecker', () => {
       const prisma = makePrisma(0);
       const checker = new PrismaAppointmentChecker(prisma);
 
-      const result = await checker.hasOpenAppointmentsForBranch('branch-1');
+      const result = await checker.hasOpenAppointmentsForBranch('tenant-1', 'branch-1');
 
       expect(result).toBe(false);
     });
   });
 
   describe('hasOpenAppointmentsForProperty', () => {
-    it('should return true when count > 0', async () => {
+    it('should return true when count > 0 and scope the query by tenant_id', async () => {
       const prisma = makePrisma(2);
       const checker = new PrismaAppointmentChecker(prisma);
 
-      const result = await checker.hasOpenAppointmentsForProperty('prop-1');
+      const result = await checker.hasOpenAppointmentsForProperty('tenant-1', 'prop-1');
 
       expect(result).toBe(true);
       expect(prisma.appointment.count).toHaveBeenCalledWith({
         where: {
+          tenant_id: 'tenant-1',
           property_id: 'prop-1',
           status: { in: ['DRAFT', 'AWAITING_INSPECTOR', 'SCHEDULED'] },
         },
@@ -82,7 +84,7 @@ describe('PrismaAppointmentChecker', () => {
       const prisma = makePrisma(0);
       const checker = new PrismaAppointmentChecker(prisma);
 
-      const result = await checker.hasOpenAppointmentsForProperty('prop-1');
+      const result = await checker.hasOpenAppointmentsForProperty('tenant-1', 'prop-1');
 
       expect(result).toBe(false);
     });
