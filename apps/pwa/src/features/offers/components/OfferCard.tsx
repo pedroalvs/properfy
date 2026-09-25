@@ -182,7 +182,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
         {onViewDetail && (
           <button
             onClick={onViewDetail}
-            className="mt-2 text-xs font-semibold text-primary underline-offset-2 hover:underline"
+            className="mt-1 inline-flex min-h-[44px] items-center py-2 pr-2 text-xs font-semibold text-primary underline-offset-2 hover:underline"
             data-testid="view-detail-button"
           >
             View inspections

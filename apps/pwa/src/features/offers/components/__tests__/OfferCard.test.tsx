@@ -42,6 +42,14 @@ describe('OfferCard', () => {
     vi.useRealTimers();
   });
 
+  it('gives the "View inspections" CTA a 44px minimum touch target (#644)', () => {
+    render(
+      <OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} onViewDetail={vi.fn()} />,
+    );
+    const cta = screen.getByTestId('view-detail-button');
+    expect(cta.className).toContain('min-h-[44px]');
+  });
+
   it('renders offer details', () => {
     render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
     expect(screen.getByText('Routine Inspection')).toBeInTheDocument();

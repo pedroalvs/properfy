@@ -1,15 +1,21 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAcceptOffer } from '../useAcceptOffer';
-import { ApiError } from '@/lib/api-error';
-import { apiPost } from '@/hooks/useApiQuery';
+import { api } from '@/services/api';
 
 const mockShowError = vi.fn();
 const mockShowInfo = vi.fn();
 const mockShowSuccess = vi.fn();
+const mockInvalidateQueries = vi.fn();
 
-vi.mock('@/hooks/useApiQuery', () => ({
-  apiPost: vi.fn(),
+vi.mock('@/services/api', () => ({
+  api: {
+    GET: vi.fn(),
+    POST: vi.fn(),
+    PATCH: vi.fn(),
+    PUT: vi.fn(),
+    DELETE: vi.fn(),
+  },
 }));
 
 vi.mock('@tanstack/react-query', async () => {
@@ -17,7 +23,7 @@ vi.mock('@tanstack/react-query', async () => {
   return {
     ...actual,
     useQueryClient: () => ({
-      invalidateQueries: vi.fn(),
+      invalidateQueries: mockInvalidateQueries,
     }),
   };
 });
@@ -31,6 +37,22 @@ vi.mock('@/hooks/useSnackbar', () => ({
     messages: [],
   }),
 }));
+
+const mockPost = api.POST as ReturnType<typeof vi.fn>;
+
+/** openapi-fetch success shape (200 with a JSON body). */
+function postSuccess() {
+  return { data: { data: {} }, error: undefined, response: { ok: true, status: 200 } };
+}
+
+/** openapi-fetch failure shape: error envelope + non-ok Response. */
+function postError(status: number, message: string, code?: string) {
+  return {
+    data: undefined,
+    error: { error: { code, message } },
+    response: { ok: false, status },
+  };
+}
 
 describe('useAcceptOffer', () => {
   beforeEach(() => {
@@ -70,11 +92,83 @@ describe('useAcceptOffer', () => {
     expect(result.current.getState('group-2')).toBe('IDLE');
   });
 
+  it('accepts via the generated contract path with an Idempotency-Key and invalidates both queries (#450)', async () => {
+    mockPost.mockResolvedValueOnce(postSuccess());
+    const { result } = renderHook(() => useAcceptOffer());
+
+    let outcome: string | undefined;
+    await act(async () => {
+      outcome = await result.current.accept('group-1');
+    });
+
+    expect(outcome).toBe('ACCEPTED');
+    // Literal contract key + path params, and a non-empty Idempotency-Key.
+    expect(mockPost).toHaveBeenCalledWith(
+      '/v1/marketplace/offers/{groupId}/accept',
+      expect.objectContaining({
+        params: { path: { groupId: 'group-1' } },
+        headers: expect.objectContaining({ 'Idempotency-Key': expect.any(String) }),
+      }),
+    );
+    const headerKey = mockPost.mock.calls[0]?.[1]?.headers?.['Idempotency-Key'];
+    expect(headerKey.length).toBeGreaterThan(0);
+    // Both caches the accept affects must be invalidated.
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['marketplace', 'offers'] });
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['inspector', 'schedule'] });
+    expect(mockShowSuccess).toHaveBeenCalledWith('You accepted the group!');
+  });
+
+  it('startConfirm clears a pending post-ERROR reset timer so the sheet is not yanked to IDLE (#453)', async () => {
+    vi.useFakeTimers();
+    // Drive the group to ERROR, which arms the 4s reset timer.
+    mockPost.mockResolvedValueOnce(postError(500, 'Server error'));
+    const { result } = renderHook(() => useAcceptOffer());
+    await act(async () => {
+      await result.current.accept('group-1');
+    });
+    expect(result.current.getState('group-1')).toBe('ERROR');
+
+    // Reopen the confirm sheet within the 4s window.
+    act(() => {
+      result.current.startConfirm('group-1');
+    });
+    expect(result.current.getState('group-1')).toBe('CONFIRMING');
+
+    // The stale timer must have been cleared — advancing past 4s keeps CONFIRMING.
+    act(() => vi.advanceTimersByTime(4000));
+    expect(result.current.getState('group-1')).toBe('CONFIRMING');
+
+    vi.useRealTimers();
+  });
+
+  it('cancelConfirm clears a pending reset timer without a later spurious transition (#453)', async () => {
+    vi.useFakeTimers();
+    mockPost.mockResolvedValueOnce(postError(500, 'Server error'));
+    const { result } = renderHook(() => useAcceptOffer());
+    await act(async () => {
+      await result.current.accept('group-1');
+    });
+    expect(result.current.getState('group-1')).toBe('ERROR');
+
+    act(() => {
+      result.current.cancelConfirm('group-1');
+    });
+    expect(result.current.getState('group-1')).toBe('IDLE');
+
+    // A surviving stale timer would still fire setState(IDLE) — harmless value,
+    // but it proves the timer leaked. Re-confirm then advance: state must stay.
+    act(() => {
+      result.current.startConfirm('group-1');
+    });
+    act(() => vi.advanceTimersByTime(4000));
+    expect(result.current.getState('group-1')).toBe('CONFIRMING');
+
+    vi.useRealTimers();
+  });
+
   it('shows specific message and auto-resets to IDLE after 4s on AVAILABILITY_SLOT_NOT_MATCHED', async () => {
     vi.useFakeTimers();
-    vi.mocked(apiPost).mockRejectedValueOnce(
-      new ApiError(422, 'No availability slot', 'AVAILABILITY_SLOT_NOT_MATCHED'),
-    );
+    mockPost.mockResolvedValueOnce(postError(422, 'No availability slot', 'AVAILABILITY_SLOT_NOT_MATCHED'));
 
     const { result } = renderHook(() => useAcceptOffer());
 
@@ -95,7 +189,7 @@ describe('useAcceptOffer', () => {
 
   it('shows generic error and auto-resets to IDLE after 4s on unexpected error', async () => {
     vi.useFakeTimers();
-    vi.mocked(apiPost).mockRejectedValueOnce(new Error('Network error'));
+    mockPost.mockRejectedValueOnce(new Error('Network error'));
 
     const { result } = renderHook(() => useAcceptOffer());
 
@@ -114,9 +208,7 @@ describe('useAcceptOffer', () => {
 
   it('surfaces the backend message on unmapped API errors', async () => {
     vi.useFakeTimers();
-    vi.mocked(apiPost).mockRejectedValueOnce(
-      new ApiError(422, 'Your account is suspended', 'INSPECTOR_SUSPENDED'),
-    );
+    mockPost.mockResolvedValueOnce(postError(422, 'Your account is suspended', 'INSPECTOR_SUSPENDED'));
 
     const { result } = renderHook(() => useAcceptOffer());
 
@@ -130,8 +222,8 @@ describe('useAcceptOffer', () => {
     vi.useRealTimers();
   });
 
-  it('resolves with the final state — ACCEPTED on success, ERROR on retryable failure', async () => {
-    vi.mocked(apiPost).mockResolvedValueOnce({ data: {} });
+  it('resolves with the final state — ACCEPTED on success, ERROR/CONFLICT on failure', async () => {
+    mockPost.mockResolvedValueOnce(postSuccess());
     const { result } = renderHook(() => useAcceptOffer());
 
     let outcome: string | undefined;
@@ -140,13 +232,13 @@ describe('useAcceptOffer', () => {
     });
     expect(outcome).toBe('ACCEPTED');
 
-    vi.mocked(apiPost).mockRejectedValueOnce(new Error('Network error'));
+    mockPost.mockRejectedValueOnce(new Error('Network error'));
     await act(async () => {
       outcome = await result.current.accept('group-2');
     });
     expect(outcome).toBe('ERROR');
 
-    vi.mocked(apiPost).mockRejectedValueOnce(new ApiError(409, 'Already taken'));
+    mockPost.mockResolvedValueOnce(postError(409, 'Already taken'));
     await act(async () => {
       outcome = await result.current.accept('group-3');
     });
@@ -155,9 +247,7 @@ describe('useAcceptOffer', () => {
 
   it('does NOT auto-reset to IDLE when error is CONFLICT (409)', async () => {
     vi.useFakeTimers();
-    vi.mocked(apiPost).mockRejectedValueOnce(
-      new ApiError(409, 'Already taken', 'OFFER_ALREADY_ACCEPTED'),
-    );
+    mockPost.mockResolvedValueOnce(postError(409, 'Already taken', 'OFFER_ALREADY_ACCEPTED'));
 
     const { result } = renderHook(() => useAcceptOffer());
 
@@ -176,7 +266,7 @@ describe('useAcceptOffer', () => {
     vi.useFakeTimers();
 
     // First call fails → schedules 4s reset timer
-    vi.mocked(apiPost).mockRejectedValueOnce(new Error('Network error'));
+    mockPost.mockResolvedValueOnce(postError(500, 'Server error'));
     const { result } = renderHook(() => useAcceptOffer());
 
     await act(async () => {
@@ -189,7 +279,7 @@ describe('useAcceptOffer', () => {
     expect(result.current.getState('group-1')).toBe('ERROR');
 
     // Retry within 4s — second call also fails, schedules new 4s timer
-    vi.mocked(apiPost).mockRejectedValueOnce(new Error('Network error'));
+    mockPost.mockResolvedValueOnce(postError(500, 'Server error'));
     await act(async () => {
       await result.current.accept('group-1');
     });
@@ -197,7 +287,6 @@ describe('useAcceptOffer', () => {
 
     // Advance 2s more — original timer would have fired at t=4s but should be cancelled
     act(() => vi.advanceTimersByTime(2000));
-    // State is still ERROR — old timer was cancelled, new 4s timer hasn't fired yet
     expect(result.current.getState('group-1')).toBe('ERROR');
 
     // Advance the remaining 2s for the new timer → now resets
@@ -209,7 +298,7 @@ describe('useAcceptOffer', () => {
 
   it('cancels all pending timers on unmount — clearTimeout called for each pending timer', async () => {
     vi.useFakeTimers();
-    vi.mocked(apiPost).mockRejectedValueOnce(new Error('Network error'));
+    mockPost.mockResolvedValueOnce(postError(500, 'Server error'));
 
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
 
