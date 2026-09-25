@@ -182,6 +182,77 @@ describe('useInspectorSave', () => {
     });
   });
 
+  describe('clearing the phone on edit', () => {
+    it('sends phone: null so the clear persists (not undefined, which the server reads as untouched)', async () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+      await act(async () => {
+        await result.current.save({ ...VALID_CREATE_DATA, phone: '' }, 'insp-01');
+      });
+
+      expect(mockPatch).toHaveBeenCalledTimes(1);
+      const body = mockPatch.mock.calls[0]?.[1]?.body;
+      expect(body).toBeDefined();
+      // The key must be present and explicitly null — a missing key leaves the
+      // stored value untouched, which was the reload-shows-old-value bug.
+      expect(body).toHaveProperty('phone', null);
+    });
+
+    it('still sends the supplied phone value on edit when not cleared', async () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+      await act(async () => {
+        await result.current.save({ ...VALID_CREATE_DATA, phone: '0400 333 444' }, 'insp-01');
+      });
+
+      const body = mockPatch.mock.calls[0]?.[1]?.body;
+      expect(body).toHaveProperty('phone', '0400 333 444');
+    });
+
+    it('omits phone (undefined) on create when empty — create schema is optional, not nullable', async () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+      await act(async () => {
+        await result.current.save({ ...VALID_CREATE_DATA, phone: '' });
+      });
+
+      const body = mockPost.mock.calls[0]?.[1]?.body;
+      expect(body?.phone).toBeUndefined();
+    });
+
+    it('sends null for other cleared nullable fields on edit (abn, dateOfBirth)', async () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+      await act(async () => {
+        await result.current.save(
+          { ...VALID_CREATE_DATA, abn: '', dateOfBirth: '' },
+          'insp-01',
+        );
+      });
+
+      const body = mockPatch.mock.calls[0]?.[1]?.body;
+      expect(body).toHaveProperty('abn', null);
+      expect(body).toHaveProperty('dateOfBirth', null);
+    });
+
+    it('omits abn and dateOfBirth (undefined) on create when empty', async () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+      await act(async () => {
+        await result.current.save({ ...VALID_CREATE_DATA, abn: '', dateOfBirth: '' });
+      });
+
+      const body = mockPost.mock.calls[0]?.[1]?.body;
+      expect(body?.abn).toBeUndefined();
+      expect(body?.dateOfBirth).toBeUndefined();
+    });
+  });
+
   it('save returns success on edit', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useInspectorSave(), { wrapper });

@@ -23,6 +23,8 @@ function getLoginErrorMessage(error: unknown): string {
         return 'Enter the 6-digit code from your authenticator app.';
       case 'AUTH_TOTP_INVALID':
         return 'Invalid two-factor authentication code.';
+      case 'AUTH_TOTP_SETUP_REQUIRED':
+        return 'Two-factor authentication setup is required before you can sign in. Please contact your administrator to complete 2FA setup.';
       case 'VALIDATION_ERROR':
         return 'Invalid email or password format. Please check and try again.';
       default:

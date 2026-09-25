@@ -69,10 +69,11 @@ export class UpdateUserUseCase {
       }
     }
 
-    // Tenant-scoping: CL_ADMIN and OP can only update users from own tenant.
-    // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13): OP joins the
-    // tenant-scoped roles; only AM can cross tenants on user updates.
-    if (actor.role === 'CL_ADMIN' || actor.role === 'OP') {
+    // Tenant-scoping: only CL_ADMIN is bound to its own tenant. OP is
+    // cross-tenant (root CLAUDE.md §6, CORRECTION-001 ruling) and already
+    // creates agency users, so it must be able to update them across tenants
+    // too. Internal (tenant-less) users stay AM-only via the check below.
+    if (actor.role === 'CL_ADMIN') {
       if (actor.tenantId !== tenantId) {
         throw new ForbiddenError(
           'AUTH_FORBIDDEN',
@@ -89,8 +90,9 @@ export class UpdateUserUseCase {
       );
     }
 
-    // Internal (tenant-less) users can only be updated by AM.
-    // OP is tenant-scoped per CORRECTION-001 close-it.
+    // Internal (tenant-less) users can only be updated by AM. OP's cross-tenant
+    // reach covers agency users only, not other internal (AM/OP) accounts —
+    // mirroring create-user's privilege rules.
     if (tenantId === null && actor.role !== 'AM') {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',

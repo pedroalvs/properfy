@@ -67,6 +67,22 @@ describe('FilterDateRange', () => {
   });
 
 
+  it('opens a calendar popover when a period field is clicked', async () => {
+    render(
+      <FilterDateRange
+        label="Period"
+        startDate=""
+        endDate=""
+        onStartChange={() => {}}
+        onEndChange={() => {}}
+      />,
+    );
+
+    expect(screen.queryByRole('dialog', { name: 'Choose date' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Period - start'));
+    expect(await screen.findByRole('dialog', { name: 'Choose date' })).toBeInTheDocument();
+  });
+
   it('is safe when showPicker is undefined (older browsers)', () => {
     render(
       <FilterDateRange

@@ -203,6 +203,29 @@ describe('LoginPage', () => {
     });
   });
 
+  it('shows a clear message (not a silent bounce) when 2FA setup is pending', async () => {
+    const { ApiError } = await import('@/lib/api-error');
+    mockLogin.mockRejectedValueOnce(
+      new ApiError(200, 'Two-factor authentication setup required', 'AUTH_TOTP_SETUP_REQUIRED'),
+    );
+    renderLogin();
+
+    fireEvent.change(screen.getByLabelText('Work Email'), {
+      target: { value: 'admin@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'password123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /two-factor authentication setup is required/i,
+    );
+    // The account must not be treated as a code-entry flow, and must not navigate.
+    expect(screen.queryByLabelText('Authentication Code')).not.toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
   it('redirects authenticated users away from the login page', async () => {
     sessionStorage.setItem('properfy:web:post-login-redirect', '/appointments?status=DONE');
     mockUseAuth.mockReturnValue({
