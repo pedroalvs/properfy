@@ -16,6 +16,13 @@ export function PreStartPanel({ propertyAddress, propertyLatitude, propertyLongi
   const { location, status, error, requestLocation } = useGeolocation({ autoCapture: true });
   const [addressConfirmed, setAddressConfirmed] = useState(false);
 
+  // Geolocation is mandatory to start: the backend requires start coordinates
+  // (start_latitude/start_longitude are NOT NULL). The address-confirm checkbox
+  // is an extra confirmation, never a GPS bypass — so when the location is still
+  // pending or was denied, spell out that location is required and keep Start
+  // disabled, instead of leaving the inspector with a silently-disabled button.
+  const awaitingLocation = status === 'idle' || status === 'requesting';
+
   return (
     <div className="flex flex-col gap-4 px-page-x py-4" data-testid="pre-start-panel">
       <div className="rounded-lg bg-card-bg p-4">
@@ -42,6 +49,17 @@ export function PreStartPanel({ propertyAddress, propertyLatitude, propertyLongi
         />
         <span className="text-sm text-text-primary">I confirm I am at this address</span>
       </label>
+
+      {!location && (
+        <p
+          className={`text-xs font-medium ${awaitingLocation ? 'text-text-secondary' : 'text-error'}`}
+          data-testid="location-required-note"
+        >
+          {awaitingLocation
+            ? 'Getting your location… Start becomes available once your location is captured.'
+            : 'Enable location access to start the inspection. Confirming the address does not start it on its own.'}
+        </p>
+      )}
 
       <Button
         variant="primary"
