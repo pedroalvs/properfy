@@ -28,15 +28,27 @@ vi.mock('@/hooks/usePermissions', () => ({
 
 import { api } from '@/services/api';
 import { usePermissions } from '@/hooks/usePermissions';
+import { formatAddressLabel } from '@/lib/address';
 import { BranchSection } from './BranchSection';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
 const mockUsePermissions = usePermissions as unknown as ReturnType<typeof vi.fn>;
 
+// The real payload carries `addressJson`; useBranchList derives the displayed
+// `address` via formatAddressLabel(branch.addressJson). The fixture must carry
+// addressJson so the mapping path is actually exercised (#672).
+const CENTRO_ADDRESS = {
+  street: 'Rua Augusta, 100',
+  suburb: 'Consolação',
+  state: 'SP',
+  postcode: '01305',
+  country: 'BR',
+};
+
 const MOCK_BRANCHES = [
-  { id: 'br-01', tenantId: 'ten-01', name: 'Centro', address: 'Rua Augusta, 100', contactEmail: 'centro@imob.com', status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
-  { id: 'br-02', tenantId: 'ten-01', name: 'Zona Sul', address: null, contactEmail: null, status: 'INACTIVE', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
+  { id: 'br-01', tenantId: 'ten-01', name: 'Centro', addressJson: CENTRO_ADDRESS, contactEmail: 'centro@imob.com', status: 'ACTIVE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' },
+  { id: 'br-02', tenantId: 'ten-01', name: 'Zona Sul', addressJson: null, contactEmail: null, status: 'INACTIVE', createdAt: '2026-02-01T00:00:00Z', updatedAt: '2026-02-01T00:00:00Z' },
 ];
 
 function createWrapper() {
@@ -90,6 +102,18 @@ describe('BranchSection', () => {
     });
 
     expect(screen.getByText('Zona Sul')).toBeInTheDocument();
+  });
+
+  it('renders the address label derived from addressJson via formatAddressLabel (#672)', async () => {
+    const Wrapper = createWrapper();
+    render(<Wrapper><BranchSection tenantId="ten-01" /></Wrapper>);
+
+    const expectedLabel = formatAddressLabel(CENTRO_ADDRESS);
+    expect(expectedLabel).toBeTruthy();
+
+    await waitFor(() => {
+      expect(screen.getByText(expectedLabel as string)).toBeInTheDocument();
+    });
   });
 
   it('renders column headers', () => {
