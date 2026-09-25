@@ -19,6 +19,7 @@ function mapToEntity(row: any): NotificationTemplateEntity {
     variablesJson: row.variables_json as string[],
     isActive: row.is_active,
     notificationClass: (row.notification_class ?? 'OPERATIONAL') as NotificationClass,
+    seededContentHash: row.seeded_content_hash ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
@@ -146,6 +147,9 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
           variables_json: template.variablesJson,
           is_active: template.active,
           notification_class: template.notificationClass,
+          // Non-null only when a platform default was reset to the catalog seed;
+          // a genuine edit clears it, so `syncPlatformTemplates` protects the row.
+          seeded_content_hash: template.seededContentHash,
         },
       });
       return;
@@ -163,6 +167,7 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
         variables_json: template.variablesJson,
         is_active: template.active,
         notification_class: template.notificationClass,
+        seeded_content_hash: template.seededContentHash,
       },
     });
   }

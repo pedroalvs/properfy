@@ -16,6 +16,11 @@ import {
 } from '../../domain/notification.constants';
 import { measureSmsTemplate, describeSmsOverLimit } from '../../domain/sms-content';
 import { NotificationTemplateEntity } from '../../domain/notification-template.entity';
+import {
+  PLATFORM_TEMPLATES,
+  platformTemplateContentHash,
+  platformTemplateEffectiveContent,
+} from '../../domain/platform-notification-templates';
 
 const VALID_CHANNELS: NotificationChannel[] = ['EMAIL', 'SMS'];
 
@@ -183,6 +188,45 @@ export class UpsertNotificationTemplateUseCase {
     }
     const variablesJson = [...allVariables];
 
+    // 9b. Re-adopt the seed when a platform default is reset back to the catalog.
+    //
+    // A reset stages the shipped catalog body into the editor, so saving it means
+    // the submitted content equals the seed. Restore the row to a *seeded* state:
+    // store the exact catalog content (including the hand-written plain-text
+    // body, not the html-to-text derivation) and stamp the seed hash. That is
+    // what lets `syncPlatformTemplates` tell a seeded row from an operator-edited
+    // one — without it, deriving body_text and leaving the hash null (repo never
+    // wrote the column) left every reset row marked "human-edited", so the sync
+    // stopped refreshing it on future layout/catalog changes.
+    //
+    // Only platform defaults (tenant_id IS NULL) have a seed; agency overrides and
+    // hand-edited defaults keep a null hash so the sync leaves them alone.
+    let subject: string | null = isEmail ? input.subject ?? null : null;
+    let finalBodyHtml = bodyHtml;
+    let finalBodyText = bodyText;
+    let finalVariables = variablesJson;
+    let seededContentHash: string | null = null;
+
+    if (tenantId === null) {
+      const seed = PLATFORM_TEMPLATES.find(
+        (t) => t.code === input.templateCode && t.channel === input.channel,
+      );
+      if (seed) {
+        const catalog = platformTemplateEffectiveContent(seed);
+        const catalogBody = isEmail ? catalog.bodyHtml ?? '' : catalog.bodyText;
+        const matchesCatalog = input.bodyHtml === catalogBody && subject === catalog.subject;
+        if (matchesCatalog) {
+          subject = catalog.subject;
+          finalBodyHtml = catalog.bodyHtml;
+          finalBodyText = catalog.bodyText;
+          finalVariables = this.templateRenderer.extractVariables(
+            `${catalog.subject ?? ''} ${catalog.bodyText} ${catalog.bodyHtml ?? ''}`,
+          );
+          seededContentHash = platformTemplateContentHash(catalog);
+        }
+      }
+    }
+
     // 10. Load existing template for audit before-state
     const existing = await this.templateRepo.findByTenantCodeChannel(
       tenantId,
@@ -199,12 +243,13 @@ export class UpsertNotificationTemplateUseCase {
       channel: input.channel as NotificationChannel,
       // Enforced, not assumed: a legacy SMS row can still hold a subject from
       // before the field was hidden, and the form re-sends whatever it loaded.
-      subject: isEmail ? input.subject ?? null : null,
-      bodyHtml,
-      bodyText,
-      variablesJson,
+      subject,
+      bodyHtml: finalBodyHtml,
+      bodyText: finalBodyText,
+      variablesJson: finalVariables,
       isActive: input.isActive,
       notificationClass: resolvedClass,
+      seededContentHash,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     });

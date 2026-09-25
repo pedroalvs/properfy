@@ -81,6 +81,7 @@ describe('PrismaNotificationTemplateRepository', () => {
         variables_json: ['tenantName'],
         is_active: true,
         notification_class: 'OPERATIONAL',
+        seeded_content_hash: null,
       },
     });
     expect(prisma.notificationTemplate.create).not.toHaveBeenCalled();
@@ -103,9 +104,30 @@ describe('PrismaNotificationTemplateRepository', () => {
         variables_json: ['tenantName'],
         is_active: true,
         notification_class: 'OPERATIONAL',
+        seeded_content_hash: null,
       },
     });
     expect(prisma.notificationTemplate.update).not.toHaveBeenCalled();
+  });
+
+  it('persists a stamped seeded_content_hash when the entity carries one', async () => {
+    prisma.notificationTemplate.findFirst.mockResolvedValue({ id: 'existing-template' });
+
+    await repository.upsert(makeTemplate({ seededContentHash: 'deadbeef' }));
+
+    expect(prisma.notificationTemplate.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ seeded_content_hash: 'deadbeef' }),
+      }),
+    );
+  });
+
+  it('maps seeded_content_hash off the row', async () => {
+    prisma.notificationTemplate.findFirst.mockResolvedValue(makeRow({ seeded_content_hash: 'cafef00d' }));
+
+    const found = await repository.findByTenantCodeChannel(null, 'INSPECTION_NOTICE', 'EMAIL');
+
+    expect(found?.seededContentHash).toBe('cafef00d');
   });
 
   it('keeps tenant-scoped upsert behavior for agency overrides', async () => {
