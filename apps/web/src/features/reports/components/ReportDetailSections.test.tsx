@@ -80,12 +80,12 @@ describe('ReportDetailSections', () => {
         report={{
           ...baseReport,
           status: ReportStatus.FAILED,
-          errorMessage: 'No appointments found for the selected agency and period.',
+          errorMessage: 'Agency-scoped report is missing its tenant scope',
         }}
       />,
     );
 
     expect(screen.getByText('Message')).toBeInTheDocument();
-    expect(screen.getByText('No appointments found for the selected agency and period.')).toBeInTheDocument();
+    expect(screen.getByText('Agency-scoped report is missing its tenant scope')).toBeInTheDocument();
   });
 });
