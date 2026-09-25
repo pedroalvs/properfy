@@ -148,6 +148,7 @@ describe('Self-approval: financial entry approval (POST /v1/financial/entries/:i
     const res = await supertest(app.server)
       .post(`/v1/financial/entries/${ENTRY_ID}/approve`)
       .set('Authorization', 'Bearer t')
+      .set('Idempotency-Key', 'self-approval-test-key')
       .send({});
     expect(res.status).toBe(403);
   });
@@ -158,6 +159,7 @@ describe('Self-approval: financial entry approval (POST /v1/financial/entries/:i
     const res = await supertest(app.server)
       .post(`/v1/financial/entries/${ENTRY_ID}/approve`)
       .set('Authorization', 'Bearer t')
+      .set('Idempotency-Key', 'self-approval-test-key')
       .send({});
     expect(res.status).toBe(200);
   });
@@ -170,6 +172,7 @@ describe('Self-approval: financial entry approval (POST /v1/financial/entries/:i
     const res = await supertest(app.server)
       .post(`/v1/financial/entries/${ENTRY_ID}/approve`)
       .set('Authorization', 'Bearer t')
+      .set('Idempotency-Key', 'self-approval-test-key')
       .send({});
     expect(res.status).toBe(403);
   });
@@ -180,6 +183,7 @@ describe('Self-approval: financial entry approval (POST /v1/financial/entries/:i
     const res = await supertest(app.server)
       .post(`/v1/financial/entries/${ENTRY_ID}/approve`)
       .set('Authorization', 'Bearer t')
+      .set('Idempotency-Key', 'self-approval-test-key')
       .send({});
     expect(res.status).toBe(200);
   });

@@ -9896,7 +9896,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path: {
                     entryId: string;
                 };
@@ -10004,7 +10006,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -10087,7 +10091,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path: {
                     entryId: string;
                 };
@@ -10375,7 +10381,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path: {
                     invoiceId: string;
                 };
@@ -10418,7 +10426,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -10460,7 +10470,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path: {
                     invoiceId: string;
                 };
@@ -10577,7 +10589,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path: {
                     entryId: string;
                 };
