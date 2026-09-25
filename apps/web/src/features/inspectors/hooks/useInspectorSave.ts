@@ -143,19 +143,31 @@ export function useInspectorSave(): UseInspectorSaveReturn {
       type ApiErrorEnvelope = { error?: { code?: string; message?: string } };
       let apiError: ApiErrorEnvelope | undefined;
       if (inspectorId) {
-        // Clearing the phone must send an explicit `null`, not the `undefined`
-        // that `sharedFields` carries: `undefined` is dropped from the JSON body,
-        // which the server reads as "leave unchanged", so the old value came back
-        // after a reload. `updateInspectorSchema.phone` is `.nullable()`, so a
-        // `null` persists the clear. Create keeps `undefined` — createInspectorSchema
-        // phone is `.optional()` only, and a `null` there would fail validation.
+        // Clearing a field must send an explicit `null`, not the `undefined` that
+        // `sharedFields` carries: `undefined` is dropped from the JSON body, which
+        // the server reads as "leave unchanged", so the old value came back after a
+        // reload. Every field overridden here is `.nullable()` on updateInspectorSchema
+        // and is pre-filled from the inspector on edit, so `|| null` yields `null`
+        // only on a real clear — never wiping an untouched value. Create keeps the
+        // `undefined` from sharedFields because createInspectorSchema declares these
+        // as `.optional()` only (not nullable), where a `null` would fail validation.
         //
         // Deliberately excludes `password`: updateInspectorSchema is a plain
         // z.object, so it would be silently stripped server-side — putting a
         // plaintext password on the wire with no error to signal it.
         const { error } = await api.PATCH('/v1/inspectors/{inspectorId}', {
           params: { path: { inspectorId } },
-          body: { ...sharedFields, phone: data.phone.trim() || null },
+          body: {
+            ...sharedFields,
+            phone: data.phone.trim() || null,
+            fullName: data.fullName?.trim() || null,
+            abn: data.abn?.trim() || null,
+            dateOfBirth: data.dateOfBirth || null,
+            insuranceFileKey: data.insuranceFileKey?.trim() || null,
+            insuranceExpiresAt: data.insuranceExpiresAt || null,
+            policeCheckFileKey: data.policeCheckFileKey?.trim() || null,
+            policeCheckExpiresAt: data.policeCheckExpiresAt || null,
+          },
         });
         apiError = error as ApiErrorEnvelope | undefined;
       } else {

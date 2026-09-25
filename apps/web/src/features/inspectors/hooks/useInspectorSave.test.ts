@@ -222,6 +222,35 @@ describe('useInspectorSave', () => {
       const body = mockPost.mock.calls[0]?.[1]?.body;
       expect(body?.phone).toBeUndefined();
     });
+
+    it('sends null for other cleared nullable fields on edit (abn, dateOfBirth)', async () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+      await act(async () => {
+        await result.current.save(
+          { ...VALID_CREATE_DATA, abn: '', dateOfBirth: '' },
+          'insp-01',
+        );
+      });
+
+      const body = mockPatch.mock.calls[0]?.[1]?.body;
+      expect(body).toHaveProperty('abn', null);
+      expect(body).toHaveProperty('dateOfBirth', null);
+    });
+
+    it('omits abn and dateOfBirth (undefined) on create when empty', async () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+      await act(async () => {
+        await result.current.save({ ...VALID_CREATE_DATA, abn: '', dateOfBirth: '' });
+      });
+
+      const body = mockPost.mock.calls[0]?.[1]?.body;
+      expect(body?.abn).toBeUndefined();
+      expect(body?.dateOfBirth).toBeUndefined();
+    });
   });
 
   it('save returns success on edit', async () => {
