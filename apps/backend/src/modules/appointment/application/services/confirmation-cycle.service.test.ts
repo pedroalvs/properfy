@@ -87,6 +87,42 @@ describe('ConfirmationCycleService', () => {
 
       await expect(svc.createInitial('appt-1', 'tenant-1', new Date('2026-06-01'), '09:00-10:00', null)).rejects.toThrow('createInitial called with mismatched');
     });
+
+    // WI-B2 (#1056): Postgres aborts a caller-owned transaction on the P2002, so
+    // retrying inside it only earns a 25P02. The original P2002 must propagate
+    // unchanged for the transaction owner to replay in a fresh transaction.
+    it('rethrows a caller-owned P2002 instead of retrying inside the aborted tx', async () => {
+      const repo = makeRepo();
+      const p2002 = { code: 'P2002', meta: { target: ['appointment_id', 'cycle_number'] } };
+      vi.mocked(repo.findActiveByAppointmentId)
+        .mockResolvedValueOnce(null) // run(): no active cycle → insert path
+        .mockResolvedValueOnce(makeCycle({ status: 'PENDING' })); // an in-tx retry would read here
+      vi.mocked(repo.save).mockRejectedValue(p2002);
+      const tx = {} as unknown as Prisma.TransactionClient;
+      const svc = new ConfirmationCycleService(repo, makeAudit(), makePrisma());
+
+      await expect(
+        svc.createInitial('appt-1', 'tenant-1', new Date('2026-06-01'), '09:00-10:00', 'token-1', tx),
+      ).rejects.toBe(p2002);
+      // Exactly one read: the insert attempt. No second read means no in-tx retry.
+      expect(repo.findActiveByAppointmentId).toHaveBeenCalledOnce();
+    });
+
+    it('still retries via a fresh transaction when it owns the transaction (no caller tx)', async () => {
+      const repo = makeRepo();
+      const p2002 = { code: 'P2002', meta: { target: ['appointment_id', 'cycle_number'] } };
+      const existing = makeCycle({ status: 'PENDING', portalTokenId: null });
+      vi.mocked(repo.findActiveByAppointmentId)
+        .mockResolvedValueOnce(null) // run(): insert path
+        .mockResolvedValueOnce(existing); // retry(): link-to-existing
+      vi.mocked(repo.save).mockRejectedValue(p2002);
+      const svc = new ConfirmationCycleService(repo, makeAudit(), makePrisma());
+
+      const result = await svc.createInitial('appt-1', 'tenant-1', new Date('2026-06-01'), '09:00-10:00', 'token-new');
+
+      expect(result.id).toBe(existing.id);
+      expect(repo.update).toHaveBeenCalledOnce();
+    });
   });
 
   describe('confirm', () => {

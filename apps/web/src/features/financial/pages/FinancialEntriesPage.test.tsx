@@ -60,6 +60,7 @@ const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const MOCK_ENTRIES = [
   { id: 'fin-01', entryType: 'TENANT_DEBIT', appointmentCode: 'VIST-001', description: 'Debit', amount: 350, currency: 'USD', status: 'PENDING', effectiveAt: '2026-03-15', relatedEntityName: 'Imob Centro' },
   { id: 'fin-02', entryType: 'INSPECTOR_PAYOUT', appointmentCode: 'VIST-002', description: 'Payout', amount: 180, currency: 'USD', status: 'APPROVED', effectiveAt: '2026-03-16', relatedEntityName: 'Diego' },
+  { id: 'fin-03', entryType: 'TENANT_DEBIT', appointmentCode: 'VIST-003', description: 'Debit', amount: 500, currency: 'USD', status: 'APPROVED', effectiveAt: '2026-03-17', relatedEntityName: 'Imob Centro' },
 ];
 
 const MOCK_SUMMARY = {
@@ -125,10 +126,26 @@ describe('FinancialEntriesPage', () => {
     expect(screen.getByTestId('financial-summary-bar')).toBeInTheDocument();
   });
 
-  it('renders Adjustment and Refund secondary actions', () => {
+  it('renders an Adjustment secondary action; Refund is not a global CTA', () => {
     renderPage();
     expect(screen.getByText('Adjustment')).toBeInTheDocument();
-    expect(screen.getByText('Refund')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Refund' })).not.toBeInTheDocument();
+  });
+
+  it('opens the refund modal from a row action, pre-filled with the selected entry (no raw ID entry)', async () => {
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getAllByText('VIST-003').length).toBeGreaterThanOrEqual(1);
+    });
+
+    // Only the approved TENANT_DEBIT row (VIST-003) exposes a Refund row action.
+    const refundButtons = screen.getAllByLabelText('Refund');
+    expect(refundButtons.length).toBe(1);
+    fireEvent.click(refundButtons[0]!);
+
+    expect(screen.getByText('Create Refund')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Financial Entry ID')).not.toBeInTheDocument();
+    expect(screen.queryByText('fin-03')).not.toBeInTheDocument();
   });
 
   it('renders an Invoices action that navigates to the invoices page', () => {

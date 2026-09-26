@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
@@ -38,8 +38,11 @@ const MOCK_AVAILABILITY = {
 
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return {
+    client,
+    Wrapper: function Wrapper({ children }: { children: React.ReactNode }) {
+      return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    },
   };
 }
 
@@ -52,7 +55,7 @@ describe('InspectorAvailabilityTab', () => {
 
   it('shows loading state while query is pending', () => {
     mockUseAvailability.mockReturnValue({ data: undefined, isLoading: true, isError: false });
-    const Wrapper = makeWrapper();
+    const { Wrapper } = makeWrapper();
     render(
       <Wrapper><InspectorAvailabilityTab inspectorId="insp-01" /></Wrapper>,
     );
@@ -60,7 +63,7 @@ describe('InspectorAvailabilityTab', () => {
   });
 
   it('renders 7×2 grid when data is loaded', () => {
-    const Wrapper = makeWrapper();
+    const { Wrapper } = makeWrapper();
     render(
       <Wrapper><InspectorAvailabilityTab inspectorId="insp-01" /></Wrapper>,
     );
@@ -70,7 +73,7 @@ describe('InspectorAvailabilityTab', () => {
   });
 
   it('renders an Override button per day', () => {
-    const Wrapper = makeWrapper();
+    const { Wrapper } = makeWrapper();
     render(
       <Wrapper><InspectorAvailabilityTab inspectorId="insp-01" /></Wrapper>,
     );
@@ -79,7 +82,7 @@ describe('InspectorAvailabilityTab', () => {
   });
 
   it('opens SlotFormDrawer with inspectorId and nextOccurrence date on Override click', () => {
-    const Wrapper = makeWrapper();
+    const { Wrapper } = makeWrapper();
     render(
       <Wrapper><InspectorAvailabilityTab inspectorId="insp-01" /></Wrapper>,
     );
@@ -91,5 +94,25 @@ describe('InspectorAvailabilityTab', () => {
     const lastCall = mockSlotFormDrawer.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(lastCall?.['defaultValues']).toMatchObject({ inspectorId: 'insp-01' });
     expect(typeof (lastCall?.['defaultValues'] as Record<string, string>)?.['date']).toBe('string');
+  });
+
+  it('invalidates the inspector-availability-template query when the drawer reports a save', () => {
+    const { client, Wrapper } = makeWrapper();
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
+    render(
+      <Wrapper><InspectorAvailabilityTab inspectorId="insp-01" /></Wrapper>,
+    );
+
+    const overrideButtons = screen.getAllByRole('button', { name: /override/i });
+    fireEvent.click(overrideButtons[0]!); // Monday, opens the drawer
+
+    const lastCall = mockSlotFormDrawer.mock.calls.at(-1)?.[0] as { onSaved: () => void };
+    act(() => {
+      lastCall.onSaved();
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ['inspector-availability-template', 'insp-01'],
+    });
   });
 });

@@ -16,9 +16,10 @@ export class PrismaAppointmentChecker implements IAppointmentChecker {
     return count > 0;
   }
 
-  async hasOpenAppointmentsForBranch(branchId: string): Promise<boolean> {
+  async hasOpenAppointmentsForBranch(tenantId: string, branchId: string): Promise<boolean> {
     const count = await this.prisma.appointment.count({
       where: {
+        tenant_id: tenantId,
         branch_id: branchId,
         status: { in: [...NON_TERMINAL_STATUSES] },
       },
@@ -26,9 +27,10 @@ export class PrismaAppointmentChecker implements IAppointmentChecker {
     return count > 0;
   }
 
-  async hasOpenAppointmentsForProperty(propertyId: string): Promise<boolean> {
+  async hasOpenAppointmentsForProperty(tenantId: string, propertyId: string): Promise<boolean> {
     const count = await this.prisma.appointment.count({
       where: {
+        tenant_id: tenantId,
         property_id: propertyId,
         status: { in: [...NON_TERMINAL_STATUSES] },
       },

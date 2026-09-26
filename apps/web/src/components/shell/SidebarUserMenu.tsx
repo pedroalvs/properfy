@@ -64,8 +64,8 @@ export function SidebarUserMenu({
             onClick={() => handleNavigate('/settings/security')}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-text-primary transition-colors hover:bg-black/5"
           >
-            <i className="mdi mdi-lock-reset text-base opacity-65" />
-            Change Password
+            <i className="mdi mdi-monitor-cellphone text-base opacity-65" />
+            Active Sessions
           </button>
 
           <button
@@ -101,8 +101,8 @@ export function SidebarUserMenu({
         onClick={() => handleNavigate('/settings/security')}
         className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-text-primary transition-colors hover:bg-black/5"
       >
-        <i className="mdi mdi-lock-reset text-base opacity-65" />
-        Change Password
+        <i className="mdi mdi-monitor-cellphone text-base opacity-65" />
+        Active Sessions
       </button>
 
       <div className="border-t border-black/5" />

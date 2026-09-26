@@ -15,6 +15,7 @@ function makeSession(overrides: Partial<ConstructorParameters<typeof SessionEnti
     deviceFingerprint: 'abc123def456abcd',
     expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
     revokedAt: null,
+    lastUsedAt: null,
     createdAt: new Date(),
     ...overrides,
   });

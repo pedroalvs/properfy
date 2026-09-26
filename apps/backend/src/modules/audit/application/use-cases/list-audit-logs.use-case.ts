@@ -3,6 +3,7 @@ import { ForbiddenError } from '../../../../shared/domain/errors';
 import { assertTenantScope } from '../../../../shared/domain/require-tenant-scope';
 import type { IAuditLogRepository, AuditLogFilters, PaginationParams } from '../../domain/audit-log.repository';
 import type { IPiiFieldMappingRepository } from '../../domain/pii-field-mapping.repository';
+import type { IAuditEntityLabelResolver } from '../../domain/audit-entity-label-resolver';
 import { maskEmail, maskPhone, maskName, type AuditReaderRole } from '../../domain/pii-read-mask';
 import { IncludeArchivedForbiddenError } from '../../domain/audit.errors';
 import type { PiiFieldMappingEntity } from '../../domain/pii-field-mapping.entity';
@@ -39,6 +40,8 @@ export interface AuditLogOutput {
   actorName: string | null;
   entityType: string;
   entityId: string | null;
+  /** W1 #409: human-readable label for the entity, or null if unresolvable. */
+  entityName: string | null;
   action: string;
   reason: string | null;
   beforeJson: unknown | null;
@@ -62,6 +65,7 @@ export class ListAuditLogsUseCase {
     private readonly userReader?: UserReader,
     private readonly piiFieldMappingRepo?: IPiiFieldMappingRepository,
     private readonly tenantReader?: TenantReader,
+    private readonly entityLabelResolver?: IAuditEntityLabelResolver,
   ) {}
 
   async execute(input: ListAuditLogsInput): Promise<ListAuditLogsOutput> {
@@ -139,6 +143,26 @@ export class ListAuditLogsUseCase {
       );
     }
 
+    // W1 #409: batch-resolve human-readable entity labels, grouped by entity
+    // type so each type costs one query per page (never per row). Absent labels
+    // stay null (unresolvable type or missing row).
+    const entityLabelMap = new Map<string, Map<string, string>>();
+    if (this.entityLabelResolver) {
+      const idsByType = new Map<string, Set<string>>();
+      for (const e of data) {
+        if (!e.entityId) continue;
+        const set = idsByType.get(e.entityType) ?? new Set<string>();
+        set.add(e.entityId);
+        idsByType.set(e.entityType, set);
+      }
+      await Promise.all(
+        [...idsByType.entries()].map(async ([entityType, idSet]) => {
+          const labels = await this.entityLabelResolver!.resolveLabels(entityType, [...idSet]);
+          entityLabelMap.set(entityType, labels);
+        }),
+      );
+    }
+
     // Feature 020 FR-025: role-based read-time masking.
     // - AM: raw PII (no masking applied)
     // - OP: partial masks via `pii-read-mask.ts` (email/phone/name)
@@ -147,8 +171,11 @@ export class ListAuditLogsUseCase {
     // Entries already fully-redacted (`redactionStatus = FULL`) bypass masking
     // entirely — the stored `[REDACTED]` sentinel is returned as-is per FR-027.
     const role = actor.role as AuditReaderRole;
+    // #757: only OP applies per-field masking that consults the registry; AM
+    // sees raw PII and CL_ADMIN gets a blanket sentinel, so neither needs the
+    // mappings — skip the query for them.
     const mappings =
-      this.piiFieldMappingRepo && (role === 'AM' || role === 'OP')
+      this.piiFieldMappingRepo && role === 'OP'
         ? await this.piiFieldMappingRepo.findAll()
         : [];
 
@@ -176,6 +203,9 @@ export class ListAuditLogsUseCase {
                 : null,
           entityType: entry.entityType,
           entityId: entry.entityId,
+          entityName: entry.entityId
+            ? entityLabelMap.get(entry.entityType)?.get(entry.entityId) ?? null
+            : null,
           action: entry.action,
           reason: entry.reason,
           beforeJson,

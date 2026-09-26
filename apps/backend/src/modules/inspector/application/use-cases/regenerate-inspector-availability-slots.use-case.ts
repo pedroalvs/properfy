@@ -1,4 +1,5 @@
-import type { AvailabilityTemplate } from '@properfy/shared';
+import type { Prisma } from '@prisma/client';
+import type { AvailabilityTemplate, AvailabilitySlotStatus } from '@properfy/shared';
 import type { IAvailabilitySlotRepository } from '../../domain/availability-slot.repository';
 import { startOfTomorrowUtc, addDaysUtc, eachDayInRangeUtc } from './availability-horizon';
 
@@ -45,8 +46,18 @@ export interface RegenerateOutput {
 
 type SlotRepoForRegen = Pick<
   IAvailabilitySlotRepository,
-  'findSlotsForRegeneration' | 'deleteById' | 'saveForRegeneration'
+  'findSlotsForRegeneration' | 'deleteManyByIds' | 'saveManyForRegeneration'
 >;
+
+interface RegenCreateRow {
+  inspectorId: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  status: AvailabilitySlotStatus;
+  isOperatorOverride: false;
+}
 
 /**
  * Regenerates the next 8 weeks of InspectorAvailabilitySlot rows based on the
@@ -61,7 +72,7 @@ type SlotRepoForRegen = Pick<
 export class RegenerateInspectorAvailabilitySlotsUseCase {
   constructor(private readonly slotRepo: SlotRepoForRegen) {}
 
-  async execute(input: RegenerateInput): Promise<RegenerateOutput> {
+  async execute(input: RegenerateInput, tx?: Prisma.TransactionClient): Promise<RegenerateOutput> {
     const { inspectorId, template } = input;
 
     const horizonStart = startOfTomorrowUtc();
@@ -71,6 +82,7 @@ export class RegenerateInspectorAvailabilitySlotsUseCase {
       inspectorId,
       horizonStart,
       horizonEnd,
+      tx,
     );
 
     const slotsByDateWindow = indexSlots(existingSlots);
@@ -82,6 +94,12 @@ export class RegenerateInspectorAvailabilitySlotsUseCase {
     let slotsCreated = 0;
     let slotsDeleted = 0;
     let slotsPreserved = 0;
+
+    // Accumulate mutations across the whole horizon so they can be flushed as a
+    // single batched delete + single batched create at the end of the loop,
+    // instead of one round-trip per day/window.
+    const idsToDelete: string[] = [];
+    const rowsToCreate: RegenCreateRow[] = [];
 
     const days = eachDayInRangeUtc(horizonStart, horizonEnd);
 
@@ -110,7 +128,7 @@ export class RegenerateInspectorAvailabilitySlotsUseCase {
             continue;
           }
           // Rule 4: template OFF, available, no override → delete
-          await this.slotRepo.deleteById(existing.id);
+          idsToDelete.push(existing.id);
           slotsDeleted++;
         } else {
           // Before Rule 5: check for a non-standard operator override that overlaps
@@ -127,7 +145,7 @@ export class RegenerateInspectorAvailabilitySlotsUseCase {
 
           // Rule 5: template ON, no slot → create
           if (templateOn) {
-            await this.slotRepo.saveForRegeneration({
+            rowsToCreate.push({
               inspectorId,
               date,
               startTime,
@@ -141,6 +159,16 @@ export class RegenerateInspectorAvailabilitySlotsUseCase {
           // Rule 6: template OFF, no slot → noop
         }
       }
+    }
+
+    // Flush accumulated mutations as one batched delete + one batched create.
+    // The repo methods no-op on empty input, but skip the calls entirely so a
+    // pure no-op regeneration issues zero writes.
+    if (idsToDelete.length > 0) {
+      await this.slotRepo.deleteManyByIds(idsToDelete, tx);
+    }
+    if (rowsToCreate.length > 0) {
+      await this.slotRepo.saveManyForRegeneration(rowsToCreate, tx);
     }
 
     return { slotsCreated, slotsDeleted, slotsPreserved };

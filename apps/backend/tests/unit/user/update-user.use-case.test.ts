@@ -97,6 +97,15 @@ describe('UpdateUserUseCase', () => {
     inspectorId: null,
   };
 
+  // OP is an internal (tenant-less) user, cross-tenant per CORRECTION-001.
+  const opActor: AuthContext = {
+    userId: 'op-1',
+    tenantId: null,
+    role: 'OP',
+    branchId: null,
+    inspectorId: null,
+  };
+
   beforeEach(() => {
     userManagementRepo = {
       findById: vi.fn(),
@@ -105,7 +114,7 @@ describe('UpdateUserUseCase', () => {
       findByTenantId: vi.fn(),
       countByTenantId: vi.fn(),
       save: vi.fn(),
-      update: vi.fn(),
+      update: vi.fn().mockResolvedValue(true),
       resetPassword: vi.fn(),
       revokeAllSessions: vi.fn(),
     };
@@ -260,6 +269,45 @@ describe('UpdateUserUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
+  it('should allow OP to update an agency user from any tenant (cross-tenant)', async () => {
+    // BUG-6 / CORRECTION-001: OP is cross-tenant and already creates agency
+    // users; it must be able to update them too. OP is tenant-less, so the old
+    // `actor.tenantId !== tenantId` guard blocked it from every agency user.
+    const user = makeUser({ tenantId: 'tenant-2' });
+    const updatedUser = makeUser({ tenantId: 'tenant-2', name: 'Updated Name' });
+    vi.mocked(userManagementRepo.findByIdAndTenantId)
+      .mockResolvedValueOnce(user)
+      .mockResolvedValueOnce(updatedUser);
+
+    const result = await useCase.execute({
+      tenantId: 'tenant-2',
+      userId: 'user-1',
+      data: { name: 'Updated Name' },
+      actor: opActor,
+    });
+
+    expect(result.name).toBe('Updated Name');
+    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-2', {
+      name: 'Updated Name',
+    });
+    // No agency-management gate for OP: it must not consult the tenant setting.
+    expect(tenantRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('should throw AUTH_FORBIDDEN when OP updates an internal (tenant-less) user', async () => {
+    // The widening is scoped to agency users only. Internal users (AM/OP) stay
+    // AM-only, mirroring create-user's privilege rules.
+    await expect(
+      useCase.execute({
+        tenantId: null,
+        userId: 'user-1',
+        data: { name: 'Updated' },
+        actor: opActor,
+      }),
+    ).rejects.toThrow('You are not allowed to update internal users');
+    expect(userManagementRepo.update).not.toHaveBeenCalled();
+  });
+
   it('should throw USER_NOT_FOUND when user does not exist', async () => {
     vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(null);
 
@@ -286,6 +334,21 @@ describe('UpdateUserUseCase', () => {
         actor: amActor,
       }),
     ).rejects.toThrow(BranchNotFoundError);
+  });
+
+  it('should throw USER_NOT_FOUND when update() finds no live row (#240)', async () => {
+    const user = makeUser();
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValueOnce(user);
+    vi.mocked(userManagementRepo.update).mockResolvedValueOnce(false);
+
+    await expect(
+      useCase.execute({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        data: { name: 'Updated' },
+        actor: amActor,
+      }),
+    ).rejects.toThrow(UserNotFoundError);
   });
 
   it('should validate branch exists when branchId is provided', async () => {

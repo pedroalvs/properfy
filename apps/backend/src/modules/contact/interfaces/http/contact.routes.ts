@@ -133,6 +133,7 @@ export async function registerContactRoutes(
         additionalChannels: parsed.additionalChannels,
         notes: parsed.notes,
         actorId: auth.userId,
+        actorRole: auth.role,
         actorTenantId: auth.tenantId ?? null,
       });
 

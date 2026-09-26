@@ -3,6 +3,7 @@ import supertest from 'supertest';
 import { buildApp } from '../../../src/main/server';
 import type { FastifyInstance } from 'fastify';
 import { createMockContainer } from '../../helpers/mock-container';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 import {
   makeAmContext,
   makeOpContext,
@@ -94,6 +95,9 @@ describe('GET /v1/inspectors/:inspectorId/availability-template', () => {
 
   it('returns 403 for CL_ADMIN', async () => {
     mockJwtVerify.mockResolvedValueOnce(makeClAdminContext('tenant-1'));
+    mockGetTemplateForOperatorExecute.mockRejectedValueOnce(
+      new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions'),
+    );
     const res = await supertest(app.server)
       .get(`/v1/inspectors/${INSP_ID}/availability-template`)
       .set('Authorization', 'Bearer token');
@@ -102,6 +106,9 @@ describe('GET /v1/inspectors/:inspectorId/availability-template', () => {
 
   it('returns 403 for CL_USER', async () => {
     mockJwtVerify.mockResolvedValueOnce(makeClUserContext('tenant-1'));
+    mockGetTemplateForOperatorExecute.mockRejectedValueOnce(
+      new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions'),
+    );
     const res = await supertest(app.server)
       .get(`/v1/inspectors/${INSP_ID}/availability-template`)
       .set('Authorization', 'Bearer token');
@@ -110,6 +117,9 @@ describe('GET /v1/inspectors/:inspectorId/availability-template', () => {
 
   it('returns 403 for INSP', async () => {
     mockJwtVerify.mockResolvedValueOnce(makeInspContext(INSP_ID));
+    mockGetTemplateForOperatorExecute.mockRejectedValueOnce(
+      new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions'),
+    );
     const res = await supertest(app.server)
       .get(`/v1/inspectors/${INSP_ID}/availability-template`)
       .set('Authorization', 'Bearer token');

@@ -22,6 +22,7 @@ export interface UpdateUserInput {
     timezone?: string | null;
   };
   actor: AuthContext;
+  requestId?: string;
 }
 
 export interface UpdateUserOutput {
@@ -68,10 +69,11 @@ export class UpdateUserUseCase {
       }
     }
 
-    // Tenant-scoping: CL_ADMIN and OP can only update users from own tenant.
-    // Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13): OP joins the
-    // tenant-scoped roles; only AM can cross tenants on user updates.
-    if (actor.role === 'CL_ADMIN' || actor.role === 'OP') {
+    // Tenant-scoping: only CL_ADMIN is bound to its own tenant. OP is
+    // cross-tenant (root CLAUDE.md §6, CORRECTION-001 ruling) and already
+    // creates agency users, so it must be able to update them across tenants
+    // too. Internal (tenant-less) users stay AM-only via the check below.
+    if (actor.role === 'CL_ADMIN') {
       if (actor.tenantId !== tenantId) {
         throw new ForbiddenError(
           'AUTH_FORBIDDEN',
@@ -88,8 +90,9 @@ export class UpdateUserUseCase {
       );
     }
 
-    // Internal (tenant-less) users can only be updated by AM.
-    // OP is tenant-scoped per CORRECTION-001 close-it.
+    // Internal (tenant-less) users can only be updated by AM. OP's cross-tenant
+    // reach covers agency users only, not other internal (AM/OP) accounts —
+    // mirroring create-user's privilege rules.
     if (tenantId === null && actor.role !== 'AM') {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
@@ -207,7 +210,16 @@ export class UpdateUserUseCase {
       timezone: user.timezone,
     };
 
-    await this.userManagementRepo.update(userId, tenantId, updateData as Parameters<IUserManagementRepository['update']>[2]);
+    const updated = await this.userManagementRepo.update(
+      userId,
+      tenantId,
+      updateData as Parameters<IUserManagementRepository['update']>[2],
+    );
+    // #240: no live row matched (concurrently deleted / wrong scope) — surface
+    // NotFound instead of dereferencing a stale/absent read below.
+    if (!updated) {
+      throw new UserNotFoundError();
+    }
 
     // Audit log
     this.auditService.log({
@@ -217,6 +229,7 @@ export class UpdateUserUseCase {
       entityType: 'User',
       entityId: userId,
       tenantId: tenantId ?? undefined,
+      requestId: input.requestId,
       before,
       after: updateData,
     });
@@ -226,22 +239,25 @@ export class UpdateUserUseCase {
       userId,
       tenantId,
     );
+    if (!updatedUser) {
+      throw new UserNotFoundError();
+    }
 
     return {
-      id: updatedUser!.id,
-      name: updatedUser!.name,
-      email: updatedUser!.email,
-      role: updatedUser!.role,
-      tenantId: updatedUser!.tenantId,
-      branchId: updatedUser!.branchId,
-      branchName: updatedUser!.branchName,
-      phone: updatedUser!.phone,
-      timezone: updatedUser!.timezone,
-      status: updatedUser!.status,
-      totpEnabled: updatedUser!.totpEnabled,
-      lastLoginAt: updatedUser!.lastLoginAt,
-      createdAt: updatedUser!.createdAt,
-      updatedAt: updatedUser!.updatedAt,
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      tenantId: updatedUser.tenantId,
+      branchId: updatedUser.branchId,
+      branchName: updatedUser.branchName,
+      phone: updatedUser.phone,
+      timezone: updatedUser.timezone,
+      status: updatedUser.status,
+      totpEnabled: updatedUser.totpEnabled,
+      lastLoginAt: updatedUser.lastLoginAt,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
     };
   }
 }

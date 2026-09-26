@@ -68,13 +68,16 @@ export function WeeklyAvailabilityPicker({ value, onChange, disabled }: WeeklyAv
         })}
       </div>
 
-      {value.map((slot) => (
+      {value.map((slot) => {
+        const dayLabel = DAYS.find((d) => d.value === slot.dayOfWeek)?.label ?? slot.dayOfWeek;
+        return (
         <div key={slot.dayOfWeek} className="flex items-center gap-2 rounded border border-black/10 bg-white px-3 py-2">
           <span className="w-8 text-sm font-semibold text-text-primary">
-            {DAYS.find((d) => d.value === slot.dayOfWeek)?.label}
+            {dayLabel}
           </span>
           <select
             data-testid={`start-${slot.dayOfWeek}`}
+            aria-label={`${dayLabel} start time`}
             value={slot.start}
             disabled={disabled}
             onChange={(e) => updateSlot(slot.dayOfWeek, 'start', e.target.value)}
@@ -89,6 +92,7 @@ export function WeeklyAvailabilityPicker({ value, onChange, disabled }: WeeklyAv
           <span className="text-xs text-text-muted">to</span>
           <select
             data-testid={`end-${slot.dayOfWeek}`}
+            aria-label={`${dayLabel} end time`}
             value={slot.end}
             disabled={disabled}
             onChange={(e) => updateSlot(slot.dayOfWeek, 'end', e.target.value)}
@@ -101,7 +105,8 @@ export function WeeklyAvailabilityPicker({ value, onChange, disabled }: WeeklyAv
             ))}
           </select>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

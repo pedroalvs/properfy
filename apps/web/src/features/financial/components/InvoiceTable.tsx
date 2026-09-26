@@ -54,6 +54,9 @@ export function InvoiceTable({
             width: '48px',
             render: (row) => {
               const isClosed = row.status === 'CLOSED';
+              const invoiceLabel =
+                row.invoiceNumberDisplay ??
+                `${resolveInspectorLabel?.(row.inspectorId) ?? 'Unknown inspector'} ${formatCivilDate(row.periodStart)} - ${formatCivilDate(row.periodEnd)}`;
               return (
                 <input
                   type="checkbox"
@@ -61,7 +64,7 @@ export function InvoiceTable({
                   disabled={!isClosed}
                   onChange={() => onToggleSelect(row.id)}
                   className="accent-primary"
-                  aria-label={isClosed ? `Select invoice ${row.id}` : undefined}
+                  aria-label={`Select invoice ${invoiceLabel}`}
                 />
               );
             },
@@ -95,7 +98,7 @@ export function InvoiceTable({
       label: 'Inspector',
       width: '180px',
       sortable: true,
-      render: (row) => <>{resolveInspectorLabel?.(row.inspectorId) ?? '—'}</>,
+      render: (row) => <>{resolveInspectorLabel?.(row.inspectorId) ?? 'Unknown inspector'}</>,
     },
     {
       key: 'periodStart',

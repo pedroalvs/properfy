@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/hooks/useAuth';
@@ -36,6 +36,13 @@ export function useUserList(overrideTenantId?: string, scope: UserScope = 'tenan
     setFilters(DEFAULT_FILTERS);
     setPage(1);
   }
+  // Any filter change resets to page 1 — otherwise a narrower filter can land
+  // on a page past the end of the new (smaller) result set and render empty.
+  const handleFiltersChange = useCallback((next: UserFiltersState) => {
+    setFilters(next);
+    setPage(1);
+  }, []);
+
   const query = usePaginatedQuery<User>(
     ['users', scope, tenantId],
     scope === 'internal' ? '/v1/users' : `/v1/tenants/${tenantId}/users`,
@@ -66,7 +73,7 @@ export function useUserList(overrideTenantId?: string, scope: UserScope = 'tenan
     errorMessage: query.error?.message ?? null,
     refetch: query.refetch,
     filters,
-    setFilters,
+    setFilters: handleFiltersChange,
     pagination,
   };
 }

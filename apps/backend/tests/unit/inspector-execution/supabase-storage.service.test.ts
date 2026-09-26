@@ -74,9 +74,26 @@ describe('SupabaseStorageService', () => {
       expect(result).toEqual({ exists: false, sizeBytes: 0 });
     });
 
+    // #575: some backends signal a missing object with a 404 status code but a
+    // generic error name (not 'NotFound'). Classify by status code too, so a
+    // confirm/head does not surface a spurious 500 for an absent object.
+    it('returns exists false for a 404-status error even when the name is not NotFound', async () => {
+      const notFound = Object.assign(new Error('Not Found'), {
+        name: 'SomethingElse',
+        $metadata: { httpStatusCode: 404 },
+      });
+      s3Client.send.mockRejectedValue(notFound);
+
+      const result = await service.headObject('inspections', 'photos/missing.jpg');
+
+      expect(result).toEqual({ exists: false, sizeBytes: 0 });
+    });
+
     it('re-throws non-NotFound errors', async () => {
-      const internalError = new Error('Internal Server Error');
-      internalError.name = 'InternalError';
+      const internalError = Object.assign(new Error('Internal Server Error'), {
+        name: 'InternalError',
+        $metadata: { httpStatusCode: 500 },
+      });
       s3Client.send.mockRejectedValue(internalError);
 
       await expect(

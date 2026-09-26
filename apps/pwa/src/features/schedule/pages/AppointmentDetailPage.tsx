@@ -173,7 +173,7 @@ export function AppointmentDetailPage() {
         {apt.notes && (
           <section className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Notes</p>
-            <p className="mt-1 text-sm text-text-primary">{apt.notes}</p>
+            <p className="mt-1 whitespace-pre-line break-words text-sm text-text-primary">{apt.notes}</p>
           </section>
         )}
 

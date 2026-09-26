@@ -55,7 +55,13 @@ export function ChangePasswordForm() {
   return (
     <div className="rounded bg-card-bg p-6 shadow-sm">
       <FormSection title="Change Password">
-        <div className="flex max-w-md flex-col gap-4">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+          className="flex max-w-md flex-col gap-4"
+        >
           <FormField label="Current Password" required error={errors.currentPassword}>
             <TextInput
               type="password"
@@ -91,11 +97,11 @@ export function ChangePasswordForm() {
             />
           </FormField>
           <div className="flex justify-end">
-            <Button variant="primary" loading={isChanging} onClick={handleSubmit}>
+            <Button type="submit" variant="primary" loading={isChanging}>
               Change Password
             </Button>
           </div>
-        </div>
+        </form>
       </FormSection>
     </div>
   );

@@ -56,11 +56,22 @@ describe('ReportDetailSections', () => {
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows filters when present, em-dash when null', () => {
+  it('shows filters as readable labels (W6 #406), em-dash when null', () => {
     render(<ReportDetailSections report={baseReport} />);
+    // Readable labels + formatted dates; groupProperties:false is omitted; no
+    // raw camelCase keys.
     expect(
-      screen.getByText('fromDate: 2026-03-01, toDate: 2026-03-15, dateAxis: SCHEDULED, groupProperties: false'),
+      screen.getByText('From: 1 Mar 2026, To: 15 Mar 2026, Date basis: Scheduled'),
     ).toBeInTheDocument();
+  });
+
+  it('#632: renders an em-dash for null fileKey, fileSize, and filters', () => {
+    const sparse: ReportDetail = { ...baseReport, fileKey: null, fileSize: null, filters: null };
+    render(<ReportDetailSections report={sparse} />);
+    // File name, file size, and filters all fall back to the em-dash.
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3);
+    expect(screen.queryByText('appointments-march-2026.xlsx')).not.toBeInTheDocument();
+    expect(screen.queryByText('1.00 MB')).not.toBeInTheDocument();
   });
 
   it('shows the report error message when present', () => {
@@ -69,12 +80,12 @@ describe('ReportDetailSections', () => {
         report={{
           ...baseReport,
           status: ReportStatus.FAILED,
-          errorMessage: 'No appointments found for the selected agency and period.',
+          errorMessage: 'Agency-scoped report is missing its tenant scope',
         }}
       />,
     );
 
     expect(screen.getByText('Message')).toBeInTheDocument();
-    expect(screen.getByText('No appointments found for the selected agency and period.')).toBeInTheDocument();
+    expect(screen.getByText('Agency-scoped report is missing its tenant scope')).toBeInTheDocument();
   });
 });

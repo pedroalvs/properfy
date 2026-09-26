@@ -4,6 +4,10 @@ export interface PricingRule {
   id: string;
   tenantId: string;
   currency: string;
+  // Server-provided on every pricing-catalog list row (#389). Kept optional
+  // because the shared type is also used by tenants/PricingRulesSection, which
+  // enriches names client-side; the catalog list relies on PR-2's required
+  // server field at runtime.
   tenantName?: string;
   serviceTypeId: string;
   serviceTypeName?: string;

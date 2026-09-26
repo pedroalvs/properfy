@@ -37,6 +37,23 @@ beforeEach(() => {
 });
 
 describe('useContactSave — server field errors', () => {
+  it('save resolves { success: true, id } read from the typed create response (WI-4)', async () => {
+    mockPost.mockResolvedValue({
+      data: { data: { id: 'new-contact-id' } },
+      error: undefined,
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useContactSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_FORM);
+    });
+
+    expect(saveResult?.success).toBe(true);
+    expect(saveResult?.id).toBe('new-contact-id');
+  });
+
   it('save maps VALIDATION_ERROR details to inline form field errors', async () => {
     mockPost.mockResolvedValue({
       data: undefined,

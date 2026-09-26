@@ -7,6 +7,11 @@ interface ServiceGroupActionsMenuProps {
   onChangeInspector: () => void;
   onChangeDate: () => void;
   onChangeTimeWindow: () => void;
+  /**
+   * PUBLISHED groups surface assignment through a dedicated button instead, so
+   * the inspector item is dropped here to avoid a duplicate entry point.
+   */
+  showChangeInspector?: boolean;
 }
 
 const ITEM_CLASS =
@@ -21,6 +26,7 @@ export function ServiceGroupActionsMenu({
   onChangeInspector,
   onChangeDate,
   onChangeTimeWindow,
+  showChangeInspector = true,
 }: ServiceGroupActionsMenuProps) {
   // ViewportAwareDropdown owns `open` internally and its outside-click handler
   // ignores clicks inside the menu, so picking an item would leave it hanging
@@ -49,16 +55,18 @@ export function ServiceGroupActionsMenu({
       }
     >
       <div role="menu">
-        <button
-          type="button"
-          role="menuitem"
-          className={ITEM_CLASS}
-          onClick={select(onChangeInspector)}
-          data-testid="group-action-change-inspector"
-        >
-          <i className="mdi mdi-account-switch text-base text-text-muted" aria-hidden="true" />
-          {isReplacement ? 'Change inspector' : 'Assign inspector'}
-        </button>
+        {showChangeInspector && (
+          <button
+            type="button"
+            role="menuitem"
+            className={ITEM_CLASS}
+            onClick={select(onChangeInspector)}
+            data-testid="group-action-change-inspector"
+          >
+            <i className="mdi mdi-account-switch text-base text-text-muted" aria-hidden="true" />
+            {isReplacement ? 'Change inspector' : 'Assign inspector'}
+          </button>
+        )}
         <button
           type="button"
           role="menuitem"

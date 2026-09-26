@@ -1,6 +1,9 @@
-import { type PrismaClient } from '@prisma/client';
+import { type PrismaClient, type Prisma } from '@prisma/client';
 import { InspectionExecutionEntity } from '../domain/inspection-execution.entity';
 import type { IInspectionExecutionRepository } from '../domain/inspection-execution.repository';
+
+/** Same idiom as prisma-confirmation-cycle.repository.ts — the tx client is a narrowed PrismaClient. */
+type DbClient = PrismaClient | Prisma.TransactionClient;
 
 function mapToEntity(row: any): InspectionExecutionEntity {
   return new InspectionExecutionEntity({
@@ -22,6 +25,10 @@ function mapToEntity(row: any): InspectionExecutionEntity {
 
 export class PrismaInspectionExecutionRepository implements IInspectionExecutionRepository {
   constructor(private readonly prisma: PrismaClient) {}
+
+  private db(tx?: Prisma.TransactionClient): DbClient {
+    return tx ?? this.prisma;
+  }
 
   async findByAppointmentId(appointmentId: string): Promise<InspectionExecutionEntity | null> {
     const row = await this.prisma.inspectionExecution.findUnique({
@@ -64,13 +71,14 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
       finishLatitude: number;
       finishLongitude: number;
     }>,
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
     if (data.finishedAt !== undefined) updateData.finished_at = data.finishedAt;
     if (data.resumedAt !== undefined) updateData.resumed_at = data.resumedAt;
     if (data.finishLatitude !== undefined) updateData.finish_latitude = data.finishLatitude;
     if (data.finishLongitude !== undefined) updateData.finish_longitude = data.finishLongitude;
-    await this.prisma.inspectionExecution.update({ where: { id }, data: updateData });
+    await this.db(tx).inspectionExecution.update({ where: { id }, data: updateData });
   }
 
   // Cross-tenant: background job processes all tenants to detect stuck inspections

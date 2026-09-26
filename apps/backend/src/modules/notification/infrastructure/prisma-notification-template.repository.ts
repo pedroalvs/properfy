@@ -4,7 +4,7 @@ import { NotificationTemplateEntity } from '../domain/notification-template.enti
 import type {
   INotificationTemplateRepository,
   NotificationTemplateFilters,
-  NotificationTemplateListItem,
+  NotificationTemplateListResult,
 } from '../domain/notification-template.repository';
 
 function mapToEntity(row: any): NotificationTemplateEntity {
@@ -19,6 +19,7 @@ function mapToEntity(row: any): NotificationTemplateEntity {
     variablesJson: row.variables_json as string[],
     isActive: row.is_active,
     notificationClass: (row.notification_class ?? 'OPERATIONAL') as NotificationClass,
+    seededContentHash: row.seeded_content_hash ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
@@ -42,7 +43,7 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
     return row ? mapToEntity(row) : null;
   }
 
-  async findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateListItem[]> {
+  async findAll(filters: NotificationTemplateFilters): Promise<NotificationTemplateListResult> {
     // Collect independent predicates into an AND list so the tenant-scope OR and the
     // search OR do not clobber each other on the same `where.OR` key.
     const and: Record<string, unknown>[] = [];
@@ -80,14 +81,35 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
 
     const where: Record<string, unknown> = and.length > 0 ? { AND: and } : {};
 
-    const rows = await this.prisma.notificationTemplate.findMany({
-      where,
-      include: { tenant: { select: { name: true } } },
-    });
-    return rows.map((row) => ({
-      template: mapToEntity(row),
-      tenantName: row.tenant?.name ?? null,
-    }));
+    // findMany (paginated slice) and count (true total under the same where) run
+    // together. `skip`/`take` are undefined for unpaginated callers, so Prisma
+    // returns every matching row, preserving the pre-pagination behaviour.
+    const [rows, total] = await Promise.all([
+      this.prisma.notificationTemplate.findMany({
+        where,
+        include: { tenant: { select: { name: true } } },
+        // template_code is NOT unique (same code across channels and across
+        // tenants), so it cannot order pages on its own — tied rows would sort
+        // arbitrarily and skip/duplicate across page boundaries. Append unique
+        // tiebreakers so paging is deterministic.
+        orderBy: [
+          { template_code: 'asc' },
+          { channel: 'asc' },
+          { tenant_id: 'asc' },
+          { id: 'asc' },
+        ],
+        skip: filters.skip,
+        take: filters.take,
+      }),
+      this.prisma.notificationTemplate.count({ where }),
+    ]);
+    return {
+      items: rows.map((row) => ({
+        template: mapToEntity(row),
+        tenantName: row.tenant?.name ?? null,
+      })),
+      total,
+    };
   }
 
   async findById(templateId: string): Promise<NotificationTemplateEntity | null> {
@@ -125,6 +147,9 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
           variables_json: template.variablesJson,
           is_active: template.active,
           notification_class: template.notificationClass,
+          // Non-null only when a platform default was reset to the catalog seed;
+          // a genuine edit clears it, so `syncPlatformTemplates` protects the row.
+          seeded_content_hash: template.seededContentHash,
         },
       });
       return;
@@ -142,6 +167,7 @@ export class PrismaNotificationTemplateRepository implements INotificationTempla
         variables_json: template.variablesJson,
         is_active: template.active,
         notification_class: template.notificationClass,
+        seeded_content_hash: template.seededContentHash,
       },
     });
   }

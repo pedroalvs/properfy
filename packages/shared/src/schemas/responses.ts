@@ -239,6 +239,19 @@ export const pricingRuleResponseSchema = z.object({
   updatedAt: instantStr(),
 });
 
+/**
+ * List rows carry the server-resolved display names so the client never has to
+ * stitch tenant/service-type lookups (which capped at pageSize 100 and rendered
+ * raw UUIDs beyond that) or fall back to a raw id (#389). Required — the list
+ * use case always populates them. Built by spreading `.shape` (a fresh object,
+ * so the base schema and its create/update siblings are untouched).
+ */
+export const pricingRuleListItemSchema = z.object({
+  ...pricingRuleResponseSchema.shape,
+  tenantName: z.string(),
+  serviceTypeName: z.string(),
+});
+
 // ─── Inspector ─────────────────────────────────────────────────────────────
 
 export const inspectorResponseSchema = z.object({
@@ -708,6 +721,10 @@ export const auditLogResponseSchema = z.object({
   actorName: z.string().nullable(),
   entityType: z.string(),
   entityId: z.string().nullable(),
+  // W1 #409: human-readable label for the entity the entry refers to (e.g. an
+  // appointment number, property code, user/inspector/tenant name). Null when
+  // the entity type has no resolvable label. Keeps raw UUIDs out of the UI.
+  entityName: z.string().nullable().optional(),
   action: z.string(),
   reason: z.string().nullable(),
   beforeJson: z.unknown().nullable(),
@@ -780,7 +797,7 @@ export const portalTokenResponseSchema = z.object({
   token: z.string(),
   expiresAt: instantStr(),
   dispatched: z.boolean().optional(),
-  reason: z.enum(['NO_PRIMARY_CONTACT', 'DISPATCH_FAILED', 'NOTIFY_DISABLED']).optional(),
+  reason: z.enum(['NO_PRIMARY_CONTACT', 'NO_DISPATCH_CHANNEL', 'DISPATCH_FAILED', 'NOTIFY_DISABLED']).optional(),
 });
 
 /**
@@ -1177,6 +1194,7 @@ export type UserResponse = z.infer<typeof userResponseSchema>;
 export type PropertyResponse = z.infer<typeof propertyResponseSchema>;
 export type ServiceTypeResponse = z.infer<typeof serviceTypeResponseSchema>;
 export type PricingRuleResponse = z.infer<typeof pricingRuleResponseSchema>;
+export type PricingRuleListItem = z.infer<typeof pricingRuleListItemSchema>;
 /**
  * One satisfaction response, as shown to an operator or the owning agency.
  *

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { DEFAULT_FILTERS, type AuditLog, type AuditLogFiltersState } from '../types';
@@ -18,6 +18,13 @@ export function useAuditLogList(): UseAuditLogListReturn {
   const [filters, setFilters] = useState<AuditLogFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // W3 #430: changing a filter must reset to page 1, otherwise page 2+ can show
+  // an empty result for the new filter. Stable reference (web CLAUDE.md #11).
+  const setFiltersAndResetPage = useCallback((next: AuditLogFiltersState) => {
+    setFilters(next);
+    setPage(1);
+  }, []);
   const query = usePaginatedQuery<AuditLog>(
     ['audit-logs'],
     '/v1/audit-logs',
@@ -50,7 +57,7 @@ export function useAuditLogList(): UseAuditLogListReturn {
     errorMessage: query.error?.message ?? null,
     refetch: query.refetch,
     filters,
-    setFilters,
+    setFilters: setFiltersAndResetPage,
     pagination,
   };
 }

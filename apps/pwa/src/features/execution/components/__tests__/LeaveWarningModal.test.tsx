@@ -43,4 +43,15 @@ describe('LeaveWarningModal', () => {
     const sheet = container.querySelector('[data-testid="leave-warning-modal"] > div')!;
     expect(sheet.className).toContain('pb-safe-b-6');
   });
+
+  it('exposes real dialog semantics: role, accessible name/description, and initial focus on Stay', () => {
+    render(<LeaveWarningModal onStay={onStay} onLeave={onLeave} />);
+
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveAccessibleName('Leave inspection?');
+    expect(dialog).toHaveAccessibleDescription(/inspection in progress/);
+
+    expect(document.activeElement).toBe(screen.getByTestId('stay-button'));
+  });
 });

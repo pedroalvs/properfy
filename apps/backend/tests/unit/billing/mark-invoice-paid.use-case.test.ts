@@ -6,6 +6,8 @@ import {
   InvoiceNotClosedError,
   InvoiceAlreadyPaidError,
   InvoicePaymentDateInvalidError,
+  BillingIdempotencyPayloadMismatchError,
+  BillingIdempotencyInProgressError,
 } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -23,6 +25,12 @@ const invoiceRepo = {
 };
 
 const auditService = { log: vi.fn() };
+
+const idempotencyService = {
+  tryAcquire: vi.fn(),
+  complete: vi.fn(),
+  release: vi.fn(),
+};
 
 function makeClosedInvoice(overrides: Record<string, unknown> = {}) {
   return new InspectorInvoiceEntity({
@@ -67,7 +75,7 @@ const amActor = {
 const authorizationService = new AuthorizationService(auditService as any);
 
 function makeSut() {
-  return new MarkInvoicePaidUseCase(invoiceRepo, auditService as any, authorizationService);
+  return new MarkInvoicePaidUseCase(invoiceRepo, auditService as any, authorizationService, idempotencyService);
 }
 
 describe('MarkInvoicePaidUseCase', () => {
@@ -75,12 +83,15 @@ describe('MarkInvoicePaidUseCase', () => {
     vi.clearAllMocks();
     invoiceRepo.findById.mockResolvedValue(makeClosedInvoice());
     invoiceRepo.update.mockResolvedValue(undefined);
+    idempotencyService.tryAcquire.mockResolvedValue({ status: 'acquired', ownerToken: 'token-1' });
+    idempotencyService.complete.mockResolvedValue(true);
+    idempotencyService.release.mockResolvedValue(undefined);
   });
 
   it('should mark a CLOSED invoice as PAID with default paidAt', async () => {
     const sut = makeSut();
 
-    const result = await sut.execute({ invoiceId: 'inv-1', actor: opActor });
+    const result = await sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: opActor });
 
     expect(result.id).toBe('inv-1');
     expect(result.status).toBe('PAID');
@@ -103,7 +114,7 @@ describe('MarkInvoicePaidUseCase', () => {
     const result = await sut.execute({
       invoiceId: 'inv-1',
       paidAt: customPaidAt,
-      actor: amActor,
+      idempotencyKey: 'idem-1', actor: amActor,
     });
 
     expect(result.paidAt).toBe(customPaidAt);
@@ -118,7 +129,7 @@ describe('MarkInvoicePaidUseCase', () => {
     const result = await sut.execute({
       invoiceId: 'inv-1',
       paymentReference: 'BT-20260410-001',
-      actor: opActor,
+      idempotencyKey: 'idem-1', actor: opActor,
     });
 
     expect(result.paymentReference).toBe('BT-20260410-001');
@@ -130,7 +141,7 @@ describe('MarkInvoicePaidUseCase', () => {
   it('should record the actor userId as paidByUserId', async () => {
     const sut = makeSut();
 
-    const result = await sut.execute({ invoiceId: 'inv-1', actor: amActor });
+    const result = await sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: amActor });
 
     expect(result.paidByUserId).toBe('am-1');
     expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', expect.objectContaining({
@@ -141,7 +152,7 @@ describe('MarkInvoicePaidUseCase', () => {
   it('should allow AM to mark invoices as paid', async () => {
     const sut = makeSut();
 
-    const result = await sut.execute({ invoiceId: 'inv-1', actor: amActor });
+    const result = await sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: amActor });
 
     expect(result.status).toBe('PAID');
     expect(result.paidByUserId).toBe('am-1');
@@ -152,7 +163,7 @@ describe('MarkInvoicePaidUseCase', () => {
     invoiceRepo.findById.mockResolvedValue(makeClosedInvoice({ status: 'OPEN' }));
 
     await expect(
-      sut.execute({ invoiceId: 'inv-1', actor: opActor }),
+      sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: opActor }),
     ).rejects.toThrow(InvoiceNotClosedError);
   });
 
@@ -161,7 +172,7 @@ describe('MarkInvoicePaidUseCase', () => {
     invoiceRepo.findById.mockResolvedValue(makeClosedInvoice({ status: 'PAID' }));
 
     await expect(
-      sut.execute({ invoiceId: 'inv-1', actor: opActor }),
+      sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: opActor }),
     ).rejects.toThrow(InvoiceAlreadyPaidError);
   });
 
@@ -171,7 +182,7 @@ describe('MarkInvoicePaidUseCase', () => {
     const farFuture = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
 
     await expect(
-      sut.execute({ invoiceId: 'inv-1', paidAt: farFuture, actor: opActor }),
+      sut.execute({ invoiceId: 'inv-1', paidAt: farFuture, idempotencyKey: 'idem-1', actor: opActor }),
     ).rejects.toThrow(InvoicePaymentDateInvalidError);
   });
 
@@ -183,7 +194,7 @@ describe('MarkInvoicePaidUseCase', () => {
     const result = await sut.execute({
       invoiceId: 'inv-1',
       paidAt: slightlyFuture,
-      actor: opActor,
+      idempotencyKey: 'idem-1', actor: opActor,
     });
 
     expect(result.status).toBe('PAID');
@@ -195,7 +206,7 @@ describe('MarkInvoicePaidUseCase', () => {
     const tooEarly = '2026-03-10T00:00:00.000Z';
 
     await expect(
-      sut.execute({ invoiceId: 'inv-1', paidAt: tooEarly, actor: opActor }),
+      sut.execute({ invoiceId: 'inv-1', paidAt: tooEarly, idempotencyKey: 'idem-1', actor: opActor }),
     ).rejects.toThrow(InvoicePaymentDateInvalidError);
   });
 
@@ -215,7 +226,7 @@ describe('MarkInvoicePaidUseCase', () => {
     const result = await sut.execute({
       invoiceId: 'inv-1',
       paidAt: slightlyEarly,
-      actor: opActor,
+      idempotencyKey: 'idem-1', actor: opActor,
     });
 
     expect(result.status).toBe('PAID');
@@ -226,7 +237,7 @@ describe('MarkInvoicePaidUseCase', () => {
     const tooEarly = '2026-03-01T00:00:00.000Z'; // well before issuedAt
 
     try {
-      await sut.execute({ invoiceId: 'inv-1', paidAt: tooEarly, actor: opActor });
+      await sut.execute({ invoiceId: 'inv-1', paidAt: tooEarly, idempotencyKey: 'idem-1', actor: opActor });
       expect.fail('should have thrown');
     } catch (err) {
       expect(err).toBeInstanceOf(InvoicePaymentDateInvalidError);
@@ -245,7 +256,7 @@ describe('MarkInvoicePaidUseCase', () => {
     };
 
     await expect(
-      sut.execute({ invoiceId: 'inv-1', actor: clientActor }),
+      sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: clientActor }),
     ).rejects.toThrow(ForbiddenError);
   });
 
@@ -260,7 +271,7 @@ describe('MarkInvoicePaidUseCase', () => {
     };
 
     await expect(
-      sut.execute({ invoiceId: 'inv-1', actor: inspActor }),
+      sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: inspActor }),
     ).rejects.toThrow(ForbiddenError);
   });
 
@@ -269,7 +280,7 @@ describe('MarkInvoicePaidUseCase', () => {
     invoiceRepo.findById.mockResolvedValue(null);
 
     await expect(
-      sut.execute({ invoiceId: 'nonexistent', actor: opActor }),
+      sut.execute({ invoiceId: 'nonexistent', idempotencyKey: 'idem-1', actor: opActor }),
     ).rejects.toThrow(InvoiceNotFoundError);
   });
 
@@ -279,7 +290,7 @@ describe('MarkInvoicePaidUseCase', () => {
     await sut.execute({
       invoiceId: 'inv-1',
       paymentReference: 'BT-001',
-      actor: opActor,
+      idempotencyKey: 'idem-1', actor: opActor,
     });
 
     expect(auditService.log).toHaveBeenCalledOnce();
@@ -303,5 +314,55 @@ describe('MarkInvoicePaidUseCase', () => {
         }),
       }),
     );
+  });
+
+  describe('idempotency replay', () => {
+    it('returns the cached response on replay without touching the repository', async () => {
+      const cachedResult = {
+        id: 'inv-1',
+        status: 'PAID' as const,
+        paidAt: new Date().toISOString(),
+        paidByUserId: 'op-1',
+        paymentReference: 'BT-001',
+      };
+      idempotencyService.tryAcquire.mockImplementation(async (_key: string, _scope: string, payloadHash: string) => ({
+        status: 'completed',
+        response: cachedResult,
+        payloadHash,
+      }));
+      const sut = makeSut();
+
+      const result = await sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: opActor });
+
+      expect(result).toEqual(cachedResult);
+      expect(invoiceRepo.update).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+    });
+
+    it('throws a conflict when the same key is replayed with a different payload', async () => {
+      idempotencyService.tryAcquire.mockResolvedValue({
+        status: 'in_progress',
+        payloadHash: 'a-different-hash',
+      });
+      const sut = makeSut();
+
+      await expect(
+        sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: opActor }),
+      ).rejects.toThrow(BillingIdempotencyPayloadMismatchError);
+      expect(invoiceRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('throws a conflict when a request with the same key and payload is already in progress', async () => {
+      idempotencyService.tryAcquire.mockImplementation(async (_key: string, _scope: string, payloadHash: string) => ({
+        status: 'in_progress',
+        payloadHash,
+      }));
+      const sut = makeSut();
+
+      await expect(
+        sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: opActor }),
+      ).rejects.toThrow(BillingIdempotencyInProgressError);
+      expect(invoiceRepo.update).not.toHaveBeenCalled();
+    });
   });
 });

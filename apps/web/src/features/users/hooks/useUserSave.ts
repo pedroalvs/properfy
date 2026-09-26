@@ -1,9 +1,14 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { contactSchema } from '@properfy/shared';
+import { contactSchema, type UserRole } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useAuth } from '@/hooks/useAuth';
+import { getErrorMessage, toApiError } from '@/lib/api-error';
 import type { UserFormData, UserFormErrors, UserScope } from '../types';
+
+// AM/OP/CL_ADMIN/CL_USER/INSP are the only roles the users-management endpoints
+// accept — TNT (rental tenant portal) and SYS have no user-management route.
+type AssignableUserRole = Exclude<UserRole, 'TNT' | 'SYS'>;
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
 
@@ -81,39 +86,68 @@ export function useUserSave(
     setIsSaving(true);
     try {
       if (userId) {
-        const payload = {
-          name: data.name,
-          phone: data.phone || undefined,
-          role: data.role || undefined,
-          branchId: scope === 'internal' ? undefined : (data.branchId || undefined),
-          // Personal timezone is internal-scope only (CL_* inherit the agency's;
-          // the backend rejects it for those targets). Cleared -> explicit null.
-          ...(scope === 'internal' ? { timezone: data.timezone || null } : {}),
-        };
-        const path = scope === 'internal' ? `/v1/users/${userId}` : `/v1/tenants/${tenantId}/users/${userId}`;
-        const { error } = await api.PATCH(path as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        if (scope === 'internal') {
+          const { error, response } = await api.PATCH('/v1/users/{userId}', {
+            params: { path: { userId } },
+            body: {
+              name: data.name,
+              phone: data.phone || undefined,
+              role: (data.role || undefined) as AssignableUserRole | undefined,
+              // Personal timezone is internal-scope only (CL_* inherit the
+              // agency's; the backend rejects it for those targets). Cleared
+              // -> explicit null.
+              timezone: data.timezone || null,
+            },
+          });
+          const status = response.status;
+          if (error) throw toApiError(error, status);
+        } else {
+          const { error, response } = await api.PATCH('/v1/tenants/{tenantId}/users/{userId}', {
+            params: { path: { tenantId: tenantId as string, userId } },
+            body: {
+              name: data.name,
+              phone: data.phone || undefined,
+              role: (data.role || undefined) as AssignableUserRole | undefined,
+              branchId: data.branchId || undefined,
+            },
+          });
+          const status = response.status;
+          if (error) throw toApiError(error, status);
+        }
+      } else if (scope === 'internal') {
+        const { error, response } = await api.POST('/v1/users', {
+          body: {
+            name: data.name,
+            email: data.email,
+            password: data.password,
+            phone: data.phone || undefined,
+            role: data.role as AssignableUserRole,
+            // On create an unset timezone is simply omitted (platform default).
+            ...(data.timezone ? { timezone: data.timezone } : {}),
+          },
+        });
+        const status = response.status;
+        if (error) throw toApiError(error, status);
       } else {
-        const payload = {
-          name: data.name,
-          email: data.email,
-          password: data.password,
-          phone: data.phone || undefined,
-          role: data.role || undefined,
-          branchId: scope === 'internal' ? undefined : (data.branchId || undefined),
-          // On create an unset timezone is simply omitted (platform default).
-          ...(scope === 'internal' && data.timezone ? { timezone: data.timezone } : {}),
-        };
-        const path = scope === 'internal' ? '/v1/users' : `/v1/tenants/${tenantId}/users`;
-        const { error } = await api.POST(path as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        const { error, response } = await api.POST('/v1/tenants/{tenantId}/users', {
+          params: { path: { tenantId: tenantId as string } },
+          body: {
+            name: data.name,
+            email: data.email,
+            password: data.password,
+            phone: data.phone || undefined,
+            role: data.role as AssignableUserRole,
+            branchId: data.branchId || undefined,
+          },
+        });
+        const status = response.status;
+        if (error) throw toApiError(error, status);
       }
 
       await queryClient.invalidateQueries({ queryKey: ['users'] });
       return { success: true };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save';
-      return { success: false, error: message };
+      return { success: false, error: getErrorMessage(err, 'Failed to save') };
     } finally {
       setIsSaving(false);
     }

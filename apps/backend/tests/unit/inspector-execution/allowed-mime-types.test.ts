@@ -47,8 +47,11 @@ describe('isAllowedMimeType', () => {
       expect(isAllowedMimeType('SIGNATURE', 'image/png')).toBe(true);
     });
 
-    it('should allow image/svg+xml', () => {
-      expect(isAllowedMimeType('SIGNATURE', 'image/svg+xml')).toBe(true);
+    // Signature pads emit PNG. Inline SVG is a stored-XSS vector (scripts and
+    // event handlers survive in the markup and execute when served inline), so it
+    // is deliberately excluded from the signature allowlist (#318).
+    it('should NOT allow image/svg+xml (stored-XSS vector)', () => {
+      expect(isAllowedMimeType('SIGNATURE', 'image/svg+xml')).toBe(false);
     });
 
     it('should NOT allow image/jpeg', () => {

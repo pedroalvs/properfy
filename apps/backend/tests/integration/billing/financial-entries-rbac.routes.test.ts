@@ -214,6 +214,7 @@ describe('QA-015-HIGH-002 — POST /v1/financial/entries/:entryId/approve role e
     const res = await supertest(app.server)
       .post(`/v1/financial/entries/${ENTRY_ID}/approve`)
       .set('Authorization', 'Bearer am-token')
+      .set('Idempotency-Key', 'rbac-approve-key-1')
       .expect(200);
 
     expect(res.body.data.status).toBe('APPROVED');
@@ -227,6 +228,7 @@ describe('QA-015-HIGH-002 — POST /v1/financial/entries/:entryId/approve role e
     await supertest(app.server)
       .post(`/v1/financial/entries/${ENTRY_ID}/approve`)
       .set('Authorization', 'Bearer op-token')
+      .set('Idempotency-Key', 'rbac-approve-key-2')
       .expect(200);
 
     expect(mockApproveFinancialEntryExecute).toHaveBeenCalledOnce();

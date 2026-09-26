@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { InspectionExecutionEntity } from './inspection-execution.entity';
 
 export interface IInspectionExecutionRepository {
@@ -12,6 +13,7 @@ export interface IInspectionExecutionRepository {
       finishLatitude: number;
       finishLongitude: number;
     }>,
+    tx?: Prisma.TransactionClient,
   ): Promise<void>;
   findStuckExecutions(olderThanHours: number): Promise<InspectionExecutionEntity[]>;
 }

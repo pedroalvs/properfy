@@ -1,7 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
+import { portalTokenResponseSchema, PLATFORM_TIMEZONE, todayInTzDateString, addCivilDays } from '@properfy/shared';
 import { GeneratePortalTokenUseCase } from '../generate-portal-token.use-case';
+import { PortalAppointmentDatePastError } from '../../../domain/rental-tenant-portal.errors';
 import { AppointmentEntity } from '../../../../appointment/domain/appointment.entity';
 import { AppointmentContactEntity } from '../../../../appointment/domain/appointment-contact.entity';
+
+/** UTC-midnight Date for a Sydney civil date offset by `deltaDays` from today. */
+function civilDatePlus(deltaDays: number): Date {
+  const civil = addCivilDays(todayInTzDateString(PLATFORM_TIMEZONE), deltaDays);
+  return new Date(`${civil}T00:00:00.000Z`);
+}
 
 /**
  * Unit tests for GeneratePortalTokenUseCase — logger behavior (T007)
@@ -26,7 +34,11 @@ function makeLogger() {
   };
 }
 
-function makeAppointment(): AppointmentEntity {
+// Default to a week ahead so the WI-B8 past-date guard never trips the
+// happy-path fixtures; the past-date tests below override this explicitly.
+const FUTURE_SCHEDULED_DATE = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+function makeAppointment(scheduledDate: Date = FUTURE_SCHEDULED_DATE): AppointmentEntity {
   return new AppointmentEntity({
     id: 'appt-1',
     appointmentNumber: 1,
@@ -36,7 +48,7 @@ function makeAppointment(): AppointmentEntity {
     serviceTypeId: 'svc-1',
     inspectorId: null,
     status: 'SCHEDULED',
-    scheduledDate: new Date('2026-06-01'),
+    scheduledDate,
     timeSlotStart: '09:00', timeSlotEnd: '10:00',
     keyRequired: false,
     meetingLocation: null,
@@ -84,10 +96,11 @@ function makeUseCase(options: {
   logger?: ReturnType<typeof makeLogger>;
   createNotificationUseCase?: { execute: ReturnType<typeof vi.fn> };
   contact?: AppointmentContactEntity | null;
+  scheduledDate?: Date;
 }) {
   const logger = options.logger ?? makeLogger();
   const contact = options.contact !== undefined ? options.contact : makeContact();
-  const appointment = makeAppointment();
+  const appointment = options.scheduledDate ? makeAppointment(options.scheduledDate) : makeAppointment();
 
   const tokenRepo = {
     findActiveByAppointmentId: vi.fn().mockResolvedValue(null),
@@ -125,7 +138,7 @@ function makeUseCase(options: {
     logger as any,
   );
 
-  return { uc, logger, auditService };
+  return { uc, logger, auditService, mintPortalTokenService };
 }
 
 describe('GeneratePortalTokenUseCase — logger behavior on notification dispatch failure', () => {
@@ -285,5 +298,138 @@ describe('GeneratePortalTokenUseCase — generate-only (notify: false)', () => {
 
     expect(result.dispatched).toBe(false);
     expect((result as { reason?: string }).reason).toBe('NOTIFY_DISABLED');
+  });
+});
+
+describe('GeneratePortalTokenUseCase — WI-B3: truthful dispatched + no recipient PII (#510, #480)', () => {
+  it('returns dispatched:false with NO_DISPATCH_CHANNEL when no notification use case is wired', async () => {
+    // createNotificationUseCase omitted → nothing is ever attempted. The old
+    // `attempted > 0 && succeeded === 0` guard was skipped, so it lied dispatched:true.
+    const { uc } = makeUseCase({});
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    expect(result.dispatched).toBe(false);
+    expect((result as { reason?: string }).reason).toBe('NO_DISPATCH_CHANNEL');
+  });
+
+  it('returns dispatched:false with NO_DISPATCH_CHANNEL when the primary contact has no email or phone', async () => {
+    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }) };
+    const { uc } = makeUseCase({
+      createNotificationUseCase,
+      contact: makeContact({ withEmail: false, withPhone: false }),
+    });
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    expect(result.dispatched).toBe(false);
+    expect((result as { reason?: string }).reason).toBe('NO_DISPATCH_CHANNEL');
+    expect(createNotificationUseCase.execute).not.toHaveBeenCalled();
+    // The route serializes this via portalTokenResponseSchema; the wire enum must
+    // accept NO_DISPATCH_CHANNEL or the 201 becomes a post-commit 500.
+    expect(() => portalTokenResponseSchema.parse(result)).not.toThrow();
+  });
+
+  it('does not log the recipient (PII) when a dispatch fails', async () => {
+    const logger = makeLogger();
+    const createNotificationUseCase = { execute: vi.fn().mockRejectedValue(new Error('enqueue failed')) };
+    const { uc } = makeUseCase({ logger, createNotificationUseCase });
+
+    await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    const logArg = logger.error.mock.calls[0]![0] as Record<string, unknown>;
+    expect(logArg).not.toHaveProperty('recipient');
+    expect(logArg).toMatchObject({ channel: 'EMAIL', appointmentId: 'appt-1', tenantId: 'tenant-1' });
+  });
+});
+
+describe('GeneratePortalTokenUseCase — WI-B8: block dispatch for past-dated appointments (#33)', () => {
+  it('rejects the dispatch path when the scheduled date is in the past, minting no token', async () => {
+    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }) };
+    const { uc, mintPortalTokenService } = makeUseCase({
+      createNotificationUseCase,
+      scheduledDate: civilDatePlus(-1), // yesterday (Sydney civil)
+    });
+
+    await expect(
+      uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR }),
+    ).rejects.toBeInstanceOf(PortalAppointmentDatePastError);
+    // A born-expired token must never be minted.
+    expect(mintPortalTokenService.mint).not.toHaveBeenCalled();
+  });
+
+  it('allows the dispatch path when the scheduled date is today', async () => {
+    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }) };
+    const { uc } = makeUseCase({
+      createNotificationUseCase,
+      scheduledDate: civilDatePlus(0), // today (Sydney civil) — token stays valid to end of day
+    });
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    expect(result.dispatched).toBe(true);
+  });
+
+  it('does NOT block the Copy Link path (notify:false) for a past date — the operator asked for the link', async () => {
+    const { uc, mintPortalTokenService } = makeUseCase({ scheduledDate: civilDatePlus(-1) });
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR, notify: false });
+
+    expect(result.dispatched).toBe(false);
+    expect((result as { reason?: string }).reason).toBe('NOTIFY_DISABLED');
+    expect(mintPortalTokenService.mint).toHaveBeenCalled();
+  });
+});
+
+describe('GeneratePortalTokenUseCase — cycle P2002 replay (WI-B2 / #1056)', () => {
+  // The confirmation cycle's @@unique([appointment_id, cycle_number]) can lose a
+  // concurrent-insert race. createInitial rethrows that P2002 to its transaction
+  // owner (this use case), whose retryOnUniqueConflict must whitelist cycle_number
+  // and replay the whole transaction — re-reading the now-committed cycle.
+  it('retries the transaction when createInitial rejects with a cycle P2002 and then succeeds', async () => {
+    const cycleP2002 = { code: 'P2002', meta: { target: ['appointment_id', 'cycle_number'] } };
+
+    const contact = makeContact();
+    const appointment = makeAppointment();
+
+    const tokenRepo = { findActiveByAppointmentId: vi.fn(), save: vi.fn(), revokeAndSave: vi.fn() };
+    const appointmentRepo = {
+      findById: vi.fn().mockResolvedValue({ appointment, contact, contacts: [contact], restrictions: [] }),
+    };
+    const tenantRepo = {
+      findById: vi.fn().mockResolvedValue({ id: 'tenant-1', name: 'Test Agency', settingsJson: {} }),
+    };
+    const mintPortalTokenService = {
+      mint: vi.fn().mockResolvedValue({ rawToken: 'raw-token-abc', tokenId: 'token-1', expiresAt: new Date(Date.now() + 86400000) }),
+    };
+    const auditService = { log: vi.fn() };
+    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }) };
+    const cycleService = {
+      createInitial: vi.fn().mockRejectedValueOnce(cycleP2002).mockResolvedValueOnce(undefined),
+    };
+    const prisma = {
+      // Each attempt opens a fresh transaction; the callback runs against a stub tx.
+      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn({})),
+    };
+
+    const uc = new GeneratePortalTokenUseCase(
+      tokenRepo as any,
+      appointmentRepo as any,
+      tenantRepo as any,
+      mintPortalTokenService as any,
+      auditService as any,
+      'https://portal.example.test',
+      createNotificationUseCase as any,
+      cycleService as any,
+      prisma as any,
+      makeLogger() as any,
+    );
+
+    const result = await uc.execute({ appointmentId: 'appt-1', actor: OP_ACTOR });
+
+    expect(result.token).toBe('raw-token-abc');
+    // First attempt threw the cycle P2002; the second linked to the existing cycle.
+    expect(cycleService.createInitial).toHaveBeenCalledTimes(2);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
   });
 });

@@ -95,4 +95,23 @@ describe('SlidingWindowRateLimiter', () => {
     // session-b is unaffected
     expect(limiter.check('session-b', now + 10).allowed).toBe(true);
   });
+
+  // Attacker-controlled key spaces (e.g. the pre-lookup password-reset throttle
+  // keyed by email) must not let the store grow without bound.
+  it('caps the number of distinct keys via maxKeys, evicting oldest', () => {
+    limiter = new SlidingWindowRateLimiter({
+      maxRequests: 5,
+      windowMs: 60_000,
+      cleanupIntervalMs: 0,
+      maxKeys: 10,
+    });
+    const now = Date.now();
+    for (let i = 0; i < 100; i++) {
+      limiter.check(`email-${i}@x.com`, now);
+    }
+    // Never exceeds the cap despite 100 distinct keys.
+    expect(limiter.size).toBeLessThanOrEqual(10);
+    // A fresh key still works after eviction (no wedged state).
+    expect(limiter.check('email-fresh@x.com', now).allowed).toBe(true);
+  });
 });

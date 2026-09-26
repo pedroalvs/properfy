@@ -4,10 +4,11 @@ import {
   setDefaultTimezoneResolver,
 } from '../../../src/shared/interfaces/auth-middleware';
 
-function makeRequest(token?: string) {
+function makeRequest(token?: string, routeConfig?: Record<string, unknown>) {
   return {
     headers: token ? { authorization: `Bearer ${token}` } : {},
     authContext: undefined,
+    routeOptions: routeConfig ? { config: routeConfig } : undefined,
   } as any;
 }
 
@@ -117,6 +118,48 @@ describe('createAuthMiddleware', () => {
 
     await middleware(req, reply);
     expect(req.authContext).toEqual(ctx);
+  });
+
+  // #115: a limited totp_setup-stage token may reach only routes that opt in
+  // via `config: { allowTotpSetupStage: true }`. Everything else rejects it.
+  describe('totp_setup auth stage', () => {
+    const setupCtx = {
+      userId: 'u1', tenantId: null, role: 'AM', branchId: null, inspectorId: null,
+      authStage: 'totp_setup',
+    };
+
+    it('rejects a setup-stage token on a route that did NOT opt in', async () => {
+      const verifier = vi.fn().mockResolvedValue({ ...setupCtx });
+      const middleware = createAuthMiddleware(verifier);
+      await expect(
+        middleware(makeRequest('token'), reply),
+      ).rejects.toThrow('Two-factor authentication setup required');
+    });
+
+    it('rejects a setup-stage token when config exists but the flag is false', async () => {
+      const verifier = vi.fn().mockResolvedValue({ ...setupCtx });
+      const middleware = createAuthMiddleware(verifier);
+      await expect(
+        middleware(makeRequest('token', { allowTotpSetupStage: false }), reply),
+      ).rejects.toThrow('Two-factor authentication setup required');
+    });
+
+    it('allows a setup-stage token on an opted-in route', async () => {
+      const verifier = vi.fn().mockResolvedValue({ ...setupCtx });
+      const middleware = createAuthMiddleware(verifier);
+      const req = makeRequest('token', { allowTotpSetupStage: true });
+      await middleware(req, reply);
+      expect(req.authContext).toMatchObject({ userId: 'u1', authStage: 'totp_setup' });
+    });
+
+    it('does not gate a normal token (no authStage) on a non-opted-in route', async () => {
+      const ctx = { userId: 'u1', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
+      const verifier = vi.fn().mockResolvedValue(ctx);
+      const middleware = createAuthMiddleware(verifier);
+      const req = makeRequest('token');
+      await middleware(req, reply);
+      expect(req.authContext).toEqual(ctx);
+    });
   });
 
   describe('effective timezone resolution', () => {

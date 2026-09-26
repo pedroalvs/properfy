@@ -12,6 +12,7 @@ interface FinancialTableProps {
   onRetryError?: () => void;
   pagination?: DataTablePagination;
   onView?: (entry: FinancialEntry) => void;
+  onRefund?: (entry: FinancialEntry) => void;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
   onSelectAllPending?: () => void;
@@ -24,6 +25,7 @@ export function FinancialTable({
   onRetryError,
   pagination,
   onView,
+  onRefund,
   selectedIds,
   onToggleSelect,
   onSelectAllPending,
@@ -40,6 +42,7 @@ export function FinancialTable({
             width: '48px',
             render: (row) => {
               const isPending = row.status === 'PENDING';
+              const rowLabel = row.appointmentCode ?? row.description ?? 'entry';
               return (
                 <input
                   type="checkbox"
@@ -47,7 +50,7 @@ export function FinancialTable({
                   disabled={!isPending}
                   onChange={() => onToggleSelect(row.id)}
                   className="accent-primary"
-                  aria-label={isPending ? `Select ${row.appointmentCode ?? row.description ?? 'entry'}` : undefined}
+                  aria-label={`Select ${rowLabel} ${formatInstantDate(row.effectiveAt)}`}
                 />
               );
             },
@@ -121,17 +124,24 @@ export function FinancialTable({
       key: 'actions',
       label: '',
       width: '80px',
-      render: (row) => (
-        <RowActions
-          actions={[
-            {
-              icon: 'mdi-eye-outline',
-              label: 'View',
-              onClick: () => onView?.(row),
-            },
-          ]}
-        />
-      ),
+      render: (row) => {
+        const actions = [
+          {
+            icon: 'mdi-eye-outline',
+            label: 'View',
+            onClick: () => onView?.(row),
+          },
+        ];
+        // Refunds are only valid against an approved TENANT_DEBIT entry.
+        if (onRefund && row.entryType === 'TENANT_DEBIT' && row.status === 'APPROVED') {
+          actions.push({
+            icon: 'mdi-cash-refund',
+            label: 'Refund',
+            onClick: () => onRefund(row),
+          });
+        }
+        return <RowActions actions={actions} />;
+      },
     },
   ];
 

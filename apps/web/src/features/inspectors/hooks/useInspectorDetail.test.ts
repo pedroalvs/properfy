@@ -76,6 +76,20 @@ describe('useInspectorDetail', () => {
     expect(mockGet).toHaveBeenCalledWith('/v1/inspectors/insp-01', { params: { query: undefined } });
   });
 
+  it('does not leak undeclared response fields onto the mapped inspector', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: { data: { ...MOCK_INSPECTOR, secretInternalField: 'should-not-appear' } },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useInspectorDetail('insp-01'), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.inspector).not.toHaveProperty('secretInternalField');
+  });
+
   it('handles API error gracefully', async () => {
     mockGet.mockResolvedValueOnce({ data: undefined, error: { message: 'Not found' } });
     const wrapper = createQueryWrapper();

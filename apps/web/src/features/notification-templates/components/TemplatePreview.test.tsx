@@ -28,6 +28,16 @@ describe('TemplatePreview', () => {
     expect(screen.getByTestId('preview-subject')).toHaveTextContent('Test Subject');
   });
 
+  // #593/#592: gating on showSubject alone means an EMAIL with an empty subject
+  // still renders the block and shows the "(empty)" fallback (previously the
+  // `subject &&` guard hid the block, making the fallback dead code).
+  it('renders the subject block with an "(empty)" fallback for an empty EMAIL subject', () => {
+    render(<TemplatePreview subject="" htmlRendered="<p>Body</p>" channel="EMAIL" />);
+
+    expect(screen.getByText('Subject')).toBeInTheDocument();
+    expect(screen.getByTestId('preview-subject')).toHaveTextContent('(empty)');
+  });
+
   it('hides subject for SMS channel', () => {
     render(
       <TemplatePreview

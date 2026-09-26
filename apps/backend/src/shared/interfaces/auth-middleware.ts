@@ -38,6 +38,21 @@ export function createAuthMiddleware(
     const token = authHeader.slice(7);
     const ctx = await verifyJwt(token);
 
+    // Limited TOTP-enrollment session: a token minted only so an AM can finish
+    // mandatory 2FA setup. It must reach ONLY the endpoints that opt in via
+    // `config: { allowTotpSetupStage: true }` (2FA setup/confirm, /me, logout).
+    // Every other route rejects it — fail-closed, so a route with no config
+    // (or a request that carries no route options at all) rejects too.
+    if (ctx.authStage === 'totp_setup') {
+      const allowed = request.routeOptions?.config?.allowTotpSetupStage === true;
+      if (!allowed) {
+        throw new UnauthorizedError(
+          'AUTH_TOTP_SETUP_REQUIRED',
+          'Two-factor authentication setup required',
+        );
+      }
+    }
+
     // OP is cross-tenant per CLAUDE.md §6 ("Operator, cross-tenant,
     // operational team"). Tokens issued for OP users legitimately carry
     // `tenantId: null`, and use cases handle OP the same way they handle AM
@@ -81,5 +96,12 @@ export function createAuthMiddleware(
 declare module 'fastify' {
   interface FastifyRequest {
     authContext?: AuthContext;
+  }
+  interface FastifyContextConfig {
+    /**
+     * Opt-in flag: when true, this route accepts a limited TOTP-setup-stage
+     * token. Set only on the 2FA enrollment endpoints, /me and logout.
+     */
+    allowTotpSetupStage?: boolean;
   }
 }

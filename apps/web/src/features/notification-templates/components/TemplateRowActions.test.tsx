@@ -121,8 +121,27 @@ describe('TemplateRowActions', () => {
     await user.click(confirmButtons[confirmButtons.length - 1]!);
 
     await waitFor(() => {
-      expect(mockDelete).toHaveBeenCalledWith('/v1/notification-templates/override-9');
+      // #373: typed generated-client call (path params), not a string-interpolated URL.
+      expect(mockDelete).toHaveBeenCalledWith('/v1/notification-templates/{templateId}', {
+        params: { path: { templateId: 'override-9' } },
+      });
     });
     await waitFor(() => expect(onDeleted).toHaveBeenCalled());
+  });
+
+  // #589: a failed delete must surface the failure and NOT notify the parent.
+  it('does not call onDeleted when the DELETE fails', async () => {
+    const user = userEvent.setup();
+    mockDelete.mockResolvedValue({ data: undefined, error: { error: { message: 'Delete failed' } } });
+    const { onDeleted } = renderRow(makeTemplate({ id: 'override-9', tenantId: 'agency-1' }), true);
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    const confirmButtons = screen.getAllByText('Delete');
+    await user.click(confirmButtons[confirmButtons.length - 1]!);
+
+    await waitFor(() => expect(mockDelete).toHaveBeenCalled());
+    // Give any (incorrect) onDeleted call a chance to flush before asserting absence.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(onDeleted).not.toHaveBeenCalled();
   });
 });

@@ -34,11 +34,11 @@ export function useAppDeactivate(): UseAppDeactivateReturn {
   }, [queryClient]);
 
   const deactivate = useCallback(
-    (appId: string) => run(() => api.POST(`/v1/app-credentials/${appId}/deactivate` as any, { body: {} as any })),
+    (appId: string) => run(() => api.POST('/v1/app-credentials/{id}/deactivate', { params: { path: { id: appId } } })),
     [run],
   );
   const reactivate = useCallback(
-    (appId: string) => run(() => api.PATCH(`/v1/app-credentials/${appId}` as any, { body: { isActive: true } as any })),
+    (appId: string) => run(() => api.PATCH('/v1/app-credentials/{id}', { params: { path: { id: appId } }, body: { isActive: true } })),
     [run],
   );
 

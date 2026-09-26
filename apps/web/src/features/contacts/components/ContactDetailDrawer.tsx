@@ -5,6 +5,7 @@ import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { useContactDetail } from '../hooks/useContactDetail';
+import { ContactLoadError } from './ContactLoadError';
 import { ContactTypeChip } from './ContactTypeChip';
 import { ContactStatusBadge } from './ContactStatusBadge';
 import { ContactDetailSections } from './ContactDetailSections';
@@ -31,7 +32,7 @@ export function ContactDetailDrawer({
   canDeactivate = false,
 }: ContactDetailDrawerProps) {
   const navigate = useNavigate();
-  const { contact, isLoading } = useContactDetail(contactId);
+  const { contact, isLoading, error, refetch } = useContactDetail(contactId);
 
   const handleEdit = useCallback(() => {
     if (onEdit && contactId) onEdit(contactId);
@@ -108,7 +109,17 @@ export function ContactDetailDrawer({
               </div>
             </div>
           </>
-        ) : null}
+        ) : (
+          // WI-3 (#213): loading ended without a contact — render an explicit
+          // status-aware fallback (retry + close) instead of an empty panel,
+          // keeping the header so the drawer stays dismissible.
+          <>
+            <DrawerHeader title="Contact" onClose={onClose} />
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <ContactLoadError error={error} onRetry={refetch} />
+            </div>
+          </>
+        )}
       </div>
     </DrawerPanel>
   );

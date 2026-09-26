@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AcceptOfferModal } from '../AcceptOfferModal';
 import type { MarketplaceOffer } from '../../types';
@@ -45,6 +45,26 @@ describe('AcceptOfferModal', () => {
     render(<AcceptOfferModal offer={offer} state="ACCEPTING" onConfirm={onConfirm} onCancel={onCancel} />);
     expect(screen.getByTestId('modal-cancel')).toBeDisabled();
     expect(screen.getByTestId('modal-confirm')).toBeDisabled();
+  });
+
+  it('exposes dialog semantics with an accessible name and moves focus inside on open (#461)', () => {
+    render(<AcceptOfferModal offer={offer} state="CONFIRMING" onConfirm={onConfirm} onCancel={onCancel} />);
+    const dialog = screen.getByRole('dialog', { name: 'Confirm acceptance' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    // Focus lands on the primary action inside the sheet.
+    expect(screen.getByTestId('modal-confirm')).toHaveFocus();
+  });
+
+  it('closes on Escape while CONFIRMING (#461)', () => {
+    render(<AcceptOfferModal offer={offer} state="CONFIRMING" onConfirm={onConfirm} onCancel={onCancel} />);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it('ignores Escape while ACCEPTING — the request is in flight (#461)', () => {
+    render(<AcceptOfferModal offer={offer} state="ACCEPTING" onConfirm={onConfirm} onCancel={onCancel} />);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onCancel).not.toHaveBeenCalled();
   });
 
   it('keeps its actions clear of the iOS home indicator', () => {

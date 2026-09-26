@@ -50,7 +50,7 @@ describe('useInspectorDeactivate', () => {
     expect(mockPost).not.toHaveBeenCalled();
   });
 
-  it('calls API and shows success message on deactivate', async () => {
+  it('calls onSuccess and shows a success snackbar on deactivate', async () => {
     const onSuccess = vi.fn();
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useInspectorDeactivate('insp-01', onSuccess), { wrapper });
@@ -60,6 +60,25 @@ describe('useInspectorDeactivate', () => {
     });
 
     expect(mockPost).toHaveBeenCalled();
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    // SnackbarProvider renders no DOM toast — assert on the mocked show function.
+    expect(mockShowSuccess).toHaveBeenCalledWith('Inspector deactivated successfully');
+    expect(mockShowError).not.toHaveBeenCalled();
+  });
+
+  it('shows an error snackbar and does not call onSuccess when the API call fails', async () => {
+    mockPost.mockResolvedValueOnce({ error: { message: 'Cannot deactivate' } });
+    const onSuccess = vi.fn();
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useInspectorDeactivate('insp-01', onSuccess), { wrapper });
+
+    await act(async () => {
+      result.current.deactivate('Poor performance');
+    });
+
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(mockShowSuccess).not.toHaveBeenCalled();
+    expect(mockShowError).toHaveBeenCalled();
   });
 
   it('initially isDeactivating is false', () => {

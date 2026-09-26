@@ -45,6 +45,11 @@
   --color-status-cancelled: #FFCDD2;
   --color-status-rejected: #FFAB91;
 
+  /* Status text (chip foregrounds paired with the backgrounds above) */
+  --color-status-scheduled-text: #01579B;
+  --color-status-done-text: #1B5E20;
+  --color-status-awaiting-text: #E65100;
+
   /* Property type backgrounds */
   --color-type-residential: #B3E5FC;
   --color-type-commercial: #FFE0B2;

@@ -172,4 +172,69 @@ describe('UserListPage', () => {
     const nameMatches = screen.getAllByText('Name');
     expect(nameMatches.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('scopes the user list query to the selected agency', async () => {
+    const evt = userEvent.setup();
+    mockMe = {
+      id: 'usr-99',
+      name: 'Platform Admin',
+      email: 'am@test.com',
+      role: 'AM',
+      tenantId: null,
+      branchId: null,
+      totpEnabled: false,
+    };
+
+    renderPage();
+
+    // Default "Agency Users" scope requires picking an agency before the list query fires.
+    expect(await screen.findByText('Select an agency to view users.')).toBeInTheDocument();
+    expect(mockGet).not.toHaveBeenCalledWith(
+      expect.stringMatching(/^\/v1\/tenants\/.+\/users$/),
+      expect.anything(),
+    );
+
+    await evt.click(screen.getByLabelText('Agency'));
+    await evt.click(screen.getByText('Agency One'));
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith(
+        '/v1/tenants/tenant-1/users',
+        expect.objectContaining({ params: expect.objectContaining({ query: expect.objectContaining({ page: '1' }) }) }),
+      );
+    });
+  });
+
+  it('switches to internal/platform scope and queries the platform-wide users endpoint', async () => {
+    const evt = userEvent.setup();
+    mockMe = {
+      id: 'usr-99',
+      name: 'Platform Admin',
+      email: 'am@test.com',
+      role: 'AM',
+      tenantId: null,
+      branchId: null,
+      totpEnabled: false,
+    };
+
+    renderPage();
+
+    await screen.findByLabelText('Agency');
+
+    await evt.click(screen.getByLabelText('User Scope'));
+    await evt.click(screen.getByText('Internal Users'));
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith(
+        '/v1/users',
+        expect.objectContaining({ params: expect.objectContaining({ query: expect.objectContaining({ page: '1' }) }) }),
+      );
+    });
+
+    // The tenant-scoped endpoint is never hit once internal scope is selected without an agency.
+    expect(mockGet).not.toHaveBeenCalledWith(
+      expect.stringMatching(/^\/v1\/tenants\/.+\/users$/),
+      expect.anything(),
+    );
+  });
 });

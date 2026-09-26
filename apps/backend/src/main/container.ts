@@ -113,6 +113,7 @@ import { ConfirmInspectorDocumentUploadUseCase } from '../modules/inspector/appl
 import { GetInspectorDocumentDownloadUrlUseCase } from '../modules/inspector/application/use-cases/get-inspector-document-download-url.use-case';
 import { GetInspectorAvailabilityTemplateUseCase } from '../modules/inspector/application/use-cases/get-inspector-availability-template.use-case';
 import { UpdateInspectorAvailabilityTemplateUseCase } from '../modules/inspector/application/use-cases/update-inspector-availability-template.use-case';
+import { RegenerateInspectorAvailabilitySlotsUseCase } from '../modules/inspector/application/use-cases/regenerate-inspector-availability-slots.use-case';
 import { GetInspectorAvailabilityTemplateForOperatorUseCase } from '../modules/inspector/application/use-cases/get-inspector-availability-template-for-operator.use-case';
 import { PrismaInspectorAppointmentChecker } from '../modules/inspector/infrastructure/prisma-inspector-appointment-checker';
 import type { InspectorRouteContainer } from '../modules/inspector/interfaces/inspector.routes';
@@ -130,7 +131,9 @@ import { PrismaAuditLegalHoldRepository } from '../modules/audit/infrastructure/
 import { PrismaPiiFieldMappingRepository } from '../modules/audit/infrastructure/prisma-pii-field-mapping.repository';
 import { PrismaDataSubjectErasureRequestRepository } from '../modules/audit/infrastructure/prisma-data-subject-erasure-request.repository';
 import { PrismaErasurePiiResolver } from '../modules/audit/infrastructure/prisma-erasure-pii-resolver';
+import { PrismaTenantPortalActivityScanner } from '../modules/audit/infrastructure/prisma-tenant-portal-activity-scanner';
 import { ListAuditLogsUseCase } from '../modules/audit/application/use-cases/list-audit-logs.use-case';
+import { PrismaAuditEntityLabelResolver } from '../modules/audit/infrastructure/prisma-audit-entity-label-resolver';
 import type { AuditRouteContainer } from '../modules/audit/interfaces/audit.routes';
 import type { AuditErasureRouteContainer } from '../modules/audit/interfaces/audit-erasure.routes';
 import type { AuditRetentionRouteContainer } from '../modules/audit/interfaces/audit-retention.routes';
@@ -145,6 +148,10 @@ import { ReleaseLegalHoldUseCase } from '../modules/audit/application/use-cases/
 import { UpsertPiiFieldMappingUseCase } from '../modules/audit/application/use-cases/upsert-pii-field-mapping.use-case';
 import { TriggerRetentionRunUseCase } from '../modules/audit/application/use-cases/trigger-retention-run.use-case';
 import { ListRetentionRunsUseCase } from '../modules/audit/application/use-cases/list-retention-runs.use-case';
+import { ListRetentionCategoriesUseCase } from '../modules/audit/application/use-cases/list-retention-categories.use-case';
+import { ListPreservationRulesUseCase } from '../modules/audit/application/use-cases/list-preservation-rules.use-case';
+import { ListPiiFieldMappingsUseCase } from '../modules/audit/application/use-cases/list-pii-field-mappings.use-case';
+import { DeletePreservationRuleUseCase } from '../modules/audit/application/use-cases/delete-preservation-rule.use-case';
 
 // Service group module
 import { PrismaServiceGroupRepository } from '../modules/service-group/infrastructure/prisma-service-group.repository';
@@ -310,6 +317,7 @@ import { UpdateServiceRegionUseCase } from '../modules/service-region/applicatio
 import { GetServiceRegionUseCase } from '../modules/service-region/application/use-cases/get-service-region.use-case';
 import { ListServiceRegionsUseCase } from '../modules/service-region/application/use-cases/list-service-regions.use-case';
 import { DeactivateServiceRegionUseCase } from '../modules/service-region/application/use-cases/deactivate-service-region.use-case';
+import { ReactivateServiceRegionUseCase } from '../modules/service-region/application/use-cases/reactivate-service-region.use-case';
 import { DeleteServiceRegionUseCase } from '../modules/service-region/application/use-cases/delete-service-region.use-case';
 import { ResolveRegionsUseCase } from '../modules/service-region/application/use-cases/resolve-regions.use-case';
 import { NotifyInspectorsOnRegionDeactivationHandler } from '../modules/service-region/application/handlers/notify-inspectors-on-region-deactivation.handler';
@@ -561,7 +569,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getMeUseCase = new GetMeUseCase(userRepo, inspectorRepo, storageService, tenantRepo, logger);
   const updateMyTimezoneUseCase = new UpdateMyTimezoneUseCase(userRepo, auditService);
   const passwordHistoryRepo = new PrismaPasswordHistoryRepository(prisma);
-  const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo);
+  const changePasswordUseCase = new ChangePasswordUseCase(userRepo, sessionRepo, auditService, passwordHistoryRepo, prisma);
   const revokeSessionUseCase = new RevokeSessionUseCase(sessionRepo, auditService);
   const listSessionsUseCase = new ListSessionsUseCase(sessionRepo);
   const setupTotpUseCase = new SetupTotpUseCase(userRepo, totpService, auditService, totpEncryptionService);
@@ -607,10 +615,10 @@ export function createContainer(logger: Logger): AppContainer {
   const getUserUseCase = new GetUserUseCase(userManagementRepo);
   const listUsersUseCase = new ListUsersUseCase(userManagementRepo);
   const updateUserUseCase = new UpdateUserUseCase(userManagementRepo, tenantRepo, branchRepo, auditService, authorizationService);
-  const deactivateUserUseCase = new DeactivateUserUseCase(userManagementRepo, tenantRepo, auditService, authorizationService);
+  const deactivateUserUseCase = new DeactivateUserUseCase(userManagementRepo, tenantRepo, auditService, authorizationService, prisma);
   const reactivateUserUseCase = new ReactivateUserUseCase(userManagementRepo, tenantRepo, auditService, authorizationService);
   const unlockUserUseCase = new UnlockUserUseCase(userManagementRepo, auditService, authorizationService);
-  const resetUserPasswordUseCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo, authorizationService);
+  const resetUserPasswordUseCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo, authorizationService, prisma);
 
   // Outbound integration credentials (Resend / MobileMessage / Mapbox) managed
   // by AM via the Integrations Hub. Database config overrides env vars; when
@@ -691,7 +699,7 @@ export function createContainer(logger: Logger): AppContainer {
     prisma,
     new Aes256GcmService(appCredentialEncKey),
   );
-  const createAppCredentialUseCase = new CreateAppCredentialUseCase(appCredentialRepo, auditService, branchRepo);
+  const createAppCredentialUseCase = new CreateAppCredentialUseCase(appCredentialRepo, auditService, branchRepo, tenantRepo);
   const updateAppCredentialUseCase = new UpdateAppCredentialUseCase(appCredentialRepo, auditService, branchRepo);
   const getAppCredentialUseCase = new GetAppCredentialUseCase(appCredentialRepo);
   const listAppCredentialsUseCase = new ListAppCredentialsUseCase(appCredentialRepo);
@@ -701,11 +709,11 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Inspector use cases
   const availabilitySlotRepo = new PrismaAvailabilitySlotRepository(prisma);
-  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, serviceRegionRepo, authorizationService);
+  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, authorizationService, serviceRegionRepo);
   const inspectorRatingReader = new PrismaInspectorRatingReader(prisma);
   const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo, serviceRegionRepo, inspectorRatingReader);
   const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo, serviceRegionRepo, inspectorRatingReader);
-  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, serviceRegionRepo, authorizationService, userManagementRepo);
+  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, authorizationService, serviceRegionRepo, userManagementRepo);
   const createAvailabilitySlotUseCase = new CreateAvailabilitySlotUseCase(inspectorRepo, availabilitySlotRepo, auditService);
   const listAvailabilitySlotsUseCase = new ListAvailabilitySlotsUseCase(availabilitySlotRepo);
   const updateAvailabilitySlotUseCase = new UpdateAvailabilitySlotUseCase(availabilitySlotRepo, auditService);
@@ -720,8 +728,9 @@ export function createContainer(logger: Logger): AppContainer {
   const confirmInspectorDocumentUploadUseCase = new ConfirmInspectorDocumentUploadUseCase(inspectorRepo, storageService, auditService);
   const getInspectorDocumentDownloadUrlUseCase = new GetInspectorDocumentDownloadUrlUseCase(inspectorRepo, storageService);
   const getInspectorAvailabilityTemplateUseCase = new GetInspectorAvailabilityTemplateUseCase(inspectorRepo, availabilitySlotRepo);
-  const updateInspectorAvailabilityTemplateUseCase = new UpdateInspectorAvailabilityTemplateUseCase(inspectorRepo, availabilitySlotRepo, auditService);
-  const getInspectorAvailabilityTemplateForOperatorUseCase = new GetInspectorAvailabilityTemplateForOperatorUseCase(inspectorRepo, availabilitySlotRepo);
+  const regenerateInspectorAvailabilitySlotsUseCase = new RegenerateInspectorAvailabilitySlotsUseCase(availabilitySlotRepo);
+  const updateInspectorAvailabilityTemplateUseCase = new UpdateInspectorAvailabilityTemplateUseCase(inspectorRepo, availabilitySlotRepo, prisma, regenerateInspectorAvailabilitySlotsUseCase, auditService);
+  const getInspectorAvailabilityTemplateForOperatorUseCase = new GetInspectorAvailabilityTemplateForOperatorUseCase(inspectorRepo, availabilitySlotRepo, authorizationService);
 
   // Notification repositories and create use case (needed before appointments for handler wiring)
   const notificationRepo = new PrismaNotificationRepository(prisma);
@@ -741,7 +750,7 @@ export function createContainer(logger: Logger): AppContainer {
     webAppBaseUrl: env.WEB_APP_BASE_URL,
     pwaBaseUrl: env.PWA_BASE_URL,
   });
-  const consumePasswordResetUseCase = new ConsumePasswordResetUseCase(passwordResetTokenRepo, userRepo, sessionRepo, auditService, passwordHistoryRepo);
+  const consumePasswordResetUseCase = new ConsumePasswordResetUseCase(passwordResetTokenRepo, userRepo, sessionRepo, auditService, passwordHistoryRepo, prisma);
 
 
   // Shared idempotency service (used across modules)
@@ -940,6 +949,7 @@ export function createContainer(logger: Logger): AppContainer {
   const finishInspectionUseCase = new FinishInspectionUseCase(
     inspectionExecutionRepo, idempotencyService,
     executeStatusTransitionUseCase, appointmentRepo, auditService, authorizationService,
+    prisma,
   );
   const getAvailablePeriodsUseCase = new GetAvailablePeriodsUseCase(inspectorRepo);
   const getInspectorEarningsSummaryUseCase = new GetInspectorEarningsSummaryUseCase(financialEntryRepo);
@@ -950,21 +960,24 @@ export function createContainer(logger: Logger): AppContainer {
   );
 
   // Audit use cases
+  const auditEntityLabelResolver = new PrismaAuditEntityLabelResolver(prisma);
   const listAuditLogsUseCase = new ListAuditLogsUseCase(
     auditLogRepo,
     userManagementRepo,
     piiFieldMappingRepo,
     tenantRepo,
+    auditEntityLabelResolver,
   );
 
   // Feature 020: data subject erasure workflow (AM-only, LGPD compliance)
   const erasurePiiResolver = new PrismaErasurePiiResolver(userManagementRepo, auditLogRepo);
+  const tenantPortalActivityScanner = new PrismaTenantPortalActivityScanner(prisma);
   const previewDataSubjectErasureUseCase = new PreviewDataSubjectErasureUseCase(
     dataSubjectErasureRequestRepo,
     auditLogRepo,
     piiFieldMappingRepo,
     erasurePiiResolver,
-    prisma,
+    tenantPortalActivityScanner,
   );
   const executeDataSubjectErasureUseCase = new ExecuteDataSubjectErasureUseCase(
     dataSubjectErasureRequestRepo,
@@ -1097,7 +1110,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listFinancialEntriesUseCase = new ListFinancialEntriesUseCase(financialEntryRepo, auditService);
   const getFinancialSummaryUseCase = new GetFinancialSummaryUseCase(financialEntryRepo, tenantRepo);
   const getFinancialEntryUseCase = new GetFinancialEntryUseCase(financialEntryRepo);
-  const approveFinancialEntryUseCase = new ApproveFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
+  const approveFinancialEntryUseCase = new ApproveFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
   const cancelFinancialEntryUseCase = new CancelFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
   const createManualAdjustmentUseCase = new CreateManualAdjustmentUseCase(
     financialEntryRepo,
@@ -1121,12 +1134,12 @@ export function createContainer(logger: Logger): AppContainer {
     inspectorInvoiceRepo,
     reportStorageService,
   );
-  const markInvoicePaidUseCase = new MarkInvoicePaidUseCase(inspectorInvoiceRepo, auditService, authorizationService);
-  const batchMarkInvoicesPaidUseCase = new BatchMarkInvoicesPaidUseCase(inspectorInvoiceRepo, auditService, authorizationService);
-  const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService);
+  const markInvoicePaidUseCase = new MarkInvoicePaidUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
+  const batchMarkInvoicesPaidUseCase = new BatchMarkInvoicesPaidUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
+  const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
   const getReconciliationSummaryUseCase = new GetReconciliationSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const getInvoiceSummaryUseCase = new GetInvoiceSummaryUseCase(inspectorInvoiceRepo, authorizationService);
-  const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
+  const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
   const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, authorizationService, billingJobQueue);
   const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService);
 
@@ -1206,7 +1219,7 @@ export function createContainer(logger: Logger): AppContainer {
     // Resolve the email logo from this environment's web app (dev/staging/prod).
     properfyLogoUrl: buildProperfyLogoUrl(env.WEB_APP_BASE_URL),
   });
-  const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService);
+  const retryNotificationUseCase = new RetryNotificationUseCase(notificationRepo, auditService, authorizationService, notificationJobQueue, logger);
   const handleProviderWebhookUseCase = new HandleProviderWebhookUseCase(notificationRepo, logger);
   const webhookSignatureValidator = createWebhookSignatureValidator({
     resendWebhookSecret: env.RESEND_WEBHOOK_SECRET,
@@ -1269,17 +1282,18 @@ export function createContainer(logger: Logger): AppContainer {
   const getInspectorWorkloadUseCase = new GetInspectorWorkloadUseCase(inspectorWorkloadRepo);
 
   // Service region use cases (serviceRegionRepo instantiated earlier for inspector/marketplace use)
-  const createServiceRegionUseCase = new CreateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService);
+  const createServiceRegionUseCase = new CreateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService, tenantRepo);
   const updateServiceRegionUseCase = new UpdateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService);
   const getServiceRegionUseCase = new GetServiceRegionUseCase(serviceRegionRepo, authorizationService, userRepo);
   const listServiceRegionsUseCase = new ListServiceRegionsUseCase(serviceRegionRepo, authorizationService);
   const deactivateServiceRegionUseCase = new DeactivateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService, domainEventBus);
+  const reactivateServiceRegionUseCase = new ReactivateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService, domainEventBus);
   const deleteServiceRegionUseCase = new DeleteServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService);
   const resolveRegionsUseCase = new ResolveRegionsUseCase(serviceRegionRepo, authorizationService);
 
   // Service region event handlers
   const notifyInspectorsOnRegionDeactivationHandler = new NotifyInspectorsOnRegionDeactivationHandler(
-    inspectorRepo, createNotificationUseCase,
+    inspectorRepo, createNotificationUseCase, logger,
   );
   domainEventBus.subscribe(
     SERVICE_REGION_EVENTS.DEACTIVATED,
@@ -1405,6 +1419,13 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
   );
   const listRetentionRunsUseCase = new ListRetentionRunsUseCase(auditLogRepo);
+  const listRetentionCategoriesUseCase = new ListRetentionCategoriesUseCase(auditRetentionCategoryRepo);
+  const listPreservationRulesUseCase = new ListPreservationRulesUseCase(auditPreservationRuleRepo);
+  const listPiiFieldMappingsUseCase = new ListPiiFieldMappingsUseCase(piiFieldMappingRepo);
+  const deletePreservationRuleUseCase = new DeletePreservationRuleUseCase(
+    auditPreservationRuleRepo,
+    auditService,
+  );
 
   const appointmentImportCommitWorker = new AppointmentImportCommitWorker(
     appointmentImportRepo, reportStorageService, propertyRepo, tenantRepo, appointmentImportRowResolver,
@@ -1562,15 +1583,16 @@ export function createContainer(logger: Logger): AppContainer {
     auditRetention: {
       upsertRetentionCategoryUseCase,
       upsertPreservationRuleUseCase,
+      deletePreservationRuleUseCase,
       placeLegalHoldUseCase,
       releaseLegalHoldUseCase,
       upsertPiiFieldMappingUseCase,
       triggerRetentionRunUseCase,
       listRetentionRunsUseCase,
-      retentionCategoryRepo: auditRetentionCategoryRepo,
-      preservationRuleRepo: auditPreservationRuleRepo,
+      listRetentionCategoriesUseCase,
+      listPreservationRulesUseCase,
+      listPiiFieldMappingsUseCase,
       legalHoldRepo: auditLegalHoldRepo,
-      piiFieldMappingRepo,
       jwtService,
       tenantRepo,
     },
@@ -1706,6 +1728,7 @@ export function createContainer(logger: Logger): AppContainer {
       getServiceRegionUseCase,
       listServiceRegionsUseCase,
       deactivateServiceRegionUseCase,
+      reactivateServiceRegionUseCase,
       deleteServiceRegionUseCase,
       resolveRegionsUseCase,
       jwtService,

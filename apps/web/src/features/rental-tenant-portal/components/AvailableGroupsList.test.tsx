@@ -81,6 +81,24 @@ describe('AvailableGroupsList', () => {
     expect(row.className).toContain('border-real-estate');
   });
 
+  // WI-W3 (#485): selection state must be conveyed semantically, not only visually.
+  it('exposes selection via aria-pressed', () => {
+    const { rerender } = render(
+      <AvailableGroupsList groups={[GROUP]} isLoading={false} onSelect={vi.fn()} />,
+    );
+    expect(screen.getByTestId('group-row')).toHaveAttribute('aria-pressed', 'false');
+
+    rerender(
+      <AvailableGroupsList
+        groups={[GROUP]}
+        isLoading={false}
+        selectedSlotKey="group-1|2026-06-15|09:00|12:00"
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId('group-row')).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('should group slots by day tabs and filter rows by the active day', () => {
     const otherDay: AvailableGroup = {
       ...GROUP,

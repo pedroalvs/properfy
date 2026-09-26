@@ -20,6 +20,16 @@ describe('OffersViewToggle', () => {
     expect(screen.getByText('List')).toHaveAttribute('data-active', 'false');
   });
 
+  it('marks the active tab with aria-selected (#647)', () => {
+    const { rerender } = render(<OffersViewToggle value="list" onChange={vi.fn()} />);
+    expect(screen.getByText('List')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Map')).toHaveAttribute('aria-selected', 'false');
+
+    rerender(<OffersViewToggle value="map" onChange={vi.fn()} />);
+    expect(screen.getByText('Map')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('List')).toHaveAttribute('aria-selected', 'false');
+  });
+
   it('calls onChange with "map" when Map is clicked', () => {
     const onChange = vi.fn();
     render(<OffersViewToggle value="list" onChange={onChange} />);

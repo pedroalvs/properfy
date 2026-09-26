@@ -16,9 +16,14 @@ export function useAutoSave(state: ExecutionState) {
     const interval = setInterval(() => {
       const snapshot = JSON.stringify(stateRef.current);
       if (snapshot !== lastSavedRef.current) {
-        lastSavedRef.current = snapshot;
         const stateToSave = { ...stateRef.current, lastSavedAt: new Date().toISOString() };
-        saveExecutionState(stateToSave.appointmentId, stateToSave);
+        saveExecutionState(stateToSave.appointmentId, stateToSave)
+          .then(() => {
+            lastSavedRef.current = snapshot;
+          })
+          .catch(() => {
+            // Keep the snapshot marked dirty so the next tick retries the write.
+          });
       }
     }, AUTO_SAVE_INTERVAL_MS);
 

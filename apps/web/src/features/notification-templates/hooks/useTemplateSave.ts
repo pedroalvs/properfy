@@ -3,11 +3,13 @@ import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   findTemplateVariableIssues,
+  measureSmsTemplate,
+  describeSmsOverLimit,
   type NotificationChannel,
   type NotificationClass,
 } from '@properfy/shared';
 import { mapServerFieldErrors } from '@/lib/server-field-errors';
-import { ALLOWED_VARIABLES, type TemplateFormData, type TemplateFormErrors } from '../types';
+import { ALLOWED_VARIABLES, SAMPLE_DATA, type TemplateFormData, type TemplateFormErrors } from '../types';
 
 export interface SaveResult {
   success: boolean;
@@ -92,6 +94,17 @@ function validateTemplate(
     errors.body = errors.body ? `${errors.body}. ${missingMsg}` : missingMsg;
   }
 
+  // SMS bodies over the provider's 10-part limit are truncated silently at send.
+  // Measure the body as it renders with sample values (same basis as the backend
+  // save-guard and the editor preview) and block the save before that happens.
+  if (channel === 'SMS') {
+    const measurement = measureSmsTemplate(data.body, SAMPLE_DATA);
+    if (measurement.overLimit) {
+      const overMsg = describeSmsOverLimit(measurement);
+      errors.body = errors.body ? `${errors.body}. ${overMsg}` : overMsg;
+    }
+  }
+
   return errors;
 }
 
@@ -106,7 +119,13 @@ export function useTemplateSave(): UseTemplateSaveReturn {
     allowedVariables?: readonly string[],
     channel?: NotificationChannel,
   ): TemplateFormErrors => {
-    return validateTemplate(data, requiredVariables, allowedVariables, channel);
+    const errors = validateTemplate(data, requiredVariables, allowedVariables, channel);
+    // `validationErrors` is part of this hook's exposed return contract, but before
+    // this it stayed {} forever because validate() only ever returned the errors and
+    // nothing wrote them (#383). Publish the latest result so the exposed field is
+    // truthful for any consumer that reads it; the return value is unchanged.
+    setValidationErrors(errors);
+    return errors;
   }, []);
 
   const save = useCallback(async (

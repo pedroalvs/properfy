@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SatisfactionSurveyForm } from './SatisfactionSurveyForm';
 
@@ -11,7 +11,13 @@ function setup(props: Partial<React.ComponentProps<typeof SatisfactionSurveyForm
 
 function setOnline(online: boolean) {
   Object.defineProperty(window.navigator, 'onLine', { value: online, configurable: true });
-  window.dispatchEvent(new Event(online ? 'online' : 'offline'));
+  // Flush the online-status listener's state update synchronously. Dispatching
+  // outside act() left the disabled toggle un-flushed, so the assertion below
+  // raced it — deterministic in isolation but intermittently failing under the
+  // full parallel CI suite.
+  act(() => {
+    window.dispatchEvent(new Event(online ? 'online' : 'offline'));
+  });
 }
 
 afterEach(() => {
@@ -100,7 +106,8 @@ describe('SatisfactionSurveyForm', () => {
     await user.click(screen.getAllByRole('radio')[4]!);
     setOnline(false);
 
-    expect(await screen.findByRole('button', { name: /submit rating/i })).toBeDisabled();
+    const submitButton = await screen.findByRole('button', { name: /submit rating/i });
+    await waitFor(() => expect(submitButton).toBeDisabled());
   });
 
   it('states who sees the answer before it is given', async () => {

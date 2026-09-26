@@ -121,9 +121,15 @@ describe('TenantFormDrawer', () => {
       </Wrapper>,
     );
 
-    expect(await screen.findByRole('checkbox', {
-      name: 'Send notifications to tenants (email and SMS)',
-    })).not.toBeChecked();
+    // Wait for the async tenant load to settle the derived checkbox state.
+    // findByRole only waits for the checkbox to EXIST (it renders before the
+    // query resolves), so asserting .not.toBeChecked() on it directly raced the
+    // fail-closed populate under the full parallel CI suite. Poll the state.
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox', {
+        name: 'Send notifications to tenants (email and SMS)',
+      })).not.toBeChecked();
+    });
   });
 
   it('renders create mode title when no tenantId', () => {

@@ -37,7 +37,9 @@ export class CreateServiceTypeUseCase {
       throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
     }
 
-    const existing = await this.serviceTypeRepo.findByCode(code);
+    // Any-status lookup: an INACTIVE type still owns its code, so reusing it
+    // would collide the moment that record is reactivated (#393).
+    const existing = await this.serviceTypeRepo.findByCodeAnyStatus(code);
     if (existing) {
       throw new ServiceTypeCodeConflictError();
     }

@@ -14,17 +14,28 @@ export interface SlidingWindowRateLimiterOptions {
   windowMs: number;
   /** How often to run full cleanup of expired keys (ms). Defaults to 60 000 (1 min). */
   cleanupIntervalMs?: number;
+  /**
+   * Hard ceiling on the number of distinct keys held at once. When a key is
+   * limited by attacker-controlled input (e.g. the pre-lookup password-reset
+   * throttle keyed by email), an adversary could otherwise accrete one Map
+   * entry per unique value and exhaust memory. On overflow, expired keys are
+   * pruned and then the oldest-inserted keys are evicted down to the cap.
+   * Defaults to 100 000.
+   */
+  maxKeys?: number;
 }
 
 export class SlidingWindowRateLimiter {
   private readonly store = new Map<string, number[]>();
   private readonly maxRequests: number;
   private readonly windowMs: number;
+  private readonly maxKeys: number;
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(options: SlidingWindowRateLimiterOptions) {
     this.maxRequests = options.maxRequests;
     this.windowMs = options.windowMs;
+    this.maxKeys = options.maxKeys ?? 100_000;
 
     const cleanupMs = options.cleanupIntervalMs ?? 60_000;
     if (cleanupMs > 0) {
@@ -60,9 +71,36 @@ export class SlidingWindowRateLimiter {
       return { allowed: false, retryAfterMs: Math.max(retryAfterMs, 1) };
     }
 
+    const isNewKey = !this.store.has(key);
     timestamps.push(now);
     this.store.set(key, timestamps);
+    if (isNewKey && this.store.size > this.maxKeys) {
+      this.evictToCap();
+    }
     return { allowed: true };
+  }
+
+  /**
+   * Bound memory when the key space is attacker-controlled: prune fully-expired
+   * keys first, then evict the oldest-inserted keys (Map preserves insertion
+   * order) until back at the cap. The per-route/per-IP limiter in front keeps
+   * this from being reachable in normal operation.
+   */
+  private evictToCap(): void {
+    this.cleanup();
+    if (this.store.size <= this.maxKeys) return;
+    const overflow = this.store.size - this.maxKeys;
+    let removed = 0;
+    for (const key of this.store.keys()) {
+      if (removed >= overflow) break;
+      this.store.delete(key);
+      removed++;
+    }
+  }
+
+  /** Number of distinct keys currently tracked (primarily for tests/metrics). */
+  get size(): number {
+    return this.store.size;
   }
 
   /** Remove all entries whose timestamps have fully expired. */

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -82,5 +82,56 @@ describe('usePricingRuleList', () => {
 
     expect(result.current.isError).toBe(true);
     expect(result.current.data).toHaveLength(0);
+  });
+
+  // ── Behavioral coverage (#730) ──────────────────────────────────────────
+
+  it('re-issues the query with updated params when a filter changes (#730)', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePricingRuleList(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    mockGet.mockClear();
+
+    act(() => {
+      result.current.setFilters((f) => ({ ...f, status: 'ACTIVE' }));
+    });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith('/v1/pricing-rules', {
+        params: { query: expect.objectContaining({ status: 'ACTIVE' }) },
+      });
+    });
+  });
+
+  it('resets to page 1 when a filter changes (#612)', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePricingRuleList(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => { result.current.pagination.onChange(3, 10); });
+    await waitFor(() => expect(result.current.pagination.page).toBe(3));
+
+    mockGet.mockClear();
+    act(() => { result.current.setFilters((f) => ({ ...f, status: 'INACTIVE' })); });
+
+    await waitFor(() => expect(result.current.pagination.page).toBe(1));
+    expect(mockGet).toHaveBeenCalledWith('/v1/pricing-rules', {
+      params: { query: expect.objectContaining({ page: '1' }) },
+    });
+  });
+
+  it('re-issues the query when pagination changes', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePricingRuleList(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    mockGet.mockClear();
+
+    act(() => { result.current.pagination.onChange(2, 10); });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith('/v1/pricing-rules', {
+        params: { query: expect.objectContaining({ page: '2' }) },
+      });
+    });
   });
 });

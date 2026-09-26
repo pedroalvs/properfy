@@ -114,6 +114,15 @@ export function ContactListPage() {
     }
   }, [reactivate, refetch, showSuccess, showError]);
 
+  // WI-8 (#203): when the effective tenant changes, drop branch filters that
+  // belong to the previous tenant — they would poison the next list request.
+  // Only branchIds is tenant-scoped; type/status/search/primary are
+  // tenant-agnostic and are preserved.
+  const handleTenantChange = useCallback((value: string) => {
+    setSelectedTenantId(value);
+    setFilters({ ...filters, branchIds: [] });
+  }, [filters, setFilters]);
+
   const confirmDeactivate = useCallback(async () => {
     if (!deactivateTarget) return;
     const result = await deactivate(deactivateTarget.id);
@@ -141,7 +150,7 @@ export function ContactListPage() {
             <FormField label="Agency">
               <SelectInput
                 value={selectedTenantId}
-                onChange={setSelectedTenantId}
+                onChange={handleTenantChange}
                 options={tenantOptions}
                 placeholder="Filter by agency (optional)"
                 aria-label="Agency"

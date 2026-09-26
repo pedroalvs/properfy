@@ -325,18 +325,15 @@ export class NotifyOnStatusTransitionHandler {
     if (!contact) return;
 
     // Mint a portal token for SCHEDULED so confirmationLink/rescheduleLink are populated.
-    // Failure must not block the notification — links will render empty.
+    // Contract (issue #1055): a SCHEDULED announcement without its portal link is a
+    // broken message, so a mint failure must FAIL the job — let the exception
+    // propagate to pg-boss for retry rather than shipping a linkless notification
+    // recorded as SENT. The mint runs before any createNotification.execute below,
+    // so no leg has been enqueued yet and a retry cannot duplicate a send.
     let rawPortalToken: string | null = null;
     if (input.targetStatus === 'SCHEDULED') {
-      try {
-        const minted = await this.mintPortalTokenService.mint(appointment, tenant);
-        rawPortalToken = minted.rawToken;
-      } catch (err) {
-        this.logger?.warn(
-          { err, appointmentId: appointment.id },
-          'Portal token mint failed; confirmationLink omitted',
-        );
-      }
+      const minted = await this.mintPortalTokenService.mint(appointment, tenant);
+      rawPortalToken = minted.rawToken;
     }
 
     const payloadCtx = {

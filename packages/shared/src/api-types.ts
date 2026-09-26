@@ -3049,6 +3049,8 @@ export interface paths {
                                 status: string;
                                 createdAt: string;
                                 updatedAt: string;
+                                tenantName: string;
+                                serviceTypeName: string;
                             }[];
                             pagination: {
                                 page: number;
@@ -4257,7 +4259,15 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: {
+                                uploadUrl: string;
+                                storageKey: string;
+                                expiresAt: string;
+                            };
+                        };
+                    };
                 };
             };
         };
@@ -4298,7 +4308,13 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": {
+                            data: {
+                                inspectorId: string;
+                            };
+                        };
+                    };
                 };
             };
         };
@@ -7798,6 +7814,7 @@ export interface paths {
                                 actorName: string | null;
                                 entityType: string;
                                 entityId: string | null;
+                                entityName?: string | null;
                                 action: string;
                                 reason: string | null;
                                 beforeJson?: unknown;
@@ -8530,7 +8547,11 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            contact?: unknown;
+                            contact: {
+                                rentalTenantName: string | null;
+                                primaryEmail: string | null;
+                                primaryPhone: string | null;
+                            };
                         };
                     };
                 };
@@ -8748,7 +8769,7 @@ export interface paths {
                                 expiresAt: string;
                                 dispatched?: boolean;
                                 /** @enum {string} */
-                                reason?: "NO_PRIMARY_CONTACT" | "DISPATCH_FAILED" | "NOTIFY_DISABLED";
+                                reason?: "NO_PRIMARY_CONTACT" | "NO_DISPATCH_CHANNEL" | "DISPATCH_FAILED" | "NOTIFY_DISABLED";
                             };
                         };
                     };
@@ -9169,6 +9190,7 @@ export interface paths {
                                     agency: {
                                         id: string;
                                         name: string;
+                                        branchName?: string | null;
                                     };
                                     tenantContacts: {
                                         name: string;
@@ -9874,7 +9896,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path: {
                     entryId: string;
                 };
@@ -9982,7 +10006,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -10065,7 +10091,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path: {
                     entryId: string;
                 };
@@ -10353,7 +10381,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path: {
                     invoiceId: string;
                 };
@@ -10396,7 +10426,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -10438,7 +10470,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path: {
                     invoiceId: string;
                 };
@@ -10555,7 +10589,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path: {
                     entryId: string;
                 };
@@ -11189,6 +11225,8 @@ export interface paths {
                     templateCode?: string;
                     channel?: "EMAIL" | "SMS";
                     includeDefaults?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
+                    page?: number;
+                    pageSize?: number;
                 };
                 header?: never;
                 path?: never;
@@ -11963,7 +12001,31 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": {
+                        name: string;
+                        geojson: {
+                            /** @enum {string} */
+                            type: "Polygon";
+                            coordinates: [
+                                number,
+                                number
+                            ][][];
+                        } | {
+                            /** @enum {string} */
+                            type: "MultiPolygon";
+                            coordinates: [
+                                number,
+                                number
+                            ][][][];
+                        };
+                        color?: string;
+                        /** Format: uuid */
+                        tenantId?: string;
+                    };
+                };
+            };
             responses: {
                 /** @description Default Response */
                 200: {
@@ -12040,7 +12102,29 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        name?: string;
+                        geojson?: {
+                            /** @enum {string} */
+                            type: "Polygon";
+                            coordinates: [
+                                number,
+                                number
+                            ][][];
+                        } | {
+                            /** @enum {string} */
+                            type: "MultiPolygon";
+                            coordinates: [
+                                number,
+                                number
+                            ][][][];
+                        };
+                        color?: string;
+                    };
+                };
+            };
             responses: {
                 /** @description Default Response */
                 200: {
@@ -12054,6 +12138,41 @@ export interface paths {
         trace?: never;
     };
     "/v1/service-regions/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/service-regions/{id}/reactivate": {
         parameters: {
             query?: never;
             header?: never;

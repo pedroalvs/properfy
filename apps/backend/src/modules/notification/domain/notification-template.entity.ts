@@ -12,6 +12,14 @@ export interface NotificationTemplateProps {
   variablesJson: string[];
   isActive: boolean;
   notificationClass: NotificationClass;
+  /**
+   * Fingerprint of the platform-seed content this row was written with, mirroring
+   * `notification_templates.seeded_content_hash`. Non-null only on a platform
+   * default (`tenant_id IS NULL`) whose content still equals the shipped catalog,
+   * which is what lets `syncPlatformTemplates` tell a seeded row from an
+   * operator-edited one. Null for agency overrides and for hand-edited defaults.
+   */
+  seededContentHash?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +34,7 @@ export class NotificationTemplateEntity extends BaseEntity {
   readonly variablesJson: string[];
   active: boolean;
   notificationClass: NotificationClass;
+  seededContentHash: string | null;
 
   constructor(props: NotificationTemplateProps) {
     super(props.id, props.createdAt, props.updatedAt);
@@ -38,6 +47,7 @@ export class NotificationTemplateEntity extends BaseEntity {
     this.variablesJson = props.variablesJson;
     this.active = props.isActive;
     this.notificationClass = props.notificationClass;
+    this.seededContentHash = props.seededContentHash ?? null;
   }
 
   isActive(): boolean {

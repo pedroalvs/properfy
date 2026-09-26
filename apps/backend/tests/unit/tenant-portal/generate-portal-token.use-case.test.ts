@@ -17,6 +17,10 @@ import {
   formatTimeSlot,
 } from '../../../src/modules/notification/domain/build-notification-payload.service';
 
+// A week ahead of "now" so the WI-B8 past-date dispatch guard never trips these
+// fixtures; relative to now to stay clock/TZ-independent.
+const FUTURE_SCHEDULED_DATE = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
 function makeAppointment(overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {}) {
   return new AppointmentEntity({
     id: 'appt-1',
@@ -26,7 +30,7 @@ function makeAppointment(overrides: Partial<ConstructorParameters<typeof Appoint
     serviceTypeId: 'stype-1',
     inspectorId: 'inspector-1',
     status: 'SCHEDULED',
-    scheduledDate: new Date('2026-04-15'),
+    scheduledDate: FUTURE_SCHEDULED_DATE,
     timeSlotStart: '09:00', timeSlotEnd: '12:00',
     keyRequired: false,
     meetingLocation: null,
@@ -658,7 +662,7 @@ describe('GeneratePortalTokenUseCase', () => {
     const payload = notificationUseCase.execute.mock.calls[0][0].payloadJson as Record<string, string>;
     // Same shapes as the automated path (BuildNotificationPayloadService):
     // formatted civil date and 12h wall-time range, never raw ISO shapes.
-    expect(payload.scheduledDate).toBe(formatScheduledDate(new Date('2026-04-15')));
+    expect(payload.scheduledDate).toBe(formatScheduledDate(FUTURE_SCHEDULED_DATE));
     expect(payload.timeSlot).toBe(formatTimeSlot('09:00', '12:00'));
     expect(payload.agencyName).toBe('Test Agency');
     expect(payload.rentalTenantName).toBe('Jane Doe');

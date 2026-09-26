@@ -26,6 +26,8 @@ import { z } from 'zod';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import type { JwtService } from '../application/services/jwt.service';
 import { ValidationError } from '../../../shared/domain/errors';
+import { totpSetupResponseSchema, confirmTotpBodySchema } from '../application/dtos/totp.dto';
+import { sessionListResponseSchema, sessionIdParamSchema } from '../application/dtos/session.dto';
 
 export interface AuthRouteContainer {
   loginUseCase: LoginUseCase;
@@ -113,7 +115,11 @@ export async function registerAuthRoutes(
   // POST /v1/auth/logout
   app.post(
     '/v1/auth/logout',
-    { preHandler: authenticate, schema: { response: { 204: z.null() } } },
+    {
+      preHandler: authenticate,
+      config: { allowTotpSetupStage: true },
+      schema: { response: { 204: z.null() } },
+    },
     async (request, reply) => {
       await container.logoutUseCase.execute({
         userId: request.authContext!.userId,
@@ -125,7 +131,11 @@ export async function registerAuthRoutes(
   // GET /v1/me
   app.get(
     '/v1/me',
-    { preHandler: authenticate, schema: { response: { 200: meResponseSchema } } },
+    {
+      preHandler: authenticate,
+      config: { allowTotpSetupStage: true },
+      schema: { response: { 200: meResponseSchema } },
+    },
     async (request, reply) => {
       const result = await container.getMeUseCase.execute(request.authContext!.userId);
       return reply.status(200).send(result);
@@ -184,8 +194,9 @@ export async function registerAuthRoutes(
     '/v1/auth/2fa/setup',
     {
       preHandler: authenticate,
+      config: { allowTotpSetupStage: true },
       schema: {
-        response: { 200: z.object({ secret: z.string(), qrUri: z.string() }) },
+        response: { 200: totpSetupResponseSchema },
       },
     },
     async (request, reply) => {
@@ -201,13 +212,14 @@ export async function registerAuthRoutes(
     '/v1/auth/2fa/confirm',
     {
       preHandler: authenticate,
+      config: { allowTotpSetupStage: true },
       schema: {
-        body: z.object({ totpCode: z.string().length(6) }),
+        body: confirmTotpBodySchema,
         response: { 204: z.null() },
       },
     },
     async (request, reply) => {
-      const parsed = z.object({ totpCode: z.string().length(6) }).safeParse(request.body);
+      const parsed = confirmTotpBodySchema.safeParse(request.body);
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
@@ -225,27 +237,12 @@ export async function registerAuthRoutes(
     {
       preHandler: authenticate,
       schema: {
-        response: {
-          200: z.object({
-            data: z.array(
-              z.object({
-                id: z.string().uuid(),
-                userAgent: z.string().nullable(),
-                ipAddress: z.string().nullable(),
-                lastActiveAt: z.string().datetime(),
-                createdAt: z.string().datetime(),
-                isCurrent: z.boolean(),
-              }),
-            ),
-          }),
-        },
+        response: { 200: sessionListResponseSchema },
       },
     },
     async (request, reply) => {
       const result = await container.listSessionsUseCase.execute({
         actor: request.authContext!,
-        currentIpAddress: request.ip,
-        currentUserAgent: request.headers['user-agent'] ?? null,
       });
       return reply.status(200).send({ data: result });
     },
@@ -257,12 +254,12 @@ export async function registerAuthRoutes(
     {
       preHandler: authenticate,
       schema: {
-        params: z.object({ sessionId: z.string().uuid() }),
+        params: sessionIdParamSchema,
         response: { 204: z.null() },
       },
     },
     async (request, reply) => {
-      const paramsParsed = z.object({ sessionId: z.string().uuid() }).safeParse(request.params);
+      const paramsParsed = sessionIdParamSchema.safeParse(request.params);
       if (!paramsParsed.success) {
         throw new ValidationError('Invalid session ID', paramsParsed.error.errors);
       }
@@ -295,6 +292,7 @@ export async function registerAuthRoutes(
     }
     await container.requestPasswordResetUseCase.execute({
       email: parsed.data.email,
+      requestId: request.id,
     });
     return reply.status(204).send();
   });

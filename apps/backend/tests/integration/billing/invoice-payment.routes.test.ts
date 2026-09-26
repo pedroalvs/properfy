@@ -84,6 +84,7 @@ describe('POST /v1/billing/invoices/:invoiceId/mark-paid', () => {
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/mark-paid`)
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'mark-paid-key-1')
       .send({ paidAt: '2026-03-18T10:00:00.000Z', paymentReference: 'PAY-REF-001' });
 
     expect(res.status).toBe(200);
@@ -94,6 +95,7 @@ describe('POST /v1/billing/invoices/:invoiceId/mark-paid', () => {
         invoiceId: INVOICE_ID,
         paidAt: '2026-03-18T10:00:00.000Z',
         paymentReference: 'PAY-REF-001',
+        idempotencyKey: 'mark-paid-key-1',
       }),
     );
   });
@@ -105,6 +107,7 @@ describe('POST /v1/billing/invoices/:invoiceId/mark-paid', () => {
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/mark-paid`)
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'mark-paid-key-2')
       .send({ paidAt: '2026-03-18T10:00:00.000Z' });
 
     expect(res.status).toBe(200);
@@ -118,6 +121,7 @@ describe('POST /v1/billing/invoices/:invoiceId/mark-paid', () => {
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/mark-paid`)
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'mark-paid-key-3')
       .send({ paidAt: '2026-03-18T10:00:00.000Z' });
 
     expect(res.status).toBe(403);
@@ -131,6 +135,7 @@ describe('POST /v1/billing/invoices/:invoiceId/mark-paid', () => {
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/mark-paid`)
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'mark-paid-key-4')
       .send({ paidAt: '2026-03-18T10:00:00.000Z' });
 
     expect(res.status).toBe(409);
@@ -142,6 +147,7 @@ describe('POST /v1/billing/invoices/:invoiceId/mark-paid', () => {
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/mark-paid`)
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'mark-paid-key-5')
       .send({ paidAt: 'not-a-datetime' });
 
     expect(res.status).toBe(400);
@@ -153,6 +159,48 @@ describe('POST /v1/billing/invoices/:invoiceId/mark-paid', () => {
       .send({ paidAt: '2026-03-18T10:00:00.000Z' });
 
     expect(res.status).toBe(401);
+  });
+
+  it('missing Idempotency-Key header returns 400 VALIDATION_ERROR', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/billing/invoices/${INVOICE_ID}/mark-paid`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ paidAt: '2026-03-18T10:00:00.000Z' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockMarkInvoicePaidExecute).not.toHaveBeenCalled();
+  });
+
+  it('same Idempotency-Key + identical payload replayed twice returns identical body, use case invoked once per call (route passthrough)', async () => {
+    mockJwtVerify.mockResolvedValue(amContext);
+    mockMarkInvoicePaidExecute.mockResolvedValue(paidInvoice);
+
+    const key = 'mark-paid-replay-key';
+    const payload = { paidAt: '2026-03-18T10:00:00.000Z', paymentReference: 'PAY-REF-001' };
+
+    const first = await supertest(app.server)
+      .post(`/v1/billing/invoices/${INVOICE_ID}/mark-paid`)
+      .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', key)
+      .send(payload);
+    const second = await supertest(app.server)
+      .post(`/v1/billing/invoices/${INVOICE_ID}/mark-paid`)
+      .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', key)
+      .send(payload);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(second.body).toEqual(first.body);
+    // The route always forwards the key; actual dedup is exercised at the
+    // use-case unit level (mocked here) and in the DB-backed idempotency
+    // integration suite.
+    expect(mockMarkInvoicePaidExecute).toHaveBeenCalledTimes(2);
+    expect(mockMarkInvoicePaidExecute).toHaveBeenNthCalledWith(1, expect.objectContaining({ idempotencyKey: key }));
+    expect(mockMarkInvoicePaidExecute).toHaveBeenNthCalledWith(2, expect.objectContaining({ idempotencyKey: key }));
   });
 });
 
@@ -166,6 +214,7 @@ describe('POST /v1/billing/invoices/batch-mark-paid', () => {
     const res = await supertest(app.server)
       .post('/v1/billing/invoices/batch-mark-paid')
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'batch-key-1')
       .send({
         invoiceIds: [INVOICE_ID, INVOICE_ID_2],
         paidAt: '2026-03-18T10:00:00.000Z',
@@ -177,6 +226,7 @@ describe('POST /v1/billing/invoices/batch-mark-paid', () => {
       expect.objectContaining({
         invoiceIds: [INVOICE_ID, INVOICE_ID_2],
         paidAt: '2026-03-18T10:00:00.000Z',
+        idempotencyKey: 'batch-key-1',
       }),
     );
   });
@@ -187,6 +237,7 @@ describe('POST /v1/billing/invoices/batch-mark-paid', () => {
     const res = await supertest(app.server)
       .post('/v1/billing/invoices/batch-mark-paid')
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'batch-key-2')
       .send({ invoiceIds: [], paidAt: '2026-03-18T10:00:00.000Z' });
 
     expect(res.status).toBe(400);
@@ -198,6 +249,47 @@ describe('POST /v1/billing/invoices/batch-mark-paid', () => {
       .send({ invoiceIds: [INVOICE_ID], paidAt: '2026-03-18T10:00:00.000Z' });
 
     expect(res.status).toBe(401);
+  });
+
+  it('missing Idempotency-Key header returns 400 VALIDATION_ERROR — ONE key covers the whole batch', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/billing/invoices/batch-mark-paid')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ invoiceIds: [INVOICE_ID, INVOICE_ID_2], paidAt: '2026-03-18T10:00:00.000Z' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockBatchMarkInvoicesPaidExecute).not.toHaveBeenCalled();
+  });
+
+  it('same Idempotency-Key replayed forwards the same key on both calls (batch-as-unit)', async () => {
+    mockJwtVerify.mockResolvedValue(amContext);
+    mockBatchMarkInvoicesPaidExecute.mockResolvedValue({
+      processed: [{ id: INVOICE_ID, status: 'PAID' }, { id: INVOICE_ID_2, status: 'PAID' }],
+      skipped: [],
+    });
+
+    const key = 'batch-replay-key';
+    const payload = { invoiceIds: [INVOICE_ID, INVOICE_ID_2], paidAt: '2026-03-18T10:00:00.000Z' };
+
+    const first = await supertest(app.server)
+      .post('/v1/billing/invoices/batch-mark-paid')
+      .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', key)
+      .send(payload);
+    const second = await supertest(app.server)
+      .post('/v1/billing/invoices/batch-mark-paid')
+      .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', key)
+      .send(payload);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(second.body).toEqual(first.body);
+    expect(mockBatchMarkInvoicesPaidExecute).toHaveBeenNthCalledWith(1, expect.objectContaining({ idempotencyKey: key }));
+    expect(mockBatchMarkInvoicesPaidExecute).toHaveBeenNthCalledWith(2, expect.objectContaining({ idempotencyKey: key }));
   });
 });
 
@@ -211,6 +303,7 @@ describe('POST /v1/billing/invoices/:invoiceId/reverse-payment', () => {
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/reverse-payment`)
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'reverse-key-1')
       .send({ reason: 'Payment was made in error' });
 
     expect(res.status).toBe(200);
@@ -218,6 +311,7 @@ describe('POST /v1/billing/invoices/:invoiceId/reverse-payment', () => {
       expect.objectContaining({
         invoiceId: INVOICE_ID,
         reason: 'Payment was made in error',
+        idempotencyKey: 'reverse-key-1',
       }),
     );
   });
@@ -229,6 +323,7 @@ describe('POST /v1/billing/invoices/:invoiceId/reverse-payment', () => {
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/reverse-payment`)
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'reverse-key-2')
       .send({ reason: 'Reversal reason' });
 
     expect(res.status).toBe(200);
@@ -242,6 +337,7 @@ describe('POST /v1/billing/invoices/:invoiceId/reverse-payment', () => {
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/reverse-payment`)
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'reverse-key-3')
       .send({ reason: 'Reversal reason' });
 
     expect(res.status).toBe(409);
@@ -253,6 +349,7 @@ describe('POST /v1/billing/invoices/:invoiceId/reverse-payment', () => {
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/reverse-payment`)
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'reverse-key-4')
       .send({});
 
     expect(res.status).toBe(400);
@@ -264,5 +361,43 @@ describe('POST /v1/billing/invoices/:invoiceId/reverse-payment', () => {
       .send({ reason: 'Reversal reason' });
 
     expect(res.status).toBe(401);
+  });
+
+  it('missing Idempotency-Key header returns 400 VALIDATION_ERROR', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/billing/invoices/${INVOICE_ID}/reverse-payment`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reason: 'Reversal reason' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockReverseInvoicePaymentExecute).not.toHaveBeenCalled();
+  });
+
+  it('same Idempotency-Key + different payload still forwards distinct calls at the route layer (mismatch detection lives in the use case)', async () => {
+    mockJwtVerify.mockResolvedValue(amContext);
+    mockReverseInvoicePaymentExecute
+      .mockResolvedValueOnce({ ...paidInvoice, status: 'CLOSED', paidAt: null })
+      .mockRejectedValueOnce(
+        new (await import('../../../src/modules/billing/domain/billing.errors')).BillingIdempotencyPayloadMismatchError(),
+      );
+
+    const key = 'reverse-mismatch-key';
+    const first = await supertest(app.server)
+      .post(`/v1/billing/invoices/${INVOICE_ID}/reverse-payment`)
+      .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', key)
+      .send({ reason: 'First reason' });
+    const second = await supertest(app.server)
+      .post(`/v1/billing/invoices/${INVOICE_ID}/reverse-payment`)
+      .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', key)
+      .send({ reason: 'Different reason' });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(409);
+    expect(second.body.error.code).toBe('IDEMPOTENCY_PAYLOAD_MISMATCH');
   });
 });

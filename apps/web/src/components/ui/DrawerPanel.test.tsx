@@ -46,6 +46,49 @@ describe('DrawerPanel', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it('moves focus into the drawer (first focusable control) when it opens', () => {
+    const { rerender } = render(
+      <>
+        <button>Trigger</button>
+        <DrawerPanel open={false} onClose={() => {}}>
+          <input aria-label="Name" />
+        </DrawerPanel>
+      </>,
+    );
+    screen.getByText('Trigger').focus();
+    rerender(
+      <>
+        <button>Trigger</button>
+        <DrawerPanel open onClose={() => {}}>
+          <input aria-label="Name" />
+        </DrawerPanel>
+      </>,
+    );
+    expect(screen.getByLabelText('Name')).toHaveFocus();
+  });
+
+  it('falls back to the panel container when the drawer has no focusable child', () => {
+    const { rerender } = render(
+      <>
+        <button>Trigger</button>
+        <DrawerPanel open={false} onClose={() => {}}>
+          <p>Content</p>
+        </DrawerPanel>
+      </>,
+    );
+    screen.getByText('Trigger').focus();
+    rerender(
+      <>
+        <button>Trigger</button>
+        <DrawerPanel open onClose={() => {}}>
+          <p>Content</p>
+        </DrawerPanel>
+      </>,
+    );
+    expect(screen.getByRole('dialog')).toHaveFocus();
+    expect(screen.getByText('Trigger')).not.toHaveFocus();
+  });
+
   it('locks the page scroll while open and restores it on close', () => {
     const { rerender } = render(
       <DrawerPanel open onClose={() => {}}>

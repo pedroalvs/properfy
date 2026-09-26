@@ -69,11 +69,18 @@ export interface IAuditLogRepository {
   moveToCold(ids: string[]): Promise<number>;
   /** Hard delete from archive (FR-005). Used only by the explicit hard-delete sweep. */
   hardDeleteFromArchive(ids: string[]): Promise<number>;
-  /** Count rows eligible for retention processing (past cutoff, not preserved, not IN_PROGRESS). */
+  /**
+   * Fetch a keyset page of rows eligible for retention processing (past
+   * cutoff, not IN_PROGRESS). `afterId` is an exclusive cursor: each page
+   * returns rows with `id` strictly greater than it, ordered by `id` asc, so
+   * the worker advances past preserved rows instead of re-querying them
+   * (B3 #136). Omit `afterId` for the first page.
+   */
   findEligibleForRetention(
     category: AuditRetentionCategory,
     cutoffDate: Date,
     batchSize: number,
+    afterId?: string,
   ): Promise<AuditLogEntity[]>;
   /**
    * Search for PII values across registered field paths. Used by the erasure

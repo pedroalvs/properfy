@@ -2,6 +2,8 @@ import type { AuthContext } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
+import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
+import { TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
 import { ServiceRegionEntity } from '../../domain/service-region.entity';
 import { ServiceRegionNameConflictError } from '../../domain/service-region.errors';
 
@@ -28,6 +30,7 @@ export class CreateServiceRegionUseCase {
     private readonly regionRepo: IServiceRegionRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly tenantRepo: ITenantRepository,
   ) {}
 
   async execute(input: CreateServiceRegionInput): Promise<CreateServiceRegionOutput> {
@@ -36,6 +39,18 @@ export class CreateServiceRegionUseCase {
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], { action: 'service_region.create', entityType: 'ServiceRegion' });
 
     const tenantId = actor.tenantId ?? input.tenantId ?? null;
+
+    // An AM/OP actor (JWT tenantId null) may target any tenant via input.tenantId.
+    // That value is client-supplied and — unlike a CL actor's JWT tenantId, which
+    // the auth middleware already validated — is otherwise trusted blindly, so
+    // confirm the tenant exists before persisting (#385). `null` stays a valid
+    // global region for AM/OP.
+    if (actor.tenantId === null && input.tenantId != null) {
+      const tenant = await this.tenantRepo.findById(input.tenantId);
+      if (!tenant) {
+        throw new TenantNotFoundError();
+      }
+    }
 
     // Check name uniqueness within tenant scope (or globally if no tenant)
     const existing = await this.regionRepo.findByName(tenantId, name);

@@ -52,17 +52,19 @@ export class ResolveRegionsUseCase {
 
     const unmatchedAppointmentIds = appointmentIds.filter((id) => !allMatchedIds.has(id));
 
-    // Fetch inspector counts for each matched region
-    const regions: ResolvedRegionItem[] = await Promise.all(
-      resolved.map(async (r) => ({
-        regionId: r.regionId,
-        regionNumber: r.regionNumber,
-        regionName: r.regionName,
-        color: r.color,
-        matchedAppointmentCount: r.matchedAppointmentIds.length,
-        inspectorCount: await this.serviceRegionRepo.countActiveInspectorsInRegion(r.regionId),
-      })),
+    // One batched query for all matched regions' inspector counts (was N+1).
+    const inspectorCounts = await this.serviceRegionRepo.countActiveInspectorsInRegions(
+      resolved.map((r) => r.regionId),
     );
+
+    const regions: ResolvedRegionItem[] = resolved.map((r) => ({
+      regionId: r.regionId,
+      regionNumber: r.regionNumber,
+      regionName: r.regionName,
+      color: r.color,
+      matchedAppointmentCount: r.matchedAppointmentIds.length,
+      inspectorCount: inspectorCounts.get(r.regionId) ?? 0,
+    }));
 
     return {
       regions,

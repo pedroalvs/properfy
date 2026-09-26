@@ -9,6 +9,7 @@ import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-por
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
 import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
+import { ConfirmationCycleNotFoundError } from '../../../appointment/domain/confirmation-cycle.errors';
 import {
   PortalActionBlockedError,
   PortalAppointmentInactiveError,
@@ -130,8 +131,11 @@ export class ConfirmAppointmentUseCase {
     if (this.cycleService) {
       try {
         await this.cycleService.confirm(input.appointmentId, appointment.tenantId, 'RENTAL_TENANT_PORTAL', input.tokenId ?? null);
-      } catch {
-        // No active cycle (pre-feature appointment) — fall back to direct denorm write
+      } catch (error) {
+        // Only a missing cycle (pre-feature appointment) is a fallback case. A
+        // terminal-cycle violation or a transient DB error must propagate, not
+        // be silently converted into a successful CONFIRMED write.
+        if (!(error instanceof ConfirmationCycleNotFoundError)) throw error;
         await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
           rentalTenantConfirmationStatus: 'CONFIRMED',
         });

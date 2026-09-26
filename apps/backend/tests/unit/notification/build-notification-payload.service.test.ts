@@ -211,10 +211,31 @@ describe('BuildNotificationPayloadService', () => {
     expect(result.confirmationLink).toContain('tok%2Ben%3Dspecial');
   });
 
-  it('H3: confirmationLink and rescheduleLink are empty when no rawPortalToken', () => {
+  it('H3: confirmationLink and rescheduleLink are empty when no rawPortalToken (optional-link template)', () => {
+    // INSPECTION_NOTICE lists confirmationLink as OPTIONAL, so a missing token
+    // renders empty rather than throwing.
     const result = svc.build(baseCtx({ rawPortalToken: null }));
     expect(result.confirmationLink).toBe('');
     expect(result.rescheduleLink).toBe('');
+  });
+
+  it('#1055: throws for a template that REQUIRES the link when no token was minted', () => {
+    // TENANT_PORTAL_LINK requires confirmationLink; INSPECTION_SATISFACTION_SURVEY
+    // requires surveyLink. With rawPortalToken null the link key is now absent, so
+    // the required-variable guard throws instead of shipping a dead ''.
+    expect(() =>
+      svc.build(baseCtx({ templateCode: 'TENANT_PORTAL_LINK', rawPortalToken: null })),
+    ).toThrow(MissingRequiredVariableError);
+    expect(() =>
+      svc.build(baseCtx({ templateCode: 'INSPECTION_SATISFACTION_SURVEY', rawPortalToken: null })),
+    ).toThrow(MissingRequiredVariableError);
+  });
+
+  it('#1055: renders the required link when a token IS minted', () => {
+    const result = svc.build(
+      baseCtx({ templateCode: 'TENANT_PORTAL_LINK', rawPortalToken: 'tok', portalBaseUrl: 'https://app.properfy.me' }),
+    );
+    expect(result.confirmationLink).toBe('https://app.properfy.me/portal/tok');
   });
 
   // ── Tenant mismatch guard ─────────────────────────────────────────────────
@@ -302,6 +323,43 @@ describe('BuildNotificationPayloadService', () => {
       expect(() => svc.build(ctx)).not.toThrow();
     });
   }
+});
+
+// ── SMS variable normalization + rescheduleLink surface in the payload ────
+
+describe('BuildNotificationPayloadService — normalized variables', () => {
+  const svc = new BuildNotificationPayloadService();
+
+  it('surfaces the appointment-agency core on an SMS payload', () => {
+    const result = svc.build(
+      baseCtx({
+        templateCode: 'INSPECTION_NOTICE_SMS',
+        inspectorName: 'Jane Inspector',
+        branchName: 'Sydney CBD',
+        serviceTypeName: 'Routine inspection',
+        rawPortalToken: 'tok-123',
+      }),
+    );
+    expect(result.inspectorName).toBe('Jane Inspector');
+    expect(result.branchName).toBe('Sydney CBD');
+    expect(result.serviceTypeName).toBe('Routine inspection');
+    expect(result.agencyName).toBe('Test Agency');
+    // No images in SMS — the payload must not carry logo URLs for an SMS code.
+    expect(result).not.toHaveProperty('properfyLogoUrl');
+    expect(result).not.toHaveProperty('agencyLogoUrl');
+  });
+
+  it('exposes rescheduleLink on INSPECTION_CONFIRMED (portal URL)', () => {
+    const result = svc.build(baseCtx({ templateCode: 'INSPECTION_CONFIRMED', rawPortalToken: 'tok-abc' }));
+    expect(result.rescheduleLink).toContain('/portal/tok-abc');
+  });
+
+  it('builds rescheduleLink and confirmationLink as the same URL where both are offered', () => {
+    // INSPECTION_NOTICE declares both — they share the portal token/destination.
+    const result = svc.build(baseCtx({ templateCode: 'INSPECTION_NOTICE', rawPortalToken: 'tok-abc' }));
+    expect(result.rescheduleLink).toBe(result.confirmationLink);
+    expect(result.confirmationLink).toContain('/portal/tok-abc');
+  });
 });
 
 // ── Standalone MissingRequiredVariableError ───────────────────────────────

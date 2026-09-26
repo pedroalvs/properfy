@@ -170,6 +170,26 @@ export class InvoicePaymentDateInvalidError extends DomainError {
   }
 }
 
+// ─── Idempotency (B1 — mandatory Idempotency-Key on critical mutations) ──
+
+export class BillingIdempotencyPayloadMismatchError extends ConflictError {
+  constructor() {
+    super(
+      'IDEMPOTENCY_PAYLOAD_MISMATCH',
+      'Idempotency key has already been used with a different payload',
+    );
+  }
+}
+
+export class BillingIdempotencyInProgressError extends ConflictError {
+  constructor() {
+    super(
+      'IDEMPOTENCY_REQUEST_IN_PROGRESS',
+      'A request with this idempotency key is already in progress',
+    );
+  }
+}
+
 export class MultiCurrencyScopeError extends DomainError {
   constructor(public readonly currencies: string[]) {
     super(

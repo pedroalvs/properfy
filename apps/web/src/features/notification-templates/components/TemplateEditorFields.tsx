@@ -1,9 +1,10 @@
-import { useCallback, useRef } from 'react';
-import type { NotificationChannel } from '@properfy/shared';
+import { useCallback, useMemo, useRef } from 'react';
+import { measureSmsTemplate, type NotificationChannel } from '@properfy/shared';
 import { FormField } from '@/components/forms/FormField';
 import { TextInput } from '@/components/forms/TextInput';
 import { VariableInsertToolbar } from './VariableInsertToolbar';
-import type { TemplateFormData, TemplateFormErrors } from '../types';
+import { SmsLengthIndicator } from './SmsLengthIndicator';
+import { SAMPLE_DATA, type TemplateFormData, type TemplateFormErrors } from '../types';
 
 interface TemplateEditorFieldsProps {
   form: TemplateFormData;
@@ -42,6 +43,16 @@ export function TemplateEditorFields({
 
   const isEmailChannel = channel !== 'SMS';
 
+  // SMS only: measure the body as it renders with sample values so the operator
+  // sees the character/segment count that the save-guard enforces. Skipped for a
+  // blank body — a "0 / 1530 · 0 parts" readout on an empty editor is only noise.
+  // Uses trim() to match the save guard, which rejects a whitespace-only body as
+  // empty ("Body is required") rather than measuring it.
+  const smsMeasurement = useMemo(
+    () => (channel === 'SMS' && form.body.trim().length > 0 ? measureSmsTemplate(form.body, SAMPLE_DATA) : null),
+    [channel, form.body],
+  );
+
   const insertVariable = useCallback(
     (text: string) => {
       if (lastFocusedRef.current === null) {
@@ -72,7 +83,7 @@ export function TemplateEditorFields({
 
   const bodyContainerClass = errors.body
     ? 'rounded border border-error bg-white shadow-[inset_0_-1px_0_0_var(--color-error)]'
-    : 'rounded border border-[#E0E0E0] bg-white shadow-[inset_0_-1px_0_0_#E0E0E0] focus-within:border-primary';
+    : 'rounded border border-border-subtle bg-white shadow-[inset_0_-1px_0_0_var(--color-border-subtle)] focus-within:border-primary';
 
   return (
     <>
@@ -121,6 +132,7 @@ export function TemplateEditorFields({
               spellCheck={false}
             />
           </div>
+          {smsMeasurement && <SmsLengthIndicator measurement={smsMeasurement} />}
         </FormField>
       </div>
     </>

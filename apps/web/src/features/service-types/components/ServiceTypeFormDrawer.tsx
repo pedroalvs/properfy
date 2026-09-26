@@ -3,6 +3,7 @@ import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
 import { LoadingState } from '@/components/feedback/LoadingState';
+import { ErrorState } from '@/components/feedback/ErrorState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -36,7 +37,7 @@ export function ServiceTypeFormDrawer({
   onSaved,
 }: ServiceTypeFormDrawerProps) {
   const isEditMode = !!serviceTypeId;
-  const { serviceType, isLoading: isLoadingDetail } = useServiceTypeDetail(
+  const { serviceType, isLoading: isLoadingDetail, isError: isDetailError, refetch } = useServiceTypeDetail(
     isEditMode ? serviceTypeId : null,
   );
   const { save, isSaving, validate } = useServiceTypeSave();
@@ -131,6 +132,15 @@ export function ServiceTypeFormDrawer({
           {isEditMode && isLoadingDetail ? (
             <div className="flex-1 px-6 py-4">
               <LoadingState rows={5} />
+            </div>
+          ) : isEditMode && isDetailError ? (
+            // A failed detail fetch must not fall through to an empty form (#392).
+            <div className="flex-1 px-6 py-4">
+              <ErrorState
+                message="Failed to load service type."
+                detail="Please try again."
+                onRetry={refetch}
+              />
             </div>
           ) : (
             <>
