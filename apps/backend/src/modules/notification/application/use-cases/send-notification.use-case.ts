@@ -9,6 +9,7 @@ import {
   type NotificationClass,
 } from '@properfy/shared';
 import { prepareSmsBody } from '../../domain/sms-content';
+import { maskRecipient } from '../../domain/mask-recipient';
 import type { INotificationRepository } from '../../domain/notification.repository';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
 import type { INotificationConsentRepository } from '../../domain/notification-consent.repository';
@@ -64,11 +65,6 @@ const AUDITABLE_FAILURE_CODES: ReadonlySet<string> = new Set([
   'EMPTY_SMS_BODY',
 ]);
 
-
-/** Phone numbers are PII: log at most the last 4 digits. */
-function maskRecipient(recipient: string): string {
-  return `***${recipient.slice(-4)}`;
-}
 
 /** Collapse anything that is not one of our own codes to a PII-free constant. */
 function auditableFailureReason(reason: string | null): string {
@@ -620,7 +616,18 @@ export class SendNotificationUseCase {
       ? (typeof settings.notificationDailyCapEmail === 'number' ? settings.notificationDailyCapEmail : 500)
       : (typeof settings.notificationDailyCapSms === 'number' ? settings.notificationDailyCapSms : 100);
 
-    if (dailyCap !== null) {
+    // WI-2 / issue #1037: exempt platform-scoped (tenant_id IS NULL) TRANSACTIONAL
+    // sends from the budget. The only anonymous platform trigger is the
+    // AM/OP/INSP password reset (POST /v1/auth/forgot-password); before this, those
+    // shared the default 500/day email bucket with every other platform send, so a
+    // sustained anonymous flood against the handful of known staff addresses could
+    // exhaust it and silently lock out every subsequent reset (recorded FAILED with
+    // BUDGET_EXCEEDED while the caller still gets 204). Abuse is already bounded by
+    // the rate limit on the forgot-password endpoint. Per-tenant caps are untouched.
+    const isPlatformTransactional =
+      notification.tenantId === null && effectiveClass === 'TRANSACTIONAL';
+
+    if (dailyCap !== null && !isPlatformTransactional) {
       const todayStart = new Date();
       todayStart.setUTCHours(0, 0, 0, 0);
       const todayCount = await this.notificationRepo.countByTenantChannelSince(
@@ -639,6 +646,12 @@ export class SendNotificationUseCase {
           {
             notificationId: notification.id,
             tenantId: notification.tenantId,
+            // WI-2 (c): flag platform-scope exhaustion so operators can alert on it
+            // distinctly from a tenant hitting its own configured cap. Post-fix,
+            // platform TRANSACTIONAL is exempt above and never reaches here, so
+            // platformScope:true means an unexpected volume of platform-scoped
+            // NON-transactional mail exhausting the shared bucket — still worth an alert.
+            platformScope: notification.tenantId === null,
             channel: notification.channel,
             todayCount,
             dailyCap,

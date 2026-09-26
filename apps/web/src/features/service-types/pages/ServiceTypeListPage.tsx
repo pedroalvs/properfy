@@ -55,7 +55,7 @@ export function ServiceTypeListPage() {
           error={isError ? (errorMessage ?? 'Failed to load service types') : undefined}
           onRetryError={refetch}
           pagination={pagination}
-          onView={handleEdit}
+          onEdit={handleEdit}
         />
       </ListFilterTableTemplate>
       <ServiceTypeFormDrawer

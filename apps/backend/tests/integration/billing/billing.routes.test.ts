@@ -170,7 +170,8 @@ describe('POST /v1/financial/entries/:entryId/approve', () => {
 
     const res = await supertest(app.server)
       .post(`/v1/financial/entries/${ENTRY_ID}/approve`)
-      .set('Authorization', 'Bearer valid-token');
+      .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'test-idem-key');
 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('APPROVED');
@@ -179,6 +180,18 @@ describe('POST /v1/financial/entries/:entryId/approve', () => {
   it('should return 401 without auth', async () => {
     const res = await supertest(app.server).post(`/v1/financial/entries/${ENTRY_ID}/approve`);
     expect(res.status).toBe(401);
+  });
+
+  it('should return 400 without Idempotency-Key header', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/financial/entries/${ENTRY_ID}/approve`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockApproveFinancialEntryExecute).not.toHaveBeenCalled();
   });
 });
 
@@ -199,6 +212,7 @@ describe('POST /v1/financial/entries/adjust', () => {
     const res = await supertest(app.server)
       .post('/v1/financial/entries/adjust')
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'test-idem-key')
       .send({
         tenantId: 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55',
         amount: 50,
@@ -237,6 +251,24 @@ describe('POST /v1/financial/entries/adjust', () => {
       });
     expect(res.status).toBe(401);
   });
+
+  it('should return 400 without Idempotency-Key header', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/financial/entries/adjust')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        tenantId: 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55',
+        amount: 50,
+        description: 'Correction',
+        reason: 'Overcharge correction',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockCreateManualAdjustmentExecute).not.toHaveBeenCalled();
+  });
 });
 
 describe('POST /v1/financial/entries/:entryId/refund', () => {
@@ -255,6 +287,7 @@ describe('POST /v1/financial/entries/:entryId/refund', () => {
     const res = await supertest(app.server)
       .post(`/v1/financial/entries/${ENTRY_ID}/refund`)
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'test-idem-key')
       .send({
         description: 'Service not performed',
         reason: 'Inspector did not show up',
@@ -287,6 +320,22 @@ describe('POST /v1/financial/entries/:entryId/refund', () => {
         reason: 'Inspector did not show up',
       });
     expect(res.status).toBe(401);
+  });
+
+  it('should return 400 without Idempotency-Key header', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/financial/entries/${ENTRY_ID}/refund`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        description: 'Service not performed',
+        reason: 'Inspector did not show up',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockCreateRefundExecute).not.toHaveBeenCalled();
   });
 });
 // --- GAP-009: Financial Summary date range ---

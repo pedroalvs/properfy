@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useState, useCallback, type Dispatch, type SetStateAction } from 'react';
 import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { DEFAULT_FILTERS, type PricingRule, type PricingRuleFiltersState } from '../types';
@@ -15,9 +15,17 @@ export interface UsePricingRuleListReturn {
 }
 
 export function usePricingRuleList(initialFilters?: Partial<PricingRuleFiltersState>): UsePricingRuleListReturn {
-  const [filters, setFilters] = useState<PricingRuleFiltersState>({ ...DEFAULT_FILTERS, ...initialFilters });
+  const [filters, setFiltersState] = useState<PricingRuleFiltersState>({ ...DEFAULT_FILTERS, ...initialFilters });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // A filter change returns to page 1 so the new result set isn't requested at a
+  // now-nonexistent page (#612, same defect class as useServiceRegionList). Keeps
+  // the Dispatch signature so callers can pass a value or an updater.
+  const setFilters = useCallback<Dispatch<SetStateAction<PricingRuleFiltersState>>>((next) => {
+    setFiltersState(next);
+    setPage(1);
+  }, []);
 
   const query = usePaginatedQuery<PricingRule>(
     ['pricing-rules'],

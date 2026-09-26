@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
+import { PLATFORM_TIMEZONE, todayInTzDateString } from '@properfy/shared';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { Snackbar } from '@/components/feedback/Snackbar';
 
@@ -35,6 +36,10 @@ let mockRentalTenantNotificationsEnabled = true;
 let mockFlowType: string | null = 'ROUTINE';
 let mockHasPrimaryContact = true;
 let mockClUserPermissions: string[] = [];
+// Applied to the `awaiting` fixture. Default well in the future so the past-date
+// gate (#33) never trips the other Send Portal Link hint tests; the past-date
+// test overrides it. Relative to now to stay TZ/clock-independent.
+let mockScheduledDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
@@ -120,7 +125,7 @@ vi.mock('../hooks/useAppointmentDetail', () => ({
           tenantId: 'tenant-1',
           rentalTenantConfirmationStatus: 'PENDING',
           contactName: 'John',
-          scheduledDate: '2026-04-01',
+          scheduledDate: mockScheduledDate,
           timeSlotStart: '09:00', timeSlotEnd: '12:00',
           contactPhone: mockHasPrimaryContact ? '11999' : null,
           contactEmail: mockHasPrimaryContact ? 'john@test.com' : null,
@@ -580,6 +585,40 @@ describe('AppointmentDetailPage — missing primary contact', () => {
     renderPage('/appointments/awaiting');
 
     expect(screen.getByTestId('copy-portal-link-button')).not.toBeDisabled();
+  });
+});
+
+// #33: a portal link sent for a past-dated appointment is born expired, so the
+// Send button is disabled with a past-date hint that mirrors the backend gate.
+describe('AppointmentDetailPage — Send Portal Link past-date gate (#33)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUserRole = 'AM';
+    mockRentalTenantNotificationsEnabled = true;
+    mockHasPrimaryContact = true;
+  });
+
+  afterEach(() => {
+    mockScheduledDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  });
+
+  it('disables Send Portal Link with a past-date hint when the scheduled date has passed', () => {
+    mockScheduledDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    renderPage('/appointments/awaiting');
+
+    const button = screen.getByTestId('send-portal-link-button');
+    const explanation = screen.getByText(/the scheduled date has passed/i);
+
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-describedby', 'send-portal-link-disabled-hint');
+    expect(explanation).toHaveAttribute('id', 'send-portal-link-disabled-hint');
+    expect(explanation).toBeVisible();
+  });
+
+  it('enables Send Portal Link when the scheduled date is today (Sydney civil)', () => {
+    mockScheduledDate = todayInTzDateString(PLATFORM_TIMEZONE); // today stays allowed
+    renderPage('/appointments/awaiting');
+    expect(screen.getByTestId('send-portal-link-button')).not.toBeDisabled();
   });
 });
 

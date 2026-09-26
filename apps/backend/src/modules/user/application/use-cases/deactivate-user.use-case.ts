@@ -1,8 +1,10 @@
+import type { PrismaClient } from '@prisma/client';
 import type { AuthContext } from '@properfy/shared';
 import type { IUserManagementRepository } from '../../domain/user-management.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import { runInTransaction } from '../../../../shared/application/unit-of-work';
 import {
   UserNotFoundError,
   UserAlreadyInactiveError,
@@ -14,6 +16,7 @@ export interface DeactivateUserInput {
   userId: string;
   reason: string;
   actor: AuthContext;
+  requestId?: string;
 }
 
 export class DeactivateUserUseCase {
@@ -22,30 +25,34 @@ export class DeactivateUserUseCase {
     private readonly tenantRepo: ITenantRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly prisma?: PrismaClient,
   ) {}
 
   async execute(input: DeactivateUserInput): Promise<void> {
     const { tenantId, userId, reason, actor } = input;
 
     // RBAC mirrors update-user.use-case: AM crosses tenants and manages internal
-    // (tenant-less) users; CL_ADMIN and OP are scoped to their own tenant.
+    // (tenant-less) users; OP is cross-tenant over agency users; CL_ADMIN is
+    // scoped to its own tenant.
     this.authorizationService.assertRoles(actor, ['AM', 'OP', 'CL_ADMIN'], {
       action: 'user.deactivate',
       entityType: 'User',
     });
 
-    if (
-      (actor.role === 'CL_ADMIN' || actor.role === 'OP') &&
-      actor.tenantId !== tenantId
-    ) {
+    // Only CL_ADMIN is bound to its own tenant. OP is cross-tenant (root
+    // CLAUDE.md §6, CORRECTION-001 ruling) and already creates agency users, so
+    // it must be able to deactivate them across tenants too. Internal
+    // (tenant-less) users stay AM-only via the check below.
+    if (actor.role === 'CL_ADMIN' && actor.tenantId !== tenantId) {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
         'You can only deactivate users from your own tenant',
       );
     }
 
-    // Internal (tenant-less) users can only be deactivated by AM.
-    // OP is tenant-scoped per CORRECTION-001 close-it.
+    // Internal (tenant-less) users can only be deactivated by AM. OP's
+    // cross-tenant reach covers agency users only, not other internal (AM/OP)
+    // accounts — mirroring create-user's privilege rules.
     if (tenantId === null && actor.role !== 'AM') {
       throw new ForbiddenError(
         'AUTH_FORBIDDEN',
@@ -91,24 +98,26 @@ export class DeactivateUserUseCase {
     // and from update()/status-change, so a deactivated user would vanish instead
     // of showing as "Inactive" and could never be reactivated. Login is already
     // blocked by the INACTIVE status check in the login use case.
-    await this.userManagementRepo.update(userId, tenantId, {
-      status: 'INACTIVE',
-    });
+    // Flip status and revoke every session atomically; audit deferred to
+    // after-commit so a rolled-back deactivation is never recorded.
+    await runInTransaction(this.prisma, async (ctx) => {
+      await this.userManagementRepo.update(userId, tenantId, { status: 'INACTIVE' }, ctx.tx);
+      await this.userManagementRepo.revokeAllSessions(userId, ctx.tx);
 
-    // Revoke all sessions
-    await this.userManagementRepo.revokeAllSessions(userId);
-
-    // Audit log
-    this.auditService.log({
-      action: 'user.deactivated',
-      actorType: 'USER',
-      actorId: actor.userId,
-      entityType: 'User',
-      entityId: userId,
-      tenantId,
-      before: { status: user.status },
-      after: { status: 'INACTIVE' },
-      reason,
+      ctx.defer(async () => {
+        this.auditService.log({
+          action: 'user.deactivated',
+          actorType: 'USER',
+          actorId: actor.userId,
+          entityType: 'User',
+          entityId: userId,
+          tenantId,
+          requestId: input.requestId,
+          before: { status: user.status },
+          after: { status: 'INACTIVE' },
+          reason,
+        });
+      });
     });
   }
 }

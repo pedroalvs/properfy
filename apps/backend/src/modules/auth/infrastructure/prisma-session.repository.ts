@@ -1,6 +1,8 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import { SessionEntity } from '../domain/session.entity';
 import type { ISessionRepository } from '../domain/session.repository';
+
+type DbClient = PrismaClient | Prisma.TransactionClient;
 
 function mapToEntity(row: {
   id: string;
@@ -10,6 +12,8 @@ function mapToEntity(row: {
   user_agent: string | null;
   country_code: string | null;
   device_fingerprint: string | null;
+  auth_stage: string | null;
+  last_used_at: Date | null;
   expires_at: Date;
   revoked_at: Date | null;
   created_at: Date;
@@ -22,6 +26,8 @@ function mapToEntity(row: {
     userAgent: row.user_agent,
     countryCode: row.country_code,
     deviceFingerprint: row.device_fingerprint,
+    authStage: row.auth_stage,
+    lastUsedAt: row.last_used_at,
     expiresAt: row.expires_at,
     revokedAt: row.revoked_at,
     createdAt: row.created_at,
@@ -30,6 +36,10 @@ function mapToEntity(row: {
 
 export class PrismaSessionRepository implements ISessionRepository {
   constructor(private readonly prisma: PrismaClient) {}
+
+  private db(tx?: Prisma.TransactionClient): DbClient {
+    return tx ?? this.prisma;
+  }
 
   async create(
     session: Omit<SessionEntity, 'isValid' | 'isRevoked' | 'isExpired' | 'updatedAt'>,
@@ -43,6 +53,7 @@ export class PrismaSessionRepository implements ISessionRepository {
         user_agent: session.userAgent,
         country_code: session.countryCode,
         device_fingerprint: session.deviceFingerprint,
+        auth_stage: session.authStage,
         expires_at: session.expiresAt,
         revoked_at: session.revokedAt,
       },
@@ -75,17 +86,31 @@ export class PrismaSessionRepository implements ISessionRepository {
     return rows.map(mapToEntity);
   }
 
-  async updateRefreshToken(sessionId: string, newHash: string, expiresAt: Date): Promise<void> {
-    await this.prisma.session.update({
+  async rotateRefreshToken(
+    sessionId: string,
+    expectedHash: string,
+    newHash: string,
+    expiresAt: Date,
+  ): Promise<boolean> {
+    // Compare-and-swap: only the row that still holds `expectedHash` and is not
+    // revoked is updated. `updateMany` returns the affected-row count, so two
+    // concurrent refreshes of the same token produce exactly one count === 1
+    // (the winner) and one count === 0 (reuse to be detected by the caller).
+    const result = await this.prisma.session.updateMany({
       where: {
         id: sessionId,
+        refresh_token_hash: expectedHash,
         revoked_at: null,
       },
       data: {
         refresh_token_hash: newHash,
         expires_at: expiresAt,
+        // A successful rotation is a real use of the session; stamp it so the
+        // session list can show genuine last-active time (#261).
+        last_used_at: new Date(),
       },
     });
+    return result.count === 1;
   }
 
   async revoke(sessionId: string, revokedAt: Date): Promise<void> {
@@ -95,8 +120,8 @@ export class PrismaSessionRepository implements ISessionRepository {
     });
   }
 
-  async revokeAllForUser(userId: string, revokedAt: Date): Promise<void> {
-    await this.prisma.session.updateMany({
+  async revokeAllForUser(userId: string, revokedAt: Date, tx?: Prisma.TransactionClient): Promise<void> {
+    await this.db(tx).session.updateMany({
       where: {
         user_id: userId,
         revoked_at: null,

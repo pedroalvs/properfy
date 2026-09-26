@@ -125,8 +125,10 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         name: data.name.trim(),
         email: data.email.trim(),
         phone: data.phone.trim() || undefined,
-        status: data.status || undefined,
-        regionIds: data.regionIds.length > 0 ? data.regionIds : [],
+        // Lifecycle status is not part of create/update. Activation/deactivation
+        // goes through the dedicated endpoints (see InspectorDetailDrawer's
+        // deactivate action), which enforce reason, lockout and audit.
+        regionIds: data.regionIds,
         serviceTypes: parseServiceTypeEntries(data.serviceTypes),
         fullName: data.fullName?.trim() || undefined,
         abn: data.abn?.trim() || undefined,
@@ -135,21 +137,44 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         insuranceExpiresAt: data.insuranceExpiresAt || undefined,
         policeCheckFileKey: data.policeCheckFileKey?.trim() || undefined,
         policeCheckExpiresAt: data.policeCheckExpiresAt || undefined,
-        blockedClients: data.blockedClients.length > 0 ? data.blockedClients : [],
+        blockedClients: data.blockedClients,
       };
 
-      let apiError: { error?: { code?: string; message?: string } } | undefined;
+      type ApiErrorEnvelope = { error?: { code?: string; message?: string } };
+      let apiError: ApiErrorEnvelope | undefined;
       if (inspectorId) {
+        // Clearing a field must send an explicit `null`, not the `undefined` that
+        // `sharedFields` carries: `undefined` is dropped from the JSON body, which
+        // the server reads as "leave unchanged", so the old value came back after a
+        // reload. Every field overridden here is `.nullable()` on updateInspectorSchema
+        // and is pre-filled from the inspector on edit, so `|| null` yields `null`
+        // only on a real clear — never wiping an untouched value. Create keeps the
+        // `undefined` from sharedFields because createInspectorSchema declares these
+        // as `.optional()` only (not nullable), where a `null` would fail validation.
+        //
         // Deliberately excludes `password`: updateInspectorSchema is a plain
         // z.object, so it would be silently stripped server-side — putting a
         // plaintext password on the wire with no error to signal it.
-        const { error } = await api.PATCH(`/v1/inspectors/${inspectorId}` as any, { body: sharedFields as any });
-        apiError = error as any;
-      } else {
-        const { error } = await api.POST('/v1/inspectors' as any, {
-          body: { ...sharedFields, password: data.password } as any,
+        const { error } = await api.PATCH('/v1/inspectors/{inspectorId}', {
+          params: { path: { inspectorId } },
+          body: {
+            ...sharedFields,
+            phone: data.phone.trim() || null,
+            fullName: data.fullName?.trim() || null,
+            abn: data.abn?.trim() || null,
+            dateOfBirth: data.dateOfBirth || null,
+            insuranceFileKey: data.insuranceFileKey?.trim() || null,
+            insuranceExpiresAt: data.insuranceExpiresAt || null,
+            policeCheckFileKey: data.policeCheckFileKey?.trim() || null,
+            policeCheckExpiresAt: data.policeCheckExpiresAt || null,
+          },
         });
-        apiError = error as any;
+        apiError = error as ApiErrorEnvelope | undefined;
+      } else {
+        const { error } = await api.POST('/v1/inspectors', {
+          body: { ...sharedFields, password: data.password },
+        });
+        apiError = error as ApiErrorEnvelope | undefined;
       }
 
       if (apiError) {

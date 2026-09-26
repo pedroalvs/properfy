@@ -7,9 +7,54 @@ import type {
   ResolvedRegion,
 } from '../domain/service-region.repository';
 import type { RegionStatus } from '@properfy/shared';
+import { ServiceRegionNameConflictError } from '../domain/service-region.errors';
 
 function toSnakeCase(s: string): string {
   return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+}
+
+// Both name-uniqueness guards on service_regions: the case-sensitive model
+// constraint and the case-insensitive functional index (#614). Either firing
+// means a name collision, whichever the database reports first.
+const REGION_NAME_UNIQUE_INDEXES = [
+  'service_regions_tenant_lower_name_key',
+  'service_regions_global_lower_name_key',
+  'service_regions_tenant_id_name_key',
+];
+
+/**
+ * True when the error is a unique-constraint violation on a service_regions
+ * write. On this table the only user-controllable unique keys are the two name
+ * guards (REGION_NAME_UNIQUE_INDEXES) — `region_number` is sequence-assigned and
+ * `id` is a UUID, neither of which collides on our INSERT/UPDATE — so any unique
+ * violation here is a name conflict (#614).
+ *
+ * Must handle both shapes Prisma produces: the model-op form (P2002, with
+ * `meta.target`) and the raw-query form ($queryRaw/$executeRaw → P2010 wrapping
+ * PostgreSQL SQLSTATE 23505, the constraint name in the message).
+ */
+function isRegionNameConflict(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const e = error as { code?: unknown; message?: unknown; meta?: Record<string, unknown> };
+  const meta = e.meta ?? {};
+
+  // Model-op unique violation.
+  if (e.code === 'P2002') return true;
+
+  // Raw-query failure (P2010) wrapping a Postgres unique_violation, or the
+  // SQLSTATE / message surfacing directly.
+  const haystack = [
+    typeof e.code === 'string' ? e.code : '',
+    typeof e.message === 'string' ? e.message : '',
+    typeof meta['code'] === 'string' ? (meta['code'] as string) : '',
+    typeof meta['message'] === 'string' ? (meta['message'] as string) : '',
+  ].join(' ');
+
+  return (
+    haystack.includes('23505') ||
+    haystack.includes('duplicate key value') ||
+    REGION_NAME_UNIQUE_INDEXES.some((ix) => haystack.includes(ix))
+  );
 }
 
 interface RegionRow {
@@ -89,23 +134,28 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     const geojsonStr = JSON.stringify(region.geojson);
     // region_number is omitted so the sequence default assigns it, then read
     // back onto the entity — the caller would otherwise report the placeholder 0.
-    const rows = await this.prisma.$queryRaw<Array<{ region_number: number }>>`
-      INSERT INTO service_regions (id, tenant_id, name, geom, geojson, color, status, created_by_user_id, created_at, updated_at)
-      VALUES (
-        ${region.id},
-        ${region.tenantId},
-        ${region.name},
-        ST_SetSRID(ST_GeomFromGeoJSON(${geojsonStr}), 4326),
-        ${geojsonStr}::jsonb,
-        ${region.color},
-        'ACTIVE',
-        ${region.createdByUserId},
-        NOW(),
-        NOW()
-      )
-      RETURNING region_number
-    `;
-    if (rows[0]) region.regionNumber = rows[0].region_number;
+    try {
+      const rows = await this.prisma.$queryRaw<Array<{ region_number: number }>>`
+        INSERT INTO service_regions (id, tenant_id, name, geom, geojson, color, status, created_by_user_id, created_at, updated_at)
+        VALUES (
+          ${region.id},
+          ${region.tenantId},
+          ${region.name},
+          ST_SetSRID(ST_GeomFromGeoJSON(${geojsonStr}), 4326),
+          ${geojsonStr}::jsonb,
+          ${region.color},
+          'ACTIVE',
+          ${region.createdByUserId},
+          NOW(),
+          NOW()
+        )
+        RETURNING region_number
+      `;
+      if (rows[0]) region.regionNumber = rows[0].region_number;
+    } catch (error) {
+      if (isRegionNameConflict(error)) throw new ServiceRegionNameConflictError();
+      throw error;
+    }
   }
 
   async update(
@@ -118,40 +168,45 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
       status: string;
     }>,
   ): Promise<void> {
-    if (data.geojson) {
-      const geojsonStr = JSON.stringify(data.geojson);
-      if (tenantId === null) {
-        await this.prisma.$executeRaw`
-          UPDATE service_regions SET
-            name = COALESCE(${data.name ?? null}, name),
-            geom = ST_SetSRID(ST_GeomFromGeoJSON(${geojsonStr}), 4326),
-            geojson = ${geojsonStr}::jsonb,
-            color = COALESCE(${data.color ?? null}, color),
-            status = COALESCE(${data.status ?? null}::"RegionStatus", status),
-            updated_at = NOW()
-          WHERE id = ${id} AND tenant_id IS NULL
-        `;
+    try {
+      if (data.geojson) {
+        const geojsonStr = JSON.stringify(data.geojson);
+        if (tenantId === null) {
+          await this.prisma.$executeRaw`
+            UPDATE service_regions SET
+              name = COALESCE(${data.name ?? null}, name),
+              geom = ST_SetSRID(ST_GeomFromGeoJSON(${geojsonStr}), 4326),
+              geojson = ${geojsonStr}::jsonb,
+              color = COALESCE(${data.color ?? null}, color),
+              status = COALESCE(${data.status ?? null}::"RegionStatus", status),
+              updated_at = NOW()
+            WHERE id = ${id} AND tenant_id IS NULL
+          `;
+        } else {
+          await this.prisma.$executeRaw`
+            UPDATE service_regions SET
+              name = COALESCE(${data.name ?? null}, name),
+              geom = ST_SetSRID(ST_GeomFromGeoJSON(${geojsonStr}), 4326),
+              geojson = ${geojsonStr}::jsonb,
+              color = COALESCE(${data.color ?? null}, color),
+              status = COALESCE(${data.status ?? null}::"RegionStatus", status),
+              updated_at = NOW()
+            WHERE id = ${id} AND tenant_id = ${tenantId}
+          `;
+        }
       } else {
-        await this.prisma.$executeRaw`
-          UPDATE service_regions SET
-            name = COALESCE(${data.name ?? null}, name),
-            geom = ST_SetSRID(ST_GeomFromGeoJSON(${geojsonStr}), 4326),
-            geojson = ${geojsonStr}::jsonb,
-            color = COALESCE(${data.color ?? null}, color),
-            status = COALESCE(${data.status ?? null}::"RegionStatus", status),
-            updated_at = NOW()
-          WHERE id = ${id} AND tenant_id = ${tenantId}
-        `;
+        const updateData: Record<string, unknown> = {};
+        if (data.name !== undefined) updateData['name'] = data.name;
+        if (data.color !== undefined) updateData['color'] = data.color;
+        if (data.status !== undefined) updateData['status'] = data.status;
+        await this.prisma.serviceRegion.updateMany({
+          where: { id, tenant_id: tenantId === null ? { equals: null } : tenantId },
+          data: updateData,
+        });
       }
-    } else {
-      const updateData: Record<string, unknown> = {};
-      if (data.name !== undefined) updateData['name'] = data.name;
-      if (data.color !== undefined) updateData['color'] = data.color;
-      if (data.status !== undefined) updateData['status'] = data.status;
-      await this.prisma.serviceRegion.updateMany({
-        where: { id, tenant_id: tenantId === null ? { equals: null } : tenantId },
-        data: updateData,
-      });
+    } catch (error) {
+      if (isRegionNameConflict(error)) throw new ServiceRegionNameConflictError();
+      throw error;
     }
   }
 
@@ -230,6 +285,25 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
     return Number(rows[0]?.count ?? 0);
   }
 
+  async countActiveInspectorsInRegions(regionIds: string[]): Promise<Map<string, number>> {
+    if (regionIds.length === 0) return new Map();
+    // Mirrors countActiveInspectorsInRegion's predicate (active inspectors only),
+    // grouped so N regions cost one query instead of N.
+    const rows = await this.prisma.$queryRaw<Array<{ region_id: string; count: bigint }>>`
+      SELECT ir.region_id AS region_id, COUNT(DISTINCT ir.inspector_id) AS count
+      FROM inspector_regions ir
+      JOIN inspectors i ON i.id = ir.inspector_id
+      WHERE ir.region_id = ANY(${regionIds}::text[])
+        AND i.status = 'ACTIVE'
+      GROUP BY ir.region_id
+    `;
+    const map = new Map<string, number>();
+    for (const row of rows) {
+      map.set(row.region_id, Number(row.count));
+    }
+    return map;
+  }
+
   async setInspectorRegions(inspectorId: string, regionIds: string[]): Promise<void> {
     await this.prisma.inspectorRegion.deleteMany({
       where: { inspector_id: inspectorId },
@@ -269,12 +343,22 @@ export class PrismaServiceRegionRepository implements IServiceRegionRepository {
   }
 
   async delete(id: string, tenantId: string | null): Promise<void> {
-    await this.prisma.inspectorRegion.deleteMany({ where: { region_id: id } });
-    if (tenantId) {
-      await this.prisma.$executeRaw`DELETE FROM service_regions WHERE id = ${id} AND tenant_id = ${tenantId}`;
-    } else {
-      await this.prisma.$executeRaw`DELETE FROM service_regions WHERE id = ${id} AND tenant_id IS NULL`;
-    }
+    // One transaction: confirm the region belongs to the caller's tenant scope
+    // BEFORE deleting anything, then remove inspector links and the region
+    // atomically. The previous version deleted inspector_regions unscoped and
+    // independently, so a cross-tenant id wiped another tenant's assignments and
+    // a partial failure orphaned rows (#390).
+    await this.prisma.$transaction(async (tx) => {
+      const region = await tx.serviceRegion.findFirst({
+        where: { id, tenant_id: tenantId === null ? { equals: null } : tenantId },
+        select: { id: true },
+      });
+      // Not found within scope (missing or cross-tenant) → abort untouched.
+      if (!region) return;
+
+      await tx.inspectorRegion.deleteMany({ where: { region_id: id } });
+      await tx.serviceRegion.delete({ where: { id } });
+    });
   }
 
   async findAllByInspector(

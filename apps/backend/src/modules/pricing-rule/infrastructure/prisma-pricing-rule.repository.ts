@@ -5,11 +5,27 @@ import type {
   IPricingRuleRepository,
   PricingRuleFilters,
   PaginationParams,
+  PricingRuleListRow,
 } from '../domain/pricing-rule.repository';
 import type { PayoutType, PriceRuleStatus, BonusRule } from '@properfy/shared';
 
-function toSnakeCase(s: string): string {
-  return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+// Allowlist of sortable fields → DB columns. Passing an arbitrary client string
+// straight into Prisma's orderBy throws a runtime error on unknown fields (#608),
+// so anything not listed falls back to created_at.
+const SORTABLE_COLUMNS: Record<string, string> = {
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  priceAmount: 'price_amount',
+  payoutValue: 'payout_value',
+  status: 'status',
+  currency: 'currency',
+};
+
+function resolveSortColumn(sortBy: string | undefined): string {
+  // Index with the coalesced key so an empty string (which the pagination schema
+  // accepts) misses the allowlist and falls back — `sortBy && …` would return the
+  // empty string itself and produce an invalid `orderBy: { '': … }` (#608).
+  return SORTABLE_COLUMNS[sortBy ?? ''] ?? 'created_at';
 }
 
 function mapToEntity(row: {
@@ -82,10 +98,34 @@ export class PrismaPricingRuleRepository implements IPricingRuleRepository {
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
       orderBy: {
-        [toSnakeCase(pagination.sortBy ?? 'created_at')]: pagination.sortOrder,
+        [resolveSortColumn(pagination.sortBy)]: pagination.sortOrder,
       },
     });
     return rows.map(mapToEntity);
+  }
+
+  async findAllWithNames(
+    filters: PricingRuleFilters,
+    pagination: PaginationParams,
+  ): Promise<PricingRuleListRow[]> {
+    const where = this.buildWhere(filters);
+    const rows = await this.prisma.servicePriceRule.findMany({
+      where,
+      skip: (pagination.page - 1) * pagination.pageSize,
+      take: pagination.pageSize,
+      orderBy: {
+        [resolveSortColumn(pagination.sortBy)]: pagination.sortOrder,
+      },
+      include: {
+        tenant: { select: { name: true } },
+        service_type: { select: { name: true } },
+      },
+    });
+    return rows.map((row) => ({
+      rule: mapToEntity(row),
+      tenantName: row.tenant.name,
+      serviceTypeName: row.service_type.name,
+    }));
   }
 
   async count(filters: PricingRuleFilters): Promise<number> {
@@ -115,10 +155,10 @@ export class PrismaPricingRuleRepository implements IPricingRuleRepository {
     tenantId: string,
     data: Partial<{
       priceAmount: number;
-      payoutType: string;
+      payoutType: PayoutType;
       payoutValue: number;
       bonusRuleJson: BonusRule | null;
-      status: string;
+      status: PriceRuleStatus;
     }>,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};

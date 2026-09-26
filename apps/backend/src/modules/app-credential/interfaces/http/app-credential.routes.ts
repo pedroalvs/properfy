@@ -11,6 +11,7 @@ import {
   type AppCredentialListItem,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../../shared/interfaces/auth-middleware';
+import { requireRoles } from '../../../../shared/interfaces/role-guard';
 import { success, paginated } from '../../../../shared/interfaces/response';
 import type { CreateAppCredentialUseCase } from '../../application/use-cases/create-app-credential.use-case';
 import type { UpdateAppCredentialUseCase } from '../../application/use-cases/update-app-credential.use-case';
@@ -34,6 +35,9 @@ const idParam = z.object({ id: z.string().uuid() });
 const listQuerySchema = z
   .object({
     search: z.string().optional(),
+    // AM/OP-only cross-tenant read filter — intentionally not validated against
+    // an existing/active tenant: an unknown id just yields an empty page, writes
+    // nothing and leaks nothing cross-tenant (unlike create, which persists).
     tenantId: z.string().uuid().optional(),
     /** Branch-scoped credentials for this branch plus agency-wide ones. */
     branchId: z.string().uuid().optional(),
@@ -65,22 +69,18 @@ export async function registerAppCredentialRoutes(
     },
   );
 
-  const forbidden = (reply: { status: (n: number) => { send: (b: unknown) => unknown } }) =>
-    reply.status(403).send({ error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } });
-
   // POST /v1/app-credentials — create
   app.post(
     '/v1/app-credentials',
     {
-      preHandler: authenticate,
+      preHandler: [authenticate, requireRoles(ALLOWED_ROLES)],
       schema: {
         body: appCredentialCreateSchema,
         response: { 201: successResponseSchema(appCredentialResponseSchema) },
       },
     },
     async (request, reply) => {
-      const auth = (request as any).authContext;
-      if (!ALLOWED_ROLES.includes(auth.role)) return forbidden(reply);
+      const auth = request.authContext!;
 
       const parsed = appCredentialCreateSchema.safeParse(request.body);
       if (!parsed.success) {
@@ -110,7 +110,7 @@ export async function registerAppCredentialRoutes(
   app.patch(
     '/v1/app-credentials/:id',
     {
-      preHandler: authenticate,
+      preHandler: [authenticate, requireRoles(ALLOWED_ROLES)],
       schema: {
         params: idParam,
         body: appCredentialUpdateSchema,
@@ -118,8 +118,7 @@ export async function registerAppCredentialRoutes(
       },
     },
     async (request, reply) => {
-      const auth = (request as any).authContext;
-      if (!ALLOWED_ROLES.includes(auth.role)) return forbidden(reply);
+      const auth = request.authContext!;
 
       const paramsParsed = idParam.safeParse(request.params);
       if (!paramsParsed.success) {
@@ -145,15 +144,14 @@ export async function registerAppCredentialRoutes(
   app.post(
     '/v1/app-credentials/:id/deactivate',
     {
-      preHandler: authenticate,
+      preHandler: [authenticate, requireRoles(ALLOWED_ROLES)],
       schema: {
         params: idParam,
         response: { 200: successResponseSchema(appCredentialResponseSchema) },
       },
     },
     async (request, reply) => {
-      const auth = (request as any).authContext;
-      if (!ALLOWED_ROLES.includes(auth.role)) return forbidden(reply);
+      const auth = request.authContext!;
 
       const paramsParsed = idParam.safeParse(request.params);
       if (!paramsParsed.success) {
@@ -175,16 +173,13 @@ export async function registerAppCredentialRoutes(
   app.get(
     '/v1/app-credentials',
     {
-      preHandler: authenticate,
+      preHandler: [authenticate, requireRoles(ALLOWED_ROLES)],
       schema: {
         querystring: listQuerySchema,
         response: { 200: paginatedResponseSchema(appCredentialListItemSchema) },
       },
     },
     async (request, reply) => {
-      const auth = (request as any).authContext;
-      if (!ALLOWED_ROLES.includes(auth.role)) return forbidden(reply);
-
       const query = request.query as z.infer<typeof listQuerySchema>;
       const result = await container.listAppCredentialsUseCase.execute({
         tenantId: query.tenantId ?? null,
@@ -207,16 +202,13 @@ export async function registerAppCredentialRoutes(
   app.get(
     '/v1/app-credentials/:id',
     {
-      preHandler: authenticate,
+      preHandler: [authenticate, requireRoles(ALLOWED_ROLES)],
       schema: {
         params: idParam,
         response: { 200: successResponseSchema(appCredentialResponseSchema) },
       },
     },
     async (request, reply) => {
-      const auth = (request as any).authContext;
-      if (!ALLOWED_ROLES.includes(auth.role)) return forbidden(reply);
-
       const { id } = request.params as z.infer<typeof idParam>;
       const credential = await container.getAppCredentialUseCase.execute(id);
       return reply.status(200).send(success(formatCredential(credential)));

@@ -7,6 +7,7 @@ import {
   ContactEmailAlreadyExistsError,
   ContactPhoneAlreadyExistsError,
 } from '../../../src/modules/contact/domain/contact.errors';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 
 const mockCreateContactExecute = vi.fn();
 const mockJwtVerify = vi.fn();
@@ -140,6 +141,39 @@ describe('POST /v1/contacts — create-contact', () => {
       .send({ type: 'RENTAL_TENANT', displayName: 'X', primaryEmail: 'x@test.com' });
 
     expect(res.status).toBe(403);
+  });
+
+  it('passes the actor role to the use case (WI-1 wiring)', async () => {
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+    mockCreateContactExecute.mockResolvedValue(makeContact());
+
+    await supertest(app.server)
+      .post('/v1/contacts')
+      .set('Authorization', 'Bearer token')
+      .send({ type: 'RENTAL_TENANT', displayName: 'Alice Smith', primaryEmail: 'alice@example.com' });
+
+    expect(mockCreateContactExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ actorRole: 'CL_ADMIN' }),
+    );
+  });
+
+  it('403: a ForbiddenError thrown by the use case surfaces as 403/FORBIDDEN via the shared error handler', async () => {
+    // WI-1 defence in depth: even though the route allowlist normally short-
+    // circuits forbidden roles, a ForbiddenError raised inside the use case
+    // (allowlist drift, or a non-HTTP caller reaching the same path) must map
+    // to 403 through the shared handler — never leak as a 500.
+    mockJwtVerify.mockResolvedValue(clAdminContext);
+    mockCreateContactExecute.mockRejectedValue(
+      new ForbiddenError('FORBIDDEN', 'Insufficient permissions to create a contact'),
+    );
+
+    const res = await supertest(app.server)
+      .post('/v1/contacts')
+      .set('Authorization', 'Bearer token')
+      .send({ type: 'RENTAL_TENANT', displayName: 'Denied', primaryEmail: 'denied@example.com' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
   });
 
   it('400: missing all channels (no primaryEmail, no primaryPhone)', async () => {

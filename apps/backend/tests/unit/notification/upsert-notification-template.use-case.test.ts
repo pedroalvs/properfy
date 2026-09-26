@@ -10,6 +10,12 @@ import {
 } from '../../../src/modules/notification/domain/notification.errors';
 import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import {
+  PLATFORM_TEMPLATES,
+  platformTemplateContentHash,
+  platformTemplateEffectiveContent,
+} from '../../../src/modules/notification/domain/platform-notification-templates';
+import { SanitizeHtmlService } from '../../../src/modules/notification/infrastructure/sanitize-html.service';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -490,6 +496,170 @@ describe('UpsertNotificationTemplateUseCase', () => {
       const entity = vi.mocked(templateRepo.upsert).mock.calls[0][0];
       expect(entity.variablesJson).toContain('rentalTenantName');
       expect(entity.variablesJson).toContain('scheduledDate');
+    });
+  });
+
+  describe('SMS length guard', () => {
+    // Guard measures the SAMPLE_DATA-rendered body, so a body of literal chars
+    // maps 1:1. Over the 1530 GSM-7 limit must be refused at save.
+    it('rejects an over-limit GSM-7 SMS body and does not persist it', async () => {
+      const err = await useCase
+        .execute({
+          templateCode: 'INSPECTION_NOTICE_SMS',
+          channel: 'SMS',
+          bodyHtml: 'a'.repeat(1531),
+          isActive: true,
+          actor: makeActor(),
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ValidationError);
+      expect((err as ValidationError).details).toEqual([
+        { code: 'custom', message: expect.any(String), field: 'bodyHtml' },
+      ]);
+      expect(templateRepo.upsert).not.toHaveBeenCalled();
+    });
+
+    it('mentions the sample-value basis in the error message', async () => {
+      await expect(
+        useCase.execute({
+          templateCode: 'INSPECTION_NOTICE_SMS',
+          channel: 'SMS',
+          bodyHtml: 'a'.repeat(1531),
+          isActive: true,
+          actor: makeActor(),
+        }),
+      ).rejects.toThrow(/sample values/i);
+    });
+
+    it('rejects an over-limit UCS-2 SMS body at the 670 boundary', async () => {
+      await expect(
+        useCase.execute({
+          templateCode: 'INSPECTION_NOTICE_SMS',
+          channel: 'SMS',
+          bodyHtml: 'ç' + 'a'.repeat(670), // 671 UTF-16 units, non-GSM → UCS-2
+          isActive: true,
+          actor: makeActor(),
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(templateRepo.upsert).not.toHaveBeenCalled();
+    });
+
+    it('accepts an SMS body exactly at the GSM-7 limit', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      await useCase.execute({
+        templateCode: 'INSPECTION_NOTICE_SMS',
+        channel: 'SMS',
+        bodyHtml: 'a'.repeat(1530),
+        isActive: true,
+        actor: makeActor(),
+      });
+
+      expect(templateRepo.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not length-check EMAIL bodies', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      await useCase.execute(
+        makeInput({
+          templateCode: 'INSPECTION_NOTICE',
+          bodyHtml: '<p>' + 'a'.repeat(5000) + '</p>',
+        }),
+      );
+
+      expect(templateRepo.upsert).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ─── Platform-default reset re-adopts the seed ──────────────────────────────
+  //
+  // When an operator resets a platform default and saves it, the submitted body
+  // equals the shipped catalog. That save must restore the row to a *seeded*
+  // state — the hand-written seed body_text and the seed content hash — so
+  // `syncPlatformTemplates` recognises it as unedited and keeps refreshing it on
+  // deploy. Deriving body_text from HTML and leaving the hash untouched left the
+  // row permanently marked "human-edited" after a reset.
+  describe('platform default reset re-adopts the seed', () => {
+    const seed = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'INSPECTION_CANCELLED' && t.channel === 'EMAIL',
+    )!;
+    const catalog = platformTemplateEffectiveContent(seed);
+    const catalogHash = platformTemplateContentHash(catalog);
+
+    function makeUseCaseWithDerivation() {
+      const authorizationService = new AuthorizationService(auditService);
+      // A real sanitizer (the seed full-document HTML must pass validateForSave)
+      // and an htmlToText that returns a marker, so a derived body_text is
+      // distinguishable from the hand-written seed body_text.
+      const htmlToText = { convert: vi.fn().mockReturnValue('DERIVED-TEXT') };
+      return new UpsertNotificationTemplateUseCase(
+        templateRepo,
+        templateRenderer,
+        auditService,
+        authorizationService,
+        new SanitizeHtmlService(),
+        htmlToText,
+      );
+    }
+
+    it('stamps the seed hash and stores the seed body_text when the saved body matches the catalog', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      await makeUseCaseWithDerivation().execute(
+        makeInput({
+          templateCode: 'INSPECTION_CANCELLED',
+          channel: 'EMAIL',
+          subject: catalog.subject ?? undefined,
+          bodyHtml: catalog.bodyHtml!,
+          actor: makeActor({ role: 'OP', tenantId: null }),
+        }),
+      );
+
+      const entity = vi.mocked(templateRepo.upsert).mock.calls[0][0];
+      expect(entity.tenantId).toBeNull();
+      expect(entity.seededContentHash).toBe(catalogHash);
+      // The hand-written seed plain-text body, NOT the html-to-text derivation.
+      expect(entity.bodyText).toBe(catalog.bodyText);
+      expect(entity.bodyText).not.toBe('DERIVED-TEXT');
+      expect(entity.bodyHtml).toBe(catalog.bodyHtml);
+    });
+
+    it('does NOT stamp the seed hash for a genuine human edit (body differs from the catalog)', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      await makeUseCaseWithDerivation().execute(
+        makeInput({
+          templateCode: 'INSPECTION_CANCELLED',
+          channel: 'EMAIL',
+          subject: 'A custom operator subject',
+          bodyHtml: '<p>Custom operator copy for {{propertyAddress}}</p>',
+          actor: makeActor({ role: 'OP', tenantId: null }),
+        }),
+      );
+
+      const entity = vi.mocked(templateRepo.upsert).mock.calls[0][0];
+      expect(entity.seededContentHash).toBeNull();
+      expect(entity.bodyText).toBe('DERIVED-TEXT');
+    });
+
+    it('never stamps the seed hash on an agency override, even when its body matches the catalog', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+
+      await makeUseCaseWithDerivation().execute(
+        makeInput({
+          templateCode: 'INSPECTION_CANCELLED',
+          channel: 'EMAIL',
+          subject: catalog.subject ?? undefined,
+          bodyHtml: catalog.bodyHtml!,
+          tenantId: '11111111-1111-4111-8111-111111111111',
+          actor: makeActor({ role: 'AM', tenantId: null }),
+        }),
+      );
+
+      const entity = vi.mocked(templateRepo.upsert).mock.calls[0][0];
+      expect(entity.tenantId).toBe('11111111-1111-4111-8111-111111111111');
+      expect(entity.seededContentHash).toBeNull();
     });
   });
 });

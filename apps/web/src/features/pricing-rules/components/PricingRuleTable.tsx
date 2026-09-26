@@ -9,6 +9,11 @@ const PAYOUT_TYPE_LABELS: Record<string, string> = {
   PERCENTAGE: 'Percentage',
 };
 
+// Module scope — it closes over nothing, so it need not be recreated per render.
+function formatCurrency(value: number, currency: string): string {
+  return value.toLocaleString('en-AU', { style: 'currency', currency });
+}
+
 interface PricingRuleTableProps {
   data: PricingRule[];
   loading?: boolean;
@@ -26,23 +31,21 @@ export function PricingRuleTable({
   pagination,
   onEdit,
 }: PricingRuleTableProps) {
-  const formatCurrency = (value: number, currency: string) =>
-    value.toLocaleString('en-AU', { style: 'currency', currency });
-
   const columns: DataTableColumn<PricingRule>[] = [
     {
       key: 'tenantName',
       label: 'Agency',
       width: '160px',
       sortable: true,
-      render: (row) => <>{row.tenantName ?? row.tenantId}</>,
+      // Server-provided (#389) — no raw-UUID fallback; raw IDs never surface in the UI.
+      render: (row) => <>{row.tenantName}</>,
     },
     {
       key: 'serviceTypeName',
       label: 'Service Type',
       width: '160px',
       sortable: true,
-      render: (row) => <>{row.serviceTypeName ?? row.serviceTypeId}</>,
+      render: (row) => <>{row.serviceTypeName}</>,
     },
     {
       key: 'branchName',

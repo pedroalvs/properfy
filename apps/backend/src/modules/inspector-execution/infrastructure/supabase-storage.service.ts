@@ -27,7 +27,17 @@ export class SupabaseStorageService implements IStorageService {
       const response = await this.s3Client.send(command);
       return { exists: true, sizeBytes: response.ContentLength ?? 0 };
     } catch (error: unknown) {
-      if (error instanceof Error && error.name === 'NotFound') {
+      // A missing object can surface either as the SDK's 'NotFound' error name or,
+      // depending on the S3 gateway (Supabase), as a generic error carrying a 404
+      // status code. Treat both as "absent"; rethrow everything else (a 403/500
+      // is a real failure and must not be masked as a missing object).
+      const httpStatusCode =
+        typeof error === 'object' && error !== null
+          ? (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode
+          : undefined;
+      const isNotFound =
+        (error instanceof Error && error.name === 'NotFound') || httpStatusCode === 404;
+      if (isNotFound) {
         return { exists: false, sizeBytes: 0 };
       }
       throw error;

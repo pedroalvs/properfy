@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -94,6 +94,39 @@ describe('useInspectorList', () => {
 
     expect(result.current.isError).toBe(true);
     expect(result.current.data).toHaveLength(0);
+  });
+
+  it('does not leak undeclared response fields onto mapped inspectors', async () => {
+    mockGet.mockResolvedValueOnce({
+      data: {
+        data: [{ ...MOCK_INSPECTORS[0], secretInternalField: 'should-not-appear' }],
+        pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1 },
+      },
+    });
+    const wrapper = createRouterQueryWrapper();
+    const { result } = renderHook(() => useInspectorList(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.data[0]).not.toHaveProperty('secretInternalField');
+  });
+
+  it('refetches with new params when page/filters change', async () => {
+    const wrapper = createRouterQueryWrapper();
+    const { result } = renderHook(() => useInspectorList(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    mockGet.mockClear();
+    act(() => {
+      result.current.pagination.onChange(2, 10);
+    });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith('/v1/inspectors', {
+        params: { query: expect.objectContaining({ page: '2' }) },
+      });
+    });
   });
 
   it('keeps a stable data array reference across re-renders with unchanged data', async () => {

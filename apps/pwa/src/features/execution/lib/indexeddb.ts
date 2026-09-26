@@ -40,6 +40,10 @@ function getDB(): Promise<IDBPDatabase<ProperfyPwaDB>> {
           db.createObjectStore('queued-actions');
         }
       },
+    }).catch((err) => {
+      // Don't cache a rejected open — the next getDB() call should retry.
+      dbPromise = null;
+      throw err;
     });
   }
   return dbPromise;

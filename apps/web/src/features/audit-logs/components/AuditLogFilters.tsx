@@ -1,5 +1,4 @@
 import { FilterBar } from '@/components/filters/FilterBar';
-import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterSelect, type FilterSelectOption } from '@/components/filters/FilterSelect';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
 import { useAuth } from '@/hooks/useAuth';
@@ -64,12 +63,12 @@ export function AuditLogFilters({ filters, onFiltersChange }: AuditLogFiltersPro
         onChange={(entityType) => onFiltersChange({ ...filters, entityType })}
         options={ENTITY_TYPE_OPTIONS}
       />
-      <FilterInput
-        label="Entity ID"
-        placeholder="Filter by entity UUID"
-        value={filters.entityId}
-        onChange={(entityId) => onFiltersChange({ ...filters, entityId })}
-      />
+      {/*
+        W1 #751: the raw-UUID "Entity ID" free-text box is removed — the Entity
+        Type select above is the readable filter. A concrete-entity typeahead
+        would need a backend search endpoint (follow-up); until then the type
+        filter is the readable entry point and no raw UUID box is shipped.
+      */}
       <FilterSelect
         label="Action"
         value={filters.action}

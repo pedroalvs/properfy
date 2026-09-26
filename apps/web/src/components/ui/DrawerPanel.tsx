@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { lockBodyScroll } from '@/lib/body-scroll-lock';
+import { focusFirstFocusable } from '@/lib/focus';
 
 type DrawerSize = 'narrow' | 'wide';
 
@@ -30,11 +31,23 @@ export function DrawerPanel({ open, onClose, size = 'narrow', ariaLabel, childre
       if (panelRef.current?.querySelector('[role="dialog"][aria-modal="true"]')) {
         return;
       }
+      // Own the Escape so it closes the drawer without also reaching a
+      // page-level handler behind it.
+      e.stopPropagation();
       onClose();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose]);
+
+  // Move focus into the drawer on open (WCAG 2.4.3): the first focusable control,
+  // or the panel itself (tabIndex={-1}) when it has none — so focus never stays on
+  // the trigger behind the overlay. The children stay mounted while closed, so
+  // this only fires on the open transition.
+  useEffect(() => {
+    if (!open) return;
+    focusFirstFocusable(panelRef.current);
+  }, [open]);
 
   // Lock the page scroll while the drawer is open — without this, reaching the
   // end of the drawer's own scroll area chains the wheel to the document and
@@ -59,7 +72,8 @@ export function DrawerPanel({ open, onClose, size = 'narrow', ariaLabel, childre
       {/* Panel */}
       <div
         ref={panelRef}
-        className={`fixed right-0 top-0 z-50 h-screen bg-card-bg shadow-xl transition-transform duration-300 ${
+        tabIndex={-1}
+        className={`fixed right-0 top-0 z-50 h-screen bg-card-bg shadow-xl outline-none transition-transform duration-300 ${
           sizeClasses[size]
         } ${open ? 'translate-x-0' : 'translate-x-full'}`}
         role="dialog"

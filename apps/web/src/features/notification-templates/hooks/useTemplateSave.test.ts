@@ -386,4 +386,88 @@ describe('useTemplateSave', () => {
     expect(saveResult?.fieldErrors).toBeUndefined();
     expect(saveResult?.error).toBe('Validation failed');
   });
+
+  describe('SMS length guard', () => {
+    it('rejects an SMS body that renders over the GSM-7 limit', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const data: TemplateFormData = { subject: '', body: 'a'.repeat(1531), active: true };
+      const errors = result.current.validate(data, [], undefined, 'SMS');
+      expect(errors.body).toMatch(/over the 1530/i);
+    });
+
+    it('rejects an SMS body that renders over the UCS-2 limit', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const data: TemplateFormData = { subject: '', body: 'ç' + 'a'.repeat(670), active: true };
+      const errors = result.current.validate(data, [], undefined, 'SMS');
+      expect(errors.body).toMatch(/over the 670/i);
+    });
+
+    it('accepts an SMS body at the limit', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const data: TemplateFormData = { subject: '', body: 'a'.repeat(1530), active: true };
+      const errors = result.current.validate(data, [], undefined, 'SMS');
+      expect(errors.body).toBeUndefined();
+    });
+
+    it('does not length-check the same body on EMAIL', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const data: TemplateFormData = { subject: 'Subject', body: 'a'.repeat(2000), active: true };
+      const errors = result.current.validate(data, [], undefined, 'EMAIL');
+      expect(errors.body).toBeUndefined();
+    });
+
+    it('appends the length error after an invalid-variable error', () => {
+      const wrapper = createQueryWrapper();
+      const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+      const data: TemplateFormData = {
+        subject: '',
+        body: '{{bogusVar}}' + 'a'.repeat(1531),
+        active: true,
+      };
+      const errors = result.current.validate(data, [], ['rentalTenantName'], 'SMS');
+      expect(errors.body).toMatch(/Invalid variables: bogusVar/);
+      expect(errors.body).toMatch(/over the 1530/i);
+    });
+  });
+
+  // #383: validate() must publish its result to validationErrors state, or the
+  // form's inline messages never render (state stayed {} forever).
+  it('populates validationErrors when validate() finds problems', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+    expect(result.current.validationErrors).toEqual({});
+
+    act(() => {
+      result.current.validate({ subject: '', body: '', active: true }, []);
+    });
+
+    expect(result.current.validationErrors.body).toBe('Body is required');
+    expect(result.current.validationErrors.subject).toBe('Subject is required');
+  });
+
+  it('clears validationErrors after a successful save', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTemplateSave(), { wrapper });
+
+    act(() => {
+      result.current.validate({ subject: '', body: '', active: true }, []);
+    });
+    expect(Object.keys(result.current.validationErrors).length).toBeGreaterThan(0);
+
+    await act(async () => {
+      await result.current.save('INSPECTION_NOTICE', 'EMAIL', VALID_DATA);
+    });
+
+    expect(result.current.validationErrors).toEqual({});
+  });
 });

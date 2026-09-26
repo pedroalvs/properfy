@@ -59,7 +59,13 @@ export class DeletePropertyUseCase {
       throw new PropertyAlreadyDeletedError();
     }
 
-    const hasActive = await this.appointmentChecker.hasOpenAppointmentsForProperty(propertyId);
+    // Scope the open-appointment check by the property's own tenant (the
+    // authoritative owner already resolved above), never the caller's JWT
+    // scope, which is null for cross-tenant AM/OP.
+    const hasActive = await this.appointmentChecker.hasOpenAppointmentsForProperty(
+      property.tenantId,
+      propertyId,
+    );
     if (hasActive) {
       throw new PropertyHasActiveAppointmentsError();
     }

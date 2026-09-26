@@ -63,6 +63,24 @@ describe('useTenantDeactivate', () => {
       '/v1/tenants/ten-01/deactivate',
       { body: { reason: 'Closed the account' } },
     );
+    // #676: the success path must surface the snackbar AND fire onSuccess.
+    expect(mockShowSuccess).toHaveBeenCalledWith('Agency deactivated successfully');
+    expect(onSuccess).toHaveBeenCalled();
+  });
+
+  it('shows error message and does not fire onSuccess on API failure (#676)', async () => {
+    mockPost.mockResolvedValueOnce({ error: { message: 'Deactivation failed' } });
+    const onSuccess = vi.fn();
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantDeactivate('ten-01', onSuccess), { wrapper });
+
+    await act(async () => {
+      result.current.deactivate('Closed the account');
+    });
+
+    expect(mockShowError).toHaveBeenCalled();
+    expect(mockShowSuccess).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
   });
 
   it('initially isDeactivating is false', () => {

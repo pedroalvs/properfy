@@ -1,7 +1,10 @@
+import type { GeojsonGeometry } from '@properfy/shared';
+
 export interface ServiceRegion {
   id: string;
   name: string;
-  geojson: object;
+  // Canonical Polygon | MultiPolygon from the shared schema, not `object` (#739).
+  geojson: GeojsonGeometry;
   color: string;
   status: string;
   createdByUserId?: string | null;
@@ -12,7 +15,7 @@ export interface ServiceRegion {
 
 export interface ServiceRegionFormData {
   name: string;
-  geojson: object | null;
+  geojson: GeojsonGeometry | null;
   color: string;
   status: string;
 }

@@ -51,8 +51,15 @@ beforeEach(async () => {
   );
 });
 
-const SCHEDULED_DATE = new Date('2026-08-01T00:00:00.000Z');
-const STALE_DATE = new Date('2026-08-08T00:00:00.000Z');
+// Future-relative (UTC-midnight civil dates) so the WI-B8 past-date dispatch guard
+// (#33) never trips these reschedule/resend scenarios, which test the rotate
+// mechanics, not the past-date gate. STALE_DATE (the appointment's current date) is
+// after SCHEDULED_DATE (the date the cycle was confirmed for).
+const DAY_MS = 24 * 60 * 60 * 1000;
+const civilMidnight = (offsetDays: number) =>
+  new Date(`${new Date(Date.now() + offsetDays * DAY_MS).toISOString().slice(0, 10)}T00:00:00.000Z`);
+const SCHEDULED_DATE = civilMidnight(30);
+const STALE_DATE = civilMidnight(37);
 const SLOT = 'MORNING';
 
 function rand(): string {
@@ -258,9 +265,9 @@ describe('group Send portal link — real DB', () => {
 
     const a = byId.get(apptA)!;
     expect(a.rentalTenantConfirmationStatus).toBe('CONFIRMED');
-    expect(a.scheduledDate.toISOString().slice(0, 10)).toBe('2026-08-08'); // current (stale) date
+    expect(a.scheduledDate.toISOString().slice(0, 10)).toBe(STALE_DATE.toISOString().slice(0, 10)); // current (stale) date
     expect(a.activeCycle).not.toBeNull();
-    expect(a.activeCycle!.scheduledDate.toISOString().slice(0, 10)).toBe('2026-08-01'); // confirmed-for date
+    expect(a.activeCycle!.scheduledDate.toISOString().slice(0, 10)).toBe(SCHEDULED_DATE.toISOString().slice(0, 10)); // confirmed-for date
     expect(a.activeCycle!.timeSlot).toBe(SLOT);
     expect(a.activeCycle!.status).toBe('CONFIRMED');
 
@@ -340,7 +347,7 @@ describe('group Send portal link — real DB', () => {
       data: {
         appointment_id: appointmentId,
         token_hash: `original-${rand()}`,
-        expires_at: new Date('2026-08-09T23:59:59.000Z'),
+        expires_at: new Date(STALE_DATE.getTime() + DAY_MS - 1000),
         status: 'ACTIVE',
         confirmation_cycle_id: before.active_confirmation_cycle_id,
       },

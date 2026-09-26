@@ -88,7 +88,7 @@ function renderPage() {
 }
 
 describe('ReportListPage', () => {
-  it('renders page title "Relatórios"', () => {
+  it('renders page title "Reports"', () => {
     renderPage();
     expect(screen.getByText('Reports')).toBeInTheDocument();
   });

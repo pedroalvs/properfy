@@ -34,6 +34,35 @@ describe('LoginPage', () => {
     expect(screen.getByTestId('login-button')).toBeInTheDocument();
   });
 
+  it('shows a validation message and does not call login when fields are empty', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<LoginPage />);
+
+    // The inputs are HTML-required, so jsdom's native constraint validation
+    // would block submission before the component's own guard runs. Strip
+    // `required` here to exercise that JS guard directly.
+    screen.getByTestId('email-input').removeAttribute('required');
+    screen.getByTestId('password-input').removeAttribute('required');
+
+    await user.click(screen.getByTestId('login-button'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Please enter your email and password.')).toBeInTheDocument();
+    });
+    expect(mockLogin).not.toHaveBeenCalled();
+  });
+
+  it('does not call login when the empty form is submitted with native required fields intact', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<LoginPage />);
+
+    await user.click(screen.getByTestId('login-button'));
+
+    expect(mockLogin).not.toHaveBeenCalled();
+  });
+
   it('submits form with credentials', async () => {
     mockLogin.mockResolvedValue(undefined);
     const user = userEvent.setup();

@@ -670,6 +670,13 @@ export async function registerInspectorRoutes(
       schema: {
         params: inspectorIdParam,
         body: z.object({ mimeType: z.string().min(1) }),
+        // Declared so the generated OpenAPI client types this 200 (PWA WI-15/#276);
+        // must match exactly what the handler sends via success().
+        response: {
+          200: successResponseSchema(
+            z.object({ uploadUrl: z.string(), storageKey: z.string(), expiresAt: z.string() }),
+          ),
+        },
       },
     },
     async (request, reply) => {
@@ -696,6 +703,11 @@ export async function registerInspectorRoutes(
       schema: {
         params: inspectorIdParam,
         body: z.object({ storageKey: z.string().min(1) }),
+        // Declared so the generated OpenAPI client types this 200 (PWA WI-15/#276);
+        // must match exactly what the handler sends via success().
+        response: {
+          200: successResponseSchema(z.object({ inspectorId: z.string() })),
+        },
       },
     },
     async (request, reply) => {
@@ -878,13 +890,11 @@ export async function registerInspectorRoutes(
     },
     async (request, reply) => {
       const ctx = request.authContext!;
-      if (ctx.role !== 'AM' && ctx.role !== 'OP') {
-        throw new ForbiddenError('FORBIDDEN', 'Only AM or OP can view inspector availability');
-      }
       const params = inspectorIdParam.safeParse(request.params);
       if (!params.success) throw new ValidationError('Invalid inspector ID', params.error.errors);
       const result = await container.getInspectorAvailabilityTemplateForOperatorUseCase.execute({
         inspectorId: params.data.inspectorId,
+        actor: ctx,
       });
       return reply.status(200).send(success(result));
     },

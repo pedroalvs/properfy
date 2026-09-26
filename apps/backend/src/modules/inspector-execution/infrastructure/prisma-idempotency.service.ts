@@ -113,7 +113,7 @@ export class PrismaIdempotencyService implements IIdempotencyService {
         response: { path: ['ownerToken'], equals: ownerToken },
       },
       data: {
-        response: response as any,
+        response: response as unknown as Prisma.InputJsonValue,
         expires_at: expiresAt,
         payload_hash: payloadHash,
       },
@@ -164,11 +164,11 @@ export class PrismaIdempotencyService implements IIdempotencyService {
     const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
     await this.db(tx).idempotencyKey.upsert({
       where: { key },
-      update: { response: response as any, expires_at: expiresAt, payload_hash: payloadHash ?? null },
+      update: { response: response as unknown as Prisma.InputJsonValue, expires_at: expiresAt, payload_hash: payloadHash ?? null },
       create: {
         key,
         scope,
-        response: response as any,
+        response: response as unknown as Prisma.InputJsonValue,
         payload_hash: payloadHash ?? null,
         expires_at: expiresAt,
       },

@@ -28,29 +28,36 @@ describe('ChangePasswordSection', () => {
   });
 
   it('logs the user out after a successful password change', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const logout = vi.fn();
     const changePassword = vi.fn().mockResolvedValue(undefined);
     mockUseChangePassword.mockReturnValue({ changePassword, isSubmitting: false });
     mockUseAuth.mockReturnValue({ logout });
 
-    render(<ChangePasswordSection />);
+    try {
+      render(<ChangePasswordSection />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Change Password' }));
-    fireEvent.change(screen.getByPlaceholderText('Current password'), { target: { value: 'Oldpass1!' } });
-    fireEvent.change(screen.getByPlaceholderText('New password'), { target: { value: 'Newpass1!' } });
-    fireEvent.change(screen.getByPlaceholderText('Confirm new password'), { target: { value: 'Newpass1!' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Update Password' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Change Password' }));
+      fireEvent.change(screen.getByPlaceholderText('Current password'), { target: { value: 'Oldpass1!' } });
+      fireEvent.change(screen.getByPlaceholderText('New password'), { target: { value: 'Newpass1!' } });
+      fireEvent.change(screen.getByPlaceholderText('Confirm new password'), { target: { value: 'Newpass1!' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Update Password' }));
 
-    await waitFor(() => {
-      expect(changePassword).toHaveBeenCalledWith('Oldpass1!', 'Newpass1!');
-    });
+      await waitFor(() => {
+        expect(changePassword).toHaveBeenCalledWith('Oldpass1!', 'Newpass1!');
+      });
 
-    await waitFor(() => {
-      expect(screen.getByText(/You will be asked to sign in again/i)).toBeInTheDocument();
-    });
+      await waitFor(() => {
+        expect(screen.getByText(/You will be asked to sign in again/i)).toBeInTheDocument();
+      });
 
-    await new Promise((resolve) => setTimeout(resolve, 1600));
+      expect(logout).not.toHaveBeenCalled();
 
-    expect(logout).toHaveBeenCalled();
-  }, 7000);
+      await vi.advanceTimersByTimeAsync(1600);
+
+      expect(logout).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

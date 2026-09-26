@@ -557,10 +557,44 @@ describe('ServiceGroupDetailPage', () => {
     expect(screen.getByText('Cancel Service Group')).toBeInTheDocument();
   });
 
-  it('opens the assign modal from the Change menu', () => {
+  it('shows a dedicated Assign inspector button only for a PUBLISHED group without an inspector', () => {
+    const { unmount } = renderPage('/service-groups/published');
+    expect(screen.getByRole('button', { name: /Assign inspector/i })).toBeInTheDocument();
+    unmount();
+
+    // Assignment is a PUBLISHED-only, first-time action: a DRAFT group is not
+    // yet on the marketplace, and ACCEPTED/terminal groups already have (or can
+    // no longer take) an inspector.
+    for (const entry of [
+      '/service-groups/sg-01',
+      '/service-groups/accepted',
+      '/service-groups/cancelled',
+      '/service-groups/rejected',
+    ]) {
+      const view = renderPage(entry);
+      expect(screen.queryByRole('button', { name: /Assign inspector/i })).toBeNull();
+      view.unmount();
+    }
+  });
+
+  it('drops the Change-menu inspector item for PUBLISHED (the dedicated button covers it)', () => {
     renderPage('/service-groups/published');
     fireEvent.click(screen.getByTestId('service-group-change-trigger'));
-    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+    // Assignment moved to the dedicated button, but plan edits stay in the menu.
+    expect(screen.queryByTestId('group-action-change-inspector')).toBeNull();
+    expect(screen.getByTestId('group-action-change-date')).toBeInTheDocument();
+    expect(screen.getByTestId('group-action-change-time-window')).toBeInTheDocument();
+  });
+
+  it('keeps the Change-menu inspector item for ACCEPTED (replacement)', () => {
+    renderPage('/service-groups/accepted');
+    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
+    expect(screen.getByTestId('group-action-change-inspector')).toBeInTheDocument();
+  });
+
+  it('opens the assign modal from the dedicated Assign inspector button', () => {
+    renderPage('/service-groups/published');
+    fireEvent.click(screen.getByRole('button', { name: /Assign inspector/i }));
     expect(screen.getByText('Assign Inspector')).toBeInTheDocument();
   });
 
@@ -592,8 +626,7 @@ describe('ServiceGroupDetailPage', () => {
     mockIsAssigning = true;
     try {
       renderPage('/service-groups/published');
-      fireEvent.click(screen.getByTestId('service-group-change-trigger'));
-      fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+      fireEvent.click(screen.getByRole('button', { name: /Assign inspector/i }));
       fireEvent.click(await screen.findByText(INSPECTOR.name));
 
       // The name of this test is a behaviour claim, so assert the behaviour:
@@ -630,8 +663,7 @@ describe('ServiceGroupDetailPage', () => {
 
   it('routes a PUBLISHED group to assign, never to reassign', async () => {
     renderPage('/service-groups/published');
-    fireEvent.click(screen.getByTestId('service-group-change-trigger'));
-    fireEvent.click(screen.getByTestId('group-action-change-inspector'));
+    fireEvent.click(screen.getByRole('button', { name: /Assign inspector/i }));
 
     fireEvent.click(await screen.findByText(INSPECTOR.name));
     fireEvent.click(screen.getByRole('button', { name: 'Assign' }));

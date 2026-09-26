@@ -41,10 +41,9 @@ export class PrismaErasurePiiResolver implements IErasurePiiResolver {
     if (canonicalUser) {
       if (canonicalUser.email) piiValues.add(canonicalUser.email);
       if (canonicalUser.name) piiValues.add(canonicalUser.name);
-      // `phone` is not a required property on the current UserEntity but may be
-      // present on subclasses / extended projections. Guard the access defensively.
-      const phone = (canonicalUser as unknown as { phone?: string | null }).phone;
-      if (phone) piiValues.add(phone);
+      // #623: `phone` is a real UserEntity field — include the live value so
+      // phone-type erasure considers it even when no snapshot carries it.
+      if (canonicalUser.phone) piiValues.add(canonicalUser.phone);
 
       // Walk `user.updated` lifecycle history for this user id to collect
       // historical email / phone / name values.
@@ -60,18 +59,20 @@ export class PrismaErasurePiiResolver implements IErasurePiiResolver {
 
   private async resolveCanonicalUser(
     input: ErasurePiiResolverInput,
-  ): Promise<{ id: string; email: string; name: string } | null> {
+  ): Promise<{ id: string; email: string; name: string; phone: string | null } | null> {
+    const toProjection = (
+      user: { id: string; email: string; name: string; phone: string | null } | null,
+    ) =>
+      user ? { id: user.id, email: user.email, name: user.name, phone: user.phone } : null;
+
     if (input.type === 'user_id') {
-      const user = await this.userRepo.findById(input.value);
-      return user ? { id: user.id, email: user.email, name: user.name } : null;
+      return toProjection(await this.userRepo.findById(input.value));
     }
     if (input.type === 'email') {
-      const user = await this.userRepo.findByEmail(input.value);
-      return user ? { id: user.id, email: user.email, name: user.name } : null;
+      return toProjection(await this.userRepo.findByEmail(input.value));
     }
     if (input.type === 'phone') {
-      const user = await this.userRepo.findByPhone(input.value);
-      return user ? { id: user.id, email: user.email, name: user.name } : null;
+      return toProjection(await this.userRepo.findByPhone(input.value));
     }
     return null;
   }

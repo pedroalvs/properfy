@@ -133,6 +133,31 @@ describe('KeyExpiryCheckWorker', () => {
     );
   });
 
+  // #558: every run generates its own requestId, carried on the audit entry.
+  it('includes a requestId on the audit log entry', () => {
+    const jwtService = createMockJwtService(30);
+    const worker = new KeyExpiryCheckWorker(jwtService, auditService, logger);
+
+    worker.execute();
+
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: expect.any(String),
+      }),
+    );
+  });
+
+  it('generates a different requestId on each run', () => {
+    const jwtService = createMockJwtService(30);
+    const worker = new KeyExpiryCheckWorker(jwtService, auditService, logger);
+
+    worker.execute();
+    worker.execute();
+
+    const [[firstCall], [secondCall]] = (auditService.log as ReturnType<typeof vi.fn>).mock.calls;
+    expect(firstCall.requestId).not.toBe(secondCall.requestId);
+  });
+
   it('should return ok when previous key has 8 days remaining (above warning threshold)', () => {
     const jwtService = createMockJwtService(8);
     const worker = new KeyExpiryCheckWorker(jwtService, auditService, logger);

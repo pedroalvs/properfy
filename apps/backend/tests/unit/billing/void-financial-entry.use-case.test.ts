@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { VoidFinancialEntryUseCase } from '../../../src/modules/billing/application/use-cases/void-financial-entry.use-case';
 import type { IFinancialEntryRepository } from '../../../src/modules/billing/domain/financial-entry.repository';
 import { FinancialEntryEntity, type FinancialEntryProps } from '../../../src/modules/billing/domain/financial-entry.entity';
-import { EntryNotFoundError, EntryNotApprovedError } from '../../../src/modules/billing/domain/billing.errors';
+import {
+  EntryNotFoundError,
+  EntryNotApprovedError,
+  BillingIdempotencyPayloadMismatchError,
+  BillingIdempotencyInProgressError,
+} from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
@@ -67,9 +72,14 @@ function makeSut() {
   } as unknown as AuditService;
 
   const authorizationService = new AuthorizationService(auditService);
-  const useCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService);
+  const idempotencyService = {
+    tryAcquire: vi.fn().mockResolvedValue({ status: 'acquired', ownerToken: 'token-1' }),
+    complete: vi.fn().mockResolvedValue(true),
+    release: vi.fn().mockResolvedValue(undefined),
+  };
+  const useCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
 
-  return { useCase, financialEntryRepo, auditService };
+  return { useCase, financialEntryRepo, auditService, idempotencyService };
 }
 
 describe('VoidFinancialEntryUseCase', () => {
@@ -89,7 +99,7 @@ describe('VoidFinancialEntryUseCase', () => {
     const result = await useCase.execute({
       entryId: 'entry-1',
       reason: 'Entry was created in error',
-      actor: makeActor({ role: 'AM' }),
+      idempotencyKey: 'idem-1', actor: makeActor({ role: 'AM' }),
     });
 
     expect(result.status).toBe('VOIDED');
@@ -126,7 +136,7 @@ describe('VoidFinancialEntryUseCase', () => {
       useCase.execute({
         entryId: 'entry-1',
         reason: 'Test reason',
-        actor: makeActor({ role: 'AM' }),
+        idempotencyKey: 'idem-1', actor: makeActor({ role: 'AM' }),
       }),
     ).rejects.toThrow(EntryNotApprovedError);
 
@@ -142,7 +152,7 @@ describe('VoidFinancialEntryUseCase', () => {
       useCase.execute({
         entryId: 'entry-1',
         reason: 'Test reason',
-        actor: makeActor({ role: 'AM' }),
+        idempotencyKey: 'idem-1', actor: makeActor({ role: 'AM' }),
       }),
     ).rejects.toThrow(EntryNotApprovedError);
   });
@@ -156,7 +166,7 @@ describe('VoidFinancialEntryUseCase', () => {
     const result = await useCase.execute({
       entryId: 'entry-1',
       reason: 'Correction by operator',
-      actor: makeActor({ role: 'OP' }),
+      idempotencyKey: 'idem-1', actor: makeActor({ role: 'OP' }),
     });
 
     expect(result.status).toBe('VOIDED');
@@ -172,7 +182,7 @@ describe('VoidFinancialEntryUseCase', () => {
       useCase.execute({
         entryId: 'entry-1',
         reason: 'Test reason',
-        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+        idempotencyKey: 'idem-1', actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
   });
@@ -184,7 +194,7 @@ describe('VoidFinancialEntryUseCase', () => {
       useCase.execute({
         entryId: 'entry-1',
         reason: 'Test reason',
-        actor: makeActor({ role: 'INSP' }),
+        idempotencyKey: 'idem-1', actor: makeActor({ role: 'INSP' }),
       }),
     ).rejects.toThrow(ForbiddenError);
   });
@@ -196,7 +206,7 @@ describe('VoidFinancialEntryUseCase', () => {
       useCase.execute({
         entryId: 'entry-1',
         reason: 'Test reason',
-        actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
+        idempotencyKey: 'idem-1', actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
   });
@@ -210,8 +220,70 @@ describe('VoidFinancialEntryUseCase', () => {
       useCase.execute({
         entryId: 'non-existent',
         reason: 'Test reason',
-        actor: makeActor({ role: 'AM' }),
+        idempotencyKey: 'idem-1', actor: makeActor({ role: 'AM' }),
       }),
     ).rejects.toThrow(EntryNotFoundError);
+  });
+
+  describe('idempotency replay', () => {
+    it('returns the cached response on replay without touching the repository', async () => {
+      const { useCase, financialEntryRepo, auditService, idempotencyService } = sut;
+      const cachedResult = {
+        id: 'entry-1',
+        status: 'VOIDED' as const,
+        voidedBy: 'user-am',
+        voidedAt: new Date().toISOString(),
+        voidReason: 'Entry was created in error',
+      };
+      vi.mocked(idempotencyService.tryAcquire).mockImplementation(async (_key: string, _scope: string, payloadHash: string) => ({
+        status: 'completed',
+        response: cachedResult,
+        payloadHash,
+      }));
+
+      const result = await useCase.execute({
+        entryId: 'entry-1',
+        reason: 'Entry was created in error',
+        idempotencyKey: 'idem-1', actor: makeActor({ role: 'AM' }),
+      });
+
+      expect(result).toEqual({ ...cachedResult, voidedAt: new Date(cachedResult.voidedAt) });
+      expect(financialEntryRepo.voidEntry).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+    });
+
+    it('throws a conflict when the same key is replayed with a different payload', async () => {
+      const { useCase, financialEntryRepo, idempotencyService } = sut;
+      vi.mocked(idempotencyService.tryAcquire).mockResolvedValue({
+        status: 'in_progress',
+        payloadHash: 'a-different-hash',
+      });
+
+      await expect(
+        useCase.execute({
+          entryId: 'entry-1',
+          reason: 'Entry was created in error',
+          idempotencyKey: 'idem-1', actor: makeActor({ role: 'AM' }),
+        }),
+      ).rejects.toThrow(BillingIdempotencyPayloadMismatchError);
+      expect(financialEntryRepo.voidEntry).not.toHaveBeenCalled();
+    });
+
+    it('throws a conflict when a request with the same key and payload is already in progress', async () => {
+      const { useCase, financialEntryRepo, idempotencyService } = sut;
+      vi.mocked(idempotencyService.tryAcquire).mockImplementation(async (_key: string, _scope: string, payloadHash: string) => ({
+        status: 'in_progress',
+        payloadHash,
+      }));
+
+      await expect(
+        useCase.execute({
+          entryId: 'entry-1',
+          reason: 'Entry was created in error',
+          idempotencyKey: 'idem-1', actor: makeActor({ role: 'AM' }),
+        }),
+      ).rejects.toThrow(BillingIdempotencyInProgressError);
+      expect(financialEntryRepo.voidEntry).not.toHaveBeenCalled();
+    });
   });
 });

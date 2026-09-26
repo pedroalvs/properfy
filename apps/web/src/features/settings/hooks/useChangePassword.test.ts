@@ -29,7 +29,7 @@ const VALID_DATA = {
 
 beforeEach(() => {
   mockPost.mockReset();
-  mockPost.mockResolvedValue({ data: { success: true } });
+  mockPost.mockResolvedValue({ data: null, error: undefined, response: { status: 204 } });
 });
 
 describe('useChangePassword', () => {
@@ -72,11 +72,17 @@ describe('useChangePassword', () => {
       res = await result.current.changePassword(VALID_DATA);
     });
     expect(res?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalled();
+    expect(mockPost).toHaveBeenCalledWith('/v1/auth/change-password', {
+      body: { currentPassword: VALID_DATA.currentPassword, newPassword: VALID_DATA.newPassword },
+    });
   });
 
   it('changePassword returns failure on API error', async () => {
-    mockPost.mockResolvedValueOnce({ data: undefined, error: { error: { message: 'Wrong password' } } });
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: { error: { message: 'Wrong password' } },
+      response: { status: 422 },
+    });
     const { result } = renderHook(() => useChangePassword());
     let res: { success: boolean; error?: string } | undefined;
     await act(async () => {

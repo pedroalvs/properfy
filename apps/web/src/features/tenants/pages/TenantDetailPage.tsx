@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { DetailRow } from '@/components/data/DetailRow';
 import { FormSection } from '@/components/forms/FormSection';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useAuth } from '@/hooks/useAuth';
 import { TenantStatusChip } from '../components/TenantStatusChip';
 import { DeactivateAgencyModal } from '../components/DeactivateAgencyModal';
 import { BranchSection } from '../components/BranchSection';
@@ -28,6 +29,7 @@ const TABS = [
 export function TenantDetailPage() {
   const { tenantId: id } = useParams<{ tenantId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { tenant, isLoading, isError, refetch } = useTenantAdminDetail(id ?? null);
 
   const [activeTab, setActiveTab] = useState('overview');
@@ -103,7 +105,19 @@ export function TenantDetailPage() {
     );
   }
 
-  if (isError || !tenant) {
+  if (isError) {
+    return (
+      <div className="px-8 py-6">
+        <EmptyState
+          title="Something went wrong"
+          description="Could not load this agency. Try again."
+          action={{ label: 'Try again', onClick: refetch }}
+        />
+      </div>
+    );
+  }
+
+  if (!tenant) {
     return (
       <div className="px-8 py-6">
         <EmptyState
@@ -115,11 +129,14 @@ export function TenantDetailPage() {
     );
   }
 
-  const secondaryActions = tenant.status === 'ACTIVE'
-    ? [{ label: 'Deactivate', icon: 'mdi-close-circle-outline', onClick: handleDeactivateClick }]
-    : (tenant.status === 'INACTIVE' || tenant.status === 'PENDING')
-      ? [{ label: 'Activate', icon: 'mdi-check-circle-outline', onClick: handleActivateClick }]
-      : [];
+  const canManageStatus = user?.role === 'AM' || user?.role === 'OP';
+  const secondaryActions = canManageStatus
+    ? tenant.status === 'ACTIVE'
+      ? [{ label: 'Deactivate', icon: 'mdi-close-circle-outline', onClick: handleDeactivateClick }]
+      : (tenant.status === 'INACTIVE' || tenant.status === 'PENDING')
+        ? [{ label: 'Activate', icon: 'mdi-check-circle-outline', onClick: handleActivateClick }]
+        : []
+    : [];
 
   return (
     <div className="px-8 py-6">

@@ -39,10 +39,13 @@ vi.mock('@/hooks/useAuth', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+const errorRefetch = vi.fn();
+
 vi.mock('../hooks/useReportDetail', () => ({
   useReportDetail: (id: string | null) => {
     if (!id) return { report: null, isLoading: false, isError: false, refetch: vi.fn() };
     if (id === 'loading') return { report: null, isLoading: true, isError: false, refetch: vi.fn() };
+    if (id === 'error') return { report: null, isLoading: false, isError: true, refetch: errorRefetch };
     return {
       report: {
         id: 'rpt-01', reportType: 'APPOINTMENTS', status: 'READY',
@@ -87,6 +90,15 @@ describe('ReportDetailDrawer', () => {
     renderDrawer({ reportId: 'rpt-01', open: true });
     const matches = screen.getAllByText('appointments-march-2026.xlsx');
     expect(matches.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('W4 #420: shows a recoverable error with retry on load failure', () => {
+    errorRefetch.mockClear();
+    renderDrawer({ reportId: 'error', open: true });
+    expect(screen.getByText("Couldn't load the report.")).toBeInTheDocument();
+    const retry = screen.getByRole('button', { name: /try again/i });
+    fireEvent.click(retry);
+    expect(errorRefetch).toHaveBeenCalledTimes(1);
   });
 
   it('shows report status chip in header', () => {

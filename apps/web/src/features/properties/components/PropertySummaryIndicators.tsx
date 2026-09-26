@@ -1,5 +1,5 @@
 import type { PropertySummaryResponse } from '@properfy/shared';
-import { StatCard } from '@/features/dashboard/components/StatCard';
+import { StatCard, type StatCardVariant } from '@/features/dashboard/components/StatCard';
 
 interface PropertySummaryIndicatorsProps {
   summary: PropertySummaryResponse | null;
@@ -7,32 +7,35 @@ interface PropertySummaryIndicatorsProps {
   isError: boolean;
 }
 
-const CARDS = [
+const CARDS: ReadonlyArray<{
+  key: string;
+  label: string;
+  icon: string;
+  variant: StatCardVariant;
+  value: (s: PropertySummaryResponse) => number;
+}> = [
   {
     key: 'total',
     label: 'Total Properties',
     icon: 'mdi-home-city-outline',
-    colorClass: 'border-secondary',
-    iconColorClass: 'text-secondary',
-    value: (s: PropertySummaryResponse) => s.totalCount,
+    variant: 'secondary',
+    value: (s) => s.totalCount,
   },
   {
     key: 'house',
     label: 'Houses',
     icon: 'mdi-home-outline',
-    colorClass: 'border-primary',
-    iconColorClass: 'text-primary',
-    value: (s: PropertySummaryResponse) => s.houseCount,
+    variant: 'primary',
+    value: (s) => s.houseCount,
   },
   {
     key: 'apartment',
     label: 'Apartments',
     icon: 'mdi-office-building-outline',
-    colorClass: 'border-accent',
-    iconColorClass: 'text-accent',
-    value: (s: PropertySummaryResponse) => s.apartmentCount,
+    variant: 'accent',
+    value: (s) => s.apartmentCount,
   },
-] as const;
+];
 
 export function PropertySummaryIndicators({
   summary,
@@ -69,8 +72,7 @@ export function PropertySummaryIndicators({
           icon={card.icon}
           value={card.value(summary)}
           label={card.label}
-          colorClass={card.colorClass}
-          iconColorClass={card.iconColorClass}
+          variant={card.variant}
         />
       ))}
     </div>

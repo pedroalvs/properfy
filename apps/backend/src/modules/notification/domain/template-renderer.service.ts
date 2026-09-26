@@ -24,7 +24,11 @@ handlebars.registerHelper('formatDate', (date: unknown, format: unknown): string
 
   let result = fmt;
   for (const [token, value] of Object.entries(tokens)) {
-    result = result.replace(token, value);
+    // replaceAll, not replace: a string pattern replaces only the first match, so a
+    // format repeating a token (e.g. 'DD/MM DD') left later occurrences intact. Token
+    // order is preserved and each value is a numeric string containing no token text
+    // (MM's '04' has no 'mm'), so global replacement stays order-safe.
+    result = result.replaceAll(token, value);
   }
   return result;
 });

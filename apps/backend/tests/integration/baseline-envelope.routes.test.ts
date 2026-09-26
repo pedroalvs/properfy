@@ -126,7 +126,7 @@ describe('UX-baseline envelope — POST /v1/inspectors/:id/photo/confirm', () =>
   it('returns the canonical { data } envelope', async () => {
     mockJwtVerify.mockResolvedValue(amContext);
     mockConfirmInspectorPhotoUpload.mockResolvedValue({
-      photoUrl: 'https://example.test/photos/x.png',
+      inspectorId: INSPECTOR_ID,
     });
 
     const res = await supertest(app.server)
@@ -136,7 +136,7 @@ describe('UX-baseline envelope — POST /v1/inspectors/:id/photo/confirm', () =>
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('data');
-    expect(res.body.data.photoUrl).toBe('https://example.test/photos/x.png');
+    expect(res.body.data.inspectorId).toBe(INSPECTOR_ID);
   });
 });
 

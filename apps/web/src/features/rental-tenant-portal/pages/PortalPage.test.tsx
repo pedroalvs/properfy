@@ -210,6 +210,19 @@ describe('PortalPage', () => {
     });
   });
 
+  // WI-W2 (#778): a non-ApiError thrown from the query (e.g. a fetch rejection or
+  // PortalPage's own `new Error('No portal token provided')`) must reach the error
+  // state with its message preserved, not masked as a generic connection error.
+  it('preserves a plain Error message in the error state', async () => {
+    mockGet.mockRejectedValue(new Error('Something specific broke'));
+    renderPortal();
+
+    await waitFor(() => {
+      expect(screen.getByText('Something specific broke')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/check your internet/)).not.toBeInTheDocument();
+  });
+
   it('shows invalid view when API returns PORTAL_TOKEN_INVALID', async () => {
     mockGet.mockResolvedValue({ data: undefined, error: new ApiError(400, 'Invalid', 'PORTAL_TOKEN_INVALID') });
     renderPortal();
@@ -405,8 +418,9 @@ describe('PortalPage', () => {
     );
     expect(screen.queryByRole('button', { name: 'Join this time slot' })).not.toBeInTheDocument();
     expect(mockPost).toHaveBeenCalledWith(
-      '/v1/rental-tenant-portal/test-token/join-group',
+      '/v1/rental-tenant-portal/{token}/join-group',
       {
+        params: { path: { token: 'test-token' } },
         body: {
           groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
           scheduledDate: '2026-06-10',
@@ -678,8 +692,11 @@ describe('PortalPage', () => {
 
       await waitFor(() => {
         expect(mockPost).toHaveBeenCalledWith(
-          '/v1/rental-tenant-portal/test-token/survey',
-          expect.objectContaining({ body: { rating: 5 } }),
+          '/v1/rental-tenant-portal/{token}/survey',
+          expect.objectContaining({
+            params: { path: { token: 'test-token' } },
+            body: { rating: 5 },
+          }),
         );
       });
       // Two GETs: the initial load plus the invalidation-driven refetch.

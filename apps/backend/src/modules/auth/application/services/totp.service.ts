@@ -1,28 +1,30 @@
 import { authenticator } from 'otplib';
 
-export class TotpService {
-  constructor() {
-    // Allow 1 step tolerance (±30 seconds)
-    authenticator.options = { window: 1 };
-  }
+// Configure ONCE, at module scope, on a PRIVATE cloned instance rather than
+// mutating the shared global `authenticator.options` in the constructor (#687).
+// The old constructor assignment was a process-wide side effect: every new
+// TotpService reset options on the module-global `authenticator`, so any other
+// otplib consumer inherited whatever the last-constructed service set.
+const totp = authenticator.clone({ window: 1 }); // ±30s (one step) tolerance
 
+export class TotpService {
   generateSecret(): string {
-    return authenticator.generateSecret();
+    return totp.generateSecret();
   }
 
   generateToken(secret: string): string {
-    return authenticator.generate(secret);
+    return totp.generate(secret);
   }
 
   verify(token: string, secret: string): boolean {
     try {
-      return authenticator.verify({ token, secret });
+      return totp.verify({ token, secret });
     } catch {
       return false;
     }
   }
 
   generateUri(email: string, secret: string, issuer = 'Properfy'): string {
-    return authenticator.keyuri(email, issuer, secret);
+    return totp.keyuri(email, issuer, secret);
   }
 }

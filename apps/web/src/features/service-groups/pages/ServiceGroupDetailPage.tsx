@@ -6,7 +6,7 @@ import { ErrorState } from '@/components/feedback/ErrorState';
 import { Button } from '@/components/ui/Button';
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { PLATFORM_TIMEZONE, ServiceGroupStatus } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, ServiceGroupStatus, AppointmentStatus } from '@properfy/shared';
 import { useServiceGroupDetail } from '../hooks/useServiceGroupDetail';
 import { usePublishServiceGroup } from '../hooks/usePublishServiceGroup';
 import { useAssignInspector } from '../hooks/useAssignInspector';
@@ -157,6 +157,12 @@ export function ServiceGroupDetailPage() {
   // Plan edits (inspector, date, time window) are allowed on any live group;
   // a closed one has no schedule left to move and nobody to hand it to.
   const canChangePlan = isDraft || isPublished || isAccepted;
+  // A PUBLISHED group is awaiting an inspector: surface assignment as a
+  // first-class button rather than burying it in the "Change" menu (which reads
+  // as an edit). The dropdown item is dropped for this state to keep a single
+  // entry point. /assign is valid only for DRAFT/PUBLISHED; ACCEPTED replaces
+  // its inspector via the menu instead.
+  const needsInspectorAssignment = isPublished && !serviceGroup.inspectorId;
   // Portal links can only go to AWAITING_INSPECTOR/SCHEDULED appointments, which
   // exist only in non-terminal groups. Hidden for CANCELLED/REJECTED groups.
   const canSendPortalLinks = isDraft || isPublished || isAccepted;
@@ -175,7 +181,7 @@ export function ServiceGroupDetailPage() {
     scheduledDate: serviceGroup.scheduledDate,
     timeWindow: serviceGroup.timeWindow,
     blockingAppointments: (serviceGroup.appointments ?? [])
-      .filter((a) => a.status !== 'AWAITING_INSPECTOR')
+      .filter((a) => a.status !== AppointmentStatus.AWAITING_INSPECTOR)
       .map((a) => ({ label: `#${a.appointmentNumber}`, status: a.status })),
   });
   const publishBlocked = publishBlockReason !== null;
@@ -241,6 +247,15 @@ export function ServiceGroupDetailPage() {
             Publish
           </Button>
         )}
+        {needsInspectorAssignment && (
+          // Only opens the picker; the in-flight guard lives on the modal's
+          // confirm button (loading={isAssigning}) so a second submit is blocked
+          // there, not by disabling the opener.
+          <Button variant="primary" onClick={() => setAssignOpen(true)}>
+            <i className="mdi mdi-account-plus text-base" aria-hidden="true" />
+            Assign inspector
+          </Button>
+        )}
         {isPublished && (
           <Button
             variant="secondary"
@@ -254,6 +269,7 @@ export function ServiceGroupDetailPage() {
         {canChangePlan && (
           <ServiceGroupActionsMenu
             isReplacement={isAccepted}
+            showChangeInspector={!needsInspectorAssignment}
             onChangeInspector={() => setAssignOpen(true)}
             onChangeDate={() => setRescheduleMode('date')}
             onChangeTimeWindow={() => setRescheduleMode('time-window')}

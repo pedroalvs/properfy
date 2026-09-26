@@ -1,8 +1,10 @@
 import bcrypt from 'bcryptjs';
+import type { PrismaClient } from '@prisma/client';
 import type { IUserRepository } from '../../domain/user.repository';
 import type { ISessionRepository } from '../../domain/session.repository';
 import type { IPasswordHistoryRepository } from '../../domain/password-history.repository';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import { runInTransaction } from '../../../../shared/application/unit-of-work';
 import type { ChangePasswordInput } from '../dtos/change-password.dto';
 import {
   InvalidCurrentPasswordError,
@@ -22,6 +24,7 @@ export class ChangePasswordUseCase {
     private readonly sessionRepo: ISessionRepository,
     private readonly auditService: AuditService,
     private readonly passwordHistoryRepo: IPasswordHistoryRepository,
+    private readonly prisma?: PrismaClient,
   ) {}
 
   async execute(input: ChangePasswordInput): Promise<void> {
@@ -56,21 +59,27 @@ export class ChangePasswordUseCase {
 
     const oldHash = user.passwordHash;
     const newHash = await bcrypt.hash(input.newPassword, 12);
-    await this.userRepo.updatePassword(input.userId, newHash);
-
-    await this.passwordHistoryRepo.save(input.userId, oldHash);
-    await this.passwordHistoryRepo.pruneOldEntries(input.userId, 5);
-
     const sessions = await this.sessionRepo.findActiveByUserId(input.userId);
-    await this.sessionRepo.revokeAllForUser(input.userId, new Date());
 
-    this.auditService.log({
-      action: 'auth.password_changed',
-      actorType: 'USER',
-      actorId: input.userId,
-      entityType: 'USER',
-      entityId: input.userId,
-      metadata: { sessionCount: sessions.length },
+    // Rotate password, record history and revoke every session atomically so a
+    // partial failure can't leave the new hash saved while old sessions live on.
+    // Audit is deferred to after-commit.
+    await runInTransaction(this.prisma, async (ctx) => {
+      await this.userRepo.updatePassword(input.userId, newHash, ctx.tx);
+      await this.passwordHistoryRepo.save(input.userId, oldHash, ctx.tx);
+      await this.passwordHistoryRepo.pruneOldEntries(input.userId, 5, ctx.tx);
+      await this.sessionRepo.revokeAllForUser(input.userId, new Date(), ctx.tx);
+
+      ctx.defer(async () => {
+        this.auditService.log({
+          action: 'auth.password_changed',
+          actorType: 'USER',
+          actorId: input.userId,
+          entityType: 'USER',
+          entityId: input.userId,
+          metadata: { sessionCount: sessions.length },
+        });
+      });
     });
   }
 }

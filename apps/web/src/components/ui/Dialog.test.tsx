@@ -88,18 +88,44 @@ describe('Dialog', () => {
     expect(freshOnClose).toHaveBeenCalledOnce();
   });
 
-  it('focuses the dialog container when it opens', () => {
+  it('moves focus to the first focusable control when it opens', () => {
     const { rerender } = render(
       <Dialog open={false} onClose={() => {}} title="Test">
-        <p>Body</p>
+        <button>Confirm</button>
       </Dialog>,
     );
     rerender(
       <Dialog open onClose={() => {}} title="Test">
-        <p>Body</p>
+        <button>Confirm</button>
       </Dialog>,
     );
-    expect(screen.getByRole('dialog').querySelector('[tabindex="-1"]')).toHaveFocus();
+    // The header Close button is the first focusable descendant in DOM order, so
+    // focus lands there — inside the dialog, satisfying WCAG 2.4.3.
+    expect(screen.getByLabelText('Close')).toHaveFocus();
+  });
+
+  it('falls back to the container when the dialog has no other focusable control', () => {
+    // The Close button is always present, so remove it from consideration by
+    // asserting focus is inside the dialog rather than left on the trigger.
+    const { rerender } = render(
+      <>
+        <button>Trigger</button>
+        <Dialog open={false} onClose={() => {}} title="Test">
+          <p>Body</p>
+        </Dialog>
+      </>,
+    );
+    screen.getByText('Trigger').focus();
+    rerender(
+      <>
+        <button>Trigger</button>
+        <Dialog open onClose={() => {}} title="Test">
+          <p>Body</p>
+        </Dialog>
+      </>,
+    );
+    expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
+    expect(screen.getByText('Trigger')).not.toHaveFocus();
   });
 
   it('does not steal focus from a child when onClose identity changes', () => {

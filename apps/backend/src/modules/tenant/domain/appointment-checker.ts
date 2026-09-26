@@ -1,7 +1,7 @@
 export interface IAppointmentChecker {
   hasOpenAppointmentsForTenant(tenantId: string): Promise<boolean>;
-  hasOpenAppointmentsForBranch(branchId: string): Promise<boolean>;
-  hasOpenAppointmentsForProperty(propertyId: string): Promise<boolean>;
+  hasOpenAppointmentsForBranch(tenantId: string, branchId: string): Promise<boolean>;
+  hasOpenAppointmentsForProperty(tenantId: string, propertyId: string): Promise<boolean>;
 }
 
 /**
@@ -13,11 +13,11 @@ export class StubAppointmentChecker implements IAppointmentChecker {
     return false;
   }
 
-  async hasOpenAppointmentsForBranch(_branchId: string): Promise<boolean> {
+  async hasOpenAppointmentsForBranch(_tenantId: string, _branchId: string): Promise<boolean> {
     return false;
   }
 
-  async hasOpenAppointmentsForProperty(_propertyId: string): Promise<boolean> {
+  async hasOpenAppointmentsForProperty(_tenantId: string, _propertyId: string): Promise<boolean> {
     return false;
   }
 }

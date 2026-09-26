@@ -142,7 +142,7 @@ describe('DeletePropertyUseCase', () => {
       }),
     ).rejects.toThrow(PropertyHasActiveAppointmentsError);
 
-    expect(appointmentChecker.hasOpenAppointmentsForProperty).toHaveBeenCalledWith('prop-1');
+    expect(appointmentChecker.hasOpenAppointmentsForProperty).toHaveBeenCalledWith('tenant-1', 'prop-1');
     expect(propertyRepo.update).not.toHaveBeenCalled();
   });
 
@@ -155,7 +155,7 @@ describe('DeletePropertyUseCase', () => {
       actor: makeActor(),
     });
 
-    expect(appointmentChecker.hasOpenAppointmentsForProperty).toHaveBeenCalledWith('prop-1');
+    expect(appointmentChecker.hasOpenAppointmentsForProperty).toHaveBeenCalledWith('tenant-1', 'prop-1');
     expect(propertyRepo.update).toHaveBeenCalled();
   });
 

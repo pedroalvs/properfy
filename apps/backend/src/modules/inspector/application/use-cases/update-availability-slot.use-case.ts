@@ -96,7 +96,12 @@ export class UpdateAvailabilitySlotUseCase {
     if (data.capacity !== undefined) updateData.capacity = data.capacity;
     if (data.status !== undefined) updateData.status = data.status;
 
-    await this.slotRepo.update(slotId, inspectorId, updateData);
+    const updated = await this.slotRepo.update(slotId, inspectorId, updateData);
+    // Existence was confirmed above; a null here means the guarded write matched
+    // no row (e.g. a concurrent delete) — surface it rather than fabricating output.
+    if (!updated) {
+      throw new AvailabilitySlotNotFoundError();
+    }
 
     const after = {
       date: (updateData.date as Date) ?? slot.date,
@@ -128,7 +133,7 @@ export class UpdateAvailabilitySlotUseCase {
       status: after.status,
       isOperatorOverride: slot.isOperatorOverride,
       createdAt: slot.createdAt,
-      updatedAt: new Date(),
+      updatedAt: updated.updatedAt,
     };
   }
 }

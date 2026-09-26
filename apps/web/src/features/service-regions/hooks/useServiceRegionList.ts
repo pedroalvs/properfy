@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { DataTablePagination } from '@/components/data/DataTable';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import { DEFAULT_FILTERS, type ServiceRegion, type ServiceRegionFiltersState } from '../types';
@@ -15,9 +15,16 @@ export interface UseServiceRegionListReturn {
 }
 
 export function useServiceRegionList(): UseServiceRegionListReturn {
-  const [filters, setFilters] = useState<ServiceRegionFiltersState>(DEFAULT_FILTERS);
+  const [filters, setFiltersState] = useState<ServiceRegionFiltersState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Changing a filter must return to page 1 — otherwise the new result set is
+  // requested at a page that may not exist, showing an empty table (#612).
+  const setFilters = useCallback((next: ServiceRegionFiltersState) => {
+    setFiltersState(next);
+    setPage(1);
+  }, []);
 
   const query = usePaginatedQuery<ServiceRegion>(
     ['service-regions'],

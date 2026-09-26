@@ -19,7 +19,6 @@ export interface ReportUserReader {
 }
 
 const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const EMPTY_APPOINTMENTS_REPORT_MESSAGE = 'No appointments found for the selected agency and period.';
 
 export class ProcessReportJobUseCase {
   constructor(
@@ -95,11 +94,11 @@ export class ProcessReportJobUseCase {
           throw new Error(`Unsupported report type: ${report.reportType}`);
       }
 
-      if (report.reportType === 'APPOINTMENTS' && rows.length === 0) {
-        throw new Error(EMPTY_APPOINTMENTS_REPORT_MESSAGE);
-      }
+      // 5. Generate the XLSX (the only supported output format). An empty result
+      //    is a valid outcome, not a failure: like the other report types, produce
+      //    a header-only sheet and mark READY with rowCount 0 so the requester can
+      //    tell the run succeeded and simply matched no appointments.
 
-      // 5. Generate the XLSX (the only supported output format)
       const columns = resolveReportColumns(report.reportType, report.agencyScoped);
       const buffer = await this.xlsxGenerator.generate(columns, rows);
 

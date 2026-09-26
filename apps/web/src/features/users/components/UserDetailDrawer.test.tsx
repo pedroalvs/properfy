@@ -10,6 +10,7 @@ const mockPost = api.POST as ReturnType<typeof vi.fn>;
 // Mutable holder so individual tests can make the logged-in user match (or not)
 // the user being viewed, to exercise the self-deactivation guard.
 const authState = vi.hoisted(() => ({ userId: 'usr-99' }));
+const mockRefetch = vi.hoisted(() => vi.fn());
 
 vi.mock('@/config/env', () => ({
   env: { apiBaseUrl: 'http://localhost:3000' },
@@ -50,6 +51,8 @@ vi.mock('../hooks/useUserDetail', () => ({
   useUserDetail: (id: string | null) => {
     if (!id) return { user: null, isLoading: false, isError: false, refetch: vi.fn() };
     if (id === 'loading') return { user: null, isLoading: true, isError: false, refetch: vi.fn() };
+    if (id === 'error') return { user: null, isLoading: false, isError: true, refetch: mockRefetch };
+    if (id === 'not-found') return { user: null, isLoading: false, isError: false, refetch: vi.fn() };
     const status = id === 'usr-inactive' ? 'INACTIVE' : 'ACTIVE';
     return {
       user: {
@@ -119,6 +122,7 @@ describe('UserDetailDrawer', () => {
     authState.userId = 'usr-99';
     mockPost.mockReset();
     mockPost.mockResolvedValue({ data: { data: {} } });
+    mockRefetch.mockReset();
   });
 
   afterEach(() => {
@@ -168,6 +172,25 @@ describe('UserDetailDrawer', () => {
   it('shows nothing when userId is null', () => {
     renderDrawer({ userId: null, open: true });
     expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+    expect(screen.queryByText('Personal Details')).not.toBeInTheDocument();
+  });
+
+  it('shows an error state with retry when the detail fetch fails', () => {
+    renderDrawer({ userId: 'error', open: true });
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to load user details');
+    expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
+    expect(screen.queryByText('Personal Details')).not.toBeInTheDocument();
+  });
+
+  it('retries the fetch when Try Again is clicked on the error state', () => {
+    renderDrawer({ userId: 'error', open: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+    expect(mockRefetch).toHaveBeenCalled();
+  });
+
+  it('shows an empty state when the fetch succeeds without data', () => {
+    renderDrawer({ userId: 'not-found', open: true });
+    expect(screen.getByText('User not found')).toBeInTheDocument();
     expect(screen.queryByText('Personal Details')).not.toBeInTheDocument();
   });
 

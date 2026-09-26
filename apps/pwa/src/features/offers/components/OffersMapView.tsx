@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import type MapboxGL from 'mapbox-gl';
+import type { Map as MapboxMap, Marker as MapboxMarker } from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { env } from '@/config/env';
 import { computeBounds, isPlottablePoint, isSinglePointBounds } from '@/lib/map-bounds';
@@ -28,8 +30,14 @@ interface OffersMapViewProps {
   expandedGroup?: ExpandedGroup | null;
 }
 
+/** The mapbox-gl namespace (its default export), dynamically imported at runtime. */
+type MapboxModule = typeof MapboxGL;
+
 const AU_CENTRE: [number, number] = [133.7751, -25.2744];
-const PRIMARY_COLOR = '#009DD9';
+// Design token, resolved by the browser: every usage below is an inline CSS
+// style string on a DOM marker element (never a Mapbox GL paint property), so
+// `var(--color-primary)` cascades from :root exactly like a hardcoded hex would.
+const PRIMARY_COLOR = 'var(--color-primary)';
 
 /** One group on screen: zoom out enough to show the surrounding suburbs. */
 const SINGLE_OFFER_ZOOM = 12;
@@ -134,7 +142,7 @@ function isValidCoordinate(coordinates: { lat: number; lng: number } | null): co
  */
 interface PlacedMarker {
   id: string;
-  marker: any;
+  marker: MapboxMarker;
   lng: number;
   lat: number;
 }
@@ -165,12 +173,13 @@ function applyCollisionOffsets(placed: PlacedMarker[]): void {
     ordered.map((p) => ({ latitude: p.lat, longitude: p.lng })),
     PIN_DIAMETER_PX,
   );
-  ordered.forEach((p, index) => p.marker.setOffset(offsets[index]));
+  // offsets is 1:1 with ordered (resolveCoincidentMarkerOffsets maps each point).
+  ordered.forEach((p, index) => p.marker.setOffset(offsets[index]!));
 }
 
 export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: OffersMapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<MapboxMap | null>(null);
   const markersRef = useRef<PlacedMarker[]>([]);
   const mapLoadedRef = useRef(false);
   const prevExpandedIdRef = useRef<string | null>(null);
@@ -280,7 +289,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     setSelectedAppointmentId(null);
   }, [expandedGroup?.groupId]);
 
-  function renderMode(map: any, mapboxgl: any) {
+  function renderMode(map: MapboxMap, mapboxgl: MapboxModule) {
     markersRef.current.forEach((m) => m.marker.remove());
     markersRef.current = [];
 
@@ -294,8 +303,8 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
   }
 
   function placeOfferMarkers(
-    map: any,
-    mapboxgl: any,
+    map: MapboxMap,
+    mapboxgl: MapboxModule,
     currentOffers: MarketplaceOffer[],
     onSelect: (id: string) => void,
   ) {
@@ -320,7 +329,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     }
   }
 
-  function placeAppointmentMarkers(map: any, mapboxgl: any, group: ExpandedGroup) {
+  function placeAppointmentMarkers(map: MapboxMap, mapboxgl: MapboxModule, group: ExpandedGroup) {
     group.appointments.forEach((appointment, index) => {
       if (!isValidCoordinate(appointment.coordinates)) return;
       const el = makeAppointmentMarkerEl(index);
@@ -360,7 +369,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
    * both are null outside the drill-down, so it early-returned every time and
    * the offers view was never framed at all.)
    */
-  function syncCamera(map: any) {
+  function syncCamera(map: MapboxMap) {
     const currentId = expandedGroup?.groupId ?? null;
     const modeChanged = prevExpandedIdRef.current !== currentId;
     prevExpandedIdRef.current = currentId;

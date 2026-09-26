@@ -125,11 +125,15 @@ describe('DeactivateUserUseCase', () => {
       actor: amActor,
     });
 
-    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-1', {
-      status: 'INACTIVE',
-    });
+    expect(userManagementRepo.update).toHaveBeenCalledWith(
+      'user-1',
+      'tenant-1',
+      { status: 'INACTIVE' },
+      undefined,
+    );
     expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith(
       'user-1',
+      undefined,
     );
   });
 
@@ -145,10 +149,13 @@ describe('DeactivateUserUseCase', () => {
       actor: amActor,
     });
 
-    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', null, {
-      status: 'INACTIVE',
-    });
-    expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith('user-1');
+    expect(userManagementRepo.update).toHaveBeenCalledWith(
+      'user-1',
+      null,
+      { status: 'INACTIVE' },
+      undefined,
+    );
+    expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith('user-1', undefined);
   });
 
   it('should throw AUTH_FORBIDDEN when OP deactivates an internal user', async () => {
@@ -163,16 +170,33 @@ describe('DeactivateUserUseCase', () => {
     expect(userManagementRepo.update).not.toHaveBeenCalled();
   });
 
-  it('should throw AUTH_FORBIDDEN when OP deactivates a tenant user', async () => {
-    await expect(
-      useCase.execute({
-        tenantId: 'tenant-1',
-        userId: 'user-1',
-        reason: 'No longer needed',
-        actor: opActor,
-      }),
-    ).rejects.toThrow('You can only deactivate users from your own tenant');
-    expect(userManagementRepo.update).not.toHaveBeenCalled();
+  it('should allow OP to deactivate an agency user from any tenant (cross-tenant)', async () => {
+    // BUG-6 / CORRECTION-001: OP is cross-tenant. It already creates agency
+    // users; it must be able to deactivate them too. OP is tenant-less, so the
+    // old `actor.tenantId !== tenantId` guard blocked it from every agency user.
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(
+      makeUser({ tenantId: 'tenant-2' }),
+    );
+
+    await useCase.execute({
+      tenantId: 'tenant-2',
+      userId: 'user-1',
+      reason: 'No longer needed',
+      actor: opActor,
+    });
+
+    expect(userManagementRepo.update).toHaveBeenCalledWith(
+      'user-1',
+      'tenant-2',
+      { status: 'INACTIVE' },
+      undefined,
+    );
+    expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith(
+      'user-1',
+      undefined,
+    );
+    // No agency-management gate for OP: it must not consult the tenant setting.
+    expect(tenantRepo.findById).not.toHaveBeenCalled();
   });
 
   it('should allow CL_ADMIN to deactivate own tenant user when allowClientUserManagement is enabled', async () => {
@@ -190,9 +214,12 @@ describe('DeactivateUserUseCase', () => {
       actor: clAdminActor,
     });
 
-    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-1', {
-      status: 'INACTIVE',
-    });
+    expect(userManagementRepo.update).toHaveBeenCalledWith(
+      'user-1',
+      'tenant-1',
+      { status: 'INACTIVE' },
+      undefined,
+    );
   });
 
   it('should throw AUTH_FORBIDDEN when CL_ADMIN deactivates user but allowClientUserManagement is disabled', async () => {
@@ -272,6 +299,7 @@ describe('DeactivateUserUseCase', () => {
 
     expect(userManagementRepo.revokeAllSessions).toHaveBeenCalledWith(
       'user-1',
+      undefined,
     );
   });
 
@@ -300,5 +328,34 @@ describe('DeactivateUserUseCase', () => {
         after: expect.objectContaining({ status: 'INACTIVE' }),
       }),
     );
+  });
+
+  it('rolls back and never audits when a write mid-transaction fails', async () => {
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(makeUser());
+    vi.mocked(userManagementRepo.revokeAllSessions).mockRejectedValue(new Error('db down'));
+
+    const txObject = {} as never;
+    const fakePrisma = {
+      $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) => fn(txObject)),
+    } as never;
+
+    const txUseCase = new DeactivateUserUseCase(
+      userManagementRepo,
+      tenantRepo,
+      auditService,
+      authorizationService,
+      fakePrisma,
+    );
+
+    await expect(
+      txUseCase.execute({
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        reason: 'No longer needed',
+        actor: amActor,
+      }),
+    ).rejects.toThrow('db down');
+
+    expect(auditService.log).not.toHaveBeenCalled();
   });
 });
