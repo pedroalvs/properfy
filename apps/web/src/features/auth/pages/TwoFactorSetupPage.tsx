@@ -285,7 +285,7 @@ export function TwoFactorSetupPage() {
               {setupData && <TotpQr qrDataUrl={qrDataUrl} />}
               {setupData && <TotpSecret secret={setupData.secret} />}
               <div className="flex items-center justify-between gap-4 pt-2">
-                <button type="button" onClick={handleSignOut} className="text-sm font-bold text-text-muted transition hover:text-text-secondary">
+                <button type="button" onClick={handleSignOut} className="rounded text-sm font-bold text-text-muted transition hover:text-text-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                   Sign out
                 </button>
                 <AuthSubmitButtonLike onClick={() => setStep('verify')}>
@@ -301,7 +301,7 @@ export function TwoFactorSetupPage() {
               </p>
               {codeField}
               <div className="flex items-center justify-between gap-4 pt-2">
-                <button type="button" onClick={() => setStep('scan')} className="text-sm font-bold text-primary transition hover:underline">
+                <button type="button" onClick={() => setStep('scan')} className="rounded text-sm font-bold text-primary transition hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                   Back
                 </button>
                 <AuthSubmitButton loading={isConfirming}>Verify &amp; continue</AuthSubmitButton>
@@ -316,7 +316,7 @@ export function TwoFactorSetupPage() {
           {setupData && <TotpSecret secret={setupData.secret} />}
           {codeField}
           <div className="flex items-center justify-between gap-4 pt-2">
-            <button type="button" onClick={handleSkip} disabled={isConfirming} className="text-sm font-bold text-text-muted transition hover:text-text-secondary disabled:opacity-50">
+            <button type="button" onClick={handleSkip} disabled={isConfirming} className="rounded text-sm font-bold text-text-muted transition hover:text-text-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50">
               Skip for now
             </button>
             <AuthSubmitButton loading={isConfirming}>Enable 2FA</AuthSubmitButton>
