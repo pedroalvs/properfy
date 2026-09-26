@@ -46,6 +46,7 @@ function render2fa() {
 const noopAuth = {
   user: null,
   isAuthenticated: false,
+  isLoading: false,
   pendingTotpSetup: null,
   setupPendingTotp: vi.fn(),
   confirmPendingTotp: vi.fn(),
@@ -173,6 +174,15 @@ describe('TwoFactorSetupPage — guard', () => {
     mockUseAuth.mockReturnValue({ ...noopAuth });
     render2fa();
     expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
+  });
+
+  it('waits for session hydration before deciding (no premature redirect)', () => {
+    // A hard refresh on /2fa-setup: isAuthenticated is still false while /v1/me
+    // loads. Deciding now would bounce a valid session to /login.
+    mockUseAuth.mockReturnValue({ ...noopAuth, isLoading: true });
+    render2fa();
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('redirects an authenticated, already-enrolled user home', () => {

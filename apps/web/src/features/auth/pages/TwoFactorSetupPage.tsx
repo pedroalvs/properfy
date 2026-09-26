@@ -87,6 +87,7 @@ export function TwoFactorSetupPage() {
   const {
     user,
     isAuthenticated,
+    isLoading: authLoading,
     pendingTotpSetup,
     setupPendingTotp,
     confirmPendingTotp,
@@ -123,13 +124,16 @@ export function TwoFactorSetupPage() {
     [navigate],
   );
 
-  // Guard: nothing to enrol here → send the user where they belong.
+  // Guard: nothing to enrol here → send the user where they belong. Wait for the
+  // session to hydrate first: on a hard refresh `isAuthenticated` is false until
+  // /v1/me resolves, so deciding early would bounce a valid session to /login.
   useEffect(() => {
+    if (authLoading) return;
     if (mode === null && !settledRef.current) {
       settledRef.current = true;
       navigate(isAuthenticated ? '/' : '/login', { replace: true });
     }
-  }, [mode, isAuthenticated, navigate]);
+  }, [authLoading, mode, isAuthenticated, navigate]);
 
   // Fetch the QR/secret once the mode is known.
   const setupStartedRef = useRef(false);
@@ -215,6 +219,17 @@ export function TwoFactorSetupPage() {
     settledRef.current = true;
     navigate('/login', { replace: true });
   }, [cancelTotpSetup, navigate]);
+
+  // While the session hydrates on a fresh load, hold the screen rather than
+  // deciding the mode from an unresolved auth state.
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-app-bg px-6" role="status">
+        <i className="mdi mdi-loading mdi-spin text-4xl text-primary" aria-hidden="true" />
+        <span className="sr-only">Restoring session</span>
+      </div>
+    );
+  }
 
   if (mode === null) return null;
 
