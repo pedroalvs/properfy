@@ -20,6 +20,7 @@ const Loadable = (Component: any) => (props: any) => (
 const LoginPage = Loadable(lazyRetry(() => import('@/features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage }))));
 const ForgotPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage }))));
 const ResetPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages/ResetPasswordPage').then(m => ({ default: m.ResetPasswordPage }))));
+const TwoFactorSetupPage = Loadable(lazyRetry(() => import('@/features/auth/pages/TwoFactorSetupPage').then(m => ({ default: m.TwoFactorSetupPage }))));
 const AnalyticsPage = Loadable(lazyRetry(() => import('@/features/analytics/pages/AnalyticsPage').then(m => ({ default: m.AnalyticsPage }))));
 const InspectorWorkloadPage = Loadable(lazyRetry(() => import('@/features/inspector-workload/pages/InspectorWorkloadPage').then(m => ({ default: m.InspectorWorkloadPage }))));
 const AppointmentListPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentListPage').then(m => ({ default: m.AppointmentListPage }))));
@@ -100,6 +101,15 @@ export const routes: RouteObject[] = [
   {
     path: '/reset-password',
     element: <ResetPasswordPage />,
+    errorElement: <AppErrorBoundary />,
+  },
+  {
+    // First-time 2FA enrolment after login. Public (outside ProtectedRoute): the
+    // mandatory AM case has no full session yet, only an in-memory setup-stage
+    // token. The page derives its own mode and guard-redirects when there is
+    // nothing to enrol.
+    path: '/2fa-setup',
+    element: <TwoFactorSetupPage />,
     errorElement: <AppErrorBoundary />,
   },
   {

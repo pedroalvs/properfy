@@ -19,6 +19,13 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+// Mock the suggestion gate so the routing tests don't depend on real localStorage
+// (jsdom omits it here) — snooze behaviour has its own dedicated test.
+vi.mock('../lib/totp-suggestion', () => ({
+  shouldSuggestTotp: (u: { role: string; totpEnabled?: boolean } | null) =>
+    !!u && u.role !== 'AM' && u.totpEnabled !== true,
+}));
+
 function renderLogin() {
   return render(
     <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -34,15 +41,18 @@ function renderLogin() {
 // the stored post-login redirect — actually runs, the same way it does against
 // the real auth context.
 let authIsAuthenticated = false;
+let authUser: { id: string; role: string; totpEnabled?: boolean } | null = null;
+let authPendingTotpSetup: { email: string } | null = null;
 
 function setupAuthMock() {
   mockUseAuth.mockImplementation(() => ({
     login: mockLogin,
-    user: null,
+    user: authUser,
     token: null,
     isAuthenticated: authIsAuthenticated,
     isLoading: false,
     logout: vi.fn(),
+    pendingTotpSetup: authPendingTotpSetup,
   }));
 }
 
@@ -53,6 +63,8 @@ describe('LoginPage', () => {
     mockUseAuth.mockReset();
     sessionStorage.clear();
     authIsAuthenticated = false;
+    authUser = null;
+    authPendingTotpSetup = null;
     setupAuthMock();
   });
 
@@ -203,11 +215,12 @@ describe('LoginPage', () => {
     });
   });
 
-  it('shows a clear message (not a silent bounce) when 2FA setup is pending', async () => {
-    const { ApiError } = await import('@/lib/api-error');
-    mockLogin.mockRejectedValueOnce(
-      new ApiError(200, 'Two-factor authentication setup required', 'AUTH_TOTP_SETUP_REQUIRED'),
-    );
+  it('routes an admin owing 2FA enrolment to the setup screen (no dead-end message)', async () => {
+    // The account owes mandatory enrolment: login resolves (no throw) and the
+    // auth context exposes pendingTotpSetup.
+    mockLogin.mockImplementationOnce(async () => {
+      authPendingTotpSetup = { email: 'admin@example.com' };
+    });
     renderLogin();
 
     fireEvent.change(screen.getByLabelText('Work Email'), {
@@ -218,12 +231,54 @@ describe('LoginPage', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /two-factor authentication setup is required/i,
-    );
-    // The account must not be treated as a code-entry flow, and must not navigate.
-    expect(screen.queryByLabelText('Authentication Code')).not.toBeInTheDocument();
-    expect(mockNavigate).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/2fa-setup', { replace: true });
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('routes an unenrolled non-AM user to the optional 2FA suggestion', async () => {
+    mockLogin.mockImplementationOnce(async () => {
+      authIsAuthenticated = true;
+      authUser = { id: 'op-1', role: 'OP' };
+    });
+    renderLogin();
+
+    fireEvent.change(screen.getByLabelText('Work Email'), {
+      target: { value: 'op@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'password123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/2fa-setup', { replace: true });
+    });
+  });
+
+  it('sends an already-enrolled non-AM (used a code) straight to the app', async () => {
+    const { ApiError } = await import('@/lib/api-error');
+    mockLogin
+      .mockRejectedValueOnce(new ApiError(403, 'TOTP required', 'AUTH_TOTP_REQUIRED'))
+      .mockImplementationOnce(async () => {
+        authIsAuthenticated = true;
+        authUser = { id: 'op-1', role: 'OP', totpEnabled: true };
+      });
+    renderLogin();
+
+    fireEvent.change(screen.getByLabelText('Work Email'), { target: { value: 'op@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+
+    fireEvent.change(await screen.findByLabelText('Authentication Code'), {
+      target: { value: '123456' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
+    });
   });
 
   it('redirects authenticated users away from the login page', async () => {

@@ -41,7 +41,9 @@ function redirectToLogin(): void {
 api.use({
   async onRequest({ request }) {
     const token = authStorage.getAccessToken();
-    if (token) {
+    // Respect an explicit per-request Authorization (e.g. the in-memory 2FA
+    // setup-stage token), which is never stored in authStorage.
+    if (token && !request.headers.has('Authorization')) {
       request.headers.set('Authorization', `Bearer ${token}`);
     }
     request.headers.set('x-request-id', crypto.randomUUID());

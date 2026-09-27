@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ApiError, getErrorMessage } from '@/lib/api-error';
 import { consumePostLoginRedirect } from '@/lib/post-login-redirect';
+import { shouldSuggestTotp } from '../lib/totp-suggestion';
 import { AuthLayout } from '../components/AuthLayout';
 import { AuthField } from '../components/AuthField';
 import { AuthPasswordField } from '../components/AuthPasswordField';
@@ -37,7 +38,7 @@ function getLoginErrorMessage(error: unknown): string {
 }
 
 export function LoginPage() {
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading, user, pendingTotpSetup } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -48,9 +49,21 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    // Mandatory 2FA enrolment (AM): no full session yet, only a staged token.
+    if (pendingTotpSetup) {
+      navigate('/2fa-setup', { replace: true });
+      return;
+    }
     if (!isAuthenticated) return;
+    // Optional suggestion for unenrolled non-AM web roles. `requiresTotp` being
+    // false means they signed in with a password only — so they cannot be
+    // enrolled — which sidesteps the brief window before /me hydrates totpEnabled.
+    if (!requiresTotp && shouldSuggestTotp(user)) {
+      navigate('/2fa-setup', { replace: true });
+      return;
+    }
     navigate(consumePostLoginRedirect() ?? '/', { replace: true });
-  }, [isAuthenticated, navigate]);
+  }, [pendingTotpSetup, isAuthenticated, requiresTotp, user, navigate]);
 
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
