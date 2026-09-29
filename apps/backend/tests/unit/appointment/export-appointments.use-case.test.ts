@@ -426,9 +426,38 @@ describe('ExportAppointmentsUseCase', () => {
       }
     });
 
-    it('caps the numbered columns at 4 additional contacts', async () => {
+    it('caps the numbered columns at 4 additional contacts and overflows the rest', async () => {
       const primary = makeContact();
       const extras = Array.from({ length: 6 }, (_, i) =>
+        makeContact({
+          id: `c-${i + 2}`,
+          role: 'OTHER' as AppointmentContactRole,
+          isPrimary: false,
+          snapshotName: `Extra ${i + 2}`,
+          snapshotPhone: `+6140000000${i}`,
+          snapshotEmail: null,
+        }),
+      );
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+        makeAppointmentListItem({}, { contact: primary, contacts: [primary, ...extras] }),
+      ]);
+
+      await useCase.execute({ filters: {}, actor: makeActor() });
+
+      // Numbered columns stop at Contact 5 (4 extras); the overflow column holds the rest.
+      expect(generatedColumns.some((c) => c.key === 'contact5Name')).toBe(true);
+      expect(generatedColumns.some((c) => c.key === 'contact6Name')).toBe(false);
+      expect(generatedColumns.some((c) => c.key === 'contactsOverflow')).toBe(true);
+      // Extras 2–5 fill the numbered columns; extras 6 and 7 overflow.
+      expect(generatedRows[0]!.contactsOverflow).toBe(
+        'Extra 6 (Other) — +61400000004; Extra 7 (Other) — +61400000005',
+      );
+    });
+
+    it('adds no overflow column when every row fits within the cap', async () => {
+      const primary = makeContact();
+      const extras = Array.from({ length: 3 }, (_, i) =>
         makeContact({ id: `c-${i + 2}`, isPrimary: false, snapshotName: `Extra ${i + 2}` }),
       );
       vi.mocked(appointmentRepo.count).mockResolvedValue(1);
@@ -438,8 +467,8 @@ describe('ExportAppointmentsUseCase', () => {
 
       await useCase.execute({ filters: {}, actor: makeActor() });
 
-      expect(generatedColumns.some((c) => c.key === 'contact5Name')).toBe(true);
-      expect(generatedColumns.some((c) => c.key === 'contact6Name')).toBe(false);
+      expect(generatedColumns.some((c) => c.key === 'contactsOverflow')).toBe(false);
+      expect(generatedRows[0]).not.toHaveProperty('contactsOverflow');
     });
   });
 });

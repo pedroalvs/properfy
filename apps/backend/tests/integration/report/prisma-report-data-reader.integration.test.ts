@@ -264,6 +264,8 @@ describe('getFinancialRows — confirmation date column', () => {
   // Isolated dataset (own tenant + August window) so it never perturbs the
   // shared ledger the counts/totals above assert against.
   let cdTenantId: string;
+  let routineAptNumber: number;
+  let ingoingAptNumber: number;
   const rnd = () => Math.random().toString(36).slice(2, 10);
   const cdFilters = (overrides: Partial<ReportDataFilters> = {}): ReportDataFilters => ({
     fromDate: '2026-08-01',
@@ -293,27 +295,33 @@ describe('getFinancialRows — confirmation date column', () => {
       data: { code: `IN-${rnd()}`, name: `Ingoing ${rnd()}`, flow_type: 'INGOING', requires_rental_tenant_confirmation: false, status: 'ACTIVE' },
     });
 
-    const mkApt = async (serviceTypeId: string, status: 'DONE' | 'SCHEDULED') =>
+    // Both appointments are DONE and operator-cross-checked, since a ledger
+    // entry only ever exists after that point.
+    const mkApt = async (serviceTypeId: string, confirmationStatus: 'CONFIRMED' | 'PENDING') =>
       prisma.appointment.create({
         data: {
           tenant_id: cdTenantId,
           branch_id: branch.id,
           property_id: property.id,
           service_type_id: serviceTypeId,
-          status,
+          status: 'DONE',
           scheduled_date: new Date('2026-08-05T00:00:00.000Z'),
           time_slot_start: '09:00',
           time_slot_end: '10:00',
           price_amount: '100.00',
           payout_amount: '80.00',
           pricing_rule_snapshot_json: {},
-          rental_tenant_confirmation_status: status === 'DONE' ? 'CONFIRMED' : 'PENDING',
+          rental_tenant_confirmation_status: confirmationStatus,
           created_by_user_id: user.id,
+          done_marked_by_user_id: user.id,
+          done_checked_by_user_id: user.id,
+          done_checked_at: new Date('2026-08-06T00:00:00.000Z'),
         },
       });
 
     // Confirmed routine appointment: attach a CONFIRMED active cycle carrying the timestamp.
-    const routineApt = await mkApt(routineST.id, 'DONE');
+    const routineApt = await mkApt(routineST.id, 'CONFIRMED');
+    routineAptNumber = routineApt.appointment_number;
     const cycle = await prisma.appointmentConfirmationCycle.create({
       data: {
         appointment_id: routineApt.id,
@@ -329,8 +337,9 @@ describe('getFinancialRows — confirmation date column', () => {
       data: { active_confirmation_cycle_id: cycle.id },
     });
 
-    // Ingoing appointment: no occupant to confirm.
-    const ingoingApt = await mkApt(ingoingST.id, 'SCHEDULED');
+    // Ingoing appointment: no occupant to confirm (never gets a confirmation).
+    const ingoingApt = await mkApt(ingoingST.id, 'PENDING');
+    ingoingAptNumber = ingoingApt.appointment_number;
 
     const fe = (appointmentId: string) =>
       prisma.financialEntry.create({
@@ -350,22 +359,22 @@ describe('getFinancialRows — confirmation date column', () => {
     await fe(ingoingApt.id);
   }, 180_000);
 
-  it('shows the tenant confirmation date for a confirmed routine appointment', async () => {
+  it('puts the confirmation date on the confirmed routine row and N/A on the ingoing row', async () => {
     const rows = await reader.getFinancialRows(cdFilters());
-    const routineRow = rows.find((r) => r.confirmationDate === '05/08/2026');
-    expect(routineRow).toBeDefined();
-  });
 
-  it("shows 'N/A' for an appointment whose flow type has no occupant to confirm", async () => {
-    const rows = await reader.getFinancialRows(cdFilters());
-    const naRow = rows.find((r) => r.confirmationDate === 'N/A');
-    expect(naRow).toBeDefined();
+    const routineRow = rows.find((r) => r.appointmentNumber === routineAptNumber);
+    const ingoingRow = rows.find((r) => r.appointmentNumber === ingoingAptNumber);
+    expect(routineRow?.confirmationDate).toBe('05/08/2026');
+    expect(ingoingRow?.confirmationDate).toBe('N/A');
   });
 
   it('carries the confirmation date through the agency-scoped variant too', async () => {
     const rows = await reader.getFinancialRows(cdFilters({ agencyScoped: true }));
-    expect(rows.some((r) => r.confirmationDate === '05/08/2026')).toBe(true);
-    expect(rows.some((r) => r.confirmationDate === 'N/A')).toBe(true);
+
+    const routineRow = rows.find((r) => r.appointmentNumber === routineAptNumber);
+    const ingoingRow = rows.find((r) => r.appointmentNumber === ingoingAptNumber);
+    expect(routineRow?.confirmationDate).toBe('05/08/2026');
+    expect(ingoingRow?.confirmationDate).toBe('N/A');
   });
 });
 

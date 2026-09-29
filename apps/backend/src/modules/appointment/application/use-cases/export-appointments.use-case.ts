@@ -45,7 +45,10 @@ const MAX_ADDITIONAL_CONTACT_COLUMNS = 4;
  * reusing the report module's `APPOINTMENTS_COLUMNS`, which is keyed to the
  * report data reader's row shape.
  */
-export function buildAppointmentExportColumns(additionalContacts: number): ReportColumn[] {
+export function buildAppointmentExportColumns(
+  additionalContacts: number,
+  hasOverflow = false,
+): ReportColumn[] {
   const contactColumns: ReportColumn[] = [];
   for (let i = 0; i < additionalContacts; i++) {
     const n = i + 2; // primary is contact 1 (the Tenant* columns)
@@ -55,6 +58,11 @@ export function buildAppointmentExportColumns(additionalContacts: number): Repor
       { key: `contact${n}Phone`, label: `Contact ${n} Phone`, width: 18 },
       { key: `contact${n}Email`, label: `Contact ${n} Email`, width: 30 },
     );
+  }
+  // Any contacts past the numbered-column cap are collected into one trailing
+  // cell rather than dropped silently — rare (6 roles exist), but never lost.
+  if (hasOverflow) {
+    contactColumns.push({ key: 'contactsOverflow', label: 'More Contacts', width: 40 });
   }
 
   return [
@@ -146,14 +154,18 @@ export class ExportAppointmentsUseCase {
     // One fixed column set for the whole sheet: size it to the row with the most
     // contacts (clamped), so no contact is dropped and thinner rows just leave
     // the trailing Contact columns blank.
-    const additionalContacts = Math.min(
-      MAX_ADDITIONAL_CONTACT_COLUMNS,
-      items.reduce((max, item) => Math.max(max, (item.contacts?.length ?? 1) - 1), 0),
+    const maxExtraContacts = items.reduce(
+      (max, item) => Math.max(max, (item.contacts?.length ?? 1) - 1),
+      0,
     );
+    const additionalContacts = Math.min(MAX_ADDITIONAL_CONTACT_COLUMNS, maxExtraContacts);
+    // Contacts past the cap don't get their own columns; they overflow into one
+    // trailing "More Contacts" cell instead of being silently dropped.
+    const hasOverflow = maxExtraContacts > MAX_ADDITIONAL_CONTACT_COLUMNS;
 
     const buffer = await this.xlsxGenerator.generate(
-      buildAppointmentExportColumns(additionalContacts),
-      items.map((item) => this.toRow(item, additionalContacts)),
+      buildAppointmentExportColumns(additionalContacts, hasOverflow),
+      items.map((item) => this.toRow(item, additionalContacts, hasOverflow)),
     );
 
     return {
@@ -163,7 +175,11 @@ export class ExportAppointmentsUseCase {
     };
   }
 
-  private toRow(item: AppointmentListItem, additionalContacts: number): Record<string, unknown> {
+  private toRow(
+    item: AppointmentListItem,
+    additionalContacts: number,
+    hasOverflow: boolean,
+  ): Record<string, unknown> {
     const { appointment } = item;
     const prefix = item.tenantAppointmentCodePrefix ?? 'INS';
     // A CANCELLED row carries a cancellation code and a REJECTED one a rejection
@@ -214,6 +230,17 @@ export class ExportAppointmentsUseCase {
       row[`contact${n}Role`] = contact ? formatReasonCodeLabel(contact.role) : '';
       row[`contact${n}Phone`] = contact?.effectivePhone ?? '';
       row[`contact${n}Email`] = contact?.effectiveEmail ?? '';
+    }
+    if (hasOverflow) {
+      row.contactsOverflow = extraContacts
+        .slice(additionalContacts)
+        .map((c) => {
+          const role = formatReasonCodeLabel(c.role);
+          const channels = [c.effectivePhone, c.effectiveEmail].filter(Boolean).join(' / ');
+          const suffix = channels ? ` — ${channels}` : '';
+          return `${c.effectiveName} (${role})${suffix}`;
+        })
+        .join('; ');
     }
 
     return row;
