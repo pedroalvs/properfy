@@ -19,7 +19,6 @@ vi.mock('react-router-dom', async () => {
 const baseAppointment: InspectorAppointment = {
   id: 'apt-1',
   appointmentCode: 'INS-0042',
-  propertyCode: 'ACM-PROP-0007',
   propertyAddress: '123 Collins St',
   suburb: 'Melbourne',
   scheduledDate: '2026-03-18',
@@ -56,16 +55,10 @@ describe('AppointmentCard', () => {
     expect(screen.getByTestId('appointment-code')).toHaveTextContent('INS-0042');
   });
 
-  // Doc §7.3 lists "Realty codes" alongside the service code — two different
-  // identifiers, both on the card.
-  it('displays the property (realty) code next to the appointment code', () => {
+  // The property (realty) code is not surfaced anywhere in the PWA — neither on
+  // the card nor on the appointment detail page — so the chip must never render.
+  it('never renders the property code badge on the card', () => {
     renderWithProviders(<AppointmentCard appointment={baseAppointment} />);
-    expect(screen.getByTestId('property-code')).toHaveTextContent('ACM-PROP-0007');
-  });
-
-  it('omits the property code badge when the appointment carries none', () => {
-    const { propertyCode: _propertyCode, ...withoutCode } = baseAppointment;
-    renderWithProviders(<AppointmentCard appointment={withoutCode} />);
     expect(screen.queryByTestId('property-code')).toBeNull();
     expect(screen.getByTestId('appointment-code')).toHaveTextContent('INS-0042');
   });
