@@ -39,6 +39,20 @@ describe('backfillFinancialEntriesOnDone', () => {
     expect(summary.failures).toEqual([]);
   });
 
+  it('does not count an idempotent no-op (both ids null) as a repair', async () => {
+    const { prisma } = makePrisma(['appt-1']);
+    const useCase = {
+      execute: vi.fn().mockResolvedValue({ debitEntryId: null, payoutEntryId: null }),
+    };
+
+    const summary = await backfillFinancialEntriesOnDone(prisma, useCase, { apply: true });
+
+    expect(useCase.execute).toHaveBeenCalledOnce();
+    expect(summary.appointmentsRepaired).toBe(0);
+    expect(summary.entriesCreated).toBe(0);
+    expect(summary.failures).toEqual([]);
+  });
+
   it('records a per-appointment failure and continues with the rest', async () => {
     const { prisma } = makePrisma(['appt-1', 'appt-2']);
     const useCase = {

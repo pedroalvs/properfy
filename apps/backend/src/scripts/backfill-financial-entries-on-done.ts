@@ -58,9 +58,11 @@ export async function backfillFinancialEntriesOnDone(
   useCase: OnDoneHandler,
   options: { apply: boolean; tenantId?: string },
 ): Promise<BackfillFinancialSummary> {
-  // A cross-checked DONE appointment with zero financial entries is exactly the
-  // stuck state. `financial_entries: { none: {} }` scopes to that; the use case
-  // still fills any single missing leg for a selected appointment.
+  // A cross-checked DONE appointment with NO financial entries is exactly the
+  // stuck state this repairs — `financial_entries: { none: {} }` selects only
+  // those. An appointment with a partial leg (one entry present) is left alone;
+  // that state never occurs from the bug (all inserts failed together) and the
+  // use case is idempotent if such a row is ever fed to it directly.
   const candidates = await prisma.appointment.findMany({
     where: {
       status: 'DONE',
@@ -86,15 +88,41 @@ export async function backfillFinancialEntriesOnDone(
   for (const appt of candidates) {
     try {
       const result = await useCase.execute({ appointmentId: appt.id });
-      summary.appointmentsRepaired++;
-      if (result.debitEntryId) summary.entriesCreated++;
-      if (result.payoutEntryId) summary.entriesCreated++;
+      const created = (result.debitEntryId ? 1 : 0) + (result.payoutEntryId ? 1 : 0);
+      // Only count an appointment as repaired when this run actually created an
+      // entry — a fully-idempotent no-op (both null) is not a repair.
+      if (created > 0) summary.appointmentsRepaired++;
+      summary.entriesCreated += created;
     } catch (err) {
       summary.failures.push({ appointmentId: appt.id, message: err instanceof Error ? err.message : String(err) });
     }
   }
 
   return summary;
+}
+
+/**
+ * `PersistentAuditService.log()` fires `auditLogRepo.save().catch()` WITHOUT
+ * awaiting, so the use case's `financial_entry.created` audit writes are still
+ * in flight when the loop returns. This subclass records them so the script can
+ * drain before `prisma.$disconnect()` — otherwise tearing down the pool aborts
+ * the last appointments' audit rows (the financial entries themselves are safe;
+ * their repo saves are awaited inside the use case).
+ */
+class DrainingAuditLogRepository extends PrismaAuditLogRepository {
+  readonly pending: Promise<void>[] = [];
+
+  override async save(entry: Parameters<PrismaAuditLogRepository['save']>[0]): Promise<void> {
+    const p = super.save(entry);
+    this.pending.push(p);
+    return p;
+  }
+
+  async drain(): Promise<void> {
+    // allSettled: a failed audit insert must not throw here — the service that
+    // called save() already attached its own `.catch`; this only awaits timing.
+    await Promise.allSettled(this.pending);
+  }
 }
 
 async function main() {
@@ -107,7 +135,8 @@ async function main() {
   // Real audit service so backfilled entries record `financial_entry.created`
   // exactly as the live cross-check path does. Idempotency is a no-op: the use
   // case dedups per appointment+type at the database, which is the real guard.
-  const auditService = new PersistentAuditService(new PrismaAuditLogRepository(prisma), logger);
+  const auditRepo = new DrainingAuditLogRepository(prisma);
+  const auditService = new PersistentAuditService(auditRepo, logger);
   const noopIdempotency = { get: async () => null, set: async () => {} } as unknown as IIdempotencyService;
   const useCase = new CreateFinancialEntriesOnDoneUseCase(
     new PrismaAppointmentRepository(prisma),
@@ -141,6 +170,8 @@ async function main() {
       console.log('\n  Done. Entries are PENDING; an operator must approve them to appear in the financial report.\n');
     }
   } finally {
+    // Let the fire-and-forget audit writes finish before the pool closes.
+    await auditRepo.drain();
     await prisma.$disconnect();
   }
 }
