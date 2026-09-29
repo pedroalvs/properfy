@@ -20,6 +20,7 @@ import type { DeactivateUserUseCase } from '../application/use-cases/deactivate-
 import type { ReactivateUserUseCase } from '../application/use-cases/reactivate-user.use-case';
 import type { UnlockUserUseCase } from '../application/use-cases/unlock-user.use-case';
 import type { ResetUserPasswordUseCase } from '../application/use-cases/reset-user-password.use-case';
+import type { ResetUserTotpUseCase } from '../application/use-cases/reset-user-totp.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface UserRouteContainer {
@@ -31,6 +32,7 @@ export interface UserRouteContainer {
   reactivateUserUseCase: ReactivateUserUseCase;
   unlockUserUseCase: UnlockUserUseCase;
   resetUserPasswordUseCase: ResetUserPasswordUseCase;
+  resetUserTotpUseCase: ResetUserTotpUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -399,6 +401,50 @@ export async function registerUserRoutes(
         tenantId: null,
         userId,
         newPassword,
+        actor: request.authContext!,
+        requestId: request.id,
+      });
+      return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/tenants/:tenantId/users/:userId/2fa/reset — admin resets an agency user's 2FA
+  app.post(
+    '/v1/tenants/:tenantId/users/:userId/2fa/reset',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: userIdParam,
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      const { tenantId, userId } = request.params as z.infer<typeof userIdParam>;
+      await container.resetUserTotpUseCase.execute({
+        tenantId,
+        userId,
+        actor: request.authContext!,
+        requestId: request.id,
+      });
+      return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/users/:userId/2fa/reset — admin resets an internal user's 2FA
+  app.post(
+    '/v1/users/:userId/2fa/reset',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: internalUserIdParam,
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      const { userId } = request.params as z.infer<typeof internalUserIdParam>;
+      await container.resetUserTotpUseCase.execute({
+        tenantId: null,
+        userId,
         actor: request.authContext!,
         requestId: request.id,
       });

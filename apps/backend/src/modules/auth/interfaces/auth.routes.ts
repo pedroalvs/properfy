@@ -8,6 +8,7 @@ import type { RevokeSessionUseCase } from '../application/use-cases/revoke-sessi
 import type { ListSessionsUseCase } from '../application/use-cases/list-sessions.use-case';
 import type { SetupTotpUseCase } from '../application/use-cases/setup-totp.use-case';
 import type { ConfirmTotpUseCase } from '../application/use-cases/confirm-totp.use-case';
+import type { DisableTotpUseCase } from '../application/use-cases/disable-totp.use-case';
 import type { RequestPasswordResetUseCase } from '../application/use-cases/request-password-reset.use-case';
 import type { ConsumePasswordResetUseCase } from '../application/use-cases/consume-password-reset.use-case';
 import type { UpdateMyTimezoneUseCase } from '../application/use-cases/update-my-timezone.use-case';
@@ -26,7 +27,7 @@ import { z } from 'zod';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import type { JwtService } from '../application/services/jwt.service';
 import { ValidationError } from '../../../shared/domain/errors';
-import { totpSetupResponseSchema, confirmTotpBodySchema } from '../application/dtos/totp.dto';
+import { totpSetupResponseSchema, confirmTotpBodySchema, disableTotpBodySchema } from '../application/dtos/totp.dto';
 import { sessionListResponseSchema, sessionIdParamSchema } from '../application/dtos/session.dto';
 
 export interface AuthRouteContainer {
@@ -40,6 +41,7 @@ export interface AuthRouteContainer {
   listSessionsUseCase: ListSessionsUseCase;
   setupTotpUseCase: SetupTotpUseCase;
   confirmTotpUseCase: ConfirmTotpUseCase;
+  disableTotpUseCase: DisableTotpUseCase;
   requestPasswordResetUseCase: RequestPasswordResetUseCase;
   consumePasswordResetUseCase: ConsumePasswordResetUseCase;
   jwtService: JwtService;
@@ -226,6 +228,29 @@ export async function registerAuthRoutes(
       await container.confirmTotpUseCase.execute({
         userId: request.authContext!.userId,
         totpCode: parsed.data.totpCode,
+      });
+      return reply.status(204).send();
+    },
+  );
+
+  // POST /v1/auth/2fa/disable — self-service, full session only (no setup stage).
+  app.post(
+    '/v1/auth/2fa/disable',
+    {
+      preHandler: authenticate,
+      schema: {
+        body: disableTotpBodySchema,
+        response: { 204: z.null() },
+      },
+    },
+    async (request, reply) => {
+      const parsed = disableTotpBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      await container.disableTotpUseCase.execute({
+        userId: request.authContext!.userId,
+        currentPassword: parsed.data.currentPassword,
       });
       return reply.status(204).send();
     },

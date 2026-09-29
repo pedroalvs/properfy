@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { Snackbar } from '@/components/feedback/Snackbar';
 
@@ -55,7 +56,13 @@ function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   lastQueryClient = queryClient;
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return <QueryClientProvider client={queryClient}><SnackbarProvider>{children}<Snackbar /></SnackbarProvider></QueryClientProvider>;
+    return (
+      <MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <SnackbarProvider>{children}<Snackbar /></SnackbarProvider>
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
   };
 }
 
@@ -86,10 +93,29 @@ describe('AccountSettingsPage', () => {
     expect(screen.getByText('Australia/Sydney')).toBeInTheDocument();
   });
 
-  it('renders change password form', () => {
+  it('exposes a Security tab', () => {
     renderPage();
-    const matches = screen.getAllByText('Change Password');
-    expect(matches.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('tab', { name: 'Security' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Profile' })).toBeInTheDocument();
+  });
+
+  it('opens the change-password modal from the Security tab', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole('tab', { name: 'Security' }));
+    await user.click(screen.getByRole('button', { name: 'Change password' }));
+
+    expect(screen.getByLabelText('Current Password')).toBeInTheDocument();
+    expect(screen.getByLabelText('New Password')).toBeInTheDocument();
+  });
+
+  it('shows two-factor management on the Security tab', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole('tab', { name: 'Security' }));
+    expect(screen.getByRole('heading', { name: 'Two-factor authentication' })).toBeInTheDocument();
   });
 });
 

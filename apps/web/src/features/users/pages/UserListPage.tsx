@@ -5,6 +5,7 @@ import { UserTable } from '../components/UserTable';
 import { UserDetailDrawer } from '../components/UserDetailDrawer';
 import { UserFormDrawer } from '../components/UserFormDrawer';
 import { UserResetPasswordDialog } from '../components/UserResetPasswordDialog';
+import { UserResetTotpDialog } from '../components/UserResetTotpDialog';
 import { useUserList } from '../hooks/useUserList';
 import { useAuth } from '@/hooks/useAuth';
 import { useFormOptions } from '@/hooks/useFormOptions';
@@ -49,7 +50,13 @@ export function UserListPage() {
   const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
   const [resetUserId, setResetUserId] = useState<string | null>(null);
   const [resetUserName, setResetUserName] = useState<string | null>(null);
+  const [resetTotpOpen, setResetTotpOpen] = useState(false);
+  const [resetTotpUserId, setResetTotpUserId] = useState<string | null>(null);
+  const [resetTotpUserName, setResetTotpUserName] = useState<string | null>(null);
+  const [resetTotpUserRole, setResetTotpUserRole] = useState<string | null>(null);
+  // AM/OP recover users locked out of their authenticator; mirrors password reset.
   const canResetPassword = authUser?.role === UserRole.AM || authUser?.role === UserRole.OP;
+  const canResetTotp = canResetPassword;
 
   return (
     <>
@@ -144,6 +151,13 @@ export function UserListPage() {
           setResetUserName(selectedUser?.name ?? null);
           setResetPasswordOpen(true);
         } : undefined}
+        onResetTotp={canResetTotp && selectedId !== authUser?.id ? (id) => {
+          const selectedUser = data.find((item) => item.id === id);
+          setResetTotpUserId(id);
+          setResetTotpUserName(selectedUser?.name ?? null);
+          setResetTotpUserRole(selectedUser?.role ?? null);
+          setResetTotpOpen(true);
+        } : undefined}
       />
       <UserFormDrawer
         open={formOpen}
@@ -163,6 +177,23 @@ export function UserListPage() {
           setResetPasswordOpen(false);
           setResetUserId(null);
           setResetUserName(null);
+        }}
+        onReset={() => {
+          refetch();
+        }}
+      />
+      <UserResetTotpDialog
+        open={resetTotpOpen}
+        userId={resetTotpUserId}
+        userName={resetTotpUserName}
+        userRole={resetTotpUserRole}
+        tenantId={effectiveTenantId}
+        scope={isGlobalRole ? scope : 'tenant'}
+        onClose={() => {
+          setResetTotpOpen(false);
+          setResetTotpUserId(null);
+          setResetTotpUserName(null);
+          setResetTotpUserRole(null);
         }}
         onReset={() => {
           refetch();
