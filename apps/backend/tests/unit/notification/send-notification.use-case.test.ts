@@ -342,6 +342,60 @@ describe('SendNotificationUseCase', () => {
     expect(emailProvider.send).not.toHaveBeenCalled();
   });
 
+  it('marks SKIPPED (TEMPLATE_INACTIVE) when the platform default is inactive and there is no override', async () => {
+    // A deactivated platform default must silence the notification, not send as-is.
+    const notification = makeNotification();
+    const inactiveDefault = makeTemplate({ tenantId: null, isActive: false });
+
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
+    vi.mocked(templateRepo.findByTenantCodeChannel)
+      .mockResolvedValueOnce(null) // no tenant override
+      .mockResolvedValueOnce(inactiveDefault); // platform default exists but inactive
+
+    await expect(useCase.execute({ notificationId: 'notif-1' })).resolves.toBeUndefined();
+
+    expect(notification.status).toBe('SKIPPED');
+    expect(notification.failureReason).toBe('TEMPLATE_INACTIVE');
+    expect(notificationRepo.update).toHaveBeenCalledTimes(1);
+    expect(emailProvider.send).not.toHaveBeenCalled();
+    expect(attemptRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('marks SKIPPED (TEMPLATE_INACTIVE) when both the override and the platform default are inactive', async () => {
+    // Distinct from TEMPLATE_NOT_FOUND: a row exists at the default scope, it is just off.
+    const notification = makeNotification();
+    const inactiveOverride = makeTemplate({ tenantId: 'tenant-1', isActive: false });
+    const inactiveDefault = makeTemplate({ tenantId: null, isActive: false });
+
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
+    vi.mocked(templateRepo.findByTenantCodeChannel)
+      .mockResolvedValueOnce(inactiveOverride)
+      .mockResolvedValueOnce(inactiveDefault);
+
+    await expect(useCase.execute({ notificationId: 'notif-1' })).resolves.toBeUndefined();
+
+    expect(templateRepo.findByTenantCodeChannel).toHaveBeenCalledTimes(2);
+    expect(notification.status).toBe('SKIPPED');
+    expect(notification.failureReason).toBe('TEMPLATE_INACTIVE');
+    expect(emailProvider.send).not.toHaveBeenCalled();
+  });
+
+  it('suppresses SMS the same way when the resolved template is inactive', async () => {
+    const notification = makeNotification({ channel: 'SMS', recipient: '+61400000000' });
+    const inactiveDefault = makeTemplate({ tenantId: null, channel: 'SMS', isActive: false });
+
+    vi.mocked(notificationRepo.findById).mockResolvedValue(notification);
+    vi.mocked(templateRepo.findByTenantCodeChannel)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(inactiveDefault);
+
+    await expect(useCase.execute({ notificationId: 'notif-1' })).resolves.toBeUndefined();
+
+    expect(notification.status).toBe('SKIPPED');
+    expect(notification.failureReason).toBe('TEMPLATE_INACTIVE');
+    expect(smsProvider.send).not.toHaveBeenCalled();
+  });
+
   it('should render template and send email via email provider', async () => {
     const notification = makeNotification();
     const template = makeTemplate();
