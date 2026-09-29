@@ -71,9 +71,10 @@ test.describe('Schedule', () => {
     await expect(page.getByTestId('nav-profile')).toBeVisible();
   });
 
-  // Doc §7.3: the schedule card shows the realty code beside the service code.
-  // The page reads `/v1/inspector/schedule/month`, which the two specs above
-  // never stub — hence the empty list they assert against.
+  // The schedule card shows the appointment code but NOT the property (realty)
+  // code, even when the payload carries one. The page reads
+  // `/v1/inspector/schedule/month`, which the two specs above never stub — hence
+  // the empty list they assert against.
   test('appointment card shows the appointment code but not the property code', async ({ page }) => {
     await page.route('**/v1/me', async (route) => {
       await route.fulfill({
