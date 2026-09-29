@@ -18,8 +18,8 @@
  * one agency.
  *
  * Run (tsup emits it flat at dist/, matching the other operational scripts):
- *   node dist/backfill-financial-entries-on-done.js
- *   node dist/backfill-financial-entries-on-done.js --apply
+ *   cd /app/apps/backend && node dist/backfill-financial-entries-on-done.js
+ *   cd /app/apps/backend && node dist/backfill-financial-entries-on-done.js --apply
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -136,10 +136,16 @@ async function main() {
   const apply = process.argv.includes('--apply');
   const tenantArg = process.argv.find((arg) => arg.startsWith('--tenant-id='));
   const tenantId = tenantArg?.split('=')[1];
-  // A write tool must not silently widen scope: `--tenant-id=` with no value
-  // would otherwise fall through to an all-tenants sweep.
+  // A write tool must not silently widen scope. Two footguns to reject:
+  //   `--tenant-id=`        → present but empty
+  //   `--tenant-id <id>`    → space form we don't parse; the id would be ignored
+  //                           and the run would sweep ALL tenants unnoticed.
   if (tenantArg !== undefined && !tenantId) {
     console.error('Error: --tenant-id= was given with an empty value. Provide an id, or omit the flag to sweep all tenants.');
+    process.exit(1);
+  }
+  if (process.argv.includes('--tenant-id')) {
+    console.error('Error: use --tenant-id=<id> (with =), not a space. Aborting to avoid an unintended all-tenants sweep.');
     process.exit(1);
   }
   const prisma = new PrismaClient({ log: [] });
@@ -168,10 +174,10 @@ async function main() {
   try {
     const summary = await backfillFinancialEntriesOnDone(prisma, useCase, { apply, ...(tenantId ? { tenantId } : {}) });
 
-    console.log(`  cross-checked DONE, no entries : ${summary.scanned}`);
-    console.log(`  appointments repaired          : ${summary.appointmentsRepaired}`);
-    console.log(`  ledger entries created         : ${summary.entriesCreated}`);
-    console.log(`  failures                       : ${summary.failures.length}`);
+    console.log(`  cross-checked DONE, missing entries : ${summary.scanned}`);
+    console.log(`  appointments repaired               : ${summary.appointmentsRepaired}`);
+    console.log(`  ledger entries created              : ${summary.entriesCreated}`);
+    console.log(`  failures                            : ${summary.failures.length}`);
 
     if (summary.failures.length > 0) {
       console.log('\n  Failures — investigate by hand:');
