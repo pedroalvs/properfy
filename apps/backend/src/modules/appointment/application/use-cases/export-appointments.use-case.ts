@@ -1,6 +1,7 @@
 import {
   type AuthContext,
   formatCivilDate,
+  formatConfirmationDateCell,
   formatInstantDate,
   formatReasonCodeLabel,
 } from '@properfy/shared';
@@ -25,32 +26,71 @@ const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.s
 const MAX_EXPORT_ROWS = 5000;
 
 /**
+ * Upper bound on the numbered "Contact N" column groups appended for non-primary
+ * contacts. The primary contact keeps the `Tenant*` columns; up to this many
+ * extras get their own Name/Role/Phone/Email columns. Capped so an appointment
+ * with an unusually long contact list can't blow the sheet width wide open —
+ * the actual count is the max additional contacts in the exported set, clamped
+ * here.
+ */
+const MAX_ADDITIONAL_CONTACT_COLUMNS = 4;
+
+/**
+ * Builds the export columns for a given number of additional-contact groups.
+ *
  * Mirrors the appointments list (including the columns hidden behind the
  * table's "additional columns" switch) and adds the address parts the table has
- * no room for. Kept here rather than reusing the report module's
- * `APPOINTMENTS_COLUMNS`, which is keyed to the report data reader's row shape.
+ * no room for, plus: numbered columns for non-primary contacts, the tenant
+ * confirmation date, and the operator-review flag/date. Kept here rather than
+ * reusing the report module's `APPOINTMENTS_COLUMNS`, which is keyed to the
+ * report data reader's row shape.
  */
-export const APPOINTMENT_EXPORT_COLUMNS: ReportColumn[] = [
-  { key: 'code', label: 'Code', width: 14 },
-  { key: 'agency', label: 'Agency', width: 25 },
-  { key: 'branch', label: 'Branch', width: 25 },
-  { key: 'serviceType', label: 'Service Type', width: 25 },
-  { key: 'propertyCode', label: 'Property Code', width: 20 },
-  { key: 'propertyAddress', label: 'Address', width: 40 },
-  { key: 'suburb', label: 'Suburb', width: 20 },
-  { key: 'tenantName', label: 'Tenant', width: 25 },
-  { key: 'tenantPhone', label: 'Tenant Phone', width: 18 },
-  { key: 'tenantEmail', label: 'Tenant Email', width: 30 },
-  { key: 'status', label: 'Status', width: 18 },
-  { key: 'confirmationStatus', label: 'Confirmation', width: 16 },
-  { key: 'inspector', label: 'Inspector', width: 25 },
-  { key: 'group', label: 'Group', width: 10 },
-  { key: 'scheduledDate', label: 'Scheduled Date', width: 15 },
-  { key: 'timeSlot', label: 'Time Slot', width: 16 },
-  { key: 'cancellationReason', label: 'Cancellation Reason', width: 22 },
-  { key: 'reason', label: 'Reason Detail', width: 40 },
-  { key: 'createdAt', label: 'Created At', width: 15 },
-];
+export function buildAppointmentExportColumns(
+  additionalContacts: number,
+  hasOverflow = false,
+): ReportColumn[] {
+  const contactColumns: ReportColumn[] = [];
+  for (let i = 0; i < additionalContacts; i++) {
+    const n = i + 2; // primary is contact 1 (the Tenant* columns)
+    contactColumns.push(
+      { key: `contact${n}Name`, label: `Contact ${n} Name`, width: 25 },
+      { key: `contact${n}Role`, label: `Contact ${n} Role`, width: 20 },
+      { key: `contact${n}Phone`, label: `Contact ${n} Phone`, width: 18 },
+      { key: `contact${n}Email`, label: `Contact ${n} Email`, width: 30 },
+    );
+  }
+  // Any contacts past the numbered-column cap are collected into one trailing
+  // cell rather than dropped silently — rare (6 roles exist), but never lost.
+  if (hasOverflow) {
+    contactColumns.push({ key: 'contactsOverflow', label: 'More Contacts', width: 40 });
+  }
+
+  return [
+    { key: 'code', label: 'Code', width: 14 },
+    { key: 'agency', label: 'Agency', width: 25 },
+    { key: 'branch', label: 'Branch', width: 25 },
+    { key: 'serviceType', label: 'Service Type', width: 25 },
+    { key: 'propertyCode', label: 'Property Code', width: 20 },
+    { key: 'propertyAddress', label: 'Address', width: 40 },
+    { key: 'suburb', label: 'Suburb', width: 20 },
+    { key: 'tenantName', label: 'Tenant', width: 25 },
+    { key: 'tenantPhone', label: 'Tenant Phone', width: 18 },
+    { key: 'tenantEmail', label: 'Tenant Email', width: 30 },
+    ...contactColumns,
+    { key: 'status', label: 'Status', width: 18 },
+    { key: 'confirmationStatus', label: 'Confirmation', width: 16 },
+    { key: 'confirmationDate', label: 'Confirmation Date', width: 18 },
+    { key: 'reviewed', label: 'Reviewed', width: 10 },
+    { key: 'reviewedAt', label: 'Reviewed At', width: 15 },
+    { key: 'inspector', label: 'Inspector', width: 25 },
+    { key: 'group', label: 'Group', width: 10 },
+    { key: 'scheduledDate', label: 'Scheduled Date', width: 15 },
+    { key: 'timeSlot', label: 'Time Slot', width: 16 },
+    { key: 'cancellationReason', label: 'Cancellation Reason', width: 22 },
+    { key: 'reason', label: 'Reason Detail', width: 40 },
+    { key: 'createdAt', label: 'Created At', width: 15 },
+  ];
+}
 
 export interface ExportAppointmentsInput {
   filters: AppointmentFilters;
@@ -111,9 +151,21 @@ export class ExportAppointmentsUseCase {
         })
       : [];
 
+    // One fixed column set for the whole sheet: size it to the row with the most
+    // contacts (clamped), so no contact is dropped and thinner rows just leave
+    // the trailing Contact columns blank.
+    const maxExtraContacts = items.reduce(
+      (max, item) => Math.max(max, (item.contacts?.length ?? 1) - 1),
+      0,
+    );
+    const additionalContacts = Math.min(MAX_ADDITIONAL_CONTACT_COLUMNS, maxExtraContacts);
+    // Contacts past the cap don't get their own columns; they overflow into one
+    // trailing "More Contacts" cell instead of being silently dropped.
+    const hasOverflow = maxExtraContacts > MAX_ADDITIONAL_CONTACT_COLUMNS;
+
     const buffer = await this.xlsxGenerator.generate(
-      APPOINTMENT_EXPORT_COLUMNS,
-      items.map((item) => this.toRow(item)),
+      buildAppointmentExportColumns(additionalContacts, hasOverflow),
+      items.map((item) => this.toRow(item, additionalContacts, hasOverflow)),
     );
 
     return {
@@ -123,14 +175,20 @@ export class ExportAppointmentsUseCase {
     };
   }
 
-  private toRow(item: AppointmentListItem): Record<string, unknown> {
+  private toRow(
+    item: AppointmentListItem,
+    additionalContacts: number,
+    hasOverflow: boolean,
+  ): Record<string, unknown> {
     const { appointment } = item;
     const prefix = item.tenantAppointmentCodePrefix ?? 'INS';
     // A CANCELLED row carries a cancellation code and a REJECTED one a rejection
     // code; a single column reads better than two mostly-empty ones.
     const reasonCode = appointment.cancellationReasonCode ?? appointment.rejectionReasonCode;
+    // The operator cross-check is the "reviewed" gate the client invoices on.
+    const reviewedAt = appointment.doneCheckedAt;
 
-    return {
+    const row: Record<string, unknown> = {
       code: `${prefix}-${String(appointment.appointmentNumber).padStart(4, '0')}`,
       agency: item.tenantName,
       branch: item.branchName,
@@ -143,6 +201,11 @@ export class ExportAppointmentsUseCase {
       tenantEmail: item.contact?.effectiveEmail ?? '',
       status: appointment.status,
       confirmationStatus: appointment.rentalTenantConfirmationStatus,
+      // Tenant-confirmation timestamp; 'N/A' for flows with no occupant, blank
+      // while a routine appointment is still pending (the status column covers that).
+      confirmationDate: formatConfirmationDateCell(item.serviceTypeFlowType, item.confirmedAt),
+      reviewed: reviewedAt ? 'Yes' : 'No',
+      reviewedAt: reviewedAt ? formatInstantDate(reviewedAt) : '',
       inspector: item.inspectorName ?? '',
       group: item.serviceGroupNumber != null ? String(item.serviceGroupNumber) : '',
       scheduledDate: formatCivilDate(appointment.scheduledDate),
@@ -154,5 +217,32 @@ export class ExportAppointmentsUseCase {
       // shift every Sydney-evening record back one.
       createdAt: formatInstantDate(appointment.createdAt),
     };
+
+    // Non-primary contacts flattened into numbered columns. Every column the
+    // sheet declares must have a key on every row, so fill the full width and
+    // leave thinner rows' trailing columns blank. `formatReasonCodeLabel` is a
+    // generic SNAKE_CASE→Title Case humanizer, reused here for the role.
+    const extraContacts = (item.contacts ?? []).slice(1);
+    for (let i = 0; i < additionalContacts; i++) {
+      const n = i + 2;
+      const contact = extraContacts[i];
+      row[`contact${n}Name`] = contact?.effectiveName ?? '';
+      row[`contact${n}Role`] = contact ? formatReasonCodeLabel(contact.role) : '';
+      row[`contact${n}Phone`] = contact?.effectivePhone ?? '';
+      row[`contact${n}Email`] = contact?.effectiveEmail ?? '';
+    }
+    if (hasOverflow) {
+      row.contactsOverflow = extraContacts
+        .slice(additionalContacts)
+        .map((c) => {
+          const role = formatReasonCodeLabel(c.role);
+          const channels = [c.effectivePhone, c.effectiveEmail].filter(Boolean).join(' / ');
+          const suffix = channels ? ` — ${channels}` : '';
+          return `${c.effectiveName} (${role})${suffix}`;
+        })
+        .join('; ');
+    }
+
+    return row;
   }
 }

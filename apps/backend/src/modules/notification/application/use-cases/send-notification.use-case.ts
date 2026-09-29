@@ -35,6 +35,7 @@ import {
   REDACTED_PAYLOAD_VALUE,
   AGENCY_FORWARD_TEMPLATE_CODE,
   AGENCY_TENANT_NOTIFICATIONS_DISABLED,
+  TEMPLATE_INACTIVE,
   AGENCY_FORWARD_FAILURE_REASON_PREFIX,
   getTemplateTarget,
   getTemplateCodeLabel,
@@ -481,6 +482,28 @@ export class SendNotificationUseCase {
           channel: notification.channel,
         },
         'notification.template_not_found: marked FAILED, will not retry',
+      );
+      return;
+    }
+    // A deactivated tenant override already fell through to the platform default above.
+    // If the resolved template — the final fallback — is itself inactive, the notification
+    // must not be sent (an operator/agency turned this template off). Record a terminal
+    // SKIPPED status (distinct from SKIPPED_OPT_OUT, so the retry poller never re-enqueues
+    // it) with a clear reason, and leave the row visible in the Notifications tab. Placed
+    // before class promotion and the kill switch so no further work runs for a dead template.
+    if (!template.isActive()) {
+      notification.status = 'SKIPPED';
+      notification.failureReason = TEMPLATE_INACTIVE;
+      notification.updatedAt = new Date();
+      await this.notificationRepo.update(notification);
+      this.logger.info(
+        {
+          notificationId: notification.id,
+          tenantId: notification.tenantId,
+          templateCode: notification.templateCode,
+          channel: notification.channel,
+        },
+        'notification.skipped_template_inactive',
       );
       return;
     }

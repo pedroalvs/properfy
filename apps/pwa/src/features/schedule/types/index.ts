@@ -16,11 +16,6 @@ import type {
 export interface InspectorAppointment {
   id: string;
   appointmentCode: string;
-  /**
-   * Property (realty) code — PREFIX-PROP-0001. Distinct from `appointmentCode`;
-   * doc §7.3/§7.4 show both. Optional: legacy rows may predate it.
-   */
-  propertyCode?: string;
   propertyAddress: string;
   suburb: string;
   scheduledDate: string;
@@ -105,8 +100,6 @@ export interface InspectorAppointmentDetailResponse {
   data: {
     id: string;
     appointmentCode: string;
-    /** Property (realty) code — PREFIX-PROP-0001; optional for legacy rows. */
-    propertyCode?: string;
     status: AppointmentStatus;
     scheduledDate: string;
     timeSlotStart: string;

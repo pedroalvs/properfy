@@ -222,6 +222,20 @@ export class PrismaUserManagementRepository
     });
   }
 
+  async resetTotp(
+    userId: string,
+    tenantId: string | null,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    await this.db(tx).user.updateMany({
+      where: { id: userId, tenant_id: tenantId, deleted_at: null },
+      data: {
+        totp_enabled: false,
+        totp_secret: null,
+      },
+    });
+  }
+
   async revokeAllSessions(userId: string, tx?: Prisma.TransactionClient): Promise<void> {
     await this.db(tx).session.updateMany({
       where: { user_id: userId, revoked_at: null },

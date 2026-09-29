@@ -12,6 +12,7 @@ const mockUpdateUserExecute = vi.fn();
 const mockDeactivateUserExecute = vi.fn();
 const mockReactivateUserExecute = vi.fn();
 const mockResetUserPasswordExecute = vi.fn();
+const mockResetUserTotpExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
 
@@ -28,6 +29,7 @@ vi.mock('../../../src/main/container', () => ({
       deactivateUserUseCase: { execute: mockDeactivateUserExecute },
       reactivateUserUseCase: { execute: mockReactivateUserExecute },
       resetUserPasswordUseCase: { execute: mockResetUserPasswordExecute },
+      resetUserTotpUseCase: { execute: mockResetUserTotpExecute },
       jwtService: { verify: mockJwtVerify },
     },
     property: { jwtService: { verify: mockJwtVerify } },
@@ -122,6 +124,46 @@ describe('POST /v1/users/:userId/reset-password', () => {
       tenantId: null,
       userId: USER_ID,
       newPassword: 'NewStrong1!',
+      actor: amContext,
+      requestId: expect.any(String),
+    });
+  });
+});
+
+describe('POST /v1/tenants/:tenantId/users/:userId/2fa/reset', () => {
+  it('should return 204 and delegate a tenant-scoped 2FA reset', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockResetUserTotpExecute.mockResolvedValueOnce(undefined);
+
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/users/${USER_ID}/2fa/reset`)
+      .set('Authorization', 'Bearer valid-token')
+      .send();
+
+    expect(res.status).toBe(204);
+    expect(mockResetUserTotpExecute).toHaveBeenCalledWith({
+      tenantId: TENANT_ID,
+      userId: USER_ID,
+      actor: amContext,
+      requestId: expect.any(String),
+    });
+  });
+});
+
+describe('POST /v1/users/:userId/2fa/reset', () => {
+  it('should return 204 and delegate an internal 2FA reset (null tenant)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockResetUserTotpExecute.mockResolvedValueOnce(undefined);
+
+    const res = await supertest(app.server)
+      .post(`/v1/users/${USER_ID}/2fa/reset`)
+      .set('Authorization', 'Bearer valid-token')
+      .send();
+
+    expect(res.status).toBe(204);
+    expect(mockResetUserTotpExecute).toHaveBeenCalledWith({
+      tenantId: null,
+      userId: USER_ID,
       actor: amContext,
       requestId: expect.any(String),
     });
