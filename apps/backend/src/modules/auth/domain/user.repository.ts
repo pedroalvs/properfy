@@ -24,7 +24,8 @@ export interface IUserRepository {
   updatePassword(userId: string, passwordHash: string, tx?: Prisma.TransactionClient): Promise<void>;
   /** Personal timezone for cross-tenant roles; null clears back to the platform default. */
   updateTimezone(userId: string, timezone: string | null): Promise<void>;
-  updateTotpSecret(userId: string, totpSecret: string): Promise<void>;
+  /** Store the encrypted TOTP secret, or `null` to clear it (disable / admin reset). */
+  updateTotpSecret(userId: string, totpSecret: string | null): Promise<void>;
   updateTotpEnabled(userId: string, totpEnabled: boolean): Promise<void>;
   activateUser(userId: string, passwordHash: string): Promise<void>;
 }
