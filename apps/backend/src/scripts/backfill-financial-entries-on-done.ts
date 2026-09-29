@@ -58,17 +58,21 @@ export async function backfillFinancialEntriesOnDone(
   useCase: OnDoneHandler,
   options: { apply: boolean; tenantId?: string },
 ): Promise<BackfillFinancialSummary> {
-  // A cross-checked DONE appointment with NO financial entries is exactly the
-  // stuck state this repairs — `financial_entries: { none: {} }` selects only
-  // those. An appointment with a partial leg (one entry present) is left alone;
-  // that state never occurs from the bug (all inserts failed together) and the
-  // use case is idempotent if such a row is ever fed to it directly.
+  // A cross-checked DONE appointment missing EITHER ledger leg is the stuck
+  // state. Usually both are absent (the FK bug failed both inserts together),
+  // but a backfill interrupted mid-appointment (debit committed, payout not) can
+  // leave a single leg — and `none: {}` would then skip it forever, half-charged.
+  // Select on "missing debit OR missing payout" so a re-run finishes it; the use
+  // case is idempotent per appointment+type, so a present leg is never doubled.
   const candidates = await prisma.appointment.findMany({
     where: {
       status: 'DONE',
       done_checked_by_user_id: { not: null },
       deleted_at: null,
-      financial_entries: { none: {} },
+      OR: [
+        { financial_entries: { none: { entry_type: 'TENANT_DEBIT' } } },
+        { financial_entries: { none: { entry_type: 'INSPECTOR_PAYOUT' } } },
+      ],
       ...(options.tenantId ? { tenant_id: options.tenantId } : {}),
     },
     select: { id: true },
@@ -110,6 +114,9 @@ export async function backfillFinancialEntriesOnDone(
  * their repo saves are awaited inside the use case).
  */
 class DrainingAuditLogRepository extends PrismaAuditLogRepository {
+  // Holds one promise per audit write for the whole run. Bounded in practice:
+  // this is a one-shot repair over a small stuck set (single digits). If it ever
+  // grew to sweep thousands, switch to per-iteration draining instead.
   readonly pending: Promise<void>[] = [];
 
   override async save(entry: Parameters<PrismaAuditLogRepository['save']>[0]): Promise<void> {
@@ -129,8 +136,17 @@ async function main() {
   const apply = process.argv.includes('--apply');
   const tenantArg = process.argv.find((arg) => arg.startsWith('--tenant-id='));
   const tenantId = tenantArg?.split('=')[1];
+  // A write tool must not silently widen scope: `--tenant-id=` with no value
+  // would otherwise fall through to an all-tenants sweep.
+  if (tenantArg !== undefined && !tenantId) {
+    console.error('Error: --tenant-id= was given with an empty value. Provide an id, or omit the flag to sweep all tenants.');
+    process.exit(1);
+  }
   const prisma = new PrismaClient({ log: [] });
-  const logger = pino({ level: 'info' });
+  // `warn` keeps the human-readable summary readable: PersistentAuditService
+  // emits an info line per audit write, which would otherwise flood stdout. The
+  // database audit rows themselves are unaffected by the logger level.
+  const logger = pino({ level: 'warn' });
 
   // Real audit service so backfilled entries record `financial_entry.created`
   // exactly as the live cross-check path does. Idempotency is a no-op: the use

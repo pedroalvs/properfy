@@ -81,7 +81,11 @@ describe('backfillFinancialEntriesOnDone', () => {
           status: 'DONE',
           done_checked_by_user_id: { not: null },
           deleted_at: null,
-          financial_entries: { none: {} },
+          // Missing EITHER leg — heals a partial-leg appointment too.
+          OR: [
+            { financial_entries: { none: { entry_type: 'TENANT_DEBIT' } } },
+            { financial_entries: { none: { entry_type: 'INSPECTOR_PAYOUT' } } },
+          ],
           tenant_id: 'tenant-9',
         }),
       }),
