@@ -492,16 +492,17 @@ export class PrismaContactRepository implements IContactRepository {
       // Phones are stored canonically as E.164 (+61...); the shared helper
       // expands the typed term (with a raw fallback for a short partial) so a
       // local/spaced number is found on this dedicated contact-search field.
+      const phoneVariants = phoneSearchVariants(filters.search);
       const searchOr: Record<string, unknown>[] = [
         { display_name: { contains: filters.search, mode: 'insensitive' } },
         { primary_email: { contains: filters.search, mode: 'insensitive' } },
-        ...phoneColumnSearchClauses('primary_phone', filters.search),
+        ...phoneColumnSearchClauses('primary_phone', filters.search, phoneVariants),
       ];
       // Secondary phones live in additional_channels_json ([{channel,value,label}]).
       // array_contains -> Postgres @> partial-object containment: matches any
       // array element whose `value` equals this variant. Values are canonical
       // E.164 (transformed on write), so only the full +61... variant can match.
-      for (const variant of phoneSearchVariants(filters.search)) {
+      for (const variant of phoneVariants) {
         if (variant.startsWith('+')) {
           searchOr.push({ additional_channels_json: { array_contains: [{ value: variant }] } });
         }

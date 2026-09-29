@@ -110,6 +110,14 @@ describe('contact list phone search (real DB)', () => {
     expect(ids).not.toContain(decoyId);
   });
 
+  it('finds the contact by a leading-0 partial (matched via national digits)', async () => {
+    // "0412" cannot substring-match "+61412345678"; the fallback also tries the
+    // trunk-stripped "412", which does.
+    const { ids } = await search('0412');
+    expect(ids).toContain(targetId);
+    expect(ids).not.toContain(decoyId);
+  });
+
   it('still finds the contact by name (no regression)', async () => {
     const { ids } = await search('Target');
     expect(ids).toEqual([targetId]);

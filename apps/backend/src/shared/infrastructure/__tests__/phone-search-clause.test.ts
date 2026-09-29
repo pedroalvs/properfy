@@ -15,6 +15,19 @@ describe('phoneColumnSearchClauses', () => {
     ]);
   });
 
+  it('matches a leading-0 partial by its trunk-stripped digits', () => {
+    // "0412" cannot substring-match stored "+61412..."; the national form "412"
+    // can, so the fallback must emit it too.
+    const clauses = phoneColumnSearchClauses('snapshot_phone', '0412');
+    expect(clauses).toContainEqual({ snapshot_phone: { contains: '412' } });
+  });
+
+  it('trims surrounding whitespace in the fallback', () => {
+    expect(phoneColumnSearchClauses('snapshot_phone', ' 3456 ')).toEqual([
+      { snapshot_phone: { contains: '3456' } },
+    ]);
+  });
+
   it('produces no clause for a plain name (no digits)', () => {
     expect(phoneColumnSearchClauses('snapshot_phone', 'Jane Smith')).toEqual([]);
     expect(phoneColumnSearchClauses('primary_phone', '')).toEqual([]);
@@ -23,5 +36,10 @@ describe('phoneColumnSearchClauses', () => {
   it('honours the requested field name', () => {
     const clauses = phoneColumnSearchClauses('primary_phone', '3456');
     expect(clauses).toEqual([{ primary_phone: { contains: '3456' } }]);
+  });
+
+  it('uses caller-provided variants without recomputing', () => {
+    const clauses = phoneColumnSearchClauses('primary_phone', 'ignored', ['+61412345678']);
+    expect(clauses).toEqual([{ primary_phone: { contains: '+61412345678' } }]);
   });
 });
