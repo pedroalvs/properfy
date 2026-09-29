@@ -865,6 +865,7 @@ export function createContainer(logger: Logger): AppContainer {
     confirmationCycleService,
     prisma,
     serviceGroupRepo,
+    logger,
   );
 
   // Constructed after the transition use case because the operator-recorded
@@ -917,6 +918,7 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     authorizationService,
     createFinancialEntriesOnDoneUseCase,
+    logger,
   );
   const bulkCrossCheckDoneUseCase = new BulkCrossCheckDoneUseCase(
     performCrossCheckUseCase,

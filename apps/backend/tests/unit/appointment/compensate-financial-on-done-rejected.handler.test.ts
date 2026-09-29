@@ -107,7 +107,9 @@ describe('CompensateFinancialOnDoneRejectedHandler', () => {
     expect(savedEntry.referenceEntryId).toBe('debit-1');
     expect(savedEntry.appointmentId).toBe('appt-1');
     expect(savedEntry.status).toBe('PENDING');
-    expect(savedEntry.initiatedByUserId).toBe('SYSTEM');
+    // System-minted compensation: no human initiator (null), not the 'SYSTEM'
+    // sentinel that violated the users FK.
+    expect(savedEntry.initiatedByUserId).toBeNull();
   });
 
   it('creates MANUAL_ADJUSTMENT reversal for existing INSPECTOR_PAYOUT entry', async () => {

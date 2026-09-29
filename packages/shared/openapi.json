@@ -22458,7 +22458,8 @@
                           },
                           "initiatedByUserId": {
                             "type": "string",
-                            "format": "uuid"
+                            "format": "uuid",
+                            "nullable": true
                           },
                           "approvedByUserId": {
                             "type": "string",
@@ -22720,7 +22721,8 @@
                         },
                         "initiatedByUserId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "approvedByUserId": {
                           "type": "string",
@@ -22895,7 +22897,8 @@
                         },
                         "initiatedByUserId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "approvedByUserId": {
                           "type": "string",
@@ -23156,7 +23159,8 @@
                         },
                         "initiatedByUserId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "approvedByUserId": {
                           "type": "string",
@@ -23363,7 +23367,8 @@
                         },
                         "initiatedByUserId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "approvedByUserId": {
                           "type": "string",

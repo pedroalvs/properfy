@@ -9856,7 +9856,7 @@ export interface paths {
                                 description: string;
                                 effectiveAt: string;
                                 /** Format: uuid */
-                                initiatedByUserId: string;
+                                initiatedByUserId: string | null;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
                                 approvedAt: (string) | null;
@@ -9974,7 +9974,7 @@ export interface paths {
                                 description: string;
                                 effectiveAt: string;
                                 /** Format: uuid */
-                                initiatedByUserId: string;
+                                initiatedByUserId: string | null;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
                                 approvedAt: (string) | null;
@@ -10045,7 +10045,7 @@ export interface paths {
                                 description: string;
                                 effectiveAt: string;
                                 /** Format: uuid */
-                                initiatedByUserId: string;
+                                initiatedByUserId: string | null;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
                                 approvedAt: (string) | null;
@@ -10171,7 +10171,7 @@ export interface paths {
                                 description: string;
                                 effectiveAt: string;
                                 /** Format: uuid */
-                                initiatedByUserId: string;
+                                initiatedByUserId: string | null;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
                                 approvedAt: (string) | null;
@@ -10248,7 +10248,7 @@ export interface paths {
                                 description: string;
                                 effectiveAt: string;
                                 /** Format: uuid */
-                                initiatedByUserId: string;
+                                initiatedByUserId: string | null;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
                                 approvedAt: (string) | null;

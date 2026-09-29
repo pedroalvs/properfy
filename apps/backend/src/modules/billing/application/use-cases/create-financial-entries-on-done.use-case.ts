@@ -5,7 +5,6 @@ import { FinancialEntryEntity } from '../../domain/financial-entry.entity';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
-import { SYSTEM_USER_ID } from '../../../../shared/domain/constants';
 import { FinancialEntryDoneCheckRequiredError } from '../../domain/billing.errors';
 
 export interface CreateFinancialEntriesOnDoneInput {
@@ -94,7 +93,7 @@ export class CreateFinancialEntriesOnDoneUseCase {
         status: 'PENDING',
         description: 'Inspection service debit',
         effectiveAt: now,
-        initiatedByUserId: SYSTEM_USER_ID,
+        initiatedByUserId: null,
         approvedByUserId: null,
         approvedAt: null,
         referenceEntryId: null,
@@ -152,7 +151,7 @@ export class CreateFinancialEntriesOnDoneUseCase {
         status: 'PENDING',
         description: 'Inspector payout',
         effectiveAt: now,
-        initiatedByUserId: SYSTEM_USER_ID,
+        initiatedByUserId: null,
         approvedByUserId: null,
         approvedAt: null,
         referenceEntryId: null,

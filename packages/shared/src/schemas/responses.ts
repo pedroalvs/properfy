@@ -924,7 +924,7 @@ export const financialEntryResponseSchema = z.object({
   status: z.string(),
   description: z.string(),
   effectiveAt: instantStr(),
-  initiatedByUserId: z.string().uuid(),
+  initiatedByUserId: z.string().uuid().nullable(),
   approvedByUserId: z.string().uuid().nullable(),
   approvedAt: instantStrNullable(),
   referenceEntryId: z.string().uuid().nullable(),
