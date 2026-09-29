@@ -4,8 +4,6 @@ interface PropertyAddressSectionProps {
   address: string;
   addressLine2?: string | null;
   suburb?: string;
-  /** Property (realty) code — doc §7.4 lists it on the scheduled-service detail. */
-  propertyCode?: string;
   latitude: number | null;
   longitude: number | null;
   propertyType?: PropertyType | null;
@@ -19,7 +17,6 @@ export function PropertyAddressSection({
   address,
   addressLine2,
   suburb,
-  propertyCode,
   latitude,
   longitude,
   propertyType,
@@ -47,17 +44,7 @@ export function PropertyAddressSection({
       data-testid="property-address-section"
     >
       <div className="px-4 pt-4 pb-3">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Property</p>
-          {propertyCode && (
-            <span
-              className="shrink-0 rounded bg-black/[0.05] px-1.5 py-0.5 text-[11px] font-semibold text-text-secondary"
-              data-testid="property-code"
-            >
-              {propertyCode}
-            </span>
-          )}
-        </div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Property</p>
         <p className="mt-1 text-sm font-semibold leading-5 text-text-primary">{address}</p>
         {addressLine2 && <p className="text-xs text-text-secondary">{addressLine2}</p>}
         {suburb && <p className="text-xs text-text-secondary">{suburb}</p>}

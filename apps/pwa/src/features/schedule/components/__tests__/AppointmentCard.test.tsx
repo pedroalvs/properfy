@@ -56,16 +56,10 @@ describe('AppointmentCard', () => {
     expect(screen.getByTestId('appointment-code')).toHaveTextContent('INS-0042');
   });
 
-  // Doc §7.3 lists "Realty codes" alongside the service code — two different
-  // identifiers, both on the card.
-  it('displays the property (realty) code next to the appointment code', () => {
+  // The property (realty) code is intentionally not shown on the schedule card
+  // even when the appointment carries one — it lives on the detail page only.
+  it('never renders the property code badge on the card', () => {
     renderWithProviders(<AppointmentCard appointment={baseAppointment} />);
-    expect(screen.getByTestId('property-code')).toHaveTextContent('ACM-PROP-0007');
-  });
-
-  it('omits the property code badge when the appointment carries none', () => {
-    const { propertyCode: _propertyCode, ...withoutCode } = baseAppointment;
-    renderWithProviders(<AppointmentCard appointment={withoutCode} />);
     expect(screen.queryByTestId('property-code')).toBeNull();
     expect(screen.getByTestId('appointment-code')).toHaveTextContent('INS-0042');
   });

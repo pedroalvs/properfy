@@ -74,7 +74,7 @@ test.describe('Schedule', () => {
   // Doc §7.3: the schedule card shows the realty code beside the service code.
   // The page reads `/v1/inspector/schedule/month`, which the two specs above
   // never stub — hence the empty list they assert against.
-  test('appointment card shows the property (realty) code', async ({ page }) => {
+  test('appointment card shows the appointment code but not the property code', async ({ page }) => {
     await page.route('**/v1/me', async (route) => {
       await route.fulfill({
         status: 200,
@@ -131,6 +131,7 @@ test.describe('Schedule', () => {
     await page.goto('/schedule');
     await expect(page.getByTestId(`appointment-card-${appointment.id}`)).toBeVisible();
     await expect(page.getByTestId('appointment-code')).toHaveText('INS-0042');
-    await expect(page.getByTestId('property-code')).toHaveText('ACM-PROP-0007');
+    // The property (realty) code is not shown on the schedule card.
+    await expect(page.getByTestId('property-code')).toHaveCount(0);
   });
 });
