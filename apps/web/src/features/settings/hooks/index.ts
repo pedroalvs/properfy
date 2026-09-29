@@ -4,6 +4,8 @@ export { useTotpSetup } from './useTotpSetup';
 export type { UseTotpSetupReturn } from './useTotpSetup';
 export { useTotpConfirm } from './useTotpConfirm';
 export type { UseTotpConfirmReturn } from './useTotpConfirm';
+export { useDisableTotp } from './useDisableTotp';
+export type { UseDisableTotpReturn } from './useDisableTotp';
 export { useSessionList } from './useSessionList';
 export type { UseSessionListReturn } from './useSessionList';
 export { useSessionRevoke } from './useSessionRevoke';
