@@ -5,7 +5,27 @@ import type { IXlsxGenerator, ReportColumn } from '../../../src/modules/report/d
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuthContext } from '@properfy/shared';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
+import { AppointmentContactEntity } from '../../../src/modules/appointment/domain/appointment-contact.entity';
+import type { AppointmentContactRole } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
+
+function makeContact(
+  overrides: Partial<ConstructorParameters<typeof AppointmentContactEntity>[0]> = {},
+): AppointmentContactEntity {
+  return new AppointmentContactEntity({
+    id: 'contact-1',
+    appointmentId: 'appt-1',
+    contactId: 'c-1',
+    role: 'RENTAL_TENANT' as AppointmentContactRole,
+    isPrimary: true,
+    snapshotName: 'Primary Tenant',
+    snapshotEmail: 'primary@example.com',
+    snapshotPhone: '+61400000000',
+    createdAt: new Date('2026-03-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+    ...overrides,
+  });
+}
 
 function makeAppointmentListItem(
   overrides: Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = {},
@@ -259,5 +279,167 @@ describe('ExportAppointmentsUseCase', () => {
     ).rejects.toBeInstanceOf(ForbiddenError);
 
     expect(appointmentRepo.count).not.toHaveBeenCalled();
+  });
+
+  describe('confirmation date column', () => {
+    it("shows the confirmation date for a confirmed routine appointment", async () => {
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+        makeAppointmentListItem(
+          { rentalTenantConfirmationStatus: 'CONFIRMED' },
+          {
+            serviceTypeFlowType: 'ROUTINE',
+            confirmedAt: new Date('2026-04-10T03:00:00.000Z'),
+          },
+        ),
+      ]);
+
+      await useCase.execute({ filters: {}, actor: makeActor() });
+
+      expect(generatedRows[0]).toMatchObject({ confirmationDate: '10/04/2026' });
+    });
+
+    it('leaves the confirmation date blank while a routine appointment is pending', async () => {
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+        makeAppointmentListItem({}, { serviceTypeFlowType: 'ROUTINE', confirmedAt: null }),
+      ]);
+
+      await useCase.execute({ filters: {}, actor: makeActor() });
+
+      expect(generatedRows[0]).toMatchObject({ confirmationDate: '' });
+    });
+
+    it("shows 'N/A' for a flow type with no occupant to confirm", async () => {
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+        makeAppointmentListItem({}, { serviceTypeFlowType: 'INGOING', confirmedAt: null }),
+      ]);
+
+      await useCase.execute({ filters: {}, actor: makeActor() });
+
+      expect(generatedRows[0]).toMatchObject({ confirmationDate: 'N/A' });
+    });
+  });
+
+  describe('reviewed columns', () => {
+    it('reports Yes and the review date when the appointment was cross-checked', async () => {
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+        makeAppointmentListItem({
+          status: 'DONE',
+          doneCheckedByUserId: 'op-1',
+          doneCheckedAt: new Date('2026-05-02T02:00:00.000Z'),
+        }),
+      ]);
+
+      await useCase.execute({ filters: {}, actor: makeActor() });
+
+      expect(generatedRows[0]).toMatchObject({ reviewed: 'Yes', reviewedAt: '02/05/2026' });
+    });
+
+    it('reports No and a blank date when the appointment was not cross-checked', async () => {
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+        makeAppointmentListItem({ status: 'DONE', doneCheckedAt: null }),
+      ]);
+
+      await useCase.execute({ filters: {}, actor: makeActor() });
+
+      expect(generatedRows[0]).toMatchObject({ reviewed: 'No', reviewedAt: '' });
+    });
+  });
+
+  describe('additional contact columns', () => {
+    it('exports the primary contact in the Tenant columns and no Contact N columns when there are no extras', async () => {
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+        makeAppointmentListItem({}, { contact: makeContact(), contacts: [makeContact()] }),
+      ]);
+
+      await useCase.execute({ filters: {}, actor: makeActor() });
+
+      expect(generatedRows[0]).toMatchObject({
+        tenantName: 'Primary Tenant',
+        tenantPhone: '+61400000000',
+        tenantEmail: 'primary@example.com',
+      });
+      expect(generatedColumns.some((c) => c.key.startsWith('contact2'))).toBe(false);
+    });
+
+    it('flattens non-primary contacts into numbered columns with humanized roles', async () => {
+      const primary = makeContact();
+      const housekeeper = makeContact({
+        id: 'contact-2',
+        contactId: 'c-2',
+        role: 'HOUSEKEEPER' as AppointmentContactRole,
+        isPrimary: false,
+        snapshotName: 'Helpful Housekeeper',
+        snapshotEmail: 'hk@example.com',
+        snapshotPhone: '+61411111111',
+      });
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+        makeAppointmentListItem(
+          {},
+          { contact: primary, contacts: [primary, housekeeper] },
+        ),
+      ]);
+
+      await useCase.execute({ filters: {}, actor: makeActor() });
+
+      const contactColumnKeys = generatedColumns.map((c) => c.key).filter((k) => k.startsWith('contact2'));
+      expect(contactColumnKeys).toEqual(['contact2Name', 'contact2Role', 'contact2Phone', 'contact2Email']);
+      expect(generatedRows[0]).toMatchObject({
+        contact2Name: 'Helpful Housekeeper',
+        contact2Role: 'Housekeeper',
+        contact2Phone: '+61411111111',
+        contact2Email: 'hk@example.com',
+      });
+    });
+
+    it('sizes the numbered columns to the widest row and blanks thinner rows', async () => {
+      const primary = makeContact();
+      const second = makeContact({ id: 'c-2', isPrimary: false, snapshotName: 'Second' });
+      const third = makeContact({ id: 'c-3', isPrimary: false, snapshotName: 'Third' });
+      vi.mocked(appointmentRepo.count).mockResolvedValue(2);
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+        // one extra contact
+        makeAppointmentListItem({}, { contact: primary, contacts: [primary, second] }),
+        // two extra contacts — widest row decides the column count
+        makeAppointmentListItem({}, { contact: primary, contacts: [primary, second, third] }),
+      ]);
+
+      await useCase.execute({ filters: {}, actor: makeActor() });
+
+      // Two extra-contact groups: contact2* and contact3*.
+      expect(generatedColumns.some((c) => c.key === 'contact3Name')).toBe(true);
+      expect(generatedColumns.some((c) => c.key === 'contact4Name')).toBe(false);
+      // The thinner first row still carries the contact3 keys, blank.
+      expect(generatedRows[0]).toMatchObject({ contact2Name: 'Second', contact3Name: '' });
+      expect(generatedRows[1]).toMatchObject({ contact2Name: 'Second', contact3Name: 'Third' });
+      // Every declared column resolves to a key on every row.
+      for (const row of generatedRows) {
+        for (const column of generatedColumns) {
+          expect(Object.keys(row)).toContain(column.key);
+        }
+      }
+    });
+
+    it('caps the numbered columns at 4 additional contacts', async () => {
+      const primary = makeContact();
+      const extras = Array.from({ length: 6 }, (_, i) =>
+        makeContact({ id: `c-${i + 2}`, isPrimary: false, snapshotName: `Extra ${i + 2}` }),
+      );
+      vi.mocked(appointmentRepo.count).mockResolvedValue(1);
+      vi.mocked(appointmentRepo.findAll).mockResolvedValue([
+        makeAppointmentListItem({}, { contact: primary, contacts: [primary, ...extras] }),
+      ]);
+
+      await useCase.execute({ filters: {}, actor: makeActor() });
+
+      expect(generatedColumns.some((c) => c.key === 'contact5Name')).toBe(true);
+      expect(generatedColumns.some((c) => c.key === 'contact6Name')).toBe(false);
+    });
   });
 });

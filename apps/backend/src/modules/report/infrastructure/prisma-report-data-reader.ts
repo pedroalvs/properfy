@@ -1,5 +1,5 @@
 import type { PrismaClient, Prisma, AppointmentStatus } from '@prisma/client';
-import { formatCivilDate, formatInstantDate, formatInstantDateTime, formatWallTimeRange, AGENCY_VISIBLE_ENTRY_TYPES } from '@properfy/shared';
+import { formatCivilDate, formatConfirmationDateCell, formatInstantDate, formatInstantDateTime, formatWallTimeRange, AGENCY_VISIBLE_ENTRY_TYPES } from '@properfy/shared';
 import { nextCivilDay, parseDateInTimezone, PLATFORM_TIMEZONE } from '../../../shared/domain/timezone-date';
 import type { IReportDataReader, ReportDataFilters } from '../domain/report-data-reader';
 
@@ -167,7 +167,18 @@ export class PrismaReportDataReader implements IReportDataReader {
 
     const entries = await this.prisma.financialEntry.findMany({
       where,
-      include: { tenant: true, inspector: true, appointment: true },
+      include: {
+        tenant: true,
+        inspector: true,
+        // The appointment carries the flow type (via service_type) and the
+        // active confirmation cycle, both needed for the Confirmation Date cell.
+        appointment: {
+          include: {
+            service_type: { select: { flow_type: true } },
+            active_confirmation_cycle: { select: { confirmed_at: true } },
+          },
+        },
+      },
       orderBy: { effective_at: 'asc' },
     });
 
@@ -209,6 +220,10 @@ export class PrismaReportDataReader implements IReportDataReader {
         agency: e.tenant?.name ?? '',
         entryType: e.entry_type,
         appointmentNumber: e.appointment?.appointment_number ?? '',
+        confirmationDate: formatConfirmationDateCell(
+          e.appointment?.service_type?.flow_type,
+          e.appointment?.active_confirmation_cycle?.confirmed_at,
+        ),
         inspector: e.inspector?.name ?? '',
         description: e.description ?? '',
         revenue: revenue !== 0 ? round2(revenue) : '',
@@ -218,7 +233,7 @@ export class PrismaReportDataReader implements IReportDataReader {
     });
 
     if (rows.length > 0) {
-      const blank = { entryDate: '', agency: '', entryType: '', appointmentNumber: '', inspector: '', currency: '' };
+      const blank = { entryDate: '', agency: '', entryType: '', appointmentNumber: '', confirmationDate: '', inspector: '', currency: '' };
       rows.push({ ...blank, description: 'TOTAL', revenue: round2(totalRevenue), expense: round2(totalExpense) });
       rows.push({ ...blank, description: 'NET (revenue − expenses)', revenue: round2(totalRevenue - totalExpense), expense: '' });
     }
@@ -232,7 +247,20 @@ export class PrismaReportDataReader implements IReportDataReader {
    * TOTAL — a NET row would merely restate it.
    */
   private buildAgencyFinancialRows(
-    entries: { effective_at: Date; entry_type: string; amount: unknown; description: string | null; currency: string; appointment: { appointment_number: number } | null }[],
+    entries: {
+      effective_at: Date;
+      entry_type: string;
+      amount: unknown;
+      description: string | null;
+      currency: string;
+      appointment:
+        | {
+            appointment_number: number;
+            service_type: { flow_type: string } | null;
+            active_confirmation_cycle: { confirmed_at: Date | null } | null;
+          }
+        | null;
+    }[],
     round2: (n: number) => number,
   ): Record<string, unknown>[] {
     let total = 0;
@@ -243,6 +271,10 @@ export class PrismaReportDataReader implements IReportDataReader {
         entryDate: formatInstantDate(e.effective_at),
         entryType: e.entry_type,
         appointmentNumber: e.appointment?.appointment_number ?? '',
+        confirmationDate: formatConfirmationDateCell(
+          e.appointment?.service_type?.flow_type,
+          e.appointment?.active_confirmation_cycle?.confirmed_at,
+        ),
         description: e.description ?? '',
         amount: round2(amount),
         currency: e.currency,
@@ -254,6 +286,7 @@ export class PrismaReportDataReader implements IReportDataReader {
         entryDate: '',
         entryType: '',
         appointmentNumber: '',
+        confirmationDate: '',
         description: 'TOTAL',
         amount: round2(total),
         currency: '',
