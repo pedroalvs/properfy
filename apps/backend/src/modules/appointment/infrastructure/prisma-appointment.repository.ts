@@ -9,6 +9,7 @@ import {
   OVERDUE_AUTO_CANCEL_STATUSES,
   OVERDUE_ELIGIBLE_STATUSES,
   isRentalTenantNotificationsEnabled,
+  phoneSearchVariants,
 } from '@properfy/shared';
 import { startOfOverdueAgeCutoff } from '../../../shared/domain/timezone-date';
 import { AppointmentEntity } from '../domain/appointment.entity';
@@ -623,7 +624,12 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         { property: { state: { equals: filters.search, mode: 'insensitive' } } },
         { contacts: { some: { snapshot_name: { contains: filters.search, mode: 'insensitive' } } } },
         { contacts: { some: { snapshot_email: { contains: filters.search, mode: 'insensitive' } } } },
-        { contacts: { some: { snapshot_phone: { contains: filters.search } } } },
+        // Phones are stored canonically as E.164 (+61...). Expand the typed
+        // term into its matchable forms so a local/spaced number is found;
+        // a non-phone term yields no variants and only name/email/property match.
+        ...phoneSearchVariants(filters.search).map((variant) => ({
+          contacts: { some: { snapshot_phone: { contains: variant } } },
+        })),
       ];
       if (filters.searchAppointmentNumber != null) {
         orConditions.push({ appointment_number: filters.searchAppointmentNumber });
@@ -653,7 +659,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       const contactOrConditions: Record<string, unknown>[] = [
         { snapshot_name: { contains: filters.contactSearch, mode: 'insensitive' } },
         { snapshot_email: { contains: filters.contactSearch, mode: 'insensitive' } },
-        { snapshot_phone: { contains: filters.contactSearch } },
+        ...phoneSearchVariants(filters.contactSearch).map((variant) => ({
+          snapshot_phone: { contains: variant },
+        })),
       ];
       where['contacts'] = { some: { OR: contactOrConditions } };
     }

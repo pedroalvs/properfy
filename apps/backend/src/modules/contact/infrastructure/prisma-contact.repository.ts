@@ -1,5 +1,5 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
-import type { ContactType } from '@properfy/shared';
+import { phoneSearchVariants, type ContactType } from '@properfy/shared';
 import { ContactEntity } from '../domain/contact.entity';
 import type { ContactScope } from '../domain/contact.scope';
 import type {
@@ -488,11 +488,28 @@ export class PrismaContactRepository implements IContactRepository {
     }
     if (filters.isActive !== undefined) where['is_active'] = filters.isActive;
     if (filters.search) {
-      where['OR'] = [
+      const searchOr: Record<string, unknown>[] = [
         { display_name: { contains: filters.search, mode: 'insensitive' } },
         { primary_email: { contains: filters.search, mode: 'insensitive' } },
-        { primary_phone: { contains: filters.search } },
       ];
+      // Phones are stored canonically as E.164 (+61...). Expand the typed term
+      // into its matchable forms so a local/spaced number is found.
+      const variants = phoneSearchVariants(filters.search);
+      for (const variant of variants) {
+        searchOr.push({ primary_phone: { contains: variant } });
+        // Secondary phones live in additional_channels_json ([{channel,value,label}]).
+        // array_contains -> Postgres @> partial-object containment: matches any
+        // array element whose `value` equals this variant. Only the full E.164
+        // form (+61...) can equal a stored value, so gate on it.
+        if (variant.startsWith('+')) {
+          searchOr.push({ additional_channels_json: { array_contains: [{ value: variant }] } });
+        }
+      }
+      if (variants.length === 0) {
+        // Non-phone term: preserve prior behaviour so nothing regresses.
+        searchOr.push({ primary_phone: { contains: filters.search } });
+      }
+      where['OR'] = searchOr;
     }
 
     // Each `appointment_contacts.some` clause emits an EXISTS subquery in the

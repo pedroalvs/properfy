@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { applyPhoneMask, stripNonDigits, maxPhoneDigits, formatAuPhone } from './phone';
+import {
+  applyPhoneMask,
+  stripNonDigits,
+  maxPhoneDigits,
+  formatAuPhone,
+  phoneSearchVariants,
+} from './phone';
 
 describe('applyPhoneMask', () => {
   it('formats Australian mobile numbers', () => {
@@ -72,5 +78,60 @@ describe('formatAuPhone', () => {
 
   it('returns empty string for empty input', () => {
     expect(formatAuPhone('')).toBe('');
+  });
+});
+
+describe('phoneSearchVariants', () => {
+  // Stored phones are canonical E.164 (+61412345678). Every variant returned
+  // here must be a substring of that stored form so a raw `contains` matches.
+  const stored = '+61412345678';
+  const matchesStored = (term: string) =>
+    phoneSearchVariants(term).some((v) => stored.includes(v));
+
+  it('matches a full local number typed with spaces', () => {
+    expect(phoneSearchVariants('0412 345 678')).toContain('+61412345678');
+    expect(matchesStored('0412 345 678')).toBe(true);
+  });
+
+  it('matches a full local number without spaces', () => {
+    expect(phoneSearchVariants('0412345678')).toContain('+61412345678');
+    expect(matchesStored('0412345678')).toBe(true);
+  });
+
+  it('matches an E.164 number typed with spaces', () => {
+    expect(phoneSearchVariants('+61 412 345 678')).toContain('+61412345678');
+    expect(matchesStored('+61 412 345 678')).toBe(true);
+  });
+
+  it('includes the legacy local (0-prefixed) form for a full number', () => {
+    expect(phoneSearchVariants('0412345678')).toContain('0412345678');
+  });
+
+  it('matches a partial number typed with the trunk 0', () => {
+    // "0412" -> national "412", a substring of the stored +61412345678.
+    expect(matchesStored('0412')).toBe(true);
+  });
+
+  it('matches a partial national fragment', () => {
+    expect(matchesStored('345678')).toBe(true);
+  });
+
+  it('matches a fragment typed with the country code', () => {
+    expect(matchesStored('61412')).toBe(true);
+  });
+
+  it('returns an empty array for non-phone text', () => {
+    expect(phoneSearchVariants('Jane Smith')).toEqual([]);
+    expect(phoneSearchVariants('')).toEqual([]);
+    expect(phoneSearchVariants('   ')).toEqual([]);
+  });
+
+  it('ignores fragments shorter than three digits', () => {
+    expect(phoneSearchVariants('04')).toEqual([]);
+  });
+
+  it('returns distinct variants', () => {
+    const variants = phoneSearchVariants('0412345678');
+    expect(new Set(variants).size).toBe(variants.length);
   });
 });

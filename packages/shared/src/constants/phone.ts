@@ -27,6 +27,37 @@ export function toE164Au(value: string): string | null {
 }
 
 /**
+ * Expands a user-typed phone search term into every canonical form that could
+ * match a stored value. Stored phones are canonical E.164 (`+61...`), so a
+ * local/spaced input has to be reduced to matchable variants before a raw
+ * `contains` will find it. Returns `[]` for non-phone text (e.g. a name), so
+ * callers can safely skip the phone clause and keep their name/email clauses.
+ */
+export function phoneSearchVariants(term: string): string[] {
+  const trimmed = term.trim();
+  if (!trimmed) return [];
+  const variants = new Set<string>();
+
+  // Full AU number in any format (local, spaced, +61) -> both canonical forms.
+  const e164 = toE164Au(trimmed);
+  if (e164) {
+    variants.add(e164); // +61412345678 — matches current stored data
+    variants.add(`0${e164.slice(3)}`); // 0412345678 — any legacy local data
+  }
+
+  // Partial / free-form: match on digits alone. Drop the trunk 0 / country
+  // code so the remaining digits are a substring of the stored +61XXXXXXXXX.
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length >= 3) {
+    variants.add(digits);
+    const national = digits.replace(/^(?:61|0)/, '');
+    if (national.length >= 3) variants.add(national);
+  }
+
+  return [...variants];
+}
+
+/**
  * Australian phone mask utilities.
  *
  * Formats digits into standard Australian patterns:
