@@ -39,7 +39,7 @@ const MIN_PHONE_SEARCH_DIGITS = 6;
  * the appointments list `search` field alongside notes/address/name) from
  * having its scattered digits concatenated into a stray phone fragment.
  */
-const PHONE_SHAPED = /^[+()\d\s.\-]+$/;
+const PHONE_SHAPED = /^[+()\d\s.-]+$/;
 
 /**
  * Expands a user-typed phone search term into every form that could match a
