@@ -12,6 +12,7 @@ import {
   phoneSearchVariants,
 } from '@properfy/shared';
 import { startOfOverdueAgeCutoff } from '../../../shared/domain/timezone-date';
+import { phoneColumnSearchClauses } from '../../../shared/infrastructure/phone-search-clause';
 import { AppointmentEntity } from '../domain/appointment.entity';
 import { AppointmentContactEntity } from '../domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../domain/appointment-restriction.entity';
@@ -666,12 +667,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       where['time_slot_start'] = range;
     }
     if (filters.contactSearch) {
+      // Dedicated contact field: expand the phone term with a raw fallback for
+      // short partials (unlike the general `search` block above, which must not
+      // let a postcode-shaped term leak into the phone clause).
       const contactOrConditions: Record<string, unknown>[] = [
         { snapshot_name: { contains: filters.contactSearch, mode: 'insensitive' } },
         { snapshot_email: { contains: filters.contactSearch, mode: 'insensitive' } },
-        ...phoneSearchVariants(filters.contactSearch).map((variant) => ({
-          snapshot_phone: { contains: variant },
-        })),
+        ...phoneColumnSearchClauses('snapshot_phone', filters.contactSearch),
       ];
       where['contacts'] = { some: { OR: contactOrConditions } };
     }

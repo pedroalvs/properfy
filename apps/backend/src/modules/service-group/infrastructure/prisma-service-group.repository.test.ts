@@ -888,6 +888,20 @@ describe('PrismaServiceGroupRepository list filters', () => {
     );
   });
 
+  it('keeps a raw phone clause for a short partial contactSearch fragment', async () => {
+    const repo = new PrismaServiceGroupRepository(prisma);
+
+    await repo.findAll(
+      { contactSearch: '3456' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    const or = (findMany.mock.calls[0]![0] as {
+      where: { appointments: { some: { contacts: { some: { OR: unknown[] } } } } };
+    }).where.appointments.some.contacts.some.OR;
+    expect(or).toContainEqual({ snapshot_phone: { contains: '3456' } });
+  });
+
   it('combines branchId and contactSearch using AND', async () => {
     const repo = new PrismaServiceGroupRepository(prisma);
 

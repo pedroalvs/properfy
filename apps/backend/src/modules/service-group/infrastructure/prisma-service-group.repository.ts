@@ -21,9 +21,9 @@ import type { PropertyType, ServiceGroupStatus } from '@properfy/shared';
 import {
   computeCentroid,
   isRentalTenantNotificationsEnabled,
-  phoneSearchVariants,
   TERMINAL_APPOINTMENT_STATUSES,
 } from '@properfy/shared';
+import { phoneColumnSearchClauses } from '../../../shared/infrastructure/phone-search-clause';
 import { ADDABLE_GROUP_STATUSES, TERMINAL_GROUP_STATUSES } from '../domain/service-group.validator';
 import { computeWindowAvailability } from '../domain/portal-slot-capacity';
 
@@ -1156,9 +1156,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       const contactOrConditions: Record<string, unknown>[] = [
         { snapshot_name: { contains: filters.contactSearch, mode: 'insensitive' } },
         { snapshot_email: { contains: filters.contactSearch, mode: 'insensitive' } },
-        ...phoneSearchVariants(filters.contactSearch).map((variant) => ({
-          snapshot_phone: { contains: variant },
-        })),
+        ...phoneColumnSearchClauses('snapshot_phone', filters.contactSearch),
       ];
       appointmentPredicates.push({ contacts: { some: { OR: contactOrConditions } }, deleted_at: null });
     }
