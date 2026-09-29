@@ -39,8 +39,7 @@ export class DisableTotpUseCase {
       throw new TotpNotConfiguredError();
     }
 
-    await this.userRepo.updateTotpEnabled(user.id, false);
-    await this.userRepo.updateTotpSecret(user.id, null);
+    await this.userRepo.disableTotp(user.id);
 
     this.auditService.log({
       action: 'auth.totp_disabled',

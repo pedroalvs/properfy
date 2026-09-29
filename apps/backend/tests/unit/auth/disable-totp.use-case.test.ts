@@ -47,19 +47,19 @@ describe('DisableTotpUseCase', () => {
       updateTimezone: vi.fn(),
       updateTotpSecret: vi.fn(),
       updateTotpEnabled: vi.fn(),
+      disableTotp: vi.fn(),
       activateUser: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new DisableTotpUseCase(userRepo, auditService);
   });
 
-  it('disables 2FA and clears the secret on a correct password', async () => {
+  it('disables 2FA and clears the secret in one write on a correct password', async () => {
     vi.mocked(userRepo.findById).mockResolvedValue(makeUser());
 
     await useCase.execute({ userId: 'user-1', currentPassword: 'CurrentPass1!' });
 
-    expect(userRepo.updateTotpEnabled).toHaveBeenCalledWith('user-1', false);
-    expect(userRepo.updateTotpSecret).toHaveBeenCalledWith('user-1', null);
+    expect(userRepo.disableTotp).toHaveBeenCalledWith('user-1');
   });
 
   it('audits the disable', async () => {
@@ -85,8 +85,7 @@ describe('DisableTotpUseCase', () => {
       useCase.execute({ userId: 'user-1', currentPassword: 'WrongPass!' }),
     ).rejects.toThrow(InvalidCurrentPasswordError);
 
-    expect(userRepo.updateTotpEnabled).not.toHaveBeenCalled();
-    expect(userRepo.updateTotpSecret).not.toHaveBeenCalled();
+    expect(userRepo.disableTotp).not.toHaveBeenCalled();
     expect(auditService.log).not.toHaveBeenCalled();
   });
 
@@ -97,7 +96,7 @@ describe('DisableTotpUseCase', () => {
       useCase.execute({ userId: 'user-1', currentPassword: 'CurrentPass1!' }),
     ).rejects.toThrow(TotpNotConfiguredError);
 
-    expect(userRepo.updateTotpEnabled).not.toHaveBeenCalled();
+    expect(userRepo.disableTotp).not.toHaveBeenCalled();
   });
 
   it('throws UnauthorizedError when the user is missing', async () => {

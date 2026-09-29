@@ -27,5 +27,7 @@ export interface IUserRepository {
   /** Store the encrypted TOTP secret, or `null` to clear it (disable / admin reset). */
   updateTotpSecret(userId: string, totpSecret: string | null): Promise<void>;
   updateTotpEnabled(userId: string, totpEnabled: boolean): Promise<void>;
+  /** Disable 2FA: clear the enabled flag and the stored secret in a single write. */
+  disableTotp(userId: string): Promise<void>;
   activateUser(userId: string, passwordHash: string): Promise<void>;
 }

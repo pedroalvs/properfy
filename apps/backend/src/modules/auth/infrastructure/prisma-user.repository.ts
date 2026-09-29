@@ -206,6 +206,13 @@ export class PrismaUserRepository implements IUserRepository {
     });
   }
 
+  async disableTotp(userId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { totp_enabled: false, totp_secret: null },
+    });
+  }
+
   async activateUser(userId: string, passwordHash: string): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },

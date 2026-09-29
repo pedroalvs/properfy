@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
@@ -34,6 +34,10 @@ export function TwoFactorDialog({ open, onClose }: TwoFactorDialogProps) {
   const [intent, setIntent] = useState<Intent>('reconfigure');
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  // Tracks a disable that landed server-side but hasn't been reflected in the
+  // auth state yet — so closing mid-reconfigure still refreshes the stale
+  // "Enabled" card instead of leaving it lying.
+  const disabledPendingRefresh = useRef(false);
 
   // Reset to the right entry view each time the dialog opens.
   useEffect(() => {
@@ -42,16 +46,28 @@ export function TwoFactorDialog({ open, onClose }: TwoFactorDialogProps) {
     setIntent('reconfigure');
     setPassword('');
     setPasswordError('');
+    disabledPendingRefresh.current = false;
   }, [open, isEnabled]);
 
   const finish = useCallback(
     async (message: string) => {
+      disabledPendingRefresh.current = false;
       await refreshUser();
       showSuccess(message);
       onClose();
     },
     [refreshUser, showSuccess, onClose],
   );
+
+  // Any close path (backdrop, Escape, Cancel) must reconcile the card when a
+  // disable happened but enrolment wasn't completed.
+  const handleClose = useCallback(() => {
+    if (disabledPendingRefresh.current) {
+      disabledPendingRefresh.current = false;
+      void refreshUser();
+    }
+    onClose();
+  }, [refreshUser, onClose]);
 
   const startIntent = useCallback((next: Intent) => {
     setIntent(next);
@@ -70,6 +86,9 @@ export function TwoFactorDialog({ open, onClose }: TwoFactorDialogProps) {
       setPasswordError(result.error ?? 'Failed to disable two-factor authentication');
       return;
     }
+    // 2FA is now off server-side; if the user bails before re-enrolling, the card
+    // must refresh so it doesn't keep claiming "Enabled".
+    disabledPendingRefresh.current = true;
     if (intent === 'reconfigure') {
       // Secret cleared server-side; enrolment can now provision a fresh one.
       setView('enroll');
@@ -79,17 +98,19 @@ export function TwoFactorDialog({ open, onClose }: TwoFactorDialogProps) {
   }, [password, disableTotp, intent, finish]);
 
   const handleEnrolled = useCallback(() => {
+    // `isEnabled` still reflects the pre-open state (auth refreshes only in
+    // finish), so it distinguishes a first-time enable from a reconfigure.
     void finish(
-      intent === 'reconfigure'
+      isEnabled
         ? 'Two-factor authentication updated with your new authenticator.'
         : 'Two-factor authentication enabled.',
     );
-  }, [finish, intent]);
+  }, [finish, isEnabled]);
 
   const title = view === 'enroll' && isEnabled ? 'Reconfigure two-factor authentication' : 'Two-factor authentication';
 
   return (
-    <Dialog open={open} onClose={onClose} title={title}>
+    <Dialog open={open} onClose={handleClose} title={title}>
       {view === 'manage' && (
         <div className="flex flex-col gap-4">
           <div className="rounded border border-green-200 bg-green-50 p-4">
@@ -166,7 +187,7 @@ export function TwoFactorDialog({ open, onClose }: TwoFactorDialogProps) {
       )}
 
       {view === 'enroll' && (
-        <TotpEnrollmentSteps onEnrolled={handleEnrolled} onCancel={onClose} />
+        <TotpEnrollmentSteps onEnrolled={handleEnrolled} onCancel={handleClose} />
       )}
     </Dialog>
   );
