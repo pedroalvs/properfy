@@ -184,6 +184,9 @@ async function main() {
       for (const failure of summary.failures) {
         console.log(`    ${failure.appointmentId} — ${failure.message}`);
       }
+      // Exit non-zero so a partial failure is not mistaken for success by an
+      // operator or a `... && ...` wrapper: those appointments are still unbilled.
+      process.exitCode = 1;
     }
 
     if (!apply) {
