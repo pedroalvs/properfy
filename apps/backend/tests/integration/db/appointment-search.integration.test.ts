@@ -33,6 +33,7 @@ describe('appointment search filter (real DB)', () => {
   let tenantId: string;
   let targetId: string;
   let targetNumber: number;
+  let decoyId: string;
 
   /**
    * Runs the search exactly as the use case does — including the numeric-code
@@ -146,12 +147,35 @@ describe('appointment search filter (real DB)', () => {
 
     // A decoy in a different suburb/postcode so a passing search is not just
     // "everything matches everything".
-    await seedAppointment({
+    const decoy = await seedAppointment({
       code: `APSF-B-${suffix}`,
       street: '9 Elsewhere Rd',
       suburb: 'Manly',
       postcode: '2095',
       state: 'NSW',
+    });
+    decoyId = decoy.id;
+
+    // Phone snapshots are stored canonically as E.164 (+61...), exactly as the
+    // create/update use cases persist them. The target and decoy get distinct
+    // numbers so a phone search must resolve to one row, not both.
+    await prisma.appointmentContact.create({
+      data: {
+        appointment_id: targetId,
+        role: 'RENTAL_TENANT',
+        is_primary: true,
+        snapshot_name: 'Target Tenant',
+        snapshot_phone: '+61412345678',
+      },
+    });
+    await prisma.appointmentContact.create({
+      data: {
+        appointment_id: decoy.id,
+        role: 'RENTAL_TENANT',
+        is_primary: true,
+        snapshot_name: 'Decoy Tenant',
+        snapshot_phone: '+61498765432',
+      },
     });
 
     // A SECOND AGENCY holding an identical address. Every scoped search must
@@ -245,5 +269,38 @@ describe('appointment search filter (real DB)', () => {
   it('survives a numeric term above the int4 ceiling instead of throwing', async () => {
     // Without the guard, Postgres rejects the value and the search 500s.
     await expect(search('99999999999')).resolves.toMatchObject({ total: 0 });
+  });
+
+  // The reported bug: phones are stored as +61..., so a local-format search
+  // never substring-matched and returned nothing. `search` and the map's
+  // `contactSearch` field both run through the snapshot_phone clause.
+  it('finds the appointment by a local-format phone — the reported gap', async () => {
+    const { ids, total } = await search('0412345678');
+    expect(ids).toEqual([targetId]);
+    expect(total).toBe(1);
+  });
+
+  it('finds the appointment by a spaced local phone', async () => {
+    const { ids } = await search('0412 345 678');
+    expect(ids).toEqual([targetId]);
+  });
+
+  it('finds the appointment by the E.164 phone (no regression)', async () => {
+    const { ids } = await search('+61412345678');
+    expect(ids).toEqual([targetId]);
+  });
+
+  it('does not match the decoy contact holding a different number', async () => {
+    const { ids } = await search('0412345678');
+    expect(ids).not.toContain(decoyId);
+  });
+
+  it('matches by phone through the map contactSearch field too', async () => {
+    const [rows, total] = await Promise.all([
+      repo.findAll({ tenantId, contactSearch: '0412 345 678' }, PAGINATION),
+      repo.count({ tenantId, contactSearch: '0412 345 678' }),
+    ]);
+    expect(rows.map((r) => r.appointment.id)).toEqual([targetId]);
+    expect(total).toBe(1);
   });
 });

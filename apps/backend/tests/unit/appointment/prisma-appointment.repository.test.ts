@@ -56,7 +56,7 @@ describe('PrismaAppointmentRepository date filters', () => {
     );
   });
 
-  it('filters by contactSearch across snapshot fields', async () => {
+  it('filters by contactSearch across name and email for a non-phone term', async () => {
     const repo = new PrismaAppointmentRepository(prisma);
 
     await repo.findAll(
@@ -64,6 +64,8 @@ describe('PrismaAppointmentRepository date filters', () => {
       { page: 1, pageSize: 10, sortOrder: 'asc' },
     );
 
+    // A non-phone term yields no phone variants, so only name/email are matched
+    // (a raw `contains: 'john'` on the canonical +61... column never matched).
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -72,13 +74,47 @@ describe('PrismaAppointmentRepository date filters', () => {
               OR: [
                 { snapshot_name: { contains: 'john', mode: 'insensitive' } },
                 { snapshot_email: { contains: 'john', mode: 'insensitive' } },
-                { snapshot_phone: { contains: 'john' } },
               ],
             },
           },
         }),
       }),
     );
+  });
+
+  it('expands a local-format contactSearch phone into canonical variants', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { contactSearch: '0412 345 678' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    const or = (findMany.mock.calls[0]![0] as { where: { contacts: { some: { OR: unknown[] } } } })
+      .where.contacts.some.OR;
+    // Stored phones are E.164; the local form must expand so it matches.
+    expect(or).toEqual(
+      expect.arrayContaining([
+        { snapshot_name: { contains: '0412 345 678', mode: 'insensitive' } },
+        { snapshot_email: { contains: '0412 345 678', mode: 'insensitive' } },
+        { snapshot_phone: { contains: '+61412345678' } },
+      ]),
+    );
+  });
+
+  it('keeps a raw phone clause for a short partial contactSearch fragment', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    // Below the expansion threshold, but this is a dedicated contact field, so
+    // the phone clause must survive (fallback) — not silently disappear.
+    await repo.findAll(
+      { contactSearch: '3456' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    const or = (findMany.mock.calls[0]![0] as { where: { contacts: { some: { OR: unknown[] } } } })
+      .where.contacts.some.OR;
+    expect(or).toContainEqual({ snapshot_phone: { contains: '3456' } });
   });
 
   it('filters by hasRentalTenantNote=true (non-null and non-empty)', async () => {

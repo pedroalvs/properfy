@@ -4,6 +4,7 @@ import type { IAuditLogRepository } from '../../../audit/domain/audit-log.reposi
 import type { IInspectionExecutionRepository } from '../../../inspector-execution/domain/inspection-execution.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 import {
   AppointmentDoneCrossCheckAlreadyCompletedError,
   AppointmentDoneCrossCheckEvidenceIncompleteError,
@@ -40,6 +41,7 @@ export class PerformCrossCheckUseCase {
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
     private readonly onDoneHandler?: OnDoneHandler,
+    private readonly logger?: Logger,
   ) {}
 
   async execute(input: PerformCrossCheckInput): Promise<PerformCrossCheckOutput> {
@@ -134,8 +136,14 @@ export class PerformCrossCheckUseCase {
     if (this.onDoneHandler) {
       try {
         await this.onDoneHandler.execute({ appointmentId: appointment.id });
-      } catch {
-        // Cross-check is already persisted and audited; financial creation can be retried separately.
+      } catch (err) {
+        // Cross-check is already persisted and audited; financial creation can be
+        // retried separately. Never swallow this silently — an unlogged failure
+        // here is exactly what left production ledgers empty.
+        this.logger?.error(
+          { err, appointmentId: appointment.id, tenantId: appointment.tenantId },
+          'Failed to create financial entries after cross-check; entries can be created via the billing API',
+        );
       }
     }
 

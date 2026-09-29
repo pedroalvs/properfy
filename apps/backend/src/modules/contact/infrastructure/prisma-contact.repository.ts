@@ -1,5 +1,6 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
-import type { ContactType } from '@properfy/shared';
+import { phoneSearchVariants, type ContactType } from '@properfy/shared';
+import { phoneColumnSearchClauses } from '../../../shared/infrastructure/phone-search-clause';
 import { ContactEntity } from '../domain/contact.entity';
 import type { ContactScope } from '../domain/contact.scope';
 import type {
@@ -488,11 +489,25 @@ export class PrismaContactRepository implements IContactRepository {
     }
     if (filters.isActive !== undefined) where['is_active'] = filters.isActive;
     if (filters.search) {
-      where['OR'] = [
+      // Phones are stored canonically as E.164 (+61...); the shared helper
+      // expands the typed term (with a raw fallback for a short partial) so a
+      // local/spaced number is found on this dedicated contact-search field.
+      const phoneVariants = phoneSearchVariants(filters.search);
+      const searchOr: Record<string, unknown>[] = [
         { display_name: { contains: filters.search, mode: 'insensitive' } },
         { primary_email: { contains: filters.search, mode: 'insensitive' } },
-        { primary_phone: { contains: filters.search } },
+        ...phoneColumnSearchClauses('primary_phone', filters.search, phoneVariants),
       ];
+      // Secondary phones live in additional_channels_json ([{channel,value,label}]).
+      // array_contains -> Postgres @> partial-object containment: matches any
+      // array element whose `value` equals this variant. Values are canonical
+      // E.164 (transformed on write), so only the full +61... variant can match.
+      for (const variant of phoneVariants) {
+        if (variant.startsWith('+')) {
+          searchOr.push({ additional_channels_json: { array_contains: [{ value: variant }] } });
+        }
+      }
+      where['OR'] = searchOr;
     }
 
     // Each `appointment_contacts.some` clause emits an EXISTS subquery in the

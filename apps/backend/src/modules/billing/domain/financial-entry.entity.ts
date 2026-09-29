@@ -12,7 +12,8 @@ export interface FinancialEntryProps {
   status: FinancialEntryStatus;
   description: string;
   effectiveAt: Date;
-  initiatedByUserId: string;
+  /** Null for system-minted entries (DONE debit/payout, compensations): no human initiator. */
+  initiatedByUserId: string | null;
   approvedByUserId: string | null;
   approvedAt: Date | null;
   referenceEntryId: string | null;
@@ -31,7 +32,7 @@ export class FinancialEntryEntity extends BaseEntity {
   status: FinancialEntryStatus;
   readonly description: string;
   readonly effectiveAt: Date;
-  readonly initiatedByUserId: string;
+  readonly initiatedByUserId: string | null;
   approvedByUserId: string | null;
   approvedAt: Date | null;
   readonly referenceEntryId: string | null;

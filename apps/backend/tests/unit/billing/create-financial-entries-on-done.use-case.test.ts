@@ -153,7 +153,9 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
     expect(debitEntry.tenantId).toBe('tenant-1');
     expect(debitEntry.appointmentId).toBe('appt-1');
     expect(debitEntry.inspectorId).toBeNull();
-    expect(debitEntry.initiatedByUserId).toBe('SYSTEM');
+    // System-minted: no human initiator. Must be null — a non-null 'SYSTEM'
+    // sentinel violates the users FK and is why prod ledgers were empty.
+    expect(debitEntry.initiatedByUserId).toBeNull();
     expect(debitEntry.approvedByUserId).toBeNull();
     expect(debitEntry.approvedAt).toBeNull();
     expect(debitEntry.description).toBe('Inspection service debit');
@@ -166,7 +168,7 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
     expect(payoutEntry.tenantId).toBe('tenant-1');
     expect(payoutEntry.appointmentId).toBe('appt-1');
     expect(payoutEntry.inspectorId).toBe('insp-1');
-    expect(payoutEntry.initiatedByUserId).toBe('SYSTEM');
+    expect(payoutEntry.initiatedByUserId).toBeNull();
     expect(payoutEntry.description).toBe('Inspector payout');
   });
 
@@ -224,7 +226,7 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
       status: 'PENDING',
       description: 'Inspection service debit',
       effectiveAt: new Date(),
-      initiatedByUserId: 'SYSTEM',
+      initiatedByUserId: null,
       approvedByUserId: null,
       approvedAt: null,
       referenceEntryId: null,
@@ -255,7 +257,7 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
       status: 'PENDING',
       description: 'Inspection service debit',
       effectiveAt: new Date(),
-      initiatedByUserId: 'SYSTEM',
+      initiatedByUserId: null,
       approvedByUserId: null,
       approvedAt: null,
       referenceEntryId: null,
@@ -291,7 +293,7 @@ describe('CreateFinancialEntriesOnDoneUseCase', () => {
       status: 'PENDING',
       description: 'Inspection service debit',
       effectiveAt: new Date(),
-      initiatedByUserId: 'SYSTEM',
+      initiatedByUserId: null,
       approvedByUserId: null,
       approvedAt: null,
       referenceEntryId: null,

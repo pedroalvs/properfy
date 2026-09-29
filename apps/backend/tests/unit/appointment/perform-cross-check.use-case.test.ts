@@ -120,6 +120,12 @@ const onDoneHandler = {
   execute: vi.fn().mockResolvedValue(undefined),
 };
 
+const logger = {
+  error: vi.fn(),
+  warn: vi.fn(),
+  info: vi.fn(),
+};
+
 const authorizationService = new AuthorizationService(auditService as any);
 
 function makeSut() {
@@ -130,6 +136,7 @@ function makeSut() {
     auditService as never,
     authorizationService,
     onDoneHandler,
+    logger as never,
   );
 }
 
@@ -178,6 +185,25 @@ describe('PerformCrossCheckUseCase', () => {
     expect(result.status).toBe('DONE');
     expect(result.previousStatus).toBe('DONE');
     expect(result.doneCheckedByUserId).toBe('op-1');
+  });
+
+  it('logs (not swallows) a financial-entry failure but still completes the cross-check', async () => {
+    onDoneHandler.execute.mockRejectedValueOnce(new Error('FK violation'));
+    const sut = makeSut();
+
+    const result = await sut.execute({
+      appointmentId: 'appt-1',
+      actor: { userId: 'op-1', tenantId: null, role: 'OP', branchId: null, inspectorId: null },
+    });
+
+    // Cross-check still succeeds (financial creation is decoupled)...
+    expect(result.status).toBe('DONE');
+    expect(result.doneCheckedByUserId).toBe('op-1');
+    // ...but the failure must be logged, never silently swallowed.
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: 'appt-1', tenantId: 'tenant-1' }),
+      expect.stringContaining('financial entries'),
+    );
   });
 
   it('rejects cross-check when appointment is not DONE', async () => {

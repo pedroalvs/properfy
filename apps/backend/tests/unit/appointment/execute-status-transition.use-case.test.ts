@@ -140,6 +140,12 @@ const serviceGroupRepo = {
   findStatusById: vi.fn().mockResolvedValue('PUBLISHED'),
 };
 
+const logger = {
+  error: vi.fn(),
+  warn: vi.fn(),
+  info: vi.fn(),
+};
+
 const inspectorRepo = {
   findById: vi.fn(),
   findByEmail: vi.fn(),
@@ -190,6 +196,7 @@ function makeUseCase(opts: { withOnDoneHandler?: boolean; withOnTransitionHandle
     undefined,
     undefined,
     opts.withServiceGroupRepo ? (serviceGroupRepo as any) : undefined,
+    logger as any,
   );
 }
 
@@ -843,6 +850,12 @@ describe('ExecuteStatusTransitionUseCase – DONE side effects', () => {
 
     expect(result.status).toBe('DONE');
     expect(onDoneHandler.execute).toHaveBeenCalledOnce();
+    // The failure must be logged, not silently swallowed — an unlogged failure
+    // here is exactly what left production ledgers empty.
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: 'appt-1', targetStatus: 'DONE' }),
+      expect.stringContaining('financial entries'),
+    );
   });
 
   it('does NOT call onDoneHandler for non-DONE transitions', async () => {

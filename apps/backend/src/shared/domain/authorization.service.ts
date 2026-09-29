@@ -90,11 +90,13 @@ export class AuthorizationService {
   }
 
   /**
-   * Prevents an actor from approving their own work.
+   * Prevents an actor from approving their own work. A null originator (a
+   * system-minted entry, which has no human initiator) can never be a
+   * self-approval, so any AM/OP may approve it.
    */
   assertNotSelfApproval(
     actorUserId: string,
-    originatorUserId: string,
+    originatorUserId: string | null,
     context: AuthorizationContext,
   ): void {
     if (actorUserId !== originatorUserId) return;

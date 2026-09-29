@@ -24,6 +24,13 @@ export default defineConfig({
     //   fly ssh console -a properfy-prod -C \
     //     "cd /app/apps/backend && node dist/backfill-property-branch.js"
     'backfill-property-branch': 'src/scripts/backfill-property-branch.ts',
+    // One-shot repair for cross-checked DONE appointments whose financial
+    // ledger entries never got created (the 'SYSTEM' initiator FK bug). Fixed
+    // at the source in the same change; this heals the stuck prod rows.
+    // Dry run by default — pass --apply to write:
+    //   fly ssh console -a properfy-api -C \
+    //     "cd /app/apps/backend && node dist/backfill-financial-entries-on-done.js --apply"
+    'backfill-financial-entries-on-done': 'src/scripts/backfill-financial-entries-on-done.ts',
     // Read-only report of what the two auto-cancel sweeps
     // (appointment.cancel-overdue, service-group.cancel-empty) would act on.
     // Both sweeps are unscoped by tenant, so this is how an operator sizes the
