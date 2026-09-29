@@ -658,7 +658,7 @@ describe('inspectorAppointmentDetailResponseSchema — customFields', () => {
     expect(result.success).toBe(false);
   });
 
-  it('retains propertyCode — the realty code shown on the detail page', () => {
+  it('retains propertyCode in the API contract (realty code)', () => {
     const result = inspectorAppointmentDetailResponseSchema.safeParse({
       ...validBase,
       propertyCode: 'ACM-PROP-0007',
