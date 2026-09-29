@@ -27,42 +27,58 @@ export function toE164Au(value: string): string | null {
 }
 
 /**
- * Minimum run of digits before a free-form term is expanded into loose phone
- * fragments. Above AU postcodes (4 digits) so a postcode search does not leak
- * into the phone clause.
+ * Minimum run of digits before a term is treated as a phone number worth
+ * expanding. Above AU postcodes (4 digits) so a short numeric term (a postcode,
+ * an appointment number) does not leak into the phone clause.
  */
-const MIN_PHONE_FRAGMENT_DIGITS = 6;
+const MIN_PHONE_SEARCH_DIGITS = 6;
 
 /**
- * Expands a user-typed phone search term into every canonical form that could
- * match a stored value. Stored phones are canonical E.164 (`+61...`), so a
- * local/spaced input has to be reduced to matchable variants before a raw
- * `contains` will find it. Returns `[]` for non-phone text (e.g. a name), so
- * callers can safely skip the phone clause and keep their name/email clauses.
+ * A term is a phone candidate only if it is digits plus phone punctuation —
+ * no letters. This keeps a general search term ("apt 123456 Smith St", used by
+ * the appointments list `search` field alongside notes/address/name) from
+ * having its scattered digits concatenated into a stray phone fragment.
+ */
+const PHONE_SHAPED = /^[+()\d\s.\-]+$/;
+
+/**
+ * Expands a user-typed phone search term into every form that could match a
+ * stored value. Stored phones are canonical E.164 (`+61...`), so a local/spaced
+ * input has to be reduced to matchable variants before a raw `contains` finds
+ * it. Returns `[]` for anything that is not a phone-shaped term of at least
+ * MIN_PHONE_SEARCH_DIGITS digits — so callers can safely skip the phone clause
+ * and keep their name/email/address clauses (no false positives, no regression
+ * for a plain name or a short postcode).
  */
 export function phoneSearchVariants(term: string): string[] {
   const trimmed = term.trim();
-  if (!trimmed) return [];
-  const variants = new Set<string>();
+  if (!trimmed || !PHONE_SHAPED.test(trimmed)) return [];
 
-  // Full AU number in any format (local, spaced, +61) -> both canonical forms.
+  const digits = trimmed.replace(/\D/g, '');
   const e164 = toE164Au(trimmed);
+  // Expand only a full AU number (e164 resolves) or a long-enough digit run.
+  // A short pure-digit term (a 4-digit postcode like "0800") resolves to
+  // neither and yields nothing.
+  if (!e164 && digits.length < MIN_PHONE_SEARCH_DIGITS) return [];
+
+  const variants = new Set<string>();
+  // Keep the literal typed term so legacy, non-canonical stored values
+  // (e.g. a phone saved as "0412 345 678") still match by substring as before.
+  variants.add(trimmed);
+
   if (e164) {
-    variants.add(e164); // +61412345678 — matches current stored data
-    variants.add(`0${e164.slice(3)}`); // 0412345678 — any legacy local data
+    variants.add(e164); // +61412345678 — matches current canonical data
+    variants.add(`0${e164.slice(3)}`); // 0412345678 — legacy local form
   }
 
-  // Partial / free-form: match on digits alone. Drop the trunk 0 / country
-  // code so the remaining digits are a substring of the stored +61XXXXXXXXX.
-  // Require a reasonably long run of digits (>= MIN_PHONE_FRAGMENT_DIGITS) so a
-  // short numeric term — a 4-digit postcode like "0800", an appointment number —
-  // does not turn into a stray fragment ("800") that matches unrelated phones in
-  // a search OR that also spans address/postcode fields.
-  const digits = trimmed.replace(/\D/g, '');
-  if (digits.length >= MIN_PHONE_FRAGMENT_DIGITS) {
+  // Partial / free-form: match on digits alone. Drop the trunk 0 / country code
+  // so the remaining run is a substring of the stored +61XXXXXXXXX. Both the
+  // full digit run and the stripped national run must be >= MIN so a 5-digit
+  // fragment (which matches far too many stored numbers) is never emitted.
+  if (digits.length >= MIN_PHONE_SEARCH_DIGITS) {
     variants.add(digits);
     const national = digits.replace(/^(?:61|0)/, '');
-    if (national.length >= MIN_PHONE_FRAGMENT_DIGITS - 1) variants.add(national);
+    if (national.length >= MIN_PHONE_SEARCH_DIGITS) variants.add(national);
   }
 
   return [...variants];

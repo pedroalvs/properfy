@@ -112,23 +112,38 @@ describe('phoneSearchVariants', () => {
     expect(matchesStored('345678')).toBe(true);
   });
 
-  it('strips the country code from a long fragment', () => {
-    // "614123" -> national "4123", a substring of the stored +61412345678.
+  it('matches a long fragment that includes the country code', () => {
     expect(matchesStored('614123')).toBe(true);
   });
 
-  it('returns an empty array for non-phone text', () => {
+  it('preserves the literal typed term so legacy non-canonical stored values still match', () => {
+    // A phone saved before canonicalization (e.g. "0412 345 678") is matched by
+    // a substring `contains` on the raw term, which must remain a variant.
+    expect(phoneSearchVariants('0412 345 678')).toContain('0412 345 678');
+  });
+
+  it('returns an empty array for text containing letters (not phone-shaped)', () => {
     expect(phoneSearchVariants('Jane Smith')).toEqual([]);
     expect(phoneSearchVariants('')).toEqual([]);
     expect(phoneSearchVariants('   ')).toEqual([]);
+    // A general search term whose scattered digits must NOT become a phone
+    // fragment (the appointments `search` box also matches notes/address).
+    expect(phoneSearchVariants('apt 123456 Smith St')).toEqual([]);
   });
 
   it('does not expand a short numeric term into loose fragments', () => {
-    // A 4-digit AU postcode must not leak into the phone clause: "0800" would
-    // otherwise yield "800" and match unrelated numbers containing it.
+    // A 4-digit AU postcode must not leak into the phone clause.
     expect(phoneSearchVariants('0800')).toEqual([]);
     expect(phoneSearchVariants('2217')).toEqual([]);
     expect(phoneSearchVariants('04')).toEqual([]);
+  });
+
+  it('never emits a national fragment shorter than the minimum', () => {
+    // "012345" -> national "12345" (5 digits) is too short and would match far
+    // too many stored numbers, so only the full 6-digit run is kept.
+    const variants = phoneSearchVariants('012345');
+    expect(variants).toContain('012345');
+    expect(variants).not.toContain('12345');
   });
 
   it('returns distinct variants', () => {
