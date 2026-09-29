@@ -14,7 +14,9 @@ vi.mock('@/hooks/useSnackbar', () => ({
 
 import { UserResetTotpDialog } from './UserResetTotpDialog';
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('UserResetTotpDialog', () => {
   it('warns that an AM target must re-enrol at next login', () => {
