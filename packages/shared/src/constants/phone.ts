@@ -27,6 +27,13 @@ export function toE164Au(value: string): string | null {
 }
 
 /**
+ * Minimum run of digits before a free-form term is expanded into loose phone
+ * fragments. Above AU postcodes (4 digits) so a postcode search does not leak
+ * into the phone clause.
+ */
+const MIN_PHONE_FRAGMENT_DIGITS = 6;
+
+/**
  * Expands a user-typed phone search term into every canonical form that could
  * match a stored value. Stored phones are canonical E.164 (`+61...`), so a
  * local/spaced input has to be reduced to matchable variants before a raw
@@ -47,11 +54,15 @@ export function phoneSearchVariants(term: string): string[] {
 
   // Partial / free-form: match on digits alone. Drop the trunk 0 / country
   // code so the remaining digits are a substring of the stored +61XXXXXXXXX.
+  // Require a reasonably long run of digits (>= MIN_PHONE_FRAGMENT_DIGITS) so a
+  // short numeric term — a 4-digit postcode like "0800", an appointment number —
+  // does not turn into a stray fragment ("800") that matches unrelated phones in
+  // a search OR that also spans address/postcode fields.
   const digits = trimmed.replace(/\D/g, '');
-  if (digits.length >= 3) {
+  if (digits.length >= MIN_PHONE_FRAGMENT_DIGITS) {
     variants.add(digits);
     const national = digits.replace(/^(?:61|0)/, '');
-    if (national.length >= 3) variants.add(national);
+    if (national.length >= MIN_PHONE_FRAGMENT_DIGITS - 1) variants.add(national);
   }
 
   return [...variants];

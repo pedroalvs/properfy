@@ -107,17 +107,14 @@ describe('phoneSearchVariants', () => {
     expect(phoneSearchVariants('0412345678')).toContain('0412345678');
   });
 
-  it('matches a partial number typed with the trunk 0', () => {
-    // "0412" -> national "412", a substring of the stored +61412345678.
-    expect(matchesStored('0412')).toBe(true);
-  });
-
-  it('matches a partial national fragment', () => {
+  it('matches a longer partial national fragment', () => {
+    expect(matchesStored('412345')).toBe(true);
     expect(matchesStored('345678')).toBe(true);
   });
 
-  it('matches a fragment typed with the country code', () => {
-    expect(matchesStored('61412')).toBe(true);
+  it('strips the country code from a long fragment', () => {
+    // "614123" -> national "4123", a substring of the stored +61412345678.
+    expect(matchesStored('614123')).toBe(true);
   });
 
   it('returns an empty array for non-phone text', () => {
@@ -126,7 +123,11 @@ describe('phoneSearchVariants', () => {
     expect(phoneSearchVariants('   ')).toEqual([]);
   });
 
-  it('ignores fragments shorter than three digits', () => {
+  it('does not expand a short numeric term into loose fragments', () => {
+    // A 4-digit AU postcode must not leak into the phone clause: "0800" would
+    // otherwise yield "800" and match unrelated numbers containing it.
+    expect(phoneSearchVariants('0800')).toEqual([]);
+    expect(phoneSearchVariants('2217')).toEqual([]);
     expect(phoneSearchVariants('04')).toEqual([]);
   });
 

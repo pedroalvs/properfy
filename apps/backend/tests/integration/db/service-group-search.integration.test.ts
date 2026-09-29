@@ -39,6 +39,7 @@ describe('service group search filter (real DB)', () => {
   let tenantAId: string;
   let scopedGroupAId: string;
   let scopedGroupBId: string;
+  let contactGroupId: string;
 
   /** Tenant → branch → property chain plus one appointment linking the group to that tenant. */
   async function seedTenantWithGroupAppointment(name: string, serviceGroupId: string): Promise<string> {
@@ -141,6 +142,25 @@ describe('service group search filter (real DB)', () => {
     scopedGroupBId = (await seedGroup('Scoped sweep')).id;
     tenantAId = await seedTenantWithGroupAppointment('SGSF Tenant A', scopedGroupAId);
     await seedTenantWithGroupAppointment('SGSF Tenant B', scopedGroupBId);
+
+    // A group whose linked appointment carries a contact snapshot phone stored
+    // canonically as E.164 — for the contactSearch path (Map Groups mode
+    // "Contact" field). Before the fix, that OR referenced dead columns and
+    // threw on any real query.
+    contactGroupId = (await seedGroup('Contact phone group')).id;
+    await seedTenantWithGroupAppointment('SGSF Contact Tenant', contactGroupId);
+    const contactAppt = await prisma.appointment.findFirst({
+      where: { service_group_id: contactGroupId },
+    });
+    await prisma.appointmentContact.create({
+      data: {
+        appointment_id: contactAppt!.id,
+        role: 'RENTAL_TENANT',
+        is_primary: true,
+        snapshot_name: 'Group Contact',
+        snapshot_phone: '+61412345678',
+      },
+    });
   }, 120_000);
 
   afterAll(async () => {
@@ -176,6 +196,23 @@ describe('service group search filter (real DB)', () => {
     const ids = rows.map((r) => r.group.id);
     expect(ids).toContain(scopedGroupAId);
     expect(ids).not.toContain(scopedGroupBId);
+  });
+
+  it('finds a group by a linked contact phone in local format — and does not throw', async () => {
+    // Doubles as a regression guard: the old OR referenced columns absent from
+    // AppointmentContact, so this real-DB query used to fail outright.
+    const rows = await repo.findAll({ contactSearch: '0412 345 678' }, PAGINATION);
+    expect(rows.map((r) => r.group.id)).toContain(contactGroupId);
+  });
+
+  it('finds the same group by the E.164 contact phone', async () => {
+    const rows = await repo.findAll({ contactSearch: '+61412345678' }, PAGINATION);
+    expect(rows.map((r) => r.group.id)).toContain(contactGroupId);
+  });
+
+  it('returns nothing for a contact phone that matches no group', async () => {
+    const rows = await repo.findAll({ contactSearch: '0400 000 000' }, PAGINATION);
+    expect(rows.map((r) => r.group.id)).not.toContain(contactGroupId);
   });
 
   it('bounds numeric code matching to the Postgres Int range', async () => {

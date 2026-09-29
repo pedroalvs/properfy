@@ -622,14 +622,24 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         // `equals`, not `contains`: state is a short code, so a substring match
         // would let "NS" sweep every NSW row and "A" pull in WA, SA and TAS.
         { property: { state: { equals: filters.search, mode: 'insensitive' } } },
-        { contacts: { some: { snapshot_name: { contains: filters.search, mode: 'insensitive' } } } },
-        { contacts: { some: { snapshot_email: { contains: filters.search, mode: 'insensitive' } } } },
-        // Phones are stored canonically as E.164 (+61...). Expand the typed
-        // term into its matchable forms so a local/spaced number is found;
-        // a non-phone term yields no variants and only name/email/property match.
-        ...phoneSearchVariants(filters.search).map((variant) => ({
-          contacts: { some: { snapshot_phone: { contains: variant } } },
-        })),
+        // Contact snapshot fields collapse into ONE `some: { OR }` (a single
+        // correlated EXISTS) rather than a subquery per field/variant. Phones
+        // are stored canonically as E.164 (+61...), so the typed term is
+        // expanded into its matchable forms; a non-phone term yields no phone
+        // variants and only name/email/property match.
+        {
+          contacts: {
+            some: {
+              OR: [
+                { snapshot_name: { contains: filters.search, mode: 'insensitive' } },
+                { snapshot_email: { contains: filters.search, mode: 'insensitive' } },
+                ...phoneSearchVariants(filters.search).map((variant) => ({
+                  snapshot_phone: { contains: variant },
+                })),
+              ],
+            },
+          },
+        },
       ];
       if (filters.searchAppointmentNumber != null) {
         orConditions.push({ appointment_number: filters.searchAppointmentNumber });
