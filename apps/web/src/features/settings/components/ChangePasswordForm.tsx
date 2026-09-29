@@ -10,7 +10,12 @@ import { useChangePassword } from '../hooks/useChangePassword';
 import type { ChangePasswordFormData, ChangePasswordFormErrors } from '../types';
 import { EMPTY_CHANGE_PASSWORD_FORM } from '../types';
 
-export function ChangePasswordForm() {
+interface ChangePasswordFormProps {
+  /** When true, drops the standalone card + section chrome so the form can sit inside a Dialog. */
+  embedded?: boolean;
+}
+
+export function ChangePasswordForm({ embedded = false }: ChangePasswordFormProps = {}) {
   const { logout } = useAuth();
   const { changePassword, isChanging, validate } = useChangePassword();
   const { showSuccess, showError } = useSnackbar();
@@ -52,16 +57,14 @@ export function ChangePasswordForm() {
     }
   }, [form, validate, changePassword, showSuccess, showError, logout]);
 
-  return (
-    <div className="rounded bg-card-bg p-6 shadow-sm">
-      <FormSection title="Change Password">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSubmit();
-          }}
-          className="flex max-w-md flex-col gap-4"
-        >
+  const formElement = (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit();
+      }}
+      className="flex max-w-md flex-col gap-4"
+    >
           <FormField label="Current Password" required error={errors.currentPassword}>
             <TextInput
               type="password"
@@ -96,13 +99,21 @@ export function ChangePasswordForm() {
               aria-label="Confirm Password"
             />
           </FormField>
-          <div className="flex justify-end">
-            <Button type="submit" variant="primary" loading={isChanging}>
-              Change Password
-            </Button>
-          </div>
-        </form>
-      </FormSection>
+      <div className="flex justify-end">
+        <Button type="submit" variant="primary" loading={isChanging}>
+          Change Password
+        </Button>
+      </div>
+    </form>
+  );
+
+  if (embedded) {
+    return formElement;
+  }
+
+  return (
+    <div className="rounded bg-card-bg p-6 shadow-sm">
+      <FormSection title="Change Password">{formElement}</FormSection>
     </div>
   );
 }

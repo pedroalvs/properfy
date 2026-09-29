@@ -67,5 +67,11 @@ export interface IUserManagementRepository {
     tx?: Prisma.TransactionClient,
   ): Promise<void>;
   unlock(userId: string, tenantId: string): Promise<void>;
+  /**
+   * Admin 2FA reset: turn 2FA off and clear the secret for the (non-deleted) user
+   * in the given tenant scope. Scoped by `tenant_id` so a tenant-route caller
+   * cannot reset a user outside their tenant.
+   */
+  resetTotp(userId: string, tenantId: string | null, tx?: Prisma.TransactionClient): Promise<void>;
   revokeAllSessions(userId: string, tx?: Prisma.TransactionClient): Promise<void>;
 }

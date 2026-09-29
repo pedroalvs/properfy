@@ -109,3 +109,4 @@ export {
   isWithheldForNonNotifyingFlow,
   FLOW_TYPE_NO_OCCUPANT_CODE,
 } from './non-notifying-flow-types';
+export { formatConfirmationDateCell } from './confirmation-date-cell';

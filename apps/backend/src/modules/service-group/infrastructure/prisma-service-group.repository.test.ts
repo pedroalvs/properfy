@@ -837,7 +837,7 @@ describe('PrismaServiceGroupRepository list filters', () => {
     );
   });
 
-  it('filters by contactSearch on linked appointment contacts', async () => {
+  it('filters by contactSearch on the appointment-contact snapshot fields', async () => {
     const repo = new PrismaServiceGroupRepository(prisma);
 
     await repo.findAll(
@@ -845,6 +845,9 @@ describe('PrismaServiceGroupRepository list filters', () => {
       { page: 1, pageSize: 10, sortOrder: 'asc' },
     );
 
+    // Only the AppointmentContact snapshot fields (024). A non-phone term adds
+    // no phone variant. The former rental_tenant_name/primary_* entries were
+    // dead columns on AppointmentContact and threw on a real query.
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -855,10 +858,6 @@ describe('PrismaServiceGroupRepository list filters', () => {
                   OR: [
                     { snapshot_name: { contains: 'smith', mode: 'insensitive' } },
                     { snapshot_email: { contains: 'smith', mode: 'insensitive' } },
-                    { snapshot_phone: { contains: 'smith' } },
-                    { rental_tenant_name: { contains: 'smith', mode: 'insensitive' } },
-                    { primary_email: { contains: 'smith', mode: 'insensitive' } },
-                    { primary_phone: { contains: 'smith' } },
                   ],
                 },
               },
@@ -868,6 +867,39 @@ describe('PrismaServiceGroupRepository list filters', () => {
         }),
       }),
     );
+  });
+
+  it('expands a local-format contactSearch phone into canonical variants', async () => {
+    const repo = new PrismaServiceGroupRepository(prisma);
+
+    await repo.findAll(
+      { contactSearch: '0412 345 678' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    const or = (findMany.mock.calls[0]![0] as {
+      where: { appointments: { some: { contacts: { some: { OR: unknown[] } } } } };
+    }).where.appointments.some.contacts.some.OR;
+    expect(or).toEqual(
+      expect.arrayContaining([
+        { snapshot_name: { contains: '0412 345 678', mode: 'insensitive' } },
+        { snapshot_phone: { contains: '+61412345678' } },
+      ]),
+    );
+  });
+
+  it('keeps a raw phone clause for a short partial contactSearch fragment', async () => {
+    const repo = new PrismaServiceGroupRepository(prisma);
+
+    await repo.findAll(
+      { contactSearch: '3456' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    const or = (findMany.mock.calls[0]![0] as {
+      where: { appointments: { some: { contacts: { some: { OR: unknown[] } } } } };
+    }).where.appointments.some.contacts.some.OR;
+    expect(or).toContainEqual({ snapshot_phone: { contains: '3456' } });
   });
 
   it('combines branchId and contactSearch using AND', async () => {

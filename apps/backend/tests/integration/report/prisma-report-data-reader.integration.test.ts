@@ -232,6 +232,9 @@ describe('getFinancialRows', () => {
     expect(net.revenue).toBe(-5);
     // The PENDING debit (999) must not appear.
     expect(rows.some((r) => r.revenue === 999)).toBe(false);
+    // These ledger entries carry no appointment, so the confirmation-date column
+    // exists but stays blank.
+    expect(rows.every((r) => r.confirmationDate === '')).toBe(true);
   });
 
   // An agency must never see the platform↔inspector leg. Asserted against real
@@ -254,6 +257,124 @@ describe('getFinancialRows', () => {
       expect(row).not.toHaveProperty('inspector');
       expect(row).not.toHaveProperty('expense');
     }
+  });
+});
+
+describe('getFinancialRows — confirmation date column', () => {
+  // Isolated dataset (own tenant + August window) so it never perturbs the
+  // shared ledger the counts/totals above assert against.
+  let cdTenantId: string;
+  let routineAptNumber: number;
+  let ingoingAptNumber: number;
+  const rnd = () => Math.random().toString(36).slice(2, 10);
+  const cdFilters = (overrides: Partial<ReportDataFilters> = {}): ReportDataFilters => ({
+    fromDate: '2026-08-01',
+    toDate: '2026-08-31',
+    dateAxis: 'SCHEDULED',
+    tenantId: cdTenantId,
+    ...overrides,
+  });
+
+  beforeAll(async () => {
+    const prisma = harness.prisma;
+    const tenant = await prisma.tenant.create({
+      data: { name: 'Confirm Co', legal_name: `Confirm Co ${rnd()}`, status: 'ACTIVE', currency: 'AUD' },
+    });
+    cdTenantId = tenant.id;
+    const branch = await prisma.branch.create({ data: { tenant_id: cdTenantId, name: 'HQ', status: 'ACTIVE' } });
+    const user = await prisma.user.create({
+      data: { tenant_id: cdTenantId, branch_id: branch.id, role: 'OP', name: 'Op', email: `op-${rnd()}@t.local`, password_hash: 'x'.repeat(20), status: 'ACTIVE' },
+    });
+    const property = await prisma.property.create({
+      data: { tenant_id: cdTenantId, branch_id: branch.id, property_code: `CD-${rnd()}`, type: 'HOUSE', street: 'Confirm St', suburb: 'Bondi', postcode: '2000', state: 'NSW', country: 'AU', geocoding_status: 'SUCCESS' },
+    });
+    const routineST = await prisma.serviceType.create({
+      data: { code: `RT-${rnd()}`, name: `Routine ${rnd()}`, flow_type: 'ROUTINE', requires_rental_tenant_confirmation: true, status: 'ACTIVE' },
+    });
+    const ingoingST = await prisma.serviceType.create({
+      data: { code: `IN-${rnd()}`, name: `Ingoing ${rnd()}`, flow_type: 'INGOING', requires_rental_tenant_confirmation: false, status: 'ACTIVE' },
+    });
+
+    // Both appointments are DONE and operator-cross-checked, since a ledger
+    // entry only ever exists after that point.
+    const mkApt = async (serviceTypeId: string, confirmationStatus: 'CONFIRMED' | 'PENDING') =>
+      prisma.appointment.create({
+        data: {
+          tenant_id: cdTenantId,
+          branch_id: branch.id,
+          property_id: property.id,
+          service_type_id: serviceTypeId,
+          status: 'DONE',
+          scheduled_date: new Date('2026-08-05T00:00:00.000Z'),
+          time_slot_start: '09:00',
+          time_slot_end: '10:00',
+          price_amount: '100.00',
+          payout_amount: '80.00',
+          pricing_rule_snapshot_json: {},
+          rental_tenant_confirmation_status: confirmationStatus,
+          created_by_user_id: user.id,
+          done_marked_by_user_id: user.id,
+          done_checked_by_user_id: user.id,
+          done_checked_at: new Date('2026-08-06T00:00:00.000Z'),
+        },
+      });
+
+    // Confirmed routine appointment: attach a CONFIRMED active cycle carrying the timestamp.
+    const routineApt = await mkApt(routineST.id, 'CONFIRMED');
+    routineAptNumber = routineApt.appointment_number;
+    const cycle = await prisma.appointmentConfirmationCycle.create({
+      data: {
+        appointment_id: routineApt.id,
+        cycle_number: 1,
+        scheduled_date: new Date('2026-08-05T00:00:00.000Z'),
+        status: 'CONFIRMED',
+        confirmation_source: 'RENTAL_TENANT_PORTAL',
+        confirmed_at: new Date('2026-08-05T02:00:00.000Z'), // 12:00 Sydney (AEST) → 05/08/2026
+      },
+    });
+    await prisma.appointment.update({
+      where: { id: routineApt.id },
+      data: { active_confirmation_cycle_id: cycle.id },
+    });
+
+    // Ingoing appointment: no occupant to confirm (never gets a confirmation).
+    const ingoingApt = await mkApt(ingoingST.id, 'PENDING');
+    ingoingAptNumber = ingoingApt.appointment_number;
+
+    const fe = (appointmentId: string) =>
+      prisma.financialEntry.create({
+        data: {
+          tenant_id: cdTenantId,
+          currency: 'AUD',
+          status: 'APPROVED',
+          description: 'debit',
+          initiated_by_user_id: user.id,
+          effective_at: new Date('2026-08-06T00:00:00.000Z'),
+          entry_type: 'TENANT_DEBIT',
+          amount: '100.00',
+          appointment_id: appointmentId,
+        } as any,
+      });
+    await fe(routineApt.id);
+    await fe(ingoingApt.id);
+  }, 180_000);
+
+  it('puts the confirmation date on the confirmed routine row and N/A on the ingoing row', async () => {
+    const rows = await reader.getFinancialRows(cdFilters());
+
+    const routineRow = rows.find((r) => r.appointmentNumber === routineAptNumber);
+    const ingoingRow = rows.find((r) => r.appointmentNumber === ingoingAptNumber);
+    expect(routineRow?.confirmationDate).toBe('05/08/2026');
+    expect(ingoingRow?.confirmationDate).toBe('N/A');
+  });
+
+  it('carries the confirmation date through the agency-scoped variant too', async () => {
+    const rows = await reader.getFinancialRows(cdFilters({ agencyScoped: true }));
+
+    const routineRow = rows.find((r) => r.appointmentNumber === routineAptNumber);
+    const ingoingRow = rows.find((r) => r.appointmentNumber === ingoingAptNumber);
+    expect(routineRow?.confirmationDate).toBe('05/08/2026');
+    expect(ingoingRow?.confirmationDate).toBe('N/A');
   });
 });
 

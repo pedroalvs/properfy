@@ -11,6 +11,7 @@ const mockLogoutExecute = vi.fn();
 const mockGetMeExecute = vi.fn();
 const mockUpdateMyTimezoneExecute = vi.fn();
 const mockChangePasswordExecute = vi.fn();
+const mockDisableTotpExecute = vi.fn();
 const mockRevokeSessionExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockJwtSign = vi.fn();
@@ -26,6 +27,7 @@ vi.mock('../../../src/main/container', () => ({
       getMeUseCase: { execute: mockGetMeExecute },
       updateMyTimezoneUseCase: { execute: mockUpdateMyTimezoneExecute },
       changePasswordUseCase: { execute: mockChangePasswordExecute },
+      disableTotpUseCase: { execute: mockDisableTotpExecute },
       revokeSessionUseCase: { execute: mockRevokeSessionExecute },
       jwtService: {
         verify: mockJwtVerify,
@@ -333,6 +335,51 @@ describe('POST /v1/auth/change-password', () => {
       .send({ currentPassword: 'OldPass1!' }); // missing newPassword
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /v1/auth/2fa/disable', () => {
+  const clAdminContext = {
+    userId: 'user-1',
+    tenantId: 'tenant-1',
+    role: 'CL_ADMIN',
+    branchId: null,
+    inspectorId: null,
+  };
+
+  it('should return 204 and delegate with the caller id and password', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+    mockDisableTotpExecute.mockResolvedValueOnce(undefined);
+
+    const res = await supertest(app.server)
+      .post('/v1/auth/2fa/disable')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ currentPassword: 'CurrentPass1!' });
+
+    expect(res.status).toBe(204);
+    expect(mockDisableTotpExecute).toHaveBeenCalledWith({
+      userId: 'user-1',
+      currentPassword: 'CurrentPass1!',
+    });
+  });
+
+  it('should return 400 when the password is missing', async () => {
+    mockJwtVerify.mockResolvedValueOnce(clAdminContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/auth/2fa/disable')
+      .set('Authorization', 'Bearer valid-token')
+      .send({});
+
+    expect(res.status).toBe(400);
+  });
+
+  it('should return 401 without authentication', async () => {
+    const res = await supertest(app.server)
+      .post('/v1/auth/2fa/disable')
+      .send({ currentPassword: 'CurrentPass1!' });
+
+    expect(res.status).toBe(401);
   });
 });
 

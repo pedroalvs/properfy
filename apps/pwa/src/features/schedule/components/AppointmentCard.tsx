@@ -53,8 +53,8 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
       data-testid={`appointment-card-${appointment.id}`}
     >
       {/* Time + warnings header */}
-      <div className="flex items-center justify-between gap-2 border-b border-black/[0.05] bg-gray-50 px-4 py-2">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-black/[0.05] bg-gray-50 px-4 py-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <span className="shrink-0 text-sm font-bold text-text-primary">
             {formatTimeWindow(appointment.timeSlotStart, appointment.timeSlotEnd)}
           </span>
@@ -98,19 +98,9 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
           >
             {appointment.appointmentCode}
           </span>
-          {/* Realty code (doc §7.3) — a different identifier from the service code. */}
-          {appointment.propertyCode && (
-            <span
-              className="shrink-0 rounded bg-black/[0.05] px-1.5 py-0.5 text-[11px] font-semibold text-text-muted"
-              data-testid="property-code"
-              title="Property code"
-            >
-              {appointment.propertyCode}
-            </span>
-          )}
           {/*
-            Shrinks and ellipsizes before anything else. The row carries two
-            codes and a flow chip, all shrink-0, so without this a long service
+            Shrinks and ellipsizes before anything else. The row carries a code
+            chip and a flow chip, both shrink-0, so without this a long service
             type pushes the chip past the card's overflow-hidden edge and it is
             silently clipped on a narrow phone.
           */}

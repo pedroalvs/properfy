@@ -462,6 +462,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/2fa/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        currentPassword: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": "null" | null;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/sessions": {
         parameters: {
             query?: never;
@@ -2254,6 +2295,81 @@ export interface paths {
                     };
                 };
             };
+            responses: {
+                /** @description Default Response */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": "null" | null;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenants/{tenantId}/users/{userId}/2fa/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": "null" | null;
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/{userId}/2fa/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
             responses: {
                 /** @description Default Response */
                 204: {
@@ -9740,7 +9856,7 @@ export interface paths {
                                 description: string;
                                 effectiveAt: string;
                                 /** Format: uuid */
-                                initiatedByUserId: string;
+                                initiatedByUserId: string | null;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
                                 approvedAt: (string) | null;
@@ -9858,7 +9974,7 @@ export interface paths {
                                 description: string;
                                 effectiveAt: string;
                                 /** Format: uuid */
-                                initiatedByUserId: string;
+                                initiatedByUserId: string | null;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
                                 approvedAt: (string) | null;
@@ -9929,7 +10045,7 @@ export interface paths {
                                 description: string;
                                 effectiveAt: string;
                                 /** Format: uuid */
-                                initiatedByUserId: string;
+                                initiatedByUserId: string | null;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
                                 approvedAt: (string) | null;
@@ -10055,7 +10171,7 @@ export interface paths {
                                 description: string;
                                 effectiveAt: string;
                                 /** Format: uuid */
-                                initiatedByUserId: string;
+                                initiatedByUserId: string | null;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
                                 approvedAt: (string) | null;
@@ -10132,7 +10248,7 @@ export interface paths {
                                 description: string;
                                 effectiveAt: string;
                                 /** Format: uuid */
-                                initiatedByUserId: string;
+                                initiatedByUserId: string | null;
                                 /** Format: uuid */
                                 approvedByUserId: string | null;
                                 approvedAt: (string) | null;

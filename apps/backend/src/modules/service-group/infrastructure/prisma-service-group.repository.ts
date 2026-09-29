@@ -18,7 +18,12 @@ import type {
   PortalWindowReservation,
 } from '../domain/service-group.repository';
 import type { PropertyType, ServiceGroupStatus } from '@properfy/shared';
-import { computeCentroid, isRentalTenantNotificationsEnabled, TERMINAL_APPOINTMENT_STATUSES } from '@properfy/shared';
+import {
+  computeCentroid,
+  isRentalTenantNotificationsEnabled,
+  TERMINAL_APPOINTMENT_STATUSES,
+} from '@properfy/shared';
+import { phoneColumnSearchClauses } from '../../../shared/infrastructure/phone-search-clause';
 import { ADDABLE_GROUP_STATUSES, TERMINAL_GROUP_STATUSES } from '../domain/service-group.validator';
 import { computeWindowAvailability } from '../domain/portal-slot-capacity';
 
@@ -1141,13 +1146,17 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       appointmentPredicates.push({ branch_id: filters.branchId, deleted_at: null });
     }
     if (filters.contactSearch) {
+      // The contact data on a linked appointment lives entirely in the
+      // AppointmentContact snapshot (024). The former `rental_tenant_name` /
+      // `primary_email` / `primary_phone` entries referenced columns that do
+      // not exist on AppointmentContact (leftover from the RentalTenant rename)
+      // and made any real contactSearch query throw — the mocked unit test hid
+      // it. Phones are stored canonically as E.164 (+61...), so the typed term
+      // is expanded into its matchable forms.
       const contactOrConditions: Record<string, unknown>[] = [
         { snapshot_name: { contains: filters.contactSearch, mode: 'insensitive' } },
         { snapshot_email: { contains: filters.contactSearch, mode: 'insensitive' } },
-        { snapshot_phone: { contains: filters.contactSearch } },
-        { rental_tenant_name: { contains: filters.contactSearch, mode: 'insensitive' } },
-        { primary_email: { contains: filters.contactSearch, mode: 'insensitive' } },
-        { primary_phone: { contains: filters.contactSearch } },
+        ...phoneColumnSearchClauses('snapshot_phone', filters.contactSearch),
       ];
       appointmentPredicates.push({ contacts: { some: { OR: contactOrConditions } }, deleted_at: null });
     }

@@ -9,8 +9,10 @@ import {
   OVERDUE_AUTO_CANCEL_STATUSES,
   OVERDUE_ELIGIBLE_STATUSES,
   isRentalTenantNotificationsEnabled,
+  phoneSearchVariants,
 } from '@properfy/shared';
 import { startOfOverdueAgeCutoff } from '../../../shared/domain/timezone-date';
+import { phoneColumnSearchClauses } from '../../../shared/infrastructure/phone-search-clause';
 import { AppointmentEntity } from '../domain/appointment.entity';
 import { AppointmentContactEntity } from '../domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../domain/appointment-restriction.entity';
@@ -257,6 +259,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         service_type: { select: { name: true, flow_type: true } },
         inspector: { select: { name: true } },
         service_group: { select: { group_number: true } },
+        // The tenant-confirmation timestamp lives on the active cycle, not the
+        // appointment; the export renders it as a "Confirmation Date" column.
+        active_confirmation_cycle: { select: { confirmed_at: true } },
         // Only the availability column: the list needs the rental tenant's
         // weekly slots for the map's Confirm column, not the whole restriction.
         restrictions: { select: { available_slots_json: true } },
@@ -264,12 +269,15 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     });
     return rows.map((row) => {
       const appointment = mapToEntity(row);
-      const contact = row.contacts[0] ? mapContactToEntity(row.contacts[0]) : null;
+      const contacts = row.contacts.map(mapContactToEntity);
+      const contact = contacts[0] ?? null;
       const propertyAddress = formatPropertyAddress(row.property);
       const tenantAppointmentCodePrefix = row.tenant?.appointment_code_prefix ?? null;
       return {
         appointment,
         contact,
+        contacts,
+        confirmedAt: row.active_confirmation_cycle?.confirmed_at ?? null,
         propertyCode: row.property?.property_code ?? '',
         propertyAddress,
         propertySuburb: row.property?.suburb ?? '',
@@ -621,9 +629,24 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         // `equals`, not `contains`: state is a short code, so a substring match
         // would let "NS" sweep every NSW row and "A" pull in WA, SA and TAS.
         { property: { state: { equals: filters.search, mode: 'insensitive' } } },
-        { contacts: { some: { snapshot_name: { contains: filters.search, mode: 'insensitive' } } } },
-        { contacts: { some: { snapshot_email: { contains: filters.search, mode: 'insensitive' } } } },
-        { contacts: { some: { snapshot_phone: { contains: filters.search } } } },
+        // Contact snapshot fields collapse into ONE `some: { OR }` (a single
+        // correlated EXISTS) rather than a subquery per field/variant. Phones
+        // are stored canonically as E.164 (+61...), so the typed term is
+        // expanded into its matchable forms; a non-phone term yields no phone
+        // variants and only name/email/property match.
+        {
+          contacts: {
+            some: {
+              OR: [
+                { snapshot_name: { contains: filters.search, mode: 'insensitive' } },
+                { snapshot_email: { contains: filters.search, mode: 'insensitive' } },
+                ...phoneSearchVariants(filters.search).map((variant) => ({
+                  snapshot_phone: { contains: variant },
+                })),
+              ],
+            },
+          },
+        },
       ];
       if (filters.searchAppointmentNumber != null) {
         orConditions.push({ appointment_number: filters.searchAppointmentNumber });
@@ -650,10 +673,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       where['time_slot_start'] = range;
     }
     if (filters.contactSearch) {
+      // Dedicated contact field: expand the phone term with a raw fallback for
+      // short partials (unlike the general `search` block above, which must not
+      // let a postcode-shaped term leak into the phone clause).
       const contactOrConditions: Record<string, unknown>[] = [
         { snapshot_name: { contains: filters.contactSearch, mode: 'insensitive' } },
         { snapshot_email: { contains: filters.contactSearch, mode: 'insensitive' } },
-        { snapshot_phone: { contains: filters.contactSearch } },
+        ...phoneColumnSearchClauses('snapshot_phone', filters.contactSearch),
       ];
       where['contacts'] = { some: { OR: contactOrConditions } };
     }

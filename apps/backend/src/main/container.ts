@@ -20,6 +20,7 @@ import { RevokeSessionUseCase } from '../modules/auth/application/use-cases/revo
 import { ListSessionsUseCase } from '../modules/auth/application/use-cases/list-sessions.use-case';
 import { SetupTotpUseCase } from '../modules/auth/application/use-cases/setup-totp.use-case';
 import { ConfirmTotpUseCase } from '../modules/auth/application/use-cases/confirm-totp.use-case';
+import { DisableTotpUseCase } from '../modules/auth/application/use-cases/disable-totp.use-case';
 import { TotpEncryptionService } from '../modules/auth/infrastructure/totp-encryption.service';
 import { SessionTrustService } from '../modules/auth/application/services/session-trust.service';
 import { StubGeoIpService } from '../shared/infrastructure/geoip.service';
@@ -60,6 +61,7 @@ import { DeactivateUserUseCase } from '../modules/user/application/use-cases/dea
 import { ReactivateUserUseCase } from '../modules/user/application/use-cases/reactivate-user.use-case';
 import { UnlockUserUseCase } from '../modules/user/application/use-cases/unlock-user.use-case';
 import { ResetUserPasswordUseCase } from '../modules/user/application/use-cases/reset-user-password.use-case';
+import { ResetUserTotpUseCase } from '../modules/user/application/use-cases/reset-user-totp.use-case';
 import type { UserRouteContainer } from '../modules/user/interfaces/user.routes';
 
 // Property module
@@ -574,6 +576,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listSessionsUseCase = new ListSessionsUseCase(sessionRepo);
   const setupTotpUseCase = new SetupTotpUseCase(userRepo, totpService, auditService, totpEncryptionService);
   const confirmTotpUseCase = new ConfirmTotpUseCase(userRepo, totpService, auditService, totpEncryptionService);
+  const disableTotpUseCase = new DisableTotpUseCase(userRepo, auditService);
   const passwordResetTokenRepo = new PrismaPasswordResetTokenRepository(prisma);
 
   // Domain event bus (single instance shared across modules)
@@ -619,6 +622,7 @@ export function createContainer(logger: Logger): AppContainer {
   const reactivateUserUseCase = new ReactivateUserUseCase(userManagementRepo, tenantRepo, auditService, authorizationService);
   const unlockUserUseCase = new UnlockUserUseCase(userManagementRepo, auditService, authorizationService);
   const resetUserPasswordUseCase = new ResetUserPasswordUseCase(userManagementRepo, auditService, passwordHistoryRepo, authorizationService, prisma);
+  const resetUserTotpUseCase = new ResetUserTotpUseCase(userManagementRepo, auditService, authorizationService, prisma);
 
   // Outbound integration credentials (Resend / MobileMessage / Mapbox) managed
   // by AM via the Integrations Hub. Database config overrides env vars; when
@@ -861,6 +865,7 @@ export function createContainer(logger: Logger): AppContainer {
     confirmationCycleService,
     prisma,
     serviceGroupRepo,
+    logger,
   );
 
   // Constructed after the transition use case because the operator-recorded
@@ -913,6 +918,7 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     authorizationService,
     createFinancialEntriesOnDoneUseCase,
+    logger,
   );
   const bulkCrossCheckDoneUseCase = new BulkCrossCheckDoneUseCase(
     performCrossCheckUseCase,
@@ -1450,6 +1456,7 @@ export function createContainer(logger: Logger): AppContainer {
       listSessionsUseCase,
       setupTotpUseCase,
       confirmTotpUseCase,
+      disableTotpUseCase,
       requestPasswordResetUseCase,
       consumePasswordResetUseCase,
       jwtService,
@@ -1482,6 +1489,7 @@ export function createContainer(logger: Logger): AppContainer {
       reactivateUserUseCase,
       unlockUserUseCase,
       resetUserPasswordUseCase,
+      resetUserTotpUseCase,
       jwtService,
       tenantRepo,
     },

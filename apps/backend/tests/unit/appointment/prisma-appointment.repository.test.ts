@@ -56,7 +56,7 @@ describe('PrismaAppointmentRepository date filters', () => {
     );
   });
 
-  it('filters by contactSearch across snapshot fields', async () => {
+  it('filters by contactSearch across name and email for a non-phone term', async () => {
     const repo = new PrismaAppointmentRepository(prisma);
 
     await repo.findAll(
@@ -64,6 +64,8 @@ describe('PrismaAppointmentRepository date filters', () => {
       { page: 1, pageSize: 10, sortOrder: 'asc' },
     );
 
+    // A non-phone term yields no phone variants, so only name/email are matched
+    // (a raw `contains: 'john'` on the canonical +61... column never matched).
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -72,13 +74,47 @@ describe('PrismaAppointmentRepository date filters', () => {
               OR: [
                 { snapshot_name: { contains: 'john', mode: 'insensitive' } },
                 { snapshot_email: { contains: 'john', mode: 'insensitive' } },
-                { snapshot_phone: { contains: 'john' } },
               ],
             },
           },
         }),
       }),
     );
+  });
+
+  it('expands a local-format contactSearch phone into canonical variants', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll(
+      { contactSearch: '0412 345 678' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    const or = (findMany.mock.calls[0]![0] as { where: { contacts: { some: { OR: unknown[] } } } })
+      .where.contacts.some.OR;
+    // Stored phones are E.164; the local form must expand so it matches.
+    expect(or).toEqual(
+      expect.arrayContaining([
+        { snapshot_name: { contains: '0412 345 678', mode: 'insensitive' } },
+        { snapshot_email: { contains: '0412 345 678', mode: 'insensitive' } },
+        { snapshot_phone: { contains: '+61412345678' } },
+      ]),
+    );
+  });
+
+  it('keeps a raw phone clause for a short partial contactSearch fragment', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    // Below the expansion threshold, but this is a dedicated contact field, so
+    // the phone clause must survive (fallback) — not silently disappear.
+    await repo.findAll(
+      { contactSearch: '3456' },
+      { page: 1, pageSize: 10, sortOrder: 'asc' },
+    );
+
+    const or = (findMany.mock.calls[0]![0] as { where: { contacts: { some: { OR: unknown[] } } } })
+      .where.contacts.some.OR;
+    expect(or).toContainEqual({ snapshot_phone: { contains: '3456' } });
   });
 
   it('filters by hasRentalTenantNote=true (non-null and non-empty)', async () => {
@@ -330,6 +366,49 @@ describe('PrismaAppointmentRepository property total area', () => {
     const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
 
     expect(rows[0]!.rentalTenantAvailableSlots).toBeNull();
+  });
+
+  it('selects the active confirmation cycle timestamp', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          active_confirmation_cycle: { select: { confirmed_at: true } },
+        }),
+      }),
+    );
+  });
+
+  it('maps the full contacts list and the active-cycle confirmation timestamp', async () => {
+    const confirmedAt = new Date('2026-04-10T03:00:00.000Z');
+    const row = makeRow(null);
+    row.contacts = [
+      { id: 'c-1', appointment_id: 'appt-1', contact_id: 'ct-1', role: 'RENTAL_TENANT', is_primary: true, snapshot_name: 'Primary', snapshot_email: 'p@x.com', snapshot_phone: '+61400000000', created_at: new Date(), updated_at: new Date() },
+      { id: 'c-2', appointment_id: 'appt-1', contact_id: 'ct-2', role: 'HOUSEKEEPER', is_primary: false, snapshot_name: 'Extra', snapshot_email: null, snapshot_phone: null, created_at: new Date(), updated_at: new Date() },
+    ] as never;
+    (row as Record<string, unknown>).active_confirmation_cycle = { confirmed_at: confirmedAt };
+    findMany.mockResolvedValue([row]);
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(rows[0]!.contacts).toHaveLength(2);
+    expect(rows[0]!.contacts![1]!.effectiveName).toBe('Extra');
+    // `contact` (singular) stays the primary for existing consumers.
+    expect(rows[0]!.contact!.effectiveName).toBe('Primary');
+    expect(rows[0]!.confirmedAt).toEqual(confirmedAt);
+  });
+
+  it('maps a missing active cycle to a null confirmation timestamp', async () => {
+    findMany.mockResolvedValue([makeRow(null)]);
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(rows[0]!.confirmedAt).toBeNull();
   });
 });
 

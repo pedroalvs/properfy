@@ -40,6 +40,14 @@ export const AGENCY_FORWARD_TEMPLATE_CODE = 'TENANT_NOTICE_FORWARDED_AGENCY';
 /** Reason recorded when an agency disables rental-tenant notifications. */
 export const AGENCY_TENANT_NOTIFICATIONS_DISABLED = 'AGENCY_TENANT_NOTIFICATIONS_DISABLED';
 
+/**
+ * Reason recorded when the resolved template is deactivated (`is_active = false`).
+ * An inactive tenant override still falls back to the platform default; this reason
+ * is recorded only when that final resolved template is itself inactive, so the send
+ * is suppressed (SKIPPED) rather than dispatched.
+ */
+export const TEMPLATE_INACTIVE = 'TEMPLATE_INACTIVE';
+
 /** Prefix shared by recoverable agency-forward failure reasons. */
 export const AGENCY_FORWARD_FAILURE_REASON_PREFIX = 'AGENCY_FORWARD_';
 

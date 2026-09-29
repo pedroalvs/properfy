@@ -22,6 +22,7 @@ interface UserDetailDrawerProps {
   onClose: () => void;
   onEdit?: (id: string) => void;
   onResetPassword?: (id: string) => void;
+  onResetTotp?: (id: string) => void;
   onDeactivated?: () => void;
   tenantId?: string;
   scope?: UserScope;
@@ -33,6 +34,7 @@ export function UserDetailDrawer({
   onClose,
   onEdit,
   onResetPassword,
+  onResetTotp,
   onDeactivated,
   tenantId,
   scope = 'tenant',
@@ -85,6 +87,12 @@ export function UserDetailDrawer({
       onResetPassword(userId);
     }
   }, [onResetPassword, userId]);
+
+  const handleResetTotp = useCallback(() => {
+    if (onResetTotp && userId) {
+      onResetTotp(userId);
+    }
+  }, [onResetTotp, userId]);
 
   const handleDeactivateClick = useCallback(() => {
     setShowDeactivateConfirm(true);
@@ -142,6 +150,11 @@ export function UserDetailDrawer({
                   {onResetPassword ? (
                     <Button variant="icon" onClick={handleResetPassword} aria-label="Reset Password">
                       <i className="mdi mdi-lock-reset text-xl" />
+                    </Button>
+                  ) : null}
+                  {onResetTotp && user.totpEnabled ? (
+                    <Button variant="icon" onClick={handleResetTotp} aria-label="Reset 2FA">
+                      <i className="mdi mdi-cellphone-remove text-xl" />
                     </Button>
                   ) : null}
                   {onEdit ? (
