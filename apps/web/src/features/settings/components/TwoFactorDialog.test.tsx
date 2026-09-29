@@ -10,7 +10,7 @@ vi.mock('@/hooks/useAuth', () => ({
 
 const mockShowSuccess = vi.fn();
 vi.mock('@/hooks/useSnackbar', () => ({
-  useSnackbar: () => ({ showSuccess: mockShowSuccess, showError: vi.fn() }),
+  useSnackbar: () => ({ showSuccess: mockShowSuccess, showError: vi.fn(), showInfo: vi.fn() }),
 }));
 
 const mockDisableTotp = vi.fn(() => Promise.resolve({ success: true }));

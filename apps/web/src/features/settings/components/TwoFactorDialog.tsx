@@ -26,7 +26,7 @@ type Intent = 'disable' | 'reconfigure';
 export function TwoFactorDialog({ open, onClose }: TwoFactorDialogProps) {
   const { user, refreshUser } = useAuth();
   const { disableTotp, isDisabling } = useDisableTotp();
-  const { showSuccess } = useSnackbar();
+  const { showSuccess, showInfo } = useSnackbar();
   const isEnabled = user?.totpEnabled === true;
   const isAm = user?.role === 'AM';
 
@@ -65,9 +65,12 @@ export function TwoFactorDialog({ open, onClose }: TwoFactorDialogProps) {
     if (disabledPendingRefresh.current) {
       disabledPendingRefresh.current = false;
       void refreshUser();
+      // Abandoned a reconfigure after the disable landed — tell the user 2FA is
+      // now off rather than letting them leave thinking it's still on.
+      showInfo('Two-factor authentication is now off. Set it up again to re-enable it.');
     }
     onClose();
-  }, [refreshUser, onClose]);
+  }, [refreshUser, onClose, showInfo]);
 
   const startIntent = useCallback((next: Intent) => {
     setIntent(next);
