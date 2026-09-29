@@ -257,6 +257,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         service_type: { select: { name: true, flow_type: true } },
         inspector: { select: { name: true } },
         service_group: { select: { group_number: true } },
+        // The tenant-confirmation timestamp lives on the active cycle, not the
+        // appointment; the export renders it as a "Confirmation Date" column.
+        active_confirmation_cycle: { select: { confirmed_at: true } },
         // Only the availability column: the list needs the rental tenant's
         // weekly slots for the map's Confirm column, not the whole restriction.
         restrictions: { select: { available_slots_json: true } },
@@ -264,12 +267,15 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     });
     return rows.map((row) => {
       const appointment = mapToEntity(row);
-      const contact = row.contacts[0] ? mapContactToEntity(row.contacts[0]) : null;
+      const contacts = row.contacts.map(mapContactToEntity);
+      const contact = contacts[0] ?? null;
       const propertyAddress = formatPropertyAddress(row.property);
       const tenantAppointmentCodePrefix = row.tenant?.appointment_code_prefix ?? null;
       return {
         appointment,
         contact,
+        contacts,
+        confirmedAt: row.active_confirmation_cycle?.confirmed_at ?? null,
         propertyCode: row.property?.property_code ?? '',
         propertyAddress,
         propertySuburb: row.property?.suburb ?? '',

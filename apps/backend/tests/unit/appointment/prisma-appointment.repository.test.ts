@@ -331,6 +331,49 @@ describe('PrismaAppointmentRepository property total area', () => {
 
     expect(rows[0]!.rentalTenantAvailableSlots).toBeNull();
   });
+
+  it('selects the active confirmation cycle timestamp', async () => {
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          active_confirmation_cycle: { select: { confirmed_at: true } },
+        }),
+      }),
+    );
+  });
+
+  it('maps the full contacts list and the active-cycle confirmation timestamp', async () => {
+    const confirmedAt = new Date('2026-04-10T03:00:00.000Z');
+    const row = makeRow(null);
+    row.contacts = [
+      { id: 'c-1', appointment_id: 'appt-1', contact_id: 'ct-1', role: 'RENTAL_TENANT', is_primary: true, snapshot_name: 'Primary', snapshot_email: 'p@x.com', snapshot_phone: '+61400000000', created_at: new Date(), updated_at: new Date() },
+      { id: 'c-2', appointment_id: 'appt-1', contact_id: 'ct-2', role: 'HOUSEKEEPER', is_primary: false, snapshot_name: 'Extra', snapshot_email: null, snapshot_phone: null, created_at: new Date(), updated_at: new Date() },
+    ] as never;
+    (row as Record<string, unknown>).active_confirmation_cycle = { confirmed_at: confirmedAt };
+    findMany.mockResolvedValue([row]);
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(rows[0]!.contacts).toHaveLength(2);
+    expect(rows[0]!.contacts![1]!.effectiveName).toBe('Extra');
+    // `contact` (singular) stays the primary for existing consumers.
+    expect(rows[0]!.contact!.effectiveName).toBe('Primary');
+    expect(rows[0]!.confirmedAt).toEqual(confirmedAt);
+  });
+
+  it('maps a missing active cycle to a null confirmation timestamp', async () => {
+    findMany.mockResolvedValue([makeRow(null)]);
+    const repo = new PrismaAppointmentRepository(prisma);
+
+    const rows = await repo.findAll({}, { page: 1, pageSize: 10, sortOrder: 'asc' });
+
+    expect(rows[0]!.confirmedAt).toBeNull();
+  });
 });
 
 describe('PrismaAppointmentRepository overdueOnly + status composition', () => {

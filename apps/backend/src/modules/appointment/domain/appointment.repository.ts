@@ -106,6 +106,21 @@ export interface AppointmentWithRelations {
 export interface AppointmentListItem {
   appointment: AppointmentEntity;
   contact: AppointmentContactEntity | null;
+  /**
+   * All contacts linked to the appointment, primary-first (`contact` above is
+   * `contacts[0]`). Populated by `findAll`; the export flattens the non-primary
+   * ones into numbered columns.
+   *
+   * Optional only so existing test fixtures need not enumerate it — a missing
+   * value means "no additional contacts", never "contacts unknown".
+   */
+  contacts?: AppointmentContactEntity[];
+  /**
+   * Tenant-confirmation timestamp from the active confirmation cycle
+   * (`AppointmentConfirmationCycle.confirmed_at`); null when never confirmed.
+   * Optional for the same fixture reason as above.
+   */
+  confirmedAt?: Date | null;
   propertyCode: string;
   propertyAddress: string;
   propertySuburb?: string;
