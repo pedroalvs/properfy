@@ -24,6 +24,7 @@ import {
   AppointmentServiceGroupRequiredError,
 } from '../../domain/appointment.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { AppointmentTransitionEvent } from '@properfy/shared';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
 import { APPOINTMENT_EVENTS } from '../../../../shared/application/events/domain-event-bus';
@@ -104,6 +105,7 @@ export class ExecuteStatusTransitionUseCase {
      * reopen and refused on release — see checks 3c and the → DRAFT branch.
      */
     private readonly serviceGroupRepo?: IServiceGroupStatusReader,
+    private readonly logger?: Logger,
   ) {}
 
   /**
@@ -505,9 +507,14 @@ export class ExecuteStatusTransitionUseCase {
       if (targetStatus === 'DONE' && (doneCheckedByUserId || crossCheckByUserId) && this.onDoneHandler) {
         try {
           await this.onDoneHandler.execute({ appointmentId });
-        } catch {
-          // Log but don't fail — transition is already persisted and audited
-          // Financial entries can be created manually via billing API
+        } catch (err) {
+          // Don't fail — the transition is already persisted and audited, and
+          // financial entries can be created manually via the billing API. But
+          // log it: an unlogged failure here is what left production ledgers empty.
+          this.logger?.error(
+            { err, appointmentId, targetStatus },
+            'Failed to create financial entries on DONE transition; entries can be created via the billing API',
+          );
         }
       }
 

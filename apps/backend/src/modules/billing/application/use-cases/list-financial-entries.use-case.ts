@@ -36,7 +36,7 @@ export interface FinancialEntryOutputItem {
   effectiveAt: string;
   reason: string | null;
   referenceEntryId: string | null;
-  initiatedByUserId: string;
+  initiatedByUserId: string | null;
   approvedByUserId: string | null;
   approvedAt: string | null;
   createdAt: string;

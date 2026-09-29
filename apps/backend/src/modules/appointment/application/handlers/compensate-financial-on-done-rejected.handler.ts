@@ -3,7 +3,6 @@ import type { DomainEvent } from '../../../../shared/application/events/domain-e
 import type { IFinancialEntryRepository } from '../../../billing/domain/financial-entry.repository';
 import { FinancialEntryEntity } from '../../../billing/domain/financial-entry.entity';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
-import { SYSTEM_USER_ID } from '../../../../shared/domain/constants';
 
 export interface DoneRejectedPayload {
   appointmentId: string;
@@ -75,7 +74,7 @@ export class CompensateFinancialOnDoneRejectedHandler {
           status: 'PENDING',
           description: `Refund for tenant debit — appointment rejected after completion`,
           effectiveAt: now,
-          initiatedByUserId: SYSTEM_USER_ID,
+          initiatedByUserId: null,
           approvedByUserId: null,
           approvedAt: null,
           referenceEntryId: tenantDebit.id,
@@ -125,7 +124,7 @@ export class CompensateFinancialOnDoneRejectedHandler {
           status: 'PENDING',
           description: `Payout reversal — appointment rejected after completion`,
           effectiveAt: now,
-          initiatedByUserId: SYSTEM_USER_ID,
+          initiatedByUserId: null,
           approvedByUserId: null,
           approvedAt: null,
           referenceEntryId: inspectorPayout.id,
