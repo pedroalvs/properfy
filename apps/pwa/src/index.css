@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+/* Inter is self-hosted via @fontsource-variable/inter (imported in main.tsx),
+   so it precaches with the SW and works offline — no render-blocking Google Fonts. */
 @import './styles/tokens.css';
 @import '@mdi/font/css/materialdesignicons.css';
 
@@ -8,7 +9,7 @@
 
 @layer base {
   body {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Inter Variable', 'Inter', system-ui, sans-serif;
     font-size: var(--font-size-body);
     font-weight: var(--font-weight-body);
     line-height: var(--line-height-body);

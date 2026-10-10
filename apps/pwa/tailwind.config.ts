@@ -172,7 +172,7 @@ const config: Config = {
         92: '0.92',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Inter Variable', 'Inter', 'system-ui', 'sans-serif'],
         nunito: ['Nunito', 'sans-serif'],
       },
       fontSize: {
