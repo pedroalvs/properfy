@@ -42,7 +42,7 @@ describe('BottomNavBar', () => {
   it('shows inactive color for non-active tabs', () => {
     renderWithProviders(<BottomNavBar />, { initialEntries: ['/schedule'] });
     const offersTab = screen.getByTestId('nav-offers');
-    expect(offersTab.className).toContain('text-text-muted');
+    expect(offersTab.className).toContain('text-muted-foreground');
   });
 
   it('has min 44px touch targets', () => {
@@ -78,7 +78,7 @@ describe('BottomNavBar', () => {
     const nav = screen.getByTestId('bottom-nav');
     expect(nav.className).not.toContain('backdrop-blur');
     expect(nav.className).not.toMatch(/bg-white\/\d+/);
-    expect(nav.className).toContain('bg-card-bg');
+    expect(nav.className).toContain('bg-card');
   });
 
   it('does not reference spacing classes that Tailwind never defined', () => {

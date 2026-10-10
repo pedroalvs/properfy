@@ -79,7 +79,7 @@ export function ScheduleHistoryList({ items }: ScheduleHistoryListProps) {
         <div key={date}>
           <div
             data-testid="history-date-header"
-            className="sticky top-0 z-10 bg-gray-50 px-page-x py-2 text-[11px] font-semibold uppercase tracking-wider text-text-muted"
+            className="sticky top-0 z-10 bg-muted px-page-x py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
           >
             {formatDateHeader(date)}
           </div>

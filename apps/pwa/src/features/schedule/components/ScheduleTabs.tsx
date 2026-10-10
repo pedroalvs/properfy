@@ -1,3 +1,5 @@
+import { cn } from '@properfy/frontend-standards';
+
 type ScheduleTab = 'upcoming' | 'history';
 
 interface ScheduleTabsProps {
@@ -12,7 +14,7 @@ const TABS: Array<{ id: ScheduleTab; label: string }> = [
 
 export function ScheduleTabs({ value, onChange }: ScheduleTabsProps) {
   return (
-    <div className="flex rounded-xl bg-gray-100 p-1 mx-4 my-2" role="tablist">
+    <div className="mx-4 my-2 flex rounded-btn bg-muted p-1" role="tablist">
       {TABS.map((tab) => {
         const isActive = value === tab.id;
         return (
@@ -21,11 +23,12 @@ export function ScheduleTabs({ value, onChange }: ScheduleTabsProps) {
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(tab.id)}
-            className={`flex-1 rounded-lg py-1.5 text-sm font-semibold transition-colors ${
+            className={cn(
+              'flex-1 rounded-btn py-1.5 text-sm font-semibold transition-colors',
               isActive
-                ? 'bg-white text-text-primary shadow-sm'
-                : 'text-text-muted hover:text-text-secondary'
-            }`}
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
           >
             {tab.label}
           </button>

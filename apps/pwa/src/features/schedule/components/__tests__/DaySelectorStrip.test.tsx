@@ -32,7 +32,8 @@ describe('DaySelectorStrip', () => {
     );
     const chip = screen.getByTestId('day-chip-2026-03-19');
     expect(chip.className).toContain('bg-primary');
-    expect(chip.className).toContain('text-white');
+    expect(chip.className).toContain('text-primary-foreground');
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('calls onDaySelect when day is clicked', async () => {

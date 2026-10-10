@@ -102,6 +102,6 @@ describe('TopBar', () => {
     const header = container.querySelector('header')!;
     expect(header.className).not.toContain('backdrop-blur');
     expect(header.className).not.toMatch(/bg-white\/\d+/);
-    expect(header.className).toContain('bg-card-bg');
+    expect(header.className).toContain('bg-background');
   });
 });

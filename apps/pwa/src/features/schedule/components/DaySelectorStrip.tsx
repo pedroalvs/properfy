@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { todayInTzDateString } from '@properfy/shared';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { parseScheduleDate } from '../lib/time-slot';
@@ -55,18 +56,26 @@ export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentC
             key={dateStr}
             ref={isSelected ? selectedRef : isToday ? todayRef : undefined}
             onClick={() => onDaySelect(dateStr)}
-            className={`relative flex min-h-touch min-w-[56px] flex-shrink-0 flex-col items-center justify-center rounded-lg px-2 py-1 text-xs font-semibold transition-colors ${
+            className={cn(
+              'relative flex min-h-touch min-w-[56px] flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-card border px-2 py-1.5 transition-colors',
               isSelected
-                ? 'bg-primary text-white'
+                ? 'border-primary bg-primary text-primary-foreground'
                 : isToday
-                  ? 'bg-primary/10 text-primary'
-                  : 'bg-card-bg text-text-secondary'
-            }`}
+                  ? 'border-primary/40 bg-card text-primary'
+                  : 'border-border bg-card text-foreground',
+            )}
             data-testid={`day-chip-${dateStr}`}
             aria-pressed={isSelected}
           >
-            <span className="text-[10px] uppercase">{weekday}</span>
-            <span className="text-base">{day}</span>
+            <span
+              className={cn(
+                'text-[10px] font-semibold uppercase tracking-wide',
+                !isSelected && !isToday && 'text-muted-foreground',
+              )}
+            >
+              {weekday}
+            </span>
+            <span className="text-base font-bold leading-none">{day}</span>
             {hasUrgent && (
               <span
                 className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-warning"
@@ -76,9 +85,10 @@ export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentC
             )}
             {count > 0 && (
               <span
-                className={`absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold ${
-                  isSelected ? 'bg-white text-primary' : 'bg-primary text-white'
-                }`}
+                className={cn(
+                  'absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold',
+                  isSelected ? 'bg-primary-foreground text-primary' : 'bg-primary text-primary-foreground',
+                )}
                 data-testid={`day-count-${dateStr}`}
               >
                 {count}
