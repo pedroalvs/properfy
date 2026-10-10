@@ -15,9 +15,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80',
-        secondary:
-          'border border-border bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        outlined: 'border border-primary bg-card text-primary hover:bg-accent',
+        secondary: 'border border-border bg-muted text-foreground hover:bg-muted/80',
+        outlined: 'border border-primary bg-card text-primary hover:bg-primary/10',
         success: 'bg-success text-success-foreground hover:bg-success/90 active:bg-success/80',
         danger:
           'bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80',

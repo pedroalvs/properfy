@@ -86,18 +86,16 @@ const config: Config = {
           DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
           foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',
         },
-        secondary: {
-          DEFAULT: 'hsl(var(--secondary) / <alpha-value>)',
-          foreground: 'hsl(var(--secondary-foreground) / <alpha-value>)',
-        },
+        // `secondary` + `accent` stay on the LEGACY brand values (dark teal #21566E /
+        // #41A69D): ~20 not-yet-migrated screens use `text-secondary` as a heading
+        // colour, so remapping them to a light shadcn surface made those headings
+        // invisible. New primitives use `muted`/`primary` for surfaces instead.
+        secondary: token('secondary'),
         muted: {
           DEFAULT: 'hsl(var(--muted) / <alpha-value>)',
           foreground: 'hsl(var(--muted-foreground) / <alpha-value>)',
         },
-        accent: {
-          DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
-          foreground: 'hsl(var(--accent-foreground) / <alpha-value>)',
-        },
+        accent: token('accent'),
         destructive: {
           DEFAULT: 'hsl(var(--destructive) / <alpha-value>)',
           foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)',
