@@ -15,6 +15,13 @@
     "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
     "@typescript-eslint/consistent-type-imports": "error",
     "no-console": "warn",
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "JSXAttribute[name.name='className'] > JSXExpressionContainer > TemplateLiteral",
+        "message": "No template-literal className — compose classes with cn() from @properfy/frontend-standards. (Canonical 'error' rule lives in @properfy/frontend-standards/eslint; flips to error in the final sweep once the codebase is clean.)"
+      }
+    ],
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "warn"
   },

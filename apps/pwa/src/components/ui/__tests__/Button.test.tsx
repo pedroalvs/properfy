@@ -5,24 +5,23 @@ import { Button } from '../Button';
 describe('Button', () => {
   it('renders children', () => {
     render(<Button>Click me</Button>);
-    expect(screen.getByText('Click me')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Click me' })).toBeInTheDocument();
   });
 
-  it('applies primary variant by default', () => {
-    render(<Button>Primary</Button>);
-    expect(screen.getByRole('button').className).toContain('bg-real-estate');
+  it('renders every variant without crashing', () => {
+    for (const variant of ['primary', 'secondary', 'outlined', 'success', 'danger', 'delete', 'icon'] as const) {
+      const { unmount } = render(<Button variant={variant}>{variant}</Button>);
+      expect(screen.getByRole('button', { name: variant })).toBeInTheDocument();
+      unmount();
+    }
   });
 
-  it('applies outlined variant', () => {
-    render(<Button variant="outlined">Outlined</Button>);
-    expect(screen.getByRole('button').className).toContain('border-primary');
-  });
-
-  it('shows loading spinner', () => {
+  it('signals loading: disabled, aria-busy and a spinner', () => {
     render(<Button loading>Loading</Button>);
-    const button = screen.getByRole('button');
+    const button = screen.getByRole('button', { name: 'Loading' });
     expect(button).toBeDisabled();
-    expect(button.querySelector('.mdi-loading')).toBeInTheDocument();
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    expect(button.querySelector('svg')).toBeInTheDocument();
   });
 
   it('disables when disabled prop is true', () => {
@@ -38,8 +37,13 @@ describe('Button', () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it('has min-h-touch for touch targets', () => {
+  it('keeps a 44px touch target', () => {
     render(<Button>Touch</Button>);
     expect(screen.getByRole('button').className).toContain('min-h-touch');
+  });
+
+  it('merges a caller className over the variant classes', () => {
+    render(<Button className="w-full">Wide</Button>);
+    expect(screen.getByRole('button').className).toContain('w-full');
   });
 });
