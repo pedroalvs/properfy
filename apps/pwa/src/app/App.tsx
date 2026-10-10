@@ -1,8 +1,8 @@
 import { RouterProvider } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { AuthProvider } from '@/hooks/useAuth';
 import { QueryProvider } from '@/app/QueryProvider';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
-import { Snackbar } from '@/components/feedback/Snackbar';
 import { ErrorBoundary } from '@/app/ErrorBoundary';
 import { InstallPromptProvider } from '@/app/useInstallPrompt';
 import { router } from '@/app/router';
@@ -21,13 +21,13 @@ export function App() {
           <InstallPromptProvider>
             <AuthProvider>
               <OfflineQueueSync />
+              <Toaster position="top-center" richColors closeButton />
               <RouterProvider
                 router={router}
                 future={{ v7_startTransition: true }}
               />
             </AuthProvider>
           </InstallPromptProvider>
-          <Snackbar />
         </SnackbarProvider>
       </QueryProvider>
     </ErrorBoundary>
