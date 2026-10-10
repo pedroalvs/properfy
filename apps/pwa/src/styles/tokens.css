@@ -108,4 +108,44 @@
   /* Border radius */
   --radius-default: 4px;
   --radius-modal: 8px;
+
+  /* ===================================================================== */
+  /* shadcn / design-system tokens — VALIDATED look (Inter, royal blue).   */
+  /* HSL channels (no hsl() wrapper) consumed via hsl(var(--x)/<alpha>).    */
+  /* Source of truth: the validated mockups canvas (Inspector App v3).      */
+  /* ===================================================================== */
+  --background: 220 20% 97%;          /* #F6F7F9 */
+  --foreground: 220 43% 11%;          /* #101828 */
+  --card: 0 0% 100%;                  /* #FFFFFF */
+  --card-foreground: 220 43% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 43% 11%;
+  --primary: 221 83% 53%;             /* #2563EB royal blue */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 216 24% 96%;           /* #F2F4F7 surface */
+  --secondary-foreground: 220 43% 11%;
+  --muted: 216 24% 96%;
+  --muted-foreground: 220 13% 46%;    /* #667085 */
+  --accent: 219 71% 95%;              /* #E7EEFB blue tint */
+  --accent-foreground: 221 83% 45%;
+  --destructive: 4 76% 40%;           /* #B42318 */
+  --destructive-foreground: 0 0% 100%;
+  --success: 144 64% 33%;             /* #1E8A49 */
+  --success-foreground: 0 0% 100%;
+  --border: 216 12% 92%;              /* #E8EAED */
+  --input: 216 12% 92%;
+  --ring: 221 83% 53%;
+  --radius: 0.875rem;                 /* 14px (buttons); cards use rounded-card */
+
+  /* Domain status pills (validated) — bg + fg pairs, WCAG-safe */
+  --pill-green-bg: 137 47% 91%;       /* #DEF3E4 */
+  --pill-green-fg: 144 60% 30%;       /* #1E7A43 */
+  --pill-amber-bg: 42 92% 91%;        /* #FDF0D1 */
+  --pill-amber-fg: 39 82% 32%;        /* #96670F */
+  --pill-blue-bg: 219 71% 95%;        /* #E7EEFB */
+  --pill-blue-fg: 221 83% 45%;        /* #2563EB-ink */
+  --pill-red-bg: 5 76% 93%;           /* #FBE3E1 */
+  --pill-red-fg: 4 76% 40%;           /* #B42318 */
+  --pill-gray-bg: 216 24% 96%;        /* #F2F4F7 */
+  --pill-gray-fg: 220 13% 46%;        /* #667085 */
 }

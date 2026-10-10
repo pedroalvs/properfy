@@ -38,7 +38,7 @@ async function compile(classes: string): Promise<string> {
 
 describe('tailwind token emission', () => {
   it.each([
-    ['bg-primary/10', 'background-color: color-mix(in srgb, var(--color-primary) 10%, transparent)'],
+    ['bg-info/10', 'background-color: color-mix(in srgb, var(--color-info) 10%, transparent)'],
     ['bg-app-bg/80', 'background-color: color-mix(in srgb, var(--color-app-bg) 80%, transparent)'],
     [
       'border-border-subtle/70',
@@ -51,17 +51,16 @@ describe('tailwind token emission', () => {
   });
 
   it('emits the focus variant of a ring token', async () => {
-    const css = await compile('focus:ring-primary/20');
-    expect(css).toContain('--tw-ring-color: color-mix(in srgb, var(--color-primary) 20%, transparent)');
+    const css = await compile('focus:ring-info/20');
+    expect(css).toContain('--tw-ring-color: color-mix(in srgb, var(--color-info) 20%, transparent)');
   });
 
-  it('emits an unvariant ring token, which the shell now depends on', async () => {
-    // `ring-1 ring-inset ring-primary/20` replaced a hard-coded blue-500 inset shadow on
-    // the active bottom-nav tab, and `ring-real-estate/10` an emerald one on the profile
-    // avatar. Both are plain (non-variant) ring colours, a shape the focus case above
-    // does not cover — a regression here would leave those two elements with no outline.
-    const css = await compile('ring-1 ring-inset ring-primary/20 ring-real-estate/10');
-    expect(css).toContain('--tw-ring-color: color-mix(in srgb, var(--color-primary) 20%, transparent)');
+  it('emits an unvariant ring token through the legacy helper', async () => {
+    // Guards the legacy `token()` helper on a still-legacy colour. `primary` moved to the
+    // shadcn HSL path (native `/opacity`), so this case uses `info`/`real-estate`, which
+    // still resolve through the function-colour helper, to keep that path under test.
+    const css = await compile('ring-1 ring-inset ring-info/20 ring-real-estate/10');
+    expect(css).toContain('--tw-ring-color: color-mix(in srgb, var(--color-info) 20%, transparent)');
     expect(css).toContain('--tw-ring-color: color-mix(in srgb, var(--color-real-estate) 10%, transparent)');
     expect(css).toContain('--tw-ring-inset: inset');
   });
@@ -81,8 +80,8 @@ describe('tailwind token emission', () => {
     // so the browser drops the declaration and the class is silently dead. That is the
     // #1041 failure mode reintroduced inside its own fix, and it is worse than the status
     // quo because `bg-white/[37%]` works natively.
-    const css = await compile('bg-primary/[37%]');
-    expect(css).toContain('color-mix(in srgb, var(--color-primary) 37%, transparent)');
+    const css = await compile('bg-info/[37%]');
+    expect(css).toContain('color-mix(in srgb, var(--color-info) 37%, transparent)');
     expect(css).not.toContain('calc(37% * 100%)');
   });
 
@@ -90,19 +89,19 @@ describe('tailwind token emission', () => {
     // `shadow-*/N` has its own emission shape and is live on the auth pages. Its value
     // lands in `--tw-shadow-color`, which is substituted into the composite `box-shadow`,
     // so it exercises a path none of the background/text cases reach.
-    const css = await compile('shadow-lg shadow-primary/25');
-    expect(css).toContain('--tw-shadow-color: color-mix(in srgb, var(--color-primary) 25%, transparent)');
+    const css = await compile('shadow-lg shadow-info/25');
+    expect(css).toContain('--tw-shadow-color: color-mix(in srgb, var(--color-info) 25%, transparent)');
   });
 
   it('leaves un-modified token utilities pointing straight at the custom property', async () => {
     // The safety property. Making the colour a function must not change what a plain
     // token utility resolves to, or this fix would repaint the entire app.
-    expect(await compile('bg-primary')).toContain('background-color: var(--color-primary)');
+    expect(await compile('bg-info')).toContain('background-color: var(--color-info)');
     expect(await compile('text-error')).toContain('color: var(--color-error)');
     expect(await compile('border-border-subtle')).toContain('border-color: var(--color-border-subtle)');
     // Utilities with no alpha support take a different code path (`toColorValue`, which
     // calls the colour function with no arguments at all).
-    expect(await compile('fill-primary')).toContain('fill: var(--color-primary)');
+    expect(await compile('fill-info')).toContain('fill: var(--color-info)');
   });
 
   it('does not put color-mix in a gradient transparency fallback', async () => {

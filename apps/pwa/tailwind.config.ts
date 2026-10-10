@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import animate from 'tailwindcss-animate';
 
 const NUMERIC_ALPHA = /^\d+(\.\d+)?$/;
 const PERCENT_ALPHA = /^\d+(\.\d+)?%$/;
@@ -67,16 +68,60 @@ const token = (cssVar: string): string =>
   }) as unknown) as string;
 
 const config: Config = {
+  darkMode: ['class'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        primary: token('primary'),
-        secondary: token('secondary'),
-        accent: token('accent'),
+        // shadcn / validated design-system colors — HSL channels + native /opacity.
+        // These reuse the brand names (primary/secondary/accent/success) with the new
+        // validated values; brand-colored elements on not-yet-migrated screens shift to
+        // the new look immediately, then get refined per-screen in later PRs.
+        border: 'hsl(var(--border) / <alpha-value>)',
+        input: 'hsl(var(--input) / <alpha-value>)',
+        ring: 'hsl(var(--ring) / <alpha-value>)',
+        background: 'hsl(var(--background) / <alpha-value>)',
+        foreground: 'hsl(var(--foreground) / <alpha-value>)',
+        primary: {
+          DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
+          foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary) / <alpha-value>)',
+          foreground: 'hsl(var(--secondary-foreground) / <alpha-value>)',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted) / <alpha-value>)',
+          foreground: 'hsl(var(--muted-foreground) / <alpha-value>)',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
+          foreground: 'hsl(var(--accent-foreground) / <alpha-value>)',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive) / <alpha-value>)',
+          foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)',
+        },
+        success: {
+          DEFAULT: 'hsl(var(--success) / <alpha-value>)',
+          foreground: 'hsl(var(--success-foreground) / <alpha-value>)',
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover) / <alpha-value>)',
+          foreground: 'hsl(var(--popover-foreground) / <alpha-value>)',
+        },
+        card: {
+          DEFAULT: 'hsl(var(--card) / <alpha-value>)',
+          foreground: 'hsl(var(--card-foreground) / <alpha-value>)',
+        },
+        'pill-green': { DEFAULT: 'hsl(var(--pill-green-bg) / <alpha-value>)', foreground: 'hsl(var(--pill-green-fg) / <alpha-value>)' },
+        'pill-amber': { DEFAULT: 'hsl(var(--pill-amber-bg) / <alpha-value>)', foreground: 'hsl(var(--pill-amber-fg) / <alpha-value>)' },
+        'pill-blue': { DEFAULT: 'hsl(var(--pill-blue-bg) / <alpha-value>)', foreground: 'hsl(var(--pill-blue-fg) / <alpha-value>)' },
+        'pill-red': { DEFAULT: 'hsl(var(--pill-red-bg) / <alpha-value>)', foreground: 'hsl(var(--pill-red-fg) / <alpha-value>)' },
+        'pill-gray': { DEFAULT: 'hsl(var(--pill-gray-bg) / <alpha-value>)', foreground: 'hsl(var(--pill-gray-fg) / <alpha-value>)' },
+        // legacy brand accents kept until the final sweep (used by not-yet-migrated screens)
         error: token('error'),
         info: token('info'),
-        success: token('success'),
         warning: token('warning'),
         realty: token('realty'),
         'real-estate': token('real-estate'),
@@ -129,6 +174,7 @@ const config: Config = {
         92: '0.92',
       },
       fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
         nunito: ['Nunito', 'sans-serif'],
       },
       fontSize: {
@@ -167,6 +213,11 @@ const config: Config = {
       },
       borderRadius: {
         DEFAULT: '4px',
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
+        card: '1.125rem',
+        btn: 'var(--radius)',
       },
       minHeight: {
         'touch': '44px',
@@ -176,7 +227,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [animate],
 };
 
 export default config;
