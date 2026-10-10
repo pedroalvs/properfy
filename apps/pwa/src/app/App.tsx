@@ -1,5 +1,6 @@
 import { RouterProvider } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { TIMING } from '@properfy/frontend-standards';
 import { AuthProvider } from '@/hooks/useAuth';
 import { QueryProvider } from '@/app/QueryProvider';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
@@ -21,7 +22,7 @@ export function App() {
           <InstallPromptProvider>
             <AuthProvider>
               <OfflineQueueSync />
-              <Toaster position="top-center" richColors closeButton />
+              <Toaster position="top-center" richColors closeButton duration={TIMING.toastDismiss} />
               <RouterProvider
                 router={router}
                 future={{ v7_startTransition: true }}
