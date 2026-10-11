@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '@properfy/frontend-standards';
 import { TopBar } from '@/components/shell/TopBar';
 import { formatInstantDateTime } from '@/lib/format-date';
 import {
@@ -7,9 +8,28 @@ import {
   useInspectorPayoutHistory,
 } from '../hooks/useInspectorEarnings';
 import { EarningsChart, type ChartBar } from '../components/EarningsChart';
+import { Badge, type BadgeProps } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { DateField } from '@/components/ui/DateField';
+import { Segmented } from '@/components/ui/Segmented';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 type Segment = 'earnings' | 'history';
+
+type BadgeTone = NonNullable<BadgeProps['tone']>;
+
+const SEGMENT_OPTIONS: ReadonlyArray<{ id: Segment; label: string }> = [
+  { id: 'earnings', label: 'This week' },
+  { id: 'history', label: 'History' },
+];
+
+const PAYOUT_TONE: Record<string, { label: string; tone: BadgeTone }> = {
+  APPROVED: { label: 'Approved', tone: 'green' },
+  PENDING: { label: 'Pending', tone: 'amber' },
+  CANCELLED: { label: 'Cancelled', tone: 'red' },
+  VOIDED: { label: 'Voided', tone: 'gray' },
+};
 
 function formatCurrency(amount: number, currency = 'AUD'): string {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency }).format(amount);
@@ -17,26 +37,20 @@ function formatCurrency(amount: number, currency = 'AUD'): string {
 
 /** Payment status chip for a payout entry. */
 function StatusChip({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    APPROVED: { label: 'Approved', cls: 'bg-success/10 text-success' },
-    PENDING: { label: 'Pending', cls: 'bg-warning/10 text-warning' },
-    CANCELLED: { label: 'Cancelled', cls: 'bg-error/10 text-error' },
-    VOIDED: { label: 'Voided', cls: 'bg-gray-200 text-text-secondary' },
-  };
-  const s = map[status] ?? { label: status, cls: 'bg-gray-200 text-text-secondary' };
-  return <span className={`rounded px-2 py-0.5 text-xs font-semibold ${s.cls}`}>{s.label}</span>;
+  const s = PAYOUT_TONE[status] ?? { label: status, tone: 'gray' as BadgeTone };
+  return <Badge tone={s.tone}>{s.label}</Badge>;
 }
 
 /** Shared error card for a segment: icon + message + retry. */
 function SegmentError({ message, fallback, onRetry }: { message?: string; fallback: string; onRetry: () => void }) {
   return (
-    <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
-      <i className="mdi mdi-cash-multiple text-[48px] text-text-muted" aria-hidden="true" />
-      <p className="mt-4 text-sm text-text-secondary">{message || fallback}</p>
-      <button type="button" onClick={onRetry} className="mt-3 text-sm font-semibold text-primary">
+    <Card className="p-6 text-center">
+      <i className="mdi mdi-cash-multiple text-[48px] text-muted-foreground" aria-hidden="true" />
+      <p className="mt-4 text-sm text-muted-foreground">{message || fallback}</p>
+      <Button variant="outlined" onClick={onRetry} className="mt-3">
         Retry
-      </button>
-    </div>
+      </Button>
+    </Card>
   );
 }
 
@@ -89,22 +103,22 @@ export function EarningsPage() {
   const currency = summary.data?.currency ?? 'AUD';
 
   const dateFilter = (
-    <div className="flex items-end gap-2 rounded-[20px] bg-white px-4 py-3 shadow-sm">
+    <Card className="flex items-end gap-2 px-4 py-3">
       <label className="flex flex-1 flex-col gap-1">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">From</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">From</span>
         <DateField
           value={fromDate}
           onChange={setFromDate}
-          className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+          className="rounded-btn border border-border px-2 py-1.5 text-sm"
           aria-label="From date"
         />
       </label>
       <label className="flex flex-1 flex-col gap-1">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">To</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">To</span>
         <DateField
           value={toDate}
           onChange={setToDate}
-          className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+          className="rounded-btn border border-border px-2 py-1.5 text-sm"
           aria-label="To date"
         />
       </label>
@@ -113,35 +127,20 @@ export function EarningsPage() {
           Clear
         </button>
       )}
-    </div>
+    </Card>
   );
 
   return (
     <div className="w-full">
       <TopBar title="Earnings" />
       <div className="flex flex-col gap-4 p-4">
-        {/* Segmented control: Earnings | History */}
-        <div className="grid grid-cols-2 gap-1 rounded-full bg-gray-100 p-1" role="tablist">
-          {(['earnings', 'history'] as const).map((seg) => (
-            <button
-              key={seg}
-              type="button"
-              role="tab"
-              aria-selected={segment === seg}
-              onClick={() => setSegment(seg)}
-              className={`rounded-full py-2 text-sm font-semibold capitalize transition-colors ${
-                segment === seg ? 'bg-white text-secondary shadow-sm' : 'text-text-secondary'
-              }`}
-            >
-              {seg}
-            </button>
-          ))}
-        </div>
+        {/* Segmented control: This week | History */}
+        <Segmented value={segment} options={SEGMENT_OPTIONS} onChange={setSegment} aria-label="Earnings view" />
 
         {segment === 'earnings' && summary.isLoading && (
           <div className="flex flex-col gap-3" data-testid="earnings-skeleton">
-            <div className="h-24 animate-pulse rounded-lg bg-gray-200" />
-            <div className="h-32 animate-pulse rounded-lg bg-gray-200" />
+            <Skeleton className="h-24 rounded-card" />
+            <Skeleton className="h-32 rounded-card" />
           </div>
         )}
 
@@ -155,54 +154,52 @@ export function EarningsPage() {
 
         {segment === 'earnings' && !summary.isLoading && !summary.error && summary.data && (
           <>
-            <section className="grid grid-cols-2 gap-3">
-              <div className="rounded-[20px] bg-white px-4 py-4 shadow-sm" data-testid="next-payment-card">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Next payment</p>
-                <p className="mt-2 text-xl font-bold text-text-primary">{formatCurrency(summary.data.nextPayment, currency)}</p>
-                <p className="mt-0.5 text-[11px] text-text-secondary">Pending, awaiting approval</p>
+            <Card className="flex flex-col gap-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Earnings summary</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-btn border border-border p-3" data-testid="total-earnings-card">
+                  <Badge tone="green">Approved</Badge>
+                  <p className="mt-2 text-xl font-bold text-foreground">{formatCurrency(summary.data.totalApproved, currency)}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">All-time approved</p>
+                </div>
+                <div className="rounded-btn border border-border p-3" data-testid="next-payment-card">
+                  <Badge tone="amber">Pending review</Badge>
+                  <p className="mt-2 text-xl font-bold text-foreground">{formatCurrency(summary.data.nextPayment, currency)}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">Pending, awaiting approval</p>
+                </div>
               </div>
-              <div className="rounded-[20px] bg-[linear-gradient(135deg,_rgba(22,163,74,0.96),_rgba(34,197,94,0.78))] px-4 py-4 text-white shadow-sm" data-testid="total-earnings-card">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-white/70">Total with Properfy</p>
-                <p className="mt-2 text-xl font-bold">{formatCurrency(summary.data.totalApproved, currency)}</p>
-                <p className="mt-0.5 text-[11px] text-white/80">All-time approved</p>
-              </div>
-            </section>
+            </Card>
 
             <div className="flex flex-col gap-2">
-              <h2 className="text-sm font-semibold text-text-secondary">Earnings over time</h2>
+              <h2 className="text-sm font-semibold text-foreground">Earnings over time</h2>
               <EarningsChart bars={monthlyBars} currency={currency} />
             </div>
 
             {/* Inspector Property Invoice CTAs (spec 032) */}
-            <button
-              type="button"
+            <Button
+              variant="outlined"
+              block
               onClick={() => navigate('/earnings/request-invoice')}
-              className="flex w-full items-center justify-between rounded-[20px] border border-primary/20 bg-primary/5 px-4 py-3.5 text-left shadow-sm"
+              className="rounded-full"
               data-testid="request-invoice-cta"
             >
-              <div className="flex items-center gap-3">
-                <i className="mdi mdi-file-document-plus-outline text-xl text-primary" aria-hidden="true" />
-                <div>
-                  <p className="text-sm font-semibold text-primary">Request Invoice</p>
-                  <p className="text-xs text-text-secondary">For a completed billing period</p>
-                </div>
-              </div>
-              <i className="mdi mdi-chevron-right text-xl text-primary" aria-hidden="true" />
-            </button>
+              <i className="mdi mdi-file-document-plus-outline text-xl" aria-hidden="true" />
+              Request Invoice
+            </Button>
             <button
               type="button"
               onClick={() => navigate('/earnings/invoices')}
-              className="flex w-full items-center justify-between rounded-[20px] border border-black/[0.06] bg-white px-4 py-3.5 text-left shadow-sm"
+              className={cn('flex w-full items-center justify-between rounded-card border border-border bg-card px-4 py-3.5 text-left shadow-sm')}
               data-testid="my-invoices-cta"
             >
               <div className="flex items-center gap-3">
-                <i className="mdi mdi-receipt-text-outline text-xl text-text-secondary" aria-hidden="true" />
+                <i className="mdi mdi-receipt-text-outline text-xl text-muted-foreground" aria-hidden="true" />
                 <div>
-                  <p className="text-sm font-semibold text-text-primary">My Invoices</p>
-                  <p className="text-xs text-text-secondary">View status and download PDFs</p>
+                  <p className="text-sm font-semibold text-foreground">My Invoices</p>
+                  <p className="text-xs text-muted-foreground">View status and download PDFs</p>
                 </div>
               </div>
-              <i className="mdi mdi-chevron-right text-xl text-text-muted" aria-hidden="true" />
+              <i className="mdi mdi-chevron-right text-xl text-muted-foreground" aria-hidden="true" />
             </button>
           </>
         )}
@@ -213,9 +210,9 @@ export function EarningsPage() {
 
             {history.isLoading && (
               <div className="flex flex-col gap-3" data-testid="history-skeleton">
-                <div className="h-16 animate-pulse rounded-lg bg-gray-200" />
-                <div className="h-16 animate-pulse rounded-lg bg-gray-200" />
-                <div className="h-16 animate-pulse rounded-lg bg-gray-200" />
+                <Skeleton className="h-16 rounded-card" />
+                <Skeleton className="h-16 rounded-card" />
+                <Skeleton className="h-16 rounded-card" />
               </div>
             )}
 
@@ -228,49 +225,39 @@ export function EarningsPage() {
             )}
 
             {!history.isLoading && !history.error && entries.length === 0 && (
-              <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
-                <i className="mdi mdi-cash-multiple text-[48px] text-text-muted" aria-hidden="true" />
-                <p className="mt-4 text-sm text-text-secondary">No payouts for this period.</p>
-              </div>
+              <Card className="p-6 text-center">
+                <i className="mdi mdi-cash-multiple text-[48px] text-muted-foreground" aria-hidden="true" />
+                <p className="mt-4 text-sm text-muted-foreground">No payouts for this period.</p>
+              </Card>
             )}
 
             {!history.isLoading && entries.length > 0 && (
               <div className="flex flex-col gap-2">
-                <h2 className="text-sm font-semibold text-text-secondary">Payment history</h2>
+                <h2 className="text-sm font-semibold text-foreground">Payment history</h2>
                 {entries.map((entry) => (
-                  <div key={entry.id} className="flex items-center justify-between rounded-[20px] bg-white px-4 py-3 shadow-sm">
+                  <Card key={entry.id} className="flex items-center justify-between px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium text-text-primary">{formatCurrency(entry.amount, entry.currency)}</p>
-                      <p className="text-xs text-text-muted">{formatInstantDateTime(entry.effectiveAt)}</p>
+                      <p className="text-sm font-medium text-foreground">{formatCurrency(entry.amount, entry.currency)}</p>
+                      <p className="text-xs text-muted-foreground">{formatInstantDateTime(entry.effectiveAt)}</p>
                     </div>
                     <StatusChip status={entry.status} />
-                  </div>
+                  </Card>
                 ))}
 
                 <div ref={sentinelRef} aria-hidden="true" />
-                {isFetchingNextPage && (
-                  <div className="h-16 animate-pulse rounded-lg bg-gray-200" data-testid="history-loading-more" />
-                )}
+                {isFetchingNextPage && <Skeleton className="h-16 rounded-card" data-testid="history-loading-more" />}
                 {history.isFetchNextPageError && !isFetchingNextPage && (
-                  <div
-                    className="flex items-center justify-between rounded-[20px] bg-white px-4 py-3 shadow-sm"
-                    data-testid="history-load-more-error"
-                  >
-                    <p className="text-xs text-text-secondary">Couldn't load more payouts.</p>
+                  <Card className="flex items-center justify-between px-4 py-3" data-testid="history-load-more-error">
+                    <p className="text-xs text-muted-foreground">Couldn't load more payouts.</p>
                     <button type="button" onClick={() => fetchNextPage()} className="text-sm font-semibold text-primary">
                       Retry
                     </button>
-                  </div>
+                  </Card>
                 )}
                 {hasNextPage && !isFetchingNextPage && !history.isFetchNextPageError && (
-                  <button
-                    type="button"
-                    onClick={() => fetchNextPage()}
-                    className="rounded-[20px] bg-white px-4 py-3 text-sm font-semibold text-primary shadow-sm"
-                    data-testid="history-load-more"
-                  >
+                  <Button variant="outlined" block onClick={() => fetchNextPage()} data-testid="history-load-more">
                     Load more
-                  </button>
+                  </Button>
                 )}
               </div>
             )}

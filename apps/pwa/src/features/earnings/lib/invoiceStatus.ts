@@ -1,15 +1,19 @@
+import type { BadgeProps } from '@/components/ui/Badge';
+
+type BadgeTone = NonNullable<BadgeProps['tone']>;
+
 /** Maps a persisted invoice status to the product 3-bucket badge (spec 032). */
-export function invoiceStatusBadge(status: string): { label: string; className: string } {
+export function invoiceStatusBadge(status: string): { label: string; tone: BadgeTone } {
   switch (status) {
     case 'PENDING_REVIEW':
-      return { label: 'Pending', className: 'bg-amber-100 text-amber-800' };
+      return { label: 'Pending', tone: 'amber' };
     case 'CLOSED':
     case 'PAID':
-      return { label: 'Approved', className: 'bg-green-100 text-green-800' };
+      return { label: 'Approved', tone: 'green' };
     case 'VOID':
-      return { label: 'Rejected', className: 'bg-red-100 text-red-800' };
+      return { label: 'Rejected', tone: 'red' };
     default:
-      return { label: status, className: 'bg-gray-100 text-gray-700' };
+      return { label: status, tone: 'gray' };
   }
 }
 
