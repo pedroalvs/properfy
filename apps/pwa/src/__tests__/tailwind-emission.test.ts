@@ -40,10 +40,6 @@ describe('tailwind token emission', () => {
   it.each([
     ['bg-info/10', 'background-color: color-mix(in srgb, var(--color-info) 10%, transparent)'],
     ['bg-app-bg/80', 'background-color: color-mix(in srgb, var(--color-app-bg) 80%, transparent)'],
-    [
-      'border-border-subtle/70',
-      'border-color: color-mix(in srgb, var(--color-border-subtle) 70%, transparent)',
-    ],
     // Off-scale alpha: needs BOTH the function colour and the extended opacity scale.
     ['bg-error/8', 'background-color: color-mix(in srgb, var(--color-error) 8%, transparent)'],
   ])('emits a rule for %s', async (classes, declaration) => {
@@ -98,7 +94,6 @@ describe('tailwind token emission', () => {
     // token utility resolves to, or this fix would repaint the entire app.
     expect(await compile('bg-info')).toContain('background-color: var(--color-info)');
     expect(await compile('text-error')).toContain('color: var(--color-error)');
-    expect(await compile('border-border-subtle')).toContain('border-color: var(--color-border-subtle)');
     // Utilities with no alpha support take a different code path (`toColorValue`, which
     // calls the colour function with no arguments at all).
     expect(await compile('fill-info')).toContain('fill: var(--color-info)');
@@ -110,8 +105,9 @@ describe('tailwind token emission', () => {
     // that assumes a string crashes the build here, and one that returns color-mix puts
     // it inside `--tw-gradient-to`, which would invalidate the whole linear-gradient on
     // a browser without color-mix support — breaking a utility that works today.
-    // `from-shimmer-from` is live in `components/feedback/LoadingState.tsx`.
-    const css = await compile('from-shimmer-from');
+    // Uses `from-real-estate`, a surviving legacy token, purely to exercise the
+    // gradient `withAlphaValue(value, 0)` code path — the specific colour is irrelevant.
+    const css = await compile('from-real-estate');
     expect(css).toContain('--tw-gradient-to: transparent');
     expect(css).not.toContain('--tw-gradient-to: color-mix');
   });

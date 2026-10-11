@@ -30,7 +30,7 @@ function getStatusAccent(status: AppointmentStatus): string {
     case AppointmentStatus.REJECTED:
       return 'border-l-error';
     default:
-      return 'border-l-border-subtle';
+      return 'border-l-border';
   }
 }
 

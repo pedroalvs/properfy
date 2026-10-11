@@ -7,25 +7,15 @@
   --color-info: #00CAE3;
   --color-success: #4CAF50;
   --color-warning: #FB8C00;
-  --color-realty: #215676;
   --color-real-estate: #F37A76;
-
-  /* Snackbar */
-  --color-snackbar-error: #B71C1C;
 
   /* Surfaces */
   --color-app-bg: #F5F5F5;
-  --color-card-bg: #FFFFFF;
 
   /* Text */
   --color-text-primary: rgba(0, 0, 0, 0.87);
   --color-text-secondary: rgba(0, 0, 0, 0.6);
   --color-text-muted: rgb(158, 158, 158);
-  --color-text-disabled: rgba(0, 0, 0, 0.38);
-
-  /* Disabled */
-  --color-disabled-bg: rgba(0, 0, 0, 0.12);
-  --color-disabled-text: rgba(0, 0, 0, 0.26);
 
   /* Status backgrounds */
   --color-status-draft: #E1BEE7;
@@ -34,17 +24,6 @@
   --color-status-done: #C8E6C9;
   --color-status-cancelled: #FFCDD2;
   --color-status-rejected: #FFAB91;
-
-  /* Status text (chip foregrounds paired with the backgrounds above) */
-  --color-status-scheduled-text: #01579B;
-  --color-status-done-text: #1B5E20;
-  --color-status-awaiting-text: #E65100;
-
-  /* Property type backgrounds */
-  --color-type-residential: #B3E5FC;
-  --color-type-commercial: #FFE0B2;
-  --color-type-industrial: #D7CCC8;
-  --color-type-rural: #DCEDC8;
 
   /* Service group status backgrounds */
   --color-sg-draft: #E1BEE7;
@@ -62,18 +41,6 @@
   --color-flow-routine: #B3E5FC;
   --color-flow-ingoing: #C8E6C9;
   --color-flow-outgoing: #FFE0B2;
-
-  /* UI component tokens */
-  --color-shimmer-from: #F5F5F5;
-  --color-shimmer-via: #E0E0E0;
-  --color-shimmer-to: #F5F5F5;
-  --color-border-subtle: #E0E0E0;
-  --color-border-light: #F0F0F0;
-  --color-hover-row: #FAFAFA;
-  --color-text-inactive: #999999;
-  --color-btn-secondary-bg: #F5F5F5;
-  --color-btn-secondary-hover: #EEEEEE;
-  --color-btn-secondary-active: #E0E0E0;
 
   /* Typography */
   --font-family: 'Nunito', sans-serif;

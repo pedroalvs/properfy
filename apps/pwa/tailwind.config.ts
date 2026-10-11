@@ -121,34 +121,17 @@ const config: Config = {
         error: token('error'),
         info: token('info'),
         warning: token('warning'),
-        realty: token('realty'),
         'real-estate': token('real-estate'),
         'app-bg': token('app-bg'),
-        'card-bg': token('card-bg'),
         'text-primary': token('text-primary'),
         'text-secondary': token('text-secondary'),
         'text-muted': token('text-muted'),
-        'text-disabled': token('text-disabled'),
         'status-draft': token('status-draft'),
         'status-awaiting': token('status-awaiting-inspector'),
         'status-scheduled': token('status-scheduled'),
         'status-done': token('status-done'),
         'status-cancelled': token('status-cancelled'),
         'status-rejected': token('status-rejected'),
-        'status-scheduled-text': token('status-scheduled-text'),
-        'status-done-text': token('status-done-text'),
-        'status-awaiting-text': token('status-awaiting-text'),
-        'snackbar-error': token('snackbar-error'),
-        'shimmer-from': token('shimmer-from'),
-        'shimmer-via': token('shimmer-via'),
-        'shimmer-to': token('shimmer-to'),
-        'border-subtle': token('border-subtle'),
-        'border-light': token('border-light'),
-        'hover-row': token('hover-row'),
-        'text-inactive': token('text-inactive'),
-        'btn-secondary-bg': token('btn-secondary-bg'),
-        'btn-secondary-hover': token('btn-secondary-hover'),
-        'btn-secondary-active': token('btn-secondary-active'),
       },
       /**
        * Tailwind's default scale is 0,5,…,100, and `asColor()` drops any utility whose
@@ -199,15 +182,6 @@ const config: Config = {
         // slack, carried over from the `pb-20` this replaced. Keep the base >= the bar's
         // height; do not "correct" it down to 68px, that would delete the slack.
         'nav-clear': 'calc(5rem + var(--safe-area-bottom))',
-      },
-      animation: {
-        shimmer: 'shimmer 1.5s ease-in-out infinite',
-      },
-      keyframes: {
-        shimmer: {
-          '0%': { backgroundPosition: '-200% 0' },
-          '100%': { backgroundPosition: '200% 0' },
-        },
       },
       borderRadius: {
         DEFAULT: '4px',
