@@ -138,7 +138,7 @@ describe('ProfileAccountPage — AU phone mask and validation', () => {
     await user.clear(input);
     await user.type(input, '12345');
     await user.click(screen.getByRole('button', { name: /save phone/i }));
-    expect(screen.getByText(/valid australian phone/i)).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent(/valid australian phone/i);
     expect(mockMutateInspectorSelf).not.toHaveBeenCalled();
   });
 

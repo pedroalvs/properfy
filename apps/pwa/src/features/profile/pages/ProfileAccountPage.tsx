@@ -1,10 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { applyPhoneMask, formatAuPhone, maxPhoneDigits, stripNonDigits, toE164Au } from '@properfy/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { TopBar } from '@/components/shell/TopBar';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/Form';
 import { TimezonePicker } from '@/components/ui/TimezonePicker';
 import { ProfileCard } from '../components/ProfileCard';
 import { AvatarUploader } from '../components/AvatarUploader';
@@ -24,6 +28,31 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
+/**
+ * Phone form schema. The shared {@link auPhoneSchema} transforms the value to
+ * E.164 and rejects empty input, but this field submits the masked local string
+ * and allows clearing, so we validate with a refine over the same `toE164Au`
+ * helper instead of consuming the transforming schema directly.
+ */
+const phoneFormSchema = z.object({
+  phone: z
+    .string()
+    .refine((v) => v.trim() === '' || toE164Au(v) !== null, {
+      message: 'Enter a valid Australian phone number',
+    }),
+});
+type PhoneFormValues = z.infer<typeof phoneFormSchema>;
+
+/** Masks raw phone input to the local AU display format, capped at its max digits. */
+function maskPhoneInput(raw: string): string {
+  const stripped = stripNonDigits(raw);
+  const max = maxPhoneDigits(stripped);
+  const digits = stripped.startsWith('+')
+    ? `+${stripped.slice(1).slice(0, max)}`
+    : stripped.slice(0, max);
+  return applyPhoneMask(digits);
+}
+
 export function ProfileAccountPage() {
   const { user, refreshUser } = useAuth();
   const { data: inspectorMe, isLoading: isInspectorLoading } = useInspectorMe();
@@ -32,7 +61,10 @@ export function ProfileAccountPage() {
 
   const [totpEnabled, setTotpEnabled] = useState(user?.totpEnabled ?? false);
 
-  const [phone, setPhone] = useState(formatAuPhone(user?.phone ?? ''));
+  const phoneForm = useForm<PhoneFormValues>({
+    resolver: zodResolver(phoneFormSchema),
+    defaultValues: { phone: formatAuPhone(user?.phone ?? '') },
+  });
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [phoneSuccess, setPhoneSuccess] = useState(false);
 
@@ -40,7 +72,7 @@ export function ProfileAccountPage() {
   const [timezoneError, setTimezoneError] = useState<string | null>(null);
   const [timezoneSuccess, setTimezoneSuccess] = useState(false);
 
-  const isPhoneDirty = phone !== formatAuPhone(user?.phone ?? '');
+  const isPhoneDirty = phoneForm.formState.isDirty;
   const isTimezoneDirty = timezone !== (user?.personalTimezone ?? '');
   const isAnyDirty = isPhoneDirty || isTimezoneDirty;
 
@@ -56,34 +88,21 @@ export function ProfileAccountPage() {
     };
   }, []);
 
-  const handlePhoneChange = useCallback((raw: string) => {
-    const stripped = stripNonDigits(raw);
-    const max = maxPhoneDigits(stripped);
-    const digits = stripped.startsWith('+')
-      ? `+${stripped.slice(1).slice(0, max)}`
-      : stripped.slice(0, max);
-    setPhone(applyPhoneMask(digits));
+  const handleSavePhone = useCallback(async (values: PhoneFormValues) => {
     setPhoneError(null);
     setPhoneSuccess(false);
-  }, []);
-
-  const handleSavePhone = useCallback(async () => {
-    setPhoneError(null);
-    setPhoneSuccess(false);
-    if (phone.trim() && toE164Au(phone) === null) {
-      setPhoneError('Enter a valid Australian phone number');
-      return;
-    }
     try {
-      await updateSelf({ phone: phone || null });
+      await updateSelf({ phone: values.phone || null });
       setPhoneSuccess(true);
       refreshUser();
+      // Rebase the form so the saved value becomes the new clean baseline.
+      phoneForm.reset({ phone: values.phone });
       if (phoneSuccessTimeoutRef.current) clearTimeout(phoneSuccessTimeoutRef.current);
       phoneSuccessTimeoutRef.current = setTimeout(() => setPhoneSuccess(false), 3000);
     } catch (err) {
       setPhoneError(err instanceof Error ? err.message : 'Failed to save');
     }
-  }, [phone, updateSelf, refreshUser]);
+  }, [updateSelf, refreshUser, phoneForm]);
 
   const handleTimezoneChange = useCallback((next: string) => {
     setTimezone(next);
@@ -154,24 +173,39 @@ export function ProfileAccountPage() {
         {/* Phone */}
         <Card>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Phone</p>
-          <div className="mt-4 flex flex-col gap-3">
-            <label htmlFor="edit-phone" className="sr-only">Phone</label>
-            <Input
-              id="edit-phone"
-              type="tel"
-              aria-label="Phone"
-              value={phone}
-              onChange={(e) => handlePhoneChange(e.target.value)}
-              placeholder="0412 345 678"
-            />
-            {phoneError && <p className="text-xs text-destructive">{phoneError}</p>}
-            {phoneSuccess && <p className="text-xs text-success">Saved successfully</p>}
-            {isPhoneDirty && (
-              <Button type="button" onClick={handleSavePhone} loading={isSavingPhone} className="w-full">
-                {isSavingPhone ? 'Saving…' : 'Save phone'}
-              </Button>
-            )}
-          </div>
+          <Form {...phoneForm}>
+            <form onSubmit={phoneForm.handleSubmit(handleSavePhone)} noValidate className="mt-4 flex flex-col gap-3">
+              <FormField
+                control={phoneForm.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="sr-only">Phone</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="tel"
+                        placeholder="0412 345 678"
+                        disabled={phoneForm.formState.isSubmitting}
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(maskPhoneInput(e.target.value));
+                          setPhoneSuccess(false);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {phoneError && <p className="text-xs text-destructive">{phoneError}</p>}
+              {phoneSuccess && <p className="text-xs text-success">Saved successfully</p>}
+              {isPhoneDirty && (
+                <Button type="submit" loading={isSavingPhone} className="w-full">
+                  {isSavingPhone ? 'Saving…' : 'Save phone'}
+                </Button>
+              )}
+            </form>
+          </Form>
         </Card>
 
         {/* Timezone */}

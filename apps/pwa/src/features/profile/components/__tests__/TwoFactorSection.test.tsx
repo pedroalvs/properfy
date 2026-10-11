@@ -48,4 +48,25 @@ describe('TwoFactorSection', () => {
       expect(onEnabled).toHaveBeenCalled();
     });
   });
+
+  it('blocks confirm and shows a validation message for a non-6-digit code', async () => {
+    const confirmSetup = vi.fn().mockResolvedValue(undefined);
+    mockUseTotpSetup.mockReturnValue({
+      setupData: { secret: 'SECRET123', qrUri: 'otpauth://totp/test' },
+      startSetup: vi.fn(),
+      confirmSetup,
+      cancelSetup: vi.fn(),
+      isSettingUp: false,
+      isConfirming: false,
+    });
+
+    render(<TwoFactorSection enabled={false} onEnabled={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText('000000'), { target: { value: '123' } });
+    fireEvent.click(screen.getByRole('button', { name: /verify & enable/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Enter the 6-digit code');
+    });
+    expect(confirmSetup).not.toHaveBeenCalled();
+  });
 });
