@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "lint": "eslint src --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
+    "check:ds": "bash scripts/check-ds.sh",
     "test:e2e": "playwright test"
   },
   "dependencies": {
