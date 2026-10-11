@@ -155,7 +155,6 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['Inter Variable', 'Inter', 'system-ui', 'sans-serif'],
-        nunito: ['Nunito', 'sans-serif'],
       },
       fontSize: {
         'page-title': ['24px', { lineHeight: '32px', fontWeight: '700' }],
