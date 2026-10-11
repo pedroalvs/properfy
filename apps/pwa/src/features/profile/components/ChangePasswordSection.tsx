@@ -41,7 +41,7 @@ function getPasswordStrength(password: string): { score: number; label: string; 
   if (password.length >= 12) points++;
   if (points <= 1) return { score: 1, label: 'Weak', color: 'bg-destructive' };
   if (points === 2) return { score: 2, label: 'Fair', color: 'bg-warning' };
-  if (points === 3) return { score: 3, label: 'Good', color: 'bg-primary/10' };
+  if (points === 3) return { score: 3, label: 'Good', color: 'bg-primary' };
   return { score: 4, label: 'Strong', color: 'bg-success' };
 }
 
