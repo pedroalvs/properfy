@@ -6,7 +6,7 @@ describe('InProgressPanel', () => {
   it('renders the in-progress panel with a finish button', () => {
     render(<InProgressPanel startedAt={null} onFinish={vi.fn()} />);
     expect(screen.getByTestId('in-progress-panel')).toBeInTheDocument();
-    expect(screen.getByTestId('proceed-to-finish-button')).toHaveTextContent('Finish Inspection');
+    expect(screen.getByTestId('proceed-to-finish-button')).toHaveTextContent('Check out & finish');
   });
 
   it('calls onFinish when the finish button is clicked', async () => {
