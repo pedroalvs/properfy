@@ -1,9 +1,38 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { passwordFieldSchema, mapResetPasswordError, PASSWORD_REQUIREMENTS_MESSAGE } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
+import { PasswordInput } from '@/components/ui/PasswordInput';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/Form';
 import { api } from '@/services/api';
 import { toApiError } from '@/lib/api-error';
+
+/**
+ * Reset form schema: reuses the shared {@link passwordFieldSchema} for the new
+ * password and refines on the extended object so the mismatch error lands on
+ * `confirmPassword`. The token comes from the URL, not a form field.
+ */
+const resetFormSchema = z
+  .object({
+    newPassword: passwordFieldSchema,
+    confirmPassword: z.string().min(1),
+  })
+  .refine((v) => v.newPassword === v.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
+type ResetFormValues = z.infer<typeof resetFormSchema>;
 
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
@@ -52,14 +81,15 @@ export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
 
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [newPasswordError, setNewPasswordError] = useState('');
-  const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [error, setError] = useState('');
   const [isInvalidToken, setIsInvalidToken] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const form = useForm<ResetFormValues>({
+    resolver: zodResolver(resetFormSchema),
+    defaultValues: { newPassword: '', confirmPassword: '' },
+  });
+  const isSubmitting = form.formState.isSubmitting;
 
   if (!token) {
     return (
@@ -69,26 +99,13 @@ export function ResetPasswordPage() {
     );
   }
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: ResetFormValues) => {
     setError('');
-    setNewPasswordError('');
-    setConfirmPasswordError('');
     setIsInvalidToken(false);
 
-    if (!passwordFieldSchema.safeParse(newPassword).success) {
-      setNewPasswordError(PASSWORD_REQUIREMENTS_MESSAGE);
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setConfirmPasswordError('Passwords do not match');
-      return;
-    }
-
-    setIsSubmitting(true);
     try {
       const { error: apiError, response } = await api.POST('/v1/auth/reset-password', {
-        body: { token, newPassword },
+        body: { token, newPassword: values.newPassword },
       });
 
       if (apiError) throw toApiError(apiError, (response as Response | undefined)?.status);
@@ -98,8 +115,6 @@ export function ResetPasswordPage() {
       const parsed = mapResetPasswordError(toApiError(err));
       setError(parsed.message);
       setIsInvalidToken(parsed.invalidToken);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -128,97 +143,76 @@ export function ResetPasswordPage() {
 
   return (
     <PageShell>
-      <form onSubmit={handleSubmit} noValidate className="space-y-4" data-testid="reset-password-form">
-        {error && (
-          <div
-            role="alert"
-            className="rounded-2xl border border-error/15 bg-error/8 px-4 py-3 text-sm leading-relaxed text-error"
-          >
-            {error}
-            {isInvalidToken && (
-              <div className="mt-2">
-                <Link
-                  to="/forgot-password"
-                  className="font-semibold text-primary transition hover:underline"
-                >
-                  Request a new link
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
-
-        <p className="text-sm leading-relaxed text-text-secondary">
-          Your new password must be at least 8 characters and include uppercase, lowercase, a
-          number and a special character.
-        </p>
-
-        <div>
-          <label
-            htmlFor="new-password"
-            className="mb-1.5 block text-sm font-medium text-text-secondary"
-          >
-            New Password
-          </label>
-          <input
-            id="new-password"
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-            disabled={isSubmitting}
-            aria-invalid={newPasswordError ? true : undefined}
-            aria-describedby={newPasswordError ? 'new-password-error' : undefined}
-            className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary shadow-sm outline-none transition-all placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-          />
-          {newPasswordError && (
-            <p id="new-password-error" className="mt-1.5 text-xs text-error">
-              {newPasswordError}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label
-            htmlFor="confirm-password"
-            className="mb-1.5 block text-sm font-medium text-text-secondary"
-          >
-            Confirm Password
-          </label>
-          <input
-            id="confirm-password"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-            disabled={isSubmitting}
-            aria-invalid={confirmPasswordError ? true : undefined}
-            aria-describedby={confirmPasswordError ? 'confirm-password-error' : undefined}
-            className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary shadow-sm outline-none transition-all placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-          />
-          {confirmPasswordError && (
-            <p id="confirm-password-error" className="mt-1.5 text-xs text-error">
-              {confirmPasswordError}
-            </p>
-          )}
-        </div>
-
-        <Button
-          type="submit"
-          loading={isSubmitting}
-          className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-real-estate/20"
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          noValidate
+          className="space-y-4"
+          data-testid="reset-password-form"
         >
-          Reset Password
-        </Button>
+          {error && (
+            <div
+              role="alert"
+              className="rounded-2xl border border-error/15 bg-error/8 px-4 py-3 text-sm leading-relaxed text-error"
+            >
+              {error}
+              {isInvalidToken && (
+                <div className="mt-2">
+                  <Link
+                    to="/forgot-password"
+                    className="font-semibold text-primary transition hover:underline"
+                  >
+                    Request a new link
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
 
-        <div className="pt-2 text-center">
-          <Link to="/login" className="text-sm font-semibold text-primary transition hover:underline">
-            Back to Sign In
-          </Link>
-        </div>
-      </form>
+          <FormField
+            control={form.control}
+            name="newPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>New Password</FormLabel>
+                <FormControl>
+                  <PasswordInput autoComplete="new-password" disabled={isSubmitting} {...field} />
+                </FormControl>
+                <FormDescription>{PASSWORD_REQUIREMENTS_MESSAGE}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm Password</FormLabel>
+                <FormControl>
+                  <PasswordInput autoComplete="new-password" disabled={isSubmitting} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <Button
+            type="submit"
+            loading={isSubmitting}
+            className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-real-estate/20"
+          >
+            Reset Password
+          </Button>
+
+          <div className="pt-2 text-center">
+            <Link to="/login" className="text-sm font-semibold text-primary transition hover:underline">
+              Back to Sign In
+            </Link>
+          </div>
+        </form>
+      </Form>
     </PageShell>
   );
 }

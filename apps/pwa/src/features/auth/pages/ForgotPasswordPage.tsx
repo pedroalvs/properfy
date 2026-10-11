@@ -1,12 +1,20 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { forgotPasswordSchema, type ForgotPasswordInput } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/Form';
 import { api } from '@/services/api';
 import { ApiError, toApiError } from '@/lib/api-error';
-
-function isValidEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -18,34 +26,29 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const form = useForm<ForgotPasswordInput>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: { email: '' },
+  });
+  const isSubmitting = form.formState.isSubmitting;
+
+  const onSubmit = async (values: ForgotPasswordInput) => {
     setError('');
-
-    const trimmed = email.trim();
-    if (!trimmed || !isValidEmail(trimmed)) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-
-    setIsSubmitting(true);
     try {
       const { error: apiError, response } = await api.POST('/v1/auth/forgot-password', {
-        body: { email: trimmed },
+        body: { email: values.email },
       });
 
       if (apiError) throw toApiError(apiError, (response as Response | undefined)?.status);
 
+      setSubmittedEmail(values.email);
       setIsSuccess(true);
     } catch (err) {
       setError(getErrorMessage(err));
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -69,7 +72,7 @@ export function ForgotPasswordPage() {
               <h2 className="text-lg font-bold text-secondary">Check your email</h2>
               <p className="mt-2 text-sm leading-relaxed text-text-secondary">
                 If an account exists for{' '}
-                <span className="font-semibold text-text-primary">{email.trim()}</span>, you will
+                <span className="font-semibold text-text-primary">{submittedEmail}</span>, you will
                 receive a password reset link shortly. Check your spam folder if it doesn't
                 arrive within a few minutes.
               </p>
@@ -81,56 +84,66 @@ export function ForgotPasswordPage() {
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} noValidate className="space-y-4" data-testid="forgot-password-form">
-              {error && (
-                <div
-                  role="alert"
-                  className="rounded-2xl border border-error/15 bg-error/8 px-4 py-3 text-sm leading-relaxed text-error"
-                >
-                  {error}
-                </div>
-              )}
-
-              <p className="text-sm leading-relaxed text-text-secondary">
-                Enter the email you use to sign in and we'll send you a link to reset your
-                password.
-              </p>
-
-              <div>
-                <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-text-secondary">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  inputMode="email"
-                  placeholder="your@email.com"
-                  disabled={isSubmitting}
-                  className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary shadow-sm outline-none transition-all placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                loading={isSubmitting}
-                className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-real-estate/20"
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                noValidate
+                className="space-y-4"
+                data-testid="forgot-password-form"
               >
-                Send Reset Link
-              </Button>
+                {error && (
+                  <div
+                    role="alert"
+                    className="rounded-2xl border border-error/15 bg-error/8 px-4 py-3 text-sm leading-relaxed text-error"
+                  >
+                    {error}
+                  </div>
+                )}
 
-              <div className="pt-2 text-center">
-                <Link
-                  to="/login"
-                  className="text-sm font-semibold text-primary transition hover:underline"
+                <p className="text-sm leading-relaxed text-text-secondary">
+                  Enter the email you use to sign in and we'll send you a link to reset your
+                  password.
+                </p>
+
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          autoComplete="email"
+                          inputMode="email"
+                          placeholder="your@email.com"
+                          disabled={isSubmitting}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button
+                  type="submit"
+                  loading={isSubmitting}
+                  className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-real-estate/20"
                 >
-                  Back to Sign In
-                </Link>
-              </div>
-            </form>
+                  Send Reset Link
+                </Button>
+
+                <div className="pt-2 text-center">
+                  <Link
+                    to="/login"
+                    className="text-sm font-semibold text-primary transition hover:underline"
+                  >
+                    Back to Sign In
+                  </Link>
+                </div>
+              </form>
+            </Form>
           )}
         </div>
       </div>
