@@ -1,4 +1,4 @@
-import { cn } from '@properfy/frontend-standards';
+import { Segmented } from '@/components/ui/Segmented';
 
 type ScheduleTab = 'upcoming' | 'history';
 
@@ -7,33 +7,19 @@ interface ScheduleTabsProps {
   onChange: (value: ScheduleTab) => void;
 }
 
-const TABS: Array<{ id: ScheduleTab; label: string }> = [
+const TABS = [
   { id: 'upcoming', label: 'Upcoming' },
   { id: 'history', label: 'History' },
-];
+] as const satisfies ReadonlyArray<{ id: ScheduleTab; label: string }>;
 
 export function ScheduleTabs({ value, onChange }: ScheduleTabsProps) {
   return (
-    <div className="mx-4 my-2 flex rounded-btn bg-muted p-1" role="tablist">
-      {TABS.map((tab) => {
-        const isActive = value === tab.id;
-        return (
-          <button
-            key={tab.id}
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => onChange(tab.id)}
-            className={cn(
-              'flex-1 rounded-btn py-1.5 text-sm font-semibold transition-colors',
-              isActive
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {tab.label}
-          </button>
-        );
-      })}
-    </div>
+    <Segmented
+      value={value}
+      options={TABS}
+      onChange={onChange}
+      className="mx-4 my-2"
+      aria-label="Schedule view"
+    />
   );
 }
