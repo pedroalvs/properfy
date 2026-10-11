@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AlertCircle } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
@@ -122,7 +123,7 @@ export function RequestInvoiceScreen() {
 
             {requestError && (
               <Alert tone="destructive" data-testid="request-invoice-error">
-                <i className="mdi mdi-alert-circle-outline text-xl" aria-hidden="true" />
+                <AlertCircle className="h-5 w-5" aria-hidden="true" />
                 <AlertDescription className="font-semibold opacity-100">{requestError}</AlertDescription>
               </Alert>
             )}

@@ -125,7 +125,7 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
               Cancel
             </Button>
             <Button
-              variant="success"
+              variant="primary"
               onClick={onConfirm}
               loading={state === 'ACCEPTING'}
               className="flex-1 font-bold"

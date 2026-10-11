@@ -223,7 +223,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
             </Badge>
           ) : (
             <Button
-              variant="success"
+              variant="primary"
               block
               onClick={onAccept}
               loading={state === 'ACCEPTING'}
