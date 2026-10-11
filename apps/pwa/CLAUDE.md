@@ -11,15 +11,17 @@ The PWA is a **mobile-first Progressive Web App** for property inspectors in the
 - **Build tool:** Vite (with `vite-plugin-pwa` + Workbox)
 - **Framework:** React
 - **Language:** TypeScript
-- **Styling:** Tailwind CSS
-- **Font:** Nunito (shared with web)
-- **Icons:** Material Design Icons (`@mdi/font`)
-- **Maps:** Mapbox (route visualization, property location)
+- **Styling:** Tailwind CSS with a shadcn-style design system (see `docs/design-system.md`)
+- **Font:** Inter (self-hosted via `@fontsource-variable/inter`)
+- **Icons:** `lucide-react`
+- **Maps:** Mapbox (`mapbox-gl`) for the offers map
 - **Geolocation:** Browser Geolocation API
 - **HTTP client:** OpenAPI-generated client (same contracts as web)
 - **State:** React Query + local state
+- **Forms:** React Hook Form + Zod, with schemas from `@properfy/shared`
+- **Shared standards:** `@properfy/frontend-standards` (`cn()`, CVA, timing/z-index/touch constants)
 - **Offline:** Service Worker with Workbox (cache-first for static, network-first for API)
-- **Tests:** Vitest (unit) + Playwright (E2E mobile viewport)
+- **Tests:** Vitest (unit/component) + Playwright (E2E mobile viewport)
 
 Do **not** change the stack unless explicitly instructed.
 
@@ -28,26 +30,29 @@ Do **not** change the stack unless explicitly instructed.
 ## 2. Development commands
 
 ```bash
-# Install dependencies
+# Install dependencies (from repo root)
 pnpm install
 
 # Start dev server
-pnpm dev
+pnpm --filter pwa dev
 
 # Build for production (generates SW)
-pnpm build
+pnpm --filter pwa build
 
 # Preview production build
-pnpm preview
+pnpm --filter pwa preview
 
 # Run tests
-pnpm test
+pnpm --filter pwa test
 
 # Lint
-pnpm lint
+pnpm --filter pwa lint
 
 # Typecheck
-pnpm typecheck
+pnpm --filter pwa typecheck
+
+# Design-system guard (no retired tokens/classes/*Screen/template classNames)
+pnpm --filter pwa check:ds
 ```
 
 ---
@@ -57,54 +62,58 @@ pnpm typecheck
 ```text
 apps/pwa/
 ├── src/
-│   ├── app/                    # App shell, routing, providers, SW registration
+│   ├── app/                    # App shell wiring: router, providers, SW registration
 │   ├── components/
-│   │   ├── shell/              # MobileShell, BottomNav, TopBar
-│   │   ├── ui/                 # Shared primitives (buttons, chips, cards, inputs)
-│   │   ├── feedback/           # Snackbar, EmptyState, LoadingState, ErrorState
-│   │   └── map/                # MapView, PropertyMarker, RouteOverlay
+│   │   ├── shell/              # PwaLayout (app frame), BottomNavBar, TopBar
+│   │   ├── ui/                 # Design-system primitives (see docs/design-system.md)
+│   │   └── feedback/           # Snackbar, OfflineBanner, EmptyState, LoadingState, ErrorState
 │   ├── features/
-│   │   ├── auth/               # Login, session
-│   │   ├── offers/             # Marketplace offers list, accept flow
-│   │   ├── schedule/           # Daily schedule, appointment list
+│   │   ├── auth/               # Login, forgot/reset password, access-denied/deactivated
+│   │   ├── schedule/           # Daily schedule list + appointment detail (AppointmentDetailPage)
+│   │   ├── offers/             # Marketplace offers list, offers map, accept flow
 │   │   ├── execution/          # Start/finish inspection (geolocation capture)
-│   │   ├── appointments/       # Appointment details, contact info, restrictions
-│   │   └── earnings/           # Financial summary, inspector invoice history
+│   │   ├── earnings/           # Earnings summary, inspector invoice history, request invoice
+│   │   └── profile/            # Inspector profile, security (2FA), sessions, install app
 │   ├── services/               # API clients (generated from OpenAPI)
-│   ├── hooks/                  # Shared hooks (useGeolocation, useOnlineStatus, useAuth, etc.)
-│   ├── lib/                    # Helpers (formatCurrency, formatDate, distance, etc.)
-│   ├── types/                  # DTOs (from packages/shared)
+│   ├── hooks/                  # Shared hooks (useGeolocation, useOnlineStatus, useAuth, …)
+│   ├── lib/                    # Helpers (format-date, status-colors, distance, …)
+│   ├── styles/                 # tokens.css (CSS custom properties)
 │   └── main.tsx
 ├── public/
 │   ├── manifest.json
 │   └── icons/                  # PWA icons (192, 512, apple-touch)
+├── docs/
+│   └── design-system.md        # Tokens, primitives, form pattern, anti-patterns
 └── ...
 ```
+
+There is **no** `components/map/` directory and **no** `features/appointments/` feature: the
+offers map lives in `features/offers/` and appointment detail lives in `features/schedule/`
+(`AppointmentDetailPage.tsx`). The app frame is `PwaLayout` (there is no `MobileShell`).
 
 ---
 
 ## 4. Core features
 
-### 4.1 Marketplace offers
+### 4.1 Marketplace offers (`features/offers`, route `/marketplace`)
 
 - `GET /v1/inspector/offers` – List available service group offers
-- Display grouped inspections by date/region
+- Display grouped inspections by date/region; a Mapbox map (`OffersMapView`) plots the pins
 - **Accept flow:** `POST /v1/marketplace/offers/:groupId/accept` with `Idempotency-Key`
 - First valid acceptance wins (concurrent accept handled by backend)
 - Show offer details: date, time window, region, service count, payout estimate
 
-### 4.2 Daily schedule
+### 4.2 Daily schedule (`features/schedule`, route `/schedule`)
 
 - `GET /v1/inspector/schedule?date=YYYY-MM-DD` – List day's appointments
-- Display as timeline or list sorted by time slot
+- Display as a list sorted by time slot
 - Show: property address, service type, time, tenant confirmation status
-- Map view with route visualization
 - **T-1 rule filtering:**
   - `Routine Inspection`: only show if tenant confirmed (or exception applies)
   - `Ingoing/Outgoing`: show when `SCHEDULED`
   - Exceptions: `key_required = true`, manual OP confirmation
 
-### 4.3 Inspection execution
+### 4.3 Inspection execution (`features/execution`)
 
 **Start inspection:**
 
@@ -120,18 +129,21 @@ apps/pwa/
 
 **Execution flow:** `SCHEDULED → start (capture geo) → finish (capture geo) → DONE`
 
-### 4.4 Appointment details
+### 4.4 Appointment detail (`features/schedule`, route `/schedule/:appointmentId`)
 
 - `GET /v1/inspector/appointments/:appointmentId`
 - Show: property info, contact details, restrictions, meeting location, key info
-- Navigation to property on map
 - Contact tenant directly (phone/SMS link)
 
-### 4.5 Earnings
+### 4.5 Earnings (`features/earnings`, route `/earnings`)
 
 - Financial summary (current period)
-- Inspector invoice history
+- Inspector invoice history (`InvoiceListPage`, `InvoiceDetailPage`) and request flow (`RequestInvoicePage`)
 - Per-appointment payout details
+
+### 4.6 Profile (`features/profile`, route `/profile`)
+
+- Inspector details, security (2FA management), active sessions, install-app prompt
 
 ---
 
@@ -140,13 +152,12 @@ apps/pwa/
 ### Service Worker
 
 - Strategy: `generateSW` (Workbox auto-generated)
-- Register type: `prompt` (show update notification)
+- Register type: **`autoUpdate`** — new versions activate automatically on next load (no update prompt)
 
 ### Caching
 
 - **Static assets:** Precached during build (JS, CSS, HTML, images, fonts)
-- **Google Fonts:** CacheFirst (1 year)
-- **API requests:** NetworkFirst with fallback cache (5 min)
+- **API requests:** NetworkFirst with fallback cache
 - **Critical data:** Schedule for today should be aggressively cached for offline viewing
 
 ### Manifest
@@ -155,41 +166,46 @@ apps/pwa/
 - Orientation: `portrait`
 - Theme color: aligned with Properfy brand
 
-### Update prompt
-
-- Show toast notification when new version available
-- Allow immediate update or dismiss
-
 ---
 
 ## 6. Mobile-first design rules
 
 ### Navigation
 
-- **Bottom navigation bar** with: Schedule, Offers, Map, Earnings, Profile
-- **Top bar** with: date selector (for schedule), notification bell, connection status indicator
+- **Bottom navigation bar** (`BottomNavBar`) with exactly four tabs:
+  - **Schedule** → `/schedule`
+  - **Offers** → `/marketplace`
+  - **Earnings** → `/earnings`
+  - **Profile** → `/profile`
+- **Top bar** (`TopBar`) with contextual title/actions and connection status
 - No sidebar (mobile-first)
 
 ### Layout
 
 - Full-width cards
-- Large touch targets (min 44px)
-- Swipe gestures where appropriate (e.g., swipe to next appointment)
-- Pull-to-refresh on list views
+- Large touch targets (min 44px — `TOUCH_TARGET_PX` from `@properfy/frontend-standards`)
+- Pull-to-refresh on list views (`PullToRefresh` primitive)
+- Respect the iOS safe-area insets (`safe-b*` / `nav-clear` spacing tokens)
 
-### Visual tokens (shared with web)
+### Visual tokens
 
-- Same color palette (`--color-primary`, `--color-real-estate`, etc.)
-- Same font (Nunito)
-- Same status chip colors
-- Adapted spacing for mobile (tighter padding, smaller text where needed)
+The design system is documented in `docs/design-system.md`. In short:
+
+- **shadcn HSL tokens** (`--primary`, `--background`, `--foreground`, `--muted`, `--destructive`,
+  `--success`, `--warning`, …) consumed via Tailwind classes with native `/opacity` — these are
+  the primary palette.
+- **`pill-*` tokens** (green/amber/blue/red/gray bg+fg pairs) for status pills.
+- A small set of **legacy domain tokens** (`status-*`, `sg-*`, `confirmation-*`, `flow-*` and
+  `text-primary`) remain as function colours and are consumed via inline `style` in
+  `src/lib/status-colors.ts`. Do not convert these without reworking `status-colors.ts`.
+- Font is **Inter**; `secondary`/`accent` intentionally keep legacy brand values (some
+  not-yet-restyled headings depend on them — see `docs/design-system.md`).
 
 ### Offline behavior
 
 - Show connection status indicator (online/offline)
 - Allow viewing cached schedule when offline
-- Queue actions when offline, sync when back online
-- Show clear feedback: "You are offline. Changes will sync when connected."
+- Show clear feedback when offline
 
 ---
 
@@ -200,17 +216,13 @@ apps/pwa/
 - Handle permission denied gracefully
 - Capture coordinates at inspection start and finish
 - Validate proximity to property location (backend validates too, but show warning in app)
-- Show map with property location and inspector position
 
 ---
 
 ## 8. Evidence upload
 
-- Photos: camera capture or gallery selection
-- Files: PDF or image upload
-- Upload via signed URLs to Supabase Storage
-- Show upload progress
-- Retry on failure
+- Photos: camera capture or gallery selection; files: PDF or image upload
+- Upload via signed URLs to Supabase Storage; show progress; retry on failure
 - Evidence uploads are optional and are NOT a prerequisite for finishing — finish is geolocation + timestamp only (see §4.3)
 - Compress images before upload (reduce bandwidth)
 
@@ -230,7 +242,7 @@ Every screen must handle:
 
 ## 10. Testing
 
-- **Unit tests** (Vitest): hooks, helpers, business logic
+- **Unit/component tests** (Vitest): hooks, helpers, business logic, components
 - **E2E** (Playwright with mobile viewport): execution flow, accept offer, schedule view
 - Mock geolocation and camera APIs in tests
 - Test offline scenarios
@@ -242,19 +254,20 @@ Every screen must handle:
 When you (Claude Code) implement or modify PWA code:
 
 1. **Mobile-first always** – design for phone screen first, then adapt up.
-2. **Respect the execution flow** – `SCHEDULED → start (capture geo) → finish (capture geo) → DONE`.
-3. **Geolocation is critical** – always handle permission, errors and fallbacks.
-4. **Offline support** – cached schedule, queued actions, clear feedback.
-5. **Share types from `packages/shared`** for enums, IDs and DTOs.
-6. **Same visual tokens** as web (colors, typography, status chips).
+2. **Use the design system** – compose classes with `cn()` and reuse `components/ui` primitives; never hand-build a template-literal `className`, never hard-code a hex colour. See `docs/design-system.md`. `pnpm check:ds` guards this.
+3. **Respect the execution flow** – `SCHEDULED → start (capture geo) → finish (capture geo) → DONE`.
+4. **Geolocation is critical** – always handle permission, errors and fallbacks.
+5. **Offline support** – cached schedule, queued actions, clear feedback.
+6. **Share types/schemas from `packages/shared`** for enums, IDs, DTOs and form validation.
 7. **Language: English** for all user-facing text. Mock/seed data may retain Portuguese names.
-8. **Performance matters** – compress images, lazy load, minimize bundle.
-9. **Touch-friendly** – large targets, no hover-dependent interactions.
+8. **Performance matters** – compress images, lazy load routes, minimize bundle.
+9. **Touch-friendly** – large targets (44px), no hover-dependent interactions.
 10. **Consult `projeto-consolidado/`** for complete business rules, especially state machine and T-1 rules.
 11. **Data hooks must return referentially stable values.** Any object/array derived from a query payload (spread, `.map()`, adapter mapping) MUST be wrapped in `useMemo` keyed on the raw query data. An unmemoized derived return caused a production freeze on web — an infinite render loop via a consumer's `useEffect(..., [entity])` effect that starved React Router updates (PR #961). Add future payload transforms inside the existing memo, never outside it.
 
 Key documentation:
 
+- `docs/design-system.md` – tokens, primitives, form pattern, anti-patterns, `check:ds`
 - `projeto-consolidado/state-machine-executavel.md` – state transitions and T-1 rules
 - `projeto-consolidado/api-contratos-principais.md` – Inspector App API section
 - `projeto-consolidado/regras-negocio-respostas-cliente.md` – execution rules, confirmation, rescheduling
