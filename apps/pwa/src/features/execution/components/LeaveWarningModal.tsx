@@ -28,8 +28,8 @@ export function LeaveWarningModal({ onStay, onLeave }: LeaveWarningModalProps) {
       >
         <div className="flex flex-col items-center gap-2 text-center">
           <i className="mdi mdi-alert-circle text-[40px] text-warning" aria-hidden="true" />
-          <DialogTitle className="text-text-primary">Leave inspection?</DialogTitle>
-          <DialogDescription className="text-text-secondary">
+          <DialogTitle>Leave inspection?</DialogTitle>
+          <DialogDescription>
             You have an inspection in progress. Your data is saved locally and you can resume later.
           </DialogDescription>
         </div>

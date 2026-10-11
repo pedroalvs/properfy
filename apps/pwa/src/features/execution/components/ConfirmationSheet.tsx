@@ -47,10 +47,8 @@ export function ConfirmationSheet({
       <SheetContent data-testid={testId} className="mx-auto max-w-lg">
         <div className="flex flex-col items-center gap-2 text-center">
           <i className={cn('mdi text-[40px]', icon, iconClassName)} aria-hidden="true" />
-          <SheetTitle className="text-text-primary">{title}</SheetTitle>
-          {description && (
-            <SheetDescription className="text-text-secondary">{description}</SheetDescription>
-          )}
+          <SheetTitle>{title}</SheetTitle>
+          {description && <SheetDescription>{description}</SheetDescription>}
         </div>
 
         <div className="mt-6 flex flex-col gap-2">

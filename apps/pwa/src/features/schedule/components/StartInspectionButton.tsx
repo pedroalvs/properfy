@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, PlayCircle } from 'lucide-react';
+import { PlayCircle, RotateCcw } from 'lucide-react';
 import { todayInTzDateString } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
@@ -70,7 +70,7 @@ export function StartInspectionButton({
         data-testid="start-inspection-button"
       >
         {resume ? (
-          <Play className="h-5 w-5" aria-hidden="true" />
+          <RotateCcw className="h-5 w-5" aria-hidden="true" />
         ) : (
           <PlayCircle className="h-5 w-5" aria-hidden="true" />
         )}

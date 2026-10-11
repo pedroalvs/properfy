@@ -68,7 +68,7 @@ export function AppointmentDetailPage() {
             date no longer blocks the start by itself, though the backend still refuses
             a routine inspection the tenant never confirmed. */}
         {apt.isOverdue && (
-          <Alert tone="warning" data-testid="overdue-banner">
+          <Alert tone="destructive" data-testid="overdue-banner">
             <ClockAlert className="h-5 w-5" aria-hidden="true" />
             <p className="text-sm font-semibold">
               Past date — the scheduled date has passed. Attend to this first.
