@@ -10,7 +10,7 @@ import { invoiceStatusBadge, formatInvoiceCurrency } from '../lib/invoiceStatus'
 import { getErrorMessage } from '@/lib/api-error';
 import { formatCivilDate } from '@/lib/format-date';
 
-export function InvoiceListScreen() {
+export function InvoiceListPage() {
   const navigate = useNavigate();
   const { data, isLoading, isError, error, refetch } = useMyInvoices();
   const invoices = data?.data ?? [];

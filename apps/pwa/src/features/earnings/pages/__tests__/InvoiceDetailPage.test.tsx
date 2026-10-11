@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import type * as RRD from 'react-router-dom';
 import { renderWithProviders } from '@/test-utils';
-import { InvoiceDetailScreen } from '../InvoiceDetailScreen';
+import { InvoiceDetailPage } from '../InvoiceDetailPage';
 
 const mockUseMyInvoiceDetail = vi.fn();
 
@@ -39,12 +39,12 @@ function detail(overrides = {}) {
   };
 }
 
-describe('InvoiceDetailScreen', () => {
+describe('InvoiceDetailPage', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('renders an approved invoice with number, total, line items and an enabled Download button', () => {
     mockUseMyInvoiceDetail.mockReturnValue(detail());
-    renderWithProviders(<InvoiceDetailScreen />);
+    renderWithProviders(<InvoiceDetailPage />);
 
     expect(screen.getByText('PINV-000010')).toBeInTheDocument();
     expect(screen.getByText('ABC-0001')).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe('InvoiceDetailScreen', () => {
     mockUseMyInvoiceDetail.mockReturnValue(
       detail({ status: 'VOID', fileKey: null, notes: 'Wrong period', invoiceNumberDisplay: null, lineItemsSnapshot: [] }),
     );
-    renderWithProviders(<InvoiceDetailScreen />);
+    renderWithProviders(<InvoiceDetailPage />);
 
     expect(screen.getByText(/Rejected: Wrong period/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Download PDF/ })).not.toBeInTheDocument();

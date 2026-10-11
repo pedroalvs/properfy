@@ -84,19 +84,19 @@ const EarningsPage = lazyRetry(() =>
     default: module.EarningsPage,
   })),
 );
-const RequestInvoiceScreen = lazyRetry(() =>
-  import('@/features/earnings/components/RequestInvoiceScreen').then((module) => ({
-    default: module.RequestInvoiceScreen,
+const RequestInvoicePage = lazyRetry(() =>
+  import('@/features/earnings/pages/RequestInvoicePage').then((module) => ({
+    default: module.RequestInvoicePage,
   })),
 );
-const InvoiceListScreen = lazyRetry(() =>
-  import('@/features/earnings/pages/InvoiceListScreen').then((module) => ({
-    default: module.InvoiceListScreen,
+const InvoiceListPage = lazyRetry(() =>
+  import('@/features/earnings/pages/InvoiceListPage').then((module) => ({
+    default: module.InvoiceListPage,
   })),
 );
-const InvoiceDetailScreen = lazyRetry(() =>
-  import('@/features/earnings/pages/InvoiceDetailScreen').then((module) => ({
-    default: module.InvoiceDetailScreen,
+const InvoiceDetailPage = lazyRetry(() =>
+  import('@/features/earnings/pages/InvoiceDetailPage').then((module) => ({
+    default: module.InvoiceDetailPage,
   })),
 );
 
@@ -152,9 +152,9 @@ export const router = createBrowserRouter(
                 { path: 'schedule/:appointmentId', element: lazyElement(AppointmentDetailPage) },
                 { path: 'marketplace', element: lazyElement(MarketplacePage) },
                 { path: 'earnings', element: lazyElement(EarningsPage) },
-                { path: 'earnings/request-invoice', element: lazyElement(RequestInvoiceScreen) },
-                { path: 'earnings/invoices', element: lazyElement(InvoiceListScreen) },
-                { path: 'earnings/invoices/:invoiceId', element: lazyElement(InvoiceDetailScreen) },
+                { path: 'earnings/request-invoice', element: lazyElement(RequestInvoicePage) },
+                { path: 'earnings/invoices', element: lazyElement(InvoiceListPage) },
+                { path: 'earnings/invoices/:invoiceId', element: lazyElement(InvoiceDetailPage) },
                 { path: 'profile', element: lazyElement(ProfilePage) },
                 { path: 'profile/availability', element: lazyElement(ProfileAvailabilityPage) },
                 { path: 'profile/documents', element: lazyElement(ProfileDocumentsPage) },

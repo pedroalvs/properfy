@@ -27,7 +27,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 const PERIOD_LABELS: Record<string, string> = { WEEKLY: 'Weekly', FORTNIGHTLY: 'Fortnightly', MONTHLY: 'Monthly' };
 
-export function RequestInvoiceScreen() {
+export function RequestInvoicePage() {
   const navigate = useNavigate();
   const periodsQuery = useAvailablePeriods();
   const [selected, setSelected] = useState<AvailablePeriod | null>(null);
