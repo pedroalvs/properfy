@@ -56,8 +56,8 @@ export function TwoFactorSection({ enabled, onEnabled }: TwoFactorSectionProps) 
     try {
       await confirmSetup(code);
       onEnabled();
-    } catch (err: any) {
-      setError(err.message ?? 'Invalid code');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invalid code');
     }
   };
 

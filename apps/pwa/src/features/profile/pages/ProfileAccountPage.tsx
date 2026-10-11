@@ -2,20 +2,35 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { applyPhoneMask, formatAuPhone, maxPhoneDigits, stripNonDigits, toE164Au } from '@properfy/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { TopBar } from '@/components/shell/TopBar';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { TimezonePicker } from '@/components/ui/TimezonePicker';
+import { ProfileCard } from '../components/ProfileCard';
 import { AvatarUploader } from '../components/AvatarUploader';
-import { EditableAvailabilityGrid } from '../components/EditableAvailabilityGrid';
+import { ChangePasswordSection } from '../components/ChangePasswordSection';
+import { TwoFactorSection } from '../components/TwoFactorSection';
+import { SessionsSection } from '../components/SessionsSection';
+import { useInspectorMe } from '../hooks/useInspectorMe';
 import { useUpdateInspectorSelf } from '../hooks/useUpdateInspectorSelf';
 import { useUpdateMyTimezone } from '../hooks/useUpdateMyTimezone';
-import { TimezonePicker } from '@/components/ui/TimezonePicker';
-import { useInspectorAvailabilityTemplate } from '../hooks/useInspectorAvailabilityTemplate';
 import { useUnsavedChangesPrompt } from '@/lib/use-unsaved-changes-prompt';
 
-export function ProfileEditPage() {
-  const { user, refreshUser } = useAuth();
-  const { data: availability } = useInspectorAvailabilityTemplate();
-  const { mutateAsync: updateSelf, isPending: isSavingPhone } = useUpdateInspectorSelf();
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <p className="px-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+      {children}
+    </p>
+  );
+}
 
+export function ProfileAccountPage() {
+  const { user, refreshUser } = useAuth();
+  const { data: inspectorMe, isLoading: isInspectorLoading } = useInspectorMe();
+  const { mutateAsync: updateSelf, isPending: isSavingPhone } = useUpdateInspectorSelf();
   const { mutateAsync: updateTimezone, isPending: isSavingTimezone } = useUpdateMyTimezone();
+
+  const [totpEnabled, setTotpEnabled] = useState(user?.totpEnabled ?? false);
 
   const [phone, setPhone] = useState(formatAuPhone(user?.phone ?? ''));
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -25,11 +40,9 @@ export function ProfileEditPage() {
   const [timezoneError, setTimezoneError] = useState<string | null>(null);
   const [timezoneSuccess, setTimezoneSuccess] = useState(false);
 
-  const [isAvailabilityDirty, setIsAvailabilityDirty] = useState(false);
-
   const isPhoneDirty = phone !== formatAuPhone(user?.phone ?? '');
   const isTimezoneDirty = timezone !== (user?.personalTimezone ?? '');
-  const isAnyDirty = isPhoneDirty || isTimezoneDirty || isAvailabilityDirty;
+  const isAnyDirty = isPhoneDirty || isTimezoneDirty;
 
   useUnsavedChangesPrompt(isAnyDirty);
 
@@ -97,15 +110,29 @@ export function ProfileEditPage() {
 
   return (
     <div className="w-full pb-20">
-      <TopBar title="Edit Profile" showBack backTo="/profile" />
+      <TopBar title="Account details" showBack backTo="/profile" />
 
-      <div className="flex flex-col gap-4 p-4">
-        {/* Photo section */}
-        <section
-          data-testid="avatar-upload-section"
-          className="rounded-[24px] border border-white/70 bg-white/92 p-6 shadow-[0_14px_30px_rgba(15,23,42,0.06)]"
-        >
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Profile Photo</p>
+      <div className="flex flex-col gap-3 p-4">
+        <ProfileCard
+          name={user.name}
+          email={user.email}
+          role={user.role}
+          status={user.status}
+          phone={user.phone}
+          timezone={user.timezone}
+          totpEnabled={totpEnabled}
+          lastLoginAt={user.lastLoginAt}
+          photoUrl={user.inspectorPhotoUrl}
+          showStats={user.role === 'INSP'}
+          ratingAvg={inspectorMe?.data?.rating?.average ?? null}
+          ratingCount={inspectorMe?.data?.rating?.responseCount ?? 0}
+          completedCount={inspectorMe?.data?.rating?.doneServicesCount ?? 0}
+          ratingLoading={isInspectorLoading}
+        />
+
+        {/* Photo */}
+        <Card data-testid="avatar-upload-section">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Profile photo</p>
           <div className="mt-4 flex items-center gap-4">
             {user.inspectorPhotoUrl ? (
               <img
@@ -114,7 +141,7 @@ export function ProfileEditPage() {
                 className="h-16 w-16 rounded-2xl object-cover"
               />
             ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-real-estate/10 text-2xl font-bold text-real-estate">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-2xl font-bold text-primary">
                 {user.name.charAt(0).toUpperCase()}
               </div>
             )}
@@ -122,40 +149,34 @@ export function ProfileEditPage() {
               <AvatarUploader inspectorId={user.inspectorId} onUploaded={refreshUser} />
             )}
           </div>
-        </section>
+        </Card>
 
-        {/* Phone section */}
-        <section className="rounded-[24px] border border-white/70 bg-white/92 p-6 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Phone</p>
+        {/* Phone */}
+        <Card>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Phone</p>
           <div className="mt-4 flex flex-col gap-3">
             <label htmlFor="edit-phone" className="sr-only">Phone</label>
-            <input
+            <Input
               id="edit-phone"
               type="tel"
               aria-label="Phone"
               value={phone}
               onChange={(e) => handlePhoneChange(e.target.value)}
               placeholder="0412 345 678"
-              className="rounded-xl border border-black/10 bg-slate-50 px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-real-estate/30"
             />
-            {phoneError && <p className="text-xs text-error">{phoneError}</p>}
+            {phoneError && <p className="text-xs text-destructive">{phoneError}</p>}
             {phoneSuccess && <p className="text-xs text-success">Saved successfully</p>}
             {isPhoneDirty && (
-              <button
-                type="button"
-                onClick={handleSavePhone}
-                disabled={isSavingPhone}
-                className="w-full rounded-2xl bg-real-estate py-2.5 text-sm font-bold text-white disabled:opacity-50"
-              >
+              <Button type="button" onClick={handleSavePhone} loading={isSavingPhone} className="w-full">
                 {isSavingPhone ? 'Saving…' : 'Save phone'}
-              </button>
+              </Button>
             )}
           </div>
-        </section>
+        </Card>
 
-        {/* Timezone section */}
-        <section className="rounded-[24px] border border-white/70 bg-white/92 p-6 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Timezone</p>
+        {/* Timezone */}
+        <Card>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Timezone</p>
           <div className="mt-4 flex flex-col gap-3">
             <TimezonePicker
               id="edit-timezone"
@@ -165,35 +186,24 @@ export function ProfileEditPage() {
               placeholder="Platform default (Sydney)"
               allowClear
             />
-            <p className="text-xs text-text-muted">
+            <p className="text-xs text-muted-foreground">
               Your schedule and offers are shown in this timezone.
             </p>
-            {timezoneError && <p className="text-xs text-error">{timezoneError}</p>}
+            {timezoneError && <p className="text-xs text-destructive">{timezoneError}</p>}
             {timezoneSuccess && <p className="text-xs text-success">Saved successfully</p>}
             {isTimezoneDirty && (
-              <button
-                type="button"
-                onClick={handleSaveTimezone}
-                disabled={isSavingTimezone}
-                className="w-full rounded-2xl bg-real-estate py-2.5 text-sm font-bold text-white disabled:opacity-50"
-              >
+              <Button type="button" onClick={handleSaveTimezone} loading={isSavingTimezone} className="w-full">
                 {isSavingTimezone ? 'Saving…' : 'Save timezone'}
-              </button>
+              </Button>
             )}
           </div>
-        </section>
+        </Card>
 
-        {/* Availability section */}
-        <section className="rounded-[24px] border border-white/70 bg-white/92 p-6 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Availability</p>
-          <div className="mt-4">
-            {availability ? (
-              <EditableAvailabilityGrid availability={availability} onDirtyChange={setIsAvailabilityDirty} />
-            ) : (
-              <p className="text-sm text-text-muted">Loading availability…</p>
-            )}
-          </div>
-        </section>
+        {/* Security */}
+        <SectionLabel>Security</SectionLabel>
+        <ChangePasswordSection />
+        <TwoFactorSection enabled={totpEnabled} onEnabled={() => setTotpEnabled(true)} />
+        <SessionsSection />
       </div>
     </div>
   );

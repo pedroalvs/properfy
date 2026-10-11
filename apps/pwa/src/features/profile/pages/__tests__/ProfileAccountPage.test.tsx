@@ -1,14 +1,12 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test-utils';
-import { ProfileEditPage } from '../ProfileEditPage';
+import { ProfileAccountPage } from '../ProfileAccountPage';
 
 const mockUseAuth = vi.fn();
 const mockMutateInspectorSelf = vi.fn();
-const mockMutateAvailability = vi.fn();
 const mockMutateTimezone = vi.fn();
 const mockUsePrompt = vi.fn();
-const mockUseAvailability = vi.fn();
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
@@ -31,18 +29,6 @@ vi.mock('../../hooks/useUpdateInspectorSelf', () => ({
   }),
 }));
 
-vi.mock('../../hooks/useUpdateInspectorAvailabilityTemplate', () => ({
-  useUpdateInspectorAvailabilityTemplate: () => ({
-    mutateAsync: mockMutateAvailability,
-    isPending: false,
-    isError: false,
-  }),
-}));
-
-vi.mock('../../hooks/useInspectorAvailabilityTemplate', () => ({
-  useInspectorAvailabilityTemplate: () => mockUseAvailability(),
-}));
-
 vi.mock('../../hooks/useUpdateMyTimezone', () => ({
   useUpdateMyTimezone: () => ({
     mutateAsync: mockMutateTimezone,
@@ -51,8 +37,27 @@ vi.mock('../../hooks/useUpdateMyTimezone', () => ({
   }),
 }));
 
+vi.mock('../../hooks/useInspectorMe', () => ({
+  useInspectorMe: () => ({ data: undefined, isLoading: false, isError: false }),
+}));
+
 vi.mock('@/lib/use-unsaved-changes-prompt', () => ({
   useUnsavedChangesPrompt: (isDirty: boolean) => mockUsePrompt(isDirty),
+}));
+
+// The security sections and avatar uploader have their own dedicated tests; stub
+// them here so this suite isolates the account page's phone/timezone/avatar logic.
+vi.mock('../../components/ChangePasswordSection', () => ({
+  ChangePasswordSection: () => <div data-testid="change-password-section" />,
+}));
+vi.mock('../../components/TwoFactorSection', () => ({
+  TwoFactorSection: () => <div data-testid="two-factor-section" />,
+}));
+vi.mock('../../components/SessionsSection', () => ({
+  SessionsSection: () => <div data-testid="sessions-section" />,
+}));
+vi.mock('../../components/AvatarUploader', () => ({
+  AvatarUploader: () => <div data-testid="avatar-uploader" />,
 }));
 
 const MOCK_USER = {
@@ -71,59 +76,55 @@ const MOCK_USER = {
   personalTimezone: 'Australia/Brisbane',
 };
 
-describe('ProfileEditPage', () => {
+describe('ProfileAccountPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseAuth.mockReturnValue({ user: MOCK_USER, logout: vi.fn(), refreshUser: vi.fn() });
     mockUsePrompt.mockImplementation(() => {});
-    mockUseAvailability.mockReturnValue({ data: undefined, isLoading: false });
   });
 
-  it('renders the three edit sections (photo, phone, availability)', () => {
-    renderWithProviders(<ProfileEditPage />);
-    // Phone section
+  it('renders the identity, photo and security sections', () => {
+    renderWithProviders(<ProfileAccountPage />);
     expect(screen.getByLabelText(/phone/i)).toBeInTheDocument();
-    // Availability section heading
-    expect(screen.getAllByText('Availability').length).toBeGreaterThanOrEqual(1);
-    // Photo/avatar section
     expect(screen.getByTestId('avatar-upload-section')).toBeInTheDocument();
+    expect(screen.getByTestId('change-password-section')).toBeInTheDocument();
+    expect(screen.getByTestId('two-factor-section')).toBeInTheDocument();
+    expect(screen.getByTestId('sessions-section')).toBeInTheDocument();
   });
 
   it('calls useUnsavedChangesPrompt with aggregated dirty state', () => {
-    renderWithProviders(<ProfileEditPage />);
-    // Initially not dirty — prompt called with false
+    renderWithProviders(<ProfileAccountPage />);
     expect(mockUsePrompt).toHaveBeenCalledWith(false);
   });
 
   it('renders null when no user', () => {
     mockUseAuth.mockReturnValue({ user: null, logout: vi.fn(), refreshUser: vi.fn() });
-    const { container } = renderWithProviders(<ProfileEditPage />);
+    const { container } = renderWithProviders(<ProfileAccountPage />);
     expect(container.firstChild).toBeNull();
   });
 });
 
-describe('ProfileEditPage — AU phone mask and validation', () => {
+describe('ProfileAccountPage — AU phone mask and validation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseAuth.mockReturnValue({ user: MOCK_USER, logout: vi.fn(), refreshUser: vi.fn() });
     mockUsePrompt.mockImplementation(() => {});
-    mockUseAvailability.mockReturnValue({ data: undefined, isLoading: false });
   });
 
   it('displays the stored E.164 phone in local masked format', () => {
-    renderWithProviders(<ProfileEditPage />);
+    renderWithProviders(<ProfileAccountPage />);
     expect(screen.getByLabelText(/phone/i)).toHaveValue('0412 345 678');
   });
 
   it('is not dirty when the stored phone equals its formatted seed', () => {
-    renderWithProviders(<ProfileEditPage />);
+    renderWithProviders(<ProfileAccountPage />);
     expect(mockUsePrompt).toHaveBeenCalledWith(false);
     expect(screen.queryByRole('button', { name: /save phone/i })).not.toBeInTheDocument();
   });
 
   it('applies the mask while typing', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<ProfileEditPage />);
+    renderWithProviders(<ProfileAccountPage />);
     const input = screen.getByLabelText(/phone/i);
     await user.clear(input);
     await user.type(input, '0498765432');
@@ -132,7 +133,7 @@ describe('ProfileEditPage — AU phone mask and validation', () => {
 
   it('blocks save and shows an error for an invalid AU phone', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<ProfileEditPage />);
+    renderWithProviders(<ProfileAccountPage />);
     const input = screen.getByLabelText(/phone/i);
     await user.clear(input);
     await user.type(input, '12345');
@@ -144,7 +145,7 @@ describe('ProfileEditPage — AU phone mask and validation', () => {
   it('saves a valid local number', async () => {
     mockMutateInspectorSelf.mockResolvedValue({});
     const user = userEvent.setup();
-    renderWithProviders(<ProfileEditPage />);
+    renderWithProviders(<ProfileAccountPage />);
     const input = screen.getByLabelText(/phone/i);
     await user.clear(input);
     await user.type(input, '0498 765 432');
@@ -153,25 +154,23 @@ describe('ProfileEditPage — AU phone mask and validation', () => {
   });
 
   it('shows the local placeholder', () => {
-    renderWithProviders(<ProfileEditPage />);
+    renderWithProviders(<ProfileAccountPage />);
     expect(screen.getByPlaceholderText('0412 345 678')).toBeInTheDocument();
   });
 });
 
-describe('ProfileEditPage — Timezone section', () => {
+describe('ProfileAccountPage — Timezone section', () => {
   const mockRefreshUser = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseAuth.mockReturnValue({ user: MOCK_USER, logout: vi.fn(), refreshUser: mockRefreshUser });
     mockUsePrompt.mockImplementation(() => {});
-    mockUseAvailability.mockReturnValue({ data: undefined, isLoading: false });
   });
 
   it('renders the picker prefilled from the personal timezone', () => {
-    renderWithProviders(<ProfileEditPage />);
+    renderWithProviders(<ProfileAccountPage />);
     expect(screen.getByTestId('timezone-picker-trigger')).toHaveTextContent(/Brisbane \(GMT\+\d+\)/);
-    // Not dirty on mount, so no save button.
     expect(screen.queryByRole('button', { name: /save timezone/i })).not.toBeInTheDocument();
   });
 
@@ -181,7 +180,7 @@ describe('ProfileEditPage — Timezone section', () => {
       logout: vi.fn(),
       refreshUser: mockRefreshUser,
     });
-    renderWithProviders(<ProfileEditPage />);
+    renderWithProviders(<ProfileAccountPage />);
     expect(screen.getByTestId('timezone-picker-trigger')).toHaveTextContent('Platform default (Sydney)');
   });
 
@@ -189,13 +188,12 @@ describe('ProfileEditPage — Timezone section', () => {
     mockMutateTimezone.mockResolvedValue({});
     mockRefreshUser.mockResolvedValue(undefined);
     const user = userEvent.setup();
-    renderWithProviders(<ProfileEditPage />);
+    renderWithProviders(<ProfileAccountPage />);
 
     await user.click(screen.getByTestId('timezone-picker-trigger'));
     await user.type(screen.getByLabelText('Search timezones'), 'perth');
     await user.click(screen.getByTestId('timezone-option-Australia/Perth'));
 
-    // Dirty tracking feeds the unsaved-changes prompt.
     expect(mockUsePrompt).toHaveBeenLastCalledWith(true);
 
     await user.click(screen.getByRole('button', { name: /save timezone/i }));
@@ -209,12 +207,11 @@ describe('ProfileEditPage — Timezone section', () => {
     mockMutateTimezone.mockResolvedValue({});
     mockRefreshUser.mockResolvedValue(undefined);
     const user = userEvent.setup();
-    renderWithProviders(<ProfileEditPage />);
+    renderWithProviders(<ProfileAccountPage />);
 
     await user.click(screen.getByTestId('timezone-picker-trigger'));
     await user.click(screen.getByTestId('timezone-option-clear'));
 
-    // Changing to empty is a change too — dirty and savable.
     expect(mockUsePrompt).toHaveBeenLastCalledWith(true);
 
     await user.click(screen.getByRole('button', { name: /save timezone/i }));
@@ -227,7 +224,7 @@ describe('ProfileEditPage — Timezone section', () => {
   it('shows the mutation error when saving fails', async () => {
     mockMutateTimezone.mockRejectedValue(new Error('Invalid timezone'));
     const user = userEvent.setup();
-    renderWithProviders(<ProfileEditPage />);
+    renderWithProviders(<ProfileAccountPage />);
 
     await user.click(screen.getByTestId('timezone-picker-trigger'));
     await user.type(screen.getByLabelText('Search timezones'), 'perth');
@@ -236,34 +233,5 @@ describe('ProfileEditPage — Timezone section', () => {
 
     expect(await screen.findByText('Invalid timezone')).toBeInTheDocument();
     expect(mockRefreshUser).not.toHaveBeenCalled();
-  });
-});
-
-describe('ProfileEditPage — availability grid dirty tracking', () => {
-  const OFF = { am: false, pm: false };
-  const ON = { am: true, pm: true };
-  const AVAILABILITY = {
-    template: { mon: ON, tue: OFF, wed: ON, thu: OFF, fri: ON, sat: OFF, sun: OFF },
-    overrides: { mon: OFF, tue: OFF, wed: OFF, thu: OFF, fri: OFF, sat: OFF, sun: OFF },
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockUseAuth.mockReturnValue({ user: MOCK_USER, logout: vi.fn(), refreshUser: vi.fn() });
-    mockUsePrompt.mockImplementation(() => {});
-    mockUseAvailability.mockReturnValue({ data: AVAILABILITY, isLoading: false });
-  });
-
-  it('toggling a cell in the availability grid marks the page dirty for the unsaved-changes prompt', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<ProfileEditPage />);
-
-    expect(mockUsePrompt).toHaveBeenLastCalledWith(false);
-
-    // Tuesday AM is OFF initially.
-    const tuesdayAm = screen.getAllByRole('button', { name: /AM/i })[1]!;
-    await user.click(tuesdayAm);
-
-    expect(mockUsePrompt).toHaveBeenLastCalledWith(true);
   });
 });

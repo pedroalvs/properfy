@@ -62,8 +62,8 @@ export function ChangePasswordSection() {
         setSuccess(false);
         logout();
       }, 1500);
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to change password');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to change password');
     }
   };
 

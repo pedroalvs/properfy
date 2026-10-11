@@ -43,8 +43,8 @@ export function SessionsSection() {
     setError('');
     try {
       await revokeSession(id);
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to revoke session');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to revoke session');
     }
   };
 
