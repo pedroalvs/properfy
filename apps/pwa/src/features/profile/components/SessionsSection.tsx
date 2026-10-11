@@ -25,7 +25,7 @@ export function SessionsSection() {
       <button
         type="button"
         onClick={() => setExpanded(true)}
-        className="flex w-full items-center justify-between rounded-2xl bg-white p-4 text-left shadow-sm"
+        className="flex w-full items-center justify-between rounded-2xl bg-card p-4 text-left shadow-sm"
       >
         <div className="flex items-center gap-3">
           <i className="mdi mdi-devices text-xl text-text-secondary" />
@@ -49,7 +49,7 @@ export function SessionsSection() {
   };
 
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm">
+    <div className="rounded-2xl bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <i className="mdi mdi-devices text-xl text-text-secondary" />
@@ -69,7 +69,7 @@ export function SessionsSection() {
           </div>
         )}
         {!isLoading && !isError && sessions.map((s: Session) => (
-          <div key={s.id} className="flex items-center justify-between rounded-xl bg-app-bg/60 px-3 py-2.5">
+          <div key={s.id} className="flex items-center justify-between rounded-xl bg-muted/60 px-3 py-2.5">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-text-primary">{formatDevice(s.userAgent)}</span>

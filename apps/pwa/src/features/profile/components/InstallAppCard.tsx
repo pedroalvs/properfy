@@ -9,7 +9,7 @@ export function InstallAppCard() {
   if (isInstalled) return null;
 
   return (
-    <div className="rounded-lg bg-white p-4 shadow-sm" data-testid="install-app-card">
+    <div className="rounded-lg bg-card p-4 shadow-sm" data-testid="install-app-card">
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-real-estate/10 text-real-estate">
           <i className="mdi mdi-monitor-arrow-down text-xl" aria-hidden="true" />
@@ -44,7 +44,7 @@ export function InstallAppCard() {
             Install App
           </Button>
         ) : (
-          <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-text-secondary">
+          <div className="rounded-xl bg-muted px-3 py-2 text-xs text-text-secondary">
             Installation is available from a supported browser menu even when the automatic prompt is not exposed here.
           </div>
         )}

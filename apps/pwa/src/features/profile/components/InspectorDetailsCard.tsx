@@ -64,7 +64,7 @@ export function InspectorDetailsCard() {
 
   if (isLoading) {
     return (
-      <div className="rounded-[24px] border border-white/70 bg-white/92 p-6 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
+      <div className="rounded-card border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-3">
           <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
           <div className="h-4 w-48 animate-pulse rounded bg-gray-200" />
@@ -81,7 +81,7 @@ export function InspectorDetailsCard() {
   const inspector = data.data;
 
   return (
-    <div className="rounded-[24px] border border-white/70 bg-white/92 p-6 shadow-[0_14px_30px_rgba(15,23,42,0.06)]" data-testid="inspector-details-card">
+    <div className="rounded-card border border-border bg-card p-6 shadow-sm" data-testid="inspector-details-card">
       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Inspector Details</p>
 
       <div className="mt-4 grid grid-cols-1 gap-3 text-sm">
@@ -143,7 +143,7 @@ export function InspectorDetailsCard() {
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-text-secondary">
+      <div className="mt-4 rounded-2xl bg-muted px-4 py-3 text-xs leading-relaxed text-text-secondary">
         Document uploads and updates are managed by your operations team. Contact them if any details need updating.
       </div>
     </div>

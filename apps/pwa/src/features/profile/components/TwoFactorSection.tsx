@@ -28,7 +28,7 @@ export function TwoFactorSection({ enabled, onEnabled }: TwoFactorSectionProps) 
 
   if (enabled && !setupData) {
     return (
-      <div className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between rounded-2xl bg-card p-4 shadow-sm">
         <div className="flex items-center gap-3">
           <i className="mdi mdi-shield-check-outline text-xl text-success" />
           <div>
@@ -43,7 +43,7 @@ export function TwoFactorSection({ enabled, onEnabled }: TwoFactorSectionProps) 
 
   if (!setupData) {
     return (
-      <div className="rounded-2xl bg-white p-4 shadow-sm">
+      <div className="rounded-2xl bg-card p-4 shadow-sm">
         <div className="flex items-center gap-3">
           <i className="mdi mdi-shield-alert-outline text-xl text-amber-600" />
           <div className="flex-1">
@@ -75,7 +75,7 @@ export function TwoFactorSection({ enabled, onEnabled }: TwoFactorSectionProps) 
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="rounded-2xl bg-white p-4 shadow-sm">
+      <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="rounded-2xl bg-card p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <i className="mdi mdi-shield-lock-outline text-xl text-primary" />
@@ -88,7 +88,7 @@ export function TwoFactorSection({ enabled, onEnabled }: TwoFactorSectionProps) 
           <div className="rounded-xl bg-primary/5 p-3">
             <p className="text-xs font-medium text-text-secondary">1. Open your authenticator app (Google Authenticator, Authy, etc.)</p>
             <p className="mt-1 text-xs font-medium text-text-secondary">2. Add a new account using this setup key:</p>
-            <p className="mt-2 select-all break-all rounded-lg bg-white px-3 py-2 font-mono text-xs text-text-primary">{setupData.secret}</p>
+            <p className="mt-2 select-all break-all rounded-lg bg-card px-3 py-2 font-mono text-xs text-text-primary">{setupData.secret}</p>
           </div>
 
           <div>

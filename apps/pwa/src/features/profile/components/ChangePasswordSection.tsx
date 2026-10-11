@@ -64,7 +64,7 @@ export function ChangePasswordSection() {
       <button
         type="button"
         onClick={() => setExpanded(true)}
-        className="flex w-full items-center justify-between rounded-2xl bg-white p-4 text-left shadow-sm"
+        className="flex w-full items-center justify-between rounded-2xl bg-card p-4 text-left shadow-sm"
       >
         <div className="flex items-center gap-3">
           <i className="mdi mdi-lock-outline text-xl text-text-secondary" />
@@ -94,7 +94,7 @@ export function ChangePasswordSection() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="rounded-2xl bg-white p-4 shadow-sm">
+      <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="rounded-2xl bg-card p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <i className="mdi mdi-lock-outline text-xl text-text-secondary" />

@@ -50,7 +50,7 @@ export function ProfileCard({ name, email, role, status, phone, timezone, totpEn
   const roleLabel = roleLabelMap[role] ?? role;
 
   return (
-    <div className="rounded-[24px] border border-white/70 bg-white/92 p-6 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
+    <div className="rounded-card border border-border bg-card p-6 shadow-sm">
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           {photoUrl ? (
@@ -140,7 +140,7 @@ export function ProfileCard({ name, email, role, status, phone, timezone, totpEn
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-text-secondary">
+      <div className="mt-4 rounded-2xl bg-muted px-4 py-3 text-xs leading-relaxed text-text-secondary">
         Profile details are managed by your operations team. Use this screen for account security and device access.
       </div>
     </div>
