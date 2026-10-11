@@ -1,5 +1,7 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/Sheet';
 
 interface ConfirmationSheetProps {
   icon: string;
@@ -15,7 +17,13 @@ interface ConfirmationSheetProps {
   cancelTestId: string;
 }
 
-/** Accessible confirmation bottom-sheet (dialog semantics + focus lifecycle + Escape). */
+/**
+ * Accessible confirmation bottom-sheet. The dialog behaviour (focus trap, Escape to
+ * close, scroll lock, portal, `role="dialog"` + `aria-modal`, focus restore) comes from
+ * the shared Radix `Sheet`; Escape and overlay click both route to `onCancel`. The
+ * parent mounts/unmounts this component, so `open` is hardcoded true and `onOpenChange`
+ * only has to forward the close intent.
+ */
 export function ConfirmationSheet({
   icon,
   iconClassName,
@@ -29,68 +37,19 @@ export function ConfirmationSheet({
   confirmTestId,
   cancelTestId,
 }: ConfirmationSheetProps) {
-  const titleId = useId();
-  const descriptionId = useId();
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const onCancelRef = useRef(onCancel);
-  onCancelRef.current = onCancel;
-
-  useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    sheetRef.current?.focus();
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onCancelRef.current();
-        return;
-      }
-      if (event.key !== 'Tab') return;
-      const sheet = sheetRef.current;
-      if (!sheet) return;
-      const focusables = sheet.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (!first || !last) return;
-      const active = document.activeElement;
-      if (!sheet.contains(active)) {
-        event.preventDefault();
-        first.focus();
-      } else if (event.shiftKey && active === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      previouslyFocused?.focus();
-    };
-  }, []);
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" data-testid={testId}>
-      <div
-        ref={sheetRef}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={description ? descriptionId : undefined}
-        className="w-full max-w-lg rounded-t-2xl bg-card-bg p-6 pb-safe-b-6 outline-none"
-      >
+    <Sheet
+      open
+      onOpenChange={(next) => {
+        if (!next) onCancel();
+      }}
+    >
+      <SheetContent data-testid={testId} className="mx-auto max-w-lg">
         <div className="flex flex-col items-center gap-2 text-center">
-          <i className={`mdi ${icon} text-[40px] ${iconClassName}`} aria-hidden="true" />
-          <h2 id={titleId} className="text-lg font-bold text-text-primary">
-            {title}
-          </h2>
+          <i className={cn('mdi text-[40px]', icon, iconClassName)} aria-hidden="true" />
+          <SheetTitle className="text-text-primary">{title}</SheetTitle>
           {description && (
-            <p id={descriptionId} className="text-sm text-text-secondary">
-              {description}
-            </p>
+            <SheetDescription className="text-text-secondary">{description}</SheetDescription>
           )}
         </div>
 
@@ -100,6 +59,7 @@ export function ConfirmationSheet({
             onClick={onConfirm}
             className="!w-full !min-h-touch"
             data-testid={confirmTestId}
+            autoFocus
           >
             {confirmLabel}
           </Button>
@@ -112,7 +72,7 @@ export function ConfirmationSheet({
             {cancelLabel}
           </Button>
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

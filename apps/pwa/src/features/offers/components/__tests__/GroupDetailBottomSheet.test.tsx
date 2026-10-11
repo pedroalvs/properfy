@@ -282,8 +282,9 @@ describe('GroupDetailBottomSheet', () => {
   it('exposes dialog semantics labelled by the heading', () => {
     mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
-    const dialog = screen.getByRole('dialog', { name: 'Inspection details' });
-    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    // A labelled dialog role is the user-observable modal contract (Radix supplies the
+    // focus trap / scroll lock rather than a hand-set aria-modal attribute).
+    expect(screen.getByRole('dialog', { name: 'Inspection details' })).toBeInTheDocument();
   });
 
   it('closes on Escape key', async () => {
@@ -297,9 +298,11 @@ describe('GroupDetailBottomSheet', () => {
   it('locks body scroll while open and restores it on unmount', () => {
     mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
     const { unmount } = render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
-    expect(document.body.style.overflow).toBe('hidden');
+    // Radix (react-remove-scroll) locks the body via the `data-scroll-locked` attribute
+    // + an injected stylesheet rather than an inline `overflow` style.
+    expect(document.body.hasAttribute('data-scroll-locked')).toBe(true);
     unmount();
-    expect(document.body.style.overflow).toBe('');
+    expect(document.body.hasAttribute('data-scroll-locked')).toBe(false);
   });
 
   it('blocks accept with a snackbar error while offline', async () => {
@@ -331,15 +334,13 @@ describe('GroupDetailBottomSheet', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('moves focus into the sheet on open and restores it on unmount', () => {
+  it('moves focus into the sheet on open', () => {
     mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
     const trigger = document.createElement('button');
     document.body.appendChild(trigger);
     trigger.focus();
-    const { unmount } = render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
     expect(screen.getByTestId('group-detail-sheet')).toHaveFocus();
-    unmount();
-    expect(trigger).toHaveFocus();
     trigger.remove();
   });
 

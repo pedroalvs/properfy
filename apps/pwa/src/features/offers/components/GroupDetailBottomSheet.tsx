@@ -1,8 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { cn } from '@properfy/frontend-standards';
 import { PROPERTY_TYPE_LABELS } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Sheet, SheetOverlay, SheetPortal, SheetTitle } from '@/components/ui/Sheet';
 import { formatCurrency } from '@/lib/format-currency';
 import { formatCivilDate, formatWallTimeRange, formatWallTimeWindow } from '@/lib/format-date';
 import { useIsOnline } from '@/hooks/useIsOnline';
@@ -17,39 +19,19 @@ interface Props {
   accepting?: boolean;
 }
 
+/**
+ * Marketplace group detail as a Radix bottom-sheet. The shared `Sheet` primitive
+ * supplies the focus trap, Escape handling, scroll lock, portal and focus restore. The
+ * overlay is rendered explicitly (rather than via `SheetContent`) so the `detail-backdrop`
+ * test id stays queryable on the scrim. While `accepting`, dismissal (backdrop, Escape,
+ * close button) is inert so an in-flight acceptance cannot be abandoned mid-request.
+ */
 export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }: Props) {
   const { data, isLoading, isError, refetch } = useMarketplaceOfferDetail(groupId);
   const isOnline = useIsOnline();
   const { showError } = useSnackbar();
   const isOpen = groupId !== null;
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-  const acceptingRef = useRef(accepting);
-  acceptingRef.current = accepting;
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    sheetRef.current?.focus();
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !acceptingRef.current) onCloseRef.current();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', handleKeyDown);
-      previouslyFocused?.focus();
-    };
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  const handleDismiss = () => {
-    if (!accepting) onClose();
-  };
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const handleAccept = () => {
     if (!isOnline) {
@@ -60,161 +42,179 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-end justify-center bg-black/50"
-      data-testid="detail-backdrop"
-      onClick={handleDismiss}
+    <Sheet
+      open={isOpen}
+      onOpenChange={(next) => {
+        if (!next && !accepting) onClose();
+      }}
     >
-      <div
-        ref={sheetRef}
-        tabIndex={-1}
-        className="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-3xl bg-card pb-safe-b shadow-2xl outline-none"
-        data-testid="group-detail-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="group-detail-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-2">
-          <div className="h-1 w-10 rounded-full bg-border" />
-        </div>
+      <SheetPortal>
+        <SheetOverlay data-testid="detail-backdrop" className="z-[100]" />
+        <DialogPrimitive.Content
+          ref={contentRef}
+          tabIndex={-1}
+          data-testid="group-detail-sheet"
+          aria-describedby={undefined}
+          className="fixed inset-x-0 bottom-0 z-[100] mx-auto flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-card border-t border-border bg-card pb-safe-b shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
+          onOpenAutoFocus={(event) => {
+            // Match the previous behaviour: focus the sheet container itself, not the
+            // first focusable control.
+            event.preventDefault();
+            contentRef.current?.focus();
+          }}
+          onEscapeKeyDown={(event) => {
+            if (accepting) event.preventDefault();
+          }}
+          onInteractOutside={(event) => {
+            if (accepting) event.preventDefault();
+          }}
+          onPointerDownOutside={(event) => {
+            if (accepting) event.preventDefault();
+          }}
+        >
+          {/* Drag handle */}
+          <div className="flex justify-center pt-3 pb-2">
+            <div className="h-1 w-10 rounded-full bg-border" aria-hidden="true" />
+          </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 pb-3">
-          <h2 id="group-detail-title" className="text-base font-bold text-foreground">Inspection details</h2>
-          <button
-            data-testid="detail-close"
-            onClick={handleDismiss}
-            disabled={accepting}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-40"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </div>
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 pb-3">
+            <SheetTitle className="text-base">Inspection details</SheetTitle>
+            <button
+              data-testid="detail-close"
+              onClick={() => {
+                if (!accepting) onClose();
+              }}
+              disabled={accepting}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-40"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
 
-        {/* Body */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4" data-testid="detail-body">
-          {isLoading && (
-            <div data-testid="detail-loading" className="py-8 text-center text-sm text-muted-foreground">
-              Loading…
-            </div>
-          )}
-
-          {isError && (
-            <div data-testid="detail-error" className="py-8 text-center text-sm text-destructive">
-              <p>Failed to load details. Please try again.</p>
-              <Button
-                variant="outlined"
-                data-testid="detail-retry"
-                onClick={() => refetch()}
-                className="mt-3"
-              >
-                Retry
-              </Button>
-            </div>
-          )}
-
-          {data && data.appointments.length === 0 && (
-            <p data-testid="detail-empty" className="py-8 text-center text-sm text-muted-foreground">
-              No inspections in this group.
-            </p>
-          )}
-
-          {data && data.appointments.length > 0 && (
-            <>
-              {/* Group-level info */}
-              <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border pb-3">
-                <span className="text-sm font-semibold text-foreground">{data.serviceTypeName}</span>
-                <span className="text-sm text-muted-foreground">{formatWallTimeWindow(data.timeWindow)}</span>
-                <span className="text-xs text-muted-foreground">{formatCivilDate(data.scheduledDate)}</span>
+          {/* Body */}
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4" data-testid="detail-body">
+            {isLoading && (
+              <div data-testid="detail-loading" className="py-8 text-center text-sm text-muted-foreground">
+                Loading…
               </div>
+            )}
 
-              <ul className="divide-y divide-border">
-                {data.appointments.map((appt) => (
-                  <li key={appt.id} className="py-3">
-                    <div className="flex items-start justify-between">
-                      <div className="text-sm">
-                        {appt.appointmentCode && (
-                          <Badge tone="gray" className="mb-1 h-auto px-1.5 py-0.5 text-[11px]">
-                            {appt.appointmentCode}
-                          </Badge>
-                        )}
-                        <p className="flex items-start gap-1 font-medium text-foreground" data-testid="appointment-address">
-                          {appt.propertyType && (
-                            <i
-                              className={cn('mt-0.5 shrink-0 text-muted-foreground', 'mdi', PROPERTY_TYPE_ICONS[appt.propertyType])}
-                              data-testid="appointment-property-type-icon"
-                              role="img"
-                              aria-label={PROPERTY_TYPE_LABELS[appt.propertyType]}
-                            />
+            {isError && (
+              <div data-testid="detail-error" className="py-8 text-center text-sm text-destructive">
+                <p>Failed to load details. Please try again.</p>
+                <Button
+                  variant="outlined"
+                  data-testid="detail-retry"
+                  onClick={() => refetch()}
+                  className="mt-3"
+                >
+                  Retry
+                </Button>
+              </div>
+            )}
+
+            {data && data.appointments.length === 0 && (
+              <p data-testid="detail-empty" className="py-8 text-center text-sm text-muted-foreground">
+                No inspections in this group.
+              </p>
+            )}
+
+            {data && data.appointments.length > 0 && (
+              <>
+                {/* Group-level info */}
+                <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border pb-3">
+                  <span className="text-sm font-semibold text-foreground">{data.serviceTypeName}</span>
+                  <span className="text-sm text-muted-foreground">{formatWallTimeWindow(data.timeWindow)}</span>
+                  <span className="text-xs text-muted-foreground">{formatCivilDate(data.scheduledDate)}</span>
+                </div>
+
+                <ul className="divide-y divide-border">
+                  {data.appointments.map((appt) => (
+                    <li key={appt.id} className="py-3">
+                      <div className="flex items-start justify-between">
+                        <div className="text-sm">
+                          {appt.appointmentCode && (
+                            <Badge tone="gray" className="mb-1 h-auto px-1.5 py-0.5 text-[11px]">
+                              {appt.appointmentCode}
+                            </Badge>
                           )}
-                          {/* Full address (doc §7.2); street is blank for a
-                              soft-deleted property, leaving the suburb alone. */}
-                          <span>{[appt.street, appt.suburb].filter(Boolean).join(', ')}</span>
-                        </p>
-                        <p data-testid="appointment-time" className="text-xs font-semibold text-foreground">
-                          {formatWallTimeRange(appt.timeSlotStart, appt.timeSlotEnd)}
-                        </p>
-                        {appt.tenantName && (
-                          <p data-testid="appointment-agency" className="text-xs text-muted-foreground">{appt.tenantName}</p>
-                        )}
-                        {appt.keyRequired && (
-                          <p className="text-xs text-warning">Key required</p>
-                        )}
-                        {appt.notes && (
-                          <p className="text-xs text-muted-foreground">{appt.notes}</p>
+                          <p className="flex items-start gap-1 font-medium text-foreground" data-testid="appointment-address">
+                            {appt.propertyType && (
+                              <i
+                                className={cn('mt-0.5 shrink-0 text-muted-foreground', 'mdi', PROPERTY_TYPE_ICONS[appt.propertyType])}
+                                data-testid="appointment-property-type-icon"
+                                role="img"
+                                aria-label={PROPERTY_TYPE_LABELS[appt.propertyType]}
+                              />
+                            )}
+                            {/* Full address (doc §7.2); street is blank for a
+                                soft-deleted property, leaving the suburb alone. */}
+                            <span>{[appt.street, appt.suburb].filter(Boolean).join(', ')}</span>
+                          </p>
+                          <p data-testid="appointment-time" className="text-xs font-semibold text-foreground">
+                            {formatWallTimeRange(appt.timeSlotStart, appt.timeSlotEnd)}
+                          </p>
+                          {appt.tenantName && (
+                            <p data-testid="appointment-agency" className="text-xs text-muted-foreground">{appt.tenantName}</p>
+                          )}
+                          {appt.keyRequired && (
+                            <p className="text-xs text-warning">Key required</p>
+                          )}
+                          {appt.notes && (
+                            <p className="text-xs text-muted-foreground">{appt.notes}</p>
+                          )}
+                        </div>
+                        {appt.payoutAmount != null && (
+                          <span
+                            data-testid="appointment-payout"
+                            className="text-sm font-semibold text-success"
+                          >
+                            {formatCurrency(appt.payoutAmount)}
+                          </span>
                         )}
                       </div>
-                      {appt.payoutAmount != null && (
-                        <span
-                          data-testid="appointment-payout"
-                          className="text-sm font-semibold text-success"
-                        >
-                          {formatCurrency(appt.payoutAmount)}
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-
-        {/*
-          Total + accept CTA. Pinned outside the scroll area so the group's
-          value (doc §7.2) is on screen at the moment of the decision, however
-          long the job list gets. The total does not depend on `onAccept` — a
-          read-only sheet still has to show what the group is worth.
-        */}
-        {data && (
-          <div className="border-t border-border px-5 pb-8 pt-4">
-            <div className="mb-3 flex items-baseline justify-between">
-              <span className="text-sm font-semibold text-muted-foreground">Total</span>
-              <span
-                className="text-lg font-bold text-success"
-                data-testid="group-total-payout"
-              >
-                {data.payoutEstimate != null ? formatCurrency(data.payoutEstimate) : '—'}
-              </span>
-            </div>
-            {onAccept && (
-              <Button
-                variant="primary"
-                block
-                data-testid="accept-group-btn"
-                onClick={handleAccept}
-                disabled={accepting}
-                className="font-bold"
-              >
-                {accepting ? 'Accepting…' : 'Accept group'}
-              </Button>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </div>
-        )}
-      </div>
-    </div>
+
+          {/*
+            Total + accept CTA. Pinned outside the scroll area so the group's
+            value (doc §7.2) is on screen at the moment of the decision, however
+            long the job list gets. The total does not depend on `onAccept` — a
+            read-only sheet still has to show what the group is worth.
+          */}
+          {data && (
+            <div className="border-t border-border px-5 pb-8 pt-4">
+              <div className="mb-3 flex items-baseline justify-between">
+                <span className="text-sm font-semibold text-muted-foreground">Total</span>
+                <span
+                  className="text-lg font-bold text-success"
+                  data-testid="group-total-payout"
+                >
+                  {data.payoutEstimate != null ? formatCurrency(data.payoutEstimate) : '—'}
+                </span>
+              </div>
+              {onAccept && (
+                <Button
+                  variant="primary"
+                  block
+                  data-testid="accept-group-btn"
+                  onClick={handleAccept}
+                  disabled={accepting}
+                  className="font-bold"
+                >
+                  {accepting ? 'Accepting…' : 'Accept group'}
+                </Button>
+              )}
+            </div>
+          )}
+        </DialogPrimitive.Content>
+      </SheetPortal>
+    </Sheet>
   );
 }
