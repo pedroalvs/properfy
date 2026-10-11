@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { PROPERTY_TYPE_LABELS } from '@properfy/shared';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { formatCurrency } from '@/lib/format-currency';
 import { formatCivilDate, formatWallTimeRange, formatWallTimeWindow } from '@/lib/format-date';
 import { useIsOnline } from '@/hooks/useIsOnline';
@@ -65,7 +68,7 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
       <div
         ref={sheetRef}
         tabIndex={-1}
-        className="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-3xl bg-white pb-safe-b shadow-2xl outline-none"
+        className="flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-3xl bg-card pb-safe-b shadow-2xl outline-none"
         data-testid="group-detail-sheet"
         role="dialog"
         aria-modal="true"
@@ -74,17 +77,17 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-2">
-          <div className="h-1 w-10 rounded-full bg-black/10" />
+          <div className="h-1 w-10 rounded-full bg-border" />
         </div>
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pb-3">
-          <h2 id="group-detail-title" className="text-base font-bold text-secondary">Inspection details</h2>
+          <h2 id="group-detail-title" className="text-base font-bold text-foreground">Inspection details</h2>
           <button
             data-testid="detail-close"
             onClick={handleDismiss}
             disabled={accepting}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-text-secondary hover:bg-gray-100 disabled:opacity-40"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-40"
             aria-label="Close"
           >
             ✕
@@ -94,26 +97,27 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
         {/* Body */}
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4" data-testid="detail-body">
           {isLoading && (
-            <div data-testid="detail-loading" className="py-8 text-center text-sm text-text-secondary">
+            <div data-testid="detail-loading" className="py-8 text-center text-sm text-muted-foreground">
               Loading…
             </div>
           )}
 
           {isError && (
-            <div data-testid="detail-error" className="py-8 text-center text-sm text-error">
+            <div data-testid="detail-error" className="py-8 text-center text-sm text-destructive">
               <p>Failed to load details. Please try again.</p>
-              <button
+              <Button
+                variant="outlined"
                 data-testid="detail-retry"
                 onClick={() => refetch()}
-                className="mt-3 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-secondary"
+                className="mt-3"
               >
                 Retry
-              </button>
+              </Button>
             </div>
           )}
 
           {data && data.appointments.length === 0 && (
-            <p data-testid="detail-empty" className="py-8 text-center text-sm text-text-secondary">
+            <p data-testid="detail-empty" className="py-8 text-center text-sm text-muted-foreground">
               No inspections in this group.
             </p>
           )}
@@ -121,26 +125,26 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
           {data && data.appointments.length > 0 && (
             <>
               {/* Group-level info */}
-              <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-gray-100 pb-3">
-                <span className="text-sm font-semibold text-text-primary">{data.serviceTypeName}</span>
-                <span className="text-sm text-text-secondary">{formatWallTimeWindow(data.timeWindow)}</span>
-                <span className="text-xs text-text-muted">{formatCivilDate(data.scheduledDate)}</span>
+              <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border pb-3">
+                <span className="text-sm font-semibold text-foreground">{data.serviceTypeName}</span>
+                <span className="text-sm text-muted-foreground">{formatWallTimeWindow(data.timeWindow)}</span>
+                <span className="text-xs text-muted-foreground">{formatCivilDate(data.scheduledDate)}</span>
               </div>
 
-              <ul className="divide-y divide-gray-100">
+              <ul className="divide-y divide-border">
                 {data.appointments.map((appt) => (
                   <li key={appt.id} className="py-3">
                     <div className="flex items-start justify-between">
                       <div className="text-sm">
                         {appt.appointmentCode && (
-                          <span className="mb-1 inline-block rounded bg-secondary/10 px-1.5 py-0.5 text-[11px] font-bold text-secondary">
+                          <Badge tone="gray" className="mb-1 h-auto px-1.5 py-0.5 text-[11px]">
                             {appt.appointmentCode}
-                          </span>
+                          </Badge>
                         )}
-                        <p className="flex items-start gap-1 font-medium text-secondary" data-testid="appointment-address">
+                        <p className="flex items-start gap-1 font-medium text-foreground" data-testid="appointment-address">
                           {appt.propertyType && (
                             <i
-                              className={`mdi ${PROPERTY_TYPE_ICONS[appt.propertyType]} mt-0.5 shrink-0 text-text-muted`}
+                              className={cn('mt-0.5 shrink-0 text-muted-foreground', 'mdi', PROPERTY_TYPE_ICONS[appt.propertyType])}
                               data-testid="appointment-property-type-icon"
                               role="img"
                               aria-label={PROPERTY_TYPE_LABELS[appt.propertyType]}
@@ -150,17 +154,17 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
                               soft-deleted property, leaving the suburb alone. */}
                           <span>{[appt.street, appt.suburb].filter(Boolean).join(', ')}</span>
                         </p>
-                        <p data-testid="appointment-time" className="text-xs font-semibold text-text-primary">
+                        <p data-testid="appointment-time" className="text-xs font-semibold text-foreground">
                           {formatWallTimeRange(appt.timeSlotStart, appt.timeSlotEnd)}
                         </p>
                         {appt.tenantName && (
-                          <p data-testid="appointment-agency" className="text-xs text-text-muted">{appt.tenantName}</p>
+                          <p data-testid="appointment-agency" className="text-xs text-muted-foreground">{appt.tenantName}</p>
                         )}
                         {appt.keyRequired && (
                           <p className="text-xs text-warning">Key required</p>
                         )}
                         {appt.notes && (
-                          <p className="text-xs text-text-secondary">{appt.notes}</p>
+                          <p className="text-xs text-muted-foreground">{appt.notes}</p>
                         )}
                       </div>
                       {appt.payoutAmount != null && (
@@ -186,9 +190,9 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
           read-only sheet still has to show what the group is worth.
         */}
         {data && (
-          <div className="border-t border-gray-100 px-5 pb-8 pt-4">
+          <div className="border-t border-border px-5 pb-8 pt-4">
             <div className="mb-3 flex items-baseline justify-between">
-              <span className="text-sm font-semibold text-text-secondary">Total</span>
+              <span className="text-sm font-semibold text-muted-foreground">Total</span>
               <span
                 className="text-lg font-bold text-success"
                 data-testid="group-total-payout"
@@ -197,14 +201,16 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
               </span>
             </div>
             {onAccept && (
-              <button
+              <Button
+                variant="primary"
+                block
                 data-testid="accept-group-btn"
                 onClick={handleAccept}
                 disabled={accepting}
-                className="w-full rounded-2xl bg-primary py-3 text-sm font-bold text-white shadow-sm active:brightness-90 disabled:opacity-60"
+                className="font-bold"
               >
                 {accepting ? 'Accepting…' : 'Accept group'}
-              </button>
+              </Button>
             )}
           </div>
         )}

@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 
 interface MapGroupActionBarProps {
   /** Human-friendly group code (numeric string) — never a raw UUID. */
@@ -18,13 +19,13 @@ export function MapGroupActionBar({
   onAccept,
 }: MapGroupActionBarProps) {
   return (
-    <div
+    <Card
       data-testid="map-group-action-bar"
-      className="flex items-center justify-between gap-3 rounded-2xl border border-primary/15 bg-white px-4 py-3 shadow-sm"
+      className="flex items-center justify-between gap-3 px-4 py-3"
     >
       <div className="min-w-0">
-        <p className="truncate text-sm font-bold text-secondary">Group {groupCode}</p>
-        <p className="truncate text-xs text-text-secondary">
+        <p className="truncate text-sm font-bold text-foreground">Group {groupCode}</p>
+        <p className="truncate text-xs text-muted-foreground">
           {loading
             ? 'Loading inspections…'
             : `${appointmentCount} ${appointmentCount === 1 ? 'inspection' : 'inspections'}`}
@@ -43,6 +44,6 @@ export function MapGroupActionBar({
           Accept group
         </Button>
       </div>
-    </div>
+    </Card>
   );
 }

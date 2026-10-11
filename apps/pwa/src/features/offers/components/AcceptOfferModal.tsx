@@ -76,16 +76,16 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
         role="dialog"
         aria-modal="true"
         aria-labelledby="accept-offer-title"
-        className="w-full max-w-lg rounded-t-3xl bg-white pb-safe-b shadow-2xl"
+        className="w-full max-w-lg rounded-t-3xl bg-card pb-safe-b shadow-2xl"
       >
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1">
-          <div className="h-1 w-10 rounded-full bg-black/10" />
+          <div className="h-1 w-10 rounded-full bg-border" />
         </div>
 
         <div className="px-6 pb-8 pt-3">
-          <h3 id="accept-offer-title" className="text-lg font-bold text-secondary">Confirm acceptance</h3>
-          <p className="mt-0.5 text-sm text-text-secondary">
+          <h3 id="accept-offer-title" className="text-lg font-bold text-foreground">Confirm acceptance</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">
             Once accepted, these inspections are assigned to you.
           </p>
 
@@ -106,7 +106,7 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
 
           {/* Payout highlight */}
           {offer.payoutEstimate != null && (
-            <div className="mt-4 rounded-xl bg-success/8 px-4 py-3 flex items-center justify-between">
+            <div className="mt-4 rounded-xl bg-success/10 px-4 py-3 flex items-center justify-between">
               <span className="text-sm font-semibold text-success">Estimated payout</span>
               <span className="text-xl font-bold text-success" data-testid="modal-payout">
                 {formatCurrency(offer.payoutEstimate)}
@@ -125,10 +125,10 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
               Cancel
             </Button>
             <Button
-              variant="primary"
+              variant="success"
               onClick={onConfirm}
               loading={state === 'ACCEPTING'}
-              className="flex-1 !bg-success !font-bold"
+              className="flex-1 font-bold"
               data-testid="modal-confirm"
             >
               Accept
@@ -143,8 +143,8 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-3">
-      <span className="text-text-secondary shrink-0">{label}</span>
-      <span className="font-semibold text-text-primary text-right">{value}</span>
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="font-semibold text-foreground text-right">{value}</span>
     </div>
   );
 }

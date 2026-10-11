@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type MapboxGL from 'mapbox-gl';
 import type { Map as MapboxMap, Marker as MapboxMarker } from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { Button } from '@/components/ui/Button';
 import { env } from '@/config/env';
 import { computeBounds, isPlottablePoint, isSinglePointBounds } from '@/lib/map-bounds';
 import { resolveCoincidentMarkerOffsets } from '@properfy/shared';
@@ -461,23 +462,20 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       {error && (
         <div
           data-testid="map-error"
-          className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl bg-gray-100 px-6 text-center"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl bg-muted px-6 text-center"
         >
-          <p className="text-sm text-gray-500">{error}</p>
-          <button
-            onClick={() => setRetryKey((k) => k + 1)}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white"
-          >
+          <p className="text-sm text-muted-foreground">{error}</p>
+          <Button variant="primary" onClick={() => setRetryKey((k) => k + 1)}>
             Retry
-          </button>
+          </Button>
         </div>
       )}
       {!error && showNoPinsOverlay && (
         <div
           data-testid="map-no-pins"
-          className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/20"
+          className="absolute inset-0 flex items-center justify-center rounded-2xl bg-background/80 backdrop-blur-sm"
         >
-          <p className="text-sm font-medium text-white">
+          <p className="text-sm font-medium text-foreground">
             {expandedGroup ? 'No location data for this group' : 'No offers with location data'}
           </p>
         </div>
@@ -485,13 +483,13 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       {selectedAppointment && (
         <div
           data-testid="map-appointment-chip"
-          className="absolute inset-x-3 bottom-3 flex items-start justify-between gap-2 rounded-2xl bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm"
+          className="absolute inset-x-3 bottom-3 flex items-start justify-between gap-2 rounded-2xl bg-card/95 px-4 py-3 shadow-lg backdrop-blur-sm"
         >
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-text-primary">
+            <p className="truncate text-sm font-bold text-foreground">
               {selectedAppointment.street || 'Address unavailable'}
             </p>
-            <p className="truncate text-xs text-text-secondary">{selectedAppointment.suburb}</p>
+            <p className="truncate text-xs text-muted-foreground">{selectedAppointment.suburb}</p>
             <p className="mt-0.5 text-xs font-semibold text-primary">
               {formatWallTimeRange(selectedAppointment.timeSlotStart, selectedAppointment.timeSlotEnd)}
             </p>
@@ -500,7 +498,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
             data-testid="map-appointment-chip-close"
             aria-label="Close appointment info"
             onClick={() => setSelectedAppointmentId(null)}
-            className="min-h-touch min-w-touch -mr-2 -mt-1 inline-flex items-center justify-center rounded-full text-[rgba(0,0,0,0.54)] active:bg-black/10"
+            className="min-h-touch min-w-touch -mr-2 -mt-1 inline-flex items-center justify-center rounded-full text-muted-foreground active:bg-muted"
           >
             <i className="mdi mdi-close text-lg" aria-hidden="true" />
           </button>
