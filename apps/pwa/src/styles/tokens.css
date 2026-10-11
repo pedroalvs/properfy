@@ -3,14 +3,7 @@
   --color-primary: #009DD9;
   --color-secondary: #21566E;
   --color-accent: #41A69D;
-  --color-error: #FF5252;
-  --color-info: #00CAE3;
   --color-success: #4CAF50;
-  --color-warning: #FB8C00;
-  --color-real-estate: #F37A76;
-
-  /* Surfaces */
-  --color-app-bg: #F5F5F5;
 
   /* Text */
   --color-text-primary: rgba(0, 0, 0, 0.87);
@@ -99,6 +92,8 @@
   --destructive-foreground: 0 0% 100%;
   --success: 144 64% 33%;             /* #1E8A49 */
   --success-foreground: 0 0% 100%;
+  --warning: 42 92% 91%;              /* reuses --pill-amber-bg */
+  --warning-foreground: 39 82% 32%;   /* reuses --pill-amber-fg */
   --border: 216 12% 92%;              /* #E8EAED */
   --input: 216 12% 92%;
   --ring: 221 83% 53%;

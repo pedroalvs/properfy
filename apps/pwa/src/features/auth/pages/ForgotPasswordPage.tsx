@@ -59,7 +59,7 @@ export function ForgotPasswordPage() {
           <i className="mdi mdi-lock-reset text-[32px] text-white" aria-hidden="true" />
         </div>
         <h1 className="mt-5 text-2xl font-bold tracking-tight text-secondary">Reset Password</h1>
-        <p className="mt-1 text-sm font-medium text-text-secondary">Inspector Field App</p>
+        <p className="mt-1 text-sm font-medium text-muted-foreground">Inspector Field App</p>
       </div>
 
       <div className="flex-1 px-5 pb-8">
@@ -70,15 +70,15 @@ export function ForgotPasswordPage() {
                 <i className="mdi mdi-email-check-outline text-2xl text-success" aria-hidden="true" />
               </div>
               <h2 className="text-lg font-bold text-secondary">Check your email</h2>
-              <p className="mt-2 text-sm leading-relaxed text-text-secondary">
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 If an account exists for{' '}
-                <span className="font-semibold text-text-primary">{submittedEmail}</span>, you will
+                <span className="font-semibold text-foreground">{submittedEmail}</span>, you will
                 receive a password reset link shortly. Check your spam folder if it doesn't
                 arrive within a few minutes.
               </p>
               <Link
                 to="/login"
-                className="mt-5 flex min-h-[50px] w-full items-center justify-center rounded-2xl bg-real-estate text-sm font-semibold text-white shadow-lg shadow-real-estate/20 transition hover:brightness-95 active:brightness-90"
+                className="mt-5 flex min-h-[50px] w-full items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-95 active:brightness-90"
               >
                 Back to Sign In
               </Link>
@@ -94,13 +94,13 @@ export function ForgotPasswordPage() {
                 {error && (
                   <div
                     role="alert"
-                    className="rounded-2xl border border-error/15 bg-error/8 px-4 py-3 text-sm leading-relaxed text-error"
+                    className="rounded-2xl border border-destructive/15 bg-destructive/8 px-4 py-3 text-sm leading-relaxed text-destructive"
                   >
                     {error}
                   </div>
                 )}
 
-                <p className="text-sm leading-relaxed text-text-secondary">
+                <p className="text-sm leading-relaxed text-muted-foreground">
                   Enter the email you use to sign in and we'll send you a link to reset your
                   password.
                 </p>
@@ -129,7 +129,7 @@ export function ForgotPasswordPage() {
                 <Button
                   type="submit"
                   loading={isSubmitting}
-                  className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-real-estate/20"
+                  className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-primary/20"
                 >
                   Send Reset Link
                 </Button>

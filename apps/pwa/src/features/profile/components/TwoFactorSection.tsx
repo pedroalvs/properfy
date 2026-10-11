@@ -32,7 +32,7 @@ export function TwoFactorSection({ enabled, onEnabled }: TwoFactorSectionProps) 
         <div className="flex items-center gap-3">
           <i className="mdi mdi-shield-check-outline text-xl text-success" />
           <div>
-            <p className="text-sm font-medium text-text-primary">Two-Factor Authentication</p>
+            <p className="text-sm font-medium text-foreground">Two-Factor Authentication</p>
             <p className="text-xs text-success">Enabled</p>
           </div>
         </div>
@@ -47,7 +47,7 @@ export function TwoFactorSection({ enabled, onEnabled }: TwoFactorSectionProps) 
         <div className="flex items-center gap-3">
           <i className="mdi mdi-shield-alert-outline text-xl text-amber-600" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-text-primary">Two-Factor Authentication</p>
+            <p className="text-sm font-medium text-foreground">Two-Factor Authentication</p>
             <p className="text-xs text-amber-600">Not enabled — your account is less secure</p>
           </div>
         </div>
@@ -79,21 +79,21 @@ export function TwoFactorSection({ enabled, onEnabled }: TwoFactorSectionProps) 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <i className="mdi mdi-shield-lock-outline text-xl text-primary" />
-            <span className="text-sm font-semibold text-text-primary">Set Up 2FA</span>
+            <span className="text-sm font-semibold text-foreground">Set Up 2FA</span>
           </div>
-          <button type="button" onClick={cancelSetup} className="text-sm text-text-muted">Cancel</button>
+          <button type="button" onClick={cancelSetup} className="text-sm text-muted-foreground">Cancel</button>
         </div>
 
         <div className="mt-4 space-y-3">
           <div className="rounded-xl bg-primary/5 p-3">
-            <p className="text-xs font-medium text-text-secondary">1. Open your authenticator app (Google Authenticator, Authy, etc.)</p>
-            <p className="mt-1 text-xs font-medium text-text-secondary">2. Add a new account using this setup key:</p>
-            <p className="mt-2 select-all break-all rounded-lg bg-card px-3 py-2 font-mono text-xs text-text-primary">{setupData.secret}</p>
+            <p className="text-xs font-medium text-muted-foreground">1. Open your authenticator app (Google Authenticator, Authy, etc.)</p>
+            <p className="mt-1 text-xs font-medium text-muted-foreground">2. Add a new account using this setup key:</p>
+            <p className="mt-2 select-all break-all rounded-lg bg-card px-3 py-2 font-mono text-xs text-foreground">{setupData.secret}</p>
           </div>
 
           <div>
-            <p className="mb-1.5 text-xs font-medium text-text-secondary">3. Enter the 6-digit code from the app:</p>
-            {error && <p role="alert" className="mb-2 rounded-xl bg-error/10 px-3 py-2 text-xs text-error">{error}</p>}
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">3. Enter the 6-digit code from the app:</p>
+            {error && <p role="alert" className="mb-2 rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
             <FormField
               control={form.control}
               name="code"

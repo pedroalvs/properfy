@@ -47,7 +47,7 @@ export function LeaveWarningModal({ onStay, onLeave }: LeaveWarningModalProps) {
           <Button
             variant="outlined"
             onClick={onLeave}
-            className="!w-full !min-h-touch !text-error !border-error"
+            className="!w-full !min-h-touch !text-destructive !border-destructive"
             data-testid="leave-button"
           >
             Leave anyway

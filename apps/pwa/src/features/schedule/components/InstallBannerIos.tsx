@@ -21,8 +21,8 @@ export function InstallBannerIos() {
       <div className="min-w-0 flex items-start gap-2">
         <i className="mdi mdi-arrow-down-circle-outline shrink-0 text-xl text-primary" aria-hidden="true" />
         <div>
-          <p className="text-sm font-semibold text-text-primary">Add to Home Screen</p>
-          <p className="text-xs text-text-muted">
+          <p className="text-sm font-semibold text-foreground">Add to Home Screen</p>
+          <p className="text-xs text-muted-foreground">
             Tap the Share icon, then choose <strong>Add to Home Screen</strong>.
           </p>
         </div>
@@ -30,7 +30,7 @@ export function InstallBannerIos() {
       <button
         onClick={handleDismiss}
         aria-label="Dismiss iOS install banner"
-        className="shrink-0 rounded-lg p-1 text-text-muted hover:text-text-secondary"
+        className="shrink-0 rounded-lg p-1 text-muted-foreground hover:text-muted-foreground"
       >
         <i className="mdi mdi-close text-base" aria-hidden="true" />
       </button>

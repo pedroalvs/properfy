@@ -42,7 +42,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
           <i className="mdi mdi-lock-reset text-[32px] text-white" aria-hidden="true" />
         </div>
         <h1 className="mt-5 text-2xl font-bold tracking-tight text-secondary">Reset Password</h1>
-        <p className="mt-1 text-sm font-medium text-text-secondary">Inspector Field App</p>
+        <p className="mt-1 text-sm font-medium text-muted-foreground">Inspector Field App</p>
       </div>
       <div className="flex-1 px-5 pb-8">
         <div className="mx-auto w-full max-w-sm">{children}</div>
@@ -54,17 +54,17 @@ function PageShell({ children }: { children: React.ReactNode }) {
 function InvalidLinkState() {
   return (
     <div className="rounded-2xl border border-black/5 bg-white px-5 py-6 shadow-sm">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-error/10">
-        <i className="mdi mdi-link-variant-off text-2xl text-error" aria-hidden="true" />
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10">
+        <i className="mdi mdi-link-variant-off text-2xl text-destructive" aria-hidden="true" />
       </div>
       <h2 className="text-lg font-bold text-secondary">Link not valid</h2>
-      <p className="mt-2 text-sm leading-relaxed text-text-secondary">
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         This reset link is invalid or has expired. Reset links are valid for 1 hour and can only
         be used once.
       </p>
       <Link
         to="/forgot-password"
-        className="mt-5 flex min-h-[50px] w-full items-center justify-center rounded-2xl bg-real-estate text-sm font-semibold text-white shadow-lg shadow-real-estate/20 transition hover:brightness-95 active:brightness-90"
+        className="mt-5 flex min-h-[50px] w-full items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-95 active:brightness-90"
       >
         Request a New Link
       </Link>
@@ -126,13 +126,13 @@ export function ResetPasswordPage() {
             <i className="mdi mdi-lock-check-outline text-2xl text-success" aria-hidden="true" />
           </div>
           <h2 className="text-lg font-bold text-secondary">Password updated</h2>
-          <p className="mt-2 text-sm leading-relaxed text-text-secondary">
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             Your password has been reset and all previous sessions were signed out. You can now
             sign in with your new password.
           </p>
           <Link
             to="/login"
-            className="mt-5 flex min-h-[50px] w-full items-center justify-center rounded-2xl bg-real-estate text-sm font-semibold text-white shadow-lg shadow-real-estate/20 transition hover:brightness-95 active:brightness-90"
+            className="mt-5 flex min-h-[50px] w-full items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-95 active:brightness-90"
           >
             Go to Sign In
           </Link>
@@ -153,7 +153,7 @@ export function ResetPasswordPage() {
           {error && (
             <div
               role="alert"
-              className="rounded-2xl border border-error/15 bg-error/8 px-4 py-3 text-sm leading-relaxed text-error"
+              className="rounded-2xl border border-destructive/15 bg-destructive/8 px-4 py-3 text-sm leading-relaxed text-destructive"
             >
               {error}
               {isInvalidToken && (
@@ -201,7 +201,7 @@ export function ResetPasswordPage() {
           <Button
             type="submit"
             loading={isSubmitting}
-            className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-real-estate/20"
+            className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-primary/20"
           >
             Reset Password
           </Button>

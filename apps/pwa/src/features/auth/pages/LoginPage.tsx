@@ -83,7 +83,7 @@ export function LoginPage() {
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
           <i className="mdi mdi-loading mdi-spin text-2xl text-primary" aria-hidden="true" />
         </div>
-        <p className="mt-4 text-sm text-text-secondary">Restoring session...</p>
+        <p className="mt-4 text-sm text-muted-foreground">Restoring session...</p>
       </div>
     );
   }
@@ -118,7 +118,7 @@ export function LoginPage() {
           <i className="mdi mdi-clipboard-check-outline text-[32px] text-white" aria-hidden="true" />
         </div>
         <h1 className="mt-5 text-2xl font-bold tracking-tight text-secondary">Properfy</h1>
-        <p className="mt-1 text-sm font-medium text-text-secondary">Inspector Field App</p>
+        <p className="mt-1 text-sm font-medium text-muted-foreground">Inspector Field App</p>
       </div>
 
       {/* Form card */}
@@ -134,7 +134,7 @@ export function LoginPage() {
               {error && (
                 <div
                   role="alert"
-                  className="rounded-2xl border border-error/15 bg-error/8 px-4 py-3 text-sm leading-relaxed text-error"
+                  className="rounded-2xl border border-destructive/15 bg-destructive/8 px-4 py-3 text-sm leading-relaxed text-destructive"
                   data-testid="login-error"
                 >
                   {error}
@@ -207,7 +207,7 @@ export function LoginPage() {
                           }
                         />
                       </FormControl>
-                      <p className="text-xs text-text-muted">
+                      <p className="text-xs text-muted-foreground">
                         Open your authenticator app and enter the current 6-digit code.
                       </p>
                       <FormMessage />
@@ -219,7 +219,7 @@ export function LoginPage() {
               <Button
                 type="submit"
                 loading={isSubmitting}
-                className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-real-estate/20"
+                className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-primary/20"
                 data-testid="login-button"
               >
                 Sign In
@@ -229,7 +229,7 @@ export function LoginPage() {
 
           {/* Context */}
           <div className="mt-6 rounded-2xl border border-primary/8 bg-primary/4 px-4 py-3">
-            <p className="text-xs leading-relaxed text-text-secondary">
+            <p className="text-xs leading-relaxed text-muted-foreground">
               <span className="font-semibold">Inspector access only.</span>{' '}
               Your schedule, offers and inspections are available here. Agency and admin users should use the{' '}
               <span className="font-medium text-primary">web portal</span>.
@@ -245,7 +245,7 @@ export function LoginPage() {
             </Link>
           </div>
 
-          <p className="mt-4 text-center text-[11px] text-text-muted">
+          <p className="mt-4 text-center text-[11px] text-muted-foreground">
             Can't sign in? Contact your operations team for access.
           </p>
         </div>

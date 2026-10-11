@@ -38,6 +38,6 @@ describe('RentalTenantConfirmationBanner', () => {
   it('applies error styling for unavailable', () => {
     render(<RentalTenantConfirmationBanner status={RentalTenantConfirmationStatus.UNAVAILABLE} />);
     const banner = screen.getByTestId('tenant-confirmation-banner');
-    expect(banner.className).toContain('bg-error/8');
+    expect(banner.className).toContain('bg-destructive/8');
   });
 });

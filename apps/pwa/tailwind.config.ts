@@ -104,6 +104,8 @@ const config: Config = {
           DEFAULT: 'hsl(var(--success) / <alpha-value>)',
           foreground: 'hsl(var(--success-foreground) / <alpha-value>)',
         },
+        warning: 'hsl(var(--warning) / <alpha-value>)',
+        'warning-foreground': 'hsl(var(--warning-foreground) / <alpha-value>)',
         popover: {
           DEFAULT: 'hsl(var(--popover) / <alpha-value>)',
           foreground: 'hsl(var(--popover-foreground) / <alpha-value>)',
@@ -117,12 +119,9 @@ const config: Config = {
         'pill-blue': { DEFAULT: 'hsl(var(--pill-blue-bg) / <alpha-value>)', foreground: 'hsl(var(--pill-blue-fg) / <alpha-value>)' },
         'pill-red': { DEFAULT: 'hsl(var(--pill-red-bg) / <alpha-value>)', foreground: 'hsl(var(--pill-red-fg) / <alpha-value>)' },
         'pill-gray': { DEFAULT: 'hsl(var(--pill-gray-bg) / <alpha-value>)', foreground: 'hsl(var(--pill-gray-fg) / <alpha-value>)' },
-        // legacy brand accents kept until the final sweep (used by not-yet-migrated screens)
-        error: token('error'),
-        info: token('info'),
-        warning: token('warning'),
-        'real-estate': token('real-estate'),
-        'app-bg': token('app-bg'),
+        // Legacy domain tokens consumed via inline `style` in `src/lib/status-colors.ts`
+        // (status/sg/confirmation/flow + text-*). These remain function colours so their
+        // `/opacity` utilities keep working; see the `token()` helper above.
         'text-primary': token('text-primary'),
         'text-secondary': token('text-secondary'),
         'text-muted': token('text-muted'),

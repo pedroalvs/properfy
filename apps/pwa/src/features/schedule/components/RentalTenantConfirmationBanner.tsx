@@ -31,9 +31,9 @@ const bannerConfig: Record<
     icon: XCircle,
     label: 'Tenant unavailable',
     sublabel: 'Tenant indicated they are not available. Confirm with your coordinator.',
-    bg: 'bg-error/8',
-    border: 'border-error/20',
-    text: 'text-error',
+    bg: 'bg-destructive/8',
+    border: 'border-destructive/20',
+    text: 'text-destructive',
   },
   [RentalTenantConfirmationStatus.NO_RESPONSE]: {
     icon: HelpCircle,

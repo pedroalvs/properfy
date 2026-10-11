@@ -73,7 +73,7 @@ export function AvatarUploader({ inspectorId, onUploaded }: AvatarUploaderProps)
         onClick={() => inputRef.current?.click()}
         disabled={isUploading}
         aria-label="Change profile photo"
-        className="flex h-6 w-6 items-center justify-center rounded-full bg-real-estate text-white shadow-md disabled:opacity-50"
+        className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white shadow-md disabled:opacity-50"
         title={error ?? undefined}
       >
         {isUploading ? (
