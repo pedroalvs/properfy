@@ -22,9 +22,14 @@ import { consumePostLoginRedirect } from '@/lib/post-login-redirect';
 /**
  * Login form schema. Reuses the shared {@link loginSchema} (email transform,
  * password) and loosens `totpCode` so the first credential-only submit is valid;
- * the 6-digit requirement is enforced manually once the TOTP step is active.
+ * the 6-digit requirement is enforced manually once the TOTP step is active. The
+ * password presence message is given a friendly copy here (the shared schema's
+ * default is a generic zod string).
  */
-const loginFormSchema = loginSchema.extend({ totpCode: z.string().optional() });
+const loginFormSchema = loginSchema.extend({
+  password: z.string().min(1, 'Enter your password').max(128),
+  totpCode: z.string().optional(),
+});
 type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 function getErrorMessage(error: unknown): string {
