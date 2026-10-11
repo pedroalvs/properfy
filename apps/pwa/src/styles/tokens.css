@@ -91,8 +91,8 @@
   --destructive-foreground: 0 0% 100%;
   --success: 144 64% 33%;             /* #1E8A49 */
   --success-foreground: 0 0% 100%;
-  --warning: 42 92% 91%;              /* reuses --pill-amber-bg */
-  --warning-foreground: 39 82% 32%;   /* reuses --pill-amber-fg */
+  --warning: 39 82% 32%;              /* #96670F — legible amber ink: text, solid fills, and /8-/10 surface tints */
+  --warning-foreground: 0 0% 100%;    /* white — for the solid bg-warning + text-warning-foreground badge pairing */
   --border: 216 12% 92%;              /* #E8EAED */
   --input: 216 12% 92%;
   --ring: 221 83% 53%;
