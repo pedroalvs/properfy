@@ -14,12 +14,18 @@ vi.mock('@/features/execution/hooks/useQueuedActionCount', () => ({
   useQueuedActionCount: () => mockQueuedCount,
 }));
 
+let mockIsOnline = true;
+vi.mock('@/hooks/useIsOnline', () => ({
+  useIsOnline: () => mockIsOnline,
+}));
+
 describe('TopBar', () => {
   let historyStateSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     mockNavigate.mockClear();
     mockQueuedCount = 0;
+    mockIsOnline = true;
     historyStateSpy = vi.spyOn(window.history, 'state', 'get');
     historyStateSpy.mockReturnValue({ idx: 1 });
   });
@@ -60,15 +66,20 @@ describe('TopBar', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/schedule', { replace: true });
   });
 
-  it('shows connection indicator', () => {
+  it('hides the connection indicator when online (v3 has no persistent pill)', () => {
+    mockIsOnline = true;
     renderWithProviders(<TopBar title="Schedule" />);
-    expect(screen.getByTestId('connection-indicator')).toBeInTheDocument();
+    expect(screen.queryByTestId('connection-indicator')).not.toBeInTheDocument();
+    expect(screen.queryByText('Online')).not.toBeInTheDocument();
   });
 
-  it('shows green indicator when online', () => {
+  it('shows an Offline indicator only when offline', () => {
+    mockIsOnline = false;
     renderWithProviders(<TopBar title="Schedule" />);
     const indicator = screen.getByTestId('connection-indicator');
-    expect(indicator.className).toContain('bg-success');
+    expect(indicator).toBeInTheDocument();
+    expect(indicator.className).toContain('bg-destructive');
+    expect(screen.getByText('Offline')).toBeInTheDocument();
   });
 
   it('does not show subtitle when not provided', () => {

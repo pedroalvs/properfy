@@ -47,9 +47,18 @@ export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentC
       {days.map((dateStr) => {
         const { weekday, day, isToday } = formatDayLabel(dateStr, timeZone);
         const isSelected = dateStr === selectedDate;
-        const count = appointmentCounts?.[dateStr] ?? 0;
-
         const hasUrgent = urgentDays?.has(dateStr) ?? false;
+
+        // v3 day cell: a small weekday+date label on top ("Today" / "Mon 21"), with
+        // the job COUNT as the prominent number below ("—" for a zero-job day). When
+        // no counts are supplied at all, the cell falls back to the date number.
+        const countsProvided = appointmentCounts !== undefined;
+        const count = appointmentCounts?.[dateStr] ?? 0;
+        // With counts (the real app): weekday+date label + count number ("—" if zero).
+        // Without counts (defensive): weekday label + date number (the pre-v3 fallback).
+        const label = countsProvided ? (isToday ? 'Today' : `${weekday} ${day}`) : weekday;
+        const primary = countsProvided ? (count > 0 ? String(count) : '—') : day;
+        const showCount = countsProvided && count > 0;
 
         return (
           <button
@@ -57,7 +66,7 @@ export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentC
             ref={isSelected ? selectedRef : isToday ? todayRef : undefined}
             onClick={() => onDaySelect(dateStr)}
             className={cn(
-              'relative flex min-h-touch min-w-[56px] flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-card border px-2 py-1.5 transition-colors',
+              'relative flex min-h-touch min-w-[60px] flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-card border px-2 py-1.5 transition-colors',
               isSelected
                 ? 'border-primary bg-primary text-primary-foreground'
                 : isToday
@@ -69,30 +78,24 @@ export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentC
           >
             <span
               className={cn(
-                'text-[10px] font-semibold uppercase tracking-wide',
+                'text-[11px] font-semibold',
                 !isSelected && !isToday && 'text-muted-foreground',
               )}
             >
-              {weekday}
+              {label}
             </span>
-            <span className="text-base font-bold leading-none">{day}</span>
+            <span
+              className="text-lg font-bold leading-none"
+              data-testid={showCount ? `day-count-${dateStr}` : undefined}
+            >
+              {primary}
+            </span>
             {hasUrgent && (
               <span
-                className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-warning"
+                className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-warning ring-2 ring-background"
                 data-testid={`day-urgent-${dateStr}`}
                 aria-label="Has urgent appointments"
               />
-            )}
-            {count > 0 && (
-              <span
-                className={cn(
-                  'absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold',
-                  isSelected ? 'bg-primary-foreground text-primary' : 'bg-primary text-primary-foreground',
-                )}
-                data-testid={`day-count-${dateStr}`}
-              >
-                {count}
-              </span>
             )}
           </button>
         );

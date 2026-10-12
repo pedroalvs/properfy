@@ -1,6 +1,5 @@
 import { CalendarClock, FileText, LogOut, SlidersHorizontal, User, Wallet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { TopBar } from '@/components/shell/TopBar';
 import { MenuList, MenuRow } from '@/components/ui/MenuRow';
 import { Badge } from '@/components/ui/Badge';
 
@@ -23,8 +22,8 @@ export function ProfilePage() {
 
   return (
     <div className="w-full pb-20">
-      <TopBar title="Account" />
-
+      {/* v3 Profile opens directly on the identity card — no redundant "Account"
+          title bar above it. The global OfflineBanner + bottom nav are unaffected. */}
       <div className="flex flex-col gap-3 p-4">
         {/* Identity header */}
         <section className="flex items-center gap-4 rounded-card border border-border bg-card p-4 shadow-sm">

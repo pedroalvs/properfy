@@ -45,16 +45,7 @@ describe('DaySelectorStrip', () => {
     expect(onDaySelect).toHaveBeenCalledWith('2026-03-20');
   });
 
-  it('renders day numbers', () => {
-    renderWithProviders(
-      <DaySelectorStrip days={days} selectedDate={days[0]!} onDaySelect={onDaySelect} />,
-    );
-    expect(screen.getByText('18')).toBeInTheDocument();
-    expect(screen.getByText('19')).toBeInTheDocument();
-    expect(screen.getByText('20')).toBeInTheDocument();
-  });
-
-  it('shows appointment count badge when count > 0', () => {
+  it('renders the job count as the primary number with the date in the label (v3)', () => {
     const counts = { '2026-03-18': 3, '2026-03-20': 1 };
     renderWithProviders(
       <DaySelectorStrip
@@ -64,15 +55,35 @@ describe('DaySelectorStrip', () => {
         appointmentCounts={counts}
       />,
     );
+    // The count is the prominent number (carries the day-count testid).
     expect(screen.getByTestId('day-count-2026-03-18')).toHaveTextContent('3');
     expect(screen.getByTestId('day-count-2026-03-20')).toHaveTextContent('1');
+    // The date now lives in the small label on each chip.
+    expect(screen.getByTestId('day-chip-2026-03-18')).toHaveTextContent('18');
+    expect(screen.getByTestId('day-chip-2026-03-20')).toHaveTextContent('20');
+  });
+
+  it('shows an em dash for a zero-job day and no count testid', () => {
+    const counts = { '2026-03-18': 3 }; // 19 and 20 are zero-job days
+    renderWithProviders(
+      <DaySelectorStrip
+        days={days}
+        selectedDate={days[0]!}
+        onDaySelect={onDaySelect}
+        appointmentCounts={counts}
+      />,
+    );
+    expect(screen.getByTestId('day-chip-2026-03-19')).toHaveTextContent('—');
     expect(screen.queryByTestId('day-count-2026-03-19')).not.toBeInTheDocument();
   });
 
-  it('does not show badge when appointmentCounts is undefined', () => {
+  it('falls back to the date number when no counts are provided', () => {
     renderWithProviders(
       <DaySelectorStrip days={days} selectedDate={days[0]!} onDaySelect={onDaySelect} />,
     );
+    expect(screen.getByText('18')).toBeInTheDocument();
+    expect(screen.getByText('19')).toBeInTheDocument();
+    expect(screen.getByText('20')).toBeInTheDocument();
     expect(screen.queryByTestId('day-count-2026-03-18')).not.toBeInTheDocument();
   });
 
