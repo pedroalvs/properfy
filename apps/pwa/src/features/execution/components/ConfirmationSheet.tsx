@@ -44,7 +44,14 @@ export function ConfirmationSheet({
         if (!next) onCancel();
       }}
     >
-      <SheetContent data-testid={testId} className="mx-auto max-w-lg">
+      <SheetContent
+        data-testid={testId}
+        className="mx-auto max-w-lg"
+        // With no description, opt out of Radix's aria-describedby wiring so it does not
+        // point at a non-existent id (and silence the dev-only warning); matches
+        // GroupDetailBottomSheet. When a description IS present, let Radix wire it.
+        {...(description ? {} : { 'aria-describedby': undefined })}
+      >
         <div className="flex flex-col items-center gap-2 text-center">
           <i className={cn('mdi text-[40px]', icon, iconClassName)} aria-hidden="true" />
           <SheetTitle>{title}</SheetTitle>
