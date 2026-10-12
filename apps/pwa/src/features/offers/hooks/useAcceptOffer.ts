@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { TIMING } from '@properfy/frontend-standards';
 import { api } from '@/services/api';
 import { ApiError, toApiError, getErrorMessage } from '@/lib/api-error';
 import { generateIdempotencyKey } from '@/lib/idempotency';
@@ -35,7 +36,7 @@ export function useAcceptOffer() {
       const id = setTimeout(() => {
         resetTimers.current.delete(groupId);
         setState(groupId, 'IDLE');
-      }, 4000);
+      }, TIMING.stateResetDelay);
       resetTimers.current.set(groupId, id);
     },
     [clearResetTimer, setState],

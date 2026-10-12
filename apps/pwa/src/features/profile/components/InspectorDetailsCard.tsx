@@ -68,9 +68,9 @@ export function InspectorDetailsCard() {
     return (
       <div className="rounded-card border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-3">
-          <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
-          <div className="h-4 w-48 animate-pulse rounded bg-gray-200" />
-          <div className="h-4 w-40 animate-pulse rounded bg-gray-200" />
+          <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-48 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-40 animate-pulse rounded bg-muted" />
         </div>
       </div>
     );

@@ -45,10 +45,10 @@ export function TwoFactorSection({ enabled, onEnabled }: TwoFactorSectionProps) 
     return (
       <div className="rounded-2xl bg-card p-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <i className="mdi mdi-shield-alert-outline text-xl text-amber-600" />
+          <i className="mdi mdi-shield-alert-outline text-xl text-warning" />
           <div className="flex-1">
             <p className="text-sm font-medium text-foreground">Two-Factor Authentication</p>
-            <p className="text-xs text-amber-600">Not enabled — your account is less secure</p>
+            <p className="text-xs text-warning">Not enabled — your account is less secure</p>
           </div>
         </div>
         <Button

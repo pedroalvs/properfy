@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { cn } from '@properfy/frontend-standards';
+import { cn, Z_INDEX } from '@properfy/frontend-standards';
 import { PROPERTY_TYPE_LABELS } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -49,13 +49,14 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
       }}
     >
       <SheetPortal>
-        <SheetOverlay data-testid="detail-backdrop" className="z-[100]" />
+        <SheetOverlay data-testid="detail-backdrop" style={{ zIndex: Z_INDEX.overlay }} />
         <DialogPrimitive.Content
           ref={contentRef}
           tabIndex={-1}
           data-testid="group-detail-sheet"
           aria-describedby={undefined}
-          className="fixed inset-x-0 bottom-0 z-[100] mx-auto flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-card border-t border-border bg-card pb-safe-b shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
+          style={{ zIndex: Z_INDEX.overlay }}
+          className="fixed inset-x-0 bottom-0 mx-auto flex max-h-[85dvh] w-full max-w-lg flex-col rounded-t-card border-t border-border bg-card pb-safe-b shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
           onOpenAutoFocus={(event) => {
             // Match the previous behaviour: focus the sheet container itself, not the
             // first focusable control.

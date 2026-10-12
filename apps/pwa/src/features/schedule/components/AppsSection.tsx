@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AppWindow, Check, Copy, ExternalLink, KeyRound } from 'lucide-react';
-import { cn } from '@properfy/frontend-standards';
+import { cn, TIMING } from '@properfy/frontend-standards';
 import type { AppointmentApp } from '@properfy/shared';
 import { Card } from '@/components/ui/Card';
 import { buttonVariants } from '@/components/ui/Button';
@@ -17,7 +17,7 @@ function CredentialRow({ label, value, testId }: { label: string; value: string;
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      setTimeout(() => setCopied(false), TIMING.flashMessage);
     } catch {
       // Clipboard unavailable (insecure context) — no-op.
     }

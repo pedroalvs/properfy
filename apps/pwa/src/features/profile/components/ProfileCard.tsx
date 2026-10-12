@@ -87,8 +87,8 @@ export function ProfileCard({ name, email, role, status, phone, timezone, totpEn
           <div className="flex flex-col items-center justify-center gap-0.5">
             {ratingLoading ? (
               <>
-                <div className="h-6 w-16 animate-pulse rounded bg-gray-200" />
-                <div className="h-3 w-20 animate-pulse rounded bg-gray-200" />
+                <div className="h-6 w-16 animate-pulse rounded bg-muted" />
+                <div className="h-3 w-20 animate-pulse rounded bg-muted" />
               </>
             ) : (
               <>
@@ -102,8 +102,8 @@ export function ProfileCard({ name, email, role, status, phone, timezone, totpEn
           <div className="flex flex-col items-center justify-center gap-0.5">
             {ratingLoading ? (
               <>
-                <div className="h-6 w-12 animate-pulse rounded bg-gray-200" />
-                <div className="h-3 w-16 animate-pulse rounded bg-gray-200" />
+                <div className="h-6 w-12 animate-pulse rounded bg-muted" />
+                <div className="h-3 w-16 animate-pulse rounded bg-muted" />
               </>
             ) : (
               <>
@@ -130,7 +130,7 @@ export function ProfileCard({ name, email, role, status, phone, timezone, totpEn
         </div>
         <div className="flex items-center justify-between gap-4">
           <span className="text-muted-foreground">Two-Factor</span>
-          <span className={totpEnabled ? 'font-medium text-green-700' : 'font-medium text-amber-700'}>
+          <span className={totpEnabled ? 'font-medium text-success' : 'font-medium text-warning'}>
             {totpEnabled ? 'Enabled' : 'Not enabled'}
           </span>
         </div>

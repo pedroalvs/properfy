@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { TIMING } from '@properfy/frontend-standards';
 import { z } from 'zod';
 import { applyPhoneMask, formatAuPhone, maxPhoneDigits, stripNonDigits, toE164Au } from '@properfy/shared';
 import { useAuth } from '@/hooks/useAuth';
@@ -98,7 +99,7 @@ export function ProfileAccountPage() {
       // Rebase the form so the saved value becomes the new clean baseline.
       phoneForm.reset({ phone: values.phone });
       if (phoneSuccessTimeoutRef.current) clearTimeout(phoneSuccessTimeoutRef.current);
-      phoneSuccessTimeoutRef.current = setTimeout(() => setPhoneSuccess(false), 3000);
+      phoneSuccessTimeoutRef.current = setTimeout(() => setPhoneSuccess(false), TIMING.toastDismiss);
     } catch (err) {
       setPhoneError(err instanceof Error ? err.message : 'Failed to save');
     }
@@ -119,7 +120,7 @@ export function ProfileAccountPage() {
       await refreshUser();
       setTimezoneSuccess(true);
       if (timezoneSuccessTimeoutRef.current) clearTimeout(timezoneSuccessTimeoutRef.current);
-      timezoneSuccessTimeoutRef.current = setTimeout(() => setTimezoneSuccess(false), 3000);
+      timezoneSuccessTimeoutRef.current = setTimeout(() => setTimezoneSuccess(false), TIMING.toastDismiss);
     } catch (err) {
       setTimezoneError(err instanceof Error ? err.message : 'Failed to save');
     }

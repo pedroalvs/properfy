@@ -6,7 +6,9 @@
 #
 set -uo pipefail
 
-SRC="src"
+# Scan root. Defaults to ./src; overridable (CHECK_DS_SRC) so the guard's own tests
+# can point it at a throwaway fixtures tree.
+SRC="${CHECK_DS_SRC:-src}"
 fail=0
 
 report() {
@@ -40,6 +42,46 @@ RETIRED='shimmer-from|shimmer-via|shimmer-to|border-subtle|border-light|hover-ro
 tokens=$(grep -rnE "$RETIRED" "$SRC" --include='*.tsx' --include='*.ts' --include='*.css' 2>/dev/null)
 if [ -n "$tokens" ]; then
   report "Found retired design token(s)/legacy class(es):" "$tokens"
+fi
+
+# Helper: drop test files from a grep result (BSD-grep-safe — no --exclude-dir).
+drop_tests() { grep -vE '(/__tests__/|\.test\.(ts|tsx):)'; }
+
+# 5. No raw Tailwind palette colour class (defence-in-depth alongside the ESLint
+#    no-restricted-syntax rule; this grep also catches palette strings in object maps
+#    the AST rule doesn't see). Tests are excluded.
+PALETTE_RE='(bg|text|border|ring|from|to|via)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]'
+palette=$(grep -rnE "$PALETTE_RE" "$SRC" --include='*.tsx' --include='*.ts' 2>/dev/null | drop_tests)
+if [ -n "$palette" ]; then
+  report "Found raw Tailwind palette colour (use a design-system token):" "$palette"
+fi
+
+# 6. No arbitrary z-index `z-[…]` — use Z_INDEX from @properfy/frontend-standards.
+zidx=$(grep -rnE 'z-\[' "$SRC" --include='*.tsx' --include='*.ts' 2>/dev/null | drop_tests)
+if [ -n "$zidx" ]; then
+  report "Found arbitrary z-index z-[…] (use Z_INDEX from @properfy/frontend-standards):" "$zidx"
+fi
+
+# 7. No bare magic-number setTimeout delay — use TIMING from @properfy/frontend-standards.
+#    Scoped to the setTimeout second arg; a plain `0` (next-tick idiom) is allowed, as
+#    are TIMING.* / variable delays. Uses perl (-0777 whole-file slurp) so the match
+#    spans multi-line callbacks and stays portable across BSD/GNU toolchains.
+timer_hits=""
+while IFS= read -r f; do
+  case "$f" in */__tests__/*|*.test.ts|*.test.tsx) continue ;; esac
+  if ! perl -0777 -ne 'exit(1) if /setTimeout\([\s\S]{0,200}?,\s*[1-9][0-9]*\s*\)/' "$f" 2>/dev/null; then
+    timer_hits="${timer_hits}${f}"$'\n'
+  fi
+done < <(grep -rl 'setTimeout(' "$SRC" --include='*.tsx' --include='*.ts' 2>/dev/null)
+if [ -n "$timer_hits" ]; then
+  report "Found bare magic-number setTimeout delay (use TIMING from @properfy/frontend-standards):" "$timer_hits"
+fi
+
+# 8. No hand-rolled `fixed inset-0` overlay in FEATURE code — use the sanctioned
+#    Dialog/Sheet primitives under components/ui (which are not scanned here).
+overlay=$(grep -rnE 'fixed inset-0' "$SRC/features" --include='*.tsx' 2>/dev/null | drop_tests)
+if [ -n "$overlay" ]; then
+  report "Found hand-rolled 'fixed inset-0' overlay in feature code (use a components/ui Dialog/Sheet):" "$overlay"
 fi
 
 if [ "$fail" -ne 0 ]; then

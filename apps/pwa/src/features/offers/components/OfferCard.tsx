@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { cn } from '@properfy/frontend-standards';
+import { cn, TIMING } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
 import { Badge, type BadgeProps } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
@@ -80,7 +80,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
 
   useEffect(() => {
     if (state === 'ACCEPTED') {
-      const timer = setTimeout(() => setFaded(true), 3000);
+      const timer = setTimeout(() => setFaded(true), TIMING.toastDismiss);
       return () => clearTimeout(timer);
     }
     setFaded(false);

@@ -53,7 +53,7 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-background">
       <div className="flex flex-col items-center px-6 pt-16 pb-6">
         <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary shadow-lg shadow-primary/25">
           <i className="mdi mdi-lock-reset text-[32px] text-white" aria-hidden="true" />

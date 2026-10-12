@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { Z_INDEX } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/Sheet';
 import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
@@ -28,7 +29,8 @@ export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOf
     >
       <SheetContent
         data-testid="accept-modal"
-        className="z-[100] mx-auto max-w-lg px-6"
+        style={{ zIndex: Z_INDEX.overlay }}
+        className="mx-auto max-w-lg px-6"
         onOpenAutoFocus={(event) => {
           // Focus the primary action rather than the first focusable (Cancel).
           event.preventDefault();

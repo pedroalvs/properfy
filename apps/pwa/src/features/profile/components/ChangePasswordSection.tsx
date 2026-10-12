@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { changePasswordSchema, PASSWORD_REQUIREMENTS_MESSAGE } from '@properfy/shared';
-import { cn } from '@properfy/frontend-standards';
+import { cn, TIMING } from '@properfy/frontend-standards';
 import { useChangePassword } from '../hooks/useChangePassword';
 import { Button } from '@/components/ui/Button';
 import { PasswordInput } from '@/components/ui/PasswordInput';
@@ -32,7 +32,7 @@ type ChangePasswordFormValues = z.infer<typeof changePasswordFormSchema>;
 
 /** Pure display aid — maps a password to a strength bar. Not validation. */
 function getPasswordStrength(password: string): { score: number; label: string; color: string } {
-  if (password.length < 8) return { score: 0, label: 'Too short', color: 'bg-gray-300' };
+  if (password.length < 8) return { score: 0, label: 'Too short', color: 'bg-muted' };
   let points = 0;
   if (/[a-z]/.test(password)) points++;
   if (/[A-Z]/.test(password)) points++;
@@ -86,7 +86,7 @@ export function ChangePasswordSection() {
         setExpanded(false);
         setSuccess(false);
         logout();
-      }, 1500);
+      }, TIMING.flashMessage);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to change password');
     }

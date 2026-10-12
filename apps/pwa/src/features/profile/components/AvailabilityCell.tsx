@@ -8,8 +8,8 @@ interface AvailabilityCellProps {
 const STATE_CLASSES: Record<string, string> = {
   'on-override': 'bg-primary/20 text-primary border border-primary/40',
   'on': 'bg-primary text-white',
-  'off-override': 'bg-amber-100 text-amber-700 border border-amber-300',
-  'off': 'bg-gray-100 text-gray-400',
+  'off-override': 'bg-warning/10 text-warning border border-warning/30',
+  'off': 'bg-muted text-muted-foreground',
 };
 
 export function AvailabilityCell({ active, override, label, onToggle }: AvailabilityCellProps) {
