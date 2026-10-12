@@ -156,7 +156,7 @@ export function EarningsPage() {
           <>
             <Card className="flex flex-col gap-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Earnings summary</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="rounded-btn border border-border p-3" data-testid="total-earnings-card">
                   <Badge tone="green">Approved</Badge>
                   <p className="mt-2 text-xl font-bold text-foreground">{formatCurrency(summary.data.totalApproved, currency)}</p>

@@ -75,14 +75,14 @@ export function SessionsSection() {
                 <span className="text-sm font-medium text-foreground">{formatDevice(s.userAgent)}</span>
                 {s.isCurrent && <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">Current</span>}
               </div>
-              <p className="truncate text-xs text-muted-foreground">{s.ipAddress ?? 'Unknown IP'} {'\u00b7'} Started {formatTime(s.createdAt)}</p>
+              <p className="text-xs text-muted-foreground">{s.ipAddress ?? 'Unknown IP'} {'\u00b7'} Started {formatTime(s.createdAt)}</p>
             </div>
             {!s.isCurrent && (
               <Button
                 variant="secondary"
                 onClick={() => handleRevoke(s.id)}
                 loading={revokingId === s.id}
-                className="!ml-2 !rounded-lg !px-2 !py-1 !text-xs !text-destructive"
+                className="!ml-2 shrink-0 !rounded-lg !px-2 !py-1 !text-xs !text-destructive"
               >
                 Revoke
               </Button>

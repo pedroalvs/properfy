@@ -20,13 +20,21 @@ import { ApiError } from '@/lib/api-error';
 import { consumePostLoginRedirect } from '@/lib/post-login-redirect';
 
 /**
- * Login form schema. Reuses the shared {@link loginSchema} (email transform,
- * password) and loosens `totpCode` so the first credential-only submit is valid;
- * the 6-digit requirement is enforced manually once the TOTP step is active. The
- * password presence message is given a friendly copy here (the shared schema's
- * default is a generic zod string).
+ * Login form schema. Reuses the shared {@link loginSchema} and loosens `totpCode`
+ * so the first credential-only submit is valid; the 6-digit requirement is
+ * enforced manually once the TOTP step is active. The email and password fields
+ * get friendly presence copy here (the shared schema's defaults are generic zod
+ * strings): an empty email reads as required ("Enter your email") and mirrors the
+ * password field, while a non-empty malformed email still shows a format message.
+ * The email transform (lowercase + trim) is reproduced to match the shared schema.
  */
 const loginFormSchema = loginSchema.extend({
+  email: z
+    .string()
+    .min(1, 'Enter your email')
+    .email('Enter a valid email address')
+    .max(254)
+    .transform((v) => v.toLowerCase().trim()),
   password: z.string().min(1, 'Enter your password').max(128),
   totpCode: z.string().optional(),
 });

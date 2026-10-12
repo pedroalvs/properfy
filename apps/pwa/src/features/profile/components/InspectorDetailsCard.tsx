@@ -1,5 +1,6 @@
 import { useInspectorMe } from '../hooks/useInspectorMe';
 import { todayInTzDateString } from '@properfy/shared';
+import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { formatCivilDate } from '@/lib/format-date';
 
@@ -60,6 +61,7 @@ function ExpiryBadge({ expiry, timeZone }: { expiry: string | null; timeZone: st
 
 export function InspectorDetailsCard() {
   const { data, isLoading, isError } = useInspectorMe();
+  const { user } = useAuth();
   const timeZone = useEffectiveTimezone();
 
   if (isLoading) {
@@ -87,7 +89,9 @@ export function InspectorDetailsCard() {
       <div className="mt-4 grid grid-cols-1 gap-3 text-sm">
         <div className="flex items-center justify-between gap-4">
           <span className="text-muted-foreground">Full Name</span>
-          <span className="font-medium text-foreground">{inspector.fullName ?? '—'}</span>
+          {/* The inspector record's fullName is often unpopulated; fall back to the
+              authenticated user's display name — the same source the Account card uses. */}
+          <span className="font-medium text-foreground">{inspector.fullName || user?.name || '—'}</span>
         </div>
         <div className="flex items-center justify-between gap-4">
           <span className="text-muted-foreground">ABN</span>

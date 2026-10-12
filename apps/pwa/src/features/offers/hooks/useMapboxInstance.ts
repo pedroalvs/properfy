@@ -59,7 +59,8 @@ export function useMapboxInstance({
     if (!containerRef.current) return;
 
     if (!env.mapboxToken) {
-      setError('Map unavailable — VITE_MAPBOX_TOKEN not configured.');
+      // User-facing copy only — never leak the env-var name into the UI.
+      setError('Map is temporarily unavailable.');
       return;
     }
 

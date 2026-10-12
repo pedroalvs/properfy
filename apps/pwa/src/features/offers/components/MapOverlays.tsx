@@ -1,3 +1,4 @@
+import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatWallTimeRange } from '@/lib/format-date';
 import type { ExpandedGroup, ExpandedGroupAppointment } from '../lib/offers-map/types';
@@ -37,8 +38,9 @@ export function MapOverlays({
           data-testid="map-error"
           className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl bg-muted px-6 text-center"
         >
+          <AlertCircle className="h-10 w-10 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">{error}</p>
-          <Button variant="primary" onClick={onRetry}>
+          <Button variant="outlined" onClick={onRetry}>
             Retry
           </Button>
         </div>

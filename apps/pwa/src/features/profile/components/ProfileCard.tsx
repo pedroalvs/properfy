@@ -74,7 +74,7 @@ export function ProfileCard({ name, email, role, status, phone, timezone, totpEn
         <div className="min-w-0">
           <h2 className="truncate text-lg font-bold text-foreground">{name}</h2>
           <p className="truncate text-sm text-muted-foreground">{email}</p>
-          <span className="mt-1 inline-block rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+          <span className="mt-1 inline-block max-w-full truncate rounded bg-primary/10 px-2 py-0.5 align-bottom text-xs font-semibold text-primary">
             {roleLabel}
           </span>
         </div>

@@ -77,7 +77,7 @@ export function AppointmentDetailPage() {
         )}
 
         {/* Header: date, time, status */}
-        <Card className="bg-primary/5">
+        <Card className="bg-muted">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p

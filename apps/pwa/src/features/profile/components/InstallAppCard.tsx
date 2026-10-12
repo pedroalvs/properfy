@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useInstallPrompt } from '@/app/useInstallPrompt';
 
@@ -12,12 +13,12 @@ export function InstallAppCard() {
     <div className="rounded-lg bg-card p-4 shadow-sm" data-testid="install-app-card">
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <i className="mdi mdi-monitor-arrow-down text-xl" aria-hidden="true" />
+          <Smartphone className="h-5 w-5" aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-bold text-foreground">Install Properfy</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Install the inspector app on this computer for faster access and a standalone window.
+            Install the inspector app on your phone for faster access and a full-screen, standalone app.
           </p>
           {!canInstall && manualInstructions && (
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">

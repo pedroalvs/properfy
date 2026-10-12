@@ -58,8 +58,24 @@ describe('LoginPage', () => {
     await user.click(screen.getByTestId('login-button'));
 
     await waitFor(() => {
-      expect(screen.getByText('Invalid email')).toBeInTheDocument();
+      expect(screen.getByText('Enter a valid email address')).toBeInTheDocument();
     });
+    expect(mockLogin).not.toHaveBeenCalled();
+  });
+
+  it('shows a "required" message for an empty email, not a format error', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<LoginPage />);
+
+    // Leave email empty, fill only the password, then submit.
+    await user.type(screen.getByTestId('password-input'), 'password123');
+    await user.click(screen.getByTestId('login-button'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Enter your email')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Enter a valid email address')).not.toBeInTheDocument();
     expect(mockLogin).not.toHaveBeenCalled();
   });
 

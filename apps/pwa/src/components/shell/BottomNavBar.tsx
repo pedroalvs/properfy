@@ -38,8 +38,8 @@ export function BottomNavBar() {
               }
               data-testid={`nav-${item.label.toLowerCase()}`}
             >
-              <Icon size={22} aria-hidden="true" />
-              <span>{item.label}</span>
+              <Icon size={22} aria-hidden="true" className="shrink-0" />
+              <span className="w-full truncate text-center">{item.label}</span>
             </NavLink>
           );
         })}
