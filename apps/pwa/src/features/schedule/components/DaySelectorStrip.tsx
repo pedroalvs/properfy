@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { todayInTzDateString } from '@properfy/shared';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { parseScheduleDate } from '../lib/time-slot';
@@ -46,43 +47,60 @@ export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentC
       {days.map((dateStr) => {
         const { weekday, day, isToday } = formatDayLabel(dateStr, timeZone);
         const isSelected = dateStr === selectedDate;
-        const count = appointmentCounts?.[dateStr] ?? 0;
-
         const hasUrgent = urgentDays?.has(dateStr) ?? false;
+
+        // v3 day cell: a small weekday+date label on top ("Today" / "Mon 21"), with
+        // the job COUNT as the prominent number below ("—" for a zero-job day). When
+        // no counts are supplied at all, the cell falls back to the date number.
+        const countsProvided = appointmentCounts !== undefined;
+        const count = appointmentCounts?.[dateStr] ?? 0;
+        // With counts (the real app): weekday+date label + count number ("—" if zero).
+        // Without counts (defensive): weekday label + date number (the pre-v3 fallback).
+        const label = countsProvided ? (isToday ? 'Today' : `${weekday} ${day}`) : weekday;
+        const primary = countsProvided ? (count > 0 ? String(count) : '—') : day;
+        const showCount = countsProvided && count > 0;
+        // Screen readers would otherwise hear the bare number ("Wed 18, 3"); give the
+        // job count an unambiguous spoken form while the visual stays the prominent number.
+        const countLabel = count > 0 ? `${count} ${count === 1 ? 'job' : 'jobs'}` : 'No jobs';
 
         return (
           <button
             key={dateStr}
             ref={isSelected ? selectedRef : isToday ? todayRef : undefined}
             onClick={() => onDaySelect(dateStr)}
-            className={`relative flex min-h-touch min-w-[56px] flex-shrink-0 flex-col items-center justify-center rounded-lg px-2 py-1 text-xs font-semibold transition-colors ${
+            className={cn(
+              'relative flex min-h-touch min-w-[60px] flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-card border px-2 py-1.5 transition-colors',
               isSelected
-                ? 'bg-primary text-white'
+                ? 'border-primary bg-primary text-primary-foreground'
                 : isToday
-                  ? 'bg-primary/10 text-primary'
-                  : 'bg-card-bg text-text-secondary'
-            }`}
+                  ? 'border-primary/40 bg-card text-primary'
+                  : 'border-border bg-card text-foreground',
+            )}
             data-testid={`day-chip-${dateStr}`}
             aria-pressed={isSelected}
           >
-            <span className="text-[10px] uppercase">{weekday}</span>
-            <span className="text-base">{day}</span>
+            <span
+              className={cn(
+                'text-[11px] font-semibold',
+                !isSelected && !isToday && 'text-muted-foreground',
+              )}
+            >
+              {label}
+            </span>
+            <span
+              className="text-lg font-bold leading-none"
+              data-testid={showCount ? `day-count-${dateStr}` : undefined}
+              aria-hidden={countsProvided || undefined}
+            >
+              {primary}
+            </span>
+            {countsProvided && <span className="sr-only">{countLabel}</span>}
             {hasUrgent && (
               <span
-                className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-warning"
+                className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-warning ring-2 ring-background"
                 data-testid={`day-urgent-${dateStr}`}
                 aria-label="Has urgent appointments"
               />
-            )}
-            {count > 0 && (
-              <span
-                className={`absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold ${
-                  isSelected ? 'bg-white text-primary' : 'bg-primary text-white'
-                }`}
-                data-testid={`day-count-${dateStr}`}
-              >
-                {count}
-              </span>
             )}
           </button>
         );

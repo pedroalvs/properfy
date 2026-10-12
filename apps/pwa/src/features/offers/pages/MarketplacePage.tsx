@@ -3,6 +3,7 @@ import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
+import { Card } from '@/components/ui/Card';
 import { OfferFeed } from '../components/OfferFeed';
 import { OfflineMarketplaceBanner } from '../components/OfflineMarketplaceBanner';
 import { GroupDetailBottomSheet } from '../components/GroupDetailBottomSheet';
@@ -113,18 +114,18 @@ export function MarketplacePage() {
 
   return (
     <div className="w-full" data-testid="marketplace-page">
-      <TopBar title="Marketplace" />
+      <TopBar title="Offers" size="lg" />
 
       <div className="px-page-x py-4">
-        <section className="rounded-[28px] border border-primary/10 bg-[linear-gradient(135deg,_rgba(239,246,255,0.96),_rgba(224,231,255,0.92))] px-5 py-5 shadow-[0_16px_38px_rgba(37,99,235,0.10)]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/70">Open work</p>
-          <h2 className="mt-3 text-xl font-bold tracking-tight text-secondary">
+        <Card className="bg-primary/5 px-5 py-5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Open work</p>
+          <h2 className="mt-3 text-xl font-bold tracking-tight text-foreground">
             {total} available {total === 1 ? 'offer' : 'offers'}
           </h2>
-          <p className="mt-1 text-sm text-text-secondary">
+          <p className="mt-1 text-sm text-muted-foreground">
             Review grouped inspections and accept only when you can commit to the route.
           </p>
-        </section>
+        </Card>
       </div>
 
       <OffersViewToggle value={view} onChange={handleViewChange} />
@@ -169,7 +170,7 @@ export function MarketplacePage() {
       {view === 'list' && shouldShowFeed && (
         <PullToRefresh onRefresh={refetch}>
           {dataUpdatedAt > 0 && (
-            <p className="px-page-x pt-1 text-xs text-text-muted" data-testid="last-updated">
+            <p className="px-page-x pt-1 text-xs text-muted-foreground" data-testid="last-updated">
               Last updated {formatTimeAgo(dataUpdatedAt)}
             </p>
           )}

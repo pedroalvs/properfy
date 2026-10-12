@@ -1,5 +1,6 @@
+/* Inter is self-hosted via @fontsource-variable/inter (imported in main.tsx),
+   so it precaches with the SW and works offline — no render-blocking Google Fonts. */
 @import './styles/tokens.css';
-@import '@mdi/font/css/materialdesignicons.css';
 
 @tailwind base;
 @tailwind components;
@@ -7,13 +8,13 @@
 
 @layer base {
   body {
-    font-family: var(--font-family);
+    font-family: 'Inter Variable', 'Inter', system-ui, sans-serif;
     font-size: var(--font-size-body);
     font-weight: var(--font-weight-body);
     line-height: var(--line-height-body);
     letter-spacing: var(--letter-spacing-body);
-    color: var(--color-text-primary);
-    background-color: var(--color-app-bg);
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--background));
     margin: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

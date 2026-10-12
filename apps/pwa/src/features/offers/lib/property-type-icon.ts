@@ -1,14 +1,15 @@
 import type { PropertyType } from '@properfy/shared';
+import { Building2, Home, type LucideIcon } from 'lucide-react';
 import type { MarketplaceOfferProperty } from '../types';
 
 /**
- * Property type → Material Design Icon class. Kept in the PWA rather than in
- * `packages/shared` because `@mdi/font` is a PWA-only dependency; web renders
+ * Property type → lucide icon component. Kept in the PWA rather than in
+ * `packages/shared` because the icon set is a frontend concern; web renders
  * the same concept with its own icon choices.
  */
-export const PROPERTY_TYPE_ICONS: Record<PropertyType, string> = {
-  APARTMENT: 'mdi-office-building-outline',
-  HOUSE: 'mdi-home-outline',
+export const PROPERTY_TYPE_ICONS: Record<PropertyType, LucideIcon> = {
+  APARTMENT: Building2,
+  HOUSE: Home,
 };
 
 /** Distinct property types in a group, first-seen order, nulls dropped. */

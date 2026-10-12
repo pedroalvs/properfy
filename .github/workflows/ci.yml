@@ -39,6 +39,9 @@ jobs:
       - name: Build shared (required by backend/web type resolution)
         run: pnpm --filter shared build
 
+      - name: Build frontend-standards (required by pwa type resolution)
+        run: pnpm --filter @properfy/frontend-standards build
+
       # Prisma client is generated on-demand from schema.prisma — without
       # this, backend typecheck fails with "Module '@prisma/client' has
       # no exported member 'PrismaClient'" and similar enum errors.
@@ -167,6 +170,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build shared (required for @properfy/shared resolution)
         run: pnpm --filter shared build
+      - name: Build frontend-standards (required for @properfy/frontend-standards resolution)
+        run: pnpm --filter @properfy/frontend-standards build
       - name: Test pwa
         run: pnpm --filter pwa test
 
@@ -250,6 +255,9 @@ jobs:
 
       - name: Build web
         run: pnpm --filter web build
+
+      - name: Build frontend-standards
+        run: pnpm --filter @properfy/frontend-standards build
 
       # No env needed: apps/pwa/src/config/env.ts falls back to localhost when
       # VITE_API_BASE_URL is absent. This job proves the bundle compiles; the

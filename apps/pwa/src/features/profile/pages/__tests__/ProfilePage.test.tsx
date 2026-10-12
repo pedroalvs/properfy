@@ -1,35 +1,20 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test-utils';
 import { ProfilePage } from '../ProfilePage';
 
 const mockUseAuth = vi.fn();
-const mockUseInstallPrompt = vi.fn();
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('@/app/useInstallPrompt', () => ({
-  useInstallPrompt: () => mockUseInstallPrompt(),
-  InstallPromptProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
+describe('ProfilePage (menu)', () => {
+  const logout = vi.fn();
 
-vi.mock('../../hooks/useInspectorAvailabilityTemplate', () => ({
-  useInspectorAvailabilityTemplate: () => ({ data: undefined, isLoading: true, isError: false }),
-}));
-
-vi.mock('@tanstack/react-query', async () => {
-  const actual = await vi.importActual('@tanstack/react-query');
-  return {
-    ...actual,
-    useQuery: () => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() }),
-    useQueryClient: () => ({ invalidateQueries: vi.fn() }),
-  };
-});
-
-describe('ProfilePage', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     mockUseAuth.mockReturnValue({
       user: {
         id: 'insp-1',
@@ -42,53 +27,36 @@ describe('ProfilePage', () => {
         totpEnabled: true,
         lastLoginAt: '2026-03-24T10:00:00Z',
       },
-      logout: vi.fn(),
-    });
-    mockUseInstallPrompt.mockReturnValue({
-      canInstall: false,
-      isInstalled: false,
-      promptInstall: vi.fn(),
+      logout,
     });
   });
 
-  it('renders account hub with security sections', () => {
+  it('renders the identity header with name and an Active badge', () => {
     renderWithProviders(<ProfilePage />);
-
-    expect(screen.getByText('Account')).toBeInTheDocument();
-    expect(screen.getAllByText('Inspector Jane').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('jane@test.com').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('+5511999999999').length).toBeGreaterThan(0);
-    expect(screen.getByText('Account Status')).toBeInTheDocument();
-    expect(screen.getAllByText('Active').length).toBeGreaterThan(0);
-    expect(screen.getByText('Security')).toBeInTheDocument();
-    expect(screen.getByText('Change Password')).toBeInTheDocument();
-    expect(screen.getByText('Two-Factor Authentication')).toBeInTheDocument();
-    expect(screen.getAllByText('Enabled').length).toBeGreaterThan(0);
-    expect(screen.getByText('Active Sessions')).toBeInTheDocument();
-    expect(screen.getAllByText(/managed by your operations team/i).length).toBeGreaterThan(0);
-    expect(screen.getByText('Log Out')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Inspector Jane' })).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
-  it('does not duplicate the phone number outside the header and profile card', () => {
-    mockUseAuth.mockReturnValue({
-      user: {
-        id: 'insp-1',
-        name: 'Inspector Jane',
-        email: 'jane@test.com',
-        role: 'INSP',
-        tenantId: null,
-        status: 'ACTIVE',
-        phone: '+5511999999999',
-        totpEnabled: true,
-        lastLoginAt: '2026-03-24T10:00:00Z',
-        inspectorId: 'insp-entity-1',
-      },
-      logout: vi.fn(),
-    });
-
+  it('renders the menu rows pointing at the correct sub-routes', () => {
     renderWithProviders(<ProfilePage />);
 
-    expect(screen.getAllByText('+5511999999999')).toHaveLength(2);
-    expect(screen.queryByText('My Details')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Earnings' })).toHaveAttribute('href', '/earnings');
+    expect(screen.getByRole('link', { name: 'Availability' })).toHaveAttribute('href', '/profile/availability');
+    expect(screen.getByRole('link', { name: 'Documents' })).toHaveAttribute('href', '/profile/documents');
+    expect(screen.getByRole('link', { name: 'Account details' })).toHaveAttribute('href', '/profile/account');
+    expect(screen.getByRole('link', { name: 'App settings' })).toHaveAttribute('href', '/profile/settings');
+  });
+
+  it('logs out when the Log out row is pressed', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ProfilePage />);
+    await user.click(screen.getByRole('button', { name: 'Log out' }));
+    expect(logout).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders null when there is no user', () => {
+    mockUseAuth.mockReturnValue({ user: null, logout });
+    const { container } = renderWithProviders(<ProfilePage />);
+    expect(container.firstChild).toBeNull();
   });
 });

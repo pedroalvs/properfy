@@ -1,3 +1,6 @@
+import { Skeleton } from '@/components/ui/Skeleton';
+import { cn } from '@properfy/frontend-standards';
+
 interface LoadingStateProps {
   rows?: number;
   variant?: 'table' | 'card';
@@ -9,11 +12,9 @@ export function LoadingState({ rows = 5, variant = 'card' }: LoadingStateProps) 
       <span className="sr-only">Loading...</span>
       <div className="flex flex-col gap-3">
         {Array.from({ length: rows }, (_, i) => (
-          <div
+          <Skeleton
             key={i}
-            className={`animate-shimmer bg-gradient-to-r from-shimmer-from via-shimmer-via to-shimmer-to bg-[length:200%_100%] rounded ${
-              variant === 'table' ? 'h-10 w-full' : 'h-24 w-full'
-            }`}
+            className={cn('w-full', variant === 'table' ? 'h-10' : 'h-24')}
           />
         ))}
       </div>

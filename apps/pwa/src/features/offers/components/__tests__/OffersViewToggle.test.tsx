@@ -10,14 +10,14 @@ describe('OffersViewToggle', () => {
 
   it('shows List as active when value is list', () => {
     render(<OffersViewToggle value="list" onChange={vi.fn()} />);
-    expect(screen.getByText('List')).toHaveAttribute('data-active', 'true');
-    expect(screen.getByText('Map')).toHaveAttribute('data-active', 'false');
+    expect(screen.getByText('List')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Map')).toHaveAttribute('aria-selected', 'false');
   });
 
   it('shows Map as active when value is map', () => {
     render(<OffersViewToggle value="map" onChange={vi.fn()} />);
-    expect(screen.getByText('Map')).toHaveAttribute('data-active', 'true');
-    expect(screen.getByText('List')).toHaveAttribute('data-active', 'false');
+    expect(screen.getByText('Map')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('List')).toHaveAttribute('aria-selected', 'false');
   });
 
   it('marks the active tab with aria-selected (#647)', () => {

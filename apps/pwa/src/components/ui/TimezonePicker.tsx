@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Check, ChevronDown, X } from 'lucide-react';
+import { cn, Z_INDEX } from '@properfy/frontend-standards';
 import {
   getTimezoneOptions,
   normalizeTimezoneQuery,
@@ -118,36 +120,37 @@ export function TimezonePicker({
         aria-expanded={isOpen}
         disabled={disabled}
         onClick={() => setIsOpen(true)}
-        className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-xl border border-black/10 bg-slate-50 px-3 py-2.5 text-left text-sm focus:outline-none focus:ring-2 focus:ring-real-estate/30 disabled:opacity-50"
+        className="flex min-h-touch w-full items-center justify-between gap-2 rounded-btn border border-input bg-card px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
         data-testid="timezone-picker-trigger"
       >
-        <span className={selectedLabel ? 'truncate text-text-primary' : 'truncate text-text-muted'}>
+        <span className={cn('truncate', selectedLabel ? 'text-foreground' : 'text-muted-foreground')}>
           {selectedLabel ?? placeholder}
         </span>
-        <i className="mdi mdi-chevron-down shrink-0 text-base text-text-muted" aria-hidden="true" />
+        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </button>
 
       {isOpen && (
         <div
-          className="fixed inset-0 z-[70] flex flex-col bg-white"
+          style={{ zIndex: Z_INDEX.fullscreenPanel }}
+          className="fixed inset-0 flex flex-col bg-background"
           role="dialog"
           aria-modal="true"
           aria-label="Select timezone"
           data-testid="timezone-picker-overlay"
         >
           <div
-            className="sticky top-0 z-10 border-b border-black/5 bg-white px-4 pb-3"
+            className="sticky top-0 z-10 border-b border-border bg-background px-4 pb-3"
             style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
           >
             <div className="flex min-h-[52px] items-center justify-between gap-2">
-              <p className="text-base font-bold text-text-primary">Select timezone</p>
+              <p className="text-base font-bold text-foreground">Select timezone</p>
               <button
                 type="button"
                 onClick={close}
                 aria-label="Close"
-                className="flex h-11 w-11 items-center justify-center rounded-full text-text-secondary"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground"
               >
-                <i className="mdi mdi-close text-xl" aria-hidden="true" />
+                <X className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
             <input
@@ -157,7 +160,7 @@ export function TimezonePicker({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search city or region"
               aria-label="Search timezones"
-              className="w-full rounded-xl border border-black/10 bg-slate-50 px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-real-estate/30"
+              className="w-full rounded-btn border border-input bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
 
@@ -168,25 +171,23 @@ export function TimezonePicker({
                 role="option"
                 aria-selected={!value}
                 onClick={() => handleSelect('')}
-                className="flex min-h-[44px] w-full items-center justify-between gap-3 border-b border-black/5 px-4 py-2.5 text-left"
+                className="flex min-h-touch w-full items-center justify-between gap-3 border-b border-border px-4 py-2.5 text-left"
                 data-testid="timezone-option-clear"
               >
-                <span className={`truncate text-sm ${!value ? 'font-bold text-real-estate' : 'text-text-primary'}`}>
+                <span className={cn('truncate text-sm', !value ? 'font-bold text-primary' : 'text-foreground')}>
                   {clearLabel}
                 </span>
-                {!value && (
-                  <i className="mdi mdi-check shrink-0 text-base text-real-estate" aria-hidden="true" />
-                )}
+                {!value && <Check className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />}
               </button>
             )}
             {groups.length === 0 && (
-              <p className="px-4 py-6 text-center text-sm text-text-muted">No timezones match</p>
+              <p className="px-4 py-6 text-center text-sm text-muted-foreground">No timezones match</p>
             )}
             {groups.map((group) => (
               <div key={group.region}>
                 <div
                   role="presentation"
-                  className="bg-slate-50 px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted"
+                  className="bg-muted px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
                 >
                   {group.region}
                 </div>
@@ -198,20 +199,18 @@ export function TimezonePicker({
                       type="button"
                       role="option"
                       onClick={() => handleSelect(option.value)}
-                      className="flex min-h-[44px] w-full items-center justify-between gap-3 px-4 py-2.5 text-left"
+                      className="flex min-h-touch w-full items-center justify-between gap-3 px-4 py-2.5 text-left"
                       aria-selected={isSelected}
                       data-testid={`timezone-option-${option.value}`}
                     >
                       <span
-                        className={`truncate text-sm ${isSelected ? 'font-bold text-real-estate' : 'text-text-primary'}`}
+                        className={cn('truncate text-sm', isSelected ? 'font-bold text-primary' : 'text-foreground')}
                       >
                         {option.city}
                       </span>
-                      <span className="flex shrink-0 items-center gap-2 text-xs text-text-muted">
+                      <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
                         {option.offsetLabel}
-                        {isSelected && (
-                          <i className="mdi mdi-check text-base text-real-estate" aria-hidden="true" />
-                        )}
+                        {isSelected && <Check className="h-4 w-4 text-primary" aria-hidden="true" />}
                       </span>
                     </button>
                   );

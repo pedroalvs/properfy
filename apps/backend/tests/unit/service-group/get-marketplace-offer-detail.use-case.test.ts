@@ -47,6 +47,7 @@ function makeOfferDetail(overrides: Partial<MarketplaceOfferDetail> = {}): Marke
     timeWindow: '08:00-12:00',
     suburbs: ['Sydney', 'Bondi'],
     payoutEstimate: 250,
+    payoutFrom: 125,
     appointmentCount: 5,
     centroid: { lat: -33.87, lng: 151.21 },
     addresses: ['10 Main St, Sydney', '20 Beach Rd, Bondi'],

@@ -99,6 +99,12 @@ export interface MarketplaceOffer {
   timeWindow: string;
   suburbs: string[];
   payoutEstimate: number | null;
+  /**
+   * The "from" price: the MINIMUM per-appointment inspector payout in the group
+   * (the PWA card renders "N inspections · from $X each"). `null` when no
+   * appointment carries a positive payout — mirrors `payoutEstimate`.
+   */
+  payoutFrom: number | null;
   appointmentCount: number;
   centroid: { lat: number; lng: number } | null;
   /**

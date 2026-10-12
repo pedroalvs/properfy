@@ -42,12 +42,38 @@ describe('OfferCard', () => {
     vi.useRealTimers();
   });
 
-  it('gives the "View inspections" CTA a 44px minimum touch target (#644)', () => {
+  it('renders the drill-down as an outline "View details" button with a 44px touch target (#644)', () => {
     render(
       <OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} onViewDetail={vi.fn()} />,
     );
     const cta = screen.getByTestId('view-detail-button');
-    expect(cta.className).toContain('min-h-[44px]');
+    expect(cta).toHaveTextContent('View details');
+    // The Button primitive enforces the 44px DS touch target and the outline variant.
+    expect(cta.className).toContain('min-h-touch');
+    expect(cta.className).toContain('border-primary');
+  });
+
+  it('fires the drill-down navigation when "View details" is clicked', async () => {
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    const onViewDetail = vi.fn();
+    render(
+      <OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} onViewDetail={onViewDetail} />,
+    );
+    await user.click(screen.getByTestId('view-detail-button'));
+    expect(onViewDetail).toHaveBeenCalledOnce();
+  });
+
+  it('renders "from $X each" on the count line when payoutFrom is present', () => {
+    render(
+      <OfferCard offer={{ ...baseOffer, payoutFrom: 15 }} state="IDLE" onAccept={onAccept} />,
+    );
+    expect(screen.getByTestId('offer-from-price')).toHaveTextContent('from $15.00 each');
+  });
+
+  it('omits the from-price line when payoutFrom is null or absent', () => {
+    render(<OfferCard offer={{ ...baseOffer, payoutFrom: null }} state="IDLE" onAccept={onAccept} />);
+    expect(screen.queryByTestId('offer-from-price')).not.toBeInTheDocument();
   });
 
   it('renders offer details', () => {
@@ -125,10 +151,10 @@ describe('OfferCard', () => {
       ...baseOffer,
       properties: [{ street: '1 A St', suburb: 'Brunswick VIC', propertyType: null }],
     };
-    const { container } = render(<OfferCard offer={offer} state="IDLE" onAccept={onAccept} />);
+    render(<OfferCard offer={offer} state="IDLE" onAccept={onAccept} />);
     expect(screen.queryByTestId('property-type-icon')).toBeNull();
     // The chip keeps a neutral glyph so it does not collapse to bare text.
-    expect(container.querySelector('.mdi-home-outline')).not.toBeNull();
+    expect(screen.getByTestId('property-type-icon-fallback')).toBeInTheDocument();
   });
 
   it('renders no countdown when priorityExpiresAt is absent from the payload', () => {

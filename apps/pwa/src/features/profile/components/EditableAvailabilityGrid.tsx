@@ -57,7 +57,7 @@ export function EditableAvailabilityGrid({ availability, onDirtyChange }: Editab
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-500">
+      <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted-foreground">
         {DAYS.map(({ label }) => <div key={label}>{label}</div>)}
       </div>
 
@@ -76,7 +76,7 @@ export function EditableAvailabilityGrid({ availability, onDirtyChange }: Editab
       ))}
 
       {errorMsg && (
-        <p role="alert" className="text-xs text-red-600">{errorMsg}</p>
+        <p role="alert" className="text-xs text-destructive">{errorMsg}</p>
       )}
 
       <Button

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Camera, Loader2 } from 'lucide-react';
 import { api } from '@/services/api';
 
 const ALLOWED_MIME = ['image/png', 'image/jpeg', 'image/webp'];
@@ -73,13 +74,13 @@ export function AvatarUploader({ inspectorId, onUploaded }: AvatarUploaderProps)
         onClick={() => inputRef.current?.click()}
         disabled={isUploading}
         aria-label="Change profile photo"
-        className="flex h-6 w-6 items-center justify-center rounded-full bg-real-estate text-white shadow-md disabled:opacity-50"
+        className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white shadow-md disabled:opacity-50"
         title={error ?? undefined}
       >
         {isUploading ? (
-          <i className="mdi mdi-loading mdi-spin text-xs" aria-hidden="true" />
+          <Loader2 size={12} className="animate-spin" aria-hidden="true" />
         ) : (
-          <i className="mdi mdi-camera text-xs" aria-hidden="true" />
+          <Camera size={12} aria-hidden="true" />
         )}
       </button>
     </div>

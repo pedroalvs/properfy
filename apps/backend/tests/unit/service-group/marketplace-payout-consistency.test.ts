@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { calculatePayoutAmount } from '../../../src/modules/appointment/domain/appointment-pricing.service';
 import { resolvePricingRule } from '../../../src/modules/pricing-rule/domain/resolve-pricing-rule';
 import { PricingRuleEntity } from '../../../src/modules/pricing-rule/domain/pricing-rule.entity';
+import { deriveOfferPayoutFrom } from '../../../src/modules/service-group/infrastructure/prisma-service-group.repository';
 
 /**
  * GAP-002 regression test: verifies that the marketplace payout estimate
@@ -100,6 +101,31 @@ describe('GAP-002: marketplace payout estimate consistency', () => {
 
       const marketplaceEstimate = simulateMarketplaceAggregation([payout1, payout2]);
       expect(marketplaceEstimate).toBe(320); // 180 + 140
+    });
+  });
+
+  describe('"from" price (MIN) consistency with domain pricing', () => {
+    const asAppts = (amounts: Array<number | null>) => amounts.map((a) => ({ payout_amount: a }));
+
+    it('reports the cheapest per-appointment payout across mixed branch pricing', () => {
+      const allRules = [
+        makePricingRule({ id: 'tenant-rule', branchId: null, priceAmount: 200, payoutType: 'PERCENTAGE', payoutValue: 70 }),
+        makePricingRule({ id: 'branch-rule', branchId: 'branch-1', priceAmount: 300, payoutType: 'PERCENTAGE', payoutValue: 60 }),
+      ];
+      const ruleBranch = resolvePricingRule(allRules, 'branch-1')!;
+      const ruleTenant = resolvePricingRule(allRules, null)!;
+      const payoutBranch = calculatePayoutAmount(ruleBranch.priceAmount, ruleBranch.payoutType, ruleBranch.payoutValue);
+      const payoutTenant = calculatePayoutAmount(ruleTenant.priceAmount, ruleTenant.payoutType, ruleTenant.payoutValue);
+      expect(payoutBranch).toBe(180);
+      expect(payoutTenant).toBe(140);
+      // "from" is the MINIMUM per-appointment payout in the group.
+      expect(deriveOfferPayoutFrom(asAppts([payoutBranch, payoutTenant]))).toBe(140);
+    });
+
+    it('skips unpriced (null/zero) appointments and nulls an all-unpriced group', () => {
+      expect(deriveOfferPayoutFrom(asAppts([140, null]))).toBe(140);
+      expect(deriveOfferPayoutFrom(asAppts([0, 0]))).toBeNull();
+      expect(deriveOfferPayoutFrom(asAppts([null, null]))).toBeNull();
     });
   });
 

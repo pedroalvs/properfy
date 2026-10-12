@@ -1,3 +1,4 @@
+import { CloudOff } from 'lucide-react';
 import { useIsOnline } from '@/hooks/useIsOnline';
 
 export function ScheduleOfflineBanner() {
@@ -11,7 +12,7 @@ export function ScheduleOfflineBanner() {
       className="mx-page-x mb-3 flex items-center gap-2 rounded-lg bg-warning/10 px-4 py-2 text-xs font-medium text-warning"
       data-testid="schedule-offline-banner"
     >
-      <i className="mdi mdi-cloud-off-outline" aria-hidden="true" />
+      <CloudOff size={12} aria-hidden="true" />
       Viewing cached schedule
     </div>
   );

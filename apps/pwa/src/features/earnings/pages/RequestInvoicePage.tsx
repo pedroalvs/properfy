@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { cn } from '@properfy/frontend-standards';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { TopBar } from '@/components/shell/TopBar';
 import {
   useAvailablePeriods,
@@ -21,7 +27,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 const PERIOD_LABELS: Record<string, string> = { WEEKLY: 'Weekly', FORTNIGHTLY: 'Fortnightly', MONTHLY: 'Monthly' };
 
-export function RequestInvoiceScreen() {
+export function RequestInvoicePage() {
   const navigate = useNavigate();
   const periodsQuery = useAvailablePeriods();
   const [selected, setSelected] = useState<AvailablePeriod | null>(null);
@@ -45,31 +51,28 @@ export function RequestInvoiceScreen() {
 
       <div className="flex flex-col gap-4 p-4">
         {request.isSuccess && request.data ? (
-          <section
-            className="rounded-[28px] bg-[linear-gradient(135deg,_rgba(22,163,74,0.96),_rgba(34,197,94,0.78))] px-5 py-5 text-white shadow-[0_18px_44px_rgba(22,163,74,0.18)]"
-            data-testid="request-invoice-success"
-          >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Request submitted</p>
-            <p className="mt-3 text-2xl font-bold tracking-tight">{formatInvoiceCurrency(request.data.totalAmount, request.data.currency)}</p>
-            <p className="mt-1 text-sm text-white/80">{request.data.payoutCount} payout{request.data.payoutCount === 1 ? '' : 's'} · awaiting review</p>
-            <p className="mt-1 text-xs text-white/60">Period: {formatCivilDate(request.data.periodStart)} to {formatCivilDate(request.data.periodEnd)}</p>
-            <div className="mt-4 flex gap-2">
-              <Button onClick={() => navigate('/earnings/invoices')} className="!rounded-2xl bg-white/20">View my invoices</Button>
-            </div>
-          </section>
+          <Card className="border-success bg-success/5 px-5 py-5" data-testid="request-invoice-success">
+            <Badge tone="green">Request submitted</Badge>
+            <p className="mt-3 text-2xl font-bold tracking-tight text-foreground">{formatInvoiceCurrency(request.data.totalAmount, request.data.currency)}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{request.data.payoutCount} payout{request.data.payoutCount === 1 ? '' : 's'} · awaiting review</p>
+            <p className="mt-1 text-xs text-muted-foreground">Period: {formatCivilDate(request.data.periodStart)} to {formatCivilDate(request.data.periodEnd)}</p>
+            <Button variant="outlined" block onClick={() => navigate('/earnings/invoices')} className="mt-4">
+              View my invoices
+            </Button>
+          </Card>
         ) : (
           <>
-            <section className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">
+            <Card className="px-4 py-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 Closed {cycleLabel} periods
               </p>
 
-              {periodsQuery.isLoading && <div className="mt-3 h-24 animate-pulse rounded-xl bg-gray-100" />}
+              {periodsQuery.isLoading && <Skeleton className="mt-3 h-24 rounded-btn" />}
               {periodsQuery.isError && (
-                <p className="mt-3 text-sm text-error" role="alert">Unable to load periods. Please try again.</p>
+                <p className="mt-3 text-sm text-destructive" role="alert">Unable to load periods. Please try again.</p>
               )}
               {!periodsQuery.isLoading && !periodsQuery.isError && periods.length === 0 && (
-                <p className="mt-3 text-sm text-text-secondary">No closed periods are available yet.</p>
+                <p className="mt-3 text-sm text-muted-foreground">No closed periods are available yet.</p>
               )}
 
               <div className="mt-3 flex flex-col gap-2" role="radiogroup" aria-label="Billing period">
@@ -82,53 +85,54 @@ export function RequestInvoiceScreen() {
                       role="radio"
                       aria-checked={isSelected}
                       onClick={() => setSelected(p)}
-                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm ${
-                        isSelected ? 'border-primary bg-primary/5 text-primary' : 'border-border-subtle text-text-primary'
-                      }`}
+                      className={cn(
+                        'flex min-h-touch items-center justify-between rounded-btn border px-3 py-2.5 text-left text-sm',
+                        isSelected ? 'border-primary bg-primary/5 text-primary' : 'border-border text-foreground',
+                      )}
                       data-testid="period-option"
                     >
                       <span>{formatCivilDate(p.periodStart)} → {formatCivilDate(p.periodEnd)}</span>
-                      {isSelected && <i className="mdi mdi-check-circle text-lg" aria-hidden="true" />}
+                      {isSelected && <CheckCircle2 size={18} aria-hidden="true" />}
                     </button>
                   );
                 })}
               </div>
-            </section>
+            </Card>
 
             {selected && (
-              <section className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-sm" data-testid="request-invoice-preview">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Preview</p>
+              <Card className="px-4 py-4" data-testid="request-invoice-preview">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Preview</p>
                 {previewQuery.isLoading ? (
-                  <div className="mt-3 h-14 animate-pulse rounded-xl bg-gray-100" />
+                  <Skeleton className="mt-3 h-14 rounded-btn" />
                 ) : previewQuery.data ? (
                   <div className="mt-3 flex items-end justify-between">
                     <div>
-                      <p className="text-2xl font-bold text-text-primary">
+                      <p className="text-2xl font-bold text-foreground">
                         {formatInvoiceCurrency(previewQuery.data.totalAmount, previewQuery.data.currency ?? 'AUD')}
                       </p>
-                      <p className="mt-0.5 text-xs text-text-secondary">
+                      <p className="mt-0.5 text-xs text-muted-foreground">
                         {previewQuery.data.payoutCount} approved payout{previewQuery.data.payoutCount === 1 ? '' : 's'}
                       </p>
                     </div>
                   </div>
                 ) : (
-                  <p className="mt-3 text-sm text-text-secondary">Unable to load preview.</p>
+                  <p className="mt-3 text-sm text-muted-foreground">Unable to load preview.</p>
                 )}
-              </section>
+              </Card>
             )}
 
             {requestError && (
-              <section className="flex items-center gap-3 rounded-[20px] border border-error/20 bg-error/10 px-4 py-3.5" role="alert" data-testid="request-invoice-error">
-                <i className="mdi mdi-alert-circle-outline text-xl text-error shrink-0" aria-hidden="true" />
-                <p className="text-sm font-semibold text-error">{requestError}</p>
-              </section>
+              <Alert tone="destructive" data-testid="request-invoice-error">
+                <AlertCircle className="h-5 w-5" aria-hidden="true" />
+                <AlertDescription className="font-semibold opacity-100">{requestError}</AlertDescription>
+              </Alert>
             )}
 
-            <Button onClick={handleConfirm} loading={request.isPending} disabled={!canConfirm} className="w-full !rounded-2xl">
+            <Button onClick={handleConfirm} loading={request.isPending} disabled={!canConfirm} block>
               Request Invoice
             </Button>
 
-            <div className="rounded-2xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-text-secondary">
+            <div className="rounded-card bg-muted px-4 py-3 text-xs leading-relaxed text-muted-foreground">
               Request an invoice for a completed billing period. Only fully closed periods with approved payouts can be requested; the backoffice will review it.
             </div>
           </>

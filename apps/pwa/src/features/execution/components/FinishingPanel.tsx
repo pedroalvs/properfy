@@ -1,3 +1,4 @@
+import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { GeoLocationCapture } from './GeoLocationCapture';
 import { useGeolocation } from '../hooks/useGeolocation';
@@ -20,9 +21,9 @@ export function FinishingPanel({
 
   return (
     <div className="flex flex-col gap-4 px-page-x py-4" data-testid="finishing-panel">
-      <h2 className="text-lg font-bold text-secondary">Finish Inspection</h2>
+      <h2 className="text-lg font-extrabold tracking-tight text-foreground">Finish Inspection</h2>
 
-      <p className="text-sm text-text-muted">
+      <p className="text-sm text-muted-foreground">
         Confirm your location at the property to complete this inspection.
       </p>
 
@@ -36,14 +37,14 @@ export function FinishingPanel({
       />
 
       <Button
-        variant="primary"
+        variant="success"
+        block
         disabled={!location || isSubmitting}
         loading={isSubmitting}
         onClick={() => location && onSubmit(location)}
-        className="!w-full !min-h-[48px]"
         data-testid="submit-button"
       >
-        <i className="mdi mdi-check-circle-outline text-lg" aria-hidden="true" />
+        <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
         Submit Inspection
       </Button>
     </div>

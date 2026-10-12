@@ -8,10 +8,10 @@ describe('StatusChip', () => {
     expect(screen.getByText('Scheduled')).toBeInTheDocument();
   });
 
-  it('renders correct background for DONE status', () => {
+  it('maps DONE to the green pill tone', () => {
     render(<StatusChip status={AppointmentStatus.DONE} />);
     const chip = screen.getByText('Done');
-    expect(chip.style.backgroundColor).toBe('var(--color-status-done)');
+    expect(chip).toHaveClass('bg-pill-green');
   });
 
   it('renders custom label and bg', () => {

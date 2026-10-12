@@ -163,6 +163,26 @@ function deriveOfferSuburbs(
 }
 
 /**
+ * The "from" price for an offer: the MINIMUM per-appointment payout among
+ * appointments that carry a POSITIVE payout. Null and non-positive amounts are
+ * skipped — mirroring how `payoutEstimate` treats a zero total as "unknown"
+ * (→ null) — so an offer with no priced appointment reports `null`, never "$0".
+ * Exported for unit testing.
+ */
+export function deriveOfferPayoutFrom(
+  appointments: Array<{ payout_amount?: unknown }>,
+): number | null {
+  let min: number | null = null;
+  for (const a of appointments) {
+    if (a.payout_amount == null) continue;
+    const val = parseFloat(String(a.payout_amount));
+    if (!(val > 0)) continue;
+    if (min === null || val < min) min = val;
+  }
+  return min;
+}
+
+/**
  * `groupSize` is passed in rather than read off `row`: there is no stored
  * column for it any more, and each caller derives it differently — `findById`
  * already has the appointment rows in hand, `findAll` asks for a count. Making
@@ -724,6 +744,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
         timeWindow: row.time_window,
         suburbs,
         payoutEstimate,
+        payoutFrom: deriveOfferPayoutFrom(appts),
         appointmentCount: appts.length,
         centroid: deriveOfferCentroid(appts),
         properties: deriveOfferProperties(appts),
@@ -893,6 +914,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       timeWindow: row.time_window,
       suburbs,
       payoutEstimate,
+      payoutFrom: deriveOfferPayoutFrom(appts),
       appointmentCount: appts.length,
       addresses,
       keyRequired,
