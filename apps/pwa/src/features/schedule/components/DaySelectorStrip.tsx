@@ -59,6 +59,9 @@ export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentC
         const label = countsProvided ? (isToday ? 'Today' : `${weekday} ${day}`) : weekday;
         const primary = countsProvided ? (count > 0 ? String(count) : '—') : day;
         const showCount = countsProvided && count > 0;
+        // Screen readers would otherwise hear the bare number ("Wed 18, 3"); give the
+        // job count an unambiguous spoken form while the visual stays the prominent number.
+        const countLabel = count > 0 ? `${count} ${count === 1 ? 'job' : 'jobs'}` : 'No jobs';
 
         return (
           <button
@@ -87,9 +90,11 @@ export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentC
             <span
               className="text-lg font-bold leading-none"
               data-testid={showCount ? `day-count-${dateStr}` : undefined}
+              aria-hidden={countsProvided || undefined}
             >
               {primary}
             </span>
+            {countsProvided && <span className="sr-only">{countLabel}</span>}
             {hasUrgent && (
               <span
                 className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-warning ring-2 ring-background"

@@ -108,4 +108,22 @@ describe('DaySelectorStrip', () => {
     );
     expect(screen.queryByTestId('day-urgent-2026-03-18')).not.toBeInTheDocument();
   });
+
+  it('gives the job count an accessible label so SR users do not hear a bare number', () => {
+    const counts = { '2026-03-18': 3, '2026-03-20': 1 }; // 19 is a zero-job day
+    renderWithProviders(
+      <DaySelectorStrip
+        days={days}
+        selectedDate={days[0]!}
+        onDaySelect={onDaySelect}
+        appointmentCounts={counts}
+      />,
+    );
+    // Spoken form: pluralised for many, singular for one, and an explicit "No jobs" for zero.
+    expect(screen.getByText('3 jobs')).toBeInTheDocument();
+    expect(screen.getByText('1 job')).toBeInTheDocument();
+    expect(screen.getByText('No jobs')).toBeInTheDocument();
+    // The visual number is hidden from the a11y tree so the count is not announced twice.
+    expect(screen.getByTestId('day-count-2026-03-18')).toHaveAttribute('aria-hidden', 'true');
+  });
 });

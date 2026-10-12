@@ -27,6 +27,25 @@ describe('TwoFactorSection', () => {
     expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
+  it('uses a distinct set-up glyph so the wizard does not read as already-done', () => {
+    // Enabled state renders the success shield-check.
+    const { container: enabledEl } = render(<TwoFactorSection enabled onEnabled={vi.fn()} />);
+    expect(enabledEl.querySelector('.lucide-shield-check')).toBeInTheDocument();
+
+    // Mid-setup must NOT reuse that success glyph (it would read as "already enabled").
+    mockUseTotpSetup.mockReturnValue({
+      setupData: { secret: 'SECRET123', qrUri: 'otpauth://totp/test' },
+      startSetup: vi.fn(),
+      confirmSetup: vi.fn(),
+      cancelSetup: vi.fn(),
+      isSettingUp: false,
+      isConfirming: false,
+    });
+    const { container: setupEl } = render(<TwoFactorSection enabled={false} onEnabled={vi.fn()} />);
+    expect(setupEl.querySelector('.lucide-shield-plus')).toBeInTheDocument();
+    expect(setupEl.querySelector('.lucide-shield-check')).not.toBeInTheDocument();
+  });
+
   it('confirms setup with a verification code', async () => {
     const onEnabled = vi.fn();
     const confirmSetup = vi.fn().mockResolvedValue(undefined);

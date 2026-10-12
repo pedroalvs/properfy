@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShieldAlert, ShieldCheck } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, ShieldPlus } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -79,7 +79,7 @@ export function TwoFactorSection({ enabled, onEnabled }: TwoFactorSectionProps) 
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="rounded-2xl bg-card p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <ShieldCheck size={20} className="text-primary" aria-hidden="true" />
+            <ShieldPlus size={20} className="text-primary" aria-hidden="true" />
             <span className="text-sm font-semibold text-foreground">Set Up 2FA</span>
           </div>
           <button type="button" onClick={cancelSetup} className="text-sm text-muted-foreground">Cancel</button>
