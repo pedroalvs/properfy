@@ -19,30 +19,24 @@ describe('BottomNavBar', () => {
     expect(scheduleTab.className).toContain('text-primary');
   });
 
-  it('tints the active tab', () => {
-    // Link one of two: the class is used. On its own this proves nothing — it passed
-    // throughout the months `bg-primary/10` compiled to an empty stylesheet, because the
-    // tokens are `var(--color-X)` holding a hex and Tailwind drops the whole utility
-    // (#1041). Link two is `src/__tests__/tailwind-emission.test.ts`, which asserts this
-    // exact class compiles to a real `background-color`.
+  it('renders the active tab flat — colour only, no pill or ring (v3 .pf-navb--on)', () => {
+    // The v3 footer tabs are borderless: the active tab is distinguished by the blue
+    // colour alone (`.pf-navb--on{color:var(--pf-blue)}`), with no filled background,
+    // inset ring, or rounded pill. An earlier impl wrapped it in `bg-primary/10` +
+    // `ring-primary/20` + `rounded-2xl`; this locks the flat artboard design instead.
     renderWithProviders(<BottomNavBar />, { initialEntries: ['/schedule'] });
     const scheduleTab = screen.getByTestId('nav-schedule');
-    expect(scheduleTab.className).toContain('bg-primary/10');
+    expect(scheduleTab.className).toContain('text-primary');
+    expect(scheduleTab.className).not.toMatch(/bg-primary/);
+    expect(scheduleTab.className).not.toMatch(/ring-/);
+    expect(scheduleTab.className).not.toMatch(/rounded/);
   });
 
-  it('outlines the active tab in the brand colour, not stock Tailwind blue', () => {
-    // The inset ring was hard-coded `rgba(59,130,246,0.18)` — blue-500 — around a tint and
-    // text that are both `--color-primary` (#009DD9). Two hues on the same four elements.
-    renderWithProviders(<BottomNavBar />, { initialEntries: ['/schedule'] });
-    const scheduleTab = screen.getByTestId('nav-schedule');
-    expect(scheduleTab.className).toContain('ring-primary/20');
-    expect(scheduleTab.className).not.toContain('rgba(59,130,246');
-  });
-
-  it('shows inactive color for non-active tabs', () => {
+  it('shows the faint inactive colour for non-active tabs (v3 --pf-faint)', () => {
     renderWithProviders(<BottomNavBar />, { initialEntries: ['/schedule'] });
     const offersTab = screen.getByTestId('nav-offers');
-    expect(offersTab.className).toContain('text-muted-foreground');
+    expect(offersTab.className).toContain('text-faint');
+    expect(offersTab.className).not.toContain('text-primary');
   });
 
   it('has min 44px touch targets', () => {

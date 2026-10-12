@@ -54,6 +54,7 @@
   --secondary-foreground: 220 43% 11%;
   --muted: 216 24% 96%;
   --muted-foreground: 220 13% 46%;    /* #667085 */
+  --faint: 214 15% 65%;               /* #98A2B3 — v3 --pf-faint (inactive nav, notes) */
   --accent: 219 71% 95%;              /* #E7EEFB blue tint */
   --accent-foreground: 221 83% 45%;
   --destructive: 4 76% 40%;           /* #B42318 */
