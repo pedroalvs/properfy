@@ -171,6 +171,9 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
               <Home size={13} data-testid="property-type-icon-fallback" aria-hidden="true" />
             )}
             {offer.appointmentCount} {offer.appointmentCount === 1 ? 'inspection' : 'inspections'}
+            {offer.payoutFrom != null && (
+              <span data-testid="offer-from-price">{` · from ${formatCurrency(offer.payoutFrom)} each`}</span>
+            )}
           </span>
         </div>
 

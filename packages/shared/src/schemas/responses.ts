@@ -661,6 +661,11 @@ export const marketplaceOfferResponseSchema = z.object({
   // reads it, and it is the fallback when every street is blank.
   suburbs: z.array(z.string()),
   payoutEstimate: z.number().nullable(),
+  // The "from" price: the MINIMUM per-appointment inspector payout in the group
+  // (the v3 card renders "N inspections · from $X each"). Optional on the wire so
+  // this additive field does not widen the detail schema's required shape for
+  // existing consumers (apps/web); the backend always sends it.
+  payoutFrom: z.number().nullable().optional(),
   appointmentCount: z.number(),
   centroid: centroidSchema,
   properties: z.array(marketplaceOfferPropertySchema),

@@ -7720,6 +7720,7 @@ export interface paths {
                                 timeWindow: string;
                                 suburbs: string[];
                                 payoutEstimate: number | null;
+                                payoutFrom?: number | null;
                                 appointmentCount: number;
                                 centroid: {
                                     lat: number;
@@ -7788,6 +7789,7 @@ export interface paths {
                                 timeWindow: string;
                                 suburbs: string[];
                                 payoutEstimate: number | null;
+                                payoutFrom?: number | null;
                                 appointmentCount: number;
                                 centroid: {
                                     lat: number;
@@ -9552,6 +9554,7 @@ export interface paths {
                                 timeWindow: string;
                                 suburbs: string[];
                                 payoutEstimate: number | null;
+                                payoutFrom?: number | null;
                                 appointmentCount: number;
                                 centroid: {
                                     lat: number;

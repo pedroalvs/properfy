@@ -64,6 +64,18 @@ describe('OfferCard', () => {
     expect(onViewDetail).toHaveBeenCalledOnce();
   });
 
+  it('renders "from $X each" on the count line when payoutFrom is present', () => {
+    render(
+      <OfferCard offer={{ ...baseOffer, payoutFrom: 15 }} state="IDLE" onAccept={onAccept} />,
+    );
+    expect(screen.getByTestId('offer-from-price')).toHaveTextContent('from $15.00 each');
+  });
+
+  it('omits the from-price line when payoutFrom is null or absent', () => {
+    render(<OfferCard offer={{ ...baseOffer, payoutFrom: null }} state="IDLE" onAccept={onAccept} />);
+    expect(screen.queryByTestId('offer-from-price')).not.toBeInTheDocument();
+  });
+
   it('renders offer details', () => {
     render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
     expect(screen.getByText('Routine Inspection')).toBeInTheDocument();

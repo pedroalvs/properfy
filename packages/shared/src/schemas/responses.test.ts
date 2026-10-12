@@ -1016,6 +1016,26 @@ describe('marketplaceOfferResponseSchema — properties[]', () => {
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.suburbs).toEqual(['Bondi NSW', 'Coogee NSW']);
   });
+
+  // payoutFrom ("from $X each"): optional + nullable so the additive field does not
+  // widen the detail schema's required shape for apps/web.
+  it('accepts a numeric payoutFrom', () => {
+    const result = marketplaceOfferResponseSchema.safeParse({ ...validBase, payoutFrom: 15 });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.payoutFrom).toBe(15);
+  });
+
+  it('accepts a null payoutFrom (payouts unknown)', () => {
+    const result = marketplaceOfferResponseSchema.safeParse({ ...validBase, payoutFrom: null });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.payoutFrom).toBeNull();
+  });
+
+  it('accepts an absent payoutFrom (optional field)', () => {
+    const result = marketplaceOfferResponseSchema.safeParse(validBase);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.payoutFrom).toBeUndefined();
+  });
 });
 
 describe('inspector schedule schemas — propertyCode (realty code)', () => {
