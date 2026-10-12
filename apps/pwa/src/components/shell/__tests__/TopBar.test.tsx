@@ -107,8 +107,9 @@ describe('TopBar', () => {
   });
 
   it('paints an opaque background instead of a backdrop filter', () => {
-    // Same reasoning as BottomNavBar: this header is `sticky`, so `backdrop-filter`
-    // promotes it to its own composited layer, which WebKit can mispaint while scrolling.
+    // Same reasoning as BottomNavBar: an opaque background keeps the header off its own
+    // composited layer. `backdrop-filter`/translucency would promote one, which WebKit
+    // can mispaint while scrolling — kept defensive even though v3 drops `sticky`.
     const { container } = renderWithProviders(<TopBar title="Schedule" />);
     const header = container.querySelector('header')!;
     expect(header.className).not.toContain('backdrop-blur');
