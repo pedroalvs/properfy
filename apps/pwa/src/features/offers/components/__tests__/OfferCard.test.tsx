@@ -42,12 +42,26 @@ describe('OfferCard', () => {
     vi.useRealTimers();
   });
 
-  it('gives the "View inspections" CTA a 44px minimum touch target (#644)', () => {
+  it('renders the drill-down as an outline "View details" button with a 44px touch target (#644)', () => {
     render(
       <OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} onViewDetail={vi.fn()} />,
     );
     const cta = screen.getByTestId('view-detail-button');
-    expect(cta.className).toContain('min-h-[44px]');
+    expect(cta).toHaveTextContent('View details');
+    // The Button primitive enforces the 44px DS touch target and the outline variant.
+    expect(cta.className).toContain('min-h-touch');
+    expect(cta.className).toContain('border-primary');
+  });
+
+  it('fires the drill-down navigation when "View details" is clicked', async () => {
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    const onViewDetail = vi.fn();
+    render(
+      <OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} onViewDetail={onViewDetail} />,
+    );
+    await user.click(screen.getByTestId('view-detail-button'));
+    expect(onViewDetail).toHaveBeenCalledOnce();
   });
 
   it('renders offer details', () => {

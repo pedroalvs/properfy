@@ -197,6 +197,15 @@ describe('GroupDetailBottomSheet', () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it('renders the close control as a lucide icon (no literal ✕) with an accessible label', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    const close = screen.getByTestId('detail-close');
+    expect(close).toHaveAttribute('aria-label', 'Close');
+    expect(close.querySelector('svg')).not.toBeNull();
+    expect(close.textContent ?? '').not.toContain('✕');
+  });
+
   it('shows error state when fetch fails', () => {
     mockUseDetail.mockReturnValue({ data: undefined, isLoading: false, isError: true } as ReturnType<typeof useMarketplaceOfferDetail>);
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);

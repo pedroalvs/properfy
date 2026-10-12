@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { X } from 'lucide-react';
 import { Z_INDEX } from '@properfy/frontend-standards';
 import { PROPERTY_TYPE_LABELS } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
@@ -87,10 +88,10 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
                 if (!accepting) onClose();
               }}
               disabled={accepting}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-40"
+              className="-mr-2 flex min-h-touch min-w-touch items-center justify-center rounded-full text-muted-foreground hover:bg-muted disabled:opacity-40"
               aria-label="Close"
             >
-              ✕
+              <X size={20} aria-hidden="true" />
             </button>
           </div>
 

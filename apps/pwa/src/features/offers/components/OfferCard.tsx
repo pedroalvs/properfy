@@ -189,17 +189,6 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
           </div>
         )}
 
-        {/* Details drill-down */}
-        {onViewDetail && (
-          <button
-            onClick={onViewDetail}
-            className="mt-1 inline-flex min-h-[44px] items-center py-2 pr-2 text-xs font-semibold text-primary underline-offset-2 hover:underline"
-            data-testid="view-detail-button"
-          >
-            View inspections
-          </button>
-        )}
-
         {/* Priority countdown */}
         {countdown && (
           <div
@@ -218,12 +207,22 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
           </div>
         )}
 
-        {/* Action */}
-        <div className="mt-4">
+        {/* Actions: outline "View details" drill-down + primary Accept, side by side per v3 p8 */}
+        <div className="mt-4 flex gap-2">
+          {onViewDetail && (
+            <Button
+              variant="outlined"
+              onClick={onViewDetail}
+              className="flex-1"
+              data-testid="view-detail-button"
+            >
+              View details
+            </Button>
+          )}
           {resolved ? (
             <Badge
               tone={resolved.tone}
-              className="h-auto w-full justify-center py-2.5 text-sm"
+              className="h-auto flex-1 justify-center py-2.5 text-sm"
               data-testid="offer-state-label"
               role="alert"
             >
@@ -232,11 +231,10 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
           ) : (
             <Button
               variant="primary"
-              block
               onClick={onAccept}
               loading={state === 'ACCEPTING'}
               disabled={state === 'ACCEPTING' || state === 'CONFIRMING'}
-              className="text-base"
+              className="flex-1 text-base"
               data-testid="accept-button"
             >
               Accept offer
