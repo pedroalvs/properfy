@@ -1,11 +1,18 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router-dom';
 import { ProfileLayout } from '../ProfileLayout';
 
 vi.mock('../ProfilePage', () => ({
   ProfilePage: () => <div data-testid="profile-master">menu</div>,
 }));
+
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, useNavigate: () => mockNavigate };
+});
 
 function renderAt(path: string) {
   const routes: RouteObject[] = [
@@ -26,17 +33,25 @@ function renderAt(path: string) {
 }
 
 describe('ProfileLayout', () => {
-  it('shows the menu master and the empty-state pane at /profile', () => {
+  it('shows only the menu master (collapsed detail) at /profile', () => {
     renderAt('/profile');
     expect(screen.getByTestId('profile-master')).toBeInTheDocument();
-    expect(screen.getByText('Select a setting')).toBeInTheDocument();
     expect(screen.queryByTestId('profile-account')).not.toBeInTheDocument();
+    expect(screen.getByTestId('two-pane-detail').className).toContain('md:w-0');
   });
 
-  it('keeps the menu mounted and renders the sub-page at /profile/:section', () => {
+  it('keeps the menu mounted and expands the sub-page at /profile/:section', () => {
     renderAt('/profile/account');
     expect(screen.getByTestId('profile-master')).toBeInTheDocument();
     expect(screen.getByTestId('profile-account')).toBeInTheDocument();
-    expect(screen.queryByText('Select a setting')).not.toBeInTheDocument();
+    expect(screen.getByTestId('two-pane-detail').className).toContain('md:w-[58%]');
+  });
+
+  it('navigates back to the menu when the close control is used', async () => {
+    mockNavigate.mockClear();
+    const user = userEvent.setup();
+    renderAt('/profile/account');
+    await user.click(screen.getByTestId('two-pane-close'));
+    expect(mockNavigate).toHaveBeenCalledWith('/profile');
   });
 });

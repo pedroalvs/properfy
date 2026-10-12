@@ -1,17 +1,16 @@
-import { Outlet, useMatch } from 'react-router-dom';
-import { CalendarDays } from 'lucide-react';
-import { EmptyState } from '@/components/feedback/EmptyState';
+import { Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { TwoPaneLayout } from '@/components/shell/TwoPaneLayout';
 import { SchedulePage } from './SchedulePage';
 
 /**
- * Schedule route layout. On phone it is the validated single-column stack: the list at
- * `/schedule`, the full-screen detail at `/schedule/:appointmentId`. At the tablet breakpoint it
- * becomes a 2-column master-detail — the list stays mounted on the left while the selected
- * appointment renders in the right pane via the nested `<Outlet/>`, so selecting a job swaps the
- * pane without a full navigation (and deep-linking a detail URL still works).
+ * Schedule route layout. On phone it is the validated single-column stack: the list at `/schedule`,
+ * the full-screen detail at `/schedule/:appointmentId`. At the tablet breakpoint the list fills the
+ * width until an appointment is selected, then the detail expands in from the left (the list stays
+ * mounted as a rail on the right); the close control or a back navigation collapses it. Deep-linking a
+ * detail URL still opens it directly.
  */
 export function ScheduleLayout() {
+  const navigate = useNavigate();
   const hasSelection = useMatch('/schedule/:appointmentId') !== null;
 
   return (
@@ -19,13 +18,7 @@ export function ScheduleLayout() {
       master={<SchedulePage />}
       detail={<Outlet />}
       hasSelection={hasSelection}
-      emptyState={
-        <EmptyState
-          icon={CalendarDays}
-          title="Select an appointment"
-          description="Pick a job from your schedule to see its details here."
-        />
-      }
+      onClose={() => navigate('/schedule')}
     />
   );
 }

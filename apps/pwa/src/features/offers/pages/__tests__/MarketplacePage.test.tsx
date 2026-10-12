@@ -579,10 +579,10 @@ describe('MarketplacePage — tablet 2-column layout', () => {
     suburbs: ['Brunswick'],
   } as unknown as MarketplaceOffer;
 
-  it('shows the empty-state pane before any offer is selected', () => {
+  it('shows only the list (collapsed detail) before any offer is selected', () => {
     mockUseMarketplaceOffers.mockReturnValue(offersHookReturn([offer]));
     renderWithProviders(<MarketplacePage />);
-    expect(screen.getByText('Select an offer')).toBeInTheDocument();
+    expect(screen.getByTestId('two-pane-detail').className).toContain('md:w-0');
     expect(screen.queryByTestId('group-detail-pane')).not.toBeInTheDocument();
     // The phone bottom-sheet is suppressed on tablet even with nothing selected.
     expect(screen.queryByTestId('detail-sheet')).not.toBeInTheDocument();

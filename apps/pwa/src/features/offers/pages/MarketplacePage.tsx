@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Tag } from 'lucide-react';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
-import { EmptyState } from '@/components/feedback/EmptyState';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { Card } from '@/components/ui/Card';
 import { TwoPaneLayout } from '@/components/shell/TwoPaneLayout';
@@ -225,6 +223,8 @@ export function MarketplacePage() {
         variant="canvas"
         detailMode="overlay"
         hasSelection={detailGroupId !== null}
+        onClose={closeDetail}
+        showClose={false}
         master={master}
         detail={
           isWide && detailGroupId ? (
@@ -235,13 +235,6 @@ export function MarketplacePage() {
               onAccept={acceptDetail}
             />
           ) : null
-        }
-        emptyState={
-          <EmptyState
-            icon={Tag}
-            title="Select an offer"
-            description="Pick an offer to review its inspections and payout."
-          />
         }
       />
 
