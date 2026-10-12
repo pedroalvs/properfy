@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Clock } from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 
 interface InProgressPanelProps {
   startedAt: string | null;
@@ -15,6 +18,10 @@ function formatElapsed(ms: number): string {
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
 }
 
+function formatStartTime(startedAt: string): string {
+  return new Date(startedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
 export function InProgressPanel({ startedAt, onFinish }: InProgressPanelProps) {
   const [now, setNow] = useState(() => Date.now());
 
@@ -28,35 +35,42 @@ export function InProgressPanel({ startedAt, onFinish }: InProgressPanelProps) {
 
   return (
     <div className="flex flex-col" data-testid="in-progress-panel">
-      <div className="flex flex-col items-center gap-3 px-page-x py-8 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-card-bg">
-          <i className="mdi mdi-clipboard-clock-outline text-3xl text-primary" aria-hidden="true" />
-        </div>
-        <h2 className="text-lg font-bold text-secondary">Inspection in progress</h2>
-        <p className="text-sm text-text-muted">
-          Carry out the inspection at the property, then finish to capture your location.
-        </p>
-        {elapsed && (
-          <div className="mt-2" data-testid="elapsed-time">
-            <p className="text-xs font-bold uppercase text-text-secondary">Elapsed</p>
-            <p
-              className="font-mono text-2xl font-bold tabular-nums text-text-primary"
-              aria-live="polite"
-            >
-              {elapsed}
+      <div className="px-page-x py-8">
+        <Card className="flex flex-col items-center gap-3 py-8 text-center">
+          {startedAt && (
+            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4" aria-hidden="true" />
+              Started {formatStartTime(startedAt)}
             </p>
-          </div>
-        )}
+          )}
+
+          {elapsed && (
+            <div data-testid="elapsed-time">
+              <p
+                className="font-mono text-4xl font-bold tabular-nums text-foreground"
+                aria-live="polite"
+              >
+                {elapsed}
+              </p>
+            </div>
+          )}
+
+          <Badge tone="blue">Inspection running</Badge>
+        </Card>
+
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          Finishing captures your location and time. There is no checklist or photo step.
+        </p>
       </div>
 
       <div className="px-page-x pb-4">
         <Button
-          variant="primary"
+          variant="success"
+          block
           onClick={onFinish}
-          className="!w-full !min-h-[48px]"
           data-testid="proceed-to-finish-button"
         >
-          Finish Inspection
+          Check out &amp; finish
         </Button>
       </div>
     </div>

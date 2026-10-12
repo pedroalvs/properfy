@@ -1,5 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import { Z_INDEX } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/Sheet';
 import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
 import { formatCurrency } from '@/lib/format-currency';
 import type { MarketplaceOffer, OfferAcceptState } from '../types';
@@ -13,130 +15,88 @@ interface AcceptOfferModalProps {
 
 export function AcceptOfferModal({ offer, state, onConfirm, onCancel }: AcceptOfferModalProps) {
   const isOpen = state === 'CONFIRMING' || state === 'ACCEPTING';
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const restoreFocusRef = useRef<HTMLElement | null>(null);
-
-  // Read the live state / handler inside the document listener without re-keying
-  // the effect on every render (which would re-capture focus each keystroke).
-  const stateRef = useRef(state);
-  const onCancelRef = useRef(onCancel);
-  useEffect(() => {
-    stateRef.current = state;
-    onCancelRef.current = onCancel;
-  });
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    restoreFocusRef.current = document.activeElement as HTMLElement | null;
-    // Focus the primary action on open (first actionable element).
-    const confirmButton = sheetRef.current?.querySelector<HTMLElement>('[data-testid="modal-confirm"]');
-    confirmButton?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        // While ACCEPTING the request is in flight — Escape is inert (parity with
-        // the disabled Cancel button). Only cancel from CONFIRMING.
-        if (stateRef.current === 'CONFIRMING') {
-          e.preventDefault();
-          onCancelRef.current();
-        }
-        return;
-      }
-      if (e.key === 'Tab') {
-        const focusables = sheetRef.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        if (!focusables || focusables.length === 0) return;
-        const first = focusables[0]!;
-        const last = focusables[focusables.length - 1]!;
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      restoreFocusRef.current?.focus?.();
-    };
-  }, [isOpen]);
-
-  if (!isOpen) return null;
+  const isAccepting = state === 'ACCEPTING';
+  const confirmRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-end justify-center bg-black/50" data-testid="accept-modal">
-      <div
-        ref={sheetRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="accept-offer-title"
-        className="w-full max-w-lg rounded-t-3xl bg-card pb-safe-b shadow-2xl"
+    <Sheet
+      open={isOpen}
+      onOpenChange={(next) => {
+        // While ACCEPTING the request is in flight — dismissal is inert (parity with the
+        // disabled Cancel button). Only cancel from CONFIRMING.
+        if (!next && state === 'CONFIRMING') onCancel();
+      }}
+    >
+      <SheetContent
+        data-testid="accept-modal"
+        style={{ zIndex: Z_INDEX.overlay }}
+        className="mx-auto max-w-lg px-6"
+        onOpenAutoFocus={(event) => {
+          // Focus the primary action rather than the first focusable (Cancel).
+          event.preventDefault();
+          confirmRef.current?.focus();
+        }}
+        onEscapeKeyDown={(event) => {
+          if (isAccepting) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (isAccepting) event.preventDefault();
+        }}
+        onPointerDownOutside={(event) => {
+          if (isAccepting) event.preventDefault();
+        }}
       >
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="h-1 w-10 rounded-full bg-border" />
+        <SheetTitle className="text-foreground">Confirm acceptance</SheetTitle>
+        <SheetDescription className="mt-0.5">
+          Once accepted, these inspections are assigned to you.
+        </SheetDescription>
+
+        {/* Summary details */}
+        <div className="mt-4 space-y-2.5 text-sm">
+          <Row label="Service" value={offer.serviceTypeName} />
+          <Row label="Agency" value={offer.tenantName} />
+          <Row label="Date" value={formatCivilDate(offer.scheduledDate)} />
+          <Row label="Time window" value={formatWallTimeWindow(offer.timeWindow)} />
+          <Row
+            label="Inspections"
+            value={`${offer.appointmentCount} ${offer.appointmentCount === 1 ? 'inspection' : 'inspections'}`}
+          />
+          {offer.suburbs.length > 0 && <Row label="Area" value={offer.suburbs.join(', ')} />}
         </div>
 
-        <div className="px-6 pb-8 pt-3">
-          <h3 id="accept-offer-title" className="text-lg font-bold text-foreground">Confirm acceptance</h3>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Once accepted, these inspections are assigned to you.
-          </p>
-
-          {/* Summary details */}
-          <div className="mt-4 space-y-2.5 text-sm">
-            <Row label="Service" value={offer.serviceTypeName} />
-            <Row label="Agency" value={offer.tenantName} />
-            <Row label="Date" value={formatCivilDate(offer.scheduledDate)} />
-            <Row label="Time window" value={formatWallTimeWindow(offer.timeWindow)} />
-            <Row
-              label="Inspections"
-              value={`${offer.appointmentCount} ${offer.appointmentCount === 1 ? 'inspection' : 'inspections'}`}
-            />
-            {offer.suburbs.length > 0 && (
-              <Row label="Area" value={offer.suburbs.join(', ')} />
-            )}
+        {/* Payout highlight */}
+        {offer.payoutEstimate != null && (
+          <div className="mt-4 rounded-xl bg-success/10 px-4 py-3 flex items-center justify-between">
+            <span className="text-sm font-semibold text-success">Estimated payout</span>
+            <span className="text-xl font-bold text-success" data-testid="modal-payout">
+              {formatCurrency(offer.payoutEstimate)}
+            </span>
           </div>
+        )}
 
-          {/* Payout highlight */}
-          {offer.payoutEstimate != null && (
-            <div className="mt-4 rounded-xl bg-success/10 px-4 py-3 flex items-center justify-between">
-              <span className="text-sm font-semibold text-success">Estimated payout</span>
-              <span className="text-xl font-bold text-success" data-testid="modal-payout">
-                {formatCurrency(offer.payoutEstimate)}
-              </span>
-            </div>
-          )}
-
-          <div className="mt-6 flex gap-3">
-            <Button
-              variant="secondary"
-              onClick={onCancel}
-              disabled={state === 'ACCEPTING'}
-              className="flex-1"
-              data-testid="modal-cancel"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={onConfirm}
-              loading={state === 'ACCEPTING'}
-              className="flex-1 font-bold"
-              data-testid="modal-confirm"
-            >
-              Accept
-            </Button>
-          </div>
+        <div className="mt-6 flex gap-3">
+          <Button
+            variant="secondary"
+            onClick={onCancel}
+            disabled={isAccepting}
+            className="flex-1"
+            data-testid="modal-cancel"
+          >
+            Cancel
+          </Button>
+          <Button
+            ref={confirmRef}
+            variant="primary"
+            onClick={onConfirm}
+            loading={isAccepting}
+            className="flex-1 font-bold"
+            data-testid="modal-confirm"
+          >
+            Accept
+          </Button>
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

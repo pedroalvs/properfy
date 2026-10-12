@@ -1,98 +1,101 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { CalendarClock, FileText, LogOut, SlidersHorizontal, User, Wallet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { TopBar } from '@/components/shell/TopBar';
-import { ProfileCard } from '../components/ProfileCard';
-import { InspectorDetailsCard } from '../components/InspectorDetailsCard';
-import { AvailabilityGrid } from '../components/AvailabilityGrid';
-import { ChangePasswordSection } from '../components/ChangePasswordSection';
-import { TwoFactorSection } from '../components/TwoFactorSection';
-import { SessionsSection } from '../components/SessionsSection';
-import { InstallAppCard } from '../components/InstallAppCard';
-import { Button } from '@/components/ui/Button';
-import { useInspectorMe } from '../hooks/useInspectorMe';
-import { useInspectorAvailabilityTemplate } from '../hooks/useInspectorAvailabilityTemplate';
+import { MenuList, MenuRow } from '@/components/ui/MenuRow';
+import { Badge } from '@/components/ui/Badge';
+
+/** Small eyebrow label above each menu group. */
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <p className="px-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+      {children}
+    </p>
+  );
+}
 
 export function ProfilePage() {
   const { user, logout } = useAuth();
-  const { data: availability } = useInspectorAvailabilityTemplate();
-  const [totpEnabled, setTotpEnabled] = useState(user?.totpEnabled ?? false);
-  // Same query key and options as InspectorDetailsCard, so the two consumers
-  // share one request rather than issuing two.
-  const { data: inspectorMe, isLoading: isInspectorLoading } = useInspectorMe();
 
   if (!user) return null;
 
+  // A logged-in inspector is Active unless the account carries another status.
+  const isActive = (user.status ?? 'ACTIVE') === 'ACTIVE';
+
   return (
     <div className="w-full pb-20">
-      <TopBar title="Account" />
-
+      {/* v3 Profile opens directly on the identity card — no redundant "Account"
+          title bar above it. The global OfflineBanner + bottom nav are unaffected. */}
       <div className="flex flex-col gap-3 p-4">
         {/* Identity header */}
-        <section className="rounded-[28px] bg-[linear-gradient(135deg,_rgba(15,23,42,0.96),_rgba(51,65,85,0.86))] px-5 py-5 text-white shadow-[0_18px_44px_rgba(15,23,42,0.20)]">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Inspector workspace</p>
-              <h1 className="mt-3 text-2xl font-bold tracking-tight">{user.name}</h1>
-              <p className="mt-1 text-sm text-white/80">{user.email}</p>
-              {user.phone && <p className="mt-0.5 text-sm text-white/60">{user.phone}</p>}
+        <section className="flex items-center gap-4 rounded-card border border-border bg-card p-4 shadow-sm">
+          {user.inspectorPhotoUrl ? (
+            <img
+              src={user.inspectorPhotoUrl}
+              alt={user.name}
+              className="h-14 w-14 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">
+              {user.name.charAt(0).toUpperCase()}
             </div>
-            <Link
-              to="/profile/edit"
-              className="mt-1 rounded-xl bg-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/25"
-            >
-              Edit
-            </Link>
+          )}
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-lg font-extrabold tracking-tight text-foreground">{user.name}</h1>
+            <p className="truncate text-sm text-muted-foreground">Inspector</p>
           </div>
-          <p className="mt-3 max-w-[28rem] text-[11px] leading-relaxed text-white/55">
-            This is your account hub for security, device access and installation.
-          </p>
+          {isActive && <Badge tone="green">Active</Badge>}
         </section>
 
-        <ProfileCard
-          name={user.name}
-          email={user.email}
-          role={user.role}
-          status={user.status}
-          phone={user.phone}
-          timezone={user.timezone}
-          totpEnabled={totpEnabled}
-          lastLoginAt={user.lastLoginAt}
-          photoUrl={user.inspectorPhotoUrl}
-          showStats={user.role === 'INSP'}
-          ratingAvg={inspectorMe?.data?.rating?.average ?? null}
-          ratingCount={inspectorMe?.data?.rating?.responseCount ?? 0}
-          completedCount={inspectorMe?.data?.rating?.doneServicesCount ?? 0}
-          ratingLoading={isInspectorLoading}
-        />
+        {/* Work */}
+        <SectionLabel>Work</SectionLabel>
+        <MenuList>
+          <MenuRow
+            icon={<Wallet className="h-5 w-5" aria-hidden="true" />}
+            label="Earnings"
+            sublabel="Payments and invoices"
+            to="/earnings"
+          />
+        </MenuList>
 
-        {/* Inspector details (read-only) */}
-        <InspectorDetailsCard />
+        {/* Account */}
+        <SectionLabel>Account</SectionLabel>
+        <MenuList>
+          <MenuRow
+            icon={<CalendarClock className="h-5 w-5" aria-hidden="true" />}
+            label="Availability"
+            sublabel="Working days and areas"
+            to="/profile/availability"
+          />
+          <MenuRow
+            icon={<FileText className="h-5 w-5" aria-hidden="true" />}
+            label="Documents"
+            sublabel="Insurance, police check, ABN"
+            to="/profile/documents"
+          />
+          <MenuRow
+            icon={<User className="h-5 w-5" aria-hidden="true" />}
+            label="Account details"
+            sublabel="Profile, phone, timezone and security"
+            to="/profile/account"
+          />
+          <MenuRow
+            icon={<SlidersHorizontal className="h-5 w-5" aria-hidden="true" />}
+            label="App settings"
+            sublabel="Install and app info"
+            to="/profile/settings"
+          />
+        </MenuList>
 
-        {/* Availability schedule */}
-        <h2 className="mt-2 px-1 text-xs font-semibold uppercase tracking-wider text-text-muted">Availability</h2>
-        <div className="rounded-2xl bg-surface p-4 shadow-card" data-testid="availability-section">
-          <AvailabilityGrid availability={availability} />
-        </div>
+        {/* Log out */}
+        <MenuList className="mt-2">
+          <MenuRow
+            icon={<LogOut className="h-5 w-5" aria-hidden="true" />}
+            label="Log out"
+            onClick={logout}
+            trailing={<></>}
+          />
+        </MenuList>
 
-        {/* Security section */}
-        <h2 className="mt-2 px-1 text-xs font-semibold uppercase tracking-wider text-text-muted">Security</h2>
-        <ChangePasswordSection />
-        <TwoFactorSection enabled={totpEnabled} onEnabled={() => setTotpEnabled(true)} />
-        <SessionsSection />
-
-        {/* App section */}
-        <h2 className="mt-2 px-1 text-xs font-semibold uppercase tracking-wider text-text-muted">App</h2>
-        <InstallAppCard />
-
-        {/* Logout */}
-        <div className="mt-4">
-          <Button variant="secondary" onClick={logout} className="w-full !rounded-2xl">
-            Log Out
-          </Button>
-        </div>
-
-        <p className="text-center text-xs text-text-muted">Properfy Inspector v1.0</p>
+        <p className="text-center text-xs text-muted-foreground">Properfy Inspector v1.0</p>
       </div>
     </div>
   );

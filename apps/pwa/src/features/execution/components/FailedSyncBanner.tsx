@@ -1,3 +1,6 @@
+import { AlertCircle } from 'lucide-react';
+import { Alert } from '@/components/ui/Alert';
+import { Button } from '@/components/ui/Button';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 
 /**
@@ -12,23 +15,19 @@ export function FailedSyncBanner() {
   return (
     <div className="flex flex-col gap-2" data-testid="failed-sync-banner">
       {failedActions.map((action) => (
-        <div
-          key={action.id}
-          role="alert"
-          className="flex items-center justify-between gap-3 rounded-lg bg-error/10 px-4 py-2 text-xs font-medium text-error"
-        >
-          <span>
-            <i className="mdi mdi-sync-alert mr-1" aria-hidden="true" />
+        <Alert key={action.id} tone="destructive" className="items-center justify-between">
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
+          <span className="flex-1 text-[13px] font-medium">
             A queued inspection sync failed: {action.lastError ?? 'Unknown error'}
           </span>
-          <button
-            type="button"
+          <Button
+            variant="outlined"
             onClick={() => retryAction(action.id)}
-            className="shrink-0 font-semibold underline"
+            className="h-8 min-h-0 shrink-0 px-3 text-[13px]"
           >
             Retry
-          </button>
-        </div>
+          </Button>
+        </Alert>
       ))}
     </div>
   );

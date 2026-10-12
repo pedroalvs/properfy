@@ -18324,6 +18324,10 @@
                             "type": "number",
                             "nullable": true
                           },
+                          "payoutFrom": {
+                            "type": "number",
+                            "nullable": true
+                          },
                           "appointmentCount": {
                             "type": "number"
                           },
@@ -18484,6 +18488,10 @@
                           }
                         },
                         "payoutEstimate": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "payoutFrom": {
                           "type": "number",
                           "nullable": true
                         },
@@ -21872,6 +21880,10 @@
                             }
                           },
                           "payoutEstimate": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "payoutFrom": {
                             "type": "number",
                             "nullable": true
                           },

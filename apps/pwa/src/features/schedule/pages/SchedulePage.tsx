@@ -121,7 +121,7 @@ export function SchedulePage() {
 
   return (
     <div className="w-full" data-testid="schedule-page">
-      <TopBar title="Schedule" />
+      <TopBar title="Schedule" size="lg" />
       <div className="px-page-x py-4">
         <Card>
           <div className="flex items-start justify-between gap-4">

@@ -1,5 +1,7 @@
+import { AlertCircle, Check, ClockAlert, IdCard, ShieldCheck } from 'lucide-react';
 import { useInspectorMe } from '../hooks/useInspectorMe';
 import { todayInTzDateString } from '@properfy/shared';
+import { useAuth } from '@/hooks/useAuth';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { formatCivilDate } from '@/lib/format-date';
 
@@ -23,7 +25,7 @@ function formatDate(value: string | null | undefined): string {
 }
 
 function ExpiryBadge({ expiry, timeZone }: { expiry: string | null; timeZone: string }) {
-  if (!expiry) return <span className="text-xs text-text-muted">No expiry set</span>;
+  if (!expiry) return <span className="text-xs text-muted-foreground">No expiry set</span>;
 
   // Compared as calendar days, not instants. `new Date('2026-03-18')` is UTC
   // midnight, which is 10-11am Sydney, so comparing it against `new Date()`
@@ -37,8 +39,8 @@ function ExpiryBadge({ expiry, timeZone }: { expiry: string | null; timeZone: st
 
   if (isExpired) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-error/10 px-2 py-0.5 text-[11px] font-semibold text-error">
-        <i className="mdi mdi-alert-circle text-xs" aria-hidden="true" />
+      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+        <AlertCircle size={12} aria-hidden="true" />
         Expired {formatDate(expiry)}
       </span>
     );
@@ -47,28 +49,29 @@ function ExpiryBadge({ expiry, timeZone }: { expiry: string | null; timeZone: st
   if (isExpiringSoon) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-semibold text-warning">
-        <i className="mdi mdi-clock-alert-outline text-xs" aria-hidden="true" />
+        <ClockAlert size={12} aria-hidden="true" />
         Expires {formatDate(expiry)}
       </span>
     );
   }
 
   return (
-    <span className="text-xs text-text-secondary">Expires {formatDate(expiry)}</span>
+    <span className="text-xs text-muted-foreground">Expires {formatDate(expiry)}</span>
   );
 }
 
 export function InspectorDetailsCard() {
   const { data, isLoading, isError } = useInspectorMe();
+  const { user } = useAuth();
   const timeZone = useEffectiveTimezone();
 
   if (isLoading) {
     return (
-      <div className="rounded-[24px] border border-white/70 bg-white/92 p-6 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
+      <div className="rounded-card border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-3">
-          <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
-          <div className="h-4 w-48 animate-pulse rounded bg-gray-200" />
-          <div className="h-4 w-40 animate-pulse rounded bg-gray-200" />
+          <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-48 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-40 animate-pulse rounded bg-muted" />
         </div>
       </div>
     );
@@ -81,42 +84,44 @@ export function InspectorDetailsCard() {
   const inspector = data.data;
 
   return (
-    <div className="rounded-[24px] border border-white/70 bg-white/92 p-6 shadow-[0_14px_30px_rgba(15,23,42,0.06)]" data-testid="inspector-details-card">
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Inspector Details</p>
+    <div className="rounded-card border border-border bg-card p-6 shadow-sm" data-testid="inspector-details-card">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Inspector Details</p>
 
       <div className="mt-4 grid grid-cols-1 gap-3 text-sm">
         <div className="flex items-center justify-between gap-4">
-          <span className="text-text-secondary">Full Name</span>
-          <span className="font-medium text-text-primary">{inspector.fullName ?? '—'}</span>
+          <span className="text-muted-foreground">Full Name</span>
+          {/* The inspector record's fullName is often unpopulated; fall back to the
+              authenticated user's display name — the same source the Account card uses. */}
+          <span className="font-medium text-foreground">{inspector.fullName || user?.name || '—'}</span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="text-text-secondary">ABN</span>
-          <span className="font-medium text-text-primary">{inspector.abn ?? '—'}</span>
+          <span className="text-muted-foreground">ABN</span>
+          <span className="font-medium text-foreground">{inspector.abn ?? '—'}</span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="text-text-secondary">Date of Birth</span>
-          <span className="font-medium text-text-primary">{formatDate(inspector.dateOfBirth)}</span>
+          <span className="text-muted-foreground">Date of Birth</span>
+          <span className="font-medium text-foreground">{formatDate(inspector.dateOfBirth)}</span>
         </div>
       </div>
 
       {/* Documents */}
       <div className="mt-5 border-t border-black/5 pt-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Documents</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Documents</p>
         <div className="mt-3 flex flex-col gap-3">
           {/* Insurance */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <i className="mdi mdi-shield-check text-base text-text-secondary" aria-hidden="true" />
-              <span className="text-sm text-text-primary">Insurance</span>
+              <ShieldCheck size={16} className="text-muted-foreground" aria-hidden="true" />
+              <span className="text-sm text-foreground">Insurance</span>
             </div>
             <div className="flex items-center gap-2">
               {inspector.insuranceFileKey || inspector.insuranceMetaJson ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                  <i className="mdi mdi-check text-xs" aria-hidden="true" />
+                  <Check size={12} aria-hidden="true" />
                   On file
                 </span>
               ) : (
-                <span className="text-xs text-text-muted">Not uploaded</span>
+                <span className="text-xs text-muted-foreground">Not uploaded</span>
               )}
               <ExpiryBadge expiry={inspector.insuranceExpiresAt} timeZone={timeZone} />
             </div>
@@ -125,17 +130,17 @@ export function InspectorDetailsCard() {
           {/* Police Check */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <i className="mdi mdi-card-account-details text-base text-text-secondary" aria-hidden="true" />
-              <span className="text-sm text-text-primary">Police Check</span>
+              <IdCard size={16} className="text-muted-foreground" aria-hidden="true" />
+              <span className="text-sm text-foreground">Police Check</span>
             </div>
             <div className="flex items-center gap-2">
               {inspector.policeCheckFileKey || inspector.policeCheckMetaJson ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                  <i className="mdi mdi-check text-xs" aria-hidden="true" />
+                  <Check size={12} aria-hidden="true" />
                   On file
                 </span>
               ) : (
-                <span className="text-xs text-text-muted">Not uploaded</span>
+                <span className="text-xs text-muted-foreground">Not uploaded</span>
               )}
               <ExpiryBadge expiry={inspector.policeCheckExpiresAt} timeZone={timeZone} />
             </div>
@@ -143,7 +148,7 @@ export function InspectorDetailsCard() {
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-text-secondary">
+      <div className="mt-4 rounded-2xl bg-muted px-4 py-3 text-xs leading-relaxed text-muted-foreground">
         Document uploads and updates are managed by your operations team. Contact them if any details need updating.
       </div>
     </div>

@@ -1,30 +1,20 @@
-import { CalendarDays, CheckCircle2, Inbox, Tag, type LucideIcon } from 'lucide-react';
+import { Inbox, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 interface EmptyStateProps {
   title: string;
   description?: string;
-  icon?: string;
+  /** The empty-state glyph; defaults to a neutral inbox. */
+  icon?: LucideIcon;
   action?: { label: string; onClick: () => void };
 }
-
-// Call sites still pass the legacy mdi identifiers; map the ones in use to lucide
-// equivalents and fall back to a neutral inbox glyph for anything else.
-const iconMap: Record<string, LucideIcon> = {
-  'mdi-inbox-outline': Inbox,
-  'mdi-calendar-blank': CalendarDays,
-  'mdi-tag-off-outline': Tag,
-  'mdi-check-circle-outline': CheckCircle2,
-};
 
 export function EmptyState({
   title,
   description,
-  icon = 'mdi-inbox-outline',
+  icon: Icon = Inbox,
   action,
 }: EmptyStateProps) {
-  const Icon = iconMap[icon] ?? Inbox;
-
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center px-page-x">
       <Icon className="h-12 w-12 text-muted-foreground" aria-hidden="true" />

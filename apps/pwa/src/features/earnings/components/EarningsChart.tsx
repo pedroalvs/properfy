@@ -1,3 +1,4 @@
+import { BarChart3 } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
 import { Card } from '@/components/ui/Card';
 
@@ -22,7 +23,7 @@ export function EarningsChart({ bars }: EarningsChartProps) {
   if (!hasData) {
     return (
       <Card className="p-6 text-center" data-testid="earnings-chart-empty">
-        <i className="mdi mdi-chart-bar text-[40px] text-muted-foreground" aria-hidden="true" />
+        <BarChart3 size={40} className="text-muted-foreground" aria-hidden="true" />
         <p className="mt-2 text-xs text-muted-foreground">No earnings to chart for this period.</p>
       </Card>
     );

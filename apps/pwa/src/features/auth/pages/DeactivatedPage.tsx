@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { UserX } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 
@@ -12,11 +13,11 @@ export function DeactivatedPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-app-bg px-page-x">
+    <div className="flex min-h-screen items-center justify-center bg-background px-page-x">
       <div className="w-full max-w-sm text-center">
-        <i className="mdi mdi-account-off-outline text-[64px] text-error" aria-hidden="true" />
-        <h1 className="mt-4 text-xl font-bold text-secondary">Account Deactivated</h1>
-        <p className="mt-2 text-sm text-text-secondary">
+        <UserX size={64} className="text-destructive" aria-hidden="true" />
+        <h1 className="mt-4 text-xl font-bold text-foreground">Account Deactivated</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           Your inspector account has been deactivated. Please contact your administrator.
         </p>
         <div className="mt-8">

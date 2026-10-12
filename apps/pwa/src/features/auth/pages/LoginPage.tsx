@@ -1,10 +1,45 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { ClipboardCheck, Loader2 } from 'lucide-react';
+import { loginSchema, UserRole } from '@properfy/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { PasswordInput } from '@/components/ui/PasswordInput';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/Form';
 import { ApiError } from '@/lib/api-error';
-import { UserRole } from '@properfy/shared';
 import { consumePostLoginRedirect } from '@/lib/post-login-redirect';
+
+/**
+ * Login form schema. Reuses the shared {@link loginSchema} and loosens `totpCode`
+ * so the first credential-only submit is valid; the 6-digit requirement is
+ * enforced manually once the TOTP step is active. The email and password fields
+ * get friendly presence copy here (the shared schema's defaults are generic zod
+ * strings): an empty email reads as required ("Enter your email") and mirrors the
+ * password field, while a non-empty malformed email still shows a format message.
+ * The email transform (lowercase + trim) is reproduced to match the shared schema.
+ */
+const loginFormSchema = loginSchema.extend({
+  email: z
+    .string()
+    .min(1, 'Enter your email')
+    .email('Enter a valid email address')
+    .max(254)
+    .transform((v) => v.toLowerCase().trim()),
+  password: z.string().min(1, 'Enter your password').max(128),
+  totpCode: z.string().optional(),
+});
+type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -36,12 +71,14 @@ function getErrorMessage(error: unknown): string {
 export function LoginPage() {
   const { login, user, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [totpCode, setTotpCode] = useState('');
   const [requiresTotp, setRequiresTotp] = useState(false);
   const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: { email: '', password: '', totpCode: '' },
+  });
+  const isSubmitting = form.formState.isSubmitting;
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== UserRole.INSP) return;
@@ -51,135 +88,157 @@ export function LoginPage() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-6">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-          <i className="mdi mdi-loading mdi-spin text-2xl text-primary" aria-hidden="true" />
+          <Loader2 size={24} className="animate-spin text-primary" aria-hidden="true" />
         </div>
-        <p className="mt-4 text-sm text-text-secondary">Restoring session...</p>
+        <p className="mt-4 text-sm text-muted-foreground">Restoring session...</p>
       </div>
     );
   }
   if (isAuthenticated && user?.role === UserRole.INSP) return null;
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: LoginFormValues) => {
     setError('');
 
-    if (!email.trim() || !password) {
-      setError('Please enter your email and password.');
+    const code = (values.totpCode ?? '').trim();
+    if (requiresTotp && code.length !== 6) {
+      form.setError('totpCode', {
+        message: 'Enter the 6-digit code from your authenticator app.',
+      });
       return;
     }
 
-    setIsSubmitting(true);
     try {
-      await login(email.trim(), password, requiresTotp ? totpCode.trim() : undefined);
+      await login(values.email, values.password, requiresTotp ? code : undefined);
     } catch (err) {
       if (err instanceof ApiError && err.code === 'AUTH_TOTP_REQUIRED') {
         setRequiresTotp(true);
       }
       setError(getErrorMessage(err));
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-background">
       {/* Brand header */}
       <div className="flex flex-col items-center px-6 pt-16 pb-6">
         <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary shadow-lg shadow-primary/25">
-          <i className="mdi mdi-clipboard-check-outline text-[32px] text-white" aria-hidden="true" />
+          <ClipboardCheck size={32} className="text-white" aria-hidden="true" />
         </div>
-        <h1 className="mt-5 text-2xl font-bold tracking-tight text-secondary">Properfy</h1>
-        <p className="mt-1 text-sm font-medium text-text-secondary">Inspector Field App</p>
+        <h1 className="mt-5 text-2xl font-bold tracking-tight text-primary">Properfy</h1>
+        <p className="mt-1 text-sm font-medium text-muted-foreground">Inspector Field App</p>
       </div>
 
       {/* Form card */}
       <div className="flex-1 px-5 pb-8">
         <div className="mx-auto w-full max-w-sm">
-          <form onSubmit={handleSubmit} className="space-y-4" data-testid="login-form">
-            {error && (
-              <div
-                role="alert"
-                className="rounded-2xl border border-error/15 bg-error/8 px-4 py-3 text-sm leading-relaxed text-error"
-                data-testid="login-error"
-              >
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-text-secondary">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                inputMode="email"
-                placeholder="your@email.com"
-                className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary shadow-sm outline-none transition-all placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
-                data-testid="email-input"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-text-secondary">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                placeholder="Enter your password"
-                className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary shadow-sm outline-none transition-all placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
-                data-testid="password-input"
-              />
-            </div>
-
-            {requiresTotp && (
-              <div>
-                <label htmlFor="totp-code" className="mb-1.5 block text-sm font-medium text-text-secondary">
-                  Authentication Code
-                </label>
-                <input
-                  id="totp-code"
-                  type="text"
-                  value={totpCode}
-                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  required
-                  autoComplete="one-time-code"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="123456"
-                  className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm tracking-[0.3em] text-text-primary shadow-sm outline-none transition-all placeholder:tracking-normal placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
-                  data-testid="totp-input"
-                />
-                <p className="mt-1.5 text-xs text-text-muted">
-                  Open your authenticator app and enter the current 6-digit code.
-                </p>
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              loading={isSubmitting}
-              className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-real-estate/20"
-              data-testid="login-button"
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-4"
+              data-testid="login-form"
+              noValidate
             >
-              Sign In
-            </Button>
-          </form>
+              {error && (
+                <div
+                  role="alert"
+                  className="rounded-2xl border border-destructive/15 bg-destructive/8 px-4 py-3 text-sm leading-relaxed text-destructive"
+                  data-testid="login-error"
+                >
+                  {error}
+                </div>
+              )}
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        autoComplete="email"
+                        inputMode="email"
+                        placeholder="your@email.com"
+                        disabled={isSubmitting}
+                        data-testid="email-input"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <PasswordInput
+                        autoComplete="current-password"
+                        placeholder="Enter your password"
+                        disabled={isSubmitting}
+                        data-testid="password-input"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {requiresTotp && (
+                <FormField
+                  control={form.control}
+                  name="totpCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Authentication Code</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          autoComplete="one-time-code"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          placeholder="123456"
+                          className="tracking-[0.3em] placeholder:tracking-normal"
+                          disabled={isSubmitting}
+                          data-testid="totp-input"
+                          {...field}
+                          value={field.value ?? ''}
+                          onChange={(e) =>
+                            field.onChange(e.target.value.replace(/\D/g, '').slice(0, 6))
+                          }
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Open your authenticator app and enter the current 6-digit code.
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <Button
+                type="submit"
+                loading={isSubmitting}
+                className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-primary/20"
+                data-testid="login-button"
+              >
+                Sign In
+              </Button>
+            </form>
+          </Form>
 
           {/* Context */}
           <div className="mt-6 rounded-2xl border border-primary/8 bg-primary/4 px-4 py-3">
-            <p className="text-xs leading-relaxed text-text-secondary">
+            <p className="text-xs leading-relaxed text-muted-foreground">
               <span className="font-semibold">Inspector access only.</span>{' '}
               Your schedule, offers and inspections are available here. Agency and admin users should use the{' '}
               <span className="font-medium text-primary">web portal</span>.
@@ -195,7 +254,7 @@ export function LoginPage() {
             </Link>
           </div>
 
-          <p className="mt-4 text-center text-[11px] text-text-muted">
+          <p className="mt-4 text-center text-[11px] text-muted-foreground">
             Can't sign in? Contact your operations team for access.
           </p>
         </div>

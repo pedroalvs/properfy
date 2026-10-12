@@ -114,7 +114,7 @@ export function MarketplacePage() {
 
   return (
     <div className="w-full" data-testid="marketplace-page">
-      <TopBar title="Marketplace" />
+      <TopBar title="Offers" size="lg" />
 
       <div className="px-page-x py-4">
         <Card className="bg-primary/5 px-5 py-5">

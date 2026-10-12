@@ -59,9 +59,24 @@ const ProfilePage = lazyRetry(() =>
     default: module.ProfilePage,
   })),
 );
-const ProfileEditPage = lazyRetry(() =>
-  import('@/features/profile/pages/ProfileEditPage').then((module) => ({
-    default: module.ProfileEditPage,
+const ProfileAvailabilityPage = lazyRetry(() =>
+  import('@/features/profile/pages/ProfileAvailabilityPage').then((module) => ({
+    default: module.ProfileAvailabilityPage,
+  })),
+);
+const ProfileDocumentsPage = lazyRetry(() =>
+  import('@/features/profile/pages/ProfileDocumentsPage').then((module) => ({
+    default: module.ProfileDocumentsPage,
+  })),
+);
+const ProfileAccountPage = lazyRetry(() =>
+  import('@/features/profile/pages/ProfileAccountPage').then((module) => ({
+    default: module.ProfileAccountPage,
+  })),
+);
+const ProfileSettingsPage = lazyRetry(() =>
+  import('@/features/profile/pages/ProfileSettingsPage').then((module) => ({
+    default: module.ProfileSettingsPage,
   })),
 );
 const EarningsPage = lazyRetry(() =>
@@ -69,19 +84,19 @@ const EarningsPage = lazyRetry(() =>
     default: module.EarningsPage,
   })),
 );
-const RequestInvoiceScreen = lazyRetry(() =>
-  import('@/features/earnings/components/RequestInvoiceScreen').then((module) => ({
-    default: module.RequestInvoiceScreen,
+const RequestInvoicePage = lazyRetry(() =>
+  import('@/features/earnings/pages/RequestInvoicePage').then((module) => ({
+    default: module.RequestInvoicePage,
   })),
 );
-const InvoiceListScreen = lazyRetry(() =>
-  import('@/features/earnings/pages/InvoiceListScreen').then((module) => ({
-    default: module.InvoiceListScreen,
+const InvoiceListPage = lazyRetry(() =>
+  import('@/features/earnings/pages/InvoiceListPage').then((module) => ({
+    default: module.InvoiceListPage,
   })),
 );
-const InvoiceDetailScreen = lazyRetry(() =>
-  import('@/features/earnings/pages/InvoiceDetailScreen').then((module) => ({
-    default: module.InvoiceDetailScreen,
+const InvoiceDetailPage = lazyRetry(() =>
+  import('@/features/earnings/pages/InvoiceDetailPage').then((module) => ({
+    default: module.InvoiceDetailPage,
   })),
 );
 
@@ -137,11 +152,15 @@ export const router = createBrowserRouter(
                 { path: 'schedule/:appointmentId', element: lazyElement(AppointmentDetailPage) },
                 { path: 'marketplace', element: lazyElement(MarketplacePage) },
                 { path: 'earnings', element: lazyElement(EarningsPage) },
-                { path: 'earnings/request-invoice', element: lazyElement(RequestInvoiceScreen) },
-                { path: 'earnings/invoices', element: lazyElement(InvoiceListScreen) },
-                { path: 'earnings/invoices/:invoiceId', element: lazyElement(InvoiceDetailScreen) },
+                { path: 'earnings/request-invoice', element: lazyElement(RequestInvoicePage) },
+                { path: 'earnings/invoices', element: lazyElement(InvoiceListPage) },
+                { path: 'earnings/invoices/:invoiceId', element: lazyElement(InvoiceDetailPage) },
                 { path: 'profile', element: lazyElement(ProfilePage) },
-                { path: 'profile/edit', element: lazyElement(ProfileEditPage) },
+                { path: 'profile/availability', element: lazyElement(ProfileAvailabilityPage) },
+                { path: 'profile/documents', element: lazyElement(ProfileDocumentsPage) },
+                { path: 'profile/account', element: lazyElement(ProfileAccountPage) },
+                { path: 'profile/settings', element: lazyElement(ProfileSettingsPage) },
+                { path: 'profile/edit', element: <Navigate to="/profile/account" replace /> },
               ],
             },
             { path: 'execution/:appointmentId', element: lazyElement(ExecutionPage) },

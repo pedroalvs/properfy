@@ -49,8 +49,9 @@ describe('AcceptOfferModal', () => {
 
   it('exposes dialog semantics with an accessible name and moves focus inside on open (#461)', () => {
     render(<AcceptOfferModal offer={offer} state="CONFIRMING" onConfirm={onConfirm} onCancel={onCancel} />);
-    const dialog = screen.getByRole('dialog', { name: 'Confirm acceptance' });
-    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    // A labelled dialog role is the user-observable modal contract (Radix supplies the
+    // focus trap / scroll lock rather than a hand-set aria-modal attribute).
+    expect(screen.getByRole('dialog', { name: 'Confirm acceptance' })).toBeInTheDocument();
     // Focus lands on the primary action inside the sheet.
     expect(screen.getByTestId('modal-confirm')).toHaveFocus();
   });
@@ -68,11 +69,9 @@ describe('AcceptOfferModal', () => {
   });
 
   it('keeps its actions clear of the iOS home indicator', () => {
-    // The overlay is `items-end`, so the sheet is flush with the bottom edge. Unlike the
-    // execution sheets the padding lives on an inner wrapper, so the inset goes on the
-    // sheet container where nothing else sets padding-bottom.
+    // The Radix bottom-sheet content sits flush with the bottom edge, so it carries the
+    // home-indicator inset itself.
     render(<AcceptOfferModal offer={offer} state="CONFIRMING" onConfirm={onConfirm} onCancel={onCancel} />);
-    const sheet = screen.getByTestId('accept-modal').firstElementChild!;
-    expect(sheet.classList.contains('pb-safe-b')).toBe(true);
+    expect(screen.getByTestId('accept-modal').className).toContain('pb-safe-b-6');
   });
 });

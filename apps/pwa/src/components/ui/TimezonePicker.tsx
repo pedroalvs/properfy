@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, X } from 'lucide-react';
-import { cn } from '@properfy/frontend-standards';
+import { cn, Z_INDEX } from '@properfy/frontend-standards';
 import {
   getTimezoneOptions,
   normalizeTimezoneQuery,
@@ -131,7 +131,8 @@ export function TimezonePicker({
 
       {isOpen && (
         <div
-          className="fixed inset-0 z-[70] flex flex-col bg-background"
+          style={{ zIndex: Z_INDEX.fullscreenPanel }}
+          className="fixed inset-0 flex flex-col bg-background"
           role="dialog"
           aria-modal="true"
           aria-label="Select timezone"

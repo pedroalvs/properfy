@@ -1,6 +1,6 @@
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '@/test-utils';
-import { RequestInvoiceScreen } from '../RequestInvoiceScreen';
+import { RequestInvoicePage } from '../RequestInvoicePage';
 import { api } from '@/services/api';
 
 vi.mock('@/services/api', () => ({
@@ -18,7 +18,7 @@ const PERIODS = {
   ],
 };
 
-describe('RequestInvoiceScreen', () => {
+describe('RequestInvoicePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGet.mockImplementation((path: string) => {
@@ -34,7 +34,7 @@ describe('RequestInvoiceScreen', () => {
   });
 
   it('lists closed periods, previews a selection, and submits a request', async () => {
-    renderWithProviders(<RequestInvoiceScreen />);
+    renderWithProviders(<RequestInvoicePage />);
 
     // Closed periods load.
     await waitFor(() => expect(screen.getAllByTestId('period-option')).toHaveLength(2));
@@ -53,7 +53,7 @@ describe('RequestInvoiceScreen', () => {
   it('shows a friendly error when the period has no approved payouts', async () => {
     // openapi-fetch surfaces a 4xx as a resolved { error: <envelope> }, not a rejection.
     mockPost.mockResolvedValueOnce({ error: { error: { code: 'INVOICE_EMPTY_PERIOD', message: 'empty' } } });
-    renderWithProviders(<RequestInvoiceScreen />);
+    renderWithProviders(<RequestInvoicePage />);
 
     await waitFor(() => expect(screen.getAllByTestId('period-option').length).toBeGreaterThan(0));
     fireEvent.click(screen.getAllByTestId('period-option')[0]);

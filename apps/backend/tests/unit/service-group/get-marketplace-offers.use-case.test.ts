@@ -45,6 +45,7 @@ function makeMarketplaceOffer(overrides: Partial<MarketplaceOffer> = {}): Market
     timeWindow: '08:00-12:00',
     suburbs: ['Sydney', 'Bondi'],
     payoutEstimate: null,
+    payoutFrom: null,
     appointmentCount: 5,
     properties: [],
     ...overrides,
@@ -125,6 +126,24 @@ describe('GetMarketplaceOffersUseCase', () => {
     expect(result.data[1].groupId).toBe('group-2');
     expect(result.data[0].tenantName).toBe('Acme Realty');
     expect(result.data[0].suburbs).toEqual(['Sydney', 'Bondi']);
+  });
+
+  it('passes the per-offer payoutFrom through to the output', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    vi.mocked(serviceGroupRepo.findPublishedForInspector).mockResolvedValue([
+      makeMarketplaceOffer({ groupId: 'group-1', payoutFrom: 15 }),
+      makeMarketplaceOffer({ groupId: 'group-2', payoutFrom: null }),
+    ]);
+    vi.mocked(serviceGroupRepo.countPublishedForInspector).mockResolvedValue(2);
+
+    const result = await useCase.execute({
+      inspectorId: 'inspector-1',
+      pagination: defaultPagination,
+      actor: makeActor(),
+    });
+
+    expect(result.data[0].payoutFrom).toBe(15);
+    expect(result.data[1].payoutFrom).toBeNull();
   });
 
   it('should reject non-INSP actors', async () => {

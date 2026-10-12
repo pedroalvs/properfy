@@ -60,4 +60,38 @@ describe('ChangePasswordSection', () => {
       vi.useRealTimers();
     }
   });
+
+  it('blocks submit and shows a validation message for a weak new password', async () => {
+    const changePassword = vi.fn().mockResolvedValue(undefined);
+    mockUseChangePassword.mockReturnValue({ changePassword, isSubmitting: false });
+
+    render(<ChangePasswordSection />);
+    fireEvent.click(screen.getByRole('button', { name: 'Change Password' }));
+    fireEvent.change(screen.getByPlaceholderText('Current password'), { target: { value: 'Oldpass1!' } });
+    fireEvent.change(screen.getByPlaceholderText('New password'), { target: { value: 'weak' } });
+    fireEvent.change(screen.getByPlaceholderText('Confirm new password'), { target: { value: 'weak' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Update Password' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    expect(changePassword).not.toHaveBeenCalled();
+  });
+
+  it('blocks submit when the confirmation does not match', async () => {
+    const changePassword = vi.fn().mockResolvedValue(undefined);
+    mockUseChangePassword.mockReturnValue({ changePassword, isSubmitting: false });
+
+    render(<ChangePasswordSection />);
+    fireEvent.click(screen.getByRole('button', { name: 'Change Password' }));
+    fireEvent.change(screen.getByPlaceholderText('Current password'), { target: { value: 'Oldpass1!' } });
+    fireEvent.change(screen.getByPlaceholderText('New password'), { target: { value: 'Newpass1!' } });
+    fireEvent.change(screen.getByPlaceholderText('Confirm new password'), { target: { value: 'Different1!' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Update Password' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Passwords do not match')).toBeInTheDocument();
+    });
+    expect(changePassword).not.toHaveBeenCalled();
+  });
 });

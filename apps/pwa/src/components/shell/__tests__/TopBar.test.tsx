@@ -14,12 +14,18 @@ vi.mock('@/features/execution/hooks/useQueuedActionCount', () => ({
   useQueuedActionCount: () => mockQueuedCount,
 }));
 
+let mockIsOnline = true;
+vi.mock('@/hooks/useIsOnline', () => ({
+  useIsOnline: () => mockIsOnline,
+}));
+
 describe('TopBar', () => {
   let historyStateSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     mockNavigate.mockClear();
     mockQueuedCount = 0;
+    mockIsOnline = true;
     historyStateSpy = vi.spyOn(window.history, 'state', 'get');
     historyStateSpy.mockReturnValue({ idx: 1 });
   });
@@ -60,15 +66,20 @@ describe('TopBar', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/schedule', { replace: true });
   });
 
-  it('shows connection indicator', () => {
+  it('hides the connection indicator when online (v3 has no persistent pill)', () => {
+    mockIsOnline = true;
     renderWithProviders(<TopBar title="Schedule" />);
-    expect(screen.getByTestId('connection-indicator')).toBeInTheDocument();
+    expect(screen.queryByTestId('connection-indicator')).not.toBeInTheDocument();
+    expect(screen.queryByText('Online')).not.toBeInTheDocument();
   });
 
-  it('shows green indicator when online', () => {
+  it('shows an Offline indicator only when offline', () => {
+    mockIsOnline = false;
     renderWithProviders(<TopBar title="Schedule" />);
     const indicator = screen.getByTestId('connection-indicator');
-    expect(indicator.className).toContain('bg-success');
+    expect(indicator).toBeInTheDocument();
+    expect(indicator.className).toContain('bg-destructive');
+    expect(screen.getByText('Offline')).toBeInTheDocument();
   });
 
   it('does not show subtitle when not provided', () => {
@@ -96,8 +107,9 @@ describe('TopBar', () => {
   });
 
   it('paints an opaque background instead of a backdrop filter', () => {
-    // Same reasoning as BottomNavBar: this header is `sticky`, so `backdrop-filter`
-    // promotes it to its own composited layer, which WebKit can mispaint while scrolling.
+    // Same reasoning as BottomNavBar: an opaque background keeps the header off its own
+    // composited layer. `backdrop-filter`/translucency would promote one, which WebKit
+    // can mispaint while scrolling — kept defensive even though v3 drops `sticky`.
     const { container } = renderWithProviders(<TopBar title="Schedule" />);
     const header = container.querySelector('header')!;
     expect(header.className).not.toContain('backdrop-blur');

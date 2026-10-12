@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react';
+import { TIMING } from '@properfy/frontend-standards';
 import { saveExecutionState } from '../lib/indexeddb';
 import type { ExecutionState } from '../types';
-
-const AUTO_SAVE_INTERVAL_MS = 2000;
 
 export function useAutoSave(state: ExecutionState) {
   const stateRef = useRef(state);
@@ -25,7 +24,7 @@ export function useAutoSave(state: ExecutionState) {
             // Keep the snapshot marked dirty so the next tick retries the write.
           });
       }
-    }, AUTO_SAVE_INTERVAL_MS);
+    }, TIMING.autoSaveInterval);
 
     return () => clearInterval(interval);
   }, [state.phase, state.appointmentId]);

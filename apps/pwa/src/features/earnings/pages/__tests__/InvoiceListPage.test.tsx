@@ -1,7 +1,7 @@
 import { screen, fireEvent } from '@testing-library/react';
 import type * as RRD from 'react-router-dom';
 import { renderWithProviders } from '@/test-utils';
-import { InvoiceListScreen } from '../InvoiceListScreen';
+import { InvoiceListPage } from '../InvoiceListPage';
 
 const mockUseMyInvoices = vi.fn();
 const mockNavigate = vi.fn();
@@ -15,7 +15,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-describe('InvoiceListScreen', () => {
+describe('InvoiceListPage', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('renders own invoices with status + Paid badge and navigates to detail on tap', () => {
@@ -31,7 +31,7 @@ describe('InvoiceListScreen', () => {
       refetch: vi.fn(),
     });
 
-    renderWithProviders(<InvoiceListScreen />);
+    renderWithProviders(<InvoiceListPage />);
 
     expect(screen.getAllByTestId('invoice-list-item')).toHaveLength(2);
     expect(screen.getByText('PINV-000010')).toBeInTheDocument();
@@ -43,7 +43,7 @@ describe('InvoiceListScreen', () => {
 
   it('shows the empty state when the inspector has no invoices', () => {
     mockUseMyInvoices.mockReturnValue({ data: { data: [] }, isLoading: false, isError: false, refetch: vi.fn() });
-    renderWithProviders(<InvoiceListScreen />);
+    renderWithProviders(<InvoiceListPage />);
     expect(screen.getByTestId('invoice-list-empty')).toBeInTheDocument();
   });
 });

@@ -12,7 +12,7 @@ import { invoiceStatusBadge, isApproved, formatInvoiceCurrency } from '../lib/in
 import { getErrorMessage } from '@/lib/api-error';
 import { formatCivilDate } from '@/lib/format-date';
 
-export function InvoiceDetailScreen() {
+export function InvoiceDetailPage() {
   const { invoiceId } = useParams<{ invoiceId: string }>();
   const { data, isLoading, isError, error } = useMyInvoiceDetail(invoiceId);
   const invoice = data?.data;

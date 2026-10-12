@@ -1,4 +1,6 @@
+import { Navigation } from 'lucide-react';
 import { PROPERTY_TYPE_LABELS, type PropertyType } from '@properfy/shared';
+import { Card } from '@/components/ui/Card';
 
 interface PropertyAddressSectionProps {
   address: string;
@@ -39,21 +41,18 @@ export function PropertyAddressSection({
   if (linenProvided != null) detailChips.push(linenProvided ? 'Linen provided' : 'No linen');
 
   return (
-    <section
-      className="overflow-hidden rounded-[20px] border border-black/[0.06] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.07)]"
-      data-testid="property-address-section"
-    >
+    <Card className="overflow-hidden p-0" data-testid="property-address-section">
       <div className="px-4 pt-4 pb-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Property</p>
-        <p className="mt-1 text-sm font-semibold leading-5 text-text-primary">{address}</p>
-        {addressLine2 && <p className="text-xs text-text-secondary">{addressLine2}</p>}
-        {suburb && <p className="text-xs text-text-secondary">{suburb}</p>}
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Property</p>
+        <p className="mt-1 text-sm font-semibold leading-5 text-foreground">{address}</p>
+        {addressLine2 && <p className="text-xs text-muted-foreground">{addressLine2}</p>}
+        {suburb && <p className="text-xs text-muted-foreground">{suburb}</p>}
         {detailChips.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5" data-testid="property-detail-chips">
             {detailChips.map((chip) => (
               <span
                 key={chip}
-                className="rounded-full bg-black/[0.05] px-2.5 py-1 text-[11px] font-semibold text-text-secondary"
+                className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground"
               >
                 {chip}
               </span>
@@ -65,12 +64,12 @@ export function PropertyAddressSection({
         href={mapsUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center justify-center gap-2 border-t border-black/[0.06] bg-primary/5 px-4 py-3 text-sm font-bold text-primary"
+        className="flex items-center justify-center gap-2 border-t border-border bg-primary/5 px-4 py-3 text-sm font-bold text-primary"
         data-testid="open-maps-link"
       >
-        <i className="mdi mdi-navigation text-base" aria-hidden="true" />
+        <Navigation className="h-4 w-4" aria-hidden="true" />
         Navigate to property
       </a>
-    </section>
+    </Card>
   );
 }

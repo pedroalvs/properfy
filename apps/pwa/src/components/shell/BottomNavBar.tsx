@@ -30,16 +30,14 @@ export function BottomNavBar() {
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  'flex min-h-touch min-w-touch flex-col items-center justify-center gap-0.5 rounded-2xl px-2 text-[11px] font-semibold transition-all',
-                  isActive
-                    ? 'bg-primary/10 text-primary ring-1 ring-inset ring-primary/20'
-                    : 'text-muted-foreground',
+                  'flex min-h-touch min-w-touch flex-col items-center justify-center gap-0.5 px-2 text-[11px] font-semibold transition-colors',
+                  isActive ? 'text-primary' : 'text-faint',
                 )
               }
               data-testid={`nav-${item.label.toLowerCase()}`}
             >
-              <Icon size={22} aria-hidden="true" />
-              <span>{item.label}</span>
+              <Icon size={24} aria-hidden="true" className="shrink-0" />
+              <span className="w-full truncate text-center">{item.label}</span>
             </NavLink>
           );
         })}

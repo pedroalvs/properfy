@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Tag } from 'lucide-react';
 import { OfferCard } from './OfferCard';
 import { AcceptOfferModal } from './AcceptOfferModal';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -24,7 +25,7 @@ export function OfferFeed({ offers, onRefresh, onViewDetail }: OfferFeedProps) {
       <EmptyState
         title="No offers available"
         description="Check back later for new inspection offers"
-        icon="mdi-tag-off-outline"
+        icon={Tag}
         action={{ label: 'Refresh', onClick: onRefresh }}
       />
     );
