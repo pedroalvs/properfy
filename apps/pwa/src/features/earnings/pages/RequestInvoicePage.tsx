@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
@@ -92,7 +92,7 @@ export function RequestInvoicePage() {
                       data-testid="period-option"
                     >
                       <span>{formatCivilDate(p.periodStart)} → {formatCivilDate(p.periodEnd)}</span>
-                      {isSelected && <i className="mdi mdi-check-circle text-lg" aria-hidden="true" />}
+                      {isSelected && <CheckCircle2 size={18} aria-hidden="true" />}
                     </button>
                   );
                 })}

@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Banknote, FilePlus2, ReceiptText, ChevronRight } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
 import { TopBar } from '@/components/shell/TopBar';
 import { formatInstantDateTime } from '@/lib/format-date';
@@ -45,7 +46,7 @@ function StatusChip({ status }: { status: string }) {
 function SegmentError({ message, fallback, onRetry }: { message?: string; fallback: string; onRetry: () => void }) {
   return (
     <Card className="p-6 text-center">
-      <i className="mdi mdi-cash-multiple text-[48px] text-muted-foreground" aria-hidden="true" />
+      <Banknote size={48} className="text-muted-foreground" aria-hidden="true" />
       <p className="mt-4 text-sm text-muted-foreground">{message || fallback}</p>
       <Button variant="outlined" onClick={onRetry} className="mt-3">
         Retry
@@ -183,7 +184,7 @@ export function EarningsPage() {
               className="rounded-full"
               data-testid="request-invoice-cta"
             >
-              <i className="mdi mdi-file-document-plus-outline text-xl" aria-hidden="true" />
+              <FilePlus2 size={20} aria-hidden="true" />
               Request Invoice
             </Button>
             <button
@@ -193,13 +194,13 @@ export function EarningsPage() {
               data-testid="my-invoices-cta"
             >
               <div className="flex items-center gap-3">
-                <i className="mdi mdi-receipt-text-outline text-xl text-muted-foreground" aria-hidden="true" />
+                <ReceiptText size={20} className="text-muted-foreground" aria-hidden="true" />
                 <div>
                   <p className="text-sm font-semibold text-foreground">My Invoices</p>
                   <p className="text-xs text-muted-foreground">View status and download PDFs</p>
                 </div>
               </div>
-              <i className="mdi mdi-chevron-right text-xl text-muted-foreground" aria-hidden="true" />
+              <ChevronRight size={20} className="text-muted-foreground" aria-hidden="true" />
             </button>
           </>
         )}
@@ -226,7 +227,7 @@ export function EarningsPage() {
 
             {!history.isLoading && !history.error && entries.length === 0 && (
               <Card className="p-6 text-center">
-                <i className="mdi mdi-cash-multiple text-[48px] text-muted-foreground" aria-hidden="true" />
+                <Banknote size={48} className="text-muted-foreground" aria-hidden="true" />
                 <p className="mt-4 text-sm text-muted-foreground">No payouts for this period.</p>
               </Card>
             )}

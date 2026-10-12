@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChevronRight, MonitorSmartphone } from 'lucide-react';
 import { useSessions, type Session } from '../hooks/useSessions';
 import { Button } from '@/components/ui/Button';
 import { formatInstantDateTime } from '@/lib/format-date';
@@ -28,13 +29,13 @@ export function SessionsSection() {
         className="flex w-full items-center justify-between rounded-2xl bg-card p-4 text-left shadow-sm"
       >
         <div className="flex items-center gap-3">
-          <i className="mdi mdi-devices text-xl text-muted-foreground" />
+          <MonitorSmartphone size={20} className="text-muted-foreground" aria-hidden="true" />
           <div>
             <span className="text-sm font-medium text-foreground">Active Sessions</span>
             {!isLoading && <span className="ml-2 text-xs text-muted-foreground">({sessions.length})</span>}
           </div>
         </div>
-        <i className="mdi mdi-chevron-right text-xl text-muted-foreground" />
+        <ChevronRight size={20} className="text-muted-foreground" aria-hidden="true" />
       </button>
     );
   }
@@ -52,7 +53,7 @@ export function SessionsSection() {
     <div className="rounded-2xl bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <i className="mdi mdi-devices text-xl text-muted-foreground" />
+          <MonitorSmartphone size={20} className="text-muted-foreground" aria-hidden="true" />
           <span className="text-sm font-semibold text-foreground">Active Sessions</span>
         </div>
         <button type="button" onClick={() => setExpanded(false)} className="text-sm text-muted-foreground">Close</button>

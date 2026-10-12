@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import { useInstallPrompt } from '@/app/useInstallPrompt';
 import { isNativeBannerDismissed, dismissNativeBanner } from '../lib/install-banner-storage';
 
@@ -39,7 +40,7 @@ export function InstallBannerNative() {
           aria-label="Dismiss install banner"
           className="rounded-lg p-1 text-muted-foreground hover:text-muted-foreground"
         >
-          <i className="mdi mdi-close text-base" aria-hidden="true" />
+          <X size={16} aria-hidden="true" />
         </button>
       </div>
     </div>

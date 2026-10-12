@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -30,7 +31,7 @@ export function TwoFactorSection({ enabled, onEnabled }: TwoFactorSectionProps) 
     return (
       <div className="flex items-center justify-between rounded-2xl bg-card p-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <i className="mdi mdi-shield-check-outline text-xl text-success" />
+          <ShieldCheck size={20} className="text-success" aria-hidden="true" />
           <div>
             <p className="text-sm font-medium text-foreground">Two-Factor Authentication</p>
             <p className="text-xs text-success">Enabled</p>
@@ -45,7 +46,7 @@ export function TwoFactorSection({ enabled, onEnabled }: TwoFactorSectionProps) 
     return (
       <div className="rounded-2xl bg-card p-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <i className="mdi mdi-shield-alert-outline text-xl text-warning" />
+          <ShieldAlert size={20} className="text-warning" aria-hidden="true" />
           <div className="flex-1">
             <p className="text-sm font-medium text-foreground">Two-Factor Authentication</p>
             <p className="text-xs text-warning">Not enabled — your account is less secure</p>
@@ -78,7 +79,7 @@ export function TwoFactorSection({ enabled, onEnabled }: TwoFactorSectionProps) 
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="rounded-2xl bg-card p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <i className="mdi mdi-shield-lock-outline text-xl text-primary" />
+            <ShieldCheck size={20} className="text-primary" aria-hidden="true" />
             <span className="text-sm font-semibold text-foreground">Set Up 2FA</span>
           </div>
           <button type="button" onClick={cancelSetup} className="text-sm text-muted-foreground">Cancel</button>

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { AppointmentCard } from './AppointmentCard';
 import type { InspectorAppointment } from '../types';
@@ -65,7 +66,7 @@ export function ScheduleHistoryList({ items }: ScheduleHistoryListProps) {
     return (
       <div data-testid="history-empty">
         <EmptyState
-          icon="mdi-check-circle-outline"
+          icon={CheckCircle2}
           title="No completed inspections"
           description="Inspections you finish will show up here."
         />

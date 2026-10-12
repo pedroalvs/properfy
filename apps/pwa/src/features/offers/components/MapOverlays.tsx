@@ -1,4 +1,4 @@
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatWallTimeRange } from '@/lib/format-date';
 import type { ExpandedGroup, ExpandedGroupAppointment } from '../lib/offers-map/types';
@@ -75,7 +75,7 @@ export function MapOverlays({
             onClick={onCloseChip}
             className="min-h-touch min-w-touch -mr-2 -mt-1 inline-flex items-center justify-center rounded-full text-muted-foreground active:bg-muted"
           >
-            <i className="mdi mdi-close text-lg" aria-hidden="true" />
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
       )}

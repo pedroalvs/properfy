@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { cn, Z_INDEX } from '@properfy/frontend-standards';
+import { Z_INDEX } from '@properfy/frontend-standards';
 import { PROPERTY_TYPE_LABELS } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -142,14 +142,18 @@ export function GroupDetailBottomSheet({ groupId, onClose, onAccept, accepting }
                             </Badge>
                           )}
                           <p className="flex items-start gap-1 font-medium text-foreground" data-testid="appointment-address">
-                            {appt.propertyType && (
-                              <i
-                                className={cn('mt-0.5 shrink-0 text-muted-foreground', 'mdi', PROPERTY_TYPE_ICONS[appt.propertyType])}
-                                data-testid="appointment-property-type-icon"
-                                role="img"
-                                aria-label={PROPERTY_TYPE_LABELS[appt.propertyType]}
-                              />
-                            )}
+                            {appt.propertyType && (() => {
+                              const Icon = PROPERTY_TYPE_ICONS[appt.propertyType!];
+                              return (
+                                <Icon
+                                  className="mt-0.5 shrink-0 text-muted-foreground"
+                                  size={14}
+                                  data-testid="appointment-property-type-icon"
+                                  role="img"
+                                  aria-label={PROPERTY_TYPE_LABELS[appt.propertyType!]}
+                                />
+                              );
+                            })()}
                             {/* Full address (doc §7.2); street is blank for a
                                 soft-deleted property, leaving the suburb alone. */}
                             <span>{[appt.street, appt.suburb].filter(Boolean).join(', ')}</span>

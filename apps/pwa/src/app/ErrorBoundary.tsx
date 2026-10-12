@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { OctagonAlert } from 'lucide-react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -26,7 +27,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (this.state.hasError) {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-background px-page-x text-center">
-          <i className="mdi mdi-alert-octagon text-[64px] text-destructive" aria-hidden="true" />
+          <OctagonAlert size={64} className="text-destructive" aria-hidden="true" />
           <h1 className="mt-4 text-page-title-mobile text-foreground">Something went wrong</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             An unexpected error occurred. Please try reloading the app.

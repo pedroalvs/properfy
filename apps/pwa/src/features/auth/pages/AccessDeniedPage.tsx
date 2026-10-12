@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 
@@ -14,7 +15,7 @@ export function AccessDeniedPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-page-x">
       <div className="w-full max-w-sm text-center">
-        <i className="mdi mdi-shield-lock-outline text-[64px] text-warning" aria-hidden="true" />
+        <ShieldCheck size={64} className="text-warning" aria-hidden="true" />
         <h1 className="mt-4 text-xl font-bold text-foreground">Access Denied</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Hello, <strong>{user?.name}</strong>. Your account role (

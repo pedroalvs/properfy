@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
+import { Clock, ClockAlert, Home, MapPin } from 'lucide-react';
 import { cn, TIMING } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
 import { Badge, type BadgeProps } from '@/components/ui/Badge';
@@ -154,17 +155,20 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
             {propertyTypes.length > 0 ? (
-              propertyTypes.map((type) => (
-                <i
-                  key={type}
-                  className={cn('mdi text-[13px]', PROPERTY_TYPE_ICONS[type])}
-                  data-testid="property-type-icon"
-                  role="img"
-                  aria-label={PROPERTY_TYPE_LABELS[type]}
-                />
-              ))
+              propertyTypes.map((type) => {
+                const Icon = PROPERTY_TYPE_ICONS[type];
+                return (
+                  <Icon
+                    key={type}
+                    size={13}
+                    data-testid="property-type-icon"
+                    role="img"
+                    aria-label={PROPERTY_TYPE_LABELS[type]}
+                  />
+                );
+              })
             ) : (
-              <i className="mdi mdi-home-outline text-[13px]" aria-hidden="true" />
+              <Home size={13} data-testid="property-type-icon-fallback" aria-hidden="true" />
             )}
             {offer.appointmentCount} {offer.appointmentCount === 1 ? 'inspection' : 'inspections'}
           </span>
@@ -174,7 +178,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
         {address.primary && (
           <div className="mt-2.5 text-sm text-muted-foreground">
             <p data-testid="offer-address">
-              <i className="mdi mdi-map-marker-outline mr-1 text-muted-foreground" aria-hidden="true" />
+              <MapPin size={14} className="mr-1 inline text-muted-foreground" aria-hidden="true" />
               {address.primary}
             </p>
             {address.remaining > 0 && (
@@ -205,7 +209,11 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
             )}
             data-testid="priority-countdown"
           >
-            <i className={cn('mdi', countdown.isUrgent ? 'mdi-clock-alert-outline' : 'mdi-clock-outline')} />
+            {countdown.isUrgent ? (
+              <ClockAlert size={12} aria-hidden="true" />
+            ) : (
+              <Clock size={12} aria-hidden="true" />
+            )}
             Priority: {countdown.label}
           </div>
         )}

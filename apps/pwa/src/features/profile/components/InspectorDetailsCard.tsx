@@ -1,3 +1,4 @@
+import { AlertCircle, Check, ClockAlert, IdCard, ShieldCheck } from 'lucide-react';
 import { useInspectorMe } from '../hooks/useInspectorMe';
 import { todayInTzDateString } from '@properfy/shared';
 import { useAuth } from '@/hooks/useAuth';
@@ -39,7 +40,7 @@ function ExpiryBadge({ expiry, timeZone }: { expiry: string | null; timeZone: st
   if (isExpired) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
-        <i className="mdi mdi-alert-circle text-xs" aria-hidden="true" />
+        <AlertCircle size={12} aria-hidden="true" />
         Expired {formatDate(expiry)}
       </span>
     );
@@ -48,7 +49,7 @@ function ExpiryBadge({ expiry, timeZone }: { expiry: string | null; timeZone: st
   if (isExpiringSoon) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-semibold text-warning">
-        <i className="mdi mdi-clock-alert-outline text-xs" aria-hidden="true" />
+        <ClockAlert size={12} aria-hidden="true" />
         Expires {formatDate(expiry)}
       </span>
     );
@@ -110,13 +111,13 @@ export function InspectorDetailsCard() {
           {/* Insurance */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <i className="mdi mdi-shield-check text-base text-muted-foreground" aria-hidden="true" />
+              <ShieldCheck size={16} className="text-muted-foreground" aria-hidden="true" />
               <span className="text-sm text-foreground">Insurance</span>
             </div>
             <div className="flex items-center gap-2">
               {inspector.insuranceFileKey || inspector.insuranceMetaJson ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                  <i className="mdi mdi-check text-xs" aria-hidden="true" />
+                  <Check size={12} aria-hidden="true" />
                   On file
                 </span>
               ) : (
@@ -129,13 +130,13 @@ export function InspectorDetailsCard() {
           {/* Police Check */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <i className="mdi mdi-card-account-details text-base text-muted-foreground" aria-hidden="true" />
+              <IdCard size={16} className="text-muted-foreground" aria-hidden="true" />
               <span className="text-sm text-foreground">Police Check</span>
             </div>
             <div className="flex items-center gap-2">
               {inspector.policeCheckFileKey || inspector.policeCheckMetaJson ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                  <i className="mdi mdi-check text-xs" aria-hidden="true" />
+                  <Check size={12} aria-hidden="true" />
                   On file
                 </span>
               ) : (

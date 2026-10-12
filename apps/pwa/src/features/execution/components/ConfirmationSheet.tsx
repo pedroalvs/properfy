@@ -1,10 +1,10 @@
 import { type ReactNode } from 'react';
-import { cn } from '@properfy/frontend-standards';
+import { type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/Sheet';
 
 interface ConfirmationSheetProps {
-  icon: string;
+  icon: LucideIcon;
   iconClassName: string;
   title: string;
   description?: ReactNode;
@@ -25,7 +25,7 @@ interface ConfirmationSheetProps {
  * only has to forward the close intent.
  */
 export function ConfirmationSheet({
-  icon,
+  icon: Icon,
   iconClassName,
   title,
   description,
@@ -53,7 +53,7 @@ export function ConfirmationSheet({
         {...(description ? {} : { 'aria-describedby': undefined })}
       >
         <div className="flex flex-col items-center gap-2 text-center">
-          <i className={cn('mdi text-[40px]', icon, iconClassName)} aria-hidden="true" />
+          <Icon size={40} className={iconClassName} aria-hidden="true" />
           <SheetTitle>{title}</SheetTitle>
           {description && <SheetDescription>{description}</SheetDescription>}
         </div>

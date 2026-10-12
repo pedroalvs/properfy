@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChevronRight, Lock } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -67,10 +68,10 @@ export function ChangePasswordSection() {
         className="flex w-full items-center justify-between rounded-2xl bg-card p-4 text-left shadow-sm"
       >
         <div className="flex items-center gap-3">
-          <i className="mdi mdi-lock-outline text-xl text-muted-foreground" />
+          <Lock size={20} className="text-muted-foreground" aria-hidden="true" />
           <span className="text-sm font-medium text-foreground">Change Password</span>
         </div>
-        <i className="mdi mdi-chevron-right text-xl text-muted-foreground" />
+        <ChevronRight size={20} className="text-muted-foreground" aria-hidden="true" />
       </button>
     );
   }
@@ -97,7 +98,7 @@ export function ChangePasswordSection() {
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="rounded-2xl bg-card p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <i className="mdi mdi-lock-outline text-xl text-muted-foreground" />
+            <Lock size={20} className="text-muted-foreground" aria-hidden="true" />
             <span className="text-sm font-semibold text-foreground">Change Password</span>
           </div>
           <button type="button" onClick={() => setExpanded(false)} className="text-sm text-muted-foreground">Cancel</button>

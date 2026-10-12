@@ -1,3 +1,4 @@
+import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/Dialog';
 
@@ -27,7 +28,7 @@ export function LeaveWarningModal({ onStay, onLeave }: LeaveWarningModalProps) {
         onPointerDownOutside={(event) => event.preventDefault()}
       >
         <div className="flex flex-col items-center gap-2 text-center">
-          <i className="mdi mdi-alert-circle text-[40px] text-warning" aria-hidden="true" />
+          <AlertCircle size={40} className="text-warning" aria-hidden="true" />
           <DialogTitle>Leave inspection?</DialogTitle>
           <DialogDescription>
             You have an inspection in progress. Your data is saved locally and you can resume later.

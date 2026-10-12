@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { FileText } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
 import { TopBar } from '@/components/shell/TopBar';
 import { Badge } from '@/components/ui/Badge';
@@ -39,7 +40,7 @@ export function InvoiceListPage() {
 
         {!isLoading && !isError && invoices.length === 0 && (
           <Card className="p-6 text-center" data-testid="invoice-list-empty">
-            <i className="mdi mdi-file-document-outline text-[40px] text-muted-foreground" aria-hidden="true" />
+            <FileText size={40} className="text-muted-foreground" aria-hidden="true" />
             <p className="mt-3 text-sm text-muted-foreground">You have no invoices yet.</p>
           </Card>
         )}

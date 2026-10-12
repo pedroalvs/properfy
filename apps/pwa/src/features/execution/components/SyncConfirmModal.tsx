@@ -1,3 +1,4 @@
+import { RefreshCw } from 'lucide-react';
 import { ConfirmationSheet } from './ConfirmationSheet';
 
 interface SyncConfirmModalProps {
@@ -8,7 +9,7 @@ interface SyncConfirmModalProps {
 export function SyncConfirmModal({ onConfirm, onCancel }: SyncConfirmModalProps) {
   return (
     <ConfirmationSheet
-      icon="mdi-sync"
+      icon={RefreshCw}
       iconClassName="text-primary"
       title="Is this inspection synced to the Inspection App?"
       description="If not, sync it in the Inspection App first, then come back to complete."

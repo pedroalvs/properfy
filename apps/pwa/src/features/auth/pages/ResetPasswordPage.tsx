@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { KeyRound, Link2Off, ShieldCheck } from 'lucide-react';
 import { passwordFieldSchema, mapResetPasswordError, PASSWORD_REQUIREMENTS_MESSAGE } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
 import { PasswordInput } from '@/components/ui/PasswordInput';
@@ -39,7 +40,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col bg-background">
       <div className="flex flex-col items-center px-6 pt-16 pb-6">
         <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary shadow-lg shadow-primary/25">
-          <i className="mdi mdi-lock-reset text-[32px] text-white" aria-hidden="true" />
+          <KeyRound size={32} className="text-white" aria-hidden="true" />
         </div>
         <h1 className="mt-5 text-2xl font-bold tracking-tight text-foreground">Reset Password</h1>
         <p className="mt-1 text-sm font-medium text-muted-foreground">Inspector Field App</p>
@@ -55,7 +56,7 @@ function InvalidLinkState() {
   return (
     <div className="rounded-2xl border border-black/5 bg-white px-5 py-6 shadow-sm">
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10">
-        <i className="mdi mdi-link-variant-off text-2xl text-destructive" aria-hidden="true" />
+        <Link2Off size={24} className="text-destructive" aria-hidden="true" />
       </div>
       <h2 className="text-lg font-bold text-foreground">Link not valid</h2>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -123,7 +124,7 @@ export function ResetPasswordPage() {
       <PageShell>
         <div className="rounded-2xl border border-black/5 bg-white px-5 py-6 shadow-sm">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
-            <i className="mdi mdi-lock-check-outline text-2xl text-success" aria-hidden="true" />
+            <ShieldCheck size={24} className="text-success" aria-hidden="true" />
           </div>
           <h2 className="text-lg font-bold text-foreground">Password updated</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">

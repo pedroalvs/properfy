@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { ClipboardCheck, Loader2 } from 'lucide-react';
 import { loginSchema, UserRole } from '@properfy/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
@@ -89,7 +90,7 @@ export function LoginPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-          <i className="mdi mdi-loading mdi-spin text-2xl text-primary" aria-hidden="true" />
+          <Loader2 size={24} className="animate-spin text-primary" aria-hidden="true" />
         </div>
         <p className="mt-4 text-sm text-muted-foreground">Restoring session...</p>
       </div>
@@ -123,7 +124,7 @@ export function LoginPage() {
       {/* Brand header */}
       <div className="flex flex-col items-center px-6 pt-16 pb-6">
         <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary shadow-lg shadow-primary/25">
-          <i className="mdi mdi-clipboard-check-outline text-[32px] text-white" aria-hidden="true" />
+          <ClipboardCheck size={32} className="text-white" aria-hidden="true" />
         </div>
         <h1 className="mt-5 text-2xl font-bold tracking-tight text-primary">Properfy</h1>
         <p className="mt-1 text-sm font-medium text-muted-foreground">Inspector Field App</p>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { KeyRound, MailCheck } from 'lucide-react';
 import { forgotPasswordSchema, type ForgotPasswordInput } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -56,7 +57,7 @@ export function ForgotPasswordPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <div className="flex flex-col items-center px-6 pt-16 pb-6">
         <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary shadow-lg shadow-primary/25">
-          <i className="mdi mdi-lock-reset text-[32px] text-white" aria-hidden="true" />
+          <KeyRound size={32} className="text-white" aria-hidden="true" />
         </div>
         <h1 className="mt-5 text-2xl font-bold tracking-tight text-foreground">Reset Password</h1>
         <p className="mt-1 text-sm font-medium text-muted-foreground">Inspector Field App</p>
@@ -67,7 +68,7 @@ export function ForgotPasswordPage() {
           {isSuccess ? (
             <div className="rounded-2xl border border-black/5 bg-white px-5 py-6 shadow-sm">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
-                <i className="mdi mdi-email-check-outline text-2xl text-success" aria-hidden="true" />
+                <MailCheck size={24} className="text-success" aria-hidden="true" />
               </div>
               <h2 className="text-lg font-bold text-foreground">Check your email</h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
