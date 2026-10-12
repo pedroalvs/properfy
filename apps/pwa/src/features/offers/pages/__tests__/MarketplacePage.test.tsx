@@ -531,3 +531,71 @@ describe('MarketplacePage — offers pagination', () => {
     expect(screen.getByText(/45 available offers/)).toBeInTheDocument();
   });
 });
+
+describe('MarketplacePage — tablet 2-column layout', () => {
+  const originalMatchMedia = window.matchMedia;
+
+  // Force the wide (tablet) breakpoint so useIsWide() returns true.
+  function setWide(matches: boolean) {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+  }
+
+  beforeEach(() => {
+    mockUseMarketplaceOffers.mockReset();
+    mockUseIsOnline.mockReset();
+    mockUseIsOnline.mockReturnValue(true);
+    mockAccept.mockReset();
+    mockGetState.mockReset();
+    mockGetState.mockReturnValue('IDLE');
+    mockUseOfferDetail.mockReset();
+    mockUseOfferDetail.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    mockShowInfo.mockReset();
+    mockShowError.mockReset();
+    setWide(true);
+  });
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  const offer = {
+    groupId: 'grp-1',
+    tenantName: 'Agency',
+    serviceTypeName: 'Routine Inspection',
+    groupSize: 1,
+    scheduledDate: '2026-03-26',
+    timeWindow: '09:00-11:00',
+    priorityMode: 'STANDARD',
+    priorityExpiresAt: null,
+    suburbs: ['Brunswick'],
+  } as unknown as MarketplaceOffer;
+
+  it('shows the empty-state pane before any offer is selected', () => {
+    mockUseMarketplaceOffers.mockReturnValue(offersHookReturn([offer]));
+    renderWithProviders(<MarketplacePage />);
+    expect(screen.getByText('Select an offer')).toBeInTheDocument();
+    expect(screen.queryByTestId('group-detail-pane')).not.toBeInTheDocument();
+    // The phone bottom-sheet is suppressed on tablet even with nothing selected.
+    expect(screen.queryByTestId('detail-sheet')).not.toBeInTheDocument();
+  });
+
+  it('renders the detail inline in the right pane and suppresses the bottom sheet', async () => {
+    mockUseMarketplaceOffers.mockReturnValue(offersHookReturn([offer]));
+    const user = userEvent.setup();
+    renderWithProviders(<MarketplacePage />);
+
+    await user.click(screen.getByTestId('view-detail'));
+
+    expect(screen.getByTestId('group-detail-pane')).toBeInTheDocument();
+    expect(screen.queryByTestId('detail-sheet')).not.toBeInTheDocument();
+  });
+});

@@ -49,6 +49,18 @@ describe('TopBar', () => {
     expect(screen.getByTestId('back-button')).toBeInTheDocument();
   });
 
+  it('keeps the back button visible at all widths by default', () => {
+    renderWithProviders(<TopBar title="Detail" showBack />);
+    expect(screen.getByTestId('back-button').className).not.toContain('md:hidden');
+  });
+
+  it('hides the back button at the tablet breakpoint when backHideOnWide is set', () => {
+    // In a 2-column pane the master list is always visible, so "back" is redundant on
+    // tablet — but the phone stack still needs it (no md:hidden collapse on phone).
+    renderWithProviders(<TopBar title="Detail" showBack backHideOnWide />);
+    expect(screen.getByTestId('back-button').className).toContain('md:hidden');
+  });
+
   it('navigates back when back button is clicked', async () => {
     const user = userEvent.setup();
     renderWithProviders(<TopBar title="Detail" showBack />);

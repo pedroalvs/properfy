@@ -130,7 +130,7 @@ export function ProfileAccountPage() {
 
   return (
     <div className="w-full pb-20">
-      <TopBar title="Account details" showBack backTo="/profile" />
+      <TopBar title="Account details" showBack backTo="/profile" backHideOnWide />
 
       <div className="flex flex-col gap-3 p-4">
         <ProfileCard

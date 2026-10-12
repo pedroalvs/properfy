@@ -10,6 +10,12 @@ interface TopBarProps {
   showBack?: boolean;
   backTo?: string;
   /**
+   * Hide the back button at the tablet breakpoint (≥md). Set on pages shown inside a
+   * 2-column master-detail pane, where the master list is always visible so "back" is
+   * redundant — selecting another item just swaps the pane. On phone the button stays.
+   */
+  backHideOnWide?: boolean;
+  /**
    * Title scale. `lg` is the v3 primary-tab heading (Schedule/Offers); the default
    * is the smaller sub-page heading (detail/earnings). A prop so only primary tabs
    * opt into the larger title.
@@ -17,7 +23,14 @@ interface TopBarProps {
   size?: 'default' | 'lg';
 }
 
-export function TopBar({ title, subtitle, showBack = false, backTo = '/schedule', size = 'default' }: TopBarProps) {
+export function TopBar({
+  title,
+  subtitle,
+  showBack = false,
+  backTo = '/schedule',
+  backHideOnWide = false,
+  size = 'default',
+}: TopBarProps) {
   const navigate = useNavigate();
   const isOnline = useIsOnline();
   const queuedCount = useQueuedActionCount();
@@ -45,7 +58,10 @@ export function TopBar({ title, subtitle, showBack = false, backTo = '/schedule'
         // page edge while the 44px min target (min-h/min-w-touch) stays intact.
         <button
           onClick={handleBack}
-          className="-ml-2 flex min-h-touch min-w-touch items-center justify-center text-foreground transition-opacity active:opacity-60"
+          className={cn(
+            '-ml-2 flex min-h-touch min-w-touch items-center justify-center text-foreground transition-opacity active:opacity-60',
+            backHideOnWide && 'md:hidden',
+          )}
           aria-label="Go back"
           data-testid="back-button"
         >

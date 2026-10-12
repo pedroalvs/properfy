@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Tag } from 'lucide-react';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { EmptyState } from '@/components/feedback/EmptyState';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { Card } from '@/components/ui/Card';
+import { TwoPaneLayout } from '@/components/shell/TwoPaneLayout';
 import { OfferFeed } from '../components/OfferFeed';
 import { OfflineMarketplaceBanner } from '../components/OfflineMarketplaceBanner';
 import { GroupDetailBottomSheet } from '../components/GroupDetailBottomSheet';
+import { GroupDetailPane } from '../components/GroupDetailPane';
 import { OffersViewToggle } from '../components/OffersViewToggle';
 import { OffersMapView, type ExpandedGroup } from '../components/OffersMapView';
 import { MapGroupActionBar } from '../components/MapGroupActionBar';
@@ -14,6 +18,7 @@ import { useMarketplaceOffers } from '../hooks/useMarketplaceOffers';
 import { useMarketplaceOfferDetail } from '../hooks/useMarketplaceOfferDetail';
 import { useAcceptOffer } from '../hooks/useAcceptOffer';
 import { useIsOnline } from '@/hooks/useIsOnline';
+import { useIsWide } from '@/hooks/useMediaQuery';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 function formatTimeAgo(timestamp: number): string {
@@ -27,6 +32,7 @@ function formatTimeAgo(timestamp: number): string {
 
 export function MarketplacePage() {
   const isOnline = useIsOnline();
+  const isWide = useIsWide();
   const {
     offers,
     data,
@@ -92,6 +98,20 @@ export function MarketplacePage() {
     setView(nextView);
   };
 
+  // Shared detail acceptance, used by both the phone bottom-sheet and the tablet pane.
+  const closeDetail = () => setDetailGroupId(null);
+  const detailAccepting = detailGroupId ? getState(detailGroupId) === 'ACCEPTING' : false;
+  const acceptDetail = detailGroupId
+    ? async () => {
+        const outcome = await accept(detailGroupId);
+        // Keep the detail open on retryable failure so the user can try again.
+        if (outcome !== 'ERROR') {
+          setDetailGroupId(null);
+          setExpandedGroupId(null);
+        }
+      }
+    : undefined;
+
   // Infinite scroll (list view): fetch the next page when the sentinel enters
   // the viewport — same pattern as the Schedule History tab.
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -112,8 +132,8 @@ export function MarketplacePage() {
     void fetchNextPage();
   }, [view, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  return (
-    <div className="w-full" data-testid="marketplace-page">
+  const master = (
+    <div className="w-full">
       <TopBar title="Offers" size="lg" />
 
       <div className="px-page-x py-4">
@@ -196,22 +216,42 @@ export function MarketplacePage() {
         </PullToRefresh>
       )}
 
-      <GroupDetailBottomSheet
-        groupId={detailGroupId}
-        onClose={() => setDetailGroupId(null)}
-        accepting={detailGroupId ? getState(detailGroupId) === 'ACCEPTING' : false}
-        onAccept={
-          detailGroupId
-            ? async () => {
-                const outcome = await accept(detailGroupId);
-                // Keep the sheet open on retryable failure so the user can try again
-                if (outcome !== 'ERROR') {
-                  setDetailGroupId(null);
-                  setExpandedGroupId(null);
-                }
-              }
-            : undefined
+    </div>
+  );
+
+  return (
+    <div data-testid="marketplace-page">
+      <TwoPaneLayout
+        variant="canvas"
+        detailMode="overlay"
+        hasSelection={detailGroupId !== null}
+        master={master}
+        detail={
+          isWide && detailGroupId ? (
+            <GroupDetailPane
+              groupId={detailGroupId}
+              onClose={closeDetail}
+              accepting={detailAccepting}
+              onAccept={acceptDetail}
+            />
+          ) : null
         }
+        emptyState={
+          <EmptyState
+            icon={Tag}
+            title="Select an offer"
+            description="Pick an offer to review its inspections and payout."
+          />
+        }
+      />
+
+      {/* Phone presents the detail as a bottom-sheet overlay; on tablet the inline pane above
+          replaces it, so the sheet is suppressed there (gated groupId keeps it closed). */}
+      <GroupDetailBottomSheet
+        groupId={isWide ? null : detailGroupId}
+        onClose={closeDetail}
+        accepting={detailAccepting}
+        onAccept={acceptDetail}
       />
     </div>
   );
