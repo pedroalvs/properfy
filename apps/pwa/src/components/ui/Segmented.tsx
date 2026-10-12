@@ -27,7 +27,7 @@ export function Segmented<T extends string>({
   'aria-label': ariaLabel,
 }: SegmentedProps<T>) {
   return (
-    <div className={cn('flex rounded-btn bg-muted p-1', className)} role="tablist" aria-label={ariaLabel}>
+    <div className={cn('flex gap-1 rounded-[12px] bg-muted p-[5px]', className)} role="tablist" aria-label={ariaLabel}>
       {options.map((option) => {
         const isActive = value === option.id;
         return (
@@ -38,7 +38,7 @@ export function Segmented<T extends string>({
             aria-selected={isActive}
             onClick={() => onChange(option.id)}
             className={cn(
-              'flex-1 rounded-btn py-1.5 text-sm font-semibold transition-colors',
+              'flex h-10 flex-1 items-center justify-center rounded-[9px] text-sm font-bold transition-colors',
               isActive
                 ? 'bg-card text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',

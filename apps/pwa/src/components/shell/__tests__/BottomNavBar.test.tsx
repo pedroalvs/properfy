@@ -54,6 +54,15 @@ describe('BottomNavBar', () => {
     expect(screen.getByText('Profile')).toBeInTheDocument();
   });
 
+  it('uses the .pf-nav inner padding (6px sides, 9px top; bottom from pb-safe-b)', () => {
+    renderWithProviders(<BottomNavBar />);
+    const row = screen.getByTestId('nav-schedule').parentElement!;
+    expect(row.className).toContain('px-[6px]');
+    expect(row.className).toContain('pt-[9px]');
+    // The 22px artboard bottom padding is replaced by the safe-area inset on the nav.
+    expect(row.className).not.toContain('py-2');
+  });
+
   it('reserves the iOS home-indicator inset below the tabs', () => {
     // Measured on a 393x852 iPhone viewport: without this padding the tab labels sit
     // 8-32px from the screen edge, entirely inside the ~34px home-indicator strip, and

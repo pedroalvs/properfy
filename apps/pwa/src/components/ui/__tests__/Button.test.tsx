@@ -37,9 +37,44 @@ describe('Button', () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it('keeps a 44px touch target', () => {
+  it('is 54px tall (.pf-btn) while keeping the 44px touch-target floor', () => {
     render(<Button>Touch</Button>);
-    expect(screen.getByRole('button').className).toContain('min-h-touch');
+    const button = screen.getByRole('button');
+    expect(button.className).toContain('h-[54px]');
+    expect(button.className).toContain('min-h-touch');
+  });
+
+  it('uses the 700 weight and 15.5px label of .pf-btn', () => {
+    render(<Button>Label</Button>);
+    const button = screen.getByRole('button');
+    expect(button.className).toContain('font-bold');
+    expect(button.className).toContain('text-[15.5px]');
+  });
+
+  it('keeps the icon variant a 44px circular target (no 54px height)', () => {
+    render(<Button variant="icon" aria-label="Refresh">x</Button>);
+    const button = screen.getByRole('button');
+    expect(button.className).toContain('min-h-touch');
+    expect(button.className).toContain('min-w-touch');
+    expect(button.className).not.toContain('h-[54px]');
+  });
+
+  it('gives success/danger the 12px artboard radius while blue/outline keep rounded-btn (14)', () => {
+    const { unmount } = render(<Button variant="success">Confirm</Button>);
+    expect(screen.getByRole('button').className).toContain('rounded-[12px]');
+    unmount();
+    const danger = render(<Button variant="danger">Delete</Button>);
+    expect(screen.getByRole('button').className).toContain('rounded-[12px]');
+    danger.unmount();
+    render(<Button variant="primary">Save</Button>);
+    const primary = screen.getByRole('button');
+    expect(primary.className).toContain('rounded-btn');
+    expect(primary.className).not.toContain('rounded-[12px]');
+  });
+
+  it('sets touch-action: manipulation to drop double-tap zoom without blocking pinch', () => {
+    render(<Button>Tap</Button>);
+    expect(screen.getByRole('button').className).toContain('touch-manipulation');
   });
 
   it('merges a caller className over the variant classes', () => {

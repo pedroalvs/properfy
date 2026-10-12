@@ -60,7 +60,7 @@ export function MenuRow({
   );
 
   const classes = cn(
-    'flex min-h-touch w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+    'flex min-h-touch w-full touch-manipulation items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
     className,
   );
 

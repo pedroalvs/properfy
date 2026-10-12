@@ -69,7 +69,7 @@ export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentC
             ref={isSelected ? selectedRef : isToday ? todayRef : undefined}
             onClick={() => onDaySelect(dateStr)}
             className={cn(
-              'relative flex min-h-touch min-w-[60px] flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-card border px-2 py-1.5 transition-colors',
+              'relative flex min-h-touch min-w-[60px] flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-[12px] border px-2 py-1.5 transition-colors',
               isSelected
                 ? 'border-primary bg-primary text-primary-foreground'
                 : isToday
@@ -88,7 +88,7 @@ export function DaySelectorStrip({ days, selectedDate, onDaySelect, appointmentC
               {label}
             </span>
             <span
-              className="text-lg font-bold leading-none"
+              className="text-lg font-extrabold leading-none"
               data-testid={showCount ? `day-count-${dateStr}` : undefined}
               aria-hidden={countsProvided || undefined}
             >

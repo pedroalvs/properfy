@@ -25,6 +25,18 @@ describe('MenuRow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
     expect(onClick).toHaveBeenCalledOnce();
   });
+
+  it('sets touch-action: manipulation on the tap target (both link and button)', () => {
+    const { unmount } = render(
+      <MemoryRouter>
+        <MenuRow icon={<Home />} label="Earnings" to="/earnings" data-testid="row-link" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId('row-link').className).toContain('touch-manipulation');
+    unmount();
+    render(<MenuRow icon={<Home />} label="Log out" onClick={() => {}} data-testid="row-btn" />);
+    expect(screen.getByTestId('row-btn').className).toContain('touch-manipulation');
+  });
 });
 
 describe('PasswordInput', () => {

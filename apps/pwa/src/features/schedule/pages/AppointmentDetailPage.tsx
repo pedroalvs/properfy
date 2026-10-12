@@ -79,16 +79,16 @@ export function AppointmentDetailPage() {
 
         {/* Header: date, time, status */}
         <Card className="bg-muted">
-          <div className="flex items-start justify-between gap-3">
-            <div>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
               <p
                 className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
                 data-testid="appointment-code"
               >
                 {apt.appointmentCode}
               </p>
-              <div className="flex items-center gap-2">
-                <p className="text-lg font-bold text-foreground">{apt.serviceTypeName}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="min-w-0 break-words text-lg font-bold text-foreground">{apt.serviceTypeName}</p>
                 <span
                   className={cn(
                     'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold',
@@ -99,7 +99,7 @@ export function AppointmentDetailPage() {
                 </span>
               </div>
               {apt.agencyName && (
-                <p className="mt-0.5 text-xs text-muted-foreground">{apt.agencyName}</p>
+                <p className="mt-0.5 break-words text-xs text-muted-foreground">{apt.agencyName}</p>
               )}
               <p className="mt-2 text-sm font-semibold text-foreground">
                 {formatScheduleDate(apt.scheduledDate)}
@@ -108,7 +108,9 @@ export function AppointmentDetailPage() {
                 {formatTimeWindow(apt.timeSlotStart, apt.timeSlotEnd)}
               </p>
             </div>
-            <StatusChip status={apt.status} />
+            <span className="shrink-0">
+              <StatusChip status={apt.status} />
+            </span>
           </div>
         </Card>
 

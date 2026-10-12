@@ -64,7 +64,7 @@ export function DateField({
         inputMode="numeric"
         autoComplete="off"
         className={cn(
-          'h-11 w-full rounded-btn border border-input bg-card px-3 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'h-11 w-full rounded-btn border border-input bg-card px-3 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           className,
         )}
         placeholder={DATE_PLACEHOLDER}

@@ -82,6 +82,21 @@ describe('TopBar', () => {
     expect(screen.getByText('Offline')).toBeInTheDocument();
   });
 
+  it('renders the lg primary-tab title at the .pf-h1 scale (27px / -0.4px tracking)', () => {
+    renderWithProviders(<TopBar title="Schedule" size="lg" />);
+    const title = screen.getByText('Schedule');
+    expect(title.className).toContain('text-[27px]');
+    expect(title.className).toContain('tracking-[-0.4px]');
+    expect(title.className).toContain('font-extrabold');
+  });
+
+  it('keeps the sub-page title at the smaller .pf-h2 scale (text-xl)', () => {
+    renderWithProviders(<TopBar title="Inspection" />);
+    const title = screen.getByText('Inspection');
+    expect(title.className).toContain('text-xl');
+    expect(title.className).not.toContain('text-[27px]');
+  });
+
   it('does not show subtitle when not provided', () => {
     renderWithProviders(<TopBar title="Schedule" />);
     expect(screen.queryByTestId('topbar-subtitle')).not.toBeInTheDocument();

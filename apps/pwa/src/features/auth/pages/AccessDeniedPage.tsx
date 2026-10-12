@@ -13,7 +13,7 @@ export function AccessDeniedPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-page-x">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-page-x">
       <div className="w-full max-w-sm text-center">
         <ShieldX size={64} className="text-warning" aria-hidden="true" />
         <h1 className="mt-4 text-xl font-bold text-foreground">Access Denied</h1>

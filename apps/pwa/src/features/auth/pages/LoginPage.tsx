@@ -88,7 +88,7 @@ export function LoginPage() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6">
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-background px-6">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
           <Loader2 size={24} className="animate-spin text-primary" aria-hidden="true" />
         </div>
@@ -120,7 +120,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-[100dvh] flex-col bg-background">
       {/* Brand header */}
       <div className="flex flex-col items-center px-6 pt-16 pb-6">
         <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary shadow-lg shadow-primary/25">
@@ -248,7 +248,7 @@ export function LoginPage() {
           <div className="mt-6 text-center">
             <Link
               to="/forgot-password"
-              className="text-sm font-semibold text-primary transition hover:underline"
+              className="inline-flex min-h-touch items-center justify-center px-3 text-sm font-semibold text-primary transition hover:underline"
             >
               Forgot password?
             </Link>

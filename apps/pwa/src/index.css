@@ -38,4 +38,19 @@
   button {
     font-family: inherit;
   }
+
+  /* Eliminate accidental double-tap-to-zoom on interactive controls WITHOUT
+     disabling deliberate pinch-zoom (WCAG 1.4.4 / 1.4.10). `manipulation` keeps
+     panning + pinch and only drops the legacy double-tap gesture. Applied once,
+     globally, at the DS level rather than screen-by-screen. */
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  label,
+  [role='button'],
+  [role='tab'] {
+    touch-action: manipulation;
+  }
 }

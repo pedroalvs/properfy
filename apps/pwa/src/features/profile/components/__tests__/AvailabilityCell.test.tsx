@@ -45,4 +45,14 @@ describe('AvailabilityCell', () => {
     const cell = screen.getByRole('button', { name: 'PM' });
     expect(cell).toHaveAttribute('aria-pressed', 'true');
   });
+
+  it('gives the interactive toggle a 44px touch target', () => {
+    render(<AvailabilityCell active={false} override={false} label="AM" onToggle={() => {}} />);
+    expect(screen.getByRole('button', { name: 'AM' }).className).toContain('min-h-touch');
+  });
+
+  it('keeps the display-only variant compact (no forced touch target)', () => {
+    render(<AvailabilityCell active={true} override={false} label="AM" />);
+    expect(screen.getByTestId('availability-cell').className).not.toContain('min-h-touch');
+  });
 });
