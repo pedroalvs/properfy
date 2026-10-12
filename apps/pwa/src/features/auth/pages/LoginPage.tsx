@@ -248,7 +248,7 @@ export function LoginPage() {
           <div className="mt-6 text-center">
             <Link
               to="/forgot-password"
-              className="text-sm font-semibold text-primary transition hover:underline"
+              className="inline-flex min-h-touch items-center justify-center px-3 text-sm font-semibold text-primary transition hover:underline"
             >
               Forgot password?
             </Link>
