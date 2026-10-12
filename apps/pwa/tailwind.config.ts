@@ -61,13 +61,12 @@ const config: Config = {
       },
       /**
        * Tailwind's default scale is 0,5,…,100, and `asColor()` drops any utility whose
-       * alpha is off it — *before* it even looks at the colour. On literal colours
-       * (the six `bg-white/92` profile cards, which rendered as bare outlines) that scale
-       * is the only thing between the class and a working rule, so the token helper above
-       * cannot save them.
-       * These are the off-default steps this app's source actually uses;
+       * alpha is off it — *before* it even looks at the colour. Extending the scale is the
+       * only thing between an off-default `/N` utility and a working rule (#1041).
+       * The source currently uses the `/4` and `/8` steps (e.g. `bg-primary/4` and the
+       * `bg-success/8` tint banners); the rest are retained, harmless off-default values.
        * `src/__tests__/opacity-scale.test.ts` fails if a new off-scale alpha appears in
-       * the source.
+       * the source without being added here.
        */
       opacity: {
         4: '0.04',
