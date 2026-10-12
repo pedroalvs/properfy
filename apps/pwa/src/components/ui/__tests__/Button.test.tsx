@@ -37,9 +37,31 @@ describe('Button', () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it('keeps a 44px touch target', () => {
+  it('is 54px tall (.pf-btn) while keeping the 44px touch-target floor', () => {
     render(<Button>Touch</Button>);
-    expect(screen.getByRole('button').className).toContain('min-h-touch');
+    const button = screen.getByRole('button');
+    expect(button.className).toContain('h-[54px]');
+    expect(button.className).toContain('min-h-touch');
+  });
+
+  it('uses the 700 weight and 15.5px label of .pf-btn', () => {
+    render(<Button>Label</Button>);
+    const button = screen.getByRole('button');
+    expect(button.className).toContain('font-bold');
+    expect(button.className).toContain('text-[15.5px]');
+  });
+
+  it('keeps the icon variant a 44px circular target (no 54px height)', () => {
+    render(<Button variant="icon" aria-label="Refresh">x</Button>);
+    const button = screen.getByRole('button');
+    expect(button.className).toContain('min-h-touch');
+    expect(button.className).toContain('min-w-touch');
+    expect(button.className).not.toContain('h-[54px]');
+  });
+
+  it('sets touch-action: manipulation to drop double-tap zoom without blocking pinch', () => {
+    render(<Button>Tap</Button>);
+    expect(screen.getByRole('button').className).toContain('touch-manipulation');
   });
 
   it('merges a caller className over the variant classes', () => {

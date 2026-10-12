@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   override render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-background px-page-x text-center">
+        <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-background px-page-x text-center">
           <OctagonAlert size={64} className="text-destructive" aria-hidden="true" />
           <h1 className="mt-4 text-page-title-mobile text-foreground">Something went wrong</h1>
           <p className="mt-2 text-sm text-muted-foreground">

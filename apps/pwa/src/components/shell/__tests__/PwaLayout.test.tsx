@@ -50,4 +50,19 @@ describe('PwaLayout', () => {
     );
     expect(screen.getByTestId('pwa-layout')).toBeInTheDocument();
   });
+
+  it('sizes the frame with 100dvh so mobile browser chrome does not push content', () => {
+    // `min-h-screen` (100vh) is the LARGEST viewport (address bar hidden); dvh tracks
+    // the visible height so the layout does not jump when the bar collapses.
+    renderWithProviders(
+      <Routes>
+        <Route element={<PwaLayout />}>
+          <Route index element={<div>Child</div>} />
+        </Route>
+      </Routes>,
+    );
+    const wrapper = screen.getByTestId('pwa-layout');
+    expect(wrapper.className).toContain('min-h-[100dvh]');
+    expect(wrapper.className).not.toContain('min-h-screen');
+  });
 });

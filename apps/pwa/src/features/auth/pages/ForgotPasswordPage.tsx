@@ -54,7 +54,7 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-[100dvh] flex-col bg-background">
       <div className="flex flex-col items-center px-6 pt-16 pb-6">
         <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary shadow-lg shadow-primary/25">
           <KeyRound size={32} className="text-white" aria-hidden="true" />

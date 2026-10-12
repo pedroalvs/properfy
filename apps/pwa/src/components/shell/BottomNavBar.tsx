@@ -30,7 +30,7 @@ export function BottomNavBar() {
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  'flex min-h-touch min-w-touch flex-col items-center justify-center gap-0.5 px-2 text-[11px] font-semibold transition-colors',
+                  'flex min-h-touch min-w-touch touch-manipulation flex-col items-center justify-center gap-0.5 px-2 text-[11px] font-semibold transition-colors',
                   isActive ? 'text-primary' : 'text-faint',
                 )
               }

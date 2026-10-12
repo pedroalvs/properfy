@@ -28,6 +28,9 @@ describe('TimezonePicker', () => {
     expect(screen.getByTestId('timezone-picker-overlay')).toBeInTheDocument();
     expect(screen.getByLabelText('Search timezones')).toBeInTheDocument();
 
+    // A2: the search field must be ≥16px so iOS does not auto-zoom on focus.
+    expect(screen.getByLabelText('Search timezones').className).toContain('text-base');
+
     await user.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByTestId('timezone-picker-overlay')).not.toBeInTheDocument();
     expect(onChange).not.toHaveBeenCalled();

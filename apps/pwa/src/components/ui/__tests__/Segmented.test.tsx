@@ -31,4 +31,13 @@ describe('Segmented', () => {
     render(<Segmented value="list" options={OPTIONS} onChange={() => {}} className="mx-4" />);
     expect(screen.getByRole('tablist').className).toContain('mx-4');
   });
+
+  it('matches the .pf-seg geometry: 12px container, 9px/40px/700 tabs', () => {
+    render(<Segmented value="list" options={OPTIONS} onChange={() => {}} />);
+    expect(screen.getByRole('tablist').className).toContain('rounded-[12px]');
+    const tab = screen.getByRole('tab', { name: 'List' });
+    expect(tab.className).toContain('rounded-[9px]');
+    expect(tab.className).toContain('h-10');
+    expect(tab.className).toContain('font-bold');
+  });
 });

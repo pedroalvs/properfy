@@ -7,7 +7,7 @@ import { cn, cva, type VariantProps } from '@properfy/frontend-standards';
  * colours themselves live in the design tokens, never inline.
  */
 const badgeVariants = cva(
-  'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-[11px] h-[26px] text-[12.5px] font-bold',
+  'inline-flex items-center gap-[5px] whitespace-nowrap rounded-full px-[11px] h-[26px] text-[12.5px] font-bold',
   {
     variants: {
       tone: {

@@ -55,8 +55,10 @@ export function TopBar({ title, subtitle, showBack = false, backTo = '/schedule'
       <div className="flex-1 min-w-0">
         <h1
           className={cn(
-            'truncate font-extrabold tracking-tight text-foreground',
-            size === 'lg' ? 'text-2xl' : 'text-xl',
+            'truncate font-extrabold text-foreground',
+            // `.pf-h1`: 27px / 800 / -0.4px tracking for the primary-tab heading;
+            // sub-pages keep the 20px `.pf-h2` scale with the default tight tracking.
+            size === 'lg' ? 'text-[27px] tracking-[-0.4px]' : 'text-xl tracking-tight',
           )}
         >
           {title}
