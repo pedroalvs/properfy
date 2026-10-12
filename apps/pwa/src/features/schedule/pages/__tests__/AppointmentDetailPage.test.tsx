@@ -112,6 +112,16 @@ describe('AppointmentDetailPage', () => {
     expect(screen.getByTestId('appointment-code')).toHaveTextContent('INS-0099');
   });
 
+  it('lets the header reflow so it cannot overflow horizontally (280px / 200% zoom)', () => {
+    renderPage();
+    // Left text block can shrink below its content width (min-w-0) instead of
+    // forcing the row wider than the viewport.
+    const leftBlock = screen.getByTestId('appointment-code').parentElement!;
+    expect(leftBlock.className).toContain('min-w-0');
+    // The row wraps, so the shrink-0 StatusChip drops below when space is tight.
+    expect(leftBlock.parentElement!.className).toContain('flex-wrap');
+  });
+
   it('shows start CTA for scheduled appointments with no local progress', () => {
     renderPage();
     expect(screen.getByTestId('start-inspection-cta')).toHaveTextContent('Start Inspection');

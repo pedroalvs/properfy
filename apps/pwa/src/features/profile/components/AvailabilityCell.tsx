@@ -1,3 +1,5 @@
+import { cn } from '@properfy/frontend-standards';
+
 interface AvailabilityCellProps {
   active: boolean;
   override: boolean;
@@ -28,7 +30,9 @@ export function AvailabilityCell({ active, override, label, onToggle }: Availabi
         data-state={state}
         aria-pressed={active}
         onClick={onToggle}
-        className={className}
+        // Interactive toggle gets the 44px a11y tap target; the display-only
+        // variant below stays compact since it is not a touch affordance.
+        className={cn(className, 'min-h-touch')}
       >
         {label}
       </button>

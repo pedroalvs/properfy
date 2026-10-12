@@ -19,4 +19,9 @@ describe('Badge', () => {
     render(<Badge>Neutral</Badge>);
     expect(screen.getByText('Neutral').className).toContain('bg-pill-gray');
   });
+
+  it('uses the 5px artboard gap (.pf-chip)', () => {
+    render(<Badge tone="green">Confirmed</Badge>);
+    expect(screen.getByText('Confirmed').className).toContain('gap-[5px]');
+  });
 });

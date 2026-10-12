@@ -21,7 +21,7 @@ export function BottomNavBar() {
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card pb-safe-b"
       data-testid="bottom-nav"
     >
-      <div className="mx-auto grid w-full max-w-screen-sm grid-cols-4 gap-1 px-3 py-2">
+      <div className="mx-auto grid w-full max-w-screen-sm grid-cols-4 gap-1 px-[6px] pt-[9px]">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -30,7 +30,7 @@ export function BottomNavBar() {
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  'flex min-h-touch min-w-touch flex-col items-center justify-center gap-0.5 px-2 text-[11px] font-semibold transition-colors',
+                  'flex min-h-touch min-w-touch touch-manipulation flex-col items-center justify-center gap-0.5 px-2 text-[11px] font-semibold transition-colors',
                   isActive ? 'text-primary' : 'text-faint',
                 )
               }

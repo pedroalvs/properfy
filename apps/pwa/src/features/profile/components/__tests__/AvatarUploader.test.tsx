@@ -38,6 +38,13 @@ describe('AvatarUploader', () => {
     expect(screen.getByRole('button', { name: /change profile photo/i })).toBeInTheDocument();
   });
 
+  it('gives the change-photo button a 44px touch target', () => {
+    renderWithProviders(<AvatarUploader inspectorId={INSPECTOR_ID} onUploaded={vi.fn()} />);
+    const button = screen.getByRole('button', { name: /change profile photo/i });
+    expect(button.className).toContain('min-h-touch');
+    expect(button.className).toContain('min-w-touch');
+  });
+
   it('shows error for unsupported MIME type', async () => {
     renderWithProviders(<AvatarUploader inspectorId={INSPECTOR_ID} onUploaded={vi.fn()} />);
 

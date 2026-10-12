@@ -87,6 +87,20 @@ describe('DaySelectorStrip', () => {
     expect(screen.queryByTestId('day-count-2026-03-18')).not.toBeInTheDocument();
   });
 
+  it('uses the 12px cell radius and an extrabold count number (.pf-day)', () => {
+    const counts = { '2026-03-18': 3 };
+    renderWithProviders(
+      <DaySelectorStrip
+        days={days}
+        selectedDate={days[0]!}
+        onDaySelect={onDaySelect}
+        appointmentCounts={counts}
+      />,
+    );
+    expect(screen.getByTestId('day-chip-2026-03-18').className).toContain('rounded-[12px]');
+    expect(screen.getByTestId('day-count-2026-03-18').className).toContain('font-extrabold');
+  });
+
   it('shows urgent indicator on days with urgent appointments', () => {
     const urgentDays = new Set(['2026-03-18', '2026-03-20']);
     renderWithProviders(
