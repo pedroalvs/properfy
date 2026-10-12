@@ -20,9 +20,11 @@ const buttonVariants = cva(
         primary: 'h-[54px] bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80',
         secondary: 'h-[54px] border border-border bg-muted text-foreground hover:bg-muted/80',
         outlined: 'h-[54px] border border-primary bg-card text-primary hover:bg-primary/10',
-        success: 'h-[54px] bg-success text-success-foreground hover:bg-success/90 active:bg-success/80',
+        // Artboard `.pf-btn--green`/`.pf-btn--red` use a 12px radius; the green/red
+        // variants override the base 14px (`rounded-btn`) while blue/outline keep 14.
+        success: 'h-[54px] rounded-[12px] bg-success text-success-foreground hover:bg-success/90 active:bg-success/80',
         danger:
-          'h-[54px] bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80',
+          'h-[54px] rounded-[12px] bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80',
         delete: 'rounded-full px-0 min-w-touch bg-transparent text-destructive hover:bg-destructive/10',
         icon: 'rounded-full px-0 min-w-touch bg-transparent text-muted-foreground hover:bg-foreground/5',
       },

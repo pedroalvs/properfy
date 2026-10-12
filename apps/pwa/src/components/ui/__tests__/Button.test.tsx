@@ -59,6 +59,19 @@ describe('Button', () => {
     expect(button.className).not.toContain('h-[54px]');
   });
 
+  it('gives success/danger the 12px artboard radius while blue/outline keep rounded-btn (14)', () => {
+    const { unmount } = render(<Button variant="success">Confirm</Button>);
+    expect(screen.getByRole('button').className).toContain('rounded-[12px]');
+    unmount();
+    const danger = render(<Button variant="danger">Delete</Button>);
+    expect(screen.getByRole('button').className).toContain('rounded-[12px]');
+    danger.unmount();
+    render(<Button variant="primary">Save</Button>);
+    const primary = screen.getByRole('button');
+    expect(primary.className).toContain('rounded-btn');
+    expect(primary.className).not.toContain('rounded-[12px]');
+  });
+
   it('sets touch-action: manipulation to drop double-tap zoom without blocking pinch', () => {
     render(<Button>Tap</Button>);
     expect(screen.getByRole('button').className).toContain('touch-manipulation');

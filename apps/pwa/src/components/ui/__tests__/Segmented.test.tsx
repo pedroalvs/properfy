@@ -32,9 +32,12 @@ describe('Segmented', () => {
     expect(screen.getByRole('tablist').className).toContain('mx-4');
   });
 
-  it('matches the .pf-seg geometry: 12px container, 9px/40px/700 tabs', () => {
+  it('matches the .pf-seg geometry: 12px container, 5px padding, 4px gap, 9px/40px/700 tabs', () => {
     render(<Segmented value="list" options={OPTIONS} onChange={() => {}} />);
-    expect(screen.getByRole('tablist').className).toContain('rounded-[12px]');
+    const tablist = screen.getByRole('tablist');
+    expect(tablist.className).toContain('rounded-[12px]');
+    expect(tablist.className).toContain('p-[5px]');
+    expect(tablist.className).toContain('gap-1');
     const tab = screen.getByRole('tab', { name: 'List' });
     expect(tab.className).toContain('rounded-[9px]');
     expect(tab.className).toContain('h-10');

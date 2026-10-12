@@ -52,16 +52,18 @@ describe('bottom-nav clearance contract', () => {
 
   it('nav-clear base is at least the rendered bar height', () => {
     // Bar height budget, excluding the safe-area inset (both sides add that separately):
-    //   NavLink min-h-touch + the grid container's py-2 (top + bottom) + the top border.
+    //   NavLink min-h-touch + the grid container's top padding (pt-[9px]) + the top border.
+    // The .pf-nav bottom padding is the safe-area inset (pb-safe-b on the nav), counted
+    // separately by nav-clear, so it is NOT part of this non-inset budget.
     // Assert the bar still uses each of these so the constants below stay honest.
     expect(navSource).toContain('min-h-touch');
-    expect(navSource).toContain('py-2');
+    expect(navSource).toContain('pt-[9px]');
     expect(navSource).toContain('border-t');
 
     const navLinkMinHeight = lengthToPx(minHeight.touch ?? '44px');
-    const containerVerticalPadding = 2 * 8; // py-2 → 0.5rem top + 0.5rem bottom
+    const containerTopPadding = 9; // pt-[9px] → .pf-nav top padding
     const topBorder = 1; // border-t
-    const barHeight = navLinkMinHeight + containerVerticalPadding + topBorder;
+    const barHeight = navLinkMinHeight + containerTopPadding + topBorder;
 
     const navClear = spacing['nav-clear'] ?? '';
     const base = navClear.match(/calc\(\s*([\d.]+\s*rem)/)?.[1];
