@@ -10,8 +10,9 @@ import { isPlottablePoint } from '@/lib/map-bounds';
 
 // Design token, resolved by the browser: every usage below is an inline CSS
 // style string on a DOM marker element (never a Mapbox GL paint property), so
-// `var(--color-primary)` cascades from :root exactly like a hardcoded hex would.
-export const PRIMARY_COLOR = 'var(--color-primary)';
+// `hsl(var(--primary))` cascades from :root exactly like a hardcoded hex would.
+// `--primary` holds HSL channels, so it must be wrapped in `hsl(...)` here.
+export const PRIMARY_COLOR = 'hsl(var(--primary))';
 
 /**
  * Outer size of a pin. `box-sizing: border-box` (Tailwind preflight) means the

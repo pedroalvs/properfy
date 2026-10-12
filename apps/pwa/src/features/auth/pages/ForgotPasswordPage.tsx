@@ -58,7 +58,7 @@ export function ForgotPasswordPage() {
         <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary shadow-lg shadow-primary/25">
           <i className="mdi mdi-lock-reset text-[32px] text-white" aria-hidden="true" />
         </div>
-        <h1 className="mt-5 text-2xl font-bold tracking-tight text-secondary">Reset Password</h1>
+        <h1 className="mt-5 text-2xl font-bold tracking-tight text-foreground">Reset Password</h1>
         <p className="mt-1 text-sm font-medium text-muted-foreground">Inspector Field App</p>
       </div>
 
@@ -69,7 +69,7 @@ export function ForgotPasswordPage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
                 <i className="mdi mdi-email-check-outline text-2xl text-success" aria-hidden="true" />
               </div>
-              <h2 className="text-lg font-bold text-secondary">Check your email</h2>
+              <h2 className="text-lg font-bold text-foreground">Check your email</h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 If an account exists for{' '}
                 <span className="font-semibold text-foreground">{submittedEmail}</span>, you will

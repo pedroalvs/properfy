@@ -18,6 +18,10 @@ report() {
   printf '%s\n' "$2" | sed 's/^/    /'
 }
 
+# Drop test files from a grep result (BSD-grep-safe — no --exclude-dir). Test files
+# reference retired/banned patterns deliberately as negative assertions.
+drop_tests() { grep -vE '(/__tests__/|\.test\.(ts|tsx):)'; }
+
 # 1. No `*Screen.tsx` component/page/test files — pages are `*Page.tsx`.
 screens=$(find "$SRC" -name '*Screen*.tsx' 2>/dev/null)
 if [ -n "$screens" ]; then
@@ -36,16 +40,16 @@ if [ -n "$tmpl" ]; then
   report "Found template-literal className (compose with cn()):" "$tmpl"
 fi
 
-# 4. No deleted/retired design tokens (orphans dropped in the PR 5 sweep, and the legacy
-#    brand classes migrated to shadcn tokens). These must not come back.
-RETIRED='shimmer-from|shimmer-via|shimmer-to|border-subtle|border-light|hover-row|text-inactive|snackbar-error|btn-secondary-bg|btn-secondary-hover|btn-secondary-active|card-bg|text-disabled|disabled-bg|disabled-text|status-scheduled-text|status-done-text|status-awaiting-text|type-residential|type-commercial|type-industrial|type-rural|text-text-primary|text-text-secondary|text-text-muted|bg-app-bg|bg-info|bg-error|text-error|border-error|(bg|text|ring|shadow|border|from|via|to|fill|stroke)-(real-estate|realty)'
-tokens=$(grep -rnE "$RETIRED" "$SRC" --include='*.tsx' --include='*.ts' --include='*.css' 2>/dev/null)
+# 4. No deleted/retired design tokens (orphans dropped in the PR 5 sweep, the legacy
+#    brand classes migrated to shadcn tokens in PR 5, and the whole `--color-*`
+#    cyan/pastel layer removed in PR B). These must not come back.
+#    `var\(--color-` catches any reuse of a legacy domain token; `--color-[a-z]`
+#    catches a redefinition in tokens.css.
+RETIRED='shimmer-from|shimmer-via|shimmer-to|border-subtle|border-light|hover-row|text-inactive|snackbar-error|btn-secondary-bg|btn-secondary-hover|btn-secondary-active|card-bg|text-disabled|disabled-bg|disabled-text|status-scheduled-text|status-done-text|status-awaiting-text|type-residential|type-commercial|type-industrial|type-rural|text-text-primary|text-text-secondary|text-text-muted|bg-app-bg|bg-info|bg-error|text-error|border-error|(bg|text|ring|shadow|border|from|via|to|fill|stroke)-(real-estate|realty)|var\(--color-|--color-[a-z]'
+tokens=$(grep -rnE "$RETIRED" "$SRC" --include='*.tsx' --include='*.ts' --include='*.css' 2>/dev/null | drop_tests)
 if [ -n "$tokens" ]; then
   report "Found retired design token(s)/legacy class(es):" "$tokens"
 fi
-
-# Helper: drop test files from a grep result (BSD-grep-safe — no --exclude-dir).
-drop_tests() { grep -vE '(/__tests__/|\.test\.(ts|tsx):)'; }
 
 # 5. No raw Tailwind palette colour class (defence-in-depth alongside the ESLint
 #    no-restricted-syntax rule; this grep also catches palette strings in object maps

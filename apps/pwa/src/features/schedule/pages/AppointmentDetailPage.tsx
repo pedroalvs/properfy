@@ -18,7 +18,8 @@ import { StartInspectionButton } from '../components/StartInspectionButton';
 import { useInspectorAppointment } from '../hooks/useInspectorAppointment';
 import { useLocalExecutionState } from '@/features/execution/hooks/useLocalExecutionState';
 import { getErrorMessage } from '@/lib/api-error';
-import { FLOW_TYPE_MAP } from '@/lib/status-colors';
+import { cn } from '@properfy/frontend-standards';
+import { FLOW_TYPE_MAP, PILL_TONE_CLASS } from '@/lib/status-colors';
 import { formatScheduleDate, formatTimeWindow } from '../lib/time-slot';
 
 export function AppointmentDetailPage() {
@@ -89,8 +90,10 @@ export function AppointmentDetailPage() {
               <div className="flex items-center gap-2">
                 <p className="text-lg font-bold text-foreground">{apt.serviceTypeName}</p>
                 <span
-                  className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
-                  style={{ backgroundColor: flowStyle.bg, color: flowStyle.text }}
+                  className={cn(
+                    'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold',
+                    PILL_TONE_CLASS[flowStyle.tone],
+                  )}
                 >
                   {flowStyle.label}
                 </span>

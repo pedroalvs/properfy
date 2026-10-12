@@ -14,8 +14,8 @@
     font-weight: var(--font-weight-body);
     line-height: var(--line-height-body);
     letter-spacing: var(--letter-spacing-body);
-    color: var(--color-text-primary);
-    background-color: var(--color-app-bg);
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--background));
     margin: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

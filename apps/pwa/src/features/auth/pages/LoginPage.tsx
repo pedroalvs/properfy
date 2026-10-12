@@ -125,7 +125,7 @@ export function LoginPage() {
         <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary shadow-lg shadow-primary/25">
           <i className="mdi mdi-clipboard-check-outline text-[32px] text-white" aria-hidden="true" />
         </div>
-        <h1 className="mt-5 text-2xl font-bold tracking-tight text-secondary">Properfy</h1>
+        <h1 className="mt-5 text-2xl font-bold tracking-tight text-primary">Properfy</h1>
         <p className="mt-1 text-sm font-medium text-muted-foreground">Inspector Field App</p>
       </div>
 

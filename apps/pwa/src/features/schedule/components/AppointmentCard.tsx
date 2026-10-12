@@ -6,7 +6,7 @@ import { AppointmentStatus, todayInTzDateString } from '@properfy/shared';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { Badge } from '@/components/ui/Badge';
 import { RentalTenantConfirmationBadge } from './RentalTenantConfirmationBadge';
-import { FLOW_TYPE_MAP } from '@/lib/status-colors';
+import { FLOW_TYPE_MAP, PILL_TONE_CLASS } from '@/lib/status-colors';
 import type { InspectorAppointment } from '../types';
 import { formatTimeWindow, isScheduleRisk } from '../lib/time-slot';
 
@@ -108,8 +108,10 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
             {appointment.serviceTypeName}
           </span>
           <span
-            className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
-            style={{ backgroundColor: flowStyle.bg, color: flowStyle.text ?? '#333' }}
+            className={cn(
+              'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold',
+              PILL_TONE_CLASS[flowStyle.tone],
+            )}
           >
             {flowStyle.label}
           </span>

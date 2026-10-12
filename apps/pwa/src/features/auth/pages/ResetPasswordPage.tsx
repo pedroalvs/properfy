@@ -41,7 +41,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
         <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary shadow-lg shadow-primary/25">
           <i className="mdi mdi-lock-reset text-[32px] text-white" aria-hidden="true" />
         </div>
-        <h1 className="mt-5 text-2xl font-bold tracking-tight text-secondary">Reset Password</h1>
+        <h1 className="mt-5 text-2xl font-bold tracking-tight text-foreground">Reset Password</h1>
         <p className="mt-1 text-sm font-medium text-muted-foreground">Inspector Field App</p>
       </div>
       <div className="flex-1 px-5 pb-8">
@@ -57,7 +57,7 @@ function InvalidLinkState() {
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10">
         <i className="mdi mdi-link-variant-off text-2xl text-destructive" aria-hidden="true" />
       </div>
-      <h2 className="text-lg font-bold text-secondary">Link not valid</h2>
+      <h2 className="text-lg font-bold text-foreground">Link not valid</h2>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         This reset link is invalid or has expired. Reset links are valid for 1 hour and can only
         be used once.
@@ -125,7 +125,7 @@ export function ResetPasswordPage() {
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
             <i className="mdi mdi-lock-check-outline text-2xl text-success" aria-hidden="true" />
           </div>
-          <h2 className="text-lg font-bold text-secondary">Password updated</h2>
+          <h2 className="text-lg font-bold text-foreground">Password updated</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             Your password has been reset and all previous sessions were signed out. You can now
             sign in with your new password.
