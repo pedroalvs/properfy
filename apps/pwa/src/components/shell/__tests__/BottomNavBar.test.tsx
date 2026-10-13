@@ -88,4 +88,44 @@ describe('BottomNavBar', () => {
     renderWithProviders(<BottomNavBar />);
     expect(screen.getByTestId('bottom-nav').innerHTML).not.toContain('h-18');
   });
+
+  // The footer icons reproduce the validated v3 artboard footer exactly. Schedule and
+  // Offers have no lucide 0.468 equivalent (Calendar1 draws a "1", Tag was redesigned),
+  // so they are inlined with the artboard paths; Earnings/Profile use the lucide glyphs
+  // that are byte-identical to the artboard's Earnings/Account icons. These assertions
+  // lock that fidelity so a future icon swap can't silently drift from the design.
+  it('renders the Schedule tab with the artboard calendar-with-dot glyph', () => {
+    renderWithProviders(<BottomNavBar />);
+    const svg = screen.getByTestId('nav-schedule').querySelector('svg')!;
+    expect(svg).toBeTruthy();
+    // Calendar body + the centred dot that distinguishes it from a plain calendar.
+    expect(svg.querySelector('rect[x="3"][y="4"]')).toBeTruthy();
+    expect(svg.querySelector('circle[cx="12"][cy="15"]')).toBeTruthy();
+    // Not the lucide CalendarClock the footer used before.
+    expect(svg.classList.contains('lucide-calendar-clock')).toBe(false);
+  });
+
+  it('renders the Offers tab with the artboard tag glyph', () => {
+    renderWithProviders(<BottomNavBar />);
+    const svg = screen.getByTestId('nav-offers').querySelector('svg')!;
+    expect(svg).toBeTruthy();
+    expect(svg.querySelector('path[d^="M20.6 13.4"]')).toBeTruthy();
+    expect(svg.querySelector('circle[cx="8"][cy="8"]')).toBeTruthy();
+  });
+
+  it('renders the Earnings tab with the lucide credit-card glyph (artboard Earnings icon)', () => {
+    renderWithProviders(<BottomNavBar />);
+    const svg = screen.getByTestId('nav-earnings').querySelector('svg')!;
+    expect(svg).toBeTruthy();
+    expect(svg.classList.contains('lucide-credit-card')).toBe(true);
+    // Not the lucide Wallet the footer used before.
+    expect(svg.classList.contains('lucide-wallet')).toBe(false);
+  });
+
+  it('renders the Profile tab with the lucide user glyph (artboard Account icon)', () => {
+    renderWithProviders(<BottomNavBar />);
+    const svg = screen.getByTestId('nav-profile').querySelector('svg')!;
+    expect(svg).toBeTruthy();
+    expect(svg.classList.contains('lucide-user')).toBe(true);
+  });
 });
