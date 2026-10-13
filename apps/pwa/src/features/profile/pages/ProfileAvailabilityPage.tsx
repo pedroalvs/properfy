@@ -13,9 +13,9 @@ export function ProfileAvailabilityPage() {
 
   return (
     <div className="w-full pb-20">
-      <TopBar title="Availability" showBack backTo="/profile" />
+      <TopBar title="Availability" showBack backTo="/profile" backHideOnWide />
 
-      <div className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-4 p-4 md:mx-auto md:max-w-lg">
         <Card data-testid="availability-section">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Availability</p>
           <p className="mt-1 text-sm text-muted-foreground">

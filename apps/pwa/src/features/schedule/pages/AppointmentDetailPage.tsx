@@ -30,7 +30,7 @@ export function AppointmentDetailPage() {
   if (isLoading) {
     return (
       <div>
-        <TopBar title="Appointment" showBack />
+        <TopBar title="Appointment" showBack backHideOnWide />
         <div className="px-page-x py-4">
           <LoadingState rows={6} variant="card" />
         </div>
@@ -41,7 +41,7 @@ export function AppointmentDetailPage() {
   if (isError || !data?.data) {
     return (
       <div>
-        <TopBar title="Appointment" showBack />
+        <TopBar title="Appointment" showBack backHideOnWide />
         <ErrorState
           message="Failed to load appointment"
           detail={error ? getErrorMessage(error) : undefined}
@@ -61,7 +61,7 @@ export function AppointmentDetailPage() {
 
   return (
     <div className="w-full" data-testid="appointment-detail-page">
-      <TopBar title={apt.serviceTypeName} showBack />
+      <TopBar title={apt.serviceTypeName} showBack backHideOnWide />
 
       <div className="flex flex-col gap-3 px-page-x py-4">
         {/* Past-date banner — critical, shown first. Same flag as the schedule card:

@@ -97,6 +97,17 @@ describe('ProfileAccountPage', () => {
     expect(mockUsePrompt).toHaveBeenCalledWith(false);
   });
 
+  it('keeps a phone gap between the Phone and Timezone cards (not just on tablet)', () => {
+    // The 2-up pair collapses to display:block on phone; it must carry its own flex column +
+    // gap so the two cards do not touch (0px) below md.
+    renderWithProviders(<ProfileAccountPage />);
+    const pair = screen.getByTestId('account-phone-timezone');
+    expect(pair.className).toContain('flex');
+    expect(pair.className).toContain('flex-col');
+    expect(pair.className).toContain('gap-3');
+    expect(pair.className).toContain('md:grid');
+  });
+
   it('renders null when no user', () => {
     mockUseAuth.mockReturnValue({ user: null, logout: vi.fn(), refreshUser: vi.fn() });
     const { container } = renderWithProviders(<ProfileAccountPage />);

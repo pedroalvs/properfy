@@ -34,9 +34,9 @@ const AccessDeniedPage = lazyRetry(() =>
 const DeactivatedPage = lazyRetry(() =>
   import('@/features/auth/pages/DeactivatedPage').then((module) => ({ default: module.DeactivatedPage })),
 );
-const SchedulePage = lazyRetry(() =>
-  import('@/features/schedule/pages/SchedulePage').then((module) => ({
-    default: module.SchedulePage,
+const ScheduleLayout = lazyRetry(() =>
+  import('@/features/schedule/pages/ScheduleLayout').then((module) => ({
+    default: module.ScheduleLayout,
   })),
 );
 const AppointmentDetailPage = lazyRetry(() =>
@@ -54,9 +54,9 @@ const MarketplacePage = lazyRetry(() =>
     default: module.MarketplacePage,
   })),
 );
-const ProfilePage = lazyRetry(() =>
-  import('@/features/profile/pages/ProfilePage').then((module) => ({
-    default: module.ProfilePage,
+const ProfileLayout = lazyRetry(() =>
+  import('@/features/profile/pages/ProfileLayout').then((module) => ({
+    default: module.ProfileLayout,
   })),
 );
 const ProfileAvailabilityPage = lazyRetry(() =>
@@ -89,9 +89,9 @@ const RequestInvoicePage = lazyRetry(() =>
     default: module.RequestInvoicePage,
   })),
 );
-const InvoiceListPage = lazyRetry(() =>
-  import('@/features/earnings/pages/InvoiceListPage').then((module) => ({
-    default: module.InvoiceListPage,
+const InvoicesLayout = lazyRetry(() =>
+  import('@/features/earnings/pages/InvoicesLayout').then((module) => ({
+    default: module.InvoicesLayout,
   })),
 );
 const InvoiceDetailPage = lazyRetry(() =>
@@ -148,19 +148,40 @@ export const router = createBrowserRouter(
               element: <PwaLayout />,
               children: [
                 { index: true, element: <Navigate to="/schedule" replace /> },
-                { path: 'schedule', element: lazyElement(SchedulePage) },
-                { path: 'schedule/:appointmentId', element: lazyElement(AppointmentDetailPage) },
-                { path: 'marketplace', element: lazyElement(MarketplacePage) },
-                { path: 'earnings', element: lazyElement(EarningsPage) },
+                {
+                  path: 'schedule',
+                  element: lazyElement(ScheduleLayout),
+                  handle: { wide: true },
+                  children: [
+                    { index: true, element: null },
+                    { path: ':appointmentId', element: lazyElement(AppointmentDetailPage) },
+                  ],
+                },
+                { path: 'marketplace', element: lazyElement(MarketplacePage), handle: { wide: true } },
+                { path: 'earnings', element: lazyElement(EarningsPage), handle: { wide: true } },
                 { path: 'earnings/request-invoice', element: lazyElement(RequestInvoicePage) },
-                { path: 'earnings/invoices', element: lazyElement(InvoiceListPage) },
-                { path: 'earnings/invoices/:invoiceId', element: lazyElement(InvoiceDetailPage) },
-                { path: 'profile', element: lazyElement(ProfilePage) },
-                { path: 'profile/availability', element: lazyElement(ProfileAvailabilityPage) },
-                { path: 'profile/documents', element: lazyElement(ProfileDocumentsPage) },
-                { path: 'profile/account', element: lazyElement(ProfileAccountPage) },
-                { path: 'profile/settings', element: lazyElement(ProfileSettingsPage) },
-                { path: 'profile/edit', element: <Navigate to="/profile/account" replace /> },
+                {
+                  path: 'earnings/invoices',
+                  element: lazyElement(InvoicesLayout),
+                  handle: { wide: true },
+                  children: [
+                    { index: true, element: null },
+                    { path: ':invoiceId', element: lazyElement(InvoiceDetailPage) },
+                  ],
+                },
+                {
+                  path: 'profile',
+                  element: lazyElement(ProfileLayout),
+                  handle: { wide: true },
+                  children: [
+                    { index: true, element: null },
+                    { path: 'availability', element: lazyElement(ProfileAvailabilityPage) },
+                    { path: 'documents', element: lazyElement(ProfileDocumentsPage) },
+                    { path: 'account', element: lazyElement(ProfileAccountPage) },
+                    { path: 'settings', element: lazyElement(ProfileSettingsPage) },
+                    { path: 'edit', element: <Navigate to="/profile/account" replace /> },
+                  ],
+                },
               ],
             },
             { path: 'execution/:appointmentId', element: lazyElement(ExecutionPage) },

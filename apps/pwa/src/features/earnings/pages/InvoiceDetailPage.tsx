@@ -36,7 +36,7 @@ export function InvoiceDetailPage() {
 
   return (
     <div className="w-full" data-testid="invoice-detail-screen">
-      <TopBar title="Invoice" showBack backTo="/earnings/invoices" />
+      <TopBar title="Invoice" showBack backTo="/earnings/invoices" backHideOnWide />
 
       <div className="flex flex-col gap-4 p-4">
         {isLoading && <Skeleton className="h-40 rounded-card" />}

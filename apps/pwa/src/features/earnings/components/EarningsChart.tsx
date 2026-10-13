@@ -31,12 +31,12 @@ export function EarningsChart({ bars }: EarningsChartProps) {
 
   return (
     <Card className="p-4" data-testid="earnings-chart">
-      <div className="flex h-40 items-end justify-between gap-2">
+      <div className="flex h-40 items-end justify-between gap-2 md:h-56">
         {bars.map((bar, i) => {
           const heightPct = Math.round((bar.value / max) * 100);
           return (
             <div key={`${bar.label}-${i}`} className="flex flex-1 flex-col items-center gap-1">
-              <div className="flex h-32 w-full items-end">
+              <div className="flex h-32 w-full items-end md:h-48">
                 <div
                   className={cn('w-full rounded-t-md bg-gradient-to-t from-success/70 to-success')}
                   style={{ height: `${Math.max(heightPct, bar.value > 0 ? 6 : 0)}%` }}

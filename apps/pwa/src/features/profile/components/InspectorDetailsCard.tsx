@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { AlertCircle, Check, ClockAlert, IdCard, ShieldCheck } from 'lucide-react';
 import { useInspectorMe } from '../hooks/useInspectorMe';
 import { todayInTzDateString } from '@properfy/shared';
@@ -60,6 +61,41 @@ function ExpiryBadge({ expiry, timeZone }: { expiry: string | null; timeZone: st
   );
 }
 
+/** A single document's status as a self-contained card: name/icon, on-file state and expiry. */
+function DocumentStatusCard({
+  icon,
+  label,
+  onFile,
+  expiry,
+  timeZone,
+}: {
+  icon: ReactNode;
+  label: string;
+  onFile: boolean;
+  expiry: string | null;
+  timeZone: string;
+}) {
+  return (
+    <div className="rounded-btn border border-border p-3" data-testid="document-status-card">
+      <div className="flex items-center gap-2">
+        {icon}
+        <span className="text-sm font-medium text-foreground">{label}</span>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {onFile ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+            <Check size={12} aria-hidden="true" />
+            On file
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">Not uploaded</span>
+        )}
+        <ExpiryBadge expiry={expiry} timeZone={timeZone} />
+      </div>
+    </div>
+  );
+}
+
 export function InspectorDetailsCard() {
   const { data, isLoading, isError } = useInspectorMe();
   const { user } = useAuth();
@@ -104,47 +140,25 @@ export function InspectorDetailsCard() {
         </div>
       </div>
 
-      {/* Documents */}
+      {/* Documents — status cards (document name on top, on-file + expiry below) that pair 2-up on
+          wider screens, instead of cramped single rows. */}
       <div className="mt-5 border-t border-black/5 pt-4">
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Documents</p>
-        <div className="mt-3 flex flex-col gap-3">
-          {/* Insurance */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <ShieldCheck size={16} className="text-muted-foreground" aria-hidden="true" />
-              <span className="text-sm text-foreground">Insurance</span>
-            </div>
-            <div className="flex items-center gap-2">
-              {inspector.insuranceFileKey || inspector.insuranceMetaJson ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                  <Check size={12} aria-hidden="true" />
-                  On file
-                </span>
-              ) : (
-                <span className="text-xs text-muted-foreground">Not uploaded</span>
-              )}
-              <ExpiryBadge expiry={inspector.insuranceExpiresAt} timeZone={timeZone} />
-            </div>
-          </div>
-
-          {/* Police Check */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <IdCard size={16} className="text-muted-foreground" aria-hidden="true" />
-              <span className="text-sm text-foreground">Police Check</span>
-            </div>
-            <div className="flex items-center gap-2">
-              {inspector.policeCheckFileKey || inspector.policeCheckMetaJson ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
-                  <Check size={12} aria-hidden="true" />
-                  On file
-                </span>
-              ) : (
-                <span className="text-xs text-muted-foreground">Not uploaded</span>
-              )}
-              <ExpiryBadge expiry={inspector.policeCheckExpiresAt} timeZone={timeZone} />
-            </div>
-          </div>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <DocumentStatusCard
+            icon={<ShieldCheck size={16} className="text-muted-foreground" aria-hidden="true" />}
+            label="Insurance"
+            onFile={Boolean(inspector.insuranceFileKey || inspector.insuranceMetaJson)}
+            expiry={inspector.insuranceExpiresAt}
+            timeZone={timeZone}
+          />
+          <DocumentStatusCard
+            icon={<IdCard size={16} className="text-muted-foreground" aria-hidden="true" />}
+            label="Police Check"
+            onFile={Boolean(inspector.policeCheckFileKey || inspector.policeCheckMetaJson)}
+            expiry={inspector.policeCheckExpiresAt}
+            timeZone={timeZone}
+          />
         </div>
       </div>
 

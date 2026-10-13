@@ -69,7 +69,7 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       <div
         ref={containerRef}
         data-testid="map-container"
-        className="h-[60vh] w-full overflow-hidden rounded-2xl"
+        className="h-[60vh] w-full overflow-hidden rounded-2xl md:h-[72vh]"
       />
       <MapOverlays
         error={error}

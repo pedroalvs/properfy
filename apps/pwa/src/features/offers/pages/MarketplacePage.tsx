@@ -4,9 +4,11 @@ import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { Card } from '@/components/ui/Card';
+import { TwoPaneLayout } from '@/components/shell/TwoPaneLayout';
 import { OfferFeed } from '../components/OfferFeed';
 import { OfflineMarketplaceBanner } from '../components/OfflineMarketplaceBanner';
 import { GroupDetailBottomSheet } from '../components/GroupDetailBottomSheet';
+import { GroupDetailPane } from '../components/GroupDetailPane';
 import { OffersViewToggle } from '../components/OffersViewToggle';
 import { OffersMapView, type ExpandedGroup } from '../components/OffersMapView';
 import { MapGroupActionBar } from '../components/MapGroupActionBar';
@@ -14,6 +16,7 @@ import { useMarketplaceOffers } from '../hooks/useMarketplaceOffers';
 import { useMarketplaceOfferDetail } from '../hooks/useMarketplaceOfferDetail';
 import { useAcceptOffer } from '../hooks/useAcceptOffer';
 import { useIsOnline } from '@/hooks/useIsOnline';
+import { useIsWide } from '@/hooks/useMediaQuery';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 function formatTimeAgo(timestamp: number): string {
@@ -27,6 +30,7 @@ function formatTimeAgo(timestamp: number): string {
 
 export function MarketplacePage() {
   const isOnline = useIsOnline();
+  const isWide = useIsWide();
   const {
     offers,
     data,
@@ -92,6 +96,20 @@ export function MarketplacePage() {
     setView(nextView);
   };
 
+  // Shared detail acceptance, used by both the phone bottom-sheet and the tablet pane.
+  const closeDetail = () => setDetailGroupId(null);
+  const detailAccepting = detailGroupId ? getState(detailGroupId) === 'ACCEPTING' : false;
+  const acceptDetail = detailGroupId
+    ? async () => {
+        const outcome = await accept(detailGroupId);
+        // Keep the detail open on retryable failure so the user can try again.
+        if (outcome !== 'ERROR') {
+          setDetailGroupId(null);
+          setExpandedGroupId(null);
+        }
+      }
+    : undefined;
+
   // Infinite scroll (list view): fetch the next page when the sentinel enters
   // the viewport — same pattern as the Schedule History tab.
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -112,17 +130,21 @@ export function MarketplacePage() {
     void fetchNextPage();
   }, [view, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  return (
-    <div className="w-full" data-testid="marketplace-page">
+  const master = (
+    <div className="w-full">
       <TopBar title="Offers" size="lg" />
 
       <div className="px-page-x py-4">
-        <Card className="bg-primary/5 px-5 py-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Open work</p>
-          <h2 className="mt-3 text-xl font-bold tracking-tight text-foreground">
-            {total} available {total === 1 ? 'offer' : 'offers'}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+        {/* Compact header: a stacked banner on phone, a single row (count left, guidance right) on
+            tablet so it doesn't eat vertical space above the grid. Phone classes are unchanged. */}
+        <Card className="bg-primary/5 px-5 py-5 md:flex md:items-center md:justify-between md:gap-6 md:py-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Open work</p>
+            <h2 className="mt-3 text-xl font-bold tracking-tight text-foreground md:mt-1">
+              {total} available {total === 1 ? 'offer' : 'offers'}
+            </h2>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground md:mt-0 md:max-w-xs md:text-right">
             Review grouped inspections and accept only when you can commit to the route.
           </p>
         </Card>
@@ -196,22 +218,37 @@ export function MarketplacePage() {
         </PullToRefresh>
       )}
 
-      <GroupDetailBottomSheet
-        groupId={detailGroupId}
-        onClose={() => setDetailGroupId(null)}
-        accepting={detailGroupId ? getState(detailGroupId) === 'ACCEPTING' : false}
-        onAccept={
-          detailGroupId
-            ? async () => {
-                const outcome = await accept(detailGroupId);
-                // Keep the sheet open on retryable failure so the user can try again
-                if (outcome !== 'ERROR') {
-                  setDetailGroupId(null);
-                  setExpandedGroupId(null);
-                }
-              }
-            : undefined
+    </div>
+  );
+
+  return (
+    <div className="w-full" data-testid="marketplace-page">
+      <TwoPaneLayout
+        variant="canvas"
+        detailMode="overlay"
+        hasSelection={detailGroupId !== null}
+        onClose={closeDetail}
+        showClose={false}
+        master={master}
+        detail={
+          isWide && detailGroupId ? (
+            <GroupDetailPane
+              groupId={detailGroupId}
+              onClose={closeDetail}
+              accepting={detailAccepting}
+              onAccept={acceptDetail}
+            />
+          ) : null
         }
+      />
+
+      {/* Phone presents the detail as a bottom-sheet overlay; on tablet the inline pane above
+          replaces it, so the sheet is suppressed there (gated groupId keeps it closed). */}
+      <GroupDetailBottomSheet
+        groupId={isWide ? null : detailGroupId}
+        onClose={closeDetail}
+        accepting={detailAccepting}
+        onAccept={acceptDetail}
       />
     </div>
   );

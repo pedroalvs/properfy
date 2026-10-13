@@ -154,7 +154,12 @@ export function EarningsPage() {
         )}
 
         {segment === 'earnings' && !summary.isLoading && !summary.error && summary.data && (
-          <>
+          // Overview dashboard. On tablet a 2-column grid: the left column is the overview
+          // (summary + chart); the right column is recent activity + invoice actions. The recent-
+          // payments list fills the right column with useful content instead of leaving a gap, and
+          // is tablet-only (`hidden md:block`) so phone keeps summary → chart → CTAs unchanged.
+          <div className="flex flex-col gap-4 md:grid md:grid-cols-[1.4fr_1fr] md:gap-4 md:items-start" data-testid="earnings-dashboard">
+            <div className="flex flex-col gap-4">
             <Card className="flex flex-col gap-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Earnings summary</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -174,6 +179,39 @@ export function EarningsPage() {
             <div className="flex flex-col gap-2">
               <h2 className="text-sm font-semibold text-foreground">Earnings over time</h2>
               <EarningsChart bars={monthlyBars} currency={currency} />
+            </div>
+            </div>
+
+            {/* Side column: recent activity + invoice actions. */}
+            <div className="flex flex-col gap-4">
+            {/* Recent payments — a tablet-only overview of the latest payouts, with a link to the
+                full History tab. Hidden on phone so the validated phone stack is unchanged. */}
+            <div className="hidden md:block">
+              <Card className="flex flex-col gap-3" data-testid="recent-payments">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Recent payments</p>
+                  {entries.length > 0 && (
+                    <button type="button" onClick={() => setSegment('history')} className="text-xs font-semibold text-primary">
+                      View all
+                    </button>
+                  )}
+                </div>
+                {entries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No payments yet.</p>
+                ) : (
+                  <div className="flex flex-col divide-y divide-border">
+                    {entries.slice(0, 5).map((entry) => (
+                      <div key={entry.id} className="flex items-center justify-between py-2.5">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{formatCurrency(entry.amount, entry.currency)}</p>
+                          <p className="text-xs text-muted-foreground">{formatInstantDateTime(entry.effectiveAt)}</p>
+                        </div>
+                        <StatusChip status={entry.status} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
             </div>
 
             {/* Inspector Property Invoice CTAs (spec 032) */}
@@ -202,7 +240,8 @@ export function EarningsPage() {
               </div>
               <ChevronRight size={20} className="text-muted-foreground" aria-hidden="true" />
             </button>
-          </>
+            </div>
+          </div>
         )}
 
         {segment === 'history' && (
@@ -235,6 +274,7 @@ export function EarningsPage() {
             {!history.isLoading && entries.length > 0 && (
               <div className="flex flex-col gap-2">
                 <h2 className="text-sm font-semibold text-foreground">Payment history</h2>
+                <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]" data-testid="history-list">
                 {entries.map((entry) => (
                   <Card key={entry.id} className="flex items-center justify-between px-4 py-3">
                     <div>
@@ -244,6 +284,7 @@ export function EarningsPage() {
                     <StatusChip status={entry.status} />
                   </Card>
                 ))}
+                </div>
 
                 <div ref={sentinelRef} aria-hidden="true" />
                 {isFetchingNextPage && <Skeleton className="h-16 rounded-card" data-testid="history-loading-more" />}
