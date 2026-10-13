@@ -89,9 +89,9 @@ const RequestInvoicePage = lazyRetry(() =>
     default: module.RequestInvoicePage,
   })),
 );
-const InvoiceListPage = lazyRetry(() =>
-  import('@/features/earnings/pages/InvoiceListPage').then((module) => ({
-    default: module.InvoiceListPage,
+const InvoicesLayout = lazyRetry(() =>
+  import('@/features/earnings/pages/InvoicesLayout').then((module) => ({
+    default: module.InvoicesLayout,
   })),
 );
 const InvoiceDetailPage = lazyRetry(() =>
@@ -158,10 +158,17 @@ export const router = createBrowserRouter(
                   ],
                 },
                 { path: 'marketplace', element: lazyElement(MarketplacePage), handle: { wide: true } },
-                { path: 'earnings', element: lazyElement(EarningsPage) },
+                { path: 'earnings', element: lazyElement(EarningsPage), handle: { wide: true } },
                 { path: 'earnings/request-invoice', element: lazyElement(RequestInvoicePage) },
-                { path: 'earnings/invoices', element: lazyElement(InvoiceListPage) },
-                { path: 'earnings/invoices/:invoiceId', element: lazyElement(InvoiceDetailPage) },
+                {
+                  path: 'earnings/invoices',
+                  element: lazyElement(InvoicesLayout),
+                  handle: { wide: true },
+                  children: [
+                    { index: true, element: null },
+                    { path: ':invoiceId', element: lazyElement(InvoiceDetailPage) },
+                  ],
+                },
                 {
                   path: 'profile',
                   element: lazyElement(ProfileLayout),

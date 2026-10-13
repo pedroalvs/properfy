@@ -193,6 +193,10 @@ export function ExecutionPage() {
     // /execution sits outside PwaLayout, so it gets neither the bottom nav nor the
     // layout's clearance — it has to reserve the home-indicator inset itself.
     <div className="pb-safe-b" data-testid="execution-page">
+      {/* /execution is full-bleed (outside PwaLayout). Cap + center the flow on tablet so the cards
+          and CTAs don't stretch edge-to-edge. max-w-lg is wider than a phone, so phone is unchanged.
+          The modals below stay outside the cap (they position to the viewport). */}
+      <div className="mx-auto w-full max-w-lg">
       <TopBar title="Inspection" subtitle={topBarSubtitle} showBack />
 
       <div className="px-page-x pt-2">
@@ -245,6 +249,7 @@ export function ExecutionPage() {
           onSaveExit={handleSaveExit}
         />
       )}
+      </div>
 
       {state.phase === 'FINISHING' && confirmStep === 'SYNC' && (
         <SyncConfirmModal onConfirm={handleSyncConfirmed} onCancel={handleSyncDeclined} />

@@ -154,7 +154,10 @@ export function EarningsPage() {
         )}
 
         {segment === 'earnings' && !summary.isLoading && !summary.error && summary.data && (
-          <>
+          // Dashboard: a phone-order flex column that becomes a 2-column grid on tablet. `md:grid`
+          // overrides the flex, auto-placing the four blocks into a 2×2 — summary / chart on top,
+          // the two CTAs below — so the width is used without disturbing the phone stack.
+          <div className="flex flex-col gap-4 md:grid md:grid-cols-2 md:gap-4 md:items-start" data-testid="earnings-dashboard">
             <Card className="flex flex-col gap-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Earnings summary</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -202,7 +205,7 @@ export function EarningsPage() {
               </div>
               <ChevronRight size={20} className="text-muted-foreground" aria-hidden="true" />
             </button>
-          </>
+          </div>
         )}
 
         {segment === 'history' && (
@@ -235,6 +238,7 @@ export function EarningsPage() {
             {!history.isLoading && entries.length > 0 && (
               <div className="flex flex-col gap-2">
                 <h2 className="text-sm font-semibold text-foreground">Payment history</h2>
+                <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]" data-testid="history-list">
                 {entries.map((entry) => (
                   <Card key={entry.id} className="flex items-center justify-between px-4 py-3">
                     <div>
@@ -244,6 +248,7 @@ export function EarningsPage() {
                     <StatusChip status={entry.status} />
                   </Card>
                 ))}
+                </div>
 
                 <div ref={sentinelRef} aria-hidden="true" />
                 {isFetchingNextPage && <Skeleton className="h-16 rounded-card" data-testid="history-loading-more" />}

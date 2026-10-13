@@ -57,6 +57,24 @@ describe('EarningsPage', () => {
     });
   });
 
+  it('lays the "This week" dashboard out as a 2-column grid on tablet', async () => {
+    renderWithProviders(<EarningsPage />);
+    const dash = await screen.findByTestId('earnings-dashboard');
+    expect(dash.className).toContain('md:grid');
+    expect(dash.className).toContain('md:grid-cols-2');
+    // Phone keeps the single flex column.
+    expect(dash.className).toContain('flex');
+    expect(dash.className).toContain('flex-col');
+  });
+
+  it('renders the payment history as a fluid grid on tablet', async () => {
+    renderWithProviders(<EarningsPage />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'History' }));
+    const list = await screen.findByTestId('history-list');
+    expect(list.className).toContain('grid');
+    expect(list.className).toContain('minmax(320px,1fr)');
+  });
+
   it('shows the Earnings segment with next-payment, total, chart and invoice CTAs from the summary endpoint', async () => {
     renderWithProviders(<EarningsPage />);
 

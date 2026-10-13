@@ -6,7 +6,7 @@ export function ProfileDocumentsPage() {
     <div className="w-full pb-20">
       <TopBar title="Documents" showBack backTo="/profile" backHideOnWide />
 
-      <div className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-4 p-4 md:mx-auto md:max-w-lg">
         <InspectorDetailsCard />
       </div>
     </div>

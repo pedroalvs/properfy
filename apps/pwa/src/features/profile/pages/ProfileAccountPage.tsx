@@ -132,7 +132,9 @@ export function ProfileAccountPage() {
     <div className="w-full pb-20">
       <TopBar title="Account details" showBack backTo="/profile" backHideOnWide />
 
-      <div className="flex flex-col gap-3 p-4">
+      {/* Forms read best as a comfortable column — cap + center on tablet instead of stretching the
+          inputs/rows across the full detail pane. Inert on phone (max-w-lg > phone width). */}
+      <div className="flex flex-col gap-3 p-4 md:mx-auto md:max-w-lg">
         <ProfileCard
           name={user.name}
           email={user.email}

@@ -218,7 +218,7 @@ export function MarketplacePage() {
   );
 
   return (
-    <div data-testid="marketplace-page">
+    <div className="w-full" data-testid="marketplace-page">
       <TwoPaneLayout
         variant="canvas"
         detailMode="overlay"

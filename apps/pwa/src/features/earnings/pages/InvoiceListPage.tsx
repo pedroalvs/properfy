@@ -45,6 +45,8 @@ export function InvoiceListPage() {
           </Card>
         )}
 
+        {invoices.length > 0 && (
+        <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(320px,1fr))]" data-testid="invoice-grid">
         {invoices.map((inv) => {
           const badge = invoiceStatusBadge(inv.status);
           return (
@@ -69,6 +71,8 @@ export function InvoiceListPage() {
             </button>
           );
         })}
+        </div>
+        )}
       </div>
     </div>
   );
