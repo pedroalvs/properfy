@@ -135,12 +135,16 @@ export function MarketplacePage() {
       <TopBar title="Offers" size="lg" />
 
       <div className="px-page-x py-4">
-        <Card className="bg-primary/5 px-5 py-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Open work</p>
-          <h2 className="mt-3 text-xl font-bold tracking-tight text-foreground">
-            {total} available {total === 1 ? 'offer' : 'offers'}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+        {/* Compact header: a stacked banner on phone, a single row (count left, guidance right) on
+            tablet so it doesn't eat vertical space above the grid. Phone classes are unchanged. */}
+        <Card className="bg-primary/5 px-5 py-5 md:flex md:items-center md:justify-between md:gap-6 md:py-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Open work</p>
+            <h2 className="mt-3 text-xl font-bold tracking-tight text-foreground md:mt-1">
+              {total} available {total === 1 ? 'offer' : 'offers'}
+            </h2>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground md:mt-0 md:max-w-xs md:text-right">
             Review grouped inspections and accept only when you can commit to the route.
           </p>
         </Card>

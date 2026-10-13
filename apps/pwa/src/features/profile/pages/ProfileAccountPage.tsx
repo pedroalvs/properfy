@@ -132,9 +132,9 @@ export function ProfileAccountPage() {
     <div className="w-full pb-20">
       <TopBar title="Account details" showBack backTo="/profile" backHideOnWide />
 
-      {/* Forms read best as a comfortable column — cap + center on tablet instead of stretching the
-          inputs/rows across the full detail pane. Inert on phone (max-w-lg > phone width). */}
-      <div className="flex flex-col gap-3 p-4 md:mx-auto md:max-w-lg">
+      {/* Settings read best as a comfortable centered column; short cards pair 2-up on tablet to
+          shorten the page. Inert on phone (max-w-2xl > phone width). */}
+      <div className="flex flex-col gap-3 p-4 md:mx-auto md:max-w-2xl">
         <ProfileCard
           name={user.name}
           email={user.email}
@@ -173,6 +173,8 @@ export function ProfileAccountPage() {
           </div>
         </Card>
 
+        {/* Phone + Timezone — paired 2-up on tablet to shorten the settings column. */}
+        <div className="md:grid md:grid-cols-2 md:gap-3 md:items-start">
         {/* Phone */}
         <Card>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Phone</p>
@@ -235,6 +237,7 @@ export function ProfileAccountPage() {
             )}
           </div>
         </Card>
+        </div>
 
         {/* Security */}
         <SectionLabel>Security</SectionLabel>
