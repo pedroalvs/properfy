@@ -1,17 +1,75 @@
+import type { ComponentType } from 'react';
 import { NavLink } from 'react-router-dom';
-import { CalendarClock, Tag, Wallet, User, type LucideIcon } from 'lucide-react';
+import { CreditCard, User } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
+
+type NavIconProps = {
+  size?: number | string;
+  className?: string;
+  'aria-hidden'?: boolean | 'true' | 'false';
+};
+
+type NavIcon = ComponentType<NavIconProps>;
+
+/**
+ * The Schedule and Offers glyphs reproduce the validated v3 artboard footer exactly.
+ * Our installed lucide (0.468) has no equivalent — `Calendar1` draws a "1" digit rather
+ * than a centred dot, and `Tag` was redesigned to a different shape — so both are inlined
+ * with the artboard's own paths, sharing lucide's stroke geometry (24px, stroke-width 2,
+ * round caps). Earnings and Profile use lucide `CreditCard`/`User`, which are byte-identical
+ * to the artboard's Earnings and Account glyphs.
+ */
+function ScheduleIcon({ size = 24, className, ...props }: NavIconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      {...props}
+    >
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+      <circle cx="12" cy="15" r="2.4" />
+    </svg>
+  );
+}
+
+function OffersIcon({ size = 24, className, ...props }: NavIconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      {...props}
+    >
+      <path d="M20.6 13.4 12 22l-8-8V4h10l6.6 6.6a2 2 0 0 1 0 2.8Z" />
+      <circle cx="8" cy="8" r="1.6" />
+    </svg>
+  );
+}
 
 interface NavItem {
   to: string;
-  icon: LucideIcon;
+  icon: NavIcon;
   label: string;
 }
 
 const navItems: NavItem[] = [
-  { to: '/schedule', icon: CalendarClock, label: 'Schedule' },
-  { to: '/marketplace', icon: Tag, label: 'Offers' },
-  { to: '/earnings', icon: Wallet, label: 'Earnings' },
+  { to: '/schedule', icon: ScheduleIcon, label: 'Schedule' },
+  { to: '/marketplace', icon: OffersIcon, label: 'Offers' },
+  { to: '/earnings', icon: CreditCard, label: 'Earnings' },
   { to: '/profile', icon: User, label: 'Profile' },
 ];
 
