@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router-dom';
 import { InvoicesLayout } from '../InvoicesLayout';
@@ -9,8 +8,6 @@ vi.mock('../InvoiceListPage', () => ({
   InvoiceListPage: () => <div data-testid="invoices-master">list</div>,
 }));
 
-// Spy on navigation so the close control can be asserted without driving a real router
-// navigation (which trips a jsdom/undici AbortSignal quirk under RouterProvider).
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -50,11 +47,9 @@ describe('InvoicesLayout', () => {
     expect(screen.getByTestId('two-pane-detail').className).toContain('md:w-[58%]');
   });
 
-  it('navigates back to the list when the close control is used', async () => {
-    mockNavigate.mockClear();
-    const user = userEvent.setup();
+  it('omits the frame close — the invoice detail TopBar back closes the pane', () => {
     renderAt('/earnings/invoices/inv-1');
-    await user.click(screen.getByTestId('two-pane-close'));
-    expect(mockNavigate).toHaveBeenCalledWith('/earnings/invoices');
+    expect(screen.queryByTestId('two-pane-close')).not.toBeInTheDocument();
+    expect(screen.getByTestId('invoice-detail')).toBeInTheDocument();
   });
 });

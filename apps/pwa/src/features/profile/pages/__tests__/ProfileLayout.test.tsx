@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router-dom';
 import { ProfileLayout } from '../ProfileLayout';
@@ -47,11 +46,9 @@ describe('ProfileLayout', () => {
     expect(screen.getByTestId('two-pane-detail').className).toContain('md:w-[58%]');
   });
 
-  it('navigates back to the menu when the close control is used', async () => {
-    mockNavigate.mockClear();
-    const user = userEvent.setup();
+  it('omits the frame close — the sub-page TopBar back closes the pane', () => {
     renderAt('/profile/account');
-    await user.click(screen.getByTestId('two-pane-close'));
-    expect(mockNavigate).toHaveBeenCalledWith('/profile');
+    expect(screen.queryByTestId('two-pane-close')).not.toBeInTheDocument();
+    expect(screen.getByTestId('profile-account')).toBeInTheDocument();
   });
 });

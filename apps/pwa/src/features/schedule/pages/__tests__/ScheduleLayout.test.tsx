@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router-dom';
 import { ScheduleLayout } from '../ScheduleLayout';
@@ -9,8 +8,6 @@ vi.mock('../SchedulePage', () => ({
   SchedulePage: () => <div data-testid="schedule-master">list</div>,
 }));
 
-// Spy on navigation so the close control can be asserted without driving a real router
-// navigation (which trips a jsdom/undici AbortSignal quirk under RouterProvider).
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -55,12 +52,11 @@ describe('ScheduleLayout', () => {
     expect(screen.getByTestId('two-pane-master').className).toContain('hidden md:block');
   });
 
-  it('navigates back to the list when the close control is used', async () => {
-    mockNavigate.mockClear();
-    const user = userEvent.setup();
+  it('omits the frame close — the detail page TopBar back closes the pane', () => {
     renderAt('/schedule/appt-1');
+    // The floating frame close would overlap the detail TopBar's offline indicator, so the layout
+    // sets showClose={false} and relies on the sub-page's own back chevron to close.
+    expect(screen.queryByTestId('two-pane-close')).not.toBeInTheDocument();
     expect(screen.getByTestId('appointment-detail')).toBeInTheDocument();
-    await user.click(screen.getByTestId('two-pane-close'));
-    expect(mockNavigate).toHaveBeenCalledWith('/schedule');
   });
 });

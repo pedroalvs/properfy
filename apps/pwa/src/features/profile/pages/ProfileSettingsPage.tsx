@@ -4,7 +4,7 @@ import { InstallAppCard } from '../components/InstallAppCard';
 export function ProfileSettingsPage() {
   return (
     <div className="w-full pb-20">
-      <TopBar title="App settings" showBack backTo="/profile" backHideOnWide />
+      <TopBar title="App settings" showBack backTo="/profile" />
 
       <div className="flex flex-col gap-4 p-4 md:mx-auto md:max-w-md">
         <InstallAppCard />

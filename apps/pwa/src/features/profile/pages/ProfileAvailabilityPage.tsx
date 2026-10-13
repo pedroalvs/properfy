@@ -13,7 +13,7 @@ export function ProfileAvailabilityPage() {
 
   return (
     <div className="w-full pb-20">
-      <TopBar title="Availability" showBack backTo="/profile" backHideOnWide />
+      <TopBar title="Availability" showBack backTo="/profile" />
 
       <div className="flex flex-col gap-4 p-4 md:mx-auto md:max-w-lg">
         <Card data-testid="availability-section">

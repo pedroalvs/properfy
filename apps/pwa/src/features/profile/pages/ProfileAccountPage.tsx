@@ -130,7 +130,7 @@ export function ProfileAccountPage() {
 
   return (
     <div className="w-full pb-20">
-      <TopBar title="Account details" showBack backTo="/profile" backHideOnWide />
+      <TopBar title="Account details" showBack backTo="/profile" />
 
       {/* Settings read best as a comfortable centered column; short cards pair 2-up on tablet to
           shorten the page. Inert on phone (max-w-2xl > phone width). */}
@@ -173,8 +173,9 @@ export function ProfileAccountPage() {
           </div>
         </Card>
 
-        {/* Phone + Timezone — paired 2-up on tablet to shorten the settings column. */}
-        <div className="md:grid md:grid-cols-2 md:gap-3 md:items-start">
+        {/* Phone + Timezone — a gap'd flex column on phone (preserving the 12px the parent gave the
+            two cards), paired 2-up on tablet to shorten the settings column. */}
+        <div className="flex flex-col gap-3 md:grid md:grid-cols-2 md:gap-3 md:items-start" data-testid="account-phone-timezone">
         {/* Phone */}
         <Card>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Phone</p>
