@@ -18,8 +18,6 @@ export function InvoicesLayout() {
       detail={<Outlet />}
       hasSelection={hasSelection}
       onClose={() => navigate('/earnings/invoices')}
-      // The invoice detail's own TopBar back chevron closes the pane; omit the frame's floating close.
-      showClose={false}
     />
   );
 }

@@ -17,9 +17,6 @@ export function ProfileLayout() {
       detail={<Outlet />}
       hasSelection={hasSelection}
       onClose={() => navigate('/profile')}
-      // The sub-page's own TopBar back chevron closes the pane; omit the frame's floating close so
-      // it doesn't overlap the TopBar's right-side indicators.
-      showClose={false}
     />
   );
 }

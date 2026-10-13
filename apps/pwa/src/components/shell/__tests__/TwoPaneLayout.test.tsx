@@ -71,6 +71,16 @@ describe('TwoPaneLayout', () => {
       renderPane({ hasSelection: true, showClose: false });
       expect(screen.queryByTestId('two-pane-close')).not.toBeInTheDocument();
     });
+
+    it('places the close on its own tablet-only row, not an absolute top-right overlay', () => {
+      // Positioning it in a row above the detail (not absolute) keeps it off the sub-page TopBar's
+      // right-side indicators (offline/queue), which it used to overlap.
+      renderPane({ hasSelection: true });
+      const bar = screen.getByTestId('two-pane-close-bar');
+      expect(bar.className).toContain('hidden md:flex');
+      expect(bar.className).toContain('md:justify-end');
+      expect(screen.getByTestId('two-pane-close').className).not.toContain('absolute');
+    });
   });
 
   describe('inline mode (default) — phone swaps master and detail', () => {

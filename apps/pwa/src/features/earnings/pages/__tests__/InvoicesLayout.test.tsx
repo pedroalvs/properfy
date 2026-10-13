@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router-dom';
 import { InvoicesLayout } from '../InvoicesLayout';
@@ -47,9 +48,11 @@ describe('InvoicesLayout', () => {
     expect(screen.getByTestId('two-pane-detail').className).toContain('md:w-[58%]');
   });
 
-  it('omits the frame close — the invoice detail TopBar back closes the pane', () => {
+  it('navigates back to the list when the frame close is used', async () => {
+    mockNavigate.mockClear();
+    const user = userEvent.setup();
     renderAt('/earnings/invoices/inv-1');
-    expect(screen.queryByTestId('two-pane-close')).not.toBeInTheDocument();
-    expect(screen.getByTestId('invoice-detail')).toBeInTheDocument();
+    await user.click(screen.getByTestId('two-pane-close'));
+    expect(mockNavigate).toHaveBeenCalledWith('/earnings/invoices');
   });
 });

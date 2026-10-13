@@ -72,17 +72,25 @@ export function TwoPaneLayout({
         aria-hidden={!hasSelection}
       >
         {hasSelection && (
-          <div className="relative">
+          <div>
             {showClose && (
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close details"
-                data-testid="two-pane-close"
-                className="absolute right-3 top-3 z-10 hidden min-h-touch min-w-touch items-center justify-center rounded-full bg-background/80 text-muted-foreground backdrop-blur transition-colors hover:bg-muted md:flex"
+              // Tablet-only close row ABOVE the detail's own TopBar. Keeping it on its own row (not an
+              // absolute top-right overlay) means it never sits on top of the sub-page TopBar's
+              // right-side indicators (offline / queued). The sub-page back chevron stays hidden on wide.
+              <div
+                className="hidden md:flex md:justify-end md:px-2 md:pt-2"
+                data-testid="two-pane-close-bar"
               >
-                <X size={20} aria-hidden="true" />
-              </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close details"
+                  data-testid="two-pane-close"
+                  className="flex min-h-touch min-w-touch items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted"
+                >
+                  <X size={20} aria-hidden="true" />
+                </button>
+              </div>
             )}
             {detail}
           </div>

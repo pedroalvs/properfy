@@ -130,7 +130,7 @@ export function ProfileAccountPage() {
 
   return (
     <div className="w-full pb-20">
-      <TopBar title="Account details" showBack backTo="/profile" />
+      <TopBar title="Account details" showBack backTo="/profile" backHideOnWide />
 
       {/* Settings read best as a comfortable centered column; short cards pair 2-up on tablet to
           shorten the page. Inert on phone (max-w-2xl > phone width). */}

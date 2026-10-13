@@ -16,7 +16,9 @@ vi.mock('@/features/execution/hooks/useLocalExecutionState', () => ({
 }));
 
 vi.mock('@/components/shell/TopBar', () => ({
-  TopBar: ({ title }: { title: string }) => <div>{title}</div>,
+  TopBar: ({ title, backHideOnWide }: { title: string; backHideOnWide?: boolean }) => (
+    <div data-testid="topbar" data-back-hide-on-wide={backHideOnWide ? 'true' : 'false'}>{title}</div>
+  ),
 }));
 
 vi.mock('@/components/feedback/LoadingState', () => ({
@@ -110,6 +112,13 @@ describe('AppointmentDetailPage', () => {
   it('displays the appointment code in the header', () => {
     renderPage();
     expect(screen.getByTestId('appointment-code')).toHaveTextContent('INS-0099');
+  });
+
+  it('keeps the TopBar back chevron hidden on wide (close comes from the pane frame)', () => {
+    // On tablet the master is always visible, so the detail hides its back chevron (backHideOnWide)
+    // and the TwoPaneLayout frame owns the close. TopBar.test locks that the prop -> md:hidden.
+    renderPage();
+    expect(screen.getByTestId('topbar')).toHaveAttribute('data-back-hide-on-wide', 'true');
   });
 
   it('lets the header reflow so it cannot overflow horizontally (280px / 200% zoom)', () => {

@@ -19,9 +19,6 @@ export function ScheduleLayout() {
       detail={<Outlet />}
       hasSelection={hasSelection}
       onClose={() => navigate('/schedule')}
-      // The detail page's own TopBar back chevron closes the pane (returns to the list), so the
-      // frame's floating close is omitted — it otherwise overlaps the TopBar's offline indicator.
-      showClose={false}
     />
   );
 }

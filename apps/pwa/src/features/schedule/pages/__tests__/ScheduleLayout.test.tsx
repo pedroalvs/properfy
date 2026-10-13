@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router-dom';
 import { ScheduleLayout } from '../ScheduleLayout';
@@ -52,11 +53,11 @@ describe('ScheduleLayout', () => {
     expect(screen.getByTestId('two-pane-master').className).toContain('hidden md:block');
   });
 
-  it('omits the frame close — the detail page TopBar back closes the pane', () => {
+  it('navigates back to the list when the frame close is used', async () => {
+    mockNavigate.mockClear();
+    const user = userEvent.setup();
     renderAt('/schedule/appt-1');
-    // The floating frame close would overlap the detail TopBar's offline indicator, so the layout
-    // sets showClose={false} and relies on the sub-page's own back chevron to close.
-    expect(screen.queryByTestId('two-pane-close')).not.toBeInTheDocument();
-    expect(screen.getByTestId('appointment-detail')).toBeInTheDocument();
+    await user.click(screen.getByTestId('two-pane-close'));
+    expect(mockNavigate).toHaveBeenCalledWith('/schedule');
   });
 });
