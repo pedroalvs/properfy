@@ -447,17 +447,58 @@ describe('useOfflineQueue', () => {
     await act(async () => {
       resetQueueSnapshot(); // logout
       releaseStart();
-      await Promise.resolve();
+      // Let the run settle: the post-await guard fires, the loop breaks, the
+      // allSettled resolves and the finally runs.
+      await new Promise((r) => setTimeout(r, 0));
     });
 
-    // The FINISH must never be sent after the logout invalidated the run.
-    await waitFor(() => expect(mockRemoveQueuedAction).toHaveBeenCalledWith('a'));
+    // The in-flight START's write-backs are skipped (the queue was wiped) and the
+    // FINISH is never sent after the logout invalidated the run.
     expect(mockApiPost).toHaveBeenCalledTimes(1);
+    expect(mockRemoveQueuedAction).not.toHaveBeenCalled();
     expect(mockApiPost).not.toHaveBeenCalledWith(
       '/v1/inspector/appointments/apt-1/finish',
       expect.anything(),
       expect.anything(),
     );
+  });
+
+  it('does not resurrect a failed action in IndexedDB when it fails after logout (PWA-7)', async () => {
+    mockUseIsOnline.mockReturnValue(true);
+    mockGetAllQueuedActions.mockResolvedValue([
+      {
+        id: 'a',
+        type: 'START',
+        appointmentId: 'apt-1',
+        payload: { latitude: 1, longitude: 2 },
+        idempotencyKey: 'start-key',
+        createdAt: '2026-03-25T10:00:00.000Z',
+        retryCount: 0,
+        lastError: null,
+        status: 'PENDING',
+      },
+    ]);
+
+    // Hold the send open, log out while it is in flight, then let it reject the way
+    // a post-logout request would (tokens cleared → 401 / network error).
+    let rejectStart!: (err: Error) => void;
+    const startInFlight = new Promise<void>((_resolve, reject) => {
+      rejectStart = reject;
+    });
+    mockApiPost.mockReturnValue(startInFlight);
+
+    renderHook(() => useOfflineQueue());
+    await waitFor(() => expect(mockApiPost).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      resetQueueSnapshot(); // logout
+      rejectStart(new Error('Unauthorized'));
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    // The catch block must not re-put the previous inspector's action.
+    expect(mockUpdateQueuedAction).not.toHaveBeenCalled();
+    expect(mockShowError).not.toHaveBeenCalled();
   });
 
   it('surfaces an error toast when retryAction hits an IndexedDB failure', async () => {

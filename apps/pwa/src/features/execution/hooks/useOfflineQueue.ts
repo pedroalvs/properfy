@@ -75,11 +75,15 @@ export function useOfflineQueue() {
       rerunRequested = true;
       return currentRun;
     }
-    const runGeneration = queueGeneration;
+    // Tracks the generation this run is acting under. Re-read at the start of each
+    // pass so a rerun triggered by a fresh login adopts the new generation instead
+    // of staying stuck on the logged-out one.
+    let runGeneration = queueGeneration;
     currentRun = (async () => {
       try {
         do {
           rerunRequested = false;
+          runGeneration = queueGeneration;
           try {
             const actions = (await getAllQueuedActions()).sort((a, b) =>
               a.createdAt.localeCompare(b.createdAt),
@@ -122,11 +126,19 @@ export function useOfflineQueue() {
                       'Idempotency-Key': action.idempotencyKey,
                     });
 
+                    // A logout may have landed while the request was in flight —
+                    // don't write back a now-wiped inspector's bookkeeping.
+                    if (runGeneration !== queueGeneration) break;
+
                     await removeQueuedAction(action.id);
                     if (action.type === 'FINISH') {
                       await clearExecutionState(action.appointmentId);
                     }
                   } catch (err) {
+                    // Same guard on the failure path: a post-logout 401/network
+                    // error must not resurrect the action in IndexedDB.
+                    if (runGeneration !== queueGeneration) break;
+
                     const lastError = err instanceof Error ? err.message : 'Unknown error';
                     const retryCount = (action.retryCount ?? 0) + 1;
                     const exhausted = retryCount > MAX_RETRIES;
