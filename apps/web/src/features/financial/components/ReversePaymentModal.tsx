@@ -60,12 +60,12 @@ export function ReversePaymentModal({
     setIsSubmitting(true);
     try {
       const { error: apiErr, response } = await api.POST(
-        '/v1/billing/invoices/{invoiceId}/reverse-payment' as never,
+        '/v1/billing/invoices/{invoiceId}/reverse-payment',
         {
           params: { path: { invoiceId } },
-          body: { reason: trimmed } as never,
+          body: { reason: trimmed },
           headers: { 'Idempotency-Key': idempotencyKey.current.current() },
-        } as never,
+        },
       );
       if (apiErr) {
         showError(friendlyError(toApiError(apiErr, (response as Response | undefined)?.status)));

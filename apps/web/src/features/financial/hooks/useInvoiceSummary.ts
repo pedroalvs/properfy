@@ -38,16 +38,14 @@ export function useInvoiceSummary(params: InvoiceSummaryParams): UseInvoiceSumma
   const query = useQuery<{ data: InvoiceSummaryResponse }, ApiError>({
     queryKey: ['billing', 'invoice-summary', queryParams],
     queryFn: async () => {
-      // The `as never` path cast (route not yet in the strict generated operation types at all
-      // call sites) collapses the result type, so re-assert the openapi-fetch result shape.
-      const { data, error, response } = (await api.GET(
-        '/v1/billing/invoices/summary' as never,
-        { params: { query: queryParams } } as never,
-      )) as { data?: unknown; error?: unknown; response?: Response };
+      const { data, error, response } = await api.GET('/v1/billing/invoices/summary', {
+        params: { query: queryParams },
+      });
       if (error) {
+        // Custom MULTI_CURRENCY_SCOPE detail shape not modelled by ApiError.
         const envelope = error as ApiErrorEnvelope;
         // The HTTP status lives on the raw Response; the parsed error body only has the envelope.
-        const status = response?.status ?? 500;
+        const status = (response as Response | undefined)?.status ?? 500;
         const code = envelope.error?.code;
         const message = envelope.error?.message ?? 'Failed to load invoice summary';
         const details = envelope.error?.details;
@@ -57,7 +55,7 @@ export function useInvoiceSummary(params: InvoiceSummaryParams): UseInvoiceSumma
         }
         throw apiError;
       }
-      return data as { data: InvoiceSummaryResponse };
+      return data as unknown as { data: InvoiceSummaryResponse };
     },
     retry: false,
   });

@@ -21,13 +21,14 @@ export function useCreateRefund() {
   return useMutation({
     mutationFn: async (data: CreateRefundInput) => {
       const { entryId, ...body } = data;
-      const { data: responseData, error, response } = await api.POST(`/v1/financial/entries/${entryId}/refund` as any, {
-        body: body as any,
+      const { data: responseData, error, response } = await api.POST('/v1/financial/entries/{entryId}/refund', {
+        params: { path: { entryId } },
+        body,
         headers: {
           'Idempotency-Key': idempotencyKey.current.current(),
         },
       });
-      if (error) throw toApiError(error, response?.status);
+      if (error) throw toApiError(error, (response as Response | undefined)?.status);
       return responseData;
     },
     onSuccess: () => {

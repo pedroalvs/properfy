@@ -46,7 +46,8 @@ describe('useCreateRefund', () => {
       });
     });
 
-    expect(mockPost).toHaveBeenCalledWith('/v1/financial/entries/fin-01/refund', {
+    expect(mockPost).toHaveBeenCalledWith('/v1/financial/entries/{entryId}/refund', {
+      params: { path: { entryId: 'fin-01' } },
       body: {
         description: 'Refund for failed inspection',
         reason: 'Service not executed',

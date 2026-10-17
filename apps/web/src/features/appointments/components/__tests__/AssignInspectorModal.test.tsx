@@ -98,8 +98,9 @@ describe('AssignInspectorModal', () => {
     fireEvent.click(screen.getByTestId('inspector-row-insp-1'));
     fireEvent.click(screen.getByTestId('assign-confirm-button'));
     await waitFor(() => expect(mockApiPost).toHaveBeenCalledWith(
-      '/v1/appointments/apt-1/status-transitions',
+      '/v1/appointments/{appointmentId}/status-transitions',
       expect.objectContaining({
+        params: { path: { appointmentId: 'apt-1' } },
         body: expect.objectContaining({ targetStatus: 'SCHEDULED', inspectorId: 'insp-1' }),
       }),
     ));
