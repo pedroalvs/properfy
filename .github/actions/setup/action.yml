@@ -16,6 +16,13 @@ inputs:
       via package exports. Set "true" for jobs that touch backend/web/pwa.
     required: false
     default: "false"
+  build-frontend-standards:
+    description: >-
+      Build @properfy/frontend-standards so pwa type resolution works (the
+      package resolves only to its compiled dist/). Set "true" for jobs that
+      typecheck/test/build the pwa.
+    required: false
+    default: "false"
   prisma-generate:
     description: >-
       Generate the Prisma client from schema.prisma. Set "true" for jobs that
@@ -41,6 +48,11 @@ runs:
       if: ${{ inputs.build-shared == 'true' }}
       shell: bash
       run: pnpm --filter shared build
+
+    - name: Build frontend-standards
+      if: ${{ inputs.build-frontend-standards == 'true' }}
+      shell: bash
+      run: pnpm --filter @properfy/frontend-standards build
 
     - name: Generate Prisma client
       if: ${{ inputs.prisma-generate == 'true' }}
