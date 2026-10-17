@@ -23,7 +23,6 @@ interface MapBulkRescheduleFormProps {
    * AM/OP endpoint) — the form still submits, just without the preview.
    */
   serviceGroups?: RescheduleGroupContext[];
-  onCancel: () => void;
   /** Result envelope is the same shape as 025 bulk actions; the modal renders the summary. */
   onComplete: (results: Array<{ appointmentId: string; status: string; error?: { code: string; message: string } }>) => void;
 }
@@ -45,7 +44,6 @@ interface MapBulkRescheduleFormProps {
 export function MapBulkRescheduleForm({
   checkedAppointments,
   serviceGroups,
-  onCancel: _onCancel,
   onComplete,
 }: MapBulkRescheduleFormProps) {
   const [newTimeSlotStart, setNewTimeSlotStart] = useState('');
