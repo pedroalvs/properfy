@@ -21,6 +21,11 @@ let queueSnapshot: QueuedAction[] = [];
 const listeners = new Set<() => void>();
 let currentRun: Promise<void> | null = null;
 let rerunRequested = false;
+// Bumped on logout. A queue run captures the generation it started under and bails
+// (stops sending, skips the snapshot refresh) once it changes, so an in-flight run
+// can't keep syncing the previous inspector's actions — or repopulate the badge —
+// after a logout has wiped the queue on a shared device.
+let queueGeneration = 0;
 
 export function subscribeQueue(listener: () => void): () => void {
   listeners.add(listener);
@@ -45,8 +50,12 @@ export async function refreshQueueSnapshot(): Promise<void> {
   }
 }
 
-/** Drop the in-memory snapshot (e.g. on logout, so the badge doesn't leak a count). */
+/**
+ * Drop the in-memory snapshot and invalidate any in-flight run (e.g. on logout,
+ * so the badge doesn't leak a count and a running sync stops touching the queue).
+ */
 export function resetQueueSnapshot(): void {
+  queueGeneration += 1;
   setQueueSnapshot([]);
 }
 
@@ -66,6 +75,7 @@ export function useOfflineQueue() {
       rerunRequested = true;
       return currentRun;
     }
+    const runGeneration = queueGeneration;
     currentRun = (async () => {
       try {
         do {
@@ -85,6 +95,10 @@ export function useOfflineQueue() {
             await Promise.allSettled(
               Array.from(actionsByAppointment.values()).map(async (group) => {
                 for (const action of group) {
+                  // A logout happened mid-run: stop syncing the previous
+                  // inspector's actions on this (now shared) device.
+                  if (runGeneration !== queueGeneration) break;
+
                   // Stop the whole chain on a permanent failure: a FINISH must
                   // never be sent after its START permanently failed.
                   if (action.status === 'FAILED') break;
@@ -136,7 +150,8 @@ export function useOfflineQueue() {
         } while (rerunRequested);
       } finally {
         currentRun = null;
-        await refreshQueueSnapshot();
+        // Don't repopulate a snapshot that a logout cleared out from under us.
+        if (runGeneration === queueGeneration) await refreshQueueSnapshot();
       }
     })();
     return currentRun;

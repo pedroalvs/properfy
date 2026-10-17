@@ -1,5 +1,5 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useOfflineQueue } from '../useOfflineQueue';
+import { useOfflineQueue, resetQueueSnapshot } from '../useOfflineQueue';
 
 const mockApiPost = vi.fn();
 const mockGetAllQueuedActions = vi.fn();
@@ -395,6 +395,69 @@ describe('useOfflineQueue', () => {
       ),
     );
     expect(mockApiPost).not.toHaveBeenCalled();
+  });
+
+  it('stops sending queued actions once a logout wipes the queue mid-run (PWA-7)', async () => {
+    mockUseIsOnline.mockReturnValue(true);
+    // Two actions in the same appointment group, processed sequentially.
+    mockGetAllQueuedActions.mockResolvedValue([
+      {
+        id: 'a',
+        type: 'START',
+        appointmentId: 'apt-1',
+        payload: { latitude: 1, longitude: 2 },
+        idempotencyKey: 'start-key',
+        createdAt: '2026-03-25T10:00:00.000Z',
+        retryCount: 0,
+        lastError: null,
+        status: 'PENDING',
+      },
+      {
+        id: 'b',
+        type: 'FINISH',
+        appointmentId: 'apt-1',
+        payload: { latitude: 3, longitude: 4 },
+        idempotencyKey: 'finish-key',
+        createdAt: '2026-03-25T10:05:00.000Z',
+        retryCount: 0,
+        lastError: null,
+        status: 'PENDING',
+      },
+    ]);
+
+    // Hold the first (START) send open until the test releases it, then simulate a
+    // logout before releasing so the FINISH iteration sees the bumped generation.
+    let releaseStart!: () => void;
+    const startInFlight = new Promise<void>((resolve) => {
+      releaseStart = resolve;
+    });
+    mockApiPost.mockImplementation(async (path: string) => {
+      if (path.endsWith('/start')) {
+        await startInFlight;
+        return { data: { ok: true } };
+      }
+      return { data: { ok: true } };
+    });
+
+    renderHook(() => useOfflineQueue());
+
+    await waitFor(() => expect(mockApiPost).toHaveBeenCalledTimes(1));
+    expect(mockApiPost.mock.calls[0][0]).toBe('/v1/inspector/appointments/apt-1/start');
+
+    await act(async () => {
+      resetQueueSnapshot(); // logout
+      releaseStart();
+      await Promise.resolve();
+    });
+
+    // The FINISH must never be sent after the logout invalidated the run.
+    await waitFor(() => expect(mockRemoveQueuedAction).toHaveBeenCalledWith('a'));
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+    expect(mockApiPost).not.toHaveBeenCalledWith(
+      '/v1/inspector/appointments/apt-1/finish',
+      expect.anything(),
+      expect.anything(),
+    );
   });
 
   it('surfaces an error toast when retryAction hits an IndexedDB failure', async () => {
