@@ -142,17 +142,17 @@ export function MarkInvoicePaidModal({
 
       if (isBatch) {
         const { data, error, response } = await api.POST(
-          '/v1/billing/invoices/batch-mark-paid' as never,
+          '/v1/billing/invoices/batch-mark-paid',
           {
-            body: { invoiceIds, ...body } as never,
+            body: { invoiceIds, ...body },
             headers: { 'Idempotency-Key': idempotencyKey.current.current() },
-          } as never,
+          },
         );
         if (error) {
           showError(friendlyError(toApiError(error, (response as Response | undefined)?.status)));
           return;
         }
-        const result = (data as { data?: BatchResponseData })?.data;
+        const result = (data as unknown as { data?: BatchResponseData })?.data;
         const processed = result?.processed?.length ?? 0;
         const skipped = result?.skipped?.length ?? 0;
         const message =
@@ -161,14 +161,14 @@ export function MarkInvoicePaidModal({
             : `${processed} invoice${processed === 1 ? '' : 's'} marked as paid`;
         showSuccess(message);
       } else {
-        const invoiceId = invoiceIds[0];
+        const invoiceId = invoiceIds[0]!; // guarded above: invoiceIds.length !== 0
         const { error, response } = await api.POST(
-          '/v1/billing/invoices/{invoiceId}/mark-paid' as never,
+          '/v1/billing/invoices/{invoiceId}/mark-paid',
           {
             params: { path: { invoiceId } },
-            body: body as never,
+            body,
             headers: { 'Idempotency-Key': idempotencyKey.current.current() },
-          } as never,
+          },
         );
         if (error) {
           showError(friendlyError(toApiError(error, (response as Response | undefined)?.status)));

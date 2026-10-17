@@ -60,12 +60,12 @@ export function RejectDraftModal({
     setIsSubmitting(true);
     try {
       const { error: apiErr, response } = await api.POST(
-        '/v1/billing/invoices/{invoiceId}/reject-draft' as never,
+        '/v1/billing/invoices/{invoiceId}/reject-draft',
         {
           params: { path: { invoiceId } },
-          body: { reason: trimmed } as never,
+          body: { reason: trimmed },
           headers: { 'Idempotency-Key': crypto.randomUUID() },
-        } as never,
+        },
       );
       if (apiErr) {
         showError(friendlyError(toApiError(apiErr, (response as Response | undefined)?.status)));

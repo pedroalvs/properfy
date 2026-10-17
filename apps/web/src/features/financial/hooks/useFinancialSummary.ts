@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError } from '@/lib/api-error';
+import type { ApiError } from '@/lib/api-error';
 import type { FinancialSummary } from '../types';
 
 export interface UseFinancialSummaryReturn {
@@ -12,14 +13,11 @@ export function useFinancialSummary(tenantId?: string, enabled: boolean = true):
   const query = useQuery<{ data: FinancialSummary }, ApiError>({
     queryKey: ['financial-entries', 'summary', tenantId ?? ''],
     queryFn: async () => {
-      const { data, error } = await api.GET('/v1/financial/entries/summary' as any, {
-        params: { query: tenantId ? { tenantId } : undefined } as any,
+      const { data, error, response } = await api.GET('/v1/financial/entries/summary', {
+        params: { query: tenantId ? { tenantId } : {} },
       });
-      if (error) {
-        const apiError = error as { status?: number; message?: string };
-        throw new ApiError(apiError.status ?? 500, apiError.message ?? 'Failed to load summary');
-      }
-      return data as { data: FinancialSummary };
+      if (error) throw toApiError(error, (response as Response | undefined)?.status);
+      return data as unknown as { data: FinancialSummary };
     },
     enabled,
   });
