@@ -85,13 +85,16 @@ describe('TopBar', () => {
     expect(screen.queryByText('Online')).not.toBeInTheDocument();
   });
 
-  it('shows an Offline indicator only when offline', () => {
+  it('shows a dot-only Offline indicator (no text) when offline', () => {
     mockIsOnline = false;
     renderWithProviders(<TopBar title="Schedule" />);
     const indicator = screen.getByTestId('connection-indicator');
     expect(indicator).toBeInTheDocument();
     expect(indicator.className).toContain('bg-destructive');
-    expect(screen.getByText('Offline')).toBeInTheDocument();
+    // PWA-12: the TopBar keeps the dot but no longer repeats the "offline" wording;
+    // the a11y name carries it instead (the banners carry the visible copy).
+    expect(indicator).toHaveAccessibleName('Offline');
+    expect(screen.queryByText('Offline')).not.toBeInTheDocument();
   });
 
   it('renders the lg primary-tab title at the .pf-h1 scale (27px / -0.4px tracking)', () => {
