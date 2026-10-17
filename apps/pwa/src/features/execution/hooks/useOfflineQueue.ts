@@ -43,8 +43,13 @@ function setQueueSnapshot(actions: QueuedAction[]): void {
 
 /** Re-read the full queue from IndexedDB into the shared snapshot. */
 export async function refreshQueueSnapshot(): Promise<void> {
+  const gen = queueGeneration;
   try {
-    setQueueSnapshot(await getAllQueuedActions());
+    const actions = await getAllQueuedActions();
+    // A logout during the read invalidated this result (the queue was wiped) —
+    // don't repopulate the badge with the previous inspector's actions.
+    if (gen !== queueGeneration) return;
+    setQueueSnapshot(actions);
   } catch {
     // IndexedDB may be unavailable; keep the current snapshot.
   }

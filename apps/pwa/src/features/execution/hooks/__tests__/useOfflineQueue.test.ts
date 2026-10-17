@@ -1,5 +1,10 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useOfflineQueue, resetQueueSnapshot } from '../useOfflineQueue';
+import {
+  useOfflineQueue,
+  resetQueueSnapshot,
+  refreshQueueSnapshot,
+  getQueueSnapshot,
+} from '../useOfflineQueue';
 
 const mockApiPost = vi.fn();
 const mockGetAllQueuedActions = vi.fn();
@@ -499,6 +504,27 @@ describe('useOfflineQueue', () => {
     // The catch block must not re-put the previous inspector's action.
     expect(mockUpdateQueuedAction).not.toHaveBeenCalled();
     expect(mockShowError).not.toHaveBeenCalled();
+  });
+
+  it('does not repopulate the badge snapshot when a logout lands during the read (PWA-7)', async () => {
+    resetQueueSnapshot();
+    expect(getQueueSnapshot()).toEqual([]);
+
+    // The IndexedDB read is in flight when the logout fires.
+    let resolveRead!: (actions: unknown[]) => void;
+    mockGetAllQueuedActions.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRead = resolve;
+      }),
+    );
+
+    const refreshing = refreshQueueSnapshot();
+    resetQueueSnapshot(); // logout bumps the generation mid-read
+    resolveRead([{ id: 'stale', status: 'PENDING' }]); // old inspector's actions arrive late
+    await refreshing;
+
+    // The late read is discarded; the badge stays empty.
+    expect(getQueueSnapshot()).toEqual([]);
   });
 
   it('surfaces an error toast when retryAction hits an IndexedDB failure', async () => {
