@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { zonedWallTimeToUtc } from '@properfy/shared';
+import { zonedWallTimeToUtc, createIdempotencyKeyManager } from '@properfy/shared';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -88,6 +88,10 @@ export function MarkInvoicePaidModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showSuccess, showError } = useSnackbar();
   const queryClient = useQueryClient();
+  // Stable key per mark-paid submit (single or batch), rotated only on success
+  // (HOL-3a): a re-submit after a lost response dedupes server-side rather than
+  // paying an invoice twice. Both API branches below send this same key.
+  const idempotencyKey = useRef(createIdempotencyKeyManager());
 
   const isBatch = invoiceIds.length > 1;
   const title = isBatch ? `Mark ${invoiceIds.length} Invoices as Paid` : 'Mark Invoice as Paid';
@@ -141,7 +145,7 @@ export function MarkInvoicePaidModal({
           '/v1/billing/invoices/batch-mark-paid' as never,
           {
             body: { invoiceIds, ...body } as never,
-            headers: { 'Idempotency-Key': crypto.randomUUID() },
+            headers: { 'Idempotency-Key': idempotencyKey.current.current() },
           } as never,
         );
         if (error) {
@@ -163,7 +167,7 @@ export function MarkInvoicePaidModal({
           {
             params: { path: { invoiceId } },
             body: body as never,
-            headers: { 'Idempotency-Key': crypto.randomUUID() },
+            headers: { 'Idempotency-Key': idempotencyKey.current.current() },
           } as never,
         );
         if (error) {
@@ -173,6 +177,9 @@ export function MarkInvoicePaidModal({
         showSuccess('Invoice marked as paid');
       }
 
+      // Only reached when the request above succeeded (both branches return
+      // early on error) — rotate so the NEXT submit starts a fresh operation.
+      idempotencyKey.current.rotate();
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['billing', 'reconciliation-summary'] });
       onSuccess();
