@@ -1,0 +1,49 @@
+name: Setup toolchain
+description: >-
+  Shared CI setup — pnpm, Node (cached), frozen install, and the optional
+  heavy steps (build @properfy/shared, generate the Prisma client) that most
+  jobs repeat. Centralising them here removes the per-job duplication (HOL-8)
+  and makes node-version a single knob for the CI matrix.
+
+inputs:
+  node-version:
+    description: Node.js version to install.
+    required: false
+    default: "20"
+  build-shared:
+    description: >-
+      Build @properfy/shared so downstream typecheck/test/build can resolve it
+      via package exports. Set "true" for jobs that touch backend/web/pwa.
+    required: false
+    default: "false"
+  prisma-generate:
+    description: >-
+      Generate the Prisma client from schema.prisma. Set "true" for jobs that
+      typecheck, build, test or introspect the backend.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: pnpm
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    - name: Build shared
+      if: ${{ inputs.build-shared == 'true' }}
+      shell: bash
+      run: pnpm --filter shared build
+
+    - name: Generate Prisma client
+      if: ${{ inputs.prisma-generate == 'true' }}
+      shell: bash
+      working-directory: apps/backend
+      run: npx prisma generate
