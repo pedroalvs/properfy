@@ -33,6 +33,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           build-shared: "true"
+          build-frontend-standards: "true"
           prisma-generate: "true"
 
       - name: Lint shared
@@ -167,6 +168,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           build-shared: "true"
+          build-frontend-standards: "true"
 
       - name: Test pwa
         run: pnpm --filter pwa test
@@ -226,6 +228,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           build-shared: "true"
+          build-frontend-standards: "true"
           prisma-generate: "true"
 
       - name: Build backend
