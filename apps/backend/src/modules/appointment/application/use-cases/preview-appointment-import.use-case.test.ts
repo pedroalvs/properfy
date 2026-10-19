@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ExcelJS from 'exceljs';
 import { PreviewAppointmentImportUseCase } from './preview-appointment-import.use-case';
+import { AppointmentImportFileParser } from '../../infrastructure/appointment-import-parser';
+import type { IAppointmentImportFileParser } from '../../domain/appointment-import-file-parser';
 import { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { BranchEntity } from '../../../tenant/domain/branch.entity';
 import { ValidationError, ForbiddenError } from '../../../../shared/domain/errors';
@@ -63,7 +65,10 @@ function buildDeps() {
   };
 }
 
-function buildUseCase(deps: ReturnType<typeof buildDeps>) {
+function buildUseCase(
+  deps: ReturnType<typeof buildDeps>,
+  fileParser: IAppointmentImportFileParser = new AppointmentImportFileParser(),
+) {
   return new PreviewAppointmentImportUseCase(
     deps.importRepo as any,
     deps.storageService as any,
@@ -71,6 +76,7 @@ function buildUseCase(deps: ReturnType<typeof buildDeps>) {
     deps.resolver as any,
     deps.geocodeVerifier as any,
     deps.authorizationService,
+    fileParser,
   );
 }
 
@@ -103,6 +109,27 @@ const CSV_BUFFER = Buffer.from(
 );
 
 describe('PreviewAppointmentImportUseCase', () => {
+  describe('file parser port (BE-6)', () => {
+    it('reads the file through the injected IAppointmentImportFileParser, not a hard-wired parser', async () => {
+      const deps = buildDeps();
+      deps.branchRepo.findById.mockResolvedValue(buildBranch());
+      const fakeParser: IAppointmentImportFileParser = {
+        parse: vi.fn().mockResolvedValue({
+          rows: [],
+          headers: REQUIRED_HEADERS,
+          headerRowNumber: 1,
+          sheetUsed: null,
+          sheetsIgnored: [],
+        }),
+      };
+      const uc = buildUseCase(deps, fakeParser);
+
+      await uc.execute({ fileBuffer: CSV_BUFFER, filename: 'x.csv', branchId: 'branch-1', actor: AM });
+
+      expect(fakeParser.parse).toHaveBeenCalledWith(CSV_BUFFER, 'csv');
+    });
+  });
+
   describe('RBAC', () => {
     it('rejects INSP', async () => {
       const deps = buildDeps();
