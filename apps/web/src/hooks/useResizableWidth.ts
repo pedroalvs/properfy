@@ -36,7 +36,7 @@ export function useResizableWidth({
   storageKey,
   direction = 'left',
 }: UseResizableWidthOptions = {}): UseResizableWidthReturn {
-  const clamp = (v: number) => Math.min(maxPx, Math.max(minPx, v));
+  const clamp = useCallback((v: number) => Math.min(maxPx, Math.max(minPx, v)), [minPx, maxPx]);
 
   const [widthPx, setWidthPx] = useState<number>(() => {
     if (storageKey) {
@@ -84,7 +84,7 @@ export function useResizableWidth({
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };
-  }, [isDragging, storageKey, widthPx]);
+  }, [isDragging, storageKey, widthPx, clamp, direction]);
 
   return { widthPx, isDragging, onHandleMouseDown };
 }

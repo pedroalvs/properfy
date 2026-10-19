@@ -623,6 +623,7 @@ export function AppointmentFormDrawer({
   }, [
     isEditMode,
     appointment,
+    isInServiceGroup,
     form,
     effectiveTimezone,
     validate,

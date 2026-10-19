@@ -1,14 +1,20 @@
-import type { InputHTMLAttributes, ReactNode } from 'react';
+import { useEffect, useRef, type InputHTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@properfy/frontend-standards';
 
 export interface AuthFieldProps
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className' | 'id'> {
+  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className' | 'id' | 'autoFocus'> {
   id: string;
   label: string;
   error?: string;
   hint?: string;
   /** Control rendered inside the field's right edge, e.g. a reveal toggle. */
   trailing?: ReactNode;
+  /**
+   * Focus the field once on mount. Imperative (ref + effect) rather than the
+   * DOM `autoFocus` attribute that jsx-a11y/no-autofocus flags; behaviour is
+   * identical.
+   */
+  focusOnMount?: boolean;
 }
 
 /**
@@ -20,10 +26,23 @@ export interface AuthFieldProps
  * no surrounding card — and bending the shared primitive to cover both would leave
  * every consumer paying for a variant only three pages want.
  */
-export function AuthField({ id, label, error, hint, trailing, ...inputProps }: AuthFieldProps) {
+export function AuthField({
+  id,
+  label,
+  error,
+  hint,
+  trailing,
+  focusOnMount,
+  ...inputProps
+}: AuthFieldProps) {
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
   const describedBy = error ? errorId : hint ? hintId : undefined;
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (focusOnMount) inputRef.current?.focus();
+  }, [focusOnMount]);
 
   return (
     <div>
@@ -38,6 +57,7 @@ export function AuthField({ id, label, error, hint, trailing, ...inputProps }: A
         </label>
         <input
           {...inputProps}
+          ref={inputRef}
           id={id}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
