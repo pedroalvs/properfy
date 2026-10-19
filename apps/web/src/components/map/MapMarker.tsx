@@ -99,6 +99,11 @@ export function MapMarker({
   // loading yet — in those cases we render the UI inline below.
   const [portalNode, setPortalNode] = useState<HTMLDivElement | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+  // Latest coords for the create-once effect to read on mount without
+  // depending on them (position updates flow through the setLngLat effect
+  // below, so re-creating the marker on every coordinate change is wrong).
+  const coordsRef = useRef({ longitude, latitude });
+  coordsRef.current = { longitude, latitude };
 
   useEffect(() => {
     const map = getMap();
@@ -118,7 +123,7 @@ export function MapMarker({
     node.className = 'inline-block';
 
     const marker = new mapboxgl.Marker({ element: node, anchor: 'bottom' })
-      .setLngLat([longitude, latitude])
+      .setLngLat([coordsRef.current.longitude, coordsRef.current.latitude])
       .addTo(map);
     markerRef.current = marker;
     setPortalNode(node);

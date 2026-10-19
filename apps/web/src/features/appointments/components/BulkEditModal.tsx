@@ -453,7 +453,11 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
         onSuccess();
       }
     } catch (err) {
-      setErrorMessage(getErrorMessage(err, 'Network error. Please try again.'));
+      // R2-REG-1: a thrown server error (incl. a 5xx whose body fails to parse)
+      // must not be mislabelled "Network error". getErrorMessage distinguishes a
+      // genuine network failure from a server/other error and suppresses raw 5xx
+      // internals behind the neutral fallback.
+      setErrorMessage(getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setSubmitting(false);
     }

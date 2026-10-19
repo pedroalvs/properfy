@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
+import { ApiError } from '@properfy/shared';
 import type { Appointment } from '../types';
 
 /**
@@ -244,6 +245,22 @@ describe('BulkEditModal', () => {
 
     expect(await screen.findByText('Start time must be before end time.')).toBeInTheDocument();
     expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it('does not mislabel a thrown 5xx as a network error (R2-REG-1)', async () => {
+    // A server error can reach the catch (e.g. a 5xx whose non-JSON body throws
+    // during parse). It must NOT be shown as "Network error" — getErrorMessage
+    // suppresses raw 5xx internals behind a neutral fallback instead.
+    mockPost.mockRejectedValue(new ApiError(500, 'DB connection lost', 'INTERNAL_ERROR'));
+    renderModal([makeAppointment()]);
+    fireEvent.click(screen.getByLabelText('Time Slot'));
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '13:00' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '16:00' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+    expect(await screen.findByText('Something went wrong. Please try again.')).toBeInTheDocument();
+    expect(screen.queryByText('Network error. Please try again.')).toBeNull();
   });
 
   it('rejects a past scheduled date at submit instead of sending it', async () => {
