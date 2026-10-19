@@ -110,7 +110,8 @@ describe('usePropertySave', () => {
       await result.current.save({ ...VALID_CREATE_DATA, apartmentNumber: 'Apt 9' }, 'prop-01');
     });
 
-    expect(mockPatch).toHaveBeenCalledWith('/v1/properties/prop-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/properties/{propertyId}', {
+      params: { path: { propertyId: 'prop-01' } },
       body: expect.objectContaining({ apartmentNumber: null }),
     });
   });
@@ -160,7 +161,8 @@ describe('usePropertySave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/properties/prop-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/properties/{propertyId}', {
+      params: { path: { propertyId: 'prop-01' } },
       body: expect.objectContaining({
         type: VALID_CREATE_DATA.type,
         branchId: VALID_CREATE_DATA.branchId,
