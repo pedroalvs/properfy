@@ -13,6 +13,7 @@ import { InvoiceStatusChip } from './InvoiceStatusChip';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
+import { toApiError } from '@/lib/api-error';
 import { MarkInvoicePaidModal } from './MarkInvoicePaidModal';
 import { ReversePaymentModal } from './ReversePaymentModal';
 import { RejectDraftModal } from './RejectDraftModal';
@@ -71,18 +72,18 @@ export function InvoiceDetailDrawer({
     if (!invoiceId) return;
     setIsApproving(true);
     try {
-      const { error } = await api.POST(
-        '/v1/billing/invoices/{invoiceId}/approve-draft' as never,
+      const { error, response } = await api.POST(
+        '/v1/billing/invoices/{invoiceId}/approve-draft',
         {
           params: { path: { invoiceId } },
           headers: { 'Idempotency-Key': crypto.randomUUID() },
-        } as never,
+        },
       );
       if (error) {
-        const err = error as { status?: number; error?: { code?: string } };
+        const err = toApiError(error, (response as Response | undefined)?.status);
         if (err.status === 403) {
           showError('You do not have permission to approve draft invoices.');
-        } else if (err.error?.code === 'INVOICE_NOT_PENDING_REVIEW') {
+        } else if (err.code === 'INVOICE_NOT_PENDING_REVIEW') {
           showError('This invoice is not in pending review status.');
         } else {
           showError('Failed to approve draft invoice. Please try again.');

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { toApiError } from '@/lib/api-error';
 
 export interface UseFinancialBatchApproveReturn {
   approve: (ids: string[]) => Promise<{ 
@@ -22,14 +23,16 @@ export function useFinancialBatchApprove(): UseFinancialBatchApproveReturn {
     try {
       const results = await Promise.allSettled(
         ids.map(async (id) => {
-          const { error, response } = await api.POST(`/v1/financial/entries/${id}/approve` as any, {});
+          const { error, response } = await api.POST('/v1/financial/entries/{entryId}/approve', {
+            params: { path: { entryId: id } },
+          });
           if (error) {
-            const err = error as any;
+            const apiError = toApiError(error, (response as Response | undefined)?.status);
             throw {
               id,
-              message: err?.error?.message ?? 'Request failed',
-              code: err?.error?.code,
-              status: response.status
+              message: apiError.message || 'Request failed',
+              code: apiError.code,
+              status: apiError.status,
             };
           }
         }),

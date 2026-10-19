@@ -20,13 +20,13 @@ export function useCreateAdjustment() {
 
   return useMutation({
     mutationFn: async (data: CreateAdjustmentInput) => {
-      const { data: responseData, error, response } = await api.POST('/v1/financial/entries/adjust' as any, {
-        body: data as any,
+      const { data: responseData, error, response } = await api.POST('/v1/financial/entries/adjust', {
+        body: data,
         headers: {
           'Idempotency-Key': idempotencyKey.current.current(),
         },
       });
-      if (error) throw toApiError(error, response?.status);
+      if (error) throw toApiError(error, (response as Response | undefined)?.status);
       return responseData;
     },
     onSuccess: () => {

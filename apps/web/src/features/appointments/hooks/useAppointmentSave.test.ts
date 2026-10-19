@@ -144,7 +144,8 @@ describe('useAppointmentSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
       body: {
         scheduledDate: VALID_CREATE_DATA.scheduledDate,
         timeSlotStart: VALID_CREATE_DATA.timeSlotStart,
@@ -186,7 +187,8 @@ describe('useAppointmentSave', () => {
     await act(async () => {
       await result.current.save({ ...VALID_CREATE_DATA, observation: '' }, 'apt-01');
     });
-    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
       body: expect.objectContaining({ observation: null }),
     });
   });
@@ -228,7 +230,8 @@ describe('useAppointmentSave', () => {
       }, 'apt-01');
     });
 
-    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
       body: expect.objectContaining({
         restriction: null,
       }),
@@ -400,7 +403,8 @@ describe('useAppointmentSave', () => {
       await act(async () => {
         await result.current.save({ ...VALID_CREATE_DATA, customFields: [] }, 'apt-01');
       });
-      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
         body: expect.objectContaining({ customFields: [] }),
       });
 
@@ -408,7 +412,8 @@ describe('useAppointmentSave', () => {
       await act(async () => {
         await result.current.save({ ...VALID_CREATE_DATA, customFields: [cf('Gate', '1')] }, 'apt-01');
       });
-      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
         body: expect.objectContaining({ customFields: [{ label: 'Gate', value: '1' }] }),
       });
     });
