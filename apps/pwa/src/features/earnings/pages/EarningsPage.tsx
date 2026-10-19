@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Banknote, FilePlus2, ReceiptText, ChevronRight } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
 import { TopBar } from '@/components/shell/TopBar';
+import { formatCurrency } from '@/lib/format-currency';
 import { formatInstantDateTime } from '@/lib/format-date';
 import {
   useInspectorEarningsSummary,
@@ -31,10 +32,6 @@ const PAYOUT_TONE: Record<string, { label: string; tone: BadgeTone }> = {
   CANCELLED: { label: 'Cancelled', tone: 'red' },
   VOIDED: { label: 'Voided', tone: 'gray' },
 };
-
-function formatCurrency(amount: number, currency = 'AUD'): string {
-  return new Intl.NumberFormat('en-AU', { style: 'currency', currency }).format(amount);
-}
 
 /** Payment status chip for a payout entry (distinct from the ui `StatusChip`). */
 function PayoutStatusChip({ status }: { status: string }) {
