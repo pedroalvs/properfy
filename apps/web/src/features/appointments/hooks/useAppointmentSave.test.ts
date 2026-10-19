@@ -501,7 +501,7 @@ describe('useAppointmentSave', () => {
           message: 'Validation failed',
           details: [
             { field: 'scheduledDate', message: 'Scheduled date cannot be in the past' },
-            { field: 'contact.rentalTenantName', message: 'Contact name is required' },
+            { field: 'restriction.notes', message: 'Restriction notes are required' },
           ],
         },
       },
@@ -516,7 +516,7 @@ describe('useAppointmentSave', () => {
 
     expect(saveResult?.success).toBe(false);
     expect(saveResult?.fieldErrors?.scheduledDate).toBe('Scheduled date cannot be in the past');
-    expect(saveResult?.fieldErrors?.contactName).toBe('Contact name is required');
+    expect(saveResult?.fieldErrors?.restrictionNotes).toBe('Restriction notes are required');
     expect(saveResult?.errorCode).toBe('VALIDATION_ERROR');
     // All details matched — no summary error, no snackbar fallback needed.
     expect(saveResult?.error).toBeUndefined();

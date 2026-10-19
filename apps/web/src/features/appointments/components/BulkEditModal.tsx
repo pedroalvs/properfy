@@ -20,6 +20,7 @@ import { useFormOptions } from '@/hooks/useFormOptions';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { usePermissions } from '@/hooks/usePermissions';
 import { api } from '@/services/api';
+import { getErrorMessage } from '@/lib/api-error';
 import { ContactAutocomplete } from './ContactAutocomplete';
 import { useBulkCrossCheckDone } from '../hooks/useBulkCrossCheckDone';
 import { useBulkStatusTransition } from '../hooks/useBulkStatusTransition';
@@ -471,8 +472,8 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
           onSuccess();
         }
       }
-    } catch {
-      setErrorMessage('Network error. Please try again.');
+    } catch (err) {
+      setErrorMessage(getErrorMessage(err, 'Network error. Please try again.'));
     } finally {
       setSubmitting(false);
     }
