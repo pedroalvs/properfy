@@ -5,6 +5,7 @@ import type { ApiError } from '@/lib/api-error';
 import { getOrCreateIdempotencyKey } from '@/lib/idempotency';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import { enqueueAction } from '../lib/indexeddb';
+import { refreshQueueSnapshot } from './useOfflineQueue';
 import type { CapturedLocation } from '../types';
 
 interface FinishInput {
@@ -46,6 +47,9 @@ export function useFinishInspection() {
           retryCount: 0,
           lastError: null,
         });
+        // Reflect the new queued action in the shared snapshot so the badge count
+        // updates immediately (there is no longer a poll to pick it up).
+        await refreshQueueSnapshot();
 
         return { queued: true };
       }
