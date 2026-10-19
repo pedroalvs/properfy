@@ -1,6 +1,10 @@
 import { parse } from 'csv-parse/sync';
 import ExcelJS from 'exceljs';
 import type { RawCell, RawCustomFieldCandidate, RawImportRow } from '../domain/appointment-import-normalize';
+import type {
+  IAppointmentImportFileParser,
+  ParsedImportFile,
+} from '../domain/appointment-import-file-parser';
 import {
   APPOINTMENT_IMPORT_HEADER_MAP,
   CUSTOM_HEADER_RE,
@@ -30,21 +34,10 @@ const EMPTY_ROW: Omit<RawImportRow, 'customFieldCandidates'> = {
   quaternaryEmail: null, quaternaryPhone: null,
 };
 
-/** Everything the caller needs to explain the file back to the user: the rows,
- * the headers actually found, where they were found, and which worksheet they
- * came from. */
-export interface ParsedImportFile {
-  rows: RawImportRow[];
-  /** Header labels of the selected sheet / CSV, trimmed, in column order. */
-  headers: string[];
-  /** Spreadsheet row the headers came from — 1 for CSV and for every
-   * well-formed workbook. Threaded into the resolver so the row numbers in
-   * per-row messages stay honest when a sheet has leading blank rows. */
-  headerRowNumber: number;
-  /** xlsx only: the worksheet actually read, and every one skipped. */
-  sheetUsed: string | null;
-  sheetsIgnored: string[];
-}
+/** `ParsedImportFile` now lives in the domain (`appointment-import-file-parser`,
+ * alongside the `IAppointmentImportFileParser` port). Re-exported here for the
+ * consumers that import the type from this module. */
+export type { ParsedImportFile };
 
 /** Builds one `RawImportRow` from a header->cell-value record, preserving
  * column order for CUSTOM: candidates (both `Object.entries` on a
@@ -273,4 +266,13 @@ export async function parseAppointmentImportFile(
 ): Promise<ParsedImportFile> {
   assertFileMatchesExtension(buffer, ext);
   return ext === 'csv' ? parseCsv(buffer) : parseXlsx(buffer);
+}
+
+/** Concrete `IAppointmentImportFileParser` adapter wrapping the module-level
+ * `parseAppointmentImportFile` so the application layer depends on the port,
+ * not this infrastructure module (BE-6). */
+export class AppointmentImportFileParser implements IAppointmentImportFileParser {
+  parse(buffer: Buffer, ext: 'xlsx' | 'csv'): Promise<ParsedImportFile> {
+    return parseAppointmentImportFile(buffer, ext);
+  }
 }

@@ -1,7 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import type { ClUserPermission } from '@properfy/shared';
 import type { UserRole } from '@properfy/shared';
-import type { AuditService } from '../infrastructure/audit';
+import type { AuditService } from './audit';
 import { ForbiddenError } from './errors';
 
 export interface AuthorizationContext {
