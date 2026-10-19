@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -222,9 +223,10 @@ export function DataTable<T>({
         {sortedData.map((row, index) => (
           <div
             key={keyExtractor ? keyExtractor(row, index) : ((row as any).id ?? index)}
-            className={`rounded-xl border border-border-subtle bg-card-bg p-4 shadow-sm ${
-              onRowClick ? 'cursor-pointer transition-colors hover:bg-hover-row' : ''
-            }`}
+            className={cn(
+              'rounded-xl border border-border-subtle bg-card-bg p-4 shadow-sm',
+              onRowClick && 'cursor-pointer transition-colors hover:bg-hover-row',
+            )}
             onClick={onRowClick ? () => onRowClick(row) : undefined}
             data-testid="data-table-mobile-card"
           >
@@ -237,7 +239,7 @@ export function DataTable<T>({
                   <span className="min-w-0 text-xs font-semibold uppercase tracking-wide text-text-muted">
                     {column.headerRender ? column.headerRender() : column.label}
                   </span>
-                  <div className={`min-w-0 flex-1 text-sm text-text-primary ${alignClass(column.align)}`}>
+                  <div className={cn('min-w-0 flex-1 text-sm text-text-primary', alignClass(column.align))}>
                     {renderCellValue(row, column, index)}
                   </div>
                 </div>
@@ -269,9 +271,12 @@ export function DataTable<T>({
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    className={`px-3 py-3 text-table-header text-text-secondary md:px-4 ${alignClass(col.align)} ${
-                      col.sortable ? 'cursor-pointer select-none hover:text-text-primary' : ''
-                    } ${col.hideOnMobile ? 'hidden md:table-cell' : ''}`}
+                    className={cn(
+                      'px-3 py-3 text-table-header text-text-secondary md:px-4',
+                      alignClass(col.align),
+                      col.sortable && 'cursor-pointer select-none hover:text-text-primary',
+                      col.hideOnMobile && 'hidden md:table-cell',
+                    )}
                     style={col.width ? { width: col.width } : undefined}
                     onClick={col.sortable ? () => handleSort(col.key) : undefined}
                   >
@@ -279,9 +284,7 @@ export function DataTable<T>({
                       {col.headerRender ? col.headerRender() : col.label}
                       {col.sortable && sortBy === col.key && (
                         <i
-                          className={`mdi ${
-                            sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down'
-                          } text-xs`}
+                          className={cn('mdi', sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down', 'text-xs')}
                           aria-hidden="true"
                         />
                       )}
@@ -317,15 +320,16 @@ export function DataTable<T>({
                 sortedData.map((row, index) => (
                   <tr
                     key={keyExtractor ? keyExtractor(row, index) : ((row as any).id ?? index)}
-                    className={`border-b border-border-light text-table-body text-text-primary ${
-                      onRowClick ? 'cursor-pointer hover:bg-hover-row' : ''
-                    }`}
+                    className={cn(
+                      'border-b border-border-light text-table-body text-text-primary',
+                      onRowClick && 'cursor-pointer hover:bg-hover-row',
+                    )}
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
                   >
                     {columns.map((col) => (
                       <td
                         key={col.key}
-                        className={`px-3 py-3 md:px-4 ${alignClass(col.align)} ${col.hideOnMobile ? 'hidden md:table-cell' : ''}`}
+                        className={cn('px-3 py-3 md:px-4', alignClass(col.align), col.hideOnMobile && 'hidden md:table-cell')}
                       >
                         {renderCellValue(row, col, index)}
                       </td>

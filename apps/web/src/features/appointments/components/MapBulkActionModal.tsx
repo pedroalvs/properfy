@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { useResizableWidth } from '@/hooks/useResizableWidth';
 import { Dialog } from '@/components/ui/Dialog';
 import { ViewportAwareDropdown } from '@/components/ui/ViewportAwareDropdown';
@@ -680,7 +681,7 @@ export function MapBulkActionModal({
   if (position === 'top-right') {
     return (
       <div
-        className={`fixed right-4 top-16 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg shadow-xl${isDragging ? ' select-none' : ''}`}
+        className={cn('fixed right-4 top-16 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg shadow-xl', isDragging && 'select-none')}
         style={{
           width: `min(${widthPx}px, calc(100vw - 32px))`,
           maxHeight: 'calc(100vh - 80px)',
@@ -768,11 +769,12 @@ function BulkActionsDropdown({ actions, isDisabled, selectedCount, onSelect }: B
                 if (disabled.disabled) return;
                 onSelect(action.key);
               }}
-              className={`block w-full px-3 py-2 text-left text-sm ${
+              className={cn(
+                'block w-full px-3 py-2 text-left text-sm',
                 disabled.disabled
                   ? 'cursor-not-allowed text-text-muted'
-                  : 'text-text-primary hover:bg-gray-50'
-              }`}
+                  : 'text-text-primary hover:bg-gray-50',
+              )}
               data-testid={`bulk-action-${action.key}`}
               role="menuitem"
             >

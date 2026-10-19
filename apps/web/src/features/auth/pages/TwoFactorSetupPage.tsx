@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type FormEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
+import { cn } from '@properfy/frontend-standards';
 import { useAuth, type TotpSetupData } from '@/hooks/useAuth';
 import { consumePostLoginRedirect } from '@/lib/post-login-redirect';
 import { ApiError, getErrorMessage } from '@/lib/api-error';
@@ -21,7 +22,7 @@ function ProgressDots({ step }: { step: 'scan' | 'verify' }) {
       <span className="h-2.5 w-2.5 rounded-full bg-real-estate" />
       <span className="h-px w-8 bg-border-subtle" />
       <span
-        className={`h-2.5 w-2.5 rounded-full ${step === 'verify' ? 'bg-real-estate' : 'bg-border-subtle'}`}
+        className={cn('h-2.5 w-2.5 rounded-full', step === 'verify' ? 'bg-real-estate' : 'bg-border-subtle')}
       />
     </div>
   );

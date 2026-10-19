@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { cn } from '@properfy/frontend-standards';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -206,7 +207,7 @@ export function AppointmentBoardPage() {
         .
       </InfoBanner>
 
-      <div className={`mt-3 min-h-0 flex-1 overflow-x-auto ${effectiveSelectedIds.length > 0 ? 'pb-16' : ''}`}>
+      <div className={cn('mt-3 min-h-0 flex-1 overflow-x-auto', effectiveSelectedIds.length > 0 && 'pb-16')}>
         <div className="flex h-full gap-3">
           {columns.map((column) => (
             <AppointmentBoardColumn

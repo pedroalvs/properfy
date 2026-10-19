@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes, ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 export interface AuthFieldProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className' | 'id'> {
@@ -40,9 +41,10 @@ export function AuthField({ id, label, error, hint, trailing, ...inputProps }: A
           id={id}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          className={`h-[52px] w-full rounded border border-black/20 bg-card-bg text-[15px] text-text-primary outline-none transition-colors placeholder:text-text-disabled focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50 aria-[invalid=true]:border-error ${
-            trailing ? 'pl-4 pr-12' : 'px-4'
-          }`}
+          className={cn(
+            'h-[52px] w-full rounded border border-black/20 bg-card-bg text-[15px] text-text-primary outline-none transition-colors placeholder:text-text-disabled focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50 aria-[invalid=true]:border-error',
+            trailing ? 'pl-4 pr-12' : 'px-4',
+          )}
         />
         {trailing && (
           <div className="absolute inset-y-0 right-2 flex items-center">{trailing}</div>

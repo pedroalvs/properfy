@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 interface TableSwitchProps {
   enabled: boolean;
@@ -18,14 +19,16 @@ export function TableSwitch({ enabled, onChange, label, children }: TableSwitchP
           role="switch"
           aria-checked={enabled}
           onClick={() => onChange(!enabled)}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 ${
-            enabled ? 'bg-primary' : 'bg-[#939393]'
-          }`}
+          className={cn(
+            'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200',
+            enabled ? 'bg-primary' : 'bg-[#939393]',
+          )}
         >
           <span
-            className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${
-              enabled ? 'translate-x-[22px]' : 'translate-x-[3px]'
-            }`}
+            className={cn(
+              'inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200',
+              enabled ? 'translate-x-[22px]' : 'translate-x-[3px]',
+            )}
           />
         </button>
         <label htmlFor={id} className="cursor-pointer select-none text-sm text-text-primary">

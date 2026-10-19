@@ -1,3 +1,5 @@
+import { cn } from '@properfy/frontend-standards';
+
 interface MapLassoToggleButtonProps {
   active: boolean;
   onClick: () => void;
@@ -8,11 +10,12 @@ export function MapLassoToggleButton({ active, onClick }: MapLassoToggleButtonPr
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-md transition-colors ${
+      className={cn(
+        'inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-md transition-colors',
         active
           ? 'border-primary bg-primary text-white'
-          : 'border-border-subtle bg-card-bg text-text-secondary hover:bg-gray-50'
-      }`}
+          : 'border-border-subtle bg-card-bg text-text-secondary hover:bg-gray-50',
+      )}
       aria-label="Select area"
       aria-pressed={active}
       data-testid="map-lasso-toggle"

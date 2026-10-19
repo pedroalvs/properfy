@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 interface FilterBarProps {
   children: ReactNode;
@@ -38,7 +39,10 @@ export function FilterBar({
   const showClearAll = !!onClearAll && hasActiveFilters;
   return (
     <div
-      className={`sticky top-0 z-10 bg-white pb-4 mb-0 grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 ${className}`}
+      className={cn(
+        'sticky top-0 z-10 bg-white pb-4 mb-0 grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4',
+        className,
+      )}
       role="search"
       aria-label="Filters"
     >
