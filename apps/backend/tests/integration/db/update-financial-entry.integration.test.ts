@@ -18,8 +18,10 @@ import type { AuthContext } from '@properfy/shared';
 import { setupDbHarness, teardownDbHarness, type DbHarness } from './harness';
 import { PrismaFinancialEntryRepository } from '../../../src/modules/billing/infrastructure/prisma-financial-entry.repository';
 import { UpdateFinancialEntryUseCase } from '../../../src/modules/billing/application/use-cases/update-financial-entry.use-case';
+import { ApproveFinancialEntryUseCase } from '../../../src/modules/billing/application/use-cases/approve-financial-entry.use-case';
 import { PrismaIdempotencyService } from '../../../src/modules/inspector-execution/infrastructure/prisma-idempotency.service';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
 import {
   EntryNotEditableError,
   BillingIdempotencyPayloadMismatchError,
@@ -28,11 +30,31 @@ import type { FinancialEntryStatus, FinancialEntryType } from '@properfy/shared'
 
 let harness: DbHarness;
 let tenantId: string;
+let branchId: string;
 let userId: string;
 const auditStub = { log: () => {} } as any;
 
 function amActor(): AuthContext {
   return { userId, tenantId: null, role: 'AM', branchId: null, inspectorId: null };
+}
+
+function opActor(uid: string): AuthContext {
+  return { userId: uid, tenantId: null, role: 'OP', branchId: null, inspectorId: null };
+}
+
+async function createUser(label: string): Promise<string> {
+  const user = await harness.prisma.user.create({
+    data: {
+      tenant_id: tenantId,
+      branch_id: branchId,
+      role: 'OP',
+      name: label,
+      email: `${label}-${Math.random().toString(36).slice(2, 10)}@test.local`,
+      password_hash: '$2a$10$fakehashfakehashfakehashfakehashfake',
+      status: 'ACTIVE',
+    },
+  });
+  return user.id;
 }
 
 function makeUseCase(): UpdateFinancialEntryUseCase {
@@ -80,6 +102,7 @@ describe('Update financial entry — in-place edit (real DB)', () => {
     const branch = await harness.prisma.branch.create({
       data: { tenant_id: tenant.id, name: 'Main Branch', status: 'ACTIVE' },
     });
+    branchId = branch.id;
     const user = await harness.prisma.user.create({
       data: {
         tenant_id: tenant.id,
@@ -169,6 +192,33 @@ describe('Update financial entry — in-place edit (real DB)', () => {
 
     const row = await harness.prisma.financialEntry.findUniqueOrThrow({ where: { id: entryId } });
     expect(Number(row.amount)).toBe(winnerAmount);
+  });
+
+  it('rebinds the initiator to the editor so the editor cannot self-approve, but another operator can (SoD)', async () => {
+    // Seeded entry is authored by `userId` (the creator). A DIFFERENT operator edits it.
+    const editorId = await createUser('sod-editor');
+    const entryId = await seedEntry('MANUAL_ADJUSTMENT', 'PENDING');
+
+    const repo = new PrismaFinancialEntryRepository(harness.prisma);
+    const updateUC = new UpdateFinancialEntryUseCase(repo, auditStub, new AuthorizationService(auditStub), new PrismaIdempotencyService(harness.prisma));
+    await updateUC.execute({ entryId, amount: 500, idempotencyKey: 'sod-edit', actor: opActor(editorId) });
+
+    // The editor is now the recorded author of the economic content.
+    const afterEdit = await harness.prisma.financialEntry.findUniqueOrThrow({ where: { id: entryId } });
+    expect(afterEdit.initiated_by_user_id).toBe(editorId);
+    expect(Number(afterEdit.amount)).toBe(500);
+
+    const approveUC = new ApproveFinancialEntryUseCase(repo, auditStub, new AuthorizationService(auditStub), new PrismaIdempotencyService(harness.prisma));
+
+    // The editor who set the amount must NOT be able to approve it (maker≠checker).
+    // assertNotSelfApproval throws ForbiddenError(SELF_APPROVAL_FORBIDDEN).
+    await expect(
+      approveUC.execute({ entryId, idempotencyKey: 'sod-approve-editor', actor: opActor(editorId) }),
+    ).rejects.toThrow(ForbiddenError);
+
+    // The original creator (who did not author the final amount) still can.
+    const approved = await approveUC.execute({ entryId, idempotencyKey: 'sod-approve-creator', actor: opActor(userId) });
+    expect(approved.status).toBe('APPROVED');
   });
 
   it('replays the cached result on same key + same payload (edits once)', async () => {

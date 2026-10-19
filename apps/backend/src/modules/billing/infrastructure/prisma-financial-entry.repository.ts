@@ -307,9 +307,12 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
   async updateManualAdjustmentFields(
     id: string,
     tenantId: string,
+    editorUserId: string,
     fields: { amount?: number; description?: string; effectiveAt?: Date; reason?: string },
   ): Promise<number> {
-    const data: Record<string, unknown> = {};
+    // The editor becomes the recorded author of the economic content so the
+    // self-approval guard blocks them from also approving it (maker≠checker).
+    const data: Record<string, unknown> = { initiated_by_user_id: editorUserId };
     if (fields.amount !== undefined) data.amount = fields.amount;
     if (fields.description !== undefined) data.description = fields.description;
     if (fields.effectiveAt !== undefined) data.effective_at = fields.effectiveAt;

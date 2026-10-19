@@ -151,7 +151,7 @@ export class UpdateFinancialEntryUseCase {
 
     // 4. Atomic, tenant + status + type guarded update. A concurrent approve/void
     // that collapsed the PENDING window makes this affect zero rows → 409.
-    const affected = await this.financialEntryRepo.updateManualAdjustmentFields(entryId, entry.tenantId, {
+    const affected = await this.financialEntryRepo.updateManualAdjustmentFields(entryId, entry.tenantId, actor.userId, {
       amount: input.amount,
       description: input.description,
       effectiveAt: input.effectiveAt,
@@ -182,12 +182,14 @@ export class UpdateFinancialEntryUseCase {
         description: entry.description,
         effectiveAt: entry.effectiveAt.toISOString(),
         reason: entry.reason,
+        initiatedByUserId: entry.initiatedByUserId,
       },
       after: {
         amount: updated.amount,
         description: updated.description,
         effectiveAt: updated.effectiveAt.toISOString(),
         reason: updated.reason,
+        initiatedByUserId: updated.initiatedByUserId,
       },
     });
 

@@ -114,6 +114,7 @@ describe('UpdateFinancialEntryUseCase', () => {
       description: 'Corrected amount',
       effectiveAt: new Date('2026-04-01T00:00:00.000Z'),
       reason: 'Operator correction',
+      initiatedByUserId: 'user-am', // editor recorded as the economic-content author
       updatedAt: UPDATED_AT,
     });
     vi.mocked(financialEntryRepo.findById)
@@ -131,7 +132,8 @@ describe('UpdateFinancialEntryUseCase', () => {
     expect(result.entryType).toBe('MANUAL_ADJUSTMENT');
     expect(result.updatedAt).toEqual(UPDATED_AT);
 
-    expect(financialEntryRepo.updateManualAdjustmentFields).toHaveBeenCalledWith('entry-1', 'tenant-1', {
+    // Editor (actor.userId) is passed as the recorded author, not the original initiator.
+    expect(financialEntryRepo.updateManualAdjustmentFields).toHaveBeenCalledWith('entry-1', 'tenant-1', 'user-am', {
       amount: 250,
       description: 'Corrected amount',
       effectiveAt: new Date('2026-04-01T00:00:00.000Z'),
@@ -143,10 +145,25 @@ describe('UpdateFinancialEntryUseCase', () => {
         entityType: 'FinancialEntry',
         entityId: 'entry-1',
         tenantId: 'tenant-1',
-        before: expect.objectContaining({ amount: 100, description: 'Original description' }),
-        after: expect.objectContaining({ amount: 250, description: 'Corrected amount' }),
+        before: expect.objectContaining({ amount: 100, description: 'Original description', initiatedByUserId: 'user-op' }),
+        after: expect.objectContaining({ amount: 250, description: 'Corrected amount', initiatedByUserId: 'user-am' }),
       }),
     );
+  });
+
+  it('records the editor as the economic-content author so they cannot self-approve (SoD)', async () => {
+    const { useCase, financialEntryRepo } = sut;
+    const loaded = makeEntry({ initiatedByUserId: 'user-creator' });
+    const updated = makeEntry({ amount: 250, initiatedByUserId: 'user-am', updatedAt: UPDATED_AT });
+    vi.mocked(financialEntryRepo.findById).mockResolvedValueOnce(loaded).mockResolvedValueOnce(updated);
+    vi.mocked(financialEntryRepo.updateManualAdjustmentFields).mockResolvedValue(1);
+
+    const result = await useCase.execute(baseInput({ actor: makeActor({ userId: 'user-am', role: 'AM' }) }));
+
+    // The persisted initiator is rebound to the editor (3rd arg), and surfaced in the output,
+    // so a later approve by 'user-am' hits assertNotSelfApproval and is rejected.
+    expect(financialEntryRepo.updateManualAdjustmentFields).toHaveBeenCalledWith('entry-1', 'tenant-1', 'user-am', expect.anything());
+    expect(result.initiatedByUserId).toBe('user-am');
   });
 
   it('passes through only the provided fields on a partial update', async () => {
@@ -156,7 +173,7 @@ describe('UpdateFinancialEntryUseCase', () => {
 
     await useCase.execute(baseInput({ amount: 999, description: undefined, effectiveAt: undefined, reason: undefined }));
 
-    expect(financialEntryRepo.updateManualAdjustmentFields).toHaveBeenCalledWith('entry-1', 'tenant-1', {
+    expect(financialEntryRepo.updateManualAdjustmentFields).toHaveBeenCalledWith('entry-1', 'tenant-1', 'user-am', {
       amount: 999,
       description: undefined,
       effectiveAt: undefined,
