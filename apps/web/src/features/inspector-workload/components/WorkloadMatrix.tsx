@@ -1,4 +1,5 @@
 import type { InspectorWorkloadResponse, WorkloadMatrixRow } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { ChartCard } from '@/features/analytics/components/charts/ChartCard';
 import {
   DAY_LEVEL_SWATCH,
@@ -122,7 +123,7 @@ export function WorkloadMatrix({ matrix, week, thresholds }: WorkloadMatrixProps
                 ))}
                 <td className="py-1.5 pl-3 text-right">
                   <span
-                    className={`inline-block min-w-[2.5rem] rounded px-2 py-0.5 text-sm font-bold tabular-nums ${TOTAL_LEVEL_CLASS[row.level]}`}
+                    className={cn('inline-block min-w-[2.5rem] rounded px-2 py-0.5 text-sm font-bold tabular-nums', TOTAL_LEVEL_CLASS[row.level])}
                     // The level word travels with the number so the status
                     // colour is never the only carrier of meaning.
                     aria-label={`${row.total} inspections this week — ${LEVEL_LABEL[row.level]}`}

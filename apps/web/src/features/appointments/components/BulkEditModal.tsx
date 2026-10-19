@@ -6,6 +6,7 @@ import {
   type AppointmentStatus,
   type BulkActionResponse,
 } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { Link } from 'react-router-dom';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -835,9 +836,10 @@ function FieldRow({
     <div ref={containerRef} className="space-y-1">
       <label
         htmlFor={`${id}-checkbox`}
-        className={`flex items-center gap-2 text-sm font-medium ${
-          disabled ? 'cursor-not-allowed text-text-muted' : 'text-text-primary'
-        }`}
+        className={cn(
+          'flex items-center gap-2 text-sm font-medium',
+          disabled ? 'cursor-not-allowed text-text-muted' : 'text-text-primary',
+        )}
       >
         <input
           id={`${id}-checkbox`}

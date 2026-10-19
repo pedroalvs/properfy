@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { formatCivilDate, formatInstantDate, formatWallTimeRange } from '@/lib/format-date';
+import { cn } from '@properfy/frontend-standards';
 import type { AppointmentStatus } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
@@ -221,10 +222,10 @@ export function AppointmentMapDetailPanel({
                 data-testid={`map-detail-section-${section.key}`}
               >
                 <span className="flex items-center gap-2 text-xs font-medium text-text-primary">
-                  <i className={`mdi ${section.icon} text-sm text-text-muted`} />
+                  <i className={cn('mdi', section.icon, 'text-sm text-text-muted')} />
                   {section.label}
                 </span>
-                <i className={`mdi ${isExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down'} text-text-muted`} />
+                <i className={cn('mdi', isExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down', 'text-text-muted')} />
               </button>
               {isExpanded && (
                 <div className="px-4 pb-3 pt-1 text-xs text-text-secondary">

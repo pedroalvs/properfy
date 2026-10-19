@@ -1,4 +1,5 @@
 import { RentalTenantPortalAction, type AvailableSlot } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -100,7 +101,7 @@ export function AppointmentPortalActivityTab({ appointmentId }: AppointmentPorta
               style={{ backgroundColor: style.bg }}
             >
               <i
-                className={`mdi ${style.icon} text-base`}
+                className={cn('mdi', style.icon, 'text-base')}
                 style={{ color: style.text }}
                 aria-hidden="true"
               />

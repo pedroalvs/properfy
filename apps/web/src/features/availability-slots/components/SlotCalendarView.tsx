@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AvailabilitySlotStatus } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { formatCivilDate, toLocalISODate } from '@/lib/format-date';
 import { FilterSelect } from '@/components/filters/FilterSelect';
 import type { AvailabilitySlot } from '../types';
@@ -216,7 +217,7 @@ export function SlotCalendarView({
                         <button
                           key={slot.id}
                           type="button"
-                          className={`absolute inset-x-1 z-10 cursor-pointer overflow-hidden rounded border text-left text-[10px] leading-tight ${colors.bg} ${colors.border}`}
+                          className={cn('absolute inset-x-1 z-10 cursor-pointer overflow-hidden rounded border text-left text-[10px] leading-tight', colors.bg, colors.border)}
                           style={{
                             top: `${(startHour - hour) * hourHeight}px`,
                             height: `${Math.min(durationHours, HOURS[HOURS.length - 1]! + 1 - startHour) * hourHeight - 2}px`,

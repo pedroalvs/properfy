@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type KeyboardEvent } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { filterContainer, filterInput, filterLabel, filterLabelFocused, filterIcon, filterClearButton } from './filter-styles';
 
 interface FilterInputProps {
@@ -90,7 +91,7 @@ export function FilterInput({
         <span className={focused ? filterLabelFocused : filterLabel}>{label}</span>
       )}
       <div className="flex items-center px-3">
-        <i className={`mdi mdi-magnify ${filterIcon} mr-2`} />
+        <i className={cn('mdi mdi-magnify', filterIcon, 'mr-2')} />
         <input
           type="text"
           className={filterInput}

@@ -1,4 +1,5 @@
 import type { AppointmentStatus } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 
@@ -19,7 +20,7 @@ export function AppointmentStatusChip({ status, doneCheckedByUserId, isOverdue, 
   }
 
   return (
-    <span className={`inline-flex items-center gap-1.5 ${className ?? ''}`}>
+    <span className={cn('inline-flex items-center gap-1.5', className ?? '')}>
       <StatusChip label={label} bg={style.bg} text={style.text} />
       {isOverdue && (
         <StatusChip label="Overdue" bg="#FFCDD2" text="rgba(0,0,0,0.87)" />

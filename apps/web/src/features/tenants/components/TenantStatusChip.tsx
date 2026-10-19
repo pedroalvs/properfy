@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { TENANT_ADMIN_STATUS_MAP } from '@/lib/status-colors';
 import type { TenantAdminStatus } from '../types';
 
@@ -11,7 +12,7 @@ export function TenantStatusChip({ status, className = '' }: TenantStatusChipPro
 
   if (!style) {
     return (
-      <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5 ${className}`}>
+      <span className={cn('inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5', className)}>
         {status}
       </span>
     );
@@ -19,7 +20,7 @@ export function TenantStatusChip({ status, className = '' }: TenantStatusChipPro
 
   return (
     <span
-      className={`inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5 ${className}`}
+      className={cn('inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5', className)}
       style={{ backgroundColor: style.bg, color: style.text }}
     >
       {style.label}
