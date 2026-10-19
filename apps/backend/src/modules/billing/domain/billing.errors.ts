@@ -94,6 +94,12 @@ export class EntryNotApprovedError extends ConflictError {
   }
 }
 
+export class EntryNotEditableError extends ConflictError {
+  constructor() {
+    super('ENTRY_NOT_EDITABLE', 'Only pending manual adjustments can be edited');
+  }
+}
+
 export class InvoiceNotRegenerableError extends ConflictError {
   constructor() {
     super('INVOICE_NOT_REGENERABLE', 'Invoice must be CLOSED or PAID to regenerate');

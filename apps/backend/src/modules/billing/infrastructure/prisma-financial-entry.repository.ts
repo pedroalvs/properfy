@@ -304,6 +304,27 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
     });
   }
 
+  async updateManualAdjustmentFields(
+    id: string,
+    tenantId: string,
+    fields: { amount?: number; description?: string; effectiveAt?: Date; reason?: string },
+  ): Promise<number> {
+    const data: Record<string, unknown> = {};
+    if (fields.amount !== undefined) data.amount = fields.amount;
+    if (fields.description !== undefined) data.description = fields.description;
+    if (fields.effectiveAt !== undefined) data.effective_at = fields.effectiveAt;
+    if (fields.reason !== undefined) data.reason = fields.reason;
+
+    // Status + type guard in the WHERE: a concurrent approve/void that flipped the
+    // row out of (PENDING, MANUAL_ADJUSTMENT) makes this match zero rows, so the
+    // edit is dropped atomically rather than overwriting a frozen ledger entry.
+    const updated = await this.prisma.financialEntry.updateMany({
+      where: { id, tenant_id: tenantId, status: 'PENDING', entry_type: 'MANUAL_ADJUSTMENT' },
+      data,
+    });
+    return updated.count;
+  }
+
   async transitionStatus(
     id: string,
     tenantId: string,

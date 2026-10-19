@@ -83,4 +83,14 @@ export class FinancialEntryEntity extends BaseEntity {
   canBeVoided(): boolean {
     return this.status === 'APPROVED';
   }
+
+  /**
+   * In-place edits (WEB-FIN-TYPING) are allowed only on a manual adjustment that
+   * is still PENDING. System-minted entries (TENANT_DEBIT / INSPECTOR_PAYOUT) and
+   * anything already APPROVED/VOIDED/CANCELLED stay frozen, so the ledger and the
+   * invoice snapshots that depend on it are never retro-altered.
+   */
+  canBeEdited(): boolean {
+    return this.status === 'PENDING' && this.entryType === 'MANUAL_ADJUSTMENT';
+  }
 }

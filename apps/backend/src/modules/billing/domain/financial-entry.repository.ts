@@ -81,6 +81,18 @@ export interface IFinancialEntryRepository {
   count(filters: FinancialEntryFilters): Promise<number>;
   save(entry: FinancialEntryEntity): Promise<void>;
   updateStatus(id: string, tenantId: string, status: FinancialEntryStatus, approvedByUserId?: string, approvedAt?: Date): Promise<void>;
+  /**
+   * Atomically updates the editable columns of a PENDING MANUAL_ADJUSTMENT entry.
+   * The status + entry_type predicate lives in the WHERE clause so a concurrent
+   * approve/void can never be overwritten (no read-then-write race). Returns the
+   * number of rows affected: 0 means the guard rejected it — the row is absent in
+   * that tenant, or is no longer a pending manual adjustment.
+   */
+  updateManualAdjustmentFields(
+    id: string,
+    tenantId: string,
+    fields: { amount?: number; description?: string; effectiveAt?: Date; reason?: string },
+  ): Promise<number>;
   transitionStatus(id: string, tenantId: string, fromStatus: FinancialEntryStatus, toStatus: FinancialEntryStatus, approvedByUserId?: string, approvedAt?: Date): Promise<void>;
   sumApprovedPayoutsForInspectorInPeriod(inspectorId: string, periodStart: Date, periodEnd: Date): Promise<number>;
   /**
