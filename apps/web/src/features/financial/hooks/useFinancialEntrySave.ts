@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { toApiError } from '@/lib/api-error';
 import type { FinancialEntryFormData, FinancialEntryFormErrors } from '../types';
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
@@ -53,25 +54,40 @@ export function useFinancialEntrySave(): UseFinancialEntrySaveReturn {
     setIsSaving(true);
 
     try {
-      const payload = {
-        entryType: data.entryType || undefined,
-        amount: Number(data.amount),
-        description: data.description,
-        relatedEntityName: data.relatedEntityName,
-        effectiveAt: data.effectiveAt ? new Date(data.effectiveAt).toISOString() : undefined,
-        referenceNumber: data.referenceNumber || undefined,
-        notes: data.notes || undefined,
-      };
-
       if (entryId) {
-        const { error } = await api.PATCH(`/v1/financial/entries/${entryId}` as any, { body: payload as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        // EDIT → PATCH /v1/financial/entries/{entryId}. The generated contract
+        // (updateFinancialEntrySchema) accepts only amount/description/effectiveAt/
+        // reason, so the editable fields map cleanly onto the typed body.
+        const { error } = await api.PATCH('/v1/financial/entries/{entryId}', {
+          params: { path: { entryId } },
+          body: {
+            amount: Number(data.amount),
+            description: data.description,
+            effectiveAt: data.effectiveAt ? new Date(data.effectiveAt).toISOString() : undefined,
+          },
+        });
+        if (error) throw toApiError(error);
       } else {
-        const { error } = await api.POST('/v1/financial/entries/adjust' as any, {
+        // CREATE → POST /v1/financial/entries/adjust. The generated contract
+        // (createManualAdjustmentSchema) REQUIRES tenantId + reason and rejects
+        // entryType/relatedEntityName/referenceNumber/notes. FinancialEntryFormData
+        // supplies none of those, so the adjust body cannot yet be typed against
+        // the contract — the form must first gain tenantId + reason. The single
+        // remaining `any` below marks that create-side gap (tracked for WEB-6).
+        const payload = {
+          entryType: data.entryType || undefined,
+          amount: Number(data.amount),
+          description: data.description,
+          relatedEntityName: data.relatedEntityName,
+          effectiveAt: data.effectiveAt ? new Date(data.effectiveAt).toISOString() : undefined,
+          referenceNumber: data.referenceNumber || undefined,
+          notes: data.notes || undefined,
+        };
+        const { error } = await api.POST('/v1/financial/entries/adjust', {
           body: payload as any,
           headers: { 'Idempotency-Key': idempotencyKeyRef.current },
         });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        if (error) throw toApiError(error);
       }
 
       idempotencyKeyRef.current = crypto.randomUUID();
