@@ -27,6 +27,20 @@ export const createManualAdjustmentSchema = z.object({
 });
 export type CreateManualAdjustmentInput = z.infer<typeof createManualAdjustmentSchema>;
 
+// In-place edit of a PENDING manual adjustment (WEB-FIN-TYPING). Only the columns
+// that actually exist on financial_entries are writable; entry type/status are
+// immutable here. All fields optional (partial PATCH) but at least one is required.
+export const updateFinancialEntrySchema = z.object({
+  amount: z.number().positive().optional(),
+  description: z.string().min(1).max(500).optional(),
+  effectiveAt: z.string().datetime().optional(),
+  reason: z.string().min(1).max(1000).optional(),
+}).refine(
+  (d) => d.amount !== undefined || d.description !== undefined || d.effectiveAt !== undefined || d.reason !== undefined,
+  { message: 'At least one field (amount, description, effectiveAt, reason) must be provided' },
+);
+export type UpdateFinancialEntryInput = z.infer<typeof updateFinancialEntrySchema>;
+
 export const createRefundSchema = z.object({
   description: z.string().min(1).max(500),
   reason: z.string().min(1).max(1000),

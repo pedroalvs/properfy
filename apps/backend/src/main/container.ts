@@ -233,6 +233,7 @@ import { ReverseInvoicePaymentUseCase } from '../modules/billing/application/use
 import { GetReconciliationSummaryUseCase } from '../modules/billing/application/use-cases/get-reconciliation-summary.use-case';
 import { GetInvoiceSummaryUseCase } from '../modules/billing/application/use-cases/get-invoice-summary.use-case';
 import { VoidFinancialEntryUseCase } from '../modules/billing/application/use-cases/void-financial-entry.use-case';
+import { UpdateFinancialEntryUseCase } from '../modules/billing/application/use-cases/update-financial-entry.use-case';
 import { ApproveDraftInvoiceUseCase } from '../modules/billing/application/use-cases/approve-draft-invoice.use-case';
 import { RejectDraftInvoiceUseCase } from '../modules/billing/application/use-cases/reject-draft-invoice.use-case';
 import { ExportAgencyFinancialUseCase } from '../modules/billing/application/use-cases/export-agency-financial.use-case';
@@ -1147,6 +1148,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getReconciliationSummaryUseCase = new GetReconciliationSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const getInvoiceSummaryUseCase = new GetInvoiceSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
+  const updateFinancialEntryUseCase = new UpdateFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
   const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, authorizationService, billingJobQueue, idempotencyService);
   const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
 
@@ -1683,6 +1685,7 @@ export function createContainer(logger: Logger): AppContainer {
       getReconciliationSummaryUseCase,
       getInvoiceSummaryUseCase,
       voidFinancialEntryUseCase,
+      updateFinancialEntryUseCase,
       approveDraftInvoiceUseCase,
       rejectDraftInvoiceUseCase,
       exportAgencyFinancialUseCase,
