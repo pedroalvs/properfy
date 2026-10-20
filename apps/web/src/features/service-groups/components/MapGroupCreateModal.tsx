@@ -105,8 +105,8 @@ export function MapGroupCreateModal({
       queryClient.invalidateQueries({ queryKey: ['service-groups'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       onSuccess();
-    } catch (err: any) {
-      showError(err?.message ?? 'Failed to create service group');
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to create service group');
     } finally {
       setSubmitting(false);
     }
