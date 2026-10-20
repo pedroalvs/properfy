@@ -222,7 +222,7 @@ export function DataTable<T>({
       <div className="space-y-3" data-testid="data-table-mobile-list">
         {sortedData.map((row, index) => (
           <div
-            key={keyExtractor ? keyExtractor(row, index) : ((row as any).id ?? index)}
+            key={keyExtractor ? keyExtractor(row, index) : ((row as { id?: string | number }).id ?? index)}
             className={cn(
               'rounded-xl border border-border-subtle bg-card-bg p-4 shadow-sm',
               onRowClick && 'cursor-pointer transition-colors hover:bg-hover-row',
@@ -319,7 +319,7 @@ export function DataTable<T>({
                 !error &&
                 sortedData.map((row, index) => (
                   <tr
-                    key={keyExtractor ? keyExtractor(row, index) : ((row as any).id ?? index)}
+                    key={keyExtractor ? keyExtractor(row, index) : ((row as { id?: string | number }).id ?? index)}
                     className={cn(
                       'border-b border-border-light text-table-body text-text-primary',
                       onRowClick && 'cursor-pointer hover:bg-hover-row',
