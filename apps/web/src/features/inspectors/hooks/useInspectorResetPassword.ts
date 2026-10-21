@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { passwordFieldSchema, PASSWORD_REQUIREMENTS_MESSAGE } from '@properfy/shared';
 import { api } from '@/services/api';
+import { getErrorMessage } from '@/lib/api-error';
 
 export interface InspectorResetPasswordFormData {
   newPassword: string;
@@ -54,10 +55,10 @@ export function useInspectorResetPassword() {
     setIsResetting(true);
     try {
       const { error } = await api.POST(
-        `/v1/inspectors/${inspectorId}/reset-password` as any,
-        { body: { newPassword: data.newPassword } as any },
+        '/v1/inspectors/{inspectorId}/reset-password',
+        { params: { path: { inspectorId } }, body: { newPassword: data.newPassword } },
       );
-      if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+      if (error) throw new Error(getErrorMessage(error, 'Request failed'));
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['inspectors'] }),

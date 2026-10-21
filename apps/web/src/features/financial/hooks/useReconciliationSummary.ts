@@ -41,15 +41,16 @@ export function useReconciliationSummary({
     queryKey: ['billing', 'reconciliation-summary', { from, to, inspectorId: inspectorId ?? null }],
     queryFn: async () => {
       const params = inspectorId ? { from, to, inspectorId } : { from, to };
-      // The `as never` path cast collapses the result type, so re-assert the openapi-fetch shape.
-      const { data, error, response } = (await api.GET(
-        '/v1/billing/invoices/reconciliation-summary' as never,
-        { params: { query: params } } as never,
-      )) as { data?: unknown; error?: unknown; response?: Response };
+      const { data, error, response } = await api.GET(
+        '/v1/billing/invoices/reconciliation-summary',
+        { params: { query: params } },
+      );
       if (error) {
+        // This route carries a custom MULTI_CURRENCY_SCOPE detail shape
+        // (details.currencies) that the standard ApiError does not model.
         const envelope = error as ApiErrorEnvelope;
         // The HTTP status lives on the raw Response; the parsed error body only has the envelope.
-        const status = response?.status ?? 500;
+        const status = (response as Response | undefined)?.status ?? 500;
         const code = envelope.error?.code;
         const message = envelope.error?.message ?? 'Failed to load reconciliation summary';
         const details = envelope.error?.details;
@@ -60,7 +61,7 @@ export function useReconciliationSummary({
         }
         throw apiError;
       }
-      return data as { data: ReconciliationSummaryResponse };
+      return data as unknown as { data: ReconciliationSummaryResponse };
     },
     enabled: enabled && !!from && !!to,
     retry: false,

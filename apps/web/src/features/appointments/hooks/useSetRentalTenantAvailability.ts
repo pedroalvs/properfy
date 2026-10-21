@@ -33,15 +33,16 @@ export function useSetRentalTenantAvailability(
       idempotencyKey?: string;
     }) => {
       const { data, error, response } = await api.POST(
-        `/v1/appointments/${appointmentId}/rental-tenant-availability` as any,
+        '/v1/appointments/{appointmentId}/rental-tenant-availability',
         {
-          body: body as any,
+          params: { path: { appointmentId: appointmentId! } },
+          body,
           ...(idempotencyKey
             ? { headers: { 'Idempotency-Key': idempotencyKey } }
             : {}),
         },
       );
-      if (error) throw toApiError(error, response?.status);
+      if (error) throw toApiError(error, (response as Response | undefined)?.status);
       return data;
     },
     onSuccess: () => {
