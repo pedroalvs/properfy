@@ -14,7 +14,7 @@ import {
   computeImportSummary,
   type IImportGeocodeVerifier,
 } from '../../../property/application/services/apply-geocode-verification';
-import { parseAppointmentImportFile } from '../../infrastructure/appointment-import-parser';
+import type { IAppointmentImportFileParser } from '../../domain/appointment-import-file-parser';
 import { analyzeImportHeaders } from '../../domain/appointment-import-columns';
 import {
   ImportFileMissingColumnsError,
@@ -55,6 +55,7 @@ export class PreviewAppointmentImportUseCase {
     private readonly resolver: AppointmentImportRowResolver,
     private readonly geocodeVerifier: IImportGeocodeVerifier,
     private readonly authorizationService: AuthorizationService,
+    private readonly fileParser: IAppointmentImportFileParser,
     /** Cached tenants.timezone lookup; absent → platform-timezone validation. */
     private readonly tenantTimezoneLookup?: ITenantTimezoneLookup,
   ) {}
@@ -95,9 +96,9 @@ export class PreviewAppointmentImportUseCase {
 
     // Parse and vet the file BEFORE the upload and the DB save below: a file
     // that can never be committed must not leave an orphan blob or import row
-    // behind. `parseAppointmentImportFile` throws an ImportFileError (400) for
-    // anything unreadable — corrupt, empty, or not what its extension claims.
-    const parsed = await parseAppointmentImportFile(fileBuffer, ext);
+    // behind. The parser throws an ImportFileError (400) for anything
+    // unreadable — corrupt, empty, or not what its extension claims.
+    const parsed = await this.fileParser.parse(fileBuffer, ext);
 
     const analysis = analyzeImportHeaders(parsed.headers);
     if (analysis.missingRequired.length > 0) {
