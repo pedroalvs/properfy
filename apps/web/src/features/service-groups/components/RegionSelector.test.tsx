@@ -15,7 +15,7 @@ function renderSelector(props: Partial<React.ComponentProps<typeof RegionSelecto
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <RegionSelector
           appointmentIds={['apt-1']}
           selectedRegionId=""

@@ -74,7 +74,7 @@ function createWrapper() {
     return (
       <QueryClientProvider client={queryClient}>
         <SnackbarProvider>
-          <MemoryRouter>{children}</MemoryRouter>
+          <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>{children}</MemoryRouter>
         </SnackbarProvider>
       </QueryClientProvider>
     );

@@ -22,7 +22,7 @@ vi.mock('./SidebarUserMenu', () => ({
 import { Sidebar } from './Sidebar';
 
 function renderWithRouter(ui: React.ReactElement, initialEntries: string[] = ['/']) {
-  return render(<MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>);
+  return render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={initialEntries}>{ui}</MemoryRouter>);
 }
 
 describe('Sidebar', () => {

@@ -36,7 +36,7 @@ import { Sidebar } from './Sidebar';
 function renderSidebar(role: string) {
   mockUseAuth.mockReturnValue({ user: { role, name: 'Test' } });
   return render(
-    <MemoryRouter initialEntries={['/dashboard']}>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={['/dashboard']}>
       <Sidebar />
     </MemoryRouter>,
   );
@@ -114,7 +114,7 @@ describe('Sidebar role-based visibility — Reports', () => {
   it('hides Reports from a CL_USER without view_financials', () => {
     mockUseAuth.mockReturnValue({ user: { role: 'CL_USER', name: 'Test', clUserPermissions: [] } });
     render(
-      <MemoryRouter initialEntries={['/dashboard']}>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={['/dashboard']}>
         <Sidebar />
       </MemoryRouter>,
     );
@@ -126,7 +126,7 @@ describe('Sidebar role-based visibility — Reports', () => {
       user: { role: 'CL_USER', name: 'Test', clUserPermissions: ['view_financials'] },
     });
     render(
-      <MemoryRouter initialEntries={['/dashboard']}>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={['/dashboard']}>
         <Sidebar />
       </MemoryRouter>,
     );

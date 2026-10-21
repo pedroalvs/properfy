@@ -11,7 +11,7 @@ vi.mock('@/features/integrations/hooks/useIntegrationsStatus', () => ({
 
 function renderWarnings() {
   return render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <IntegrationWarnings />
     </MemoryRouter>,
   );
