@@ -4,9 +4,12 @@ import { InspectorInvoiceEntity } from '../../../src/modules/billing/domain/insp
 import {
   InvoiceNotFoundError,
   InvoiceNotPendingReviewError,
+  BillingIdempotencyInProgressError,
+  BillingIdempotencyPayloadMismatchError,
 } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import { InMemoryIdempotencyService } from '../../helpers/in-memory-idempotency.service';
 
 const invoiceRepo = {
   findById: vi.fn(),
@@ -67,17 +70,21 @@ const amActor = {
 
 const authorizationService = new AuthorizationService(auditService as any);
 
+let idempotency: InMemoryIdempotencyService;
+
 function makeSut() {
   return new RejectDraftInvoiceUseCase(
     invoiceRepo,
     auditService as any,
     authorizationService,
+    idempotency,
   );
 }
 
 describe('RejectDraftInvoiceUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    idempotency = new InMemoryIdempotencyService();
     invoiceRepo.findById.mockResolvedValue(makePendingReviewInvoice());
     invoiceRepo.voidIfPendingReview.mockResolvedValue(true);
   });
@@ -88,6 +95,7 @@ describe('RejectDraftInvoiceUseCase', () => {
     const result = await sut.execute({
       invoiceId: 'inv-1',
       reason: 'Period is incorrect, please resubmit',
+      idempotencyKey: 'reject-key',
       actor: opActor,
     });
 
@@ -122,7 +130,7 @@ describe('RejectDraftInvoiceUseCase', () => {
     invoiceRepo.findById.mockResolvedValue(null);
 
     await expect(
-      sut.execute({ invoiceId: 'nonexistent', reason: 'Not needed anymore', actor: opActor }),
+      sut.execute({ invoiceId: 'nonexistent', reason: 'Not needed anymore', idempotencyKey: 'reject-key', actor: opActor }),
     ).rejects.toThrow(InvoiceNotFoundError);
   });
 
@@ -131,7 +139,7 @@ describe('RejectDraftInvoiceUseCase', () => {
     invoiceRepo.findById.mockResolvedValue(makePendingReviewInvoice({ status: 'CLOSED' }));
 
     await expect(
-      sut.execute({ invoiceId: 'inv-1', reason: 'Not needed anymore', actor: opActor }),
+      sut.execute({ invoiceId: 'inv-1', reason: 'Not needed anymore', idempotencyKey: 'reject-key', actor: opActor }),
     ).rejects.toThrow(InvoiceNotPendingReviewError);
   });
 
@@ -146,7 +154,57 @@ describe('RejectDraftInvoiceUseCase', () => {
     };
 
     await expect(
-      sut.execute({ invoiceId: 'inv-1', reason: 'Not needed anymore', actor: inspActor }),
+      sut.execute({ invoiceId: 'inv-1', reason: 'Not needed anymore', idempotencyKey: 'reject-key', actor: inspActor }),
     ).rejects.toThrow(ForbiddenError);
+  });
+
+  // ─── HOL-3b: idempotency on the draft-rejection transition ─────────────────
+  describe('idempotency (HOL-3b)', () => {
+    it('replays the cached success on a duplicate key instead of re-running the transition', async () => {
+      const sut = makeSut();
+      const first = await sut.execute({
+        invoiceId: 'inv-1', reason: 'Period is incorrect', idempotencyKey: 'dup-key', actor: opActor,
+      });
+
+      // The invoice is now VOID; a naive re-run would throw
+      // InvoiceNotPendingReviewError. The claim must replay the cached success,
+      // and voidIfPendingReview must NOT run a second time.
+      invoiceRepo.findById.mockResolvedValue(makePendingReviewInvoice({ status: 'VOID' }));
+      const replay = await sut.execute({
+        invoiceId: 'inv-1', reason: 'Period is incorrect', idempotencyKey: 'dup-key', actor: opActor,
+      });
+
+      expect(replay).toEqual(first);
+      expect(invoiceRepo.voidIfPendingReview).toHaveBeenCalledTimes(1);
+    });
+
+    it('runs the transition exactly once under two concurrent same-key calls', async () => {
+      const sut = makeSut();
+      // First tryAcquire claims the key; the second sees in_progress and is
+      // rejected. Without the guard both would run and the loser would throw
+      // InvoiceNotPendingReviewError (the DB optimistic guard), not
+      // BillingIdempotencyInProgressError.
+      const results = await Promise.allSettled([
+        sut.execute({ invoiceId: 'inv-1', reason: 'dup', idempotencyKey: 'race-key', actor: opActor }),
+        sut.execute({ invoiceId: 'inv-1', reason: 'dup', idempotencyKey: 'race-key', actor: opActor }),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0].reason).toBeInstanceOf(BillingIdempotencyInProgressError);
+      expect(invoiceRepo.voidIfPendingReview).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a reused key carrying a different payload', async () => {
+      const sut = makeSut();
+      await sut.execute({ invoiceId: 'inv-1', reason: 'first reason', idempotencyKey: 'shared-key', actor: opActor });
+
+      // Same key, different reason → payload hash mismatch.
+      await expect(
+        sut.execute({ invoiceId: 'inv-1', reason: 'a different reason', idempotencyKey: 'shared-key', actor: opActor }),
+      ).rejects.toThrow(BillingIdempotencyPayloadMismatchError);
+    });
   });
 });
