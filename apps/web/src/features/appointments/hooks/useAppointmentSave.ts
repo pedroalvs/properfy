@@ -9,8 +9,16 @@ import {
   getErrorMessage,
   getFieldErrors,
 } from '@properfy/shared';
+import type { paths } from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
+
+type UpdateAppointmentBody = NonNullable<
+  paths['/v1/appointments/{appointmentId}']['patch']['requestBody']
+>['content']['application/json'];
+type CreateAppointmentBody = NonNullable<
+  paths['/v1/appointments']['post']['requestBody']
+>['content']['application/json'];
 import type { AppointmentFormData, AppointmentFormErrors, ContactFormEntry } from '../types';
 import { MAX_CUSTOM_FIELDS } from '../types';
 
@@ -139,9 +147,6 @@ const SCHEMA_PATH_TO_FORM_FIELD: Record<string, Exclude<keyof AppointmentFormDat
   scheduledDate: 'scheduledDate',
   timeSlotStart: 'timeSlotStart',
   timeSlotEnd: 'timeSlotEnd',
-  'contact.rentalTenantName': 'contactName',
-  'contact.primaryEmail': 'contactEmail',
-  'contact.primaryPhone': 'contactPhone',
   keyRequired: 'keyRequired',
   meetingLocation: 'meetingLocation',
   keyLocation: 'keyLocation',
@@ -383,7 +388,12 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
           ...toSchemaPayload(data, 'edit'),
           ...(options?.expandGroupTimeWindow ? { expandGroupTimeWindow: true } : {}),
         };
-        const { error } = await api.PATCH(`/v1/appointments/${appointmentId}` as any, { body: payload as any });
+        const { error } = await api.PATCH('/v1/appointments/{appointmentId}', {
+          params: { path: { appointmentId } },
+          // toSchemaPayload returns a broad object (plus the extra
+          // expandGroupTimeWindow opt-in); assert the typed request body.
+          body: payload as UpdateAppointmentBody,
+        });
         if (error) return toFailureResult(error, data);
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
         // A grouped time edit can widen the group's window — keep group views fresh.
@@ -393,9 +403,11 @@ export function useAppointmentSave(): UseAppointmentSaveReturn {
         return { success: true, id: appointmentId };
       } else {
         const payload = toSchemaPayload(data, 'create');
-        const { data: responseData, error } = await api.POST('/v1/appointments' as any, { body: payload as any });
+        const { data: responseData, error } = await api.POST('/v1/appointments', {
+          body: payload as CreateAppointmentBody,
+        });
         if (error) return toFailureResult(error, data);
-        const createdId = (responseData as any)?.data?.id;
+        const createdId = (responseData as { data?: { id?: string } } | undefined)?.data?.id;
         queryClient.invalidateQueries({ queryKey: ['appointments'] });
         return { success: true, id: createdId };
       }

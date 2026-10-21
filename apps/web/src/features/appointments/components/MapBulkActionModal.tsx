@@ -10,8 +10,8 @@ import { Checkbox } from '@/components/forms/Checkbox';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { getErrorMessage } from '@/lib/api-error';
 import { formatCivilDate, formatWallTimeRange } from '@/lib/format-date';
-import { getValidTransitions, isReasonRequired } from '@properfy/shared';
 import type { AppointmentStatus, UserRole } from '@properfy/shared';
+import { useSelectionTransitions } from '../hooks/useSelectionTransitions';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { AppointmentCodePill } from './AppointmentCodePill';
 import { wasRentalTenantNotified } from '../lib/rental-tenant-notice';
@@ -518,7 +518,6 @@ export function MapBulkActionModal({
         <CancelForm
           loading={cancelMutation.isPending}
           checkedAppointments={checkedAppointments}
-          onCancel={() => setActiveAction(null)}
           onSubmit={async (reason, notifyRentalTenant) => {
             const res = await cancelMutation.mutateAsync({
               appointmentIds: Array.from(checkedIds),
@@ -534,7 +533,6 @@ export function MapBulkActionModal({
         <MapBulkRescheduleForm
           checkedAppointments={checkedAppointments}
           {...(serviceGroups ? { serviceGroups } : {})}
-          onCancel={() => setActiveAction(null)}
           onComplete={handleActionComplete}
         />
       )}
@@ -542,7 +540,6 @@ export function MapBulkActionModal({
       {activeAction === 'return_to_pool' && !results && (
         <MapBulkReturnToPoolForm
           checkedAppointments={checkedAppointments}
-          onCancel={() => setActiveAction(null)}
           onComplete={handleActionComplete}
         />
       )}
@@ -553,7 +550,6 @@ export function MapBulkActionModal({
           actorRole={actorRole}
           clUserFlags={clUserFlags}
           loading={statusMutation.isPending}
-          onCancel={() => setActiveAction(null)}
           onSubmit={async ({ targetStatus, reason, notifyRentalTenant }) => {
             const res = await statusMutation.mutateAsync({
               appointmentIds: Array.from(checkedIds),
@@ -569,7 +565,6 @@ export function MapBulkActionModal({
       {activeAction === 'resend_reminder' && !results && (
         <ResendReminderForm
           loading={resendMutation.isPending}
-          onCancel={() => setActiveAction(null)}
           onSubmit={async () => {
             const res = await resendMutation.mutateAsync({
               appointmentIds: Array.from(checkedIds),
@@ -797,14 +792,12 @@ function BulkActionsDropdown({ actions, isDisabled, selectedCount, onSelect }: B
 interface CancelFormProps {
   loading: boolean;
   checkedAppointments: AppointmentMapItem[];
-  onCancel: () => void;
   onSubmit: (reason: string, notifyRentalTenant: boolean) => Promise<void>;
 }
 
 function CancelForm({
   loading,
   checkedAppointments,
-  onCancel: _onCancel,
   onSubmit,
 }: CancelFormProps) {
   const [reason, setReason] = useState('');
@@ -885,7 +878,6 @@ interface ChangeStatusFormProps {
   actorRole: UserRole;
   clUserFlags?: MapBulkActionModalProps['clUserFlags'];
   loading: boolean;
-  onCancel: () => void;
   onSubmit: (input: {
     targetStatus: AppointmentStatus;
     reason?: string;
@@ -893,19 +885,11 @@ interface ChangeStatusFormProps {
   }) => Promise<void>;
 }
 
-function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading, onCancel: _onCancel, onSubmit }: ChangeStatusFormProps) {
-  // Compute the intersection of valid transitions across all checked rows
-  // using the shared matrix. Only show targets that EVERY row can reach so
-  // the bulk action is meaningful (mixed-state rows still surface per-item
-  // failures via the result envelope, but the menu won't lie about options).
-  const targets = useMemo(() => {
-    if (checkedAppointments.length === 0) return [] as AppointmentStatus[];
-    const sets = checkedAppointments.map((a) =>
-      new Set(getValidTransitions(a.status as AppointmentStatus, actorRole, clUserFlags)),
-    );
-    const intersection = sets.reduce((acc, s) => new Set([...acc].filter((x) => s.has(x))));
-    return Array.from(intersection);
-  }, [checkedAppointments, actorRole, clUserFlags]);
+function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading, onSubmit }: ChangeStatusFormProps) {
+  // Shared with BulkEditModal (WEB-9): targets are the intersection every
+  // checked row can reach, and reason-required is decided with `.some()` so a
+  // mixed batch where only a non-first row needs a reason is handled correctly.
+  const { targets, isReasonRequired } = useSelectionTransitions(checkedAppointments, actorRole, clUserFlags);
 
   const [target, setTarget] = useState<AppointmentStatus | ''>('');
   const [reason, setReason] = useState('');
@@ -924,11 +908,8 @@ function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading
     setNotifyRentalTenant(false);
   }, [target]);
 
-  // Look up reason requirement from the shared matrix when we have a
-  // reasonable "from" status (use the first checked row — same row pinned
-  // by the intersection above).
-  const fromStatus = checkedAppointments[0]?.status as AppointmentStatus | undefined;
-  const needsReason = target && fromStatus ? isReasonRequired(fromStatus, target) : false;
+  // WEB-9: reason-required across the whole selection (any row), not just row 0.
+  const needsReason = isReasonRequired(target);
   const canSubmit = !!target && (!needsReason || reason.trim().length >= 3);
 
   return (
@@ -1018,11 +999,10 @@ function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading
 
 interface ResendReminderFormProps {
   loading: boolean;
-  onCancel: () => void;
   onSubmit: () => Promise<void>;
 }
 
-function ResendReminderForm({ loading, onCancel: _onCancel, onSubmit }: ResendReminderFormProps) {
+function ResendReminderForm({ loading, onSubmit }: ResendReminderFormProps) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-text-secondary">

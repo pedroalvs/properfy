@@ -309,6 +309,29 @@ describe('BulkEditModal', () => {
   });
 
 
+  describe('error handling', () => {
+    it('surfaces a thrown API error message instead of a generic network string', async () => {
+      // The submit catch fires only when api.POST REJECTS (a thrown failure), not
+      // on the resolved `{ error }` path. Before WEB-13 it swallowed the real
+      // cause behind a fixed "Network error" string; now it runs the thrown value
+      // through the shared getErrorMessage policy so the backend message shows.
+      mockPost.mockRejectedValue({
+        status: 422,
+        error: { code: 'SERVICE_GROUP_CLOSED', message: 'This group is closed and cannot be edited.' },
+      });
+      renderModal([makeAppointment()]);
+      fireEvent.click(screen.getByLabelText('Time Slot'));
+      fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '13:00' } });
+      fireEvent.change(screen.getByLabelText('End time'), { target: { value: '16:00' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Changes' }));
+
+      expect(
+        await screen.findByText('This group is closed and cannot be edited.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText('Network error. Please try again.')).not.toBeInTheDocument();
+    });
+  });
+
   describe('Mark as Reviewed', () => {
     it('shows the toggle for AM/OP and hides it without the cross_check permission', () => {
       const { rerender } = renderModal([makeAppointment({ status: 'DONE' })]);

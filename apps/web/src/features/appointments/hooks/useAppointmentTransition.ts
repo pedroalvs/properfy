@@ -1,8 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError } from '@/lib/api-error';
 import { useSnackbar } from '@/hooks/useSnackbar';
-import type { AppointmentStatus } from '@properfy/shared';
+import type { AppointmentStatus, paths } from '@properfy/shared';
+
+type TransitionBody = NonNullable<
+  paths['/v1/appointments/{appointmentId}/status-transitions']['post']['requestBody']
+>['content']['application/json'];
 
 export interface UseAppointmentTransitionReturn {
   transition: (
@@ -22,20 +26,20 @@ export function useAppointmentTransition(
   const { showSuccess, showError } = useSnackbar();
 
   const mutation = useMutation({
-    mutationFn: async (body: { targetStatus: AppointmentStatus; reason?: string; cancellationReasonCode?: string; rejectionReasonCode?: string; notifyRentalTenant?: boolean }) => {
-      const { data, error } = await api.POST(
-        `/v1/appointments/${appointmentId}/status-transitions` as any,
+    mutationFn: async (body: TransitionBody) => {
+      const { data, error, response } = await api.POST(
+        '/v1/appointments/{appointmentId}/status-transitions',
         {
-          body: body as any,
+          params: { path: { appointmentId: appointmentId! } },
+          body,
           headers: {
             'Idempotency-Key': crypto.randomUUID(),
           },
         },
       );
-      if (error) {
-        const apiError = error as { status?: number; message?: string };
-        throw new ApiError(apiError.status ?? 500, apiError.message ?? 'Transition failed');
-      }
+      // 200-only route: openapi-fetch types `error`/`response` as `never` in the
+      // (runtime-reachable) error branch, so read the status through a typed cast.
+      if (error) throw toApiError(error, (response as Response | undefined)?.status);
       return data;
     },
     onSuccess: () => {
@@ -51,10 +55,12 @@ export function useAppointmentTransition(
     notifyRentalTenant?: boolean,
   ) => {
     if (!appointmentId) return;
-    const body: Parameters<typeof mutation.mutate>[0] = { targetStatus, reason };
+    const body: TransitionBody = { targetStatus, reason };
     if (reasonCode) {
-      if (targetStatus === 'CANCELLED') body.cancellationReasonCode = reasonCode;
-      if (targetStatus === 'REJECTED') body.rejectionReasonCode = reasonCode;
+      // reasonCode arrives as a plain string from the UI selects; the backend
+      // validates it against the enum, so narrow it to the typed field here.
+      if (targetStatus === 'CANCELLED') body.cancellationReasonCode = reasonCode as TransitionBody['cancellationReasonCode'];
+      if (targetStatus === 'REJECTED') body.rejectionReasonCode = reasonCode as TransitionBody['rejectionReasonCode'];
     }
     // Only meaningful for a cancellation; omitted elsewhere to keep the payload honest.
     if (targetStatus === 'CANCELLED' && notifyRentalTenant !== undefined) {

@@ -144,7 +144,8 @@ describe('useAppointmentSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
       body: {
         scheduledDate: VALID_CREATE_DATA.scheduledDate,
         timeSlotStart: VALID_CREATE_DATA.timeSlotStart,
@@ -186,7 +187,8 @@ describe('useAppointmentSave', () => {
     await act(async () => {
       await result.current.save({ ...VALID_CREATE_DATA, observation: '' }, 'apt-01');
     });
-    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
       body: expect.objectContaining({ observation: null }),
     });
   });
@@ -228,7 +230,8 @@ describe('useAppointmentSave', () => {
       }, 'apt-01');
     });
 
-    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
       body: expect.objectContaining({
         restriction: null,
       }),
@@ -400,7 +403,8 @@ describe('useAppointmentSave', () => {
       await act(async () => {
         await result.current.save({ ...VALID_CREATE_DATA, customFields: [] }, 'apt-01');
       });
-      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
         body: expect.objectContaining({ customFields: [] }),
       });
 
@@ -408,7 +412,8 @@ describe('useAppointmentSave', () => {
       await act(async () => {
         await result.current.save({ ...VALID_CREATE_DATA, customFields: [cf('Gate', '1')] }, 'apt-01');
       });
-      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
         body: expect.objectContaining({ customFields: [{ label: 'Gate', value: '1' }] }),
       });
     });
@@ -501,7 +506,7 @@ describe('useAppointmentSave', () => {
           message: 'Validation failed',
           details: [
             { field: 'scheduledDate', message: 'Scheduled date cannot be in the past' },
-            { field: 'contact.rentalTenantName', message: 'Contact name is required' },
+            { field: 'restriction.notes', message: 'Restriction notes are required' },
           ],
         },
       },
@@ -516,7 +521,7 @@ describe('useAppointmentSave', () => {
 
     expect(saveResult?.success).toBe(false);
     expect(saveResult?.fieldErrors?.scheduledDate).toBe('Scheduled date cannot be in the past');
-    expect(saveResult?.fieldErrors?.contactName).toBe('Contact name is required');
+    expect(saveResult?.fieldErrors?.restrictionNotes).toBe('Restriction notes are required');
     expect(saveResult?.errorCode).toBe('VALIDATION_ERROR');
     // All details matched — no summary error, no snackbar fallback needed.
     expect(saveResult?.error).toBeUndefined();
