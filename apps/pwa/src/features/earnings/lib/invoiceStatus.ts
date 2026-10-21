@@ -1,4 +1,5 @@
 import type { BadgeProps } from '@/components/ui/Badge';
+import { formatCurrency } from '@/lib/format-currency';
 
 type BadgeTone = NonNullable<BadgeProps['tone']>;
 
@@ -23,5 +24,5 @@ export function isApproved(status: string): boolean {
 }
 
 export function formatInvoiceCurrency(amount: number, currency = 'AUD'): string {
-  return new Intl.NumberFormat('en-AU', { style: 'currency', currency }).format(amount);
+  return formatCurrency(amount, currency);
 }
