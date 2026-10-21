@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { createIdempotencyKeyManager } from '@properfy/shared';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
@@ -34,6 +35,9 @@ export function ReversePaymentModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showSuccess, showError } = useSnackbar();
   const queryClient = useQueryClient();
+  // Stable key per reversal attempt, rotated only on success (HOL-3a): a
+  // re-submit after a lost response dedupes instead of reversing twice.
+  const idempotencyKey = useRef(createIdempotencyKeyManager());
 
   useEffect(() => {
     if (open) {
@@ -60,13 +64,14 @@ export function ReversePaymentModal({
         {
           params: { path: { invoiceId } },
           body: { reason: trimmed } as never,
-          headers: { 'Idempotency-Key': crypto.randomUUID() },
+          headers: { 'Idempotency-Key': idempotencyKey.current.current() },
         } as never,
       );
       if (apiErr) {
         showError(friendlyError(toApiError(apiErr, (response as Response | undefined)?.status)));
         return;
       }
+      idempotencyKey.current.rotate();
       showSuccess('Invoice payment reversed');
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['billing', 'reconciliation-summary'] });
