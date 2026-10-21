@@ -18,7 +18,7 @@ vi.mock('@/hooks/useApiQuery', () => ({
 
 function wrapper(initialEntries: string[]) {
   return ({ children }: { children: ReactNode }) => (
-    <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={initialEntries}>{children}</MemoryRouter>
   );
 }
 

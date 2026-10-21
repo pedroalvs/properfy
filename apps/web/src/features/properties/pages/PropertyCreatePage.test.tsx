@@ -64,7 +64,7 @@ function createWrapper(route: string = '/properties/new') {
     return (
       <QueryClientProvider client={queryClient}>
         <SnackbarProvider>
-          <MemoryRouter initialEntries={[route]}>
+          <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[route]}>
             {children}
           </MemoryRouter>
         </SnackbarProvider>
@@ -282,7 +282,7 @@ describe('PropertyCreatePage', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <SnackbarProvider>
-          <MemoryRouter initialEntries={[{ pathname: '/properties/new', state: { tenantId: 'tenant-1' } }]}>
+          <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[{ pathname: '/properties/new', state: { tenantId: 'tenant-1' } }]}>
             <PropertyCreatePage />
           </MemoryRouter>
         </SnackbarProvider>

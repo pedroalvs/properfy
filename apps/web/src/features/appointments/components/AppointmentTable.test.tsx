@@ -8,7 +8,7 @@ import { AppointmentTable } from './AppointmentTable';
 import type { Appointment } from '../types';
 
 // The View action renders a router <Link>, so every render needs a router context.
-const render = (ui: ReactElement) => rtlRender(ui, { wrapper: MemoryRouter });
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: ({ children }) => <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>{children}</MemoryRouter> });
 
 function makeAppointment(overrides: Partial<Appointment> = {}): Appointment {
   return {

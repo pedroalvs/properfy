@@ -14,7 +14,7 @@ const ITEMS = [
 
 function renderDesktop(label = 'Configuration') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <SidebarSubmenu icon="mdi-cog-outline" label={label} items={ITEMS} />
     </MemoryRouter>,
   );

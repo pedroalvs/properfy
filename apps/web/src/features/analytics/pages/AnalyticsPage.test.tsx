@@ -78,7 +78,7 @@ function renderPage(initialEntries = ['/analytics']) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={initialEntries}>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={initialEntries}>
         <AnalyticsPage />
         <LocationDisplay />
       </MemoryRouter>

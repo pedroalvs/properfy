@@ -98,7 +98,7 @@ function createWrapper(initialEntry: string = '/properties/prop-01') {
     return (
       <QueryClientProvider client={queryClient}>
         <SnackbarProvider>
-          <MemoryRouter initialEntries={[initialEntry]}>
+          <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[initialEntry]}>
             <Routes>
               <Route path="/properties/:id" element={children} />
               <Route path="/properties" element={<div>property list</div>} />
