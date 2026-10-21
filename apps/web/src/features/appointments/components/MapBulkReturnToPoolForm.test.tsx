@@ -41,7 +41,6 @@ function renderForm(appointments: AppointmentMapItem[]) {
       <MemoryRouter>
         <MapBulkReturnToPoolForm
           checkedAppointments={appointments}
-          onCancel={vi.fn()}
           onComplete={vi.fn()}
         />
       </MemoryRouter>

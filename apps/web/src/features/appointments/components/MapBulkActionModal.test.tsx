@@ -36,9 +36,6 @@ const bulkStatusMock = vi.hoisted(() => vi.fn());
 vi.mock('../hooks/useBulkStatusTransition', () => ({
   useBulkStatusTransition: () => ({ mutateAsync: bulkStatusMock, isPending: false }),
 }));
-vi.mock('../hooks/useBulkAssignInspector', () => ({
-  useBulkAssignInspector: () => ({ mutateAsync: vi.fn(), isPending: false }),
-}));
 vi.mock('../hooks/useBulkResendReminder', () => ({
   useBulkResendReminder: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
