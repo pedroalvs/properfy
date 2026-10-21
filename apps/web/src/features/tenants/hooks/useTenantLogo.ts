@@ -27,17 +27,17 @@ export function useTenantLogo(tenantId: string): UseTenantLogoReturn {
         // Multipart routes are not typed in the OpenAPI spec (mirrors the
         // appointment import preview call): pass FormData through untouched.
         const { data, error, response } = await api.POST(
-          '/v1/tenants/{tenantId}/branding/logo' as any,
+          '/v1/tenants/{tenantId}/branding/logo',
           {
             params: { path: { tenantId } },
-            body: formData as any,
-            bodySerializer: (body: any) => body,
-          } as any,
+            body: formData as never,
+            bodySerializer: () => formData,
+          },
         );
 
         if (error || !data) {
           showError(
-            getErrorMessage(toApiError(error, response?.status), 'Failed to upload logo'),
+            getErrorMessage(toApiError(error, (response as Response | undefined)?.status), 'Failed to upload logo'),
           );
           return false;
         }

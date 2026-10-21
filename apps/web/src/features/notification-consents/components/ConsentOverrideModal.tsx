@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError } from '@/lib/api-error';
+import type { ApiError } from '@/lib/api-error';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
@@ -26,18 +27,15 @@ export function ConsentOverrideModal({ consent, onClose, onSuccess }: ConsentOve
 
   const mutation = useMutation<void, ApiError, string>({
     mutationFn: async (overrideReason) => {
-      const { error } = await api.POST(
-        '/v1/notifications/consents/{consentId}/override' as any,
+      const { error, response } = await api.POST(
+        '/v1/notifications/consents/{consentId}/override',
         {
-          params: { path: { consentId: consent.id } as any },
-          body: { reason: overrideReason } as any,
+          params: { path: { consentId: consent.id } },
+          // Route registers no typed request body in the spec.
+          body: { reason: overrideReason } as never,
         },
       );
-      if (error) {
-        const status = (error as { status?: number }).status ?? 500;
-        const message = (error as { error?: { message?: string } }).error?.message ?? 'Override failed';
-        throw new ApiError(status, message);
-      }
+      if (error) throw toApiError(error, (response as Response | undefined)?.status);
     },
     onSuccess: () => {
       onSuccess();

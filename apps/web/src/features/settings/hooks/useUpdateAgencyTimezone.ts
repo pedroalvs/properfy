@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api } from '@/services/api';
+import { getErrorMessage } from '@/lib/api-error';
 
 export interface SaveResult {
   success: boolean;
@@ -27,7 +28,7 @@ export function useUpdateAgencyTimezone(): UseUpdateAgencyTimezoneReturn {
           params: { path: { tenantId } },
           body: { timezone },
         });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
         return { success: true };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to update timezone';
