@@ -78,7 +78,10 @@ describe('useFinancialEntrySave (edit-only)', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith(`/v1/financial/entries/${ENTRY_ID}`, { body: expect.any(Object) });
+    expect(mockPatch).toHaveBeenCalledWith('/v1/financial/entries/{entryId}', {
+      params: { path: { entryId: ENTRY_ID } },
+      body: expect.any(Object),
+    });
   });
 
   it('save resolves { success: false, error } with the mapped message on a failed request (#681)', async () => {
