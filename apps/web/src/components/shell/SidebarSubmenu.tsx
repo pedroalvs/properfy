@@ -146,6 +146,11 @@ export function SidebarSubmenu({
         createPortal(
           <div
             role="menu"
+            // ARIA APG menu pattern: the menu is a programmatically focusable
+            // container (-1, so not a tab stop — the menuitem links carry the
+            // tab order). It anchors the Escape handler below, which bubbles
+            // from the focused link to close the flyout and restore trigger focus.
+            tabIndex={-1}
             style={{ position: 'fixed', top: anchorRect.top, left: anchorRect.right }}
             className="z-[60] min-w-[180px] rounded-submenu border border-black/10 bg-white/65 px-5 py-5 text-left shadow-[rgba(0,0,0,0.2)_-2px_6px_12px_0] backdrop-blur-[10px]"
             onMouseEnter={cancelClose}

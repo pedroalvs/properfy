@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AvailabilitySlotStatus } from '@properfy/shared';
 import { cn } from '@properfy/frontend-standards';
 import { formatCivilDate, toLocalISODate } from '@/lib/format-date';
@@ -66,6 +66,18 @@ export function SlotCalendarView({
 }: SlotCalendarViewProps) {
   const [tooltip, setTooltip] = useState<{ slot: AvailabilitySlot; x: number; y: number } | null>(null);
 
+  // Mouse users dismiss the slot tooltip by clicking the backdrop (the root
+  // wrapper's onClick); keyboard users close it with Escape. Focus stays on the
+  // slot button that opened it, so dismissing never strands the keyboard user.
+  useEffect(() => {
+    if (!tooltip) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTooltip(null);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [tooltip]);
+
   const monday = useMemo(() => getMonday(weekStart), [weekStart]);
 
   const inspectors = useMemo(() => {
@@ -109,7 +121,10 @@ export function SlotCalendarView({
   const hourHeight = 48; // px per hour row
 
   return (
-    <div className="relative" onClick={() => setTooltip(null)}>
+    // The backdrop click is a mouse-only affordance that dismisses the slot
+    // tooltip; it carries no semantics of its own, so role="presentation" is the
+    // correct markup (keyboard dismissal is handled by the Escape effect above).
+    <div className="relative" role="presentation" onClick={() => setTooltip(null)}>
       {/* Controls */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         {/* UX-baseline cleanup: replace the bespoke `<select>` with the

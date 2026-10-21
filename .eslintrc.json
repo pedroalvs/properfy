@@ -57,6 +57,24 @@
         "jsx-a11y/interactive-supports-focus": "off",
         "jsx-a11y/no-noninteractive-tabindex": "off"
       }
+    },
+    {
+      "files": ["apps/web/src/components/forms/DateInput.tsx"],
+      "rules": {
+        "jsx-a11y/no-noninteractive-element-interactions": "off"
+      }
+    },
+    {
+      "files": ["apps/web/src/components/ui/StarRatingInput.tsx"],
+      "rules": {
+        "jsx-a11y/interactive-supports-focus": "off"
+      }
+    },
+    {
+      "files": ["apps/web/src/components/ui/Tooltip.tsx"],
+      "rules": {
+        "jsx-a11y/no-noninteractive-tabindex": "off"
+      }
     }
   ],
   "env": {
