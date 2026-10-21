@@ -21,6 +21,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useGoBack } from '@/hooks/useGoBack';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
+import { toApiError } from '@/lib/api-error';
 import { wasRentalTenantNotified } from '../lib/rental-tenant-notice';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentCrossCheck } from '../hooks/useAppointmentCrossCheck';
@@ -204,25 +205,25 @@ export function AppointmentDetailPage() {
     if (!appointment) return;
     setIsGeneratingPortalToken(true);
     try {
-      const { data, error } = await api.POST(
-        `/v1/appointments/${appointment.id}/portal-token` as never,
-        {} as never,
+      const { data, error, response } = await api.POST(
+        '/v1/appointments/{appointmentId}/portal-token',
+        { params: { path: { appointmentId: appointment.id } } },
       );
       if (error) {
-        const err = error as { error?: { message?: string; code?: string } };
+        const apiError = toApiError(error, (response as Response | undefined)?.status);
         // Defence in depth: the button is disabled for a blocked agency, but a page
         // left open while an AM flips the setting would still get here.
-        if (err?.error?.code === TENANT_NOTIFICATIONS_BLOCKED_CODE) {
+        if (apiError.code === TENANT_NOTIFICATIONS_BLOCKED_CODE) {
           showError(TENANT_NOTIFICATIONS_BLOCKED_HINT);
           refetch();
           return;
         }
-        showError(err?.error?.message ?? 'Failed to send portal link');
+        showError(apiError.message || 'Failed to send portal link');
         return;
       }
       // The token is always minted, but the notification may have been
       // skipped/failed — never claim "Email sent" unless it was dispatched.
-      const result = (data as { data?: { dispatched?: boolean; reason?: string } })?.data;
+      const result = (data as unknown as { data?: { dispatched?: boolean; reason?: string } })?.data;
       if (result?.dispatched === false) {
         if (result.reason === 'NO_PRIMARY_CONTACT') {
           showError('Portal link generated, but no email sent — appointment has no primary contact');
@@ -247,19 +248,18 @@ export function AppointmentDetailPage() {
     setIsCopyingPortalLink(true);
     try {
       const { data, error, response } = await api.GET(
-        `/v1/appointments/${appointment.id}/portal-link` as never,
-        {} as never,
+        '/v1/appointments/{appointmentId}/portal-link',
+        { params: { path: { appointmentId: appointment.id } } },
       );
       if (response?.status === 409) {
         showError('Send Portal Link to generate a fresh link');
         return;
       }
       if (error) {
-        const err = error as { error?: { message?: string } };
-        showError(err?.error?.message ?? 'Failed to copy portal link');
+        showError(toApiError(error, (response as Response | undefined)?.status).message || 'Failed to copy portal link');
         return;
       }
-      const url = (data as { data: { portalUrl: string } })?.data?.portalUrl;
+      const url = (data as unknown as { data?: { portalUrl?: string } })?.data?.portalUrl;
       if (!url) {
         showError('Portal link not available');
         return;
@@ -283,13 +283,12 @@ export function AppointmentDetailPage() {
     setGenerateAndCopyOpen(false);
     setIsGeneratingPortalToken(true);
     try {
-      const { error } = await api.POST(
-        `/v1/appointments/${appointment.id}/portal-token` as never,
-        { body: { notify: false } } as never,
+      const { error, response } = await api.POST(
+        '/v1/appointments/{appointmentId}/portal-token',
+        { params: { path: { appointmentId: appointment.id } }, body: { notify: false } },
       );
       if (error) {
-        const err = error as { error?: { message?: string } };
-        showError(err?.error?.message ?? 'Failed to generate portal link');
+        showError(toApiError(error, (response as Response | undefined)?.status).message || 'Failed to generate portal link');
         return;
       }
       await copyPortalLink('Portal link generated and copied — not sent to tenant');
