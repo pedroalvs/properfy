@@ -1,8 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   todayInTzDateString,
-  getValidTransitions,
-  isReasonRequired,
   type AppointmentStatus,
   type BulkActionResponse,
   type BulkEditAppointmentInput,
@@ -25,6 +23,7 @@ import { ContactAutocomplete } from './ContactAutocomplete';
 import { useBulkCrossCheckDone } from '../hooks/useBulkCrossCheckDone';
 import { useBulkStatusTransition } from '../hooks/useBulkStatusTransition';
 import { useBulkEdit, type BulkEditResult } from '../hooks/useBulkEdit';
+import { useSelectionTransitions } from '../hooks/useSelectionTransitions';
 import type { ContactSearchResult } from '../hooks/useContactSearch';
 import type { Appointment } from '../types';
 import { DateInput } from '@/components/forms/DateInput';
@@ -176,13 +175,11 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   // Only offer targets EVERY selected row can reach, so the dropdown never
   // promises an option that would fail for part of the batch. Mixed selections
   // therefore narrow the menu rather than producing per-row rejections.
-  const statusTargets = useMemo(() => {
-    if (!role || selectedAppointments.length === 0) return [] as AppointmentStatus[];
-    const perRow = selectedAppointments.map(
-      (a) => new Set(getValidTransitions(a.status as AppointmentStatus, role)),
-    );
-    return Array.from(perRow.reduce((acc, s) => new Set([...acc].filter((t) => s.has(t)))));
-  }, [selectedAppointments, role]);
+  // Shared with MapBulkActionModal (WEB-9).
+  const { targets: statusTargets, isReasonRequired: selectionReasonRequired } = useSelectionTransitions(
+    selectedAppointments,
+    role,
+  );
 
   const statusTargetOptions = useMemo(
     () => statusTargets.map((t) => ({ value: t, label: APPOINTMENT_STATUS_MAP[t]?.label ?? t })),
@@ -195,14 +192,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   const targetStatus = pickedTarget && statusTargets.includes(pickedTarget) ? pickedTarget : '';
 
   // Require a reason if ANY selected row requires one — not just the first.
-  // DRAFT → AWAITING_INSPECTOR needs no reason but REJECTED → AWAITING_INSPECTOR
-  // does, so a mixed batch judged on row 0 alone would be rejected server-side.
-  const statusReasonRequired = useMemo(
-    () =>
-      !!targetStatus &&
-      selectedAppointments.some((a) => isReasonRequired(a.status as AppointmentStatus, targetStatus)),
-    [selectedAppointments, targetStatus],
-  );
+  const statusReasonRequired = selectionReasonRequired(targetStatus);
 
   // Cancelling in bulk can notify tenants, but only those already told about their
   // inspection. Offer the opt-in only when the selection contains at least one, and
