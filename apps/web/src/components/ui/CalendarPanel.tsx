@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 interface CalendarPanelProps {
   /** Canonical `YYYY-MM-DD`, or `''`. */
@@ -116,13 +117,14 @@ export function CalendarPanel({ selected, onSelect, min, max }: CalendarPanelPro
                 month: 'long',
                 day: 'numeric',
               })}
-              className={`flex h-9 w-full items-center justify-center rounded text-sm transition-colors ${
+              className={cn(
+                'flex h-9 w-full items-center justify-center rounded text-sm transition-colors',
                 isSelected
                   ? 'bg-primary font-bold text-white'
                   : disabled
                     ? 'cursor-not-allowed text-text-disabled'
-                    : 'text-text-primary hover:bg-primary/10'
-              }`}
+                    : 'text-text-primary hover:bg-primary/10',
+              )}
             >
               {date.getDate()}
             </button>

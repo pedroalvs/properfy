@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import mapboxgl from 'mapbox-gl';
 import type { MarkerOffset } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { useMapInstance } from './MapContainer';
 
 interface MapMarkerProps {
@@ -98,6 +99,11 @@ export function MapMarker({
   // loading yet — in those cases we render the UI inline below.
   const [portalNode, setPortalNode] = useState<HTMLDivElement | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+  // Latest coords for the create-once effect to read on mount without
+  // depending on them (position updates flow through the setLngLat effect
+  // below, so re-creating the marker on every coordinate change is wrong).
+  const coordsRef = useRef({ longitude, latitude });
+  coordsRef.current = { longitude, latitude };
 
   useEffect(() => {
     const map = getMap();
@@ -117,7 +123,7 @@ export function MapMarker({
     node.className = 'inline-block';
 
     const marker = new mapboxgl.Marker({ element: node, anchor: 'bottom' })
-      .setLngLat([longitude, latitude])
+      .setLngLat([coordsRef.current.longitude, coordsRef.current.latitude])
       .addTo(map);
     markerRef.current = marker;
     setPortalNode(node);
@@ -162,11 +168,13 @@ export function MapMarker({
     <button
       type="button"
       disabled={disabled}
-      className={`inline-flex flex-col items-center transition-[filter] ${
+      className={cn(
+        'inline-flex flex-col items-center transition-[filter]',
         active
           ? 'scale-110 drop-shadow-[0_0_4px_color-mix(in_srgb,var(--color-primary)_95%,transparent)]'
-          : 'drop-shadow-md hover:drop-shadow-[0_0_4px_color-mix(in_srgb,var(--color-primary)_60%,transparent)]'
-      } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+          : 'drop-shadow-md hover:drop-shadow-[0_0_4px_color-mix(in_srgb,var(--color-primary)_60%,transparent)]',
+        disabled ? 'cursor-default' : 'cursor-pointer',
+      )}
       onClick={(e) => {
         if (disabled) return;
         e.stopPropagation();
@@ -183,7 +191,7 @@ export function MapMarker({
         className="flex h-7 w-7 items-center justify-center rounded-full"
         style={{ backgroundColor: '#1A1A1A' }}
       >
-        <i className={`mdi ${icon} text-base leading-none text-white`} aria-hidden="true" />
+        <i className={cn('mdi', icon, 'text-base leading-none text-white')} aria-hidden="true" />
       </span>
       <span
         className="-mt-1 h-0 w-0 border-x-[6px] border-t-[10px] border-x-transparent"
@@ -199,7 +207,12 @@ export function MapMarker({
     <button
       type="button"
       disabled={disabled}
-      className={`flex items-center justify-center rounded-full shadow-md transition hover:shadow-lg hover:brightness-110 ${size} ${ringClass} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+      className={cn(
+        'flex items-center justify-center rounded-full shadow-md transition hover:shadow-lg hover:brightness-110',
+        size,
+        ringClass,
+        disabled ? 'cursor-default' : 'cursor-pointer',
+      )}
       style={{ backgroundColor: color }}
       onClick={(e) => {
         if (disabled) return;
@@ -229,7 +242,7 @@ export function MapMarker({
   // the "cursor turns into text-cursor over the label" flicker.
   const inner = (
     <div
-      className={`inline-flex flex-col items-center ${disabled ? 'pointer-events-none' : 'cursor-pointer'}`}
+      className={cn('inline-flex flex-col items-center', disabled ? 'pointer-events-none' : 'cursor-pointer')}
       style={disabled ? { pointerEvents: 'none' } : undefined}
     >
       {isIconPin ? iconPinButton : circleButton}

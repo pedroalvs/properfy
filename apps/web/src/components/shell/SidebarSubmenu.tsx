@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useLocation } from 'react-router-dom';
+import { cn } from '@properfy/frontend-standards';
 
 interface SubmenuItem {
   icon: string;
@@ -70,11 +71,12 @@ export function SidebarSubmenu({
     return (
       <div className="rounded-lg border border-border-subtle bg-white/60" aria-label={label}>
         <div
-          className={`flex items-center gap-3 px-4 py-3 text-sm font-semibold ${
-            isActive ? 'text-real-estate' : 'text-text-primary'
-          }`}
+          className={cn(
+            'flex items-center gap-3 px-4 py-3 text-sm font-semibold',
+            isActive ? 'text-real-estate' : 'text-text-primary',
+          )}
         >
-          <i className={`mdi ${icon} text-xl`} />
+          <i className={cn('mdi', icon, 'text-xl')} />
           <span>{label}</span>
         </div>
         <div className="border-t border-border-subtle px-2 py-2">
@@ -85,13 +87,14 @@ export function SidebarSubmenu({
                 key={item.to}
                 to={item.to}
                 onClick={() => onNavigate?.()}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
                   linkActive
                     ? 'bg-real-estate/10 font-medium text-real-estate'
-                    : 'text-text-primary hover:bg-black/5'
-                }`}
+                    : 'text-text-primary hover:bg-black/5',
+                )}
               >
-                <i className={`mdi ${item.icon} text-lg`} />
+                <i className={cn('mdi', item.icon, 'text-lg')} />
                 <span className="truncate">{item.label}</span>
               </NavLink>
             );
@@ -109,9 +112,10 @@ export function SidebarSubmenu({
       onMouseLeave={scheduleClose}
     >
       <span
-        className={`absolute left-0 top-[-4px] h-[calc(100%+8px)] w-1 rounded-r transition-colors ${
-          isActive ? 'bg-realty' : 'bg-transparent'
-        }`}
+        className={cn(
+          'absolute left-0 top-[-4px] h-[calc(100%+8px)] w-1 rounded-r transition-colors',
+          isActive ? 'bg-realty' : 'bg-transparent',
+        )}
       />
       <span className="pointer-events-none absolute right-[15px] top-1/2 -translate-y-1/2 border-l-[5px] border-y-[5px] border-y-transparent border-l-black/20" />
       <button
@@ -129,9 +133,12 @@ export function SidebarSubmenu({
         }}
       >
         <i
-          className={`mdi ${icon} text-2xl transition-opacity ${
-            isActive || isOpen ? 'text-realty opacity-100' : 'opacity-65 hover:opacity-100 hover:text-realty'
-          }`}
+          className={cn(
+            'mdi',
+            icon,
+            'text-2xl transition-opacity',
+            isActive || isOpen ? 'text-realty opacity-100' : 'opacity-65 hover:opacity-100 hover:text-realty',
+          )}
         />
       </button>
 
@@ -167,7 +174,7 @@ export function SidebarSubmenu({
                     {linkActive && (
                       <span className="absolute -left-5 top-[5px] h-[30px] w-1 rounded-r bg-realty" />
                     )}
-                    <i className={`mdi ${item.icon} mr-2 text-base`} />
+                    <i className={cn('mdi', item.icon, 'mr-2 text-base')} />
                     {item.label}
                   </>
                 )}

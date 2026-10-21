@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { cn } from '@properfy/frontend-standards';
 
 export type DropdownPlacement = 'auto' | 'top' | 'bottom' | 'left' | 'right';
 
@@ -212,7 +213,7 @@ export function ViewportAwareDropdown({
   ) : null;
 
   return (
-    <div className={`relative inline-block ${className}`} data-testid="viewport-aware-dropdown">
+    <div className={cn('relative inline-block', className)} data-testid="viewport-aware-dropdown">
       <div
         ref={triggerRef}
         onClick={() => setOpen((v) => !v)}

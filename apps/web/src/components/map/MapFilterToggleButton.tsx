@@ -1,3 +1,5 @@
+import { cn } from '@properfy/frontend-standards';
+
 interface MapFilterToggleButtonProps {
   open: boolean;
   onToggle: () => void;
@@ -23,9 +25,10 @@ export function MapFilterToggleButton({
     <button
       type="button"
       onClick={onToggle}
-      className={`inline-flex items-center gap-2 rounded-full border border-border-subtle bg-card-bg px-4 py-2 text-sm font-medium shadow-md transition-colors hover:bg-gray-50 ${
-        open ? 'bg-gray-100 text-text-primary' : 'text-text-secondary'
-      }`}
+      className={cn(
+        'inline-flex items-center gap-2 rounded-full border border-border-subtle bg-card-bg px-4 py-2 text-sm font-medium shadow-md transition-colors hover:bg-gray-50',
+        open ? 'bg-gray-100 text-text-primary' : 'text-text-secondary',
+      )}
       aria-pressed={open}
       aria-label={open ? 'Hide filters' : 'Show filters'}
       data-testid="map-filter-toggle"

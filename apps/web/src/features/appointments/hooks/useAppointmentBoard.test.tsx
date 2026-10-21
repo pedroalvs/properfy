@@ -24,7 +24,7 @@ function wrapper(initialEntries: string[]) {
 
 /** Every call's `params` argument, keyed by the column status it carries. */
 function paramsByStatus() {
-  const result: Record<string, any> = {};
+  const result: Record<string, Record<string, unknown>> = {};
   for (const call of usePaginatedQueryMock.mock.calls) {
     const params = call[2] as { status?: string };
     if (params?.status) result[params.status] = params;
@@ -34,7 +34,7 @@ function paramsByStatus() {
 
 /** Options argument (4th) keyed by column status. */
 function optionsByStatus() {
-  const result: Record<string, any> = {};
+  const result: Record<string, Record<string, unknown>> = {};
   for (const call of usePaginatedQueryMock.mock.calls) {
     const params = call[2] as { status?: string };
     if (params?.status) result[params.status] = call[3];
@@ -158,11 +158,11 @@ describe('useAppointmentBoard', () => {
       });
 
       const options = optionsByStatus();
-      expect(options['AWAITING_INSPECTOR'].enabled).toBe(true);
-      expect(options['SCHEDULED'].enabled).toBe(true);
-      expect(options['DONE'].enabled).toBe(false);
-      expect(options['CANCELLED'].enabled).toBe(false);
-      expect(options['REJECTED'].enabled).toBe(false);
+      expect(options['AWAITING_INSPECTOR']!.enabled).toBe(true);
+      expect(options['SCHEDULED']!.enabled).toBe(true);
+      expect(options['DONE']!.enabled).toBe(false);
+      expect(options['CANCELLED']!.enabled).toBe(false);
+      expect(options['REJECTED']!.enabled).toBe(false);
     });
 
     it('reports zero and no loading for the skipped columns', () => {
@@ -229,7 +229,7 @@ describe('useAppointmentBoard', () => {
   describe('load more', () => {
     /** Mock a column that always has far more rows than are loaded. */
     function mockLargeColumn() {
-      usePaginatedQueryMock.mockImplementation((_key, _path, params: any) => ({
+      usePaginatedQueryMock.mockImplementation((_key: unknown, _path: unknown, params: { pageSize: number }) => ({
         data: {
           data: Array.from({ length: params.pageSize }, (_, i) => ({ id: `a${i}` })),
           pagination: { page: 1, pageSize: params.pageSize, total: 500, totalPages: 25 },
@@ -250,7 +250,7 @@ describe('useAppointmentBoard', () => {
 
       act(() => result.current.columns[0]!.loadMore());
 
-      expect(paramsByStatus()['AWAITING_INSPECTOR'].pageSize).toBe(BOARD_COLUMN_PAGE_SIZE * 2);
+      expect(paramsByStatus()['AWAITING_INSPECTOR']!.pageSize).toBe(BOARD_COLUMN_PAGE_SIZE * 2);
     });
 
     it('grows only the column that was asked to load more', () => {
@@ -261,7 +261,7 @@ describe('useAppointmentBoard', () => {
 
       act(() => result.current.columns[0]!.loadMore());
 
-      expect(paramsByStatus()['SCHEDULED'].pageSize).toBe(BOARD_COLUMN_PAGE_SIZE);
+      expect(paramsByStatus()['SCHEDULED']!.pageSize).toBe(BOARD_COLUMN_PAGE_SIZE);
     });
 
     it('never requests a pageSize above the server cap', () => {

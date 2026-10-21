@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { NotificationClassChip } from './NotificationClassChip';
@@ -78,7 +79,7 @@ export function TemplateTable({
       render: (row) => {
         const colorClass = CHANNEL_COLORS[row.channel] ?? 'bg-gray-100 text-gray-800';
         return (
-          <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${colorClass}`}>
+          <span className={cn('inline-block rounded px-2 py-0.5 text-xs font-semibold', colorClass)}>
             {row.channel}
           </span>
         );
@@ -110,7 +111,7 @@ export function TemplateTable({
       align: 'center',
       render: (row) => (
         <i
-          className={`mdi ${row.active ? 'mdi-check-bold text-success' : 'mdi-close-thick text-error'} text-lg`}
+          className={cn('mdi', row.active ? 'mdi-check-bold text-success' : 'mdi-close-thick text-error', 'text-lg')}
           aria-label={row.active ? 'Active' : 'Inactive'}
         />
       ),

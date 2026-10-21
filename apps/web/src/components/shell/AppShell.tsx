@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Outlet, useMatches } from 'react-router-dom';
+import { cn } from '@properfy/frontend-standards';
 import { Sidebar } from './Sidebar';
 import { MobileDrawer } from './MobileDrawer';
 import { OfflineBanner } from '@/components/feedback/OfflineBanner';
@@ -30,9 +31,10 @@ export function AppShell() {
 
   return (
     <div
-      className={`flex w-full max-w-full overflow-x-hidden bg-app-bg ${
-        fullHeight ? 'h-dvh overflow-hidden' : 'min-h-screen'
-      }`}
+      className={cn(
+        'flex w-full max-w-full overflow-x-hidden bg-app-bg',
+        fullHeight ? 'h-dvh overflow-hidden' : 'min-h-screen',
+      )}
     >
       {/* Sidebar — hidden on mobile */}
       <div className="hidden md:block">
@@ -46,11 +48,10 @@ export function AppShell() {
 
       <div className="min-w-0 flex-1 md:ml-sidebar">
         <main
-          className={`min-w-0 max-w-full overflow-x-hidden bg-card-bg md:rounded-tl-[20px] md:shadow-[0_6px_12px_0_rgba(0,0,0,0.1)] ${
-            fullHeight
-              ? 'flex h-dvh flex-col overflow-hidden'
-              : 'min-h-screen'
-          }`}
+          className={cn(
+            'min-w-0 max-w-full overflow-x-hidden bg-card-bg md:rounded-tl-[20px] md:shadow-[0_6px_12px_0_rgba(0,0,0,0.1)]',
+            fullHeight ? 'flex h-dvh flex-col overflow-hidden' : 'min-h-screen',
+          )}
           data-testid="main-content"
         >
           <OfflineBanner />
@@ -66,9 +67,7 @@ export function AppShell() {
             <span className="text-base font-bold text-secondary">Properfy</span>
           </div>
           <div
-            className={`min-w-0 ${
-              fullHeight ? 'min-h-0 flex-1' : 'px-4 py-2 md:px-8 md:py-6'
-            }`}
+            className={cn('min-w-0', fullHeight ? 'min-h-0 flex-1' : 'px-4 py-2 md:px-8 md:py-6')}
             data-testid="main-content-inner"
           >
             <Outlet />

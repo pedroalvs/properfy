@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { formatInstantDateTime } from '@/lib/format-date';
 
 interface ResponseData {
@@ -34,7 +35,7 @@ export function ResponseConfirmationCard({
 
   return (
     <div
-      className={`rounded border-l-4 bg-card-bg p-6 shadow-sm ${borderClass}`}
+      className={cn('rounded border-l-4 bg-card-bg p-6 shadow-sm', borderClass)}
     >
       <div className="flex items-start justify-between gap-4">
         <div>

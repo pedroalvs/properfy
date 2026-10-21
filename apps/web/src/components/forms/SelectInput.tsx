@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useId } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import {
   formInputContainer,
   formInputContainerError,
@@ -195,7 +196,7 @@ export function SelectInput({
           {selectedLabel ?? placeholder ?? ''}
         </span>
         <i
-          className={`mdi mdi-chevron-down text-text-muted text-lg transition-transform ${open ? 'rotate-180' : ''}`}
+          className={cn('mdi mdi-chevron-down text-text-muted text-lg transition-transform', open && 'rotate-180')}
         />
       </button>
 

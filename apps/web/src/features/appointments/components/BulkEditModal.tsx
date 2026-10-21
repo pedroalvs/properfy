@@ -5,6 +5,7 @@ import {
   type BulkActionResponse,
   type BulkEditAppointmentInput,
 } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { Link } from 'react-router-dom';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -452,7 +453,11 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
         onSuccess();
       }
     } catch (err) {
-      setErrorMessage(getErrorMessage(err, 'Network error. Please try again.'));
+      // R2-REG-1: a thrown server error (incl. a 5xx whose body fails to parse)
+      // must not be mislabelled "Network error". getErrorMessage distinguishes a
+      // genuine network failure from a server/other error and suppresses raw 5xx
+      // internals behind the neutral fallback.
+      setErrorMessage(getErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -815,9 +820,10 @@ function FieldRow({
     <div ref={containerRef} className="space-y-1">
       <label
         htmlFor={`${id}-checkbox`}
-        className={`flex items-center gap-2 text-sm font-medium ${
-          disabled ? 'cursor-not-allowed text-text-muted' : 'text-text-primary'
-        }`}
+        className={cn(
+          'flex items-center gap-2 text-sm font-medium',
+          disabled ? 'cursor-not-allowed text-text-muted' : 'text-text-primary',
+        )}
       >
         <input
           id={`${id}-checkbox`}
