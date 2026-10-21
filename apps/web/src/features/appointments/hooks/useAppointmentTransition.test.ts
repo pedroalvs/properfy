@@ -51,8 +51,9 @@ describe('useAppointmentTransition', () => {
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith(
-        '/v1/appointments/appt-1/status-transitions',
+        '/v1/appointments/{appointmentId}/status-transitions',
         {
+          params: { path: { appointmentId: 'appt-1' } },
           body: { targetStatus: 'CANCELLED', reason: 'No longer needed' },
           headers: { 'Idempotency-Key': expect.any(String) },
         },
@@ -69,8 +70,9 @@ describe('useAppointmentTransition', () => {
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith(
-        '/v1/appointments/appt-1/status-transitions',
+        '/v1/appointments/{appointmentId}/status-transitions',
         expect.objectContaining({
+          params: { path: { appointmentId: 'appt-1' } },
           body: expect.objectContaining({
             targetStatus: 'CANCELLED',
             cancellationReasonCode: 'CLIENT_REQUEST',

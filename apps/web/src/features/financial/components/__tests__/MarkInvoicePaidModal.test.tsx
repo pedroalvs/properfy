@@ -191,4 +191,34 @@ describe('MarkInvoicePaidModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  // HOL-3a: stable key while one mark-paid submit is in flight, rotated only on
+  // success — a re-submit after a lost response dedupes instead of paying twice.
+  it('reuses the Idempotency-Key across a retry and rotates only after a successful mark-paid', async () => {
+    const keyOf = (n: number) =>
+      (mockPost.mock.calls[n]![1] as { headers: Record<string, string> }).headers['Idempotency-Key'];
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <MarkInvoicePaidModal open={true} onClose={onClose} onSuccess={onSuccess} invoiceIds={[INVOICE_ID]} />
+      </Wrapper>,
+    );
+
+    // 1. First attempt fails — key not rotated.
+    mockPost.mockResolvedValueOnce({ data: undefined, error: { status: 500, error: { message: 'boom' } } });
+    fireEvent.click(screen.getByText('Confirm Payment'));
+    await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(1));
+
+    // 2. Retry of the same mark-paid reuses the key.
+    mockPost.mockResolvedValueOnce({ data: { data: {} }, error: undefined });
+    fireEvent.click(screen.getByText('Confirm Payment'));
+    await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(2));
+    expect(keyOf(0)).toBe(keyOf(1));
+
+    // 3. A subsequent mark-paid gets a fresh key.
+    mockPost.mockResolvedValueOnce({ data: { data: {} }, error: undefined });
+    fireEvent.click(screen.getByText('Confirm Payment'));
+    await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(3));
+    expect(keyOf(2)).not.toBe(keyOf(1));
+  });
+
 });

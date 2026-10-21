@@ -137,8 +137,9 @@ describe('CreateRefundModal', () => {
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith(
-        `/v1/financial/entries/${MOCK_ENTRY.id}/refund`,
+        '/v1/financial/entries/{entryId}/refund',
         expect.objectContaining({
+          params: { path: { entryId: MOCK_ENTRY.id } },
           body: { description: 'Refund requested', reason: 'Customer overpaid' },
         }),
       );
