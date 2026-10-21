@@ -47,7 +47,6 @@ function renderForm(
         <MapBulkRescheduleForm
           checkedAppointments={appointments}
           serviceGroups={group ? [group] : []}
-          onCancel={vi.fn()}
           onComplete={vi.fn()}
         />
       </MemoryRouter>

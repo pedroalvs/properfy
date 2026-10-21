@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError } from '@/lib/api-error';
+import type { ApiError } from '@/lib/api-error';
 import type { NotificationChannel, NotificationClass, ConsentChangeSource } from '@properfy/shared';
 
 export interface ConsentRecord {
@@ -45,15 +46,13 @@ export function useConsentLookup({ recipient, tenantId, channel }: UseConsentLoo
       const query: Record<string, string> = { recipient: recipient! };
       if (tenantId) query['tenantId'] = tenantId;
       if (channel) query['channel'] = channel;
-      const { data, error } = await api.GET('/v1/notifications/consents' as any, {
-        params: { query: query as any },
+      const { data, error, response } = await api.GET('/v1/notifications/consents', {
+        // The route registers no typed querystring schema, so the generated
+        // query type is `never`; the filter params are asserted here.
+        params: { query: query as never },
       });
-      if (error) {
-        const status = (error as { status?: number }).status ?? 500;
-        const message = (error as { error?: { message?: string } }).error?.message ?? 'Failed to load consents';
-        throw new ApiError(status, message);
-      }
-      const body = data as { data: ConsentLookupResult };
+      if (error) throw toApiError(error, (response as Response | undefined)?.status);
+      const body = data as unknown as { data: ConsentLookupResult };
       return body.data;
     },
   });

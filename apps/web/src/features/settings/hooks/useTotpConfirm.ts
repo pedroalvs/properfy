@@ -13,10 +13,10 @@ export function useTotpConfirm(): UseTotpConfirmReturn {
   const confirmTotp = useCallback(async (totpCode: string): Promise<{ success: boolean; error?: string }> => {
     setIsConfirming(true);
     try {
-      const { error, response } = await api.POST('/v1/auth/2fa/confirm' as any, {
-        body: { totpCode } as any,
+      const { error, response } = await api.POST('/v1/auth/2fa/confirm', {
+        body: { totpCode },
       });
-      if (error) throw toApiError(error, response?.status);
+      if (error) throw toApiError(error, (response as Response | undefined)?.status);
       return { success: true };
     } catch (err) {
       return { success: false, error: getErrorMessage(err, 'Failed to confirm 2FA') };
