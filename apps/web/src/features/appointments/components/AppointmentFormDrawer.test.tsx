@@ -621,8 +621,9 @@ describe('AppointmentFormDrawer', () => {
 
     expect(mockSave).not.toHaveBeenCalled();
     expect(mockPost).toHaveBeenCalledWith(
-      '/v1/appointments/apt-01/status-transitions',
+      '/v1/appointments/{appointmentId}/status-transitions',
       {
+        params: { path: { appointmentId: 'apt-01' } },
         body: {
           targetStatus: 'SCHEDULED',
           inspectorId: 'insp-01',
@@ -852,8 +853,8 @@ describe('AppointmentFormDrawer', () => {
 
       await waitFor(() => {
         expect(mockPost).toHaveBeenCalledWith(
-          '/v1/appointments/apt-done/cross-check-done',
-          { body: {} },
+          '/v1/appointments/{appointmentId}/cross-check-done',
+          { params: { path: { appointmentId: 'apt-done' } }, body: {} },
         );
       });
 

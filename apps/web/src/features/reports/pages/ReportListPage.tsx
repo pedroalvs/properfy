@@ -7,6 +7,7 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { usePermissions } from '@/hooks/usePermissions';
 import { NoPermissionState } from '@/components/feedback/NoPermissionState';
 import { api } from '@/services/api';
+import { getErrorMessage } from '@/lib/api-error';
 import type { paths } from '@properfy/shared';
 import { unwrapSuccessData } from '@/lib/api-envelope';
 import type { Report } from '../types';
@@ -63,7 +64,7 @@ export function ReportListPage() {
         { params: { path: { reportId: report.id } } },
       );
       if (error) {
-        throw new Error((error as any)?.error?.message ?? 'Failed to download report');
+        throw new Error(getErrorMessage(error, 'Failed to download report'));
       }
 
       const downloadUrl = unwrapSuccessData<ReportDownloadResponse['data']>(fileData)?.downloadUrl;

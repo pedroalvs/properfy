@@ -1,10 +1,9 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   todayInTzDateString,
-  getValidTransitions,
-  isReasonRequired,
   type AppointmentStatus,
   type BulkActionResponse,
+  type BulkEditAppointmentInput,
 } from '@properfy/shared';
 import { Link } from 'react-router-dom';
 import { Dialog } from '@/components/ui/Dialog';
@@ -19,11 +18,12 @@ import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { usePermissions } from '@/hooks/usePermissions';
-import { api } from '@/services/api';
 import { getErrorMessage } from '@/lib/api-error';
 import { ContactAutocomplete } from './ContactAutocomplete';
 import { useBulkCrossCheckDone } from '../hooks/useBulkCrossCheckDone';
 import { useBulkStatusTransition } from '../hooks/useBulkStatusTransition';
+import { useBulkEdit, type BulkEditResult } from '../hooks/useBulkEdit';
+import { useSelectionTransitions } from '../hooks/useSelectionTransitions';
 import type { ContactSearchResult } from '../hooks/useContactSearch';
 import type { Appointment } from '../types';
 import { DateInput } from '@/components/forms/DateInput';
@@ -60,13 +60,6 @@ const FIELD_LABELS: Record<FieldKey, string> = {
   serviceTypeId: 'Service Type',
   propertyManagerContactId: 'Add Property Manager Contact (only when missing)',
 };
-
-/** Matches the backend `BulkEditResult` from
- *  `apps/backend/src/modules/appointment/application/use-cases/bulk-edit-appointments.use-case.ts`. */
-interface BulkEditResult {
-  updated: number;
-  failed: Array<{ id: string; code: string; message: string }>;
-}
 
 /**
  * Folds the bulk status-transition envelope into the `{ updated, failed }`
@@ -120,6 +113,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   const canChangeStatus = canPerform('appointment.bulk_status_transition');
   const bulkCrossCheck = useBulkCrossCheckDone();
   const bulkStatusTransition = useBulkStatusTransition();
+  const bulkEdit = useBulkEdit();
 
   // "Mark as Reviewed" cross-checks DONE appointments. It targets a different
   // status (DONE) than the field edits (DRAFT / AWAITING_INSPECTOR), so it is
@@ -181,13 +175,11 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   // Only offer targets EVERY selected row can reach, so the dropdown never
   // promises an option that would fail for part of the batch. Mixed selections
   // therefore narrow the menu rather than producing per-row rejections.
-  const statusTargets = useMemo(() => {
-    if (!role || selectedAppointments.length === 0) return [] as AppointmentStatus[];
-    const perRow = selectedAppointments.map(
-      (a) => new Set(getValidTransitions(a.status as AppointmentStatus, role)),
-    );
-    return Array.from(perRow.reduce((acc, s) => new Set([...acc].filter((t) => s.has(t)))));
-  }, [selectedAppointments, role]);
+  // Shared with MapBulkActionModal (WEB-9).
+  const { targets: statusTargets, isReasonRequired: selectionReasonRequired } = useSelectionTransitions(
+    selectedAppointments,
+    role,
+  );
 
   const statusTargetOptions = useMemo(
     () => statusTargets.map((t) => ({ value: t, label: APPOINTMENT_STATUS_MAP[t]?.label ?? t })),
@@ -200,14 +192,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
   const targetStatus = pickedTarget && statusTargets.includes(pickedTarget) ? pickedTarget : '';
 
   // Require a reason if ANY selected row requires one — not just the first.
-  // DRAFT → AWAITING_INSPECTOR needs no reason but REJECTED → AWAITING_INSPECTOR
-  // does, so a mixed batch judged on row 0 alone would be rejected server-side.
-  const statusReasonRequired = useMemo(
-    () =>
-      !!targetStatus &&
-      selectedAppointments.some((a) => isReasonRequired(a.status as AppointmentStatus, targetStatus)),
-    [selectedAppointments, targetStatus],
-  );
+  const statusReasonRequired = selectionReasonRequired(targetStatus);
 
   // Cancelling in bulk can notify tenants, but only those already told about their
   // inspection. Offer the opt-in only when the selection contains at least one, and
@@ -396,7 +381,7 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
       return;
     }
 
-    const changes: Record<string, unknown> = {};
+    const changes: BulkEditAppointmentInput['changes'] = {};
     const scalarKeys = ['assignedInspectorId', 'scheduledDate', 'serviceTypeId', 'propertyManagerContactId'] as const;
     scalarKeys.forEach((key) => {
       const v = values[key]?.trim();
@@ -443,11 +428,10 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
     setErrorMessage(null);
 
     try {
-      const body: Record<string, unknown> = { ids: selectedIds, changes };
       // PM contact in the bulk modal is "add only when missing" — never overwrite
       // an existing one. The backend reports skipped appointments with code
       // APPOINTMENT_HAS_EXISTING_CONTACT in the failures list.
-      const options: Record<string, unknown> = {};
+      const options: NonNullable<BulkEditAppointmentInput['options']> = {};
       if (enabledFields.propertyManagerContactId) {
         options.propertyManagerContactPolicy = 'addIfMissing';
       }
@@ -456,21 +440,16 @@ export function BulkEditModal({ selectedAppointments, open, onClose, onSuccess }
       if (enabledFields.timeSlot && expandGroupTimeWindow && groupedSelection.length > 0) {
         options.expandGroupTimeWindow = true;
       }
-      if (Object.keys(options).length > 0) {
-        body.options = options;
-      }
 
-      const { data, error } = await (api as any).POST('/v1/appointments/bulk-edit', { body });
-
-      if (error) {
-        const err = error as any;
-        setErrorMessage(err?.error?.message ?? 'Bulk edit failed');
-      } else if (data) {
-        const payload: BulkEditResult = (data as any)?.data ?? (data as BulkEditResult);
-        setResult(payload);
-        if ((payload.failed?.length ?? 0) === 0) {
-          onSuccess();
-        }
+      const response = await bulkEdit.mutateAsync({
+        ids: selectedIds,
+        changes,
+        ...(Object.keys(options).length > 0 ? { options } : {}),
+      });
+      const payload: BulkEditResult = response.data;
+      setResult(payload);
+      if ((payload.failed?.length ?? 0) === 0) {
+        onSuccess();
       }
     } catch (err) {
       setErrorMessage(getErrorMessage(err, 'Network error. Please try again.'));

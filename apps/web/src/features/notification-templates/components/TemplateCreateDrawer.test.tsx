@@ -195,7 +195,7 @@ describe('TemplateCreateDrawer', () => {
 
     await waitFor(() => {
       expect(mockPut).toHaveBeenCalledWith(
-        '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
+        '/v1/notification-templates/{templateCode}/{channel}',
         expect.objectContaining({ body: expect.objectContaining({ tenantId: 'agency-1', isActive: true }) }),
       );
     });
@@ -211,7 +211,7 @@ describe('TemplateCreateDrawer', () => {
 
     await waitFor(() => {
       expect(mockPut).toHaveBeenCalledWith(
-        '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
+        '/v1/notification-templates/{templateCode}/{channel}',
         expect.objectContaining({ body: expect.objectContaining({ tenantId: 'cl-1' }) }),
       );
     });

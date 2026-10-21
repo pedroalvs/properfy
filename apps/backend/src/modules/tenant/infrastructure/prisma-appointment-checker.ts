@@ -1,7 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
+import { NON_TERMINAL_APPOINTMENT_STATUSES } from '@properfy/shared';
 import type { IAppointmentChecker } from '../domain/appointment-checker';
-
-const NON_TERMINAL_STATUSES = ['DRAFT', 'AWAITING_INSPECTOR', 'SCHEDULED'] as const;
 
 export class PrismaAppointmentChecker implements IAppointmentChecker {
   constructor(private readonly prisma: PrismaClient) {}
@@ -10,7 +9,7 @@ export class PrismaAppointmentChecker implements IAppointmentChecker {
     const count = await this.prisma.appointment.count({
       where: {
         tenant_id: tenantId,
-        status: { in: [...NON_TERMINAL_STATUSES] },
+        status: { in: [...NON_TERMINAL_APPOINTMENT_STATUSES] },
       },
     });
     return count > 0;
@@ -21,7 +20,7 @@ export class PrismaAppointmentChecker implements IAppointmentChecker {
       where: {
         tenant_id: tenantId,
         branch_id: branchId,
-        status: { in: [...NON_TERMINAL_STATUSES] },
+        status: { in: [...NON_TERMINAL_APPOINTMENT_STATUSES] },
       },
     });
     return count > 0;
@@ -32,7 +31,7 @@ export class PrismaAppointmentChecker implements IAppointmentChecker {
       where: {
         tenant_id: tenantId,
         property_id: propertyId,
-        status: { in: [...NON_TERMINAL_STATUSES] },
+        status: { in: [...NON_TERMINAL_APPOINTMENT_STATUSES] },
       },
     });
     return count > 0;
