@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/services/api';
+import { getErrorMessage } from '@/lib/api-error';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 interface Inspector {
@@ -33,13 +34,13 @@ export function AssignInspectorModal({
   const { data, isLoading } = useQuery({
     queryKey: ['inspectors', 'active', search],
     queryFn: async () => {
-      const { data, error } = await api.GET('/v1/inspectors' as any, {
+      const { data, error } = await api.GET('/v1/inspectors', {
         params: {
-          query: { status: 'ACTIVE', search: search || undefined, page: 1, pageSize: 50 } as any,
+          query: { status: 'ACTIVE', search: search || undefined, page: 1, pageSize: 50 },
         },
       });
       if (error) throw new Error('Failed to load inspectors');
-      return (data as any)?.data as Inspector[] ?? [];
+      return (data?.data ?? []) as unknown as Inspector[];
     },
     enabled: open,
   });
@@ -50,15 +51,16 @@ export function AssignInspectorModal({
     if (!selectedId) return;
     setIsAssigning(true);
     const { error } = await api.POST(
-      `/v1/appointments/${appointmentId}/status-transitions` as any,
+      '/v1/appointments/{appointmentId}/status-transitions',
       {
-        body: { targetStatus: 'SCHEDULED', inspectorId: selectedId } as any,
+        params: { path: { appointmentId } },
+        body: { targetStatus: 'SCHEDULED', inspectorId: selectedId },
         headers: { 'Idempotency-Key': crypto.randomUUID() },
       },
     );
     setIsAssigning(false);
     if (error) {
-      showError((error as any)?.error?.message ?? 'Failed to assign inspector');
+      showError(getErrorMessage(error, 'Failed to assign inspector'));
       return;
     }
     await queryClient.invalidateQueries({ queryKey: ['appointments'] });

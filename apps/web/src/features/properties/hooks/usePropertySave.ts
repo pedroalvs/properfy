@@ -1,6 +1,14 @@
 import { useState, useCallback } from 'react';
 import { createPropertySchema, updatePropertySchema, PropertyType } from '@properfy/shared';
+import type { paths } from '@properfy/shared';
 import { api } from '@/services/api';
+
+type UpdatePropertyBody = NonNullable<
+  paths['/v1/properties/{propertyId}']['patch']['requestBody']
+>['content']['application/json'];
+type CreatePropertyBody = NonNullable<
+  paths['/v1/properties']['post']['requestBody']
+>['content']['application/json'];
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { identityFieldMapper, mapServerFieldErrors } from '@/lib/server-field-errors';
@@ -148,13 +156,16 @@ export function usePropertySave(): UsePropertySaveReturn {
       let newId: string | undefined;
       if (propertyId) {
         const payload = toSchemaPayload(data, 'edit');
-        const { error } = await api.PATCH(`/v1/properties/${propertyId}` as any, { body: payload as any });
+        const { error } = await api.PATCH('/v1/properties/{propertyId}', {
+          params: { path: { propertyId } },
+          body: payload as UpdatePropertyBody,
+        });
         if (error) return { success: false, ...mapServerFieldErrors(error, serverFieldMapper, 'Request failed') };
       } else {
         const payload = toSchemaPayload(data, 'create', tenantIdOverride ?? user?.tenantId);
-        const { data: responseData, error } = await api.POST('/v1/properties' as any, { body: payload as any });
+        const { data: responseData, error } = await api.POST('/v1/properties', { body: payload as CreatePropertyBody });
         if (error) return { success: false, ...mapServerFieldErrors(error, serverFieldMapper, 'Request failed') };
-        newId = (responseData as any)?.data?.id;
+        newId = (responseData as unknown as { data?: { id?: string } })?.data?.id;
       }
       queryClient.invalidateQueries({ queryKey: ['properties'] });
       return { success: true, id: newId };

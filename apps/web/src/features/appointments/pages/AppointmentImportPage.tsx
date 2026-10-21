@@ -27,10 +27,10 @@ async function downloadErrorsCsv(importId: string, onError: (message: string) =>
   try {
     // Routed through the shared client (not a bespoke fetch) so auth
     // headers and the 401-refresh-and-retry flow apply here too.
-    const { data, error } = await api.GET('/v1/appointments/import/{importId}/errors.csv' as any, {
-      params: { path: { importId } } as any,
+    const { data, error } = await api.GET('/v1/appointments/import/{importId}/errors.csv', {
+      params: { path: { importId } },
       parseAs: 'blob',
-    } as any);
+    });
 
     if (error || !data) {
       onError('Failed to download the errors file');

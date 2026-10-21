@@ -174,11 +174,11 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
     queryKey: ['appointment-import-status', importId],
     queryFn: async () => {
       if (!importId) return null;
-      const { data, error } = await api.GET('/v1/appointments/import/{importId}' as any, {
-        params: { path: { importId } } as any,
+      const { data, error } = await api.GET('/v1/appointments/import/{importId}', {
+        params: { path: { importId } },
       });
       if (error) throw error;
-      const normalized = normalizeStatus((data as { data: BackendImportStatusResponse }).data);
+      const normalized = normalizeStatus((data as unknown as { data: BackendImportStatusResponse }).data);
       handlePolledStatus(normalized);
       return normalized;
     },
@@ -204,19 +204,22 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
         formData.append('branchId', branchId);
         formData.append('file', file);
 
-        const { data, error, response } = await api.POST('/v1/appointments/import/preview' as any, {
-          body: formData as any,
-          bodySerializer: (body: any) => body,
-        } as any);
+        // Multipart upload: the route registers no typed OpenAPI body
+        // (`requestBody?: never`), so the FormData body is cast to satisfy the
+        // typed client while the identity serializer sends it unchanged.
+        const { data, error, response } = await api.POST('/v1/appointments/import/preview', {
+          body: formData as never,
+          bodySerializer: () => formData,
+        });
 
         if (error) {
-          const apiError = toApiError(error, response?.status);
+          const apiError = toApiError(error, (response as Response | undefined)?.status);
           setPreviewError(apiError);
           showError(getErrorMessage(apiError, 'Failed to preview the import file'));
           return null;
         }
 
-        return (data as { data: AppointmentImportPreviewResponse }).data;
+        return (data as unknown as { data: AppointmentImportPreviewResponse }).data;
       } catch (err) {
         const apiError = toApiError(err);
         setPreviewError(apiError);
@@ -238,14 +241,14 @@ export function useAppointmentImport(): UseAppointmentImportReturn {
         // actually landed) must reuse the same key so the backend can
         // recognize it as a replay instead of a second attempt.
         const idempotencyKey = `appointment-import-commit:${id}`;
-        const { error, response } = await api.POST('/v1/appointments/import/{importId}/commit' as any, {
-          params: { path: { importId: id } } as any,
+        const { error, response } = await api.POST('/v1/appointments/import/{importId}/commit', {
+          params: { path: { importId: id } },
           body: { skipInvalidRows: opts.skipInvalidRows },
           headers: { 'Idempotency-Key': idempotencyKey },
-        } as any);
+        });
 
         if (error) {
-          showError(getErrorMessage(toApiError(error, response?.status), 'Failed to start the import'));
+          showError(getErrorMessage(toApiError(error, (response as Response | undefined)?.status), 'Failed to start the import'));
           return false;
         }
 
