@@ -20,6 +20,12 @@ interface OfferCardProps {
   state: OfferAcceptState;
   onAccept: () => void;
   onViewDetail?: () => void;
+  /** Hide the inline "Accept offer" CTA (accordion header: accept lives in the expanded panel). */
+  showAccept?: boolean;
+  /** Ring highlight when this offer is the selected/expanded one (wide layout). */
+  selected?: boolean;
+  /** Flips the detail toggle label and chevron when the card is expanded (accordion). */
+  expanded?: boolean;
 }
 
 /**
@@ -66,7 +72,15 @@ const stateLabels: Partial<Record<OfferAcceptState, { label: string; className: 
   GONE: { label: 'No longer available', className: 'bg-text-muted/10 text-text-muted' },
 };
 
-export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onViewDetail }: OfferCardProps) {
+export const OfferCard = memo(function OfferCard({
+  offer,
+  state,
+  onAccept,
+  onViewDetail,
+  showAccept = true,
+  selected = false,
+  expanded = false,
+}: OfferCardProps) {
   const timeZone = useEffectiveTimezone();
   const dayLabel = relativeDayLabel(offer.scheduledDate, timeZone);
   const resolved = stateLabels[state];
@@ -96,7 +110,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
 
   return (
     <div
-      className={`overflow-hidden rounded-[20px] border border-black/[0.06] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.07)] transition-opacity duration-500 ${faded ? 'opacity-40' : ''}`}
+      className={`overflow-hidden rounded-[20px] border bg-white shadow-[0_8px_24px_rgba(15,23,42,0.07)] transition-opacity duration-500 ${selected ? 'border-primary ring-2 ring-primary/30' : 'border-black/[0.06]'} ${faded ? 'opacity-40' : ''}`}
       data-testid={`offer-card-${offer.groupId}`}
     >
       {/* Header strip: date + time */}
@@ -178,14 +192,16 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
           </div>
         )}
 
-        {/* Details drill-down */}
+        {/* Details drill-down / accordion toggle */}
         {onViewDetail && (
           <button
             onClick={onViewDetail}
-            className="mt-1 inline-flex min-h-[44px] items-center py-2 pr-2 text-xs font-semibold text-primary underline-offset-2 hover:underline"
+            className="mt-1 inline-flex min-h-[44px] items-center gap-1 py-2 pr-2 text-xs font-semibold text-primary underline-offset-2 hover:underline"
             data-testid="view-detail-button"
+            aria-expanded={expanded}
           >
-            View inspections
+            {expanded ? 'Hide inspections' : 'View inspections'}
+            <i className={`mdi ${expanded ? 'mdi-chevron-up' : 'mdi-chevron-down'} text-sm`} aria-hidden="true" />
           </button>
         )}
 
@@ -201,28 +217,30 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
         )}
 
         {/* Action */}
-        <div className="mt-4">
-          {resolved ? (
-            <div
-              className={`rounded-xl px-3 py-2.5 text-center text-sm font-semibold ${resolved.className}`}
-              data-testid="offer-state-label"
-              role="alert"
-            >
-              {resolved.label}
-            </div>
-          ) : (
-            <Button
-              variant="primary"
-              onClick={onAccept}
-              loading={state === 'ACCEPTING'}
-              disabled={state === 'ACCEPTING' || state === 'CONFIRMING'}
-              className="!w-full !min-h-touch !rounded-xl !bg-success !text-base !font-bold"
-              data-testid="accept-button"
-            >
-              Accept offer
-            </Button>
-          )}
-        </div>
+        {(resolved || showAccept) && (
+          <div className="mt-4">
+            {resolved ? (
+              <div
+                className={`rounded-xl px-3 py-2.5 text-center text-sm font-semibold ${resolved.className}`}
+                data-testid="offer-state-label"
+                role="alert"
+              >
+                {resolved.label}
+              </div>
+            ) : (
+              <Button
+                variant="primary"
+                onClick={onAccept}
+                loading={state === 'ACCEPTING'}
+                disabled={state === 'ACCEPTING' || state === 'CONFIRMING'}
+                className="!w-full !min-h-touch !rounded-xl !bg-success !text-base !font-bold"
+                data-testid="accept-button"
+              >
+                Accept offer
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type MapboxGL from 'mapbox-gl';
-import type { Map as MapboxMap, Marker as MapboxMarker } from 'mapbox-gl';
+import type { GeoJSONSource, Map as MapboxMap, Marker as MapboxMarker } from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { env } from '@/config/env';
 import { computeBounds, isPlottablePoint, isSinglePointBounds } from '@/lib/map-bounds';
@@ -38,6 +38,22 @@ const AU_CENTRE: [number, number] = [133.7751, -25.2744];
 // style string on a DOM marker element (never a Mapbox GL paint property), so
 // `var(--color-primary)` cascades from :root exactly like a hardcoded hex would.
 const PRIMARY_COLOR = 'var(--color-primary)';
+
+/** The route polyline drawn through an expanded group's appointment pins. */
+const ROUTE_SOURCE_ID = 'offer-route';
+const ROUTE_LAYER_ID = 'offer-route-line';
+const EMPTY_FEATURE_COLLECTION = { type: 'FeatureCollection', features: [] } as GeoJSON.FeatureCollection;
+
+/**
+ * The route line is a Mapbox paint property, which (unlike the DOM marker
+ * styles) cannot take a `var(--color-primary)`. Resolve the token to its real
+ * value at runtime, falling back to the brand hex if it is not yet applied.
+ */
+function resolvePrimaryHex(): string {
+  if (typeof document === 'undefined') return '#009DD9';
+  const value = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim();
+  return value || '#009DD9';
+}
 
 /** One group on screen: zoom out enough to show the surrounding suburbs. */
 const SINGLE_OFFER_ZOOM = 12;
@@ -245,6 +261,23 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       // `mapReady` — is what guarantees it draws the *current* offers.
       map.on('load', () => {
         if (cancelled) return;
+        // Route line source + layer, added once. The layer sits on the map
+        // canvas, below the DOM markers, so the line never covers a pin.
+        if (!map.getSource(ROUTE_SOURCE_ID)) {
+          map.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: EMPTY_FEATURE_COLLECTION });
+          map.addLayer({
+            id: ROUTE_LAYER_ID,
+            type: 'line',
+            source: ROUTE_SOURCE_ID,
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: {
+              'line-color': resolvePrimaryHex(),
+              'line-width': 3,
+              'line-opacity': 0.85,
+              'line-dasharray': [0.5, 2],
+            },
+          });
+        }
         mapLoadedRef.current = true;
         setMapReady(true);
       });
@@ -299,7 +332,34 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
       placeOfferMarkers(map, mapboxgl, offers, onSelectOffer);
     }
     applyCollisionOffsets(markersRef.current);
+    updateRoute(map);
     syncCamera(map);
+  }
+
+  /**
+   * Draw (or clear) the line that threads the expanded group's appointment pins
+   * in order, so the inspector reads the route at a glance. A line needs two
+   * plottable points; with fewer, the source is emptied and nothing is drawn.
+   */
+  function updateRoute(map: MapboxMap) {
+    const source = map.getSource(ROUTE_SOURCE_ID) as GeoJSONSource | undefined;
+    if (!source) return;
+
+    const coordinates = expandedGroup
+      ? expandedGroup.appointments
+          .filter((a) => isValidCoordinate(a.coordinates))
+          .map((a) => [a.coordinates!.lng, a.coordinates!.lat] as [number, number])
+      : [];
+
+    if (coordinates.length < 2) {
+      source.setData(EMPTY_FEATURE_COLLECTION);
+      return;
+    }
+    source.setData({
+      type: 'Feature',
+      geometry: { type: 'LineString', coordinates },
+      properties: {},
+    } as GeoJSON.Feature);
   }
 
   function placeOfferMarkers(

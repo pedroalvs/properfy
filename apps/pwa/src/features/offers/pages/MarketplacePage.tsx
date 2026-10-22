@@ -4,6 +4,7 @@ import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { OfferFeed } from '../components/OfferFeed';
+import { OfferAccordionList } from '../components/OfferAccordionList';
 import { OfflineMarketplaceBanner } from '../components/OfflineMarketplaceBanner';
 import { GroupDetailBottomSheet } from '../components/GroupDetailBottomSheet';
 import { OffersViewToggle } from '../components/OffersViewToggle';
@@ -13,6 +14,7 @@ import { useMarketplaceOffers } from '../hooks/useMarketplaceOffers';
 import { useMarketplaceOfferDetail } from '../hooks/useMarketplaceOfferDetail';
 import { useAcceptOffer } from '../hooks/useAcceptOffer';
 import { useIsOnline } from '@/hooks/useIsOnline';
+import { useIsWide } from '@/hooks/useIsWide';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 function formatTimeAgo(timestamp: number): string {
@@ -26,6 +28,7 @@ function formatTimeAgo(timestamp: number): string {
 
 export function MarketplacePage() {
   const isOnline = useIsOnline();
+  const isWide = useIsWide();
   const {
     offers,
     data,
@@ -91,6 +94,17 @@ export function MarketplacePage() {
     setView(nextView);
   };
 
+  // Extended (tablet/landscape) layout: the list accordion and the map share one
+  // selected id. Toggling an offer open — or tapping its map pin — drives both.
+  const handleToggleExpanded = (groupId: string) => {
+    setExpandedGroupId((current) => (current === groupId ? null : groupId));
+  };
+
+  const handleAcceptGroup = async (groupId: string) => {
+    const outcome = await accept(groupId);
+    if (outcome !== 'ERROR') setExpandedGroupId(null);
+  };
+
   // Infinite scroll (list view): fetch the next page when the sentinel enters
   // the viewport — same pattern as the Schedule History tab.
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -104,12 +118,13 @@ export function MarketplacePage() {
     return () => observer.disconnect();
   }, [view, hasNextPage, fetchNextPage, offers.length]);
 
-  // Map view has no scroll to drive pagination — drain the remaining pages so
-  // every offer (including the furthest-dated ones) gets a pin.
+  // The map (map view, or the always-on map in the extended layout) has no
+  // scroll to drive pagination — drain the remaining pages so every offer
+  // (including the furthest-dated ones) gets a pin.
   useEffect(() => {
-    if (view !== 'map' || !hasNextPage || isFetchingNextPage) return;
+    if (!(view === 'map' || isWide) || !hasNextPage || isFetchingNextPage) return;
     void fetchNextPage();
-  }, [view, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [view, isWide, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <div className="w-full" data-testid="marketplace-page">
@@ -127,7 +142,7 @@ export function MarketplacePage() {
         </section>
       </div>
 
-      <OffersViewToggle value={view} onChange={handleViewChange} />
+      {!isWide && <OffersViewToggle value={view} onChange={handleViewChange} />}
 
       {!isOnline && <OfflineMarketplaceBanner />}
 
@@ -145,7 +160,7 @@ export function MarketplacePage() {
         />
       )}
 
-      {view === 'map' && (
+      {!isWide && view === 'map' && (
         <div className="flex flex-col gap-2 px-page-x py-2">
           {expandedGroupId && (
             <MapGroupActionBar
@@ -166,7 +181,7 @@ export function MarketplacePage() {
         </div>
       )}
 
-      {view === 'list' && shouldShowFeed && (
+      {!isWide && view === 'list' && shouldShowFeed && (
         <PullToRefresh onRefresh={refetch}>
           {dataUpdatedAt > 0 && (
             <p className="px-page-x pt-1 text-xs text-text-muted" data-testid="last-updated">
@@ -195,23 +210,50 @@ export function MarketplacePage() {
         </PullToRefresh>
       )}
 
-      <GroupDetailBottomSheet
-        groupId={detailGroupId}
-        onClose={() => setDetailGroupId(null)}
-        accepting={detailGroupId ? getState(detailGroupId) === 'ACCEPTING' : false}
-        onAccept={
-          detailGroupId
-            ? async () => {
-                const outcome = await accept(detailGroupId);
-                // Keep the sheet open on retryable failure so the user can try again
-                if (outcome !== 'ERROR') {
-                  setDetailGroupId(null);
-                  setExpandedGroupId(null);
+      {/* Extended layout (tablet/landscape): persistent map + accordion list,
+          driven by a single shared selection. */}
+      {isWide && shouldShowFeed && (
+        <div
+          className="grid gap-4 px-page-x py-2 lg:grid-cols-[1fr_minmax(360px,420px)]"
+          data-testid="marketplace-extended"
+        >
+          <div className="self-start lg:sticky lg:top-4">
+            <OffersMapView
+              offers={offers}
+              onSelectOffer={setExpandedGroupId}
+              expandedGroup={expandedGroup}
+            />
+          </div>
+          <OfferAccordionList
+            offers={offers}
+            expandedGroupId={expandedGroupId}
+            onToggle={handleToggleExpanded}
+            getState={getState}
+            onAcceptGroup={handleAcceptGroup}
+            onRefresh={refetch}
+          />
+        </div>
+      )}
+
+      {!isWide && (
+        <GroupDetailBottomSheet
+          groupId={detailGroupId}
+          onClose={() => setDetailGroupId(null)}
+          accepting={detailGroupId ? getState(detailGroupId) === 'ACCEPTING' : false}
+          onAccept={
+            detailGroupId
+              ? async () => {
+                  const outcome = await accept(detailGroupId);
+                  // Keep the sheet open on retryable failure so the user can try again
+                  if (outcome !== 'ERROR') {
+                    setDetailGroupId(null);
+                    setExpandedGroupId(null);
+                  }
                 }
-              }
-            : undefined
-        }
-      />
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }
