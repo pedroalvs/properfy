@@ -322,6 +322,23 @@ export class ExecuteStatusTransitionUseCase {
       }
     }
 
+    // 7c. Rejecting or cancelling a grouped appointment removes it from the group
+    // and releases its inspector. A dead member left linked keeps consuming group
+    // capacity, blocks offer acceptance (every member must be AWAITING_INSPECTOR),
+    // and — because `canAddToGroup` refuses any non-null link to a *live* group —
+    // can never be re-grouped. Unlike the → DRAFT branch above, this is
+    // unconditional: reject/cancel always leave a live state, so the link goes
+    // regardless of the group's status and no group read is needed. The
+    // STATUS_TRANSITION event still carries the pre-write `serviceGroupId`
+    // (snapshot, below), so the empty-group cleanup subscriber can still cancel a
+    // group this was the last live member of.
+    if (targetStatus === 'REJECTED' || targetStatus === 'CANCELLED') {
+      if (appointment.serviceGroupId) {
+        updateData.serviceGroupId = null;
+      }
+      updateData.inspectorId = null;
+    }
+
     // Set typed reason codes based on target status
     if (targetStatus === 'CANCELLED' && cancellationReasonCode) {
       updateData.cancellationReasonCode = cancellationReasonCode;
