@@ -67,7 +67,7 @@ describe('ProfilePage (tiles)', () => {
     expect(screen.queryByRole('link', { name: 'Account details' })).not.toBeInTheDocument();
   });
 
-  it('shows the rating and services count from the inspector record', () => {
+  it('shows the rating from the inspector record in the header', () => {
     mockUseInspectorMe.mockReturnValue({
       data: { data: { rating: { average: 4.8, responseCount: 12, doneServicesCount: 132 } } },
       isLoading: false,
@@ -75,7 +75,6 @@ describe('ProfilePage (tiles)', () => {
     });
     renderWithProviders(<ProfilePage />);
     expect(screen.getByText('4.8')).toBeInTheDocument();
-    expect(screen.getByText('· 132 services')).toBeInTheDocument();
   });
 
   it('flags documents needing attention with a status label', () => {

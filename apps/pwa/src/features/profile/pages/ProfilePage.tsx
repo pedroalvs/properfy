@@ -63,7 +63,6 @@ export function ProfilePage() {
                   {rating.average.toFixed(1)}
                 </span>
               )}
-              {rating && rating.doneServicesCount > 0 && <span>· {rating.doneServicesCount} services</span>}
             </p>
           </div>
           {isActive && <Badge tone="green">Active</Badge>}
