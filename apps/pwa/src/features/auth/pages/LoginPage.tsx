@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ClipboardCheck, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { loginSchema, UserRole } from '@properfy/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/Form';
 import { ApiError } from '@/lib/api-error';
 import { consumePostLoginRedirect } from '@/lib/post-login-redirect';
+import { AuthHeroLayout } from '../components/AuthHeroLayout';
 
 /**
  * Login form schema. Reuses the shared {@link loginSchema} and loosens `totpCode`
@@ -120,145 +121,131 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-background">
-      {/* Brand header */}
-      <div className="flex flex-col items-center px-6 pt-16 pb-6">
-        <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary shadow-lg shadow-primary/25">
-          <ClipboardCheck size={32} className="text-white" aria-hidden="true" />
-        </div>
-        <h1 className="mt-5 text-2xl font-bold tracking-tight text-primary">Properfy</h1>
-        <p className="mt-1 text-sm font-medium text-muted-foreground">Inspector Field App</p>
+    <AuthHeroLayout title="Welcome back" subtitle="Sign in to view your schedule.">
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-4"
+          data-testid="login-form"
+          noValidate
+        >
+          {error && (
+            <div
+              role="alert"
+              className="rounded-2xl border border-destructive/15 bg-destructive/8 px-4 py-3 text-sm leading-relaxed text-destructive"
+              data-testid="login-error"
+            >
+              {error}
+            </div>
+          )}
+
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    placeholder="your@email.com"
+                    disabled={isSubmitting}
+                    data-testid="email-input"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <PasswordInput
+                    autoComplete="current-password"
+                    placeholder="Enter your password"
+                    disabled={isSubmitting}
+                    data-testid="password-input"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {requiresTotp && (
+            <FormField
+              control={form.control}
+              name="totpCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Authentication Code</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      autoComplete="one-time-code"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="123456"
+                      className="tracking-[0.3em] placeholder:tracking-normal"
+                      disabled={isSubmitting}
+                      data-testid="totp-input"
+                      {...field}
+                      value={field.value ?? ''}
+                      onChange={(e) =>
+                        field.onChange(e.target.value.replace(/\D/g, '').slice(0, 6))
+                      }
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Open your authenticator app and enter the current 6-digit code.
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          <Button
+            type="submit"
+            loading={isSubmitting}
+            className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-primary/20"
+            data-testid="login-button"
+          >
+            Sign In
+          </Button>
+        </form>
+      </Form>
+
+      {/* Context */}
+      <div className="mt-6 rounded-2xl border border-primary/8 bg-primary/4 px-4 py-3">
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          <span className="font-semibold">Inspector access only.</span>{' '}
+          Your schedule, offers and inspections are available here. Agency and admin users should use the{' '}
+          <span className="font-medium text-primary">web portal</span>.
+        </p>
       </div>
 
-      {/* Form card */}
-      <div className="flex-1 px-5 pb-8">
-        <div className="mx-auto w-full max-w-sm">
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-4"
-              data-testid="login-form"
-              noValidate
-            >
-              {error && (
-                <div
-                  role="alert"
-                  className="rounded-2xl border border-destructive/15 bg-destructive/8 px-4 py-3 text-sm leading-relaxed text-destructive"
-                  data-testid="login-error"
-                >
-                  {error}
-                </div>
-              )}
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        autoComplete="email"
-                        inputMode="email"
-                        placeholder="your@email.com"
-                        disabled={isSubmitting}
-                        data-testid="email-input"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <PasswordInput
-                        autoComplete="current-password"
-                        placeholder="Enter your password"
-                        disabled={isSubmitting}
-                        data-testid="password-input"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {requiresTotp && (
-                <FormField
-                  control={form.control}
-                  name="totpCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Authentication Code</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="text"
-                          autoComplete="one-time-code"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          placeholder="123456"
-                          className="tracking-[0.3em] placeholder:tracking-normal"
-                          disabled={isSubmitting}
-                          data-testid="totp-input"
-                          {...field}
-                          value={field.value ?? ''}
-                          onChange={(e) =>
-                            field.onChange(e.target.value.replace(/\D/g, '').slice(0, 6))
-                          }
-                        />
-                      </FormControl>
-                      <p className="text-xs text-muted-foreground">
-                        Open your authenticator app and enter the current 6-digit code.
-                      </p>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              <Button
-                type="submit"
-                loading={isSubmitting}
-                className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-primary/20"
-                data-testid="login-button"
-              >
-                Sign In
-              </Button>
-            </form>
-          </Form>
-
-          {/* Context */}
-          <div className="mt-6 rounded-2xl border border-primary/8 bg-primary/4 px-4 py-3">
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              <span className="font-semibold">Inspector access only.</span>{' '}
-              Your schedule, offers and inspections are available here. Agency and admin users should use the{' '}
-              <span className="font-medium text-primary">web portal</span>.
-            </p>
-          </div>
-
-          <div className="mt-6 text-center">
-            <Link
-              to="/forgot-password"
-              className="inline-flex min-h-touch items-center justify-center px-3 text-sm font-semibold text-primary transition hover:underline"
-            >
-              Forgot password?
-            </Link>
-          </div>
-
-          <p className="mt-4 text-center text-[11px] text-muted-foreground">
-            Can't sign in? Contact your operations team for access.
-          </p>
-        </div>
+      <div className="mt-6 text-center">
+        <Link
+          to="/forgot-password"
+          className="inline-flex min-h-touch items-center justify-center px-3 text-sm font-semibold text-primary transition hover:underline"
+        >
+          Forgot password?
+        </Link>
       </div>
-    </div>
+
+      <p className="mt-4 text-center text-[11px] text-muted-foreground">
+        Can't sign in? Contact your operations team for access.
+      </p>
+    </AuthHeroLayout>
   );
 }
