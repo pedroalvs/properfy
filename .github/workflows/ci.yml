@@ -176,6 +176,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           build-shared: "true"
+          build-frontend-standards: "true"
 
       - name: Test web
         run: pnpm --filter web test
