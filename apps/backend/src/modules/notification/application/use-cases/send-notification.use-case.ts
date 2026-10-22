@@ -21,6 +21,7 @@ import type { IHtmlToTextService } from '../../domain/html-to-text.service';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { NotificationEntity } from '../../domain/notification.entity';
+import type { NotificationTemplateEntity } from '../../domain/notification-template.entity';
 import type { MetricsCollector } from '../../../../shared/infrastructure/metrics';
 import { NotificationAttemptEntity } from '../../domain/notification-attempt.entity';
 import {
@@ -391,6 +392,15 @@ export class SendNotificationUseCase {
     }
   }
 
+  /**
+   * Sends one notification. This orchestrator runs the pipeline as a sequence of
+   * named phases; each guard phase returns true/handled when it has reached a
+   * terminal state for the row (persisting it and logging), so the orchestrator
+   * simply returns. The phase bodies (and their reasoning) live in the private
+   * methods below. Order is load-bearing — the flow-type and agency occupant
+   * suppressions run before consent, and the budget cap reuses the tenant
+   * settings the agency switch may already have loaded.
+   */
   async execute(input: SendNotificationInput): Promise<void> {
     const notification = await this.notificationRepo.findById(input.notificationId);
     if (!notification) {
@@ -398,66 +408,98 @@ export class SendNotificationUseCase {
     }
 
     if (!notification.canBeSent()) {
-      // A re-run of an already-suppressed row is the recovery path for a crash between
-      // persisting the suppression and inserting the mirror. Throwing here (the default)
-      // would lose that mirror forever — the row is terminal, so nothing re-enqueues it,
-      // and the DLQ would only ever say "invalid status", never hinting an agency was
-      // left uninformed. Re-attempting is safe: forwardSuppressedToAgency is a no-op
-      // once a mirror exists for this appointment.
-      const rerun = await this.classifySuppressedRerun(notification);
-      if (rerun === 'RECOVER_MIRROR') {
-        const forwardFailure = await this.forwardSuppressedToAgency(notification);
-        if (forwardFailure) {
-          this.recordAgencyForwardFailure(notification, forwardFailure);
-        } else {
-          this.completeAgencyForwardRecovery(notification);
-        }
-        await this.notificationRepo.update(notification);
-        return;
-      }
-      if (rerun === 'ALREADY_MIRRORED') {
-        // Recognised benign redelivery: this message was withheld and its mirror exists,
-        // so there is nothing to do. Returning cleanly keeps it out of the DLQ, where it
-        // would otherwise sit as an unactionable "invalid status".
-        this.logger.debug(
-          { notificationId: notification.id, appointmentId: notification.appointmentId },
-          'notification.suppressed_redelivery_ignored',
-        );
-        this.completeAgencyForwardRecovery(notification);
-        await this.notificationRepo.update(notification);
-        return;
-      }
-      throw new NotificationInvalidStatusError();
+      await this.recoverNonSendable(notification);
+      return;
     }
 
-    // ─── Feature 018: classification-aware consent branching ─────────────────
-    //
-    // The send worker must honor the notification class stamped on the notification
-    // (or resolved from the template at first check for legacy rows without a class).
-    //
-    //   TRANSACTIONAL → always dispatch, bypass consent entirely (FR-013).
-    //   OPERATIONAL   → respect the recipient's opt-out for the OPERATIONAL class (FR-012).
-    //   MARKETING     → Phase 1 has no opt-in collection, so marketing is effectively blocked.
-    //
-    // We determine the effective class via `notification.getEffectiveClass()`, which
-    // returns `notification.notificationClass ?? 'OPERATIONAL'`. Legacy rows without a
-    // stamped class are treated as OPERATIONAL (the conservative default).
-    //
-    // If we need to read from the template (e.g., the stamp was null AND we want the most
-    // up-to-date classification), we fall through to the template load below and cross-check.
+    const resolved = await this.resolveSendableTemplate(notification);
+    if (!resolved) return;
+    const { template, effectiveClass } = resolved;
+
+    if (await this.isSuppressedByFlowType(notification)) return;
+
+    const agencyCheck = await this.checkAgencyOccupantSwitch(notification);
+    if (agencyCheck.handled) return;
+
+    if (await this.isBlockedByConsent(notification, effectiveClass)) return;
+
+    const settings =
+      agencyCheck.tenantSettings ?? (await this.getTenantSettings(notification.tenantId));
+    if (await this.isOverDailyBudget(notification, effectiveClass, settings)) return;
+
+    const smsCheck = await this.validateSmsRecipient(notification);
+    if (smsCheck.handled) return;
+
+    const rendered = this.buildRenderedContent(notification, template);
+
+    if (await this.isEmptySmsBody(notification, rendered.renderedBodyText)) return;
+
+    await this.dispatchAndRecord(notification, {
+      ...rendered,
+      smsRecipient: smsCheck.smsRecipient,
+    });
+
+    await this.scrubPayloadIfSent(notification);
+  }
+
+  /**
+   * Handles a re-run of a row that can no longer be sent. A re-run of an
+   * already-suppressed row is the recovery path for a crash between persisting
+   * the suppression and inserting the mirror. Throwing (the default for an
+   * unknown non-sendable row) would lose that mirror forever — the row is
+   * terminal, so nothing re-enqueues it, and the DLQ would only ever say
+   * "invalid status". Re-attempting is safe: forwardSuppressedToAgency is a
+   * no-op once a mirror exists for this appointment.
+   */
+  private async recoverNonSendable(notification: NotificationEntity): Promise<void> {
+    const rerun = await this.classifySuppressedRerun(notification);
+    if (rerun === 'RECOVER_MIRROR') {
+      const forwardFailure = await this.forwardSuppressedToAgency(notification);
+      if (forwardFailure) {
+        this.recordAgencyForwardFailure(notification, forwardFailure);
+      } else {
+        this.completeAgencyForwardRecovery(notification);
+      }
+      await this.notificationRepo.update(notification);
+      return;
+    }
+    if (rerun === 'ALREADY_MIRRORED') {
+      // Recognised benign redelivery: this message was withheld and its mirror exists,
+      // so there is nothing to do. Returning cleanly keeps it out of the DLQ, where it
+      // would otherwise sit as an unactionable "invalid status".
+      this.logger.debug(
+        { notificationId: notification.id, appointmentId: notification.appointmentId },
+        'notification.suppressed_redelivery_ignored',
+      );
+      this.completeAgencyForwardRecovery(notification);
+      await this.notificationRepo.update(notification);
+      return;
+    }
+    throw new NotificationInvalidStatusError();
+  }
+
+  /**
+   * Resolves the template to send with and the effective notification class, or
+   * returns null when the row has reached a terminal state (template missing →
+   * FAILED; template inactive → SKIPPED).
+   *
+   * Feature 018 (classification-aware consent): the stamped class wins so a
+   * template class change does not retroactively affect in-flight notifications;
+   * only a legacy row with no stamped class is promoted to the template's class.
+   */
+  private async resolveSendableTemplate(
+    notification: NotificationEntity,
+  ): Promise<{ template: NotificationTemplateEntity; effectiveClass: NotificationClass } | null> {
     let effectiveClass: NotificationClass = notification.getEffectiveClass();
 
-    // Load the template ONCE (it's needed for rendering anyway). If the notification
-    // entity has no class stamped, promote the template's class to the effective class.
-    // Otherwise the stamped class wins to honor the spec rule "template class change does
-    // not retroactively affect in-flight notifications".
+    // Load the template ONCE (it's needed for rendering anyway). The tenant
+    // override is only honored when active; an inactive override falls through to
+    // the platform default (used as-is, regardless of its flag).
     let template = await this.templateRepo.findByTenantCodeChannel(
       notification.tenantId,
       notification.templateCode,
       notification.channel,
     );
-    // The tenant override is only honored when active; an inactive override
-    // falls through to the platform default (used as-is, regardless of its flag).
     if (!template || !template.isActive()) {
       template = await this.templateRepo.findByTenantCodeChannel(
         null,
@@ -483,7 +525,7 @@ export class SendNotificationUseCase {
         },
         'notification.template_not_found: marked FAILED, will not retry',
       );
-      return;
+      return null;
     }
     // A deactivated tenant override already fell through to the platform default above.
     // If the resolved template — the final fallback — is itself inactive, the notification
@@ -505,213 +547,256 @@ export class SendNotificationUseCase {
         },
         'notification.skipped_template_inactive',
       );
-      return;
+      return null;
     }
     if (notification.notificationClass === null) {
       effectiveClass = template.notificationClass;
     }
+    return { template, effectiveClass };
+  }
 
-    // INGOING/OUTGOING inspections have no rental tenant to consult at all —
-    // `SCHEDULED` is already the operational confirmation (see backend CLAUDE.md
-    // §8). Withhold everything aimed at an occupant, plus the property-manager
-    // escalation, which exists only to chase a tenant response that was never
-    // expected. Its same-target sibling INSPECTION_CANCELLED_AGENCY reports a
-    // real event and keeps flowing, which is why the rule is not "target ===
-    // PROPERTY_MANAGER".
-    //
-    // Evaluated BEFORE the agency kill switch, and deliberately without the
-    // agency mirror. That mirror exists so an agency that contacts its own
-    // tenants still receives the content to relay; here there is nobody to relay
-    // it to, so forwarding would be pure noise.
-    if (this.getAppointmentFlowType && isWithheldForNonNotifyingFlow(notification.templateCode)) {
-      const flowType = await this.getAppointmentFlowType(
-        notification.appointmentId,
-        notification.tenantId,
-      );
-      if (suppressesOccupantNotifications(flowType)) {
-        notification.status = 'SKIPPED_OPT_OUT';
-        notification.failureReason = FLOW_TYPE_NO_OCCUPANT_CODE;
-        notification.updatedAt = new Date();
-        await this.notificationRepo.update(notification);
-        this.logger.info(
-          {
-            notificationId: notification.id,
-            appointmentId: notification.appointmentId,
-            templateCode: notification.templateCode,
-            channel: notification.channel,
-            flowType,
-          },
-          'notification.skipped_flow_type_no_occupant',
-        );
-        return;
-      }
+  /**
+   * INGOING/OUTGOING inspections have no rental tenant to consult at all —
+   * `SCHEDULED` is already the operational confirmation (see backend CLAUDE.md
+   * §8). Withhold everything aimed at an occupant, plus the property-manager
+   * escalation, which exists only to chase a tenant response that was never
+   * expected. Its same-target sibling INSPECTION_CANCELLED_AGENCY reports a real
+   * event and keeps flowing, which is why the rule is not "target ===
+   * PROPERTY_MANAGER".
+   *
+   * Evaluated BEFORE the agency kill switch, and deliberately without the agency
+   * mirror. That mirror exists so an agency that contacts its own tenants still
+   * receives the content to relay; here there is nobody to relay it to, so
+   * forwarding would be pure noise. Returns true when the row was suppressed.
+   */
+  private async isSuppressedByFlowType(notification: NotificationEntity): Promise<boolean> {
+    if (!(this.getAppointmentFlowType && isWithheldForNonNotifyingFlow(notification.templateCode))) {
+      return false;
     }
+    const flowType = await this.getAppointmentFlowType(
+      notification.appointmentId,
+      notification.tenantId,
+    );
+    if (!suppressesOccupantNotifications(flowType)) {
+      return false;
+    }
+    notification.status = 'SKIPPED_OPT_OUT';
+    notification.failureReason = FLOW_TYPE_NO_OCCUPANT_CODE;
+    notification.updatedAt = new Date();
+    await this.notificationRepo.update(notification);
+    this.logger.info(
+      {
+        notificationId: notification.id,
+        appointmentId: notification.appointmentId,
+        templateCode: notification.templateCode,
+        channel: notification.channel,
+        flowType,
+      },
+      'notification.skipped_flow_type_no_occupant',
+    );
+    return true;
+  }
 
-    // Per-agency occupant kill switch: some agencies contact their own rental tenants
-    // and want the platform silent towards them. Scoped by TEMPLATE_TARGETS rather than
-    // by channel, so BOTH email and SMS stop, while the agency's own mail (escalation,
-    // cancellation copy), inspector notices and user-account mail (report-ready,
-    // password reset) are untouched. Missing key = enabled.
-    //
-    // The agency's delivery policy is authoritative for rental-tenant notifications, so
-    // evaluate it before recipient consent can return early. Only RENTAL_TENANT targets
-    // read settings here, preserving the consent path for every other recipient.
+  /**
+   * Per-agency occupant kill switch: some agencies contact their own rental
+   * tenants and want the platform silent towards them. Scoped by TEMPLATE_TARGETS
+   * rather than by channel, so BOTH email and SMS stop, while the agency's own
+   * mail (escalation, cancellation copy), inspector notices and user-account mail
+   * (report-ready, password reset) are untouched. Missing key = enabled.
+   *
+   * The agency's delivery policy is authoritative for rental-tenant
+   * notifications, so this runs before recipient consent can return early. Only
+   * RENTAL_TENANT targets read settings here, preserving the consent path for
+   * every other recipient. Returns `handled: true` when suppressed; otherwise
+   * returns the tenant settings it loaded (if any) so the budget cap can reuse
+   * them without a second fetch.
+   */
+  private async checkAgencyOccupantSwitch(
+    notification: NotificationEntity,
+  ): Promise<{ handled: boolean; tenantSettings?: Record<string, unknown> }> {
     const isOccupantDirected = getTemplateTarget(notification.templateCode) === 'RENTAL_TENANT';
-    let tenantSettings: Record<string, unknown> | undefined;
-    if (isOccupantDirected) {
-      tenantSettings = await this.getTenantSettings(notification.tenantId);
-      if (!isRentalTenantNotificationsEnabled(tenantSettings)) {
-        notification.status = 'SKIPPED_OPT_OUT';
-        notification.failureReason = AGENCY_TENANT_NOTIFICATIONS_DISABLED;
-        notification.nextRetryAt = calculateNextRetryAt(notification.retryCount);
-        notification.updatedAt = new Date();
-        // Persisted BEFORE the mirror with a recovery deadline: a crash in between can never
-        // let the occupant message through, and the poller will still discover the missing copy.
-        await this.notificationRepo.update(notification);
-        this.logger.info(
-          {
-            notificationId: notification.id,
-            tenantId: notification.tenantId,
-            channel: notification.channel,
-            templateCode: notification.templateCode,
-          },
-          'notification.skipped_agency_tenant_notifications_disabled',
-        );
+    if (!isOccupantDirected) return { handled: false };
 
-        // Persist how the mirror went. Without this a suppressed row is byte-identical
-        // whether the agency was told or not, so the Notifications tab reads "working as
-        // configured" while an agency with a blank branch email quietly loses every notice
-        // AND every mirror — the one outcome this feature exists to rule out.
-        const forwardFailure = await this.forwardSuppressedToAgency(notification);
-        if (forwardFailure) {
-          this.recordAgencyForwardFailure(notification, forwardFailure);
-        } else {
-          this.completeAgencyForwardRecovery(notification);
-        }
-        await this.notificationRepo.update(notification);
-        return;
-      }
+    const tenantSettings = await this.getTenantSettings(notification.tenantId);
+    if (isRentalTenantNotificationsEnabled(tenantSettings)) {
+      return { handled: false, tenantSettings };
     }
 
+    notification.status = 'SKIPPED_OPT_OUT';
+    notification.failureReason = AGENCY_TENANT_NOTIFICATIONS_DISABLED;
+    notification.nextRetryAt = calculateNextRetryAt(notification.retryCount);
+    notification.updatedAt = new Date();
+    // Persisted BEFORE the mirror with a recovery deadline: a crash in between can never
+    // let the occupant message through, and the poller will still discover the missing copy.
+    await this.notificationRepo.update(notification);
+    this.logger.info(
+      {
+        notificationId: notification.id,
+        tenantId: notification.tenantId,
+        channel: notification.channel,
+        templateCode: notification.templateCode,
+      },
+      'notification.skipped_agency_tenant_notifications_disabled',
+    );
+
+    // Persist how the mirror went. Without this a suppressed row is byte-identical
+    // whether the agency was told or not, so the Notifications tab reads "working as
+    // configured" while an agency with a blank branch email quietly loses every notice
+    // AND every mirror — the one outcome this feature exists to rule out.
+    const forwardFailure = await this.forwardSuppressedToAgency(notification);
+    if (forwardFailure) {
+      this.recordAgencyForwardFailure(notification, forwardFailure);
+    } else {
+      this.completeAgencyForwardRecovery(notification);
+    }
+    await this.notificationRepo.update(notification);
+    return { handled: true };
+  }
+
+  /**
+   * Feature 018 consent branching. TRANSACTIONAL bypasses consent entirely
+   * (FR-013) — the most important invariant of the feature. OPERATIONAL respects
+   * an explicit opt-out (absence of a record = opted-in). MARKETING has no opt-in
+   * collection in Phase 1, so absence of an opted-in record means blocked.
+   * Returns true when the row was blocked.
+   */
+  private async isBlockedByConsent(
+    notification: NotificationEntity,
+    effectiveClass: NotificationClass,
+  ): Promise<boolean> {
     if (effectiveClass === 'TRANSACTIONAL') {
-      // Bypass consent entirely for transactional notifications (FR-013).
-      // This is the most important invariant of feature 018.
       this.logger.debug(
         { notificationId: notification.id, templateCode: notification.templateCode },
         'notification.consent_bypass_transactional',
       );
-    } else {
-      // OPERATIONAL or MARKETING — check consent
-      const consent = await this.consentRepo.findByScope({
-        tenantId: notification.tenantId,
-        recipient: notification.recipient,
-        channel: notification.channel,
-        notificationClass: effectiveClass,
-      });
-
-      // MARKETING: Phase 1 has no opt-in collection, so absence of an opted-in record
-      // means "blocked". OPERATIONAL: absence of a record means "opted-in" (default).
-      const shouldBlock =
-        (effectiveClass === 'OPERATIONAL' && consent?.isOptedOut() === true) ||
-        (effectiveClass === 'MARKETING' && !(consent && consent.isOptedOut() === false));
-
-      if (shouldBlock) {
-        notification.status = 'SKIPPED_OPT_OUT';
-        notification.failureReason = 'CONSENT_OPT_OUT';
-        notification.updatedAt = new Date();
-        await this.notificationRepo.update(notification);
-        this.logger.info(
-          {
-            notificationId: notification.id,
-            channel: notification.channel,
-            notificationClass: effectiveClass,
-          },
-          'notification.skipped_opt_out',
-        );
-        return;
-      }
+      return false;
     }
 
-    const settings = tenantSettings ?? (await this.getTenantSettings(notification.tenantId));
+    const consent = await this.consentRepo.findByScope({
+      tenantId: notification.tenantId,
+      recipient: notification.recipient,
+      channel: notification.channel,
+      notificationClass: effectiveClass,
+    });
 
-    // GAP-003: Check daily budget cap
+    const shouldBlock =
+      (effectiveClass === 'OPERATIONAL' && consent?.isOptedOut() === true) ||
+      (effectiveClass === 'MARKETING' && !(consent && consent.isOptedOut() === false));
+
+    if (!shouldBlock) return false;
+
+    notification.status = 'SKIPPED_OPT_OUT';
+    notification.failureReason = 'CONSENT_OPT_OUT';
+    notification.updatedAt = new Date();
+    await this.notificationRepo.update(notification);
+    this.logger.info(
+      {
+        notificationId: notification.id,
+        channel: notification.channel,
+        notificationClass: effectiveClass,
+      },
+      'notification.skipped_opt_out',
+    );
+    return true;
+  }
+
+  /**
+   * GAP-003 daily budget cap. WI-2 / issue #1037: platform-scoped
+   * (tenant_id IS NULL) TRANSACTIONAL sends are exempt — the only anonymous
+   * platform trigger is the AM/OP/INSP password reset, and a flood against known
+   * staff addresses must not exhaust the shared 500/day bucket and silently lock
+   * out every subsequent reset (abuse is already bounded by the forgot-password
+   * rate limit). Per-tenant caps are untouched. Returns true when over budget.
+   */
+  private async isOverDailyBudget(
+    notification: NotificationEntity,
+    effectiveClass: NotificationClass,
+    settings: Record<string, unknown>,
+  ): Promise<boolean> {
     const dailyCap = notification.channel === 'EMAIL'
       ? (typeof settings.notificationDailyCapEmail === 'number' ? settings.notificationDailyCapEmail : 500)
       : (typeof settings.notificationDailyCapSms === 'number' ? settings.notificationDailyCapSms : 100);
 
-    // WI-2 / issue #1037: exempt platform-scoped (tenant_id IS NULL) TRANSACTIONAL
-    // sends from the budget. The only anonymous platform trigger is the
-    // AM/OP/INSP password reset (POST /v1/auth/forgot-password); before this, those
-    // shared the default 500/day email bucket with every other platform send, so a
-    // sustained anonymous flood against the handful of known staff addresses could
-    // exhaust it and silently lock out every subsequent reset (recorded FAILED with
-    // BUDGET_EXCEEDED while the caller still gets 204). Abuse is already bounded by
-    // the rate limit on the forgot-password endpoint. Per-tenant caps are untouched.
     const isPlatformTransactional =
       notification.tenantId === null && effectiveClass === 'TRANSACTIONAL';
 
-    if (dailyCap !== null && !isPlatformTransactional) {
-      const todayStart = new Date();
-      todayStart.setUTCHours(0, 0, 0, 0);
-      const todayCount = await this.notificationRepo.countByTenantChannelSince(
-        notification.tenantId,
-        notification.channel,
-        todayStart,
-      );
-      if (todayCount >= dailyCap) {
-        notification.status = 'FAILED';
-        notification.failedAt = new Date();
-        notification.failureReason = 'BUDGET_EXCEEDED';
-        notification.updatedAt = new Date();
-        await this.notificationRepo.update(notification);
-        this.auditTerminalFailure(notification);
-        this.logger.error(
-          {
-            notificationId: notification.id,
-            tenantId: notification.tenantId,
-            // WI-2 (c): flag platform-scope exhaustion so operators can alert on it
-            // distinctly from a tenant hitting its own configured cap. Post-fix,
-            // platform TRANSACTIONAL is exempt above and never reaches here, so
-            // platformScope:true means an unexpected volume of platform-scoped
-            // NON-transactional mail exhausting the shared bucket — still worth an alert.
-            platformScope: notification.tenantId === null,
-            channel: notification.channel,
-            todayCount,
-            dailyCap,
-          },
-          'notification.budget_exceeded: marked FAILED, will not retry',
-        );
-        return;
-      }
-    }
+    if (dailyCap === null || isPlatformTransactional) return false;
 
-    // Deterministic pre-flight: an unnormalizable phone number will fail on every
-    // attempt, so fail fast without burning retries or a provider call.
-    let smsRecipient: string | null = null;
-    if (notification.channel === 'SMS') {
-      smsRecipient = toE164Au(notification.recipient);
-      if (!smsRecipient) {
-        notification.status = 'FAILED';
-        notification.failedAt = new Date();
-        notification.failureReason = 'INVALID_RECIPIENT_PHONE';
-        notification.nextRetryAt = null;
-        notification.updatedAt = new Date();
-        await this.notificationRepo.update(notification);
-        this.auditTerminalFailure(notification);
-        this.logger.error(
-          { notificationId: notification.id, recipientMasked: maskRecipient(notification.recipient) },
-          'notification.invalid_recipient_phone: marked FAILED, will not retry',
-        );
-        return;
-      }
-    }
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    const todayCount = await this.notificationRepo.countByTenantChannelSince(
+      notification.tenantId,
+      notification.channel,
+      todayStart,
+    );
+    if (todayCount < dailyCap) return false;
 
-    // GAP-004: Validate template variables (warn but don't fail)
+    notification.status = 'FAILED';
+    notification.failedAt = new Date();
+    notification.failureReason = 'BUDGET_EXCEEDED';
+    notification.updatedAt = new Date();
+    await this.notificationRepo.update(notification);
+    this.auditTerminalFailure(notification);
+    this.logger.error(
+      {
+        notificationId: notification.id,
+        tenantId: notification.tenantId,
+        // WI-2 (c): flag platform-scope exhaustion so operators can alert on it
+        // distinctly from a tenant hitting its own configured cap. Post-fix,
+        // platform TRANSACTIONAL is exempt above and never reaches here, so
+        // platformScope:true means an unexpected volume of platform-scoped
+        // NON-transactional mail exhausting the shared bucket — still worth an alert.
+        platformScope: notification.tenantId === null,
+        channel: notification.channel,
+        todayCount,
+        dailyCap,
+      },
+      'notification.budget_exceeded: marked FAILED, will not retry',
+    );
+    return true;
+  }
+
+  /**
+   * Deterministic pre-flight for SMS: an unnormalizable phone number will fail on
+   * every attempt, so fail fast without burning retries or a provider call.
+   * Returns the normalized E.164 recipient for the dispatch step; `handled: true`
+   * means the row was failed and the caller should stop.
+   */
+  private async validateSmsRecipient(
+    notification: NotificationEntity,
+  ): Promise<{ handled: boolean; smsRecipient: string | null }> {
+    if (notification.channel !== 'SMS') return { handled: false, smsRecipient: null };
+
+    const smsRecipient = toE164Au(notification.recipient);
+    if (smsRecipient) return { handled: false, smsRecipient };
+
+    notification.status = 'FAILED';
+    notification.failedAt = new Date();
+    notification.failureReason = 'INVALID_RECIPIENT_PHONE';
+    notification.nextRetryAt = null;
+    notification.updatedAt = new Date();
+    await this.notificationRepo.update(notification);
+    this.auditTerminalFailure(notification);
+    this.logger.error(
+      { notificationId: notification.id, recipientMasked: maskRecipient(notification.recipient) },
+      'notification.invalid_recipient_phone: marked FAILED, will not retry',
+    );
+    return { handled: true, smsRecipient: null };
+  }
+
+  /**
+   * Renders the subject/body for the channel. GAP-004: missing template variables
+   * are warned (and metered) but never fail the send. The Properfy logo is
+   * platform-wide and environment-specific, so it is resolved here — every email
+   * renders the logo from the current environment's web app, and no stored
+   * payload can pin a stale domain. EMAIL: Handlebars → sanitize → html-to-text;
+   * SMS: Handlebars over body_text only (see renderEmailBody).
+   */
+  private buildRenderedContent(
+    notification: NotificationEntity,
+    template: NotificationTemplateEntity,
+  ): ReturnType<typeof renderEmailBody> {
     const variables: Record<string, string> = { ...notification.payloadJson };
-
-    // The Properfy logo is platform-wide and environment-specific: resolve it
-    // here so every email (tenant + system) renders the logo from the current
-    // environment's web app, and no stored payload can pin a stale domain.
     variables.properfyLogoUrl = this.properfyLogoUrl;
 
     const allTemplateContent = [template.subject, template.bodyHtml, template.bodyText]
@@ -730,9 +815,7 @@ export class SendNotificationUseCase {
       this.metrics.incrementMissingVariableCount(missingVars.length);
     }
 
-    // Shared render pipeline. EMAIL: Handlebars → sanitize → html-to-text.
-    // SMS: Handlebars over body_text only — see renderEmailBody.
-    const { renderedSubject, renderedBodyHtml, renderedBodyText } = renderEmailBody(
+    return renderEmailBody(
       {
         channel: notification.channel,
         bodyHtmlSource: template.bodyHtml ?? '',
@@ -746,25 +829,52 @@ export class SendNotificationUseCase {
         htmlToText: this.htmlToText,
       },
     );
+  }
 
-    // Deterministic pre-flight: an empty rendered SMS body would waste a provider
-    // call/credit on every attempt (mirrors the test-send guard), so fail fast.
-    if (notification.channel === 'SMS' && renderedBodyText.trim().length === 0) {
-      notification.status = 'FAILED';
-      notification.failedAt = new Date();
-      notification.failureReason = 'EMPTY_SMS_BODY';
-      notification.nextRetryAt = null;
-      notification.updatedAt = new Date();
-      await this.notificationRepo.update(notification);
-      this.auditTerminalFailure(notification);
-      this.logger.error(
-        { notificationId: notification.id, templateCode: notification.templateCode },
-        'notification.empty_sms_body: marked FAILED, will not retry',
-      );
-      return;
+  /**
+   * Deterministic pre-flight: an empty rendered SMS body would waste a provider
+   * call/credit on every attempt (mirrors the test-send guard), so fail fast.
+   * Returns true when the row was failed.
+   */
+  private async isEmptySmsBody(
+    notification: NotificationEntity,
+    renderedBodyText: string,
+  ): Promise<boolean> {
+    if (!(notification.channel === 'SMS' && renderedBodyText.trim().length === 0)) {
+      return false;
     }
+    notification.status = 'FAILED';
+    notification.failedAt = new Date();
+    notification.failureReason = 'EMPTY_SMS_BODY';
+    notification.nextRetryAt = null;
+    notification.updatedAt = new Date();
+    await this.notificationRepo.update(notification);
+    this.auditTerminalFailure(notification);
+    this.logger.error(
+      { notificationId: notification.id, templateCode: notification.templateCode },
+      'notification.empty_sms_body: marked FAILED, will not retry',
+    );
+    return true;
+  }
 
-    // GAP-009: Create attempt record at the start
+  /**
+   * GAP-009: records an attempt, dispatches via the channel provider, and folds
+   * the outcome back into the notification (SENT, or retry/terminal FAILED after
+   * MAX_RETRY_COUNT). A terminal FAILED is audited to the timeline — provider
+   * failures reach here on every attempt, but only the one that exhausted the
+   * retries is terminal.
+   */
+  private async dispatchAndRecord(
+    notification: NotificationEntity,
+    rendered: {
+      renderedSubject: string;
+      renderedBodyHtml: string;
+      renderedBodyText: string;
+      smsRecipient: string | null;
+    },
+  ): Promise<void> {
+    const { renderedSubject, renderedBodyHtml, renderedBodyText, smsRecipient } = rendered;
+
     const attemptNumber = notification.retryCount + 1;
     const attempt = new NotificationAttemptEntity({
       id: randomUUID(),
@@ -841,27 +951,30 @@ export class SendNotificationUseCase {
     if (notification.status === 'FAILED') {
       this.auditTerminalFailure(notification);
     }
+  }
 
-    // Once SENT, the payload will never be re-rendered (delivery receipts and
-    // webhooks only touch status), so secret-bearing values can be redacted at
-    // rest. A scrub failure must never fail the job after a successful send.
-    if (notification.status === 'SENT') {
-      try {
-        await this.notificationRepo.scrubPayload(
-          notification.id,
-          notification.tenantId,
-          SENSITIVE_PAYLOAD_KEYS,
-          REDACTED_PAYLOAD_VALUE,
-        );
-      } catch (error) {
-        this.logger.warn(
-          {
-            notificationId: notification.id,
-            error: error instanceof Error ? error.message : String(error),
-          },
-          'notification.payload_scrub_failed: secrets remain in payload_json',
-        );
-      }
+  /**
+   * Once SENT, the payload will never be re-rendered (delivery receipts and
+   * webhooks only touch status), so secret-bearing values can be redacted at
+   * rest. A scrub failure must never fail the job after a successful send.
+   */
+  private async scrubPayloadIfSent(notification: NotificationEntity): Promise<void> {
+    if (notification.status !== 'SENT') return;
+    try {
+      await this.notificationRepo.scrubPayload(
+        notification.id,
+        notification.tenantId,
+        SENSITIVE_PAYLOAD_KEYS,
+        REDACTED_PAYLOAD_VALUE,
+      );
+    } catch (error) {
+      this.logger.warn(
+        {
+          notificationId: notification.id,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'notification.payload_scrub_failed: secrets remain in payload_json',
+      );
     }
   }
 }
