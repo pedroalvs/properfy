@@ -1,4 +1,5 @@
 import { AvailabilitySlotStatus } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import type { StatusStyle } from '@/lib/status-colors';
 
 const SLOT_STATUS_MAP: Record<AvailabilitySlotStatus, StatusStyle> = {
@@ -33,7 +34,7 @@ export function SlotStatusChip({ status, className = '' }: SlotStatusChipProps) 
 
   return (
     <span
-      className={`inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5 ${className}`}
+      className={cn('inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5', className)}
       style={{ backgroundColor: style.bg, color: style.text }}
     >
       {style.label}

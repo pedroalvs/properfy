@@ -1,9 +1,31 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { authStorage } from '@/lib/auth-storage';
 import { ApiError } from '@/lib/api-error';
 import { UserRole } from '@properfy/shared';
 import { clearPostLoginRedirect } from '@/lib/post-login-redirect';
+import { clearAllLocalData } from '@/features/execution/lib/indexeddb';
+import { resetQueueSnapshot } from '@/features/execution/hooks/useOfflineQueue';
+
+// The two NetworkFirst runtime caches that hold per-inspector API responses
+// (see vite.config.ts). Font/static caches are not inspector data and are left.
+const INSPECTOR_API_CACHES = ['api-schedule-cache', 'api-appointment-cache'];
+
+/**
+ * Best-effort wipe of every trace of the inspector's data on logout so a shared
+ * contractor device never serves the previous inspector's cached schedule,
+ * appointments, queued actions or execution drafts to the next login (PWA-7).
+ */
+function clearInspectorCachedData(): void {
+  if (typeof caches !== 'undefined') {
+    void Promise.all(
+      INSPECTOR_API_CACHES.map((name) => caches.delete(name).catch(() => false)),
+    );
+  }
+  void clearAllLocalData().catch(() => {});
+  resetQueueSnapshot();
+}
 
 export interface AuthUser {
   id: string;
@@ -79,6 +101,7 @@ async function fetchFullUser(): Promise<AuthUser | null> {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(authStorage.getAccessToken());
   const [isLoading, setIsLoading] = useState(authStorage.hasTokens());
@@ -138,7 +161,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authStorage.clearTokens();
     setToken(null);
     setUser(null);
-  }, []);
+    // Drop in-memory React Query state plus the SW caches and IndexedDB stores so
+    // nothing of this inspector survives for the next login on a shared device.
+    queryClient.clear();
+    clearInspectorCachedData();
+  }, [queryClient]);
 
   const refreshUser = useCallback(async () => {
     const fullUser = await fetchFullUser();

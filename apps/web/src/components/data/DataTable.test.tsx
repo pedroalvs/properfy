@@ -144,6 +144,41 @@ describe('DataTable', () => {
     expect(within(rows[3]!).getByText('Apple')).toBeInTheDocument();
   });
 
+  it('exposes sortable headers as keyboard-operable buttons with aria-sort', async () => {
+    const user = userEvent.setup();
+    const unsortedData: TestRow[] = [
+      { id: 1, name: 'Apple', status: 'ativo' },
+      { id: 2, name: 'Banana', status: 'inativo' },
+      { id: 3, name: 'Cherry', status: 'ativo' },
+    ];
+    const sortableColumns: DataTableColumn<TestRow>[] = [
+      { key: 'name', label: 'Nome', sortable: true },
+      { key: 'status', label: 'Status' },
+    ];
+
+    render(
+      <DataTable
+        columns={sortableColumns}
+        data={unsortedData}
+        defaultSort={{ key: 'name', order: 'asc' }}
+      />,
+    );
+
+    // The sortable control is a real button, so a keyboard user can reach and
+    // activate it; the non-sortable column is not a button and reports no sort.
+    const sortButton = screen.getByRole('button', { name: /Nome/ });
+    const sortableTh = sortButton.closest('th')!;
+    expect(sortableTh).toHaveAttribute('aria-sort', 'ascending');
+    expect(screen.getByText('Status').closest('th')).not.toHaveAttribute('aria-sort');
+
+    // Keyboard activation toggles the direction, same as a mouse click.
+    sortButton.focus();
+    await user.keyboard('{Enter}');
+    expect(sortableTh).toHaveAttribute('aria-sort', 'descending');
+    const rows = screen.getAllByRole('row');
+    expect(within(rows[1]!).getByText('Cherry')).toBeInTheDocument();
+  });
+
   it('sorts numeric values correctly', () => {
     const numData: TestRow[] = [
       { id: 10, name: 'X', status: 'a' },

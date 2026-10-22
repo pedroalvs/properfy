@@ -64,7 +64,7 @@ describe('useSlotSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/availability-slots/slot-01', { body: VALID_DATA });
+    expect(mockPatch).toHaveBeenCalledWith('/v1/availability-slots/{id}', { params: { path: { id: 'slot-01' } }, body: VALID_DATA });
   });
 
   it('returns failure on API error', async () => {

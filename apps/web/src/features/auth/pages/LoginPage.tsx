@@ -90,7 +90,7 @@ export function LoginPage() {
         setIsSubmitting(false);
       }
     },
-    [email, password, login, navigate, requiresTotp, totpCode],
+    [email, password, login, requiresTotp, totpCode],
   );
 
   if (authLoading) {
@@ -123,7 +123,7 @@ export function LoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
-          autoFocus
+          focusOnMount
           disabled={isSubmitting}
         />
 

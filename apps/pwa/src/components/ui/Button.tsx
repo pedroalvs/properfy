@@ -1,44 +1,59 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { Loader2 } from 'lucide-react';
+import { cn, cva, type VariantProps } from '@properfy/frontend-standards';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outlined' | 'icon' | 'delete';
+/**
+ * The one button. Variants map to the validated design-system look (Inter, royal-blue
+ * primary, green/red actions). Composition is `cn()` + CVA — never hand-built className
+ * strings. The historical variant names are preserved so all 24 call sites keep working.
+ */
+const buttonVariants = cva(
+  // `.pf-btn`: 54px tall, 15.5px/700 label. Height lives on the text variants so the
+  // circular icon/delete buttons keep their 44×44 target; `min-h-touch` is the shared
+  // a11y floor that every variant inherits.
+  'inline-flex items-center justify-center gap-2 rounded-btn px-[18px] text-[15.5px] font-bold ' +
+    'min-h-touch touch-manipulation select-none transition-colors focus-visible:outline-none focus-visible:ring-2 ' +
+    'focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40',
+  {
+    variants: {
+      variant: {
+        primary: 'h-[54px] bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80',
+        secondary: 'h-[54px] border border-border bg-muted text-foreground hover:bg-muted/80',
+        outlined: 'h-[54px] border border-primary bg-card text-primary hover:bg-primary/10',
+        // Artboard `.pf-btn--green`/`.pf-btn--red` use a 12px radius; the green/red
+        // variants override the base 14px (`rounded-btn`) while blue/outline keep 14.
+        success: 'h-[54px] rounded-[12px] bg-success text-success-foreground hover:bg-success/90 active:bg-success/80',
+        danger:
+          'h-[54px] rounded-[12px] bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80',
+        delete: 'rounded-full px-0 min-w-touch bg-transparent text-destructive hover:bg-destructive/10',
+        icon: 'rounded-full px-0 min-w-touch bg-transparent text-muted-foreground hover:bg-foreground/5',
+      },
+      block: { true: 'w-full' },
+    },
+    defaultVariants: { variant: 'primary' },
+  },
+);
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: ButtonVariant;
+export interface ButtonProps
+  extends ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
   loading?: boolean;
   children: ReactNode;
 }
 
-const variantClasses: Record<ButtonVariant, string> = {
-  primary:
-    'bg-real-estate text-white hover:brightness-95 active:brightness-90 min-h-touch px-4 rounded',
-  secondary:
-    'bg-btn-secondary-bg text-text-primary hover:bg-btn-secondary-hover active:bg-btn-secondary-active min-h-touch px-4 rounded',
-  outlined:
-    'border border-primary text-primary bg-transparent hover:bg-primary/5 active:bg-primary/10 min-h-touch px-4 rounded',
-  icon:
-    'bg-transparent text-[rgba(0,0,0,0.54)] hover:bg-black/5 active:bg-black/10 min-h-touch min-w-touch rounded-full inline-flex items-center justify-center',
-  delete:
-    'bg-transparent text-error hover:bg-error/5 active:bg-error/10 min-h-touch min-w-touch rounded-full inline-flex items-center justify-center',
-};
-
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = 'primary', loading = false, disabled, children, className = '', ...props }, ref) => {
+  ({ variant, block, loading = false, disabled, children, className, ...props }, ref) => {
     const isDisabled = disabled || loading;
 
     return (
       <button
         ref={ref}
         disabled={isDisabled}
-        className={`inline-flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-150 select-none
-          ${variantClasses[variant]}
-          ${isDisabled ? 'pointer-events-none opacity-40' : 'cursor-pointer'}
-          ${className}
-        `}
+        aria-busy={loading || undefined}
+        className={cn(buttonVariants({ variant, block }), className)}
         {...props}
       >
-        {loading && (
-          <i className="mdi mdi-loading mdi-spin text-base" aria-hidden="true" />
-        )}
+        {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
         {children}
       </button>
     );
@@ -46,3 +61,5 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = 'Button';
+
+export { buttonVariants };

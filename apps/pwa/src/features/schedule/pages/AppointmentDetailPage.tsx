@@ -1,9 +1,12 @@
 import { useParams } from 'react-router-dom';
+import { ClockAlert } from 'lucide-react';
 import { AppointmentStatus } from '@properfy/shared';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { StatusChip } from '@/components/ui/StatusChip';
+import { Card } from '@/components/ui/Card';
+import { Alert } from '@/components/ui/Alert';
 import { RentalTenantConfirmationBanner } from '../components/RentalTenantConfirmationBanner';
 import { PropertyAddressSection } from '../components/PropertyAddressSection';
 import { ContactsSection } from '../components/ContactsSection';
@@ -15,7 +18,8 @@ import { StartInspectionButton } from '../components/StartInspectionButton';
 import { useInspectorAppointment } from '../hooks/useInspectorAppointment';
 import { useLocalExecutionState } from '@/features/execution/hooks/useLocalExecutionState';
 import { getErrorMessage } from '@/lib/api-error';
-import { FLOW_TYPE_MAP } from '@/lib/status-colors';
+import { cn } from '@properfy/frontend-standards';
+import { FLOW_TYPE_MAP, PILL_TONE_CLASS } from '@/lib/status-colors';
 import { formatScheduleDate, formatTimeWindow } from '../lib/time-slot';
 
 export function AppointmentDetailPage() {
@@ -26,7 +30,7 @@ export function AppointmentDetailPage() {
   if (isLoading) {
     return (
       <div>
-        <TopBar title="Appointment" showBack />
+        <TopBar title="Appointment" showBack backHideOnWide />
         <div className="px-page-x py-4">
           <LoadingState rows={6} variant="card" />
         </div>
@@ -37,7 +41,7 @@ export function AppointmentDetailPage() {
   if (isError || !data?.data) {
     return (
       <div>
-        <TopBar title="Appointment" showBack />
+        <TopBar title="Appointment" showBack backHideOnWide />
         <ErrorState
           message="Failed to load appointment"
           detail={error ? getErrorMessage(error) : undefined}
@@ -57,7 +61,7 @@ export function AppointmentDetailPage() {
 
   return (
     <div className="w-full" data-testid="appointment-detail-page">
-      <TopBar title={apt.serviceTypeName} showBack />
+      <TopBar title={apt.serviceTypeName} showBack backHideOnWide />
 
       <div className="flex flex-col gap-3 px-page-x py-4">
         {/* Past-date banner — critical, shown first. Same flag as the schedule card:
@@ -65,49 +69,50 @@ export function AppointmentDetailPage() {
             date no longer blocks the start by itself, though the backend still refuses
             a routine inspection the tenant never confirmed. */}
         {apt.isOverdue && (
-          <section
-            className="flex items-center gap-3 rounded-[20px] border border-error/20 bg-error/10 px-4 py-3.5"
-            data-testid="overdue-banner"
-          >
-            <i className="mdi mdi-clock-alert-outline text-xl text-error shrink-0" aria-hidden="true" />
-            <p className="text-sm font-semibold text-error">
+          <Alert tone="destructive" data-testid="overdue-banner">
+            <ClockAlert className="h-5 w-5" aria-hidden="true" />
+            <p className="text-sm font-semibold">
               Past date — the scheduled date has passed. Attend to this first.
             </p>
-          </section>
+          </Alert>
         )}
 
         {/* Header: date, time, status */}
-        <section className="rounded-[28px] bg-[linear-gradient(135deg,_rgba(15,23,42,0.96),_rgba(30,64,175,0.82))] px-5 py-5 text-white shadow-[0_18px_44px_rgba(15,23,42,0.20)]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
+        <Card className="bg-muted">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
               <p
-                className="mb-1 text-xs font-bold tracking-wide text-white/70"
+                className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
                 data-testid="appointment-code"
               >
                 {apt.appointmentCode}
               </p>
-              <div className="flex items-center gap-2">
-                <p className="text-lg font-bold">{apt.serviceTypeName}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="min-w-0 break-words text-lg font-bold text-foreground">{apt.serviceTypeName}</p>
                 <span
-                  className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
-                  style={{ backgroundColor: flowStyle.bg, color: flowStyle.text ?? '#333' }}
+                  className={cn(
+                    'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold',
+                    PILL_TONE_CLASS[flowStyle.tone],
+                  )}
                 >
                   {flowStyle.label}
                 </span>
               </div>
               {apt.agencyName && (
-                <p className="mt-0.5 text-xs text-white/60">{apt.agencyName}</p>
+                <p className="mt-0.5 break-words text-xs text-muted-foreground">{apt.agencyName}</p>
               )}
-              <p className="mt-2 text-sm font-semibold text-white/90">
+              <p className="mt-2 text-sm font-semibold text-foreground">
                 {formatScheduleDate(apt.scheduledDate)}
               </p>
-              <p className="mt-0.5 text-base font-bold text-white">
+              <p className="mt-0.5 text-base font-bold text-foreground">
                 {formatTimeWindow(apt.timeSlotStart, apt.timeSlotEnd)}
               </p>
             </div>
-            <StatusChip status={apt.status} />
+            <span className="shrink-0">
+              <StatusChip status={apt.status} />
+            </span>
           </div>
-        </section>
+        </Card>
 
         {/* Key required — shown early so inspector doesn't miss it */}
         {apt.keyRequired && (
@@ -170,41 +175,43 @@ export function AppointmentDetailPage() {
 
         {/* Notes */}
         {apt.notes && (
-          <section className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Notes</p>
-            <p className="mt-1 whitespace-pre-line break-words text-sm text-text-primary">{apt.notes}</p>
-          </section>
+          <Card>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Notes</p>
+            <p className="mt-1 whitespace-pre-line break-words text-sm text-foreground">{apt.notes}</p>
+          </Card>
         )}
 
         {/* Observation */}
         {apt.observation && (
-          <section className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Observation</p>
-            <p className="mt-1 text-sm text-text-primary">{apt.observation}</p>
-          </section>
+          <Card>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Observation</p>
+            <p className="mt-1 text-sm text-foreground">{apt.observation}</p>
+          </Card>
         )}
 
         {/* Custom Fields (read-only) */}
         {apt.customFields.length > 0 && (
-          <section className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Custom Fields</p>
+          <Card>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Custom Fields</p>
             <dl className="mt-2 space-y-2">
               {apt.customFields.map((field, idx) => (
                 <div key={idx}>
-                  <dt className="text-xs font-semibold text-text-secondary">{field.label}</dt>
-                  <dd className="text-sm text-text-primary">{field.value}</dd>
+                  <dt className="text-xs font-semibold text-muted-foreground">{field.label}</dt>
+                  <dd className="text-sm text-foreground">{field.value}</dd>
                 </div>
               ))}
             </dl>
-          </section>
+          </Card>
         )}
 
         {/* Job Details */}
         {jobDetails && <JobDetailsSection jobDetails={jobDetails} />}
 
-        {/* CTA */}
+        {/* CTA — pinned to the bottom of the detail pane on tablet (where the pane owns its own
+            scroll) so the primary action stays reachable; phone keeps it inline at the end. The
+            negative page margin lets the opaque footer bar span the full pane width. */}
         {showCTA && (
-          <div className="mt-2 pb-2">
+          <div className="mt-2 pb-2 md:sticky md:bottom-0 md:z-10 md:-mx-page-x md:border-t md:border-border md:bg-background md:px-page-x md:pb-4 md:pt-3">
             <StartInspectionButton
               appointmentId={apt.id}
               scheduledDate={apt.scheduledDate}

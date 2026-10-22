@@ -148,4 +148,35 @@ describe('ReversePaymentModal', () => {
     fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
   });
+
+  // HOL-3a: the key must stay stable while one reversal is in flight (so a retry
+  // after a lost response dedupes) and rotate only once it has succeeded.
+  it('reuses the Idempotency-Key across a retry and rotates only after a successful reversal', async () => {
+    const keyOf = (n: number) =>
+      (mockPost.mock.calls[n]![1] as { headers: Record<string, string> }).headers['Idempotency-Key'];
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <ReversePaymentModal open={true} onClose={onClose} onSuccess={onSuccess} invoiceId={INVOICE_ID} />
+      </Wrapper>,
+    );
+    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'duplicate charge' } });
+
+    // 1. First attempt fails — key not rotated.
+    mockPost.mockResolvedValueOnce({ data: undefined, error: { status: 500, error: { message: 'boom' } } });
+    fireEvent.click(screen.getByText('Confirm Reversal'));
+    await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(1));
+
+    // 2. Retry of the same reversal reuses the key so the backend dedupes.
+    mockPost.mockResolvedValueOnce({ data: { data: {} }, error: undefined });
+    fireEvent.click(screen.getByText('Confirm Reversal'));
+    await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(2));
+    expect(keyOf(0)).toBe(keyOf(1));
+
+    // 3. A subsequent reversal gets a fresh key.
+    mockPost.mockResolvedValueOnce({ data: { data: {} }, error: undefined });
+    fireEvent.click(screen.getByText('Confirm Reversal'));
+    await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(3));
+    expect(keyOf(2)).not.toBe(keyOf(1));
+  });
 });

@@ -1,50 +1,66 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Link2Off, ShieldCheck } from 'lucide-react';
 import { passwordFieldSchema, mapResetPasswordError, PASSWORD_REQUIREMENTS_MESSAGE } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
+import { PasswordInput } from '@/components/ui/PasswordInput';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/Form';
 import { api } from '@/services/api';
 import { toApiError } from '@/lib/api-error';
+import { AuthHeroLayout } from '../components/AuthHeroLayout';
 
-function PageShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
-      <div className="flex flex-col items-center px-6 pt-16 pb-6">
-        <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary shadow-lg shadow-primary/25">
-          <i className="mdi mdi-lock-reset text-[32px] text-white" aria-hidden="true" />
-        </div>
-        <h1 className="mt-5 text-2xl font-bold tracking-tight text-secondary">Reset Password</h1>
-        <p className="mt-1 text-sm font-medium text-text-secondary">Inspector Field App</p>
-      </div>
-      <div className="flex-1 px-5 pb-8">
-        <div className="mx-auto w-full max-w-sm">{children}</div>
-      </div>
-    </div>
-  );
-}
+/**
+ * Reset form schema: reuses the shared {@link passwordFieldSchema} for the new
+ * password and refines on the extended object so the mismatch error lands on
+ * `confirmPassword`. The token comes from the URL, not a form field.
+ */
+const resetFormSchema = z
+  .object({
+    newPassword: passwordFieldSchema,
+    confirmPassword: z.string().min(1),
+  })
+  .refine((v) => v.newPassword === v.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
+type ResetFormValues = z.infer<typeof resetFormSchema>;
 
 function InvalidLinkState() {
   return (
-    <div className="rounded-2xl border border-black/5 bg-white px-5 py-6 shadow-sm">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-error/10">
-        <i className="mdi mdi-link-variant-off text-2xl text-error" aria-hidden="true" />
+    <AuthHeroLayout title="Link not valid" subtitle="This reset link can't be used.">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10">
+        <Link2Off size={24} className="text-destructive" aria-hidden="true" />
       </div>
-      <h2 className="text-lg font-bold text-secondary">Link not valid</h2>
-      <p className="mt-2 text-sm leading-relaxed text-text-secondary">
+      <p className="text-sm leading-relaxed text-muted-foreground">
         This reset link is invalid or has expired. Reset links are valid for 1 hour and can only
         be used once.
       </p>
       <Link
         to="/forgot-password"
-        className="mt-5 flex min-h-[50px] w-full items-center justify-center rounded-2xl bg-real-estate text-sm font-semibold text-white shadow-lg shadow-real-estate/20 transition hover:brightness-95 active:brightness-90"
+        className="mt-5 flex min-h-[50px] w-full items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-95 active:brightness-90"
       >
         Request a New Link
       </Link>
       <div className="mt-4 text-center">
-        <Link to="/login" className="text-sm font-semibold text-primary transition hover:underline">
+        <Link
+          to="/login"
+          className="inline-flex min-h-touch items-center justify-center px-3 text-sm font-semibold text-primary transition hover:underline"
+        >
           Back to Sign In
         </Link>
       </div>
-    </div>
+    </AuthHeroLayout>
   );
 }
 
@@ -52,43 +68,27 @@ export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
 
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [newPasswordError, setNewPasswordError] = useState('');
-  const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [error, setError] = useState('');
   const [isInvalidToken, setIsInvalidToken] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const form = useForm<ResetFormValues>({
+    resolver: zodResolver(resetFormSchema),
+    defaultValues: { newPassword: '', confirmPassword: '' },
+  });
+  const isSubmitting = form.formState.isSubmitting;
+
   if (!token) {
-    return (
-      <PageShell>
-        <InvalidLinkState />
-      </PageShell>
-    );
+    return <InvalidLinkState />;
   }
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: ResetFormValues) => {
     setError('');
-    setNewPasswordError('');
-    setConfirmPasswordError('');
     setIsInvalidToken(false);
 
-    if (!passwordFieldSchema.safeParse(newPassword).success) {
-      setNewPasswordError(PASSWORD_REQUIREMENTS_MESSAGE);
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setConfirmPasswordError('Passwords do not match');
-      return;
-    }
-
-    setIsSubmitting(true);
     try {
       const { error: apiError, response } = await api.POST('/v1/auth/reset-password', {
-        body: { token, newPassword },
+        body: { token, newPassword: values.newPassword },
       });
 
       if (apiError) throw toApiError(apiError, (response as Response | undefined)?.status);
@@ -98,127 +98,104 @@ export function ResetPasswordPage() {
       const parsed = mapResetPasswordError(toApiError(err));
       setError(parsed.message);
       setIsInvalidToken(parsed.invalidToken);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   if (isSuccess) {
     return (
-      <PageShell>
-        <div className="rounded-2xl border border-black/5 bg-white px-5 py-6 shadow-sm">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
-            <i className="mdi mdi-lock-check-outline text-2xl text-success" aria-hidden="true" />
-          </div>
-          <h2 className="text-lg font-bold text-secondary">Password updated</h2>
-          <p className="mt-2 text-sm leading-relaxed text-text-secondary">
-            Your password has been reset and all previous sessions were signed out. You can now
-            sign in with your new password.
-          </p>
-          <Link
-            to="/login"
-            className="mt-5 flex min-h-[50px] w-full items-center justify-center rounded-2xl bg-real-estate text-sm font-semibold text-white shadow-lg shadow-real-estate/20 transition hover:brightness-95 active:brightness-90"
-          >
-            Go to Sign In
-          </Link>
+      <AuthHeroLayout title="Password updated" subtitle="You're all set.">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-success/10">
+          <ShieldCheck size={24} className="text-success" aria-hidden="true" />
         </div>
-      </PageShell>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Your password has been reset and all previous sessions were signed out. You can now sign
+          in with your new password.
+        </p>
+        <Link
+          to="/login"
+          className="mt-5 flex min-h-[50px] w-full items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:brightness-95 active:brightness-90"
+        >
+          Go to Sign In
+        </Link>
+      </AuthHeroLayout>
     );
   }
 
   return (
-    <PageShell>
-      <form onSubmit={handleSubmit} noValidate className="space-y-4" data-testid="reset-password-form">
-        {error && (
-          <div
-            role="alert"
-            className="rounded-2xl border border-error/15 bg-error/8 px-4 py-3 text-sm leading-relaxed text-error"
-          >
-            {error}
-            {isInvalidToken && (
-              <div className="mt-2">
-                <Link
-                  to="/forgot-password"
-                  className="font-semibold text-primary transition hover:underline"
-                >
-                  Request a new link
-                </Link>
-              </div>
-            )}
-          </div>
-        )}
-
-        <p className="text-sm leading-relaxed text-text-secondary">
-          Your new password must be at least 8 characters and include uppercase, lowercase, a
-          number and a special character.
-        </p>
-
-        <div>
-          <label
-            htmlFor="new-password"
-            className="mb-1.5 block text-sm font-medium text-text-secondary"
-          >
-            New Password
-          </label>
-          <input
-            id="new-password"
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-            disabled={isSubmitting}
-            aria-invalid={newPasswordError ? true : undefined}
-            aria-describedby={newPasswordError ? 'new-password-error' : undefined}
-            className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary shadow-sm outline-none transition-all placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-          />
-          {newPasswordError && (
-            <p id="new-password-error" className="mt-1.5 text-xs text-error">
-              {newPasswordError}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label
-            htmlFor="confirm-password"
-            className="mb-1.5 block text-sm font-medium text-text-secondary"
-          >
-            Confirm Password
-          </label>
-          <input
-            id="confirm-password"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-            disabled={isSubmitting}
-            aria-invalid={confirmPasswordError ? true : undefined}
-            aria-describedby={confirmPasswordError ? 'confirm-password-error' : undefined}
-            className="h-12 w-full rounded-2xl border border-black/10 bg-white px-4 text-sm text-text-primary shadow-sm outline-none transition-all placeholder:text-text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-          />
-          {confirmPasswordError && (
-            <p id="confirm-password-error" className="mt-1.5 text-xs text-error">
-              {confirmPasswordError}
-            </p>
-          )}
-        </div>
-
-        <Button
-          type="submit"
-          loading={isSubmitting}
-          className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-real-estate/20"
+    <AuthHeroLayout title="Reset password" subtitle="Choose a new password.">
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          noValidate
+          className="space-y-4"
+          data-testid="reset-password-form"
         >
-          Reset Password
-        </Button>
+          {error && (
+            <div
+              role="alert"
+              className="rounded-2xl border border-destructive/15 bg-destructive/8 px-4 py-3 text-sm leading-relaxed text-destructive"
+            >
+              {error}
+              {isInvalidToken && (
+                <div className="mt-2">
+                  <Link
+                    to="/forgot-password"
+                    className="font-semibold text-primary transition hover:underline"
+                  >
+                    Request a new link
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
 
-        <div className="pt-2 text-center">
-          <Link to="/login" className="text-sm font-semibold text-primary transition hover:underline">
-            Back to Sign In
-          </Link>
-        </div>
-      </form>
-    </PageShell>
+          <FormField
+            control={form.control}
+            name="newPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>New Password</FormLabel>
+                <FormControl>
+                  <PasswordInput autoComplete="new-password" disabled={isSubmitting} {...field} />
+                </FormControl>
+                <FormDescription>{PASSWORD_REQUIREMENTS_MESSAGE}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm Password</FormLabel>
+                <FormControl>
+                  <PasswordInput autoComplete="new-password" disabled={isSubmitting} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <Button
+            type="submit"
+            loading={isSubmitting}
+            className="!w-full !min-h-[50px] !rounded-2xl !shadow-lg !shadow-primary/20"
+          >
+            Reset Password
+          </Button>
+
+          <div className="pt-2 text-center">
+            <Link
+              to="/login"
+              className="inline-flex min-h-touch items-center justify-center px-3 text-sm font-semibold text-primary transition hover:underline"
+            >
+              Back to Sign In
+            </Link>
+          </div>
+        </form>
+      </Form>
+    </AuthHeroLayout>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { keepPreviousData } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 
@@ -16,6 +16,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import type { ServiceGroupStatus, MarkerOffset } from '@properfy/shared';
 import { resolveCoincidentMarkerOffsets } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
+import { useMapFilterPersistence } from '../hooks/useMapFilterPersistence';
 import { useAllPagesQuery, type ListParams } from '@/hooks/useApiQuery';
 import {
   AppointmentMapFilterPanel,
@@ -90,10 +91,16 @@ interface ServiceGroupMapItem {
    * gates PUBLISH on same-day groups.
    */
   timeWindow: string;
+  /** Resolved name of the assigned inspector (null until a group is accepted). */
+  assignedInspectorName?: string | null;
   appointments: ServiceGroupMapAppointment[];
 }
 
-type ServiceGroupMapPin = ServiceGroupMapItem & { latitude: number; longitude: number };
+type ServiceGroupMapPin = ServiceGroupMapItem & {
+  latitude: number;
+  longitude: number;
+  inspectorName: string | null;
+};
 
 /**
  * Marker-click camera move shared by every pin handler. `Math.max(getZoom(),
@@ -309,19 +316,10 @@ export function AppointmentMapPage() {
   const tenantId = user?.tenantId ?? null;
   const isGlobalRole = hasRole('AM', 'OP');
 
-  // Seed the view mode from the URL once (?mode=groups). This lets other
-  // screens deep-link straight into the groups view — e.g. the Service Groups
-  // list "Map View" button -> /map?mode=groups. After mount, the in-panel
-  // toggle owns `mode`; the URL is not kept in sync.
-  //
-  // Groups is an AM/OP-only surface (it reads /v1/service-groups and its List
-  // view targets /service-groups, both AM/OP-gated), so only honour the
-  // groups deep-link for global roles. Client roles stay on appointments.
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<FilterMode>(
-    () => (searchParams.get('mode') === 'groups' && isGlobalRole ? 'groups' : 'appointments'),
-  );
+  // WEB-8: view-mode seed (?mode=groups, AM/OP only) + the sessionStorage-backed
+  // filter-panel flag live in useMapFilterPersistence.
+  const { mode, setMode, filtersOpen, toggleFilters } = useMapFilterPersistence({ isGlobalRole });
   const [appointmentFilters, setAppointmentFilters] = useState<AppointmentModeFilters>(DEFAULT_APPOINTMENT_FILTERS);
   const [groupFilters, setGroupFilters] = useState<GroupModeFilters>(DEFAULT_GROUP_FILTERS);
   const [selectedItem, setSelectedItem] = useState<AppointmentMapItem | null>(null);
@@ -358,21 +356,6 @@ export function AppointmentMapPage() {
   // keeps its own resized width).
   const [groupModalWidth, setGroupModalWidth] = useState(() => Math.round(window.innerWidth * 0.6));
 
-  // 026 §FR-570 — Filter panel collapse + sessionStorage persistence.
-  // Default CLOSED on first load; the toggle button at top-left re-opens
-  // the panel. The state survives reload because the operator typically
-  // re-uses the same filter set for several lasso passes.
-  const FILTERS_STORAGE_KEY = 'appointments-map.filters.open';
-  const [filtersOpen, setFiltersOpen] = useState(() => {
-    try { return sessionStorage.getItem(FILTERS_STORAGE_KEY) === 'true'; } catch { return false; }
-  });
-  const toggleFilters = useCallback(() => {
-    setFiltersOpen((v) => {
-      const next = !v;
-      try { sessionStorage.setItem(FILTERS_STORAGE_KEY, String(next)); } catch { /* noop */ }
-      return next;
-    });
-  }, []);
   // 025 cycle 2/2 — Mapbox-native Popup root for the appointment detail
   // panel. The popup is created imperatively (setLngLat + setDOMContent +
   // addTo) so Mapbox owns the screen-position update on every render
@@ -650,7 +633,7 @@ export function AppointmentMapPage() {
   // the panel owns its own click-outside logic and we don't want a
   // single map click to dismiss the popup while the user is reading.
   useEffect(() => {
-    if (!mapInstance || !appointmentDetailEnabled || !selectedItem
+    if (!mapInstance || !appointmentDetailEnabled || !selectedItem?.id
         || selectedItem.latitude == null || selectedItem.longitude == null) {
       // Cleanup any existing popup if the selection cleared.
       if (appointmentPopupRef.current) {
@@ -692,7 +675,7 @@ export function AppointmentMapPage() {
   // positioning, React portals the GroupMapDetailPanel content into it.
   // Only alive while showing group pins (not inside a drill-down).
   useEffect(() => {
-    if (!mapInstance || mode !== 'groups' || !!selectedGroupItem || !previewGroup) {
+    if (!mapInstance || mode !== 'groups' || !!selectedGroupItem || !previewGroup?.id) {
       if (groupPopupRef.current) {
         groupPopupRef.current.remove();
         groupPopupRef.current = null;
@@ -967,7 +950,7 @@ export function AppointmentMapPage() {
         .map((item) => {
           const centroid = computeGroupCentroid(item.appointments);
           if (!centroid) return null;
-          return { ...item, ...centroid };
+          return { ...item, ...centroid, inspectorName: item.assignedInspectorName ?? null };
         })
         .filter((item): item is ServiceGroupMapPin => item !== null),
     [groupData],

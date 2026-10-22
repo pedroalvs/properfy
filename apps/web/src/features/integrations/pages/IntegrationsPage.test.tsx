@@ -34,7 +34,7 @@ function makeDetail(provider: string, source: 'database' | 'env' | 'none' = 'dat
 
 function renderPage(initialEntry = '/integrations') {
   return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[initialEntry]}>
       <IntegrationsPage />
       <LocationProbe />
     </MemoryRouter>,

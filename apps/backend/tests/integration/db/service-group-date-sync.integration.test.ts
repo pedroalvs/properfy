@@ -28,6 +28,7 @@ import { PrismaAppointmentRepository } from '../../../src/modules/appointment/in
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { futureDateStr } from '../../helpers/date-fixtures';
+import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../src/shared/domain/timezone-date';
 
 function silentAuditService(): AuditService {
   return { log: () => {} } as unknown as AuditService;
@@ -217,5 +218,46 @@ describe('service group date sync (real DB)', () => {
 
     expect(ids).toContain(groupId);
     expect(ids).not.toContain(pastGroup.id);
+  });
+
+  it('includes ACCEPTED groups and a group scheduled for today (Sydney), excludes terminal groups', async () => {
+    const todaySydney = civilDateInTimezone(new Date(), PLATFORM_TIMEZONE);
+
+    const acceptedGroup = await prisma.serviceGroup.create({
+      data: {
+        service_type_id: serviceTypeId,
+        status: 'ACCEPTED',
+        scheduled_date: new Date(futureDateStr(10)),
+        time_window: '09:00-12:00',
+        created_by_user_id: tenantA.userId,
+      },
+    });
+    const todayGroup = await prisma.serviceGroup.create({
+      data: {
+        service_type_id: serviceTypeId,
+        status: 'PUBLISHED',
+        // A @db.Date stores the civil date; today's Sydney civil date must be included
+        // even though Postgres CURRENT_DATE (UTC) may still read as yesterday.
+        scheduled_date: new Date(`${todaySydney}T00:00:00.000Z`),
+        time_window: '09:00-12:00',
+        created_by_user_id: tenantA.userId,
+      },
+    });
+    const cancelledGroup = await prisma.serviceGroup.create({
+      data: {
+        service_type_id: serviceTypeId,
+        status: 'CANCELLED',
+        scheduled_date: new Date(futureDateStr(10)),
+        time_window: '09:00-12:00',
+        created_by_user_id: tenantA.userId,
+      },
+    });
+
+    const repo = new PrismaServiceGroupRepository(prisma);
+    const ids = (await repo.findAddableForAppointments({ serviceTypeId, batchSize: 1 })).map((g) => g.id);
+
+    expect(ids).toContain(acceptedGroup.id);
+    expect(ids).toContain(todayGroup.id);
+    expect(ids).not.toContain(cancelledGroup.id);
   });
 });

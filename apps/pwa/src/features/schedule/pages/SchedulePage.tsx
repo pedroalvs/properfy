@@ -17,7 +17,11 @@ import { useInstallPrompt } from '@/app/useInstallPrompt';
 import { useScheduleMonth } from '../hooks/useScheduleMonth';
 import { useScheduleDay } from '../hooks/useScheduleDay';
 import { useScheduleHistory, type HistoryPeriod } from '../hooks/useScheduleHistory';
-import { todayInTzDateString } from '@properfy/shared';
+import { todayInTzDateString, RentalTenantConfirmationStatus } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
+import { AlertCircle, AlertTriangle } from 'lucide-react';
+import { Card, CardTitle } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { isScheduleRisk, formatScheduleDate } from '../lib/time-slot';
 
@@ -99,47 +103,63 @@ export function SchedulePage() {
     return dayAppointments.filter((apt) => isScheduleRisk(apt)).length;
   }, [dayAppointments]);
 
+  const confirmationCounts = useMemo(() => {
+    let confirmed = 0;
+    let awaiting = 0;
+    for (const apt of dayAppointments) {
+      if (apt.rentalTenantConfirmation === RentalTenantConfirmationStatus.CONFIRMED) {
+        confirmed += 1;
+      } else if (
+        apt.rentalTenantConfirmation === RentalTenantConfirmationStatus.PENDING ||
+        apt.rentalTenantConfirmation === RentalTenantConfirmationStatus.NO_RESPONSE
+      ) {
+        awaiting += 1;
+      }
+    }
+    return { confirmed, awaiting };
+  }, [dayAppointments]);
+
   return (
     <div className="w-full" data-testid="schedule-page">
-      <TopBar title="Schedule" />
+      <TopBar title="Schedule" size="lg" />
       <div className="px-page-x py-4">
-        <section className="rounded-[28px] bg-[linear-gradient(135deg,_rgba(30,64,175,0.96),_rgba(37,99,235,0.78))] px-5 py-5 text-white shadow-[0_20px_50px_rgba(30,64,175,0.22)]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
-            {dayLabel}
-          </p>
-          <div className="mt-2 flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">
-                {dayCount === 0
-                  ? 'No appointments'
-                  : `${dayCount} ${dayCount === 1 ? 'appointment' : 'appointments'}`}
-              </h2>
-              {overdueCount > 0 ? (
-                <p className="mt-1 text-sm text-red-200">
-                  <i className="mdi mdi-clock-alert-outline mr-1" />
-                  {overdueCount} past date — attend to these first.
-                </p>
-              ) : riskCount > 0 ? (
-                <p className="mt-1 text-sm text-yellow-200">
-                  <i className="mdi mdi-alert-outline mr-1" />
-                  {riskCount} {riskCount === 1 ? 'requires' : 'require'} tenant confirmation.
-                </p>
-              ) : dayCount > 0 ? (
-                <p className="mt-1 text-sm text-white/70">All clear — plan your route.</p>
-              ) : (
-                <p className="mt-1 text-sm text-white/70">No work scheduled for this day.</p>
+        <Card>
+          <div className="flex items-start justify-between gap-4">
+            <CardTitle className="text-[20px] leading-tight">{dayLabel}</CardTitle>
+            <span className="shrink-0 text-sm font-semibold text-muted-foreground">
+              {dayCount === 0 ? 'No jobs' : `${dayCount} ${dayCount === 1 ? 'job' : 'jobs'}`}
+            </span>
+          </div>
+
+          {(confirmationCounts.confirmed > 0 || confirmationCounts.awaiting > 0) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {confirmationCounts.confirmed > 0 && (
+                <Badge tone="green">{confirmationCounts.confirmed} confirmed</Badge>
+              )}
+              {confirmationCounts.awaiting > 0 && (
+                <Badge tone="amber">{confirmationCounts.awaiting} awaiting tenant</Badge>
               )}
             </div>
-            {dayCount > 0 && (
-              <div className="shrink-0 rounded-2xl bg-white/14 px-3 py-2 text-center">
-                <p className="text-2xl font-bold leading-none">{dayCount}</p>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-white/70">
-                  {dayCount === 1 ? 'job' : 'jobs'}
-                </p>
-              </div>
+          )}
+
+          <div className="mt-3">
+            {overdueCount > 0 ? (
+              <p className="flex items-center gap-1.5 text-sm font-medium text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {overdueCount} past date — attend to these first.
+              </p>
+            ) : riskCount > 0 ? (
+              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-pill-amber-foreground" />
+                {riskCount} {riskCount === 1 ? 'requires' : 'require'} tenant confirmation.
+              </p>
+            ) : dayCount > 0 ? (
+              <p className="text-sm text-muted-foreground">All clear — plan your route.</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">No work scheduled for this day.</p>
             )}
           </div>
-        </section>
+        </Card>
       </div>
 
       {isIosSafariEligible ? <InstallBannerIos /> : canInstall ? <InstallBannerNative /> : null}
@@ -182,9 +202,9 @@ export function SchedulePage() {
 
               {!isLoading && !isError && stuckAppointments.length > 0 && (
                 <div className="mb-4 px-page-x">
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                    <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-amber-800">
-                      <i className="mdi mdi-clock-alert-outline text-base" />
+                  <div className="rounded-card border border-pill-amber-foreground/20 bg-pill-amber/40 p-4">
+                    <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-pill-amber-foreground">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
                       {stuckAppointments.length} incomplete {stuckAppointments.length === 1 ? 'job' : 'jobs'} from previous days
                     </p>
                     <div className="flex flex-col gap-2">
@@ -209,7 +229,7 @@ export function SchedulePage() {
           <div className="pb-6 pt-2">
             <div className="px-page-x pb-2">
               <div
-                className="grid grid-cols-4 gap-1 rounded-full bg-gray-100 p-1"
+                className="grid grid-cols-4 gap-1 rounded-full bg-muted p-1"
                 role="tablist"
                 aria-label="History period"
               >
@@ -227,11 +247,12 @@ export function SchedulePage() {
                     role="tab"
                     aria-selected={historyPeriod === option.value}
                     onClick={() => setHistoryPeriod(option.value)}
-                    className={`rounded-full py-1.5 text-sm font-semibold transition-colors ${
+                    className={cn(
+                      'rounded-full py-1.5 text-sm font-semibold transition-colors',
                       historyPeriod === option.value
-                        ? 'bg-white text-secondary shadow-sm'
-                        : 'text-text-secondary'
-                    }`}
+                        ? 'bg-card text-foreground shadow-sm'
+                        : 'text-muted-foreground',
+                    )}
                   >
                     {option.label}
                   </button>

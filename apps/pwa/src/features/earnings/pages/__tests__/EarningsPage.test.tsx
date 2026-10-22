@@ -57,6 +57,33 @@ describe('EarningsPage', () => {
     });
   });
 
+  it('lays the "This week" dashboard out as a 2-column overview grid on tablet', async () => {
+    renderWithProviders(<EarningsPage />);
+    const dash = await screen.findByTestId('earnings-dashboard');
+    expect(dash.className).toContain('md:grid');
+    expect(dash.className).toContain('md:grid-cols-[1.4fr_1fr]');
+    // Phone keeps the single flex column.
+    expect(dash.className).toContain('flex');
+    expect(dash.className).toContain('flex-col');
+  });
+
+  it('shows a recent-payments overview in the dashboard side column', async () => {
+    renderWithProviders(<EarningsPage />);
+    const recent = await screen.findByTestId('recent-payments');
+    // Latest payouts are previewed with a link to the full History tab.
+    expect(recent).toHaveTextContent('Recent payments');
+    expect(recent).toHaveTextContent('View all');
+    expect(recent.className).toBeDefined();
+  });
+
+  it('renders the payment history as a fluid grid on tablet', async () => {
+    renderWithProviders(<EarningsPage />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'History' }));
+    const list = await screen.findByTestId('history-list');
+    expect(list.className).toContain('grid');
+    expect(list.className).toContain('minmax(320px,1fr)');
+  });
+
   it('shows the Earnings segment with next-payment, total, chart and invoice CTAs from the summary endpoint', async () => {
     renderWithProviders(<EarningsPage />);
 

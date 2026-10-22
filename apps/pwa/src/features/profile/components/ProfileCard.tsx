@@ -1,17 +1,12 @@
 
 import { formatInstantDateTime } from '@/lib/format-date';
 import { StarRating } from '@/components/ui/StarRating';
-import { formatTimezoneLabel } from '@/components/ui/TimezonePicker';
 
 interface ProfileCardProps {
   name: string;
   email: string;
   role: string;
   status?: string;
-  phone?: string | null;
-  /** Effective IANA timezone (personal ?? platform). */
-  timezone?: string | null;
-  totpEnabled?: boolean;
   lastLoginAt?: string | null;
   photoUrl?: string | null;
   avatarUploader?: React.ReactNode;
@@ -46,11 +41,11 @@ function formatStatus(value: string | null | undefined): string {
     .join(' ');
 }
 
-export function ProfileCard({ name, email, role, status, phone, timezone, totpEnabled, lastLoginAt, photoUrl, avatarUploader, ratingAvg, ratingCount = 0, completedCount = 0, ratingLoading = false, showStats = false }: ProfileCardProps) {
+export function ProfileCard({ name, email, role, status, lastLoginAt, photoUrl, avatarUploader, ratingAvg, ratingCount = 0, completedCount = 0, ratingLoading = false, showStats = false }: ProfileCardProps) {
   const roleLabel = roleLabelMap[role] ?? role;
 
   return (
-    <div className="rounded-[24px] border border-white/70 bg-white/92 p-6 shadow-[0_14px_30px_rgba(15,23,42,0.06)]">
+    <div className="rounded-card border border-border bg-card p-6 shadow-sm">
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           {photoUrl ? (
@@ -63,7 +58,7 @@ export function ProfileCard({ name, email, role, status, phone, timezone, totpEn
             // The ring was `rgba(5,150,105,0.10)` — emerald-600 around a coral tint, the
             // same mismatch the bottom nav had in blue. Same alpha, now derived from the
             // token it outlines.
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-real-estate/10 text-2xl font-bold text-real-estate ring-1 ring-inset ring-real-estate/10">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-2xl font-bold text-primary ring-1 ring-inset ring-primary/10">
               {name.charAt(0).toUpperCase()}
             </div>
           )}
@@ -72,9 +67,9 @@ export function ProfileCard({ name, email, role, status, phone, timezone, totpEn
           )}
         </div>
         <div className="min-w-0">
-          <h2 className="truncate text-lg font-bold text-text-primary">{name}</h2>
-          <p className="truncate text-sm text-text-secondary">{email}</p>
-          <span className="mt-1 inline-block rounded bg-real-estate/10 px-2 py-0.5 text-xs font-semibold text-real-estate">
+          <h2 className="truncate text-lg font-bold text-foreground">{name}</h2>
+          <p className="truncate text-sm text-muted-foreground">{email}</p>
+          <span className="mt-1 inline-block max-w-full truncate rounded bg-primary/10 px-2 py-0.5 align-bottom text-xs font-semibold text-primary">
             {roleLabel}
           </span>
         </div>
@@ -87,13 +82,13 @@ export function ProfileCard({ name, email, role, status, phone, timezone, totpEn
           <div className="flex flex-col items-center justify-center gap-0.5">
             {ratingLoading ? (
               <>
-                <div className="h-6 w-16 animate-pulse rounded bg-gray-200" />
-                <div className="h-3 w-20 animate-pulse rounded bg-gray-200" />
+                <div className="h-6 w-16 animate-pulse rounded bg-muted" />
+                <div className="h-3 w-20 animate-pulse rounded bg-muted" />
               </>
             ) : (
               <>
                 <StarRating value={ratingAvg} size="lg" showValue emptyLabel="No ratings yet" />
-                <span className="text-xs text-text-secondary">
+                <span className="text-xs text-muted-foreground">
                   {ratingCount > 0 ? `Average of ${ratingCount}` : 'Average rating'}
                 </span>
               </>
@@ -102,13 +97,13 @@ export function ProfileCard({ name, email, role, status, phone, timezone, totpEn
           <div className="flex flex-col items-center justify-center gap-0.5">
             {ratingLoading ? (
               <>
-                <div className="h-6 w-12 animate-pulse rounded bg-gray-200" />
-                <div className="h-3 w-16 animate-pulse rounded bg-gray-200" />
+                <div className="h-6 w-12 animate-pulse rounded bg-muted" />
+                <div className="h-3 w-16 animate-pulse rounded bg-muted" />
               </>
             ) : (
               <>
-                <span className="text-2xl font-bold text-text-primary">{completedCount}</span>
-                <span className="text-xs text-text-secondary">Services</span>
+                <span className="text-2xl font-bold text-foreground">{completedCount}</span>
+                <span className="text-xs text-muted-foreground">Services</span>
               </>
             )}
           </div>
@@ -117,30 +112,16 @@ export function ProfileCard({ name, email, role, status, phone, timezone, totpEn
 
       <div className="mt-5 grid grid-cols-1 gap-3 border-t border-black/5 pt-4 text-sm">
         <div className="flex items-center justify-between gap-4">
-          <span className="text-text-secondary">Account Status</span>
-          <span className="font-medium text-text-primary">{formatStatus(status)}</span>
+          <span className="text-muted-foreground">Account Status</span>
+          <span className="font-medium text-foreground">{formatStatus(status)}</span>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <span className="text-text-secondary">Phone</span>
-          <span className="font-medium text-text-primary">{phone ?? '—'}</span>
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-text-secondary">Timezone</span>
-          <span className="font-medium text-text-primary">{formatTimezoneLabel(timezone) ?? '—'}</span>
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-text-secondary">Two-Factor</span>
-          <span className={totpEnabled ? 'font-medium text-green-700' : 'font-medium text-amber-700'}>
-            {totpEnabled ? 'Enabled' : 'Not enabled'}
-          </span>
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-text-secondary">Last Login</span>
-          <span className="font-medium text-text-primary">{formatLastLogin(lastLoginAt)}</span>
+          <span className="text-muted-foreground">Last Login</span>
+          <span className="font-medium text-foreground">{formatLastLogin(lastLoginAt)}</span>
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-xs leading-relaxed text-text-secondary">
+      <div className="mt-4 rounded-2xl bg-muted px-4 py-3 text-xs leading-relaxed text-muted-foreground">
         Profile details are managed by your operations team. Use this screen for account security and device access.
       </div>
     </div>

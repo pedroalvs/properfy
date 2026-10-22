@@ -138,6 +138,29 @@ describe('NotifyOnGroupAcceptedSubscriber', () => {
     expect(logger.warn).toHaveBeenCalled();
   });
 
+  it('on MEMBERS_ADDED notifies only the newly added appointments, not the whole group', async () => {
+    serviceGroupRepo.findById.mockResolvedValue(
+      makeGroupResult([
+        makeAppointment({ id: 'appt-existing', tenantId: 'tenant-1' }),
+        makeAppointment({ id: 'appt-new', tenantId: 'tenant-2' }),
+      ]),
+    );
+
+    await bus.emit({
+      type: SERVICE_GROUP_EVENTS.MEMBERS_ADDED,
+      payload: { groupId: GROUP_ID, inspectorId: 'insp-1', appointmentIds: ['appt-new'] },
+      occurredAt: new Date('2026-07-23T10:00:00Z'),
+    });
+
+    expect(notifyHandler.execute).toHaveBeenCalledTimes(1);
+    expect(notifyHandler.execute).toHaveBeenCalledWith({
+      appointmentId: 'appt-new',
+      tenantId: 'tenant-2',
+      previousStatus: 'AWAITING_INSPECTOR',
+      targetStatus: 'SCHEDULED',
+    });
+  });
+
   it('skips appointments that are not currently SCHEDULED', async () => {
     serviceGroupRepo.findById.mockResolvedValue(
       makeGroupResult([

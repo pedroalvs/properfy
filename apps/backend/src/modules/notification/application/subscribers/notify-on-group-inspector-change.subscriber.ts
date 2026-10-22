@@ -35,6 +35,30 @@ export class NotifyOnGroupInspectorChangeSubscriber {
     eventBus.subscribe(SERVICE_GROUP_EVENTS.SCHEDULE_CHANGED, (event) =>
       this.onScheduleChanged(event),
     );
+    eventBus.subscribe(SERVICE_GROUP_EVENTS.MEMBERS_ADDED, (event) =>
+      this.onMembersAdded(event),
+    );
+  }
+
+  private async onMembersAdded(event: DomainEvent): Promise<void> {
+    try {
+      const { groupId, inspectorId, appointmentIds } = event.payload as {
+        groupId: string;
+        inspectorId: string;
+        appointmentIds: string[];
+      };
+
+      const context = await this.loadContext(groupId);
+      if (!context) return;
+
+      // jobCount here means "jobs just added", not the group total loadContext
+      // computes — the inspector cares how many new stops landed on their route.
+      await this.notify(context, inspectorId, 'INSPECTOR_GROUP_JOBS_ADDED', groupId, {
+        jobCount: String(appointmentIds.length),
+      });
+    } catch (err) {
+      this.logger?.warn({ err, eventType: event.type }, 'Group members-added notification failed');
+    }
   }
 
   private async onInspectorChanged(event: DomainEvent): Promise<void> {

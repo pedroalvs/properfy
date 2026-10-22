@@ -56,6 +56,7 @@ const mockOfferDetail = {
   timeWindow: '08:00-13:00',
   suburbs: ['Bondi', 'Manly'],
   payoutEstimate: 300,
+  payoutFrom: 150,
   appointmentCount: 2,
   centroid: null,
   addresses: ['123 Ocean St, Bondi NSW', '45 Beach Rd, Manly NSW'],

@@ -120,6 +120,7 @@ describe('seeded notification class follows the shared catalogue', () => {
     'INSPECTOR_GROUP_ASSIGNED',
     'INSPECTOR_GROUP_UNASSIGNED',
     'INSPECTOR_GROUP_RESCHEDULED',
+    'INSPECTOR_GROUP_JOBS_ADDED',
   ])('%s is pinned TRANSACTIONAL by the shared catalogue and the seed agrees', (code) => {
     const entry = PLATFORM_TEMPLATES.find((t) => t.code === code);
     expect(entry, `${code} missing from PLATFORM_TEMPLATES`).toBeDefined();

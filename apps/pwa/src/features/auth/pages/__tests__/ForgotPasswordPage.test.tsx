@@ -39,9 +39,7 @@ describe('ForgotPasswordPage (PWA)', () => {
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'nope' } });
     fireEvent.click(screen.getByRole('button', { name: /send reset link/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Please enter a valid email address.',
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid email');
     expect(mockPost).not.toHaveBeenCalled();
   });
 

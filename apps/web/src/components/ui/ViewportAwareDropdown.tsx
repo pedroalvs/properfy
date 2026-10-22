@@ -1,10 +1,28 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  cloneElement,
+  isValidElement,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
+import { cn } from '@properfy/frontend-standards';
 
 export type DropdownPlacement = 'auto' | 'top' | 'bottom' | 'left' | 'right';
 
 interface ViewportAwareDropdownProps {
-  /** The toggle element. Receives `aria-expanded` + `aria-haspopup` via cloned props. */
+  /**
+   * The toggle element. Must be a single focusable element (e.g. a `<button>`):
+   * it is cloned to receive the open/close `onClick` plus `aria-haspopup`/
+   * `aria-expanded`/`aria-controls`, so it is the control the keyboard/AT user
+   * lands on. A non-element (string/fragment/array) renders but cannot toggle.
+   */
   trigger: ReactNode;
   /** Dropdown body. Rendered absolutely-positioned next to the trigger when open. */
   children: ReactNode;
@@ -211,17 +229,28 @@ export function ViewportAwareDropdown({
     </div>
   ) : null;
 
+  // Attach the toggle + ARIA to the trigger element itself rather than to a
+  // wrapper div. The trigger is the focusable control (consumers pass a
+  // <button>), so this is what a keyboard/AT user actually lands on — it must be
+  // the element that announces `aria-expanded`/`aria-haspopup`, and its native
+  // Enter/Space activation drives the same toggle as a mouse click. The wrapper
+  // then carries only the measurement ref and no interaction of its own.
+  const triggerElement = trigger as ReactElement<Record<string, unknown>>;
+  const renderedTrigger = isValidElement(trigger)
+    ? cloneElement(triggerElement, {
+        onClick: (e: ReactMouseEvent) => {
+          (triggerElement.props.onClick as ((e: ReactMouseEvent) => void) | undefined)?.(e);
+          setOpen((v) => !v);
+        },
+        'aria-haspopup': 'menu',
+        'aria-expanded': open,
+        'aria-controls': open ? menuId : undefined,
+      })
+    : trigger;
+
   return (
-    <div className={`relative inline-block ${className}`} data-testid="viewport-aware-dropdown">
-      <div
-        ref={triggerRef}
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={menuId}
-      >
-        {trigger}
-      </div>
+    <div className={cn('relative inline-block', className)} data-testid="viewport-aware-dropdown">
+      <div ref={triggerRef}>{renderedTrigger}</div>
       {renderInPortal && open
         ? createPortal(menuNode, document.body)
         : menuNode}

@@ -1,4 +1,5 @@
 import { useId, useRef, useState } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import {
   DATE_PLACEHOLDER,
   backspaceDateText,
@@ -62,7 +63,10 @@ export function DateField({
         type="text"
         inputMode="numeric"
         autoComplete="off"
-        className={className}
+        className={cn(
+          'h-11 w-full rounded-btn border border-input bg-card px-3 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          className,
+        )}
         placeholder={DATE_PLACEHOLDER}
         value={text}
         onChange={(e) => {

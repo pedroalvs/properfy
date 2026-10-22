@@ -5,24 +5,23 @@ import { Button } from '../Button';
 describe('Button', () => {
   it('renders children', () => {
     render(<Button>Click me</Button>);
-    expect(screen.getByText('Click me')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Click me' })).toBeInTheDocument();
   });
 
-  it('applies primary variant by default', () => {
-    render(<Button>Primary</Button>);
-    expect(screen.getByRole('button').className).toContain('bg-real-estate');
+  it('renders every variant without crashing', () => {
+    for (const variant of ['primary', 'secondary', 'outlined', 'success', 'danger', 'delete', 'icon'] as const) {
+      const { unmount } = render(<Button variant={variant}>{variant}</Button>);
+      expect(screen.getByRole('button', { name: variant })).toBeInTheDocument();
+      unmount();
+    }
   });
 
-  it('applies outlined variant', () => {
-    render(<Button variant="outlined">Outlined</Button>);
-    expect(screen.getByRole('button').className).toContain('border-primary');
-  });
-
-  it('shows loading spinner', () => {
+  it('signals loading: disabled, aria-busy and a spinner', () => {
     render(<Button loading>Loading</Button>);
-    const button = screen.getByRole('button');
+    const button = screen.getByRole('button', { name: 'Loading' });
     expect(button).toBeDisabled();
-    expect(button.querySelector('.mdi-loading')).toBeInTheDocument();
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    expect(button.querySelector('svg')).toBeInTheDocument();
   });
 
   it('disables when disabled prop is true', () => {
@@ -38,8 +37,48 @@ describe('Button', () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
-  it('has min-h-touch for touch targets', () => {
+  it('is 54px tall (.pf-btn) while keeping the 44px touch-target floor', () => {
     render(<Button>Touch</Button>);
-    expect(screen.getByRole('button').className).toContain('min-h-touch');
+    const button = screen.getByRole('button');
+    expect(button.className).toContain('h-[54px]');
+    expect(button.className).toContain('min-h-touch');
+  });
+
+  it('uses the 700 weight and 15.5px label of .pf-btn', () => {
+    render(<Button>Label</Button>);
+    const button = screen.getByRole('button');
+    expect(button.className).toContain('font-bold');
+    expect(button.className).toContain('text-[15.5px]');
+  });
+
+  it('keeps the icon variant a 44px circular target (no 54px height)', () => {
+    render(<Button variant="icon" aria-label="Refresh">x</Button>);
+    const button = screen.getByRole('button');
+    expect(button.className).toContain('min-h-touch');
+    expect(button.className).toContain('min-w-touch');
+    expect(button.className).not.toContain('h-[54px]');
+  });
+
+  it('gives success/danger the 12px artboard radius while blue/outline keep rounded-btn (14)', () => {
+    const { unmount } = render(<Button variant="success">Confirm</Button>);
+    expect(screen.getByRole('button').className).toContain('rounded-[12px]');
+    unmount();
+    const danger = render(<Button variant="danger">Delete</Button>);
+    expect(screen.getByRole('button').className).toContain('rounded-[12px]');
+    danger.unmount();
+    render(<Button variant="primary">Save</Button>);
+    const primary = screen.getByRole('button');
+    expect(primary.className).toContain('rounded-btn');
+    expect(primary.className).not.toContain('rounded-[12px]');
+  });
+
+  it('sets touch-action: manipulation to drop double-tap zoom without blocking pinch', () => {
+    render(<Button>Tap</Button>);
+    expect(screen.getByRole('button').className).toContain('touch-manipulation');
+  });
+
+  it('merges a caller className over the variant classes', () => {
+    render(<Button className="w-full">Wide</Button>);
+    expect(screen.getByRole('button').className).toContain('w-full');
   });
 });

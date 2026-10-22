@@ -19,30 +19,24 @@ describe('BottomNavBar', () => {
     expect(scheduleTab.className).toContain('text-primary');
   });
 
-  it('tints the active tab', () => {
-    // Link one of two: the class is used. On its own this proves nothing — it passed
-    // throughout the months `bg-primary/10` compiled to an empty stylesheet, because the
-    // tokens are `var(--color-X)` holding a hex and Tailwind drops the whole utility
-    // (#1041). Link two is `src/__tests__/tailwind-emission.test.ts`, which asserts this
-    // exact class compiles to a real `background-color`.
+  it('renders the active tab flat — colour only, no pill or ring (v3 .pf-navb--on)', () => {
+    // The v3 footer tabs are borderless: the active tab is distinguished by the blue
+    // colour alone (`.pf-navb--on{color:var(--pf-blue)}`), with no filled background,
+    // inset ring, or rounded pill. An earlier impl wrapped it in `bg-primary/10` +
+    // `ring-primary/20` + `rounded-2xl`; this locks the flat artboard design instead.
     renderWithProviders(<BottomNavBar />, { initialEntries: ['/schedule'] });
     const scheduleTab = screen.getByTestId('nav-schedule');
-    expect(scheduleTab.className).toContain('bg-primary/10');
+    expect(scheduleTab.className).toContain('text-primary');
+    expect(scheduleTab.className).not.toMatch(/bg-primary/);
+    expect(scheduleTab.className).not.toMatch(/ring-/);
+    expect(scheduleTab.className).not.toMatch(/rounded/);
   });
 
-  it('outlines the active tab in the brand colour, not stock Tailwind blue', () => {
-    // The inset ring was hard-coded `rgba(59,130,246,0.18)` — blue-500 — around a tint and
-    // text that are both `--color-primary` (#009DD9). Two hues on the same four elements.
-    renderWithProviders(<BottomNavBar />, { initialEntries: ['/schedule'] });
-    const scheduleTab = screen.getByTestId('nav-schedule');
-    expect(scheduleTab.className).toContain('ring-primary/20');
-    expect(scheduleTab.className).not.toContain('rgba(59,130,246');
-  });
-
-  it('shows inactive color for non-active tabs', () => {
+  it('shows the faint inactive colour for non-active tabs (v3 --pf-faint)', () => {
     renderWithProviders(<BottomNavBar />, { initialEntries: ['/schedule'] });
     const offersTab = screen.getByTestId('nav-offers');
-    expect(offersTab.className).toContain('text-text-muted');
+    expect(offersTab.className).toContain('text-faint');
+    expect(offersTab.className).not.toContain('text-primary');
   });
 
   it('has min 44px touch targets', () => {
@@ -58,6 +52,15 @@ describe('BottomNavBar', () => {
     expect(screen.getByText('Offers')).toBeInTheDocument();
     expect(screen.getByText('Earnings')).toBeInTheDocument();
     expect(screen.getByText('Profile')).toBeInTheDocument();
+  });
+
+  it('uses the .pf-nav inner padding (6px sides, 9px top; bottom from pb-safe-b)', () => {
+    renderWithProviders(<BottomNavBar />);
+    const row = screen.getByTestId('nav-schedule').parentElement!;
+    expect(row.className).toContain('px-[6px]');
+    expect(row.className).toContain('pt-[9px]');
+    // The 22px artboard bottom padding is replaced by the safe-area inset on the nav.
+    expect(row.className).not.toContain('py-2');
   });
 
   it('reserves the iOS home-indicator inset below the tabs', () => {
@@ -78,11 +81,51 @@ describe('BottomNavBar', () => {
     const nav = screen.getByTestId('bottom-nav');
     expect(nav.className).not.toContain('backdrop-blur');
     expect(nav.className).not.toMatch(/bg-white\/\d+/);
-    expect(nav.className).toContain('bg-card-bg');
+    expect(nav.className).toContain('bg-card');
   });
 
   it('does not reference spacing classes that Tailwind never defined', () => {
     renderWithProviders(<BottomNavBar />);
     expect(screen.getByTestId('bottom-nav').innerHTML).not.toContain('h-18');
+  });
+
+  // The footer icons reproduce the validated v3 artboard footer exactly. Schedule and
+  // Offers have no lucide 0.468 equivalent (Calendar1 draws a "1", Tag was redesigned),
+  // so they are inlined with the artboard paths; Earnings/Profile use the lucide glyphs
+  // that are byte-identical to the artboard's Earnings/Account icons. These assertions
+  // lock that fidelity so a future icon swap can't silently drift from the design.
+  it('renders the Schedule tab with the artboard calendar-with-dot glyph', () => {
+    renderWithProviders(<BottomNavBar />);
+    const svg = screen.getByTestId('nav-schedule').querySelector('svg')!;
+    expect(svg).toBeTruthy();
+    // Calendar body + the centred dot that distinguishes it from a plain calendar.
+    expect(svg.querySelector('rect[x="3"][y="4"]')).toBeTruthy();
+    expect(svg.querySelector('circle[cx="12"][cy="15"]')).toBeTruthy();
+    // Not the lucide CalendarClock the footer used before.
+    expect(svg.classList.contains('lucide-calendar-clock')).toBe(false);
+  });
+
+  it('renders the Offers tab with the artboard tag glyph', () => {
+    renderWithProviders(<BottomNavBar />);
+    const svg = screen.getByTestId('nav-offers').querySelector('svg')!;
+    expect(svg).toBeTruthy();
+    expect(svg.querySelector('path[d^="M20.6 13.4"]')).toBeTruthy();
+    expect(svg.querySelector('circle[cx="8"][cy="8"]')).toBeTruthy();
+  });
+
+  it('renders the Earnings tab with the lucide credit-card glyph (artboard Earnings icon)', () => {
+    renderWithProviders(<BottomNavBar />);
+    const svg = screen.getByTestId('nav-earnings').querySelector('svg')!;
+    expect(svg).toBeTruthy();
+    expect(svg.classList.contains('lucide-credit-card')).toBe(true);
+    // Not the lucide Wallet the footer used before.
+    expect(svg.classList.contains('lucide-wallet')).toBe(false);
+  });
+
+  it('renders the Profile tab with the lucide user glyph (artboard Account icon)', () => {
+    renderWithProviders(<BottomNavBar />);
+    const svg = screen.getByTestId('nav-profile').querySelector('svg')!;
+    expect(svg).toBeTruthy();
+    expect(svg.classList.contains('lucide-user')).toBe(true);
   });
 });

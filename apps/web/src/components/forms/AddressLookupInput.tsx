@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { useAddressSuggestions } from '@/features/properties/hooks/useAddressSuggestions';
 import type { AddressLookupSuggestion } from '@/lib/address';
 import {
@@ -184,7 +185,7 @@ export function AddressLookupInput({
         <span className={focused || open ? filterLabelFocused : filterLabel}>{label}</span>
       )}
       <div className="flex items-center px-3">
-        <i className={`mdi mdi-map-marker-search ${filterIcon} mr-2`} />
+        <i className={cn('mdi mdi-map-marker-search', filterIcon, 'mr-2')} />
         <input
           type="text"
           autoComplete="off"

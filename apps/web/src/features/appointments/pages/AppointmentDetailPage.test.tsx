@@ -265,7 +265,7 @@ function createWrapper(initialEntry: string = '/appointments/apt-01') {
     return (
       <QueryClientProvider client={queryClient}>
         <SnackbarProvider>
-          <MemoryRouter initialEntries={[initialEntry]}>
+          <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[initialEntry]}>
             <Routes>
               <Route path="/appointments/:id" element={children} />
               <Route path="/appointments" element={<ListStub />} />
@@ -778,8 +778,8 @@ describe('AppointmentDetailPage — Copy Portal Link generate-only modal', () =>
     fireEvent.click(screen.getByRole('button', { name: /generate & copy/i }));
     await screen.findByText(/generated and copied/i);
     expect(api.POST).toHaveBeenCalledWith(
-      '/v1/appointments/awaiting/portal-token',
-      expect.objectContaining({ body: { notify: false } }),
+      '/v1/appointments/{appointmentId}/portal-token',
+      expect.objectContaining({ params: { path: { appointmentId: 'awaiting' } }, body: { notify: false } }),
     );
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://portal.test/portal/raw-tk');
     expect(mockRefetch).toHaveBeenCalled();

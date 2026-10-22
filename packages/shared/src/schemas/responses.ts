@@ -619,6 +619,11 @@ export const serviceGroupResponseSchema = z.object({
   regionName: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   assignedInspectorId: z.string().uuid().nullable(),
+  // Resolved name of the assigned inspector. The repository/use-case already
+  // produce it; without this field the Zod response serializer strips it off
+  // the wire (and it is absent from the generated contract), so the UI shows
+  // "—" even for assigned groups. Optional — write paths omit it.
+  assignedInspectorName: z.string().nullable().optional(),
   serviceRegionId: z.string().uuid().nullable().optional(),
   publishedAt: instantStrNullable(),
   assignedAt: instantStrNullable().optional(),
@@ -661,6 +666,11 @@ export const marketplaceOfferResponseSchema = z.object({
   // reads it, and it is the fallback when every street is blank.
   suburbs: z.array(z.string()),
   payoutEstimate: z.number().nullable(),
+  // The "from" price: the MINIMUM per-appointment inspector payout in the group
+  // (the v3 card renders "N inspections · from $X each"). Optional on the wire so
+  // this additive field does not widen the detail schema's required shape for
+  // existing consumers (apps/web); the backend always sends it.
+  payoutFrom: z.number().nullable().optional(),
   appointmentCount: z.number(),
   centroid: centroidSchema,
   properties: z.array(marketplaceOfferPropertySchema),

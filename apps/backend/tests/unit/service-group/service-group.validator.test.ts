@@ -152,10 +152,13 @@ describe('ServiceGroupValidator.canAddToGroup (026 §FR-510)', () => {
     )).toEqual({ ok: true });
   });
 
-  it('rejects when the group is in a terminal state', () => {
+  it('accepts an ACCEPTED group (members join the inspector already committed)', () => {
     expect(ServiceGroupValidator.canAddToGroup(
       baseAppointment, { ...baseGroup, status: 'ACCEPTED' },
-    )).toEqual({ ok: false, reasonCode: 'GROUP_IN_TERMINAL_STATE' });
+    )).toEqual({ ok: true });
+  });
+
+  it('rejects when the group is in a terminal state', () => {
     expect(ServiceGroupValidator.canAddToGroup(
       baseAppointment, { ...baseGroup, status: 'CANCELLED' },
     )).toEqual({ ok: false, reasonCode: 'GROUP_IN_TERMINAL_STATE' });
@@ -237,7 +240,7 @@ describe('ServiceGroupValidator.canAddToGroup (026 §FR-510)', () => {
   it('isAddableStatus reflects the group lifecycle', () => {
     expect(ServiceGroupValidator.isAddableStatus('DRAFT')).toBe(true);
     expect(ServiceGroupValidator.isAddableStatus('PUBLISHED')).toBe(true);
-    expect(ServiceGroupValidator.isAddableStatus('ACCEPTED')).toBe(false);
+    expect(ServiceGroupValidator.isAddableStatus('ACCEPTED')).toBe(true);
     expect(ServiceGroupValidator.isAddableStatus('CANCELLED')).toBe(false);
     expect(ServiceGroupValidator.isAddableStatus('REJECTED')).toBe(false);
   });

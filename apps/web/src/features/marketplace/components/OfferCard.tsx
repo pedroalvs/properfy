@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import type { MarketplaceOffer } from '../types';
 import { Button } from '@/components/ui/Button';
 import { formatCivilDate, formatWallTimeWindow } from '@/lib/format-date';
@@ -16,9 +17,11 @@ export function OfferCard({ offer, selected, onClick, onAccept }: OfferCardProps
 
   return (
     <div
-      className={`cursor-pointer rounded border-l-4 bg-card-bg p-4 shadow-sm transition-all hover:shadow-md ${borderColor} ${
-        selected ? 'ring-2 ring-secondary/30' : ''
-      }`}
+      className={cn(
+        'cursor-pointer rounded border-l-4 bg-card-bg p-4 shadow-sm transition-all hover:shadow-md',
+        borderColor,
+        selected && 'ring-2 ring-secondary/30',
+      )}
       // The whole card body is a click-to-select surface, so onClick stays
       // unguarded — the nested Accept/View buttons stopPropagation on their own
       // clicks, so a bubbled button click never reaches here anyway.

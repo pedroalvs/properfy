@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { getErrorMessage } from '@/lib/api-error';
 
 export interface ResolvedRegionItem {
   regionId: string;
@@ -25,13 +26,12 @@ export function useResolveRegions(appointmentIds: string[], tenantId?: string) {
   return useQuery({
     queryKey: ['service-regions', 'resolve', appointmentIds, tenantId],
     queryFn: async () => {
-      const body: Record<string, unknown> = { appointmentIds };
+      const body: { appointmentIds: string[]; tenantId?: string } = { appointmentIds };
       if (tenantId) body.tenantId = tenantId;
-      const { data, error } = await api.POST('/v1/service-regions/resolve' as any, {
-        body: body as any,
-      });
-      if (error) throw new Error((error as any)?.error?.message ?? 'Failed to resolve regions');
-      return ((data as any)?.data ?? data) as ResolveRegionsResult;
+      // Route registers no typed request body in the spec.
+      const { data, error } = await api.POST('/v1/service-regions/resolve', { body: body as never });
+      if (error) throw new Error(getErrorMessage(error, 'Failed to resolve regions'));
+      return ((data as unknown as { data?: ResolveRegionsResult })?.data ?? data) as ResolveRegionsResult;
     },
     enabled: appointmentIds.length > 0,
   });

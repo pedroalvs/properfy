@@ -1,3 +1,4 @@
+import { ClockAlert } from 'lucide-react';
 import { ConfirmationSheet } from './ConfirmationSheet';
 
 interface PastTimeConfirmModalProps {
@@ -8,7 +9,7 @@ interface PastTimeConfirmModalProps {
 export function PastTimeConfirmModal({ onConfirm, onCancel }: PastTimeConfirmModalProps) {
   return (
     <ConfirmationSheet
-      icon="mdi-clock-alert-outline"
+      icon={ClockAlert}
       iconClassName="text-warning"
       title="This inspection is past its scheduled time. Complete it anyway?"
       confirmLabel="Complete anyway"

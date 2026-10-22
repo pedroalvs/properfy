@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { toast } from 'sonner';
 
 type SnackbarType = 'success' | 'error' | 'info';
 
@@ -13,38 +14,27 @@ interface SnackbarContextValue {
   showSuccess: (message: string) => void;
   showError: (message: string) => void;
   showInfo: (message: string) => void;
-  dismiss: (id: number) => void;
+  dismiss: (id?: string | number) => void;
 }
 
 const SnackbarContext = createContext<SnackbarContextValue | null>(null);
 
-const AUTO_DISMISS_MS = 5000;
-
 export function SnackbarProvider({ children }: { children: ReactNode }) {
-  const [messages, setMessages] = useState<SnackbarMessage[]>([]);
-  const nextId = useRef(0);
-
-  const addMessage = useCallback((type: SnackbarType, message: string) => {
-    const id = nextId.current++;
-    setMessages((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setMessages((prev) => prev.filter((m) => m.id !== id));
-    }, AUTO_DISMISS_MS);
-  }, []);
-
-  const showSuccess = useCallback((msg: string) => addMessage('success', msg), [addMessage]);
-  const showError = useCallback((msg: string) => addMessage('error', msg), [addMessage]);
-  const showInfo = useCallback((msg: string) => addMessage('info', msg), [addMessage]);
-
-  const dismiss = useCallback((id: number) => {
-    setMessages((prev) => prev.filter((m) => m.id !== id));
-  }, []);
-
-  return (
-    <SnackbarContext.Provider value={{ messages, showSuccess, showError, showInfo, dismiss }}>
-      {children}
-    </SnackbarContext.Provider>
+  const value = useMemo<SnackbarContextValue>(
+    () => ({
+      // Toasts now live in sonner's own store, so the legacy message stack is empty.
+      messages: [],
+      showSuccess: (message: string) => toast.success(message),
+      showError: (message: string) => toast.error(message),
+      showInfo: (message: string) => toast(message),
+      dismiss: (id?: string | number) => toast.dismiss(id),
+    }),
+    [],
   );
+
+  // The <Toaster> is mounted once at the app root (app/App.tsx), NOT here — mounting it in
+  // this context provider would inject sonner's <section> into every renderWithProviders test.
+  return <SnackbarContext.Provider value={value}>{children}</SnackbarContext.Provider>;
 }
 
 export function useSnackbar(): SnackbarContextValue {

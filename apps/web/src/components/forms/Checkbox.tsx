@@ -1,3 +1,5 @@
+import { cn } from '@properfy/frontend-standards';
+
 interface CheckboxProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
@@ -16,7 +18,7 @@ export function Checkbox({ checked, onChange, label, disabled, id }: CheckboxPro
 
   return (
     <label
-      className={`inline-flex items-center gap-2 ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+      className={cn('inline-flex items-center gap-2', disabled ? 'cursor-not-allowed' : 'cursor-pointer')}
     >
       <input
         type="checkbox"
@@ -27,9 +29,9 @@ export function Checkbox({ checked, onChange, label, disabled, id }: CheckboxPro
         disabled={disabled}
         aria-label={label}
       />
-      <i className={`mdi ${iconName} text-xl ${colorClass}`} aria-hidden="true" />
+      <i className={cn('mdi', iconName, 'text-xl', colorClass)} aria-hidden="true" />
       <span
-        className={`text-sm ${disabled ? 'text-text-disabled' : 'text-text-primary'}`}
+        className={cn('text-sm', disabled ? 'text-text-disabled' : 'text-text-primary')}
       >
         {label}
       </span>

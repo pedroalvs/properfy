@@ -1,3 +1,5 @@
+import { Star } from 'lucide-react';
+import { cn } from '@properfy/frontend-standards';
 import { formatRatingAverage, RATING_MAX } from '@properfy/shared';
 
 export interface StarRatingProps {
@@ -14,9 +16,9 @@ export interface StarRatingProps {
 }
 
 const sizeClasses = {
-  sm: { text: 'text-sm', star: 'text-base' },
-  md: { text: 'text-base', star: 'text-lg' },
-  lg: { text: 'text-2xl font-bold', star: 'text-2xl' },
+  sm: { text: 'text-sm', star: 'h-4 w-4' },
+  md: { text: 'text-base', star: 'h-[18px] w-[18px]' },
+  lg: { text: 'text-2xl font-bold', star: 'h-6 w-6' },
 } as const;
 
 /**
@@ -47,7 +49,7 @@ export function StarRating({
       <span
         role="img"
         aria-label="No ratings yet"
-        className={`text-text-muted ${classes.text} ${className}`}
+        className={cn('text-muted-foreground', classes.text, className)}
       >
         {emptyLabel}
       </span>
@@ -63,11 +65,11 @@ export function StarRating({
     <span
       role="img"
       aria-label={label}
-      className={`inline-flex items-center gap-1 ${classes.text} ${className}`}
+      className={cn('inline-flex items-center gap-1', classes.text, className)}
     >
-      {showValue && <span className="text-text-primary">{formatted}</span>}
-      <i className={`mdi mdi-star text-real-estate ${classes.star}`} aria-hidden="true" />
-      {count !== undefined && <span className="text-text-muted">({count})</span>}
+      {showValue && <span className="text-foreground">{formatted}</span>}
+      <Star className={cn('fill-current text-primary', classes.star)} aria-hidden="true" />
+      {count !== undefined && <span className="text-muted-foreground">({count})</span>}
     </span>
   );
 }

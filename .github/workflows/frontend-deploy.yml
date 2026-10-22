@@ -57,6 +57,8 @@ jobs:
 
       - run: pnpm --filter shared build
 
+      - run: pnpm --filter @properfy/frontend-standards build
+
       - name: Build
         run: pnpm --filter ${{ matrix.app }} build
         env:
@@ -103,6 +105,8 @@ jobs:
 
       - run: pnpm --filter shared build
 
+      - run: pnpm --filter @properfy/frontend-standards build
+
       - name: Build
         run: pnpm --filter ${{ matrix.app }} build
         env:
@@ -147,6 +151,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm --filter shared build
+
+      - run: pnpm --filter @properfy/frontend-standards build
 
       - name: Build
         run: pnpm --filter ${{ matrix.app }} build

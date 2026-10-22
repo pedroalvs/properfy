@@ -1,5 +1,10 @@
 import type { CapturedLocation } from '../types';
 import type { ReactNode } from 'react';
+import { AlertCircle, AlertTriangle, CheckCircle2, Loader2, MapPin } from 'lucide-react';
+import { Alert } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { distanceMeters } from '@/lib/geo';
 
 type GeoStatus = 'idle' | 'requesting' | 'success' | 'error' | 'denied';
@@ -22,77 +27,70 @@ export function GeoLocationCapture({ status, location, error, onRequest, propert
       ? distanceMeters(location.latitude, location.longitude, propertyLatitude, propertyLongitude)
       : null;
   const showDistanceWarning = distance !== null && distance > DISTANCE_WARNING_THRESHOLD;
+  const accuracyTone = location
+    ? location.accuracy < 10
+      ? 'green'
+      : location.accuracy < 50
+        ? 'amber'
+        : 'red'
+    : 'gray';
+
   return (
-    <div data-testid="geo-capture" className="rounded-lg bg-card-bg p-4">
-      <h3 className="text-xs font-bold uppercase text-text-secondary">Location</h3>
+    <Card data-testid="geo-capture" className="flex flex-col gap-2 p-4">
+      <h3 className="text-xs font-bold uppercase text-muted-foreground">Location</h3>
 
       {status === 'idle' && (
-        <button
-          onClick={onRequest}
-          className="mt-2 flex min-h-touch w-full items-center justify-center gap-2 rounded-lg border border-primary bg-primary/5 text-sm font-semibold text-primary"
-          data-testid="geo-request-button"
-        >
-          <i className="mdi mdi-crosshairs-gps text-lg" aria-hidden="true" />
+        <Button variant="outlined" block onClick={onRequest} data-testid="geo-request-button">
+          <MapPin className="h-5 w-5" aria-hidden="true" />
           Capture Location
-        </button>
+        </Button>
       )}
 
       {status === 'requesting' && (
-        <div className="mt-2 flex items-center gap-2 text-sm text-text-secondary" data-testid="geo-requesting">
-          <i className="mdi mdi-loading mdi-spin text-primary" />
+        <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="geo-requesting">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
           Getting your location...
         </div>
       )}
 
       {status === 'success' && location && (
-        <div className="mt-2" data-testid="geo-success">
-          <div className="flex items-center gap-2 text-sm text-success">
-            <i className="mdi mdi-check-circle" />
+        <div className="flex flex-col gap-2" data-testid="geo-success">
+          <div className="flex items-center gap-2 text-sm font-semibold text-success">
+            <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
             Location captured
           </div>
-          <span
-            className={`mt-1 inline-block rounded px-2 py-0.5 text-xs font-semibold ${
-              location.accuracy < 10
-                ? 'bg-success/10 text-success'
-                : location.accuracy < 50
-                  ? 'bg-warning/10 text-warning'
-                  : 'bg-error/10 text-error'
-            }`}
-            data-testid="accuracy-badge"
-          >
+          <Badge tone={accuracyTone} data-testid="accuracy-badge">
             Accuracy: {Math.round(location.accuracy)}m
-          </span>
+          </Badge>
           {showDistanceWarning && (
-            <div
-              className="mt-2 flex items-start gap-2 rounded-lg bg-warning/10 p-3 text-sm text-warning"
-              data-testid="distance-warning"
-            >
-              <i className="mdi mdi-alert mt-0.5 flex-shrink-0" aria-hidden="true" />
+            <Alert tone="warning" data-testid="distance-warning">
+              <AlertTriangle className="h-4 w-4" aria-hidden="true" />
               <span>
                 You are {Math.round(distance!)}m from the property. Are you at the correct location?
               </span>
-            </div>
+            </Alert>
           )}
         </div>
       )}
 
       {(status === 'error' || status === 'denied') && (
-        <div className="mt-2" data-testid="geo-error">
-          <div className="flex items-center gap-2 text-sm text-error">
-            <i className="mdi mdi-alert-circle" />
-            {error}
-          </div>
-          <button
+        <div className="flex flex-col gap-2" data-testid="geo-error">
+          <Alert tone="destructive">
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
+            <span>{error}</span>
+          </Alert>
+          <Button
+            variant="outlined"
+            block
             onClick={onRequest}
-            className="mt-2 text-sm font-semibold text-primary"
             data-testid="geo-retry-button"
           >
             Try Again
-          </button>
+          </Button>
         </div>
       )}
 
       {children}
-    </div>
+    </Card>
   );
 }

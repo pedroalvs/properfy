@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import { useInstallPrompt } from '@/app/useInstallPrompt';
 import { isNativeBannerDismissed, dismissNativeBanner } from '../lib/install-banner-storage';
 
@@ -24,8 +25,8 @@ export function InstallBannerNative() {
       className="mx-4 mb-2 flex items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3"
     >
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-text-primary">Install Properfy</p>
-        <p className="text-xs text-text-muted">Add to your home screen for faster access.</p>
+        <p className="text-sm font-semibold text-foreground">Install Properfy</p>
+        <p className="text-xs text-muted-foreground">Add to your home screen for faster access.</p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <button
@@ -37,9 +38,9 @@ export function InstallBannerNative() {
         <button
           onClick={handleDismiss}
           aria-label="Dismiss install banner"
-          className="rounded-lg p-1 text-text-muted hover:text-text-secondary"
+          className="rounded-lg p-1 text-muted-foreground hover:text-muted-foreground"
         >
-          <i className="mdi mdi-close text-base" aria-hidden="true" />
+          <X size={16} aria-hidden="true" />
         </button>
       </div>
     </div>

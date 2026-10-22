@@ -1,82 +1,10 @@
 :root {
-  /* Brand colors */
-  --color-primary: #009DD9;
-  --color-secondary: #21566E;
-  --color-accent: #41A69D;
-  --color-error: #FF5252;
-  --color-info: #00CAE3;
-  --color-success: #4CAF50;
-  --color-warning: #FB8C00;
-  --color-realty: #215676;
-  --color-real-estate: #F37A76;
-
-  /* Snackbar */
-  --color-snackbar-error: #B71C1C;
-
-  /* Surfaces */
-  --color-app-bg: #F5F5F5;
-  --color-card-bg: #FFFFFF;
-
-  /* Text */
-  --color-text-primary: rgba(0, 0, 0, 0.87);
-  --color-text-secondary: rgba(0, 0, 0, 0.6);
-  --color-text-muted: rgb(158, 158, 158);
-  --color-text-disabled: rgba(0, 0, 0, 0.38);
-
-  /* Disabled */
-  --color-disabled-bg: rgba(0, 0, 0, 0.12);
-  --color-disabled-text: rgba(0, 0, 0, 0.26);
-
-  /* Status backgrounds */
-  --color-status-draft: #E1BEE7;
-  --color-status-awaiting-inspector: #FFE0B2;
-  --color-status-scheduled: #B3E5FC;
-  --color-status-done: #C8E6C9;
-  --color-status-cancelled: #FFCDD2;
-  --color-status-rejected: #FFAB91;
-
-  /* Status text (chip foregrounds paired with the backgrounds above) */
-  --color-status-scheduled-text: #01579B;
-  --color-status-done-text: #1B5E20;
-  --color-status-awaiting-text: #E65100;
-
-  /* Property type backgrounds */
-  --color-type-residential: #B3E5FC;
-  --color-type-commercial: #FFE0B2;
-  --color-type-industrial: #D7CCC8;
-  --color-type-rural: #DCEDC8;
-
-  /* Service group status backgrounds */
-  --color-sg-draft: #E1BEE7;
-  --color-sg-published: #FFE0B2;
-  --color-sg-accepted: #C8E6C9;
-  --color-sg-cancelled: #FFCDD2;
-
-  /* Tenant confirmation status backgrounds */
-  --color-confirmation-pending: #FFE0B2;
-  --color-confirmation-confirmed: #C8E6C9;
-  --color-confirmation-unavailable: #FFCDD2;
-  --color-confirmation-no-response: #D7CCC8;
-
-  /* Flow type backgrounds */
-  --color-flow-routine: #B3E5FC;
-  --color-flow-ingoing: #C8E6C9;
-  --color-flow-outgoing: #FFE0B2;
-
-  /* UI component tokens */
-  --color-shimmer-from: #F5F5F5;
-  --color-shimmer-via: #E0E0E0;
-  --color-shimmer-to: #F5F5F5;
-  --color-border-subtle: #E0E0E0;
-  --color-border-light: #F0F0F0;
-  --color-hover-row: #FAFAFA;
-  --color-text-inactive: #999999;
-  --color-btn-secondary-bg: #F5F5F5;
-  --color-btn-secondary-hover: #EEEEEE;
-  --color-btn-secondary-active: #E0E0E0;
+  /* The legacy `--color-*` cyan/pastel layer (brand/text/status/sg/confirmation/flow)
+     was removed in PR B — the design system is fully on the shadcn HSL + `pill-*`
+     tokens below. Status/flow/confirmation chips now use the `pill-*` tones via
+     `src/lib/status-colors.ts`; the offers-map marker uses `hsl(var(--primary))`. */
 
   /* Typography */
-  --font-family: 'Nunito', sans-serif;
   --font-size-body: 16px;
   --font-weight-body: 500;
   --line-height-body: 24px;
@@ -108,4 +36,47 @@
   /* Border radius */
   --radius-default: 4px;
   --radius-modal: 8px;
+
+  /* ===================================================================== */
+  /* shadcn / design-system tokens — VALIDATED look (Inter, royal blue).   */
+  /* HSL channels (no hsl() wrapper) consumed via hsl(var(--x)/<alpha>).    */
+  /* Source of truth: the validated mockups canvas (Inspector App v3).      */
+  /* ===================================================================== */
+  --background: 220 20% 97%;          /* #F6F7F9 */
+  --foreground: 220 43% 11%;          /* #101828 */
+  --card: 0 0% 100%;                  /* #FFFFFF */
+  --card-foreground: 220 43% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 43% 11%;
+  --primary: 221 83% 53%;             /* #2563EB royal blue */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 216 24% 96%;           /* #F2F4F7 surface */
+  --secondary-foreground: 220 43% 11%;
+  --muted: 216 24% 96%;
+  --muted-foreground: 220 13% 46%;    /* #667085 */
+  --faint: 214 15% 65%;               /* #98A2B3 — v3 --pf-faint (inactive nav, notes) */
+  --accent: 219 71% 95%;              /* #E7EEFB blue tint */
+  --accent-foreground: 221 83% 45%;
+  --destructive: 4 76% 40%;           /* #B42318 */
+  --destructive-foreground: 0 0% 100%;
+  --success: 144 64% 33%;             /* #1E8A49 */
+  --success-foreground: 0 0% 100%;
+  --warning: 39 82% 32%;              /* #96670F — legible amber ink: text, solid fills, and /8-/10 surface tints */
+  --warning-foreground: 0 0% 100%;    /* white — for the solid bg-warning + text-warning-foreground badge pairing */
+  --border: 216 12% 92%;              /* #E8EAED */
+  --input: 216 12% 92%;
+  --ring: 221 83% 53%;
+  --radius: 0.875rem;                 /* 14px (buttons); cards use rounded-card */
+
+  /* Domain status pills (validated) — bg + fg pairs, WCAG-safe */
+  --pill-green-bg: 137 47% 91%;       /* #DEF3E4 */
+  --pill-green-fg: 144 60% 30%;       /* #1E7A43 */
+  --pill-amber-bg: 42 92% 91%;        /* #FDF0D1 */
+  --pill-amber-fg: 39 82% 32%;        /* #96670F */
+  --pill-blue-bg: 219 71% 95%;        /* #E7EEFB */
+  --pill-blue-fg: 221 83% 45%;        /* #2563EB-ink */
+  --pill-red-bg: 5 76% 93%;           /* #FBE3E1 */
+  --pill-red-fg: 4 76% 40%;           /* #B42318 */
+  --pill-gray-bg: 216 24% 96%;        /* #F2F4F7 */
+  --pill-gray-fg: 220 13% 46%;        /* #667085 */
 }

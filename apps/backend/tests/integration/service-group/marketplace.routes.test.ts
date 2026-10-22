@@ -55,6 +55,7 @@ const marketplaceOffer = {
   timeWindow: '08:00-12:00',
   suburbs: ['Surry Hills', 'Redfern'],
   payoutEstimate: null,
+  payoutFrom: null,
   appointmentCount: 5,
   centroid: null,
   properties: [
@@ -138,6 +139,10 @@ describe('GET /v1/marketplace/offers', () => {
     ]);
     // suburbs stays on the contract — the map view and the blank-street fallback read it.
     expect(res.body.data[0].suburbs).toEqual(['Surry Hills', 'Redfern']);
+    // payoutFrom ("from $X each") is a nullable scalar the offer card reads off the list
+    // payload; assert it survives serialization as `null` (present, not dropped) rather
+    // than being silently stripped as an undeclared field.
+    expect(res.body.data[0]).toHaveProperty('payoutFrom', null);
   });
 
   it('should return 401 without auth token', async () => {

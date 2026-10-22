@@ -1,7 +1,16 @@
 import { useState, useCallback } from 'react';
 import { api } from '@/services/api';
+import { getErrorMessage } from '@/lib/api-error';
 import { useQueryClient } from '@tanstack/react-query';
+import type { paths } from '@properfy/shared';
 import type { SlotFormData, SlotFormErrors } from '../types';
+
+type UpdateSlotBody = NonNullable<
+  paths['/v1/availability-slots/{id}']['patch']['requestBody']
+>['content']['application/json'];
+type CreateSlotBody = NonNullable<
+  paths['/v1/availability-slots']['post']['requestBody']
+>['content']['application/json'];
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
 
@@ -57,11 +66,14 @@ export function useSlotSave(): UseSlotSaveReturn {
     setIsSaving(true);
     try {
       if (slotId) {
-        const { error } = await api.PATCH(`/v1/availability-slots/${slotId}` as any, { body: data as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        const { error } = await api.PATCH('/v1/availability-slots/{id}', {
+          params: { path: { id: slotId } },
+          body: data as UpdateSlotBody,
+        });
+        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
       } else {
-        const { error } = await api.POST('/v1/availability-slots' as any, { body: data as any });
-        if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+        const { error } = await api.POST('/v1/availability-slots', { body: data as CreateSlotBody });
+        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
       }
       queryClient.invalidateQueries({ queryKey: ['availability-slots'] });
       return { success: true };

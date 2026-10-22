@@ -57,7 +57,7 @@ function createWrapper() {
   lastQueryClient = queryClient;
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <QueryClientProvider client={queryClient}>
           <SnackbarProvider>{children}<Snackbar /></SnackbarProvider>
         </QueryClientProvider>

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { cn } from '@properfy/frontend-standards';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -83,7 +84,7 @@ export function PendingActionsCard({
             className="flex items-center gap-3 px-4 py-3 no-underline hover:bg-gray-50 transition-colors"
             data-testid="pending-action-item"
           >
-            <i className={`mdi ${action.icon} text-xl text-text-secondary`} aria-hidden="true" />
+            <i className={cn('mdi', action.icon, 'text-xl text-text-secondary')} aria-hidden="true" />
             <span className="text-sm text-text-primary flex-1">{action.label}</span>
             <span className="rounded-full bg-real-estate/10 text-real-estate px-2 py-0.5 text-xs font-semibold">
               {counts[action.key]}

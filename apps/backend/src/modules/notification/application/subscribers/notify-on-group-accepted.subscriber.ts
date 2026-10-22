@@ -31,17 +31,27 @@ export class NotifyOnGroupAcceptedSubscriber {
     eventBus.subscribe(SERVICE_GROUP_EVENTS.MANUALLY_ASSIGNED, (event) =>
       this.onGroupAccepted(event),
     );
+    eventBus.subscribe(SERVICE_GROUP_EVENTS.MEMBERS_ADDED, (event) => this.onGroupAccepted(event));
   }
 
   private async onGroupAccepted(event: DomainEvent): Promise<void> {
     try {
-      const { groupId } = event.payload as { groupId: string };
+      // ACCEPTED / MANUALLY_ASSIGNED notify every freshly-scheduled member.
+      // MEMBERS_ADDED carries only the appointments just added to an already-accepted
+      // group, so restrict to those — re-querying the whole group would re-notify
+      // every existing member with a duplicate notice and portal token.
+      const { groupId, appointmentIds } = event.payload as {
+        groupId: string;
+        appointmentIds?: string[];
+      };
+      const onlyIds = appointmentIds ? new Set(appointmentIds) : null;
 
       // Groups are tenant-agnostic; re-query fresh post-commit state.
       const result = await this.serviceGroupRepo.findById(groupId, null);
       if (!result) return;
 
       for (const appointment of result.appointments) {
+        if (onlyIds && !onlyIds.has(appointment.id)) continue;
         // Only rows still SCHEDULED — skip anything that raced to another status.
         if (appointment.status !== 'SCHEDULED') continue;
         // Per-row isolation: one failed notification must not starve the rest.

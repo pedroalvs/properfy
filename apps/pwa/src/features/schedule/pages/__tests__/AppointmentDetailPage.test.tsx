@@ -16,7 +16,9 @@ vi.mock('@/features/execution/hooks/useLocalExecutionState', () => ({
 }));
 
 vi.mock('@/components/shell/TopBar', () => ({
-  TopBar: ({ title }: { title: string }) => <div>{title}</div>,
+  TopBar: ({ title, backHideOnWide }: { title: string; backHideOnWide?: boolean }) => (
+    <div data-testid="topbar" data-back-hide-on-wide={backHideOnWide ? 'true' : 'false'}>{title}</div>
+  ),
 }));
 
 vi.mock('@/components/feedback/LoadingState', () => ({
@@ -112,9 +114,36 @@ describe('AppointmentDetailPage', () => {
     expect(screen.getByTestId('appointment-code')).toHaveTextContent('INS-0099');
   });
 
+  it('keeps the TopBar back chevron hidden on wide (close comes from the pane frame)', () => {
+    // On tablet the master is always visible, so the detail hides its back chevron (backHideOnWide)
+    // and the TwoPaneLayout frame owns the close. TopBar.test locks that the prop -> md:hidden.
+    renderPage();
+    expect(screen.getByTestId('topbar')).toHaveAttribute('data-back-hide-on-wide', 'true');
+  });
+
+  it('lets the header reflow so it cannot overflow horizontally (280px / 200% zoom)', () => {
+    renderPage();
+    // Left text block can shrink below its content width (min-w-0) instead of
+    // forcing the row wider than the viewport.
+    const leftBlock = screen.getByTestId('appointment-code').parentElement!;
+    expect(leftBlock.className).toContain('min-w-0');
+    // The row wraps, so the shrink-0 StatusChip drops below when space is tight.
+    expect(leftBlock.parentElement!.className).toContain('flex-wrap');
+  });
+
   it('shows start CTA for scheduled appointments with no local progress', () => {
     renderPage();
     expect(screen.getByTestId('start-inspection-cta')).toHaveTextContent('Start Inspection');
+  });
+
+  it('pins the CTA to the bottom of the detail pane on tablet', () => {
+    // In the fillHeight two-pane detail pane the CTA stays reachable as the pane scrolls on its
+    // own; phone keeps it inline at the end (the md: gate). The opaque footer spans the pane width.
+    renderPage();
+    const ctaWrapper = screen.getByTestId('start-inspection-cta').parentElement!;
+    expect(ctaWrapper.className).toContain('md:sticky');
+    expect(ctaWrapper.className).toContain('md:bottom-0');
+    expect(ctaWrapper.className).toContain('md:bg-background');
   });
 
   it('shows resume CTA when there is local execution in progress', () => {

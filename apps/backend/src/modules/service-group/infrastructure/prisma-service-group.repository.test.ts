@@ -1,5 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PrismaServiceGroupRepository } from './prisma-service-group.repository';
+import { PrismaServiceGroupRepository, deriveOfferPayoutFrom } from './prisma-service-group.repository';
+
+describe('deriveOfferPayoutFrom', () => {
+  const appts = (...amounts: Array<number | null>) => amounts.map((a) => ({ payout_amount: a }));
+
+  it('returns the minimum positive payout, skipping nulls', () => {
+    expect(deriveOfferPayoutFrom(appts(15, 20, null))).toBe(15);
+  });
+
+  it('returns null when every payout is null', () => {
+    expect(deriveOfferPayoutFrom(appts(null, null))).toBeNull();
+  });
+
+  it('skips a zero payout (mirrors the ">0 else null" estimate rule)', () => {
+    expect(deriveOfferPayoutFrom(appts(0, 15))).toBe(15);
+  });
+
+  it('returns the single payout for a one-appointment group', () => {
+    expect(deriveOfferPayoutFrom(appts(25))).toBe(25);
+  });
+
+  it('returns null for an empty group', () => {
+    expect(deriveOfferPayoutFrom([])).toBeNull();
+  });
+});
 
 describe('PrismaServiceGroupRepository marketplace filters', () => {
   it('uses PostGIS spatial query to find eligible group IDs for marketplace offers', async () => {
@@ -59,6 +83,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       serviceTypeName: 'Routine',
       suburbs: ['Bondi'],
       payoutEstimate: 50,
+      payoutFrom: 50,
     });
     // The offer's size comes from the appointments it actually carries — one
     // here — and must agree with `appointmentCount`. There is no stored

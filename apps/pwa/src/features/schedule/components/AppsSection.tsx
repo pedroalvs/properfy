@@ -1,5 +1,9 @@
 import { useState } from 'react';
+import { AppWindow, Check, Copy, ExternalLink, KeyRound } from 'lucide-react';
+import { cn, TIMING } from '@properfy/frontend-standards';
 import type { AppointmentApp } from '@properfy/shared';
+import { Card } from '@/components/ui/Card';
+import { buttonVariants } from '@/components/ui/Button';
 
 interface AppsSectionProps {
   apps: AppointmentApp[] | undefined;
@@ -13,7 +17,7 @@ function CredentialRow({ label, value, testId }: { label: string; value: string;
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      setTimeout(() => setCopied(false), TIMING.flashMessage);
     } catch {
       // Clipboard unavailable (insecure context) — no-op.
     }
@@ -28,27 +32,33 @@ function CredentialRow({ label, value, testId }: { label: string; value: string;
       data-testid={testId}
     >
       <span className="flex flex-col">
-        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">{label}</span>
-        <span className="font-mono text-sm text-text-primary">{value}</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</span>
+        <span className="font-mono text-sm text-foreground">{value}</span>
       </span>
-      <i className={`mdi ${copied ? 'mdi-check text-success' : 'mdi-content-copy text-text-muted'} text-base`} aria-hidden="true" />
+      {copied ? (
+        <Check className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+      ) : (
+        <Copy className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      )}
     </button>
   );
 }
 
-/** External link action (open app / instructions), styled as a full-width tap row. */
+/** External link action (open app / instructions), styled as the validated outlined button. */
 function LinkRow({ label, url, testId }: { label: string; url: string; testId?: string }) {
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-      className="flex min-h-touch w-full items-center justify-between gap-3 px-4 py-2.5 text-left"
-      data-testid={testId}
-    >
-      <span className="text-sm font-semibold text-primary">{label}</span>
-      <i className="mdi mdi-open-in-new text-base text-primary" aria-hidden="true" />
-    </a>
+    <div className="px-4 py-2.5">
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className={cn(buttonVariants({ variant: 'outlined', block: true }))}
+        data-testid={testId}
+      >
+        <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
+        {label}
+      </a>
+    </div>
   );
 }
 
@@ -60,10 +70,10 @@ function LinkRow({ label, url, testId }: { label: string; url: string; testId?: 
 function AuthCodeNotice() {
   return (
     <p
-      className="flex min-h-touch items-center gap-2 px-4 py-2.5 text-sm text-text-muted"
+      className="flex min-h-touch items-center gap-2 px-4 py-2.5 text-sm text-muted-foreground"
       data-testid="apps-section-auth-code-required"
     >
-      <i className="mdi mdi-key-alert-outline text-base" aria-hidden="true" />
+      <KeyRound className="h-4 w-4 shrink-0" aria-hidden="true" />
       Requires authentication code
     </p>
   );
@@ -82,22 +92,24 @@ export function AppsSection({ apps }: AppsSectionProps) {
   if (!apps || apps.length === 0) return null;
 
   return (
-    <section
-      className="overflow-hidden rounded-[20px] border border-black/[0.06] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.07)]"
-      data-testid="apps-section"
-    >
+    <Card className="overflow-hidden p-0" data-testid="apps-section">
       <div className="px-4 pt-4 pb-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Apps</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Apps</p>
       </div>
       <ul>
         {apps.map((app, idx) => (
           <li
             key={app.id}
-            className={idx > 0 ? 'border-t border-black/[0.06]' : ''}
+            className={idx > 0 ? 'border-t border-border' : ''}
             data-testid="apps-section-item"
           >
-            <p className="px-4 pt-2 text-sm font-semibold text-text-primary">{app.name}</p>
-            <div className="divide-y divide-black/[0.04]">
+            <div className="flex items-center gap-3 px-4 pt-3 pb-1">
+              <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-btn bg-muted text-muted-foreground">
+                <AppWindow className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <p className="text-sm font-semibold text-foreground">{app.name}</p>
+            </div>
+            <div className="divide-y divide-border">
               <CredentialRow label="Username" value={app.username} testId="apps-section-username" />
               <CredentialRow label="Password" value={app.password} testId="apps-section-password" />
               {app.needsAuthCode && <AuthCodeNotice />}
@@ -118,6 +130,6 @@ export function AppsSection({ apps }: AppsSectionProps) {
           </li>
         ))}
       </ul>
-    </section>
+    </Card>
   );
 }
