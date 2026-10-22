@@ -137,10 +137,10 @@ export function useTemplateSave(): UseTemplateSaveReturn {
   ): Promise<SaveResult> => {
     setIsSaving(true);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (api as any).PUT(
-        `/v1/notification-templates/${code}/${channel}`,
+      const { error } = await api.PUT(
+        '/v1/notification-templates/{templateCode}/{channel}',
         {
+          params: { path: { templateCode: code, channel } },
           body: {
             subject: data.subject || undefined,
             bodyHtml: data.body,

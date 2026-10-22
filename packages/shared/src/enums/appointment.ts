@@ -49,6 +49,20 @@ export const TERMINAL_APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
 export const isTerminalAppointmentStatus = (status: string): boolean =>
   (TERMINAL_APPOINTMENT_STATUSES as readonly string[]).includes(status);
 
+/**
+ * The complement of `TERMINAL_APPOINTMENT_STATUSES`: the statuses an
+ * appointment can still move through (`DRAFT`, `AWAITING_INSPECTOR`,
+ * `SCHEDULED`). Backend "open appointment" checks (tenant/branch/inspector
+ * counts, dashboard status rollups) filter on exactly this set.
+ *
+ * Derived from the terminal set rather than hand-listed so the two can never
+ * drift: adding a new status automatically lands here unless it is also marked
+ * terminal.
+ */
+export const NON_TERMINAL_APPOINTMENT_STATUSES: readonly AppointmentStatus[] = (
+  Object.values(AppointmentStatus) as AppointmentStatus[]
+).filter((status) => !isTerminalAppointmentStatus(status));
+
 export const RentalTenantConfirmationStatus = {
   PENDING: 'PENDING',
   CONFIRMED: 'CONFIRMED',

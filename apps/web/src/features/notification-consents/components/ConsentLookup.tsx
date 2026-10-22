@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { usePermissions } from '@/hooks/usePermissions';
 import { formatInstantDateTime } from '@/lib/format-date';
 import { Button } from '@/components/ui/Button';
@@ -54,9 +55,10 @@ export function ConsentLookup() {
       render: (row) => (
         <span
           data-optout={row.optedOut}
-          className={`inline-block rounded px-2 py-0.5 text-xs font-semibold text-text-primary ${
-            row.optedOut ? 'bg-status-cancelled' : 'bg-status-done'
-          }`}
+          className={cn(
+            'inline-block rounded px-2 py-0.5 text-xs font-semibold text-text-primary',
+            row.optedOut ? 'bg-status-cancelled' : 'bg-status-done',
+          )}
         >
           {row.optedOut ? 'Opted Out' : 'Opted In'}
         </span>

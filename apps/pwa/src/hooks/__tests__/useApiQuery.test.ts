@@ -14,7 +14,7 @@ vi.mock('@/services/api', () => ({
 }));
 
 import { api } from '@/services/api';
-import { useDetailQuery, useActionMutation } from '../useApiQuery';
+import { useDetailQuery, apiPost } from '../useApiQuery';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const mockPost = api.POST as ReturnType<typeof vi.fn>;
@@ -74,16 +74,7 @@ describe('useApiQuery error normalization', () => {
       response: { status: 429, headers: new Headers({ 'Retry-After': '30' }) },
     });
 
-    const { result } = renderHook(() => useActionMutation('/v1/things'), {
-      wrapper: createWrapper(),
-    });
-
-    let thrown: unknown;
-    await result.current.mutateAsync({}).catch((err: unknown) => {
-      thrown = err;
-    });
-
-    const error = thrown as ApiError;
+    const error = (await apiPost('/v1/things', {}).catch((err: unknown) => err)) as ApiError;
     expect(error).toBeInstanceOf(ApiError);
     expect(error.status).toBe(429);
     expect(error.retryAfter).toBe(30);
@@ -102,16 +93,7 @@ describe('useApiQuery error normalization', () => {
         },
       });
 
-      const { result } = renderHook(() => useActionMutation('/v1/things'), {
-        wrapper: createWrapper(),
-      });
-
-      let thrown: unknown;
-      await result.current.mutateAsync({}).catch((err: unknown) => {
-        thrown = err;
-      });
-
-      const error = thrown as ApiError;
+      const error = (await apiPost('/v1/things', {}).catch((err: unknown) => err)) as ApiError;
       expect(error).toBeInstanceOf(ApiError);
       expect(error.status).toBe(429);
       expect(error.retryAfter).toBe(30);
@@ -133,16 +115,7 @@ describe('useApiQuery error normalization', () => {
       response: { status: 422 },
     });
 
-    const { result } = renderHook(() => useActionMutation('/v1/things'), {
-      wrapper: createWrapper(),
-    });
-
-    let thrown: unknown;
-    await result.current.mutateAsync({}).catch((err: unknown) => {
-      thrown = err;
-    });
-
-    const error = thrown as ApiError;
+    const error = (await apiPost('/v1/things', {}).catch((err: unknown) => err)) as ApiError;
     expect(error.status).toBe(422);
     expect(error.details).toEqual([{ field: 'email', message: 'Invalid email' }]);
   });

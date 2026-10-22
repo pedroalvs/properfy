@@ -9,7 +9,7 @@ function renderItem(
   { route = '/' }: { route?: string } = {},
 ) {
   return render(
-    <MemoryRouter initialEntries={[route]}>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[route]}>
       <SidebarItem icon="mdi-calendar" label="Appointments" to="/appointments" {...props} />
     </MemoryRouter>,
   );

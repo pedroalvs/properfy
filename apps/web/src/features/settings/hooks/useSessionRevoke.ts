@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api } from '@/services/api';
+import { getErrorMessage } from '@/lib/api-error';
 import { useQueryClient } from '@tanstack/react-query';
 
 export interface UseSessionRevokeReturn {
@@ -14,8 +15,10 @@ export function useSessionRevoke(): UseSessionRevokeReturn {
   const revoke = useCallback(async (sessionId: string): Promise<{ success: boolean; error?: string }> => {
     setIsRevoking(true);
     try {
-      const { error } = await api.DELETE(`/v1/auth/sessions/${sessionId}` as any, {} as any);
-      if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+      const { error } = await api.DELETE('/v1/auth/sessions/{sessionId}', {
+        params: { path: { sessionId } },
+      });
+      if (error) throw new Error(getErrorMessage(error, 'Request failed'));
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
       return { success: true };
     } catch (err) {

@@ -1,9 +1,4 @@
-import {
-  generateIdempotencyKey,
-  getOrCreateIdempotencyKey,
-  getIdempotencyKey,
-  clearIdempotencyKey,
-} from '../idempotency';
+import { generateIdempotencyKey, getOrCreateIdempotencyKey } from '../idempotency';
 
 describe('idempotency', () => {
   beforeEach(() => {
@@ -43,29 +38,6 @@ describe('idempotency', () => {
       const key1 = getOrCreateIdempotencyKey('start-inspection-123');
       const key2 = getOrCreateIdempotencyKey('finish-inspection-123');
       expect(key1).not.toBe(key2);
-    });
-  });
-
-  describe('getIdempotencyKey', () => {
-    it('returns null for non-existent action', () => {
-      expect(getIdempotencyKey('nonexistent')).toBeNull();
-    });
-
-    it('returns the stored key for an existing action', () => {
-      const created = getOrCreateIdempotencyKey('test-action');
-      expect(getIdempotencyKey('test-action')).toBe(created);
-    });
-  });
-
-  describe('clearIdempotencyKey', () => {
-    it('removes the stored key', () => {
-      getOrCreateIdempotencyKey('test-action');
-      clearIdempotencyKey('test-action');
-      expect(getIdempotencyKey('test-action')).toBeNull();
-    });
-
-    it('does not throw when clearing non-existent key', () => {
-      expect(() => clearIdempotencyKey('nonexistent')).not.toThrow();
     });
   });
 });

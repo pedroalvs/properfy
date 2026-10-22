@@ -1,4 +1,5 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outlined' | 'icon' | 'delete';
 
@@ -29,11 +30,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         disabled={isDisabled}
-        className={`inline-flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-150 select-none
-          ${variantClasses[variant]}
-          ${isDisabled ? 'pointer-events-none opacity-40' : 'cursor-pointer'}
-          ${className}
-        `}
+        className={cn(
+          'inline-flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-150 select-none',
+          variantClasses[variant],
+          isDisabled ? 'pointer-events-none opacity-40' : 'cursor-pointer',
+          className,
+        )}
         {...props}
       >
         {loading && (

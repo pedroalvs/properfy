@@ -2,6 +2,14 @@ import { useEffect, useMemo, useRef } from 'react';
 import { usePaginatedQuery } from '@/hooks/useApiQuery';
 import type { InspectorSurvey } from '../types';
 
+/** Raw survey row as returned by the list endpoint (pre-normalization). */
+interface RawSurveyRow {
+  rating: number;
+  comment?: string | null;
+  submittedAt: string;
+  appointmentCode: string;
+}
+
 /**
  * Individual satisfaction responses for one inspector.
  *
@@ -9,7 +17,7 @@ import type { InspectorSurvey } from '../types';
  * is opened — same pattern as the availability tab.
  */
 export function useInspectorSurveys(inspectorId: string | null, page: number, enabled: boolean) {
-  const query = usePaginatedQuery<Record<string, unknown>>(
+  const query = usePaginatedQuery<RawSurveyRow>(
     ['inspectors', inspectorId, 'surveys'],
     `/v1/inspectors/${inspectorId}/surveys`,
     { page, pageSize: 10 },
@@ -18,7 +26,7 @@ export function useInspectorSurveys(inspectorId: string | null, page: number, en
 
   // PR #961 bug class: memoized so consumers get a stable array per fetch result.
   const pageSurveys: InspectorSurvey[] = useMemo(() => {
-    const raw: any[] = query.data?.data ?? [];
+    const raw = query.data?.data ?? [];
     return raw.map((item) => ({
       rating: item.rating,
       comment: item.comment ?? null,
@@ -56,7 +64,10 @@ export function useInspectorSurveys(inspectorId: string | null, page: number, en
         .sort(([a], [b]) => a - b)
         .flatMap(([, rows]) => rows),
     // Recomputed whenever a page lands or the inspector changes; the ref itself
-    // is stable, so these are the only inputs that can alter the result.
+    // is stable, so these are the only inputs that can alter the result. The rule
+    // cannot see that the ref's contents are keyed on these values, so it reads
+    // them as unnecessary — they are the intentional recompute triggers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [pageSurveys, inspectorId, page],
   );
 

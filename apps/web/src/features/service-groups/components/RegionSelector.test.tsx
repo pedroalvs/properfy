@@ -15,7 +15,7 @@ function renderSelector(props: Partial<React.ComponentProps<typeof RegionSelecto
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <RegionSelector
           appointmentIds={['apt-1']}
           selectedRegionId=""
@@ -31,7 +31,7 @@ describe('RegionSelector — single banner per state', () => {
   it('shows ONLY the error banner when isError=true', () => {
     mockUseResolveRegions.mockReturnValue({
       data: undefined, isLoading: false, isError: true, refetch: vi.fn(), error: null,
-    } as any);
+    } as unknown as ReturnType<typeof useResolveRegions>);
     renderSelector();
     expect(screen.getByText(/Failed to load regions/i)).toBeInTheDocument();
     expect(screen.queryByText(/No active regions/i)).not.toBeInTheDocument();
@@ -43,7 +43,7 @@ describe('RegionSelector — single banner per state', () => {
     mockUseResolveRegions.mockReturnValue({
       data: { regions: [], totalAppointments: 1, unmatchedAppointmentIds: ['apt-1'] },
       isLoading: false, isError: false, refetch: vi.fn(), error: null,
-    } as any);
+    } as unknown as ReturnType<typeof useResolveRegions>);
     renderSelector();
     expect(screen.getByText(/No active regions/i)).toBeInTheDocument();
     const manageLink = screen.getByRole('link', { name: /manage regions/i });
@@ -61,7 +61,7 @@ describe('RegionSelector — single banner per state', () => {
         unmatchedAppointmentIds: ['apt-2'],
       },
       isLoading: false, isError: false, refetch: vi.fn(), error: null,
-    } as any);
+    } as unknown as ReturnType<typeof useResolveRegions>);
     renderSelector({ selectedRegionId: 'r1' });
     expect(screen.getByText(/could not be matched/i)).toBeInTheDocument();
     expect(screen.queryByText(/Failed to load/i)).not.toBeInTheDocument();
@@ -76,7 +76,7 @@ describe('RegionSelector — single banner per state', () => {
         unmatchedAppointmentIds: [],
       },
       isLoading: false, isError: false, refetch: vi.fn(), error: null,
-    } as any);
+    } as unknown as ReturnType<typeof useResolveRegions>);
     renderSelector({ selectedRegionId: 'r1' });
     expect(screen.getByText(/No inspectors are currently assigned/i)).toBeInTheDocument();
     // Mutually-exclusive guarantee: no sibling banner shows.
@@ -89,7 +89,7 @@ describe('RegionSelector — single banner per state', () => {
     mockUseResolveRegions.mockReturnValue({
       data: { regions: [], totalAppointments: 1, unmatchedAppointmentIds: ['apt-1'] },
       isLoading: false, isError: true, refetch: vi.fn(), error: null,
-    } as any);
+    } as unknown as ReturnType<typeof useResolveRegions>);
     renderSelector();
     // isError takes priority — only one banner visible
     expect(screen.getByText(/Failed to load regions/i)).toBeInTheDocument();

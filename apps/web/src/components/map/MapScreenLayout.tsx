@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { useResizableWidth } from '@/hooks/useResizableWidth';
 
 interface MapScreenLayoutProps {
@@ -58,7 +59,10 @@ export function MapScreenLayout({
       {/* Floating filter panel — fixed position so it overlays the map without displacing it */}
       {sidePanelOpen && (
         <div
-          className={`fixed left-4 top-4 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg/85 shadow-xl backdrop-blur-sm md:left-[91px]${isDragging ? ' select-none' : ''}`}
+          className={cn(
+            'fixed left-4 top-4 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg/85 shadow-xl backdrop-blur-sm md:left-[91px]',
+            isDragging && 'select-none',
+          )}
           style={{ width: widthPx, maxHeight: 'calc(100dvh - 32px)' }}
           data-testid="map-side-panel"
         >

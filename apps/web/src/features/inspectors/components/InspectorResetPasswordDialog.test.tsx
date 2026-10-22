@@ -122,8 +122,8 @@ describe('InspectorResetPasswordDialog', () => {
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith(
-        '/v1/inspectors/insp-01/reset-password',
-        expect.objectContaining({ body: { newPassword: 'NewStrong1!' } }),
+        '/v1/inspectors/{inspectorId}/reset-password',
+        expect.objectContaining({ params: { path: { inspectorId: 'insp-01' } }, body: { newPassword: 'NewStrong1!' } }),
       );
     });
     await waitFor(() => expect(onReset).toHaveBeenCalled());

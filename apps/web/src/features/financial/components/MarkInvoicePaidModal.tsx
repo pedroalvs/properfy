@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { zonedWallTimeToUtc } from '@properfy/shared';
+import { zonedWallTimeToUtc, createIdempotencyKeyManager } from '@properfy/shared';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -88,6 +88,10 @@ export function MarkInvoicePaidModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showSuccess, showError } = useSnackbar();
   const queryClient = useQueryClient();
+  // Stable key per mark-paid submit (single or batch), rotated only on success
+  // (HOL-3a): a re-submit after a lost response dedupes server-side rather than
+  // paying an invoice twice. Both API branches below send this same key.
+  const idempotencyKey = useRef(createIdempotencyKeyManager());
 
   const isBatch = invoiceIds.length > 1;
   const title = isBatch ? `Mark ${invoiceIds.length} Invoices as Paid` : 'Mark Invoice as Paid';
@@ -138,17 +142,17 @@ export function MarkInvoicePaidModal({
 
       if (isBatch) {
         const { data, error, response } = await api.POST(
-          '/v1/billing/invoices/batch-mark-paid' as never,
+          '/v1/billing/invoices/batch-mark-paid',
           {
-            body: { invoiceIds, ...body } as never,
-            headers: { 'Idempotency-Key': crypto.randomUUID() },
-          } as never,
+            body: { invoiceIds, ...body },
+            headers: { 'Idempotency-Key': idempotencyKey.current.current() },
+          },
         );
         if (error) {
           showError(friendlyError(toApiError(error, (response as Response | undefined)?.status)));
           return;
         }
-        const result = (data as { data?: BatchResponseData })?.data;
+        const result = (data as unknown as { data?: BatchResponseData })?.data;
         const processed = result?.processed?.length ?? 0;
         const skipped = result?.skipped?.length ?? 0;
         const message =
@@ -157,14 +161,14 @@ export function MarkInvoicePaidModal({
             : `${processed} invoice${processed === 1 ? '' : 's'} marked as paid`;
         showSuccess(message);
       } else {
-        const invoiceId = invoiceIds[0];
+        const invoiceId = invoiceIds[0]!; // guarded above: invoiceIds.length !== 0
         const { error, response } = await api.POST(
-          '/v1/billing/invoices/{invoiceId}/mark-paid' as never,
+          '/v1/billing/invoices/{invoiceId}/mark-paid',
           {
             params: { path: { invoiceId } },
-            body: body as never,
-            headers: { 'Idempotency-Key': crypto.randomUUID() },
-          } as never,
+            body,
+            headers: { 'Idempotency-Key': idempotencyKey.current.current() },
+          },
         );
         if (error) {
           showError(friendlyError(toApiError(error, (response as Response | undefined)?.status)));
@@ -173,6 +177,9 @@ export function MarkInvoicePaidModal({
         showSuccess('Invoice marked as paid');
       }
 
+      // Only reached when the request above succeeded (both branches return
+      // early on error) — rotate so the NEXT submit starts a fresh operation.
+      idempotencyKey.current.rotate();
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['billing', 'reconciliation-summary'] });
       onSuccess();

@@ -68,7 +68,8 @@ describe('POST /v1/billing/invoices/:invoiceId/approve-draft', () => {
 
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/approve-draft`)
-      .set('Authorization', 'Bearer valid-token');
+      .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'approve-key-1');
 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('CLOSED');
@@ -86,7 +87,8 @@ describe('POST /v1/billing/invoices/:invoiceId/approve-draft', () => {
 
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/approve-draft`)
-      .set('Authorization', 'Bearer valid-token');
+      .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'approve-key-1');
 
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('INVOICE_NOT_PENDING_REVIEW');
@@ -100,9 +102,22 @@ describe('POST /v1/billing/invoices/:invoiceId/approve-draft', () => {
 
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/approve-draft`)
-      .set('Authorization', 'Bearer valid-token');
+      .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'approve-key-1');
 
     expect(res.status).toBe(403);
+  });
+
+  it('should return 400 when the Idempotency-Key header is missing (HOL-3b)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/billing/invoices/${INVOICE_ID}/approve-draft`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockApproveDraftExecute).not.toHaveBeenCalled();
   });
 });
 
@@ -117,6 +132,7 @@ describe('POST /v1/billing/invoices/:invoiceId/reject-draft', () => {
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/reject-draft`)
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'reject-key-1')
       .send({ reason: 'Period is incorrect, please resubmit the draft' });
 
     expect(res.status).toBe(200);
@@ -137,6 +153,7 @@ describe('POST /v1/billing/invoices/:invoiceId/reject-draft', () => {
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/reject-draft`)
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'reject-key-1')
       .send({ reason: 'Period is incorrect, please resubmit the draft' });
 
     expect(res.status).toBe(409);
@@ -176,8 +193,22 @@ describe('POST /v1/billing/invoices/:invoiceId/reject-draft', () => {
     const res = await supertest(app.server)
       .post(`/v1/billing/invoices/${INVOICE_ID}/reject-draft`)
       .set('Authorization', 'Bearer valid-token')
+      .set('Idempotency-Key', 'reject-key-1')
       .send({ reason: 'Period is incorrect, please resubmit the draft' });
 
     expect(res.status).toBe(403);
+  });
+
+  it('should return 400 when the Idempotency-Key header is missing (HOL-3b)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post(`/v1/billing/invoices/${INVOICE_ID}/reject-draft`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reason: 'Period is incorrect, please resubmit the draft' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockRejectDraftExecute).not.toHaveBeenCalled();
   });
 });

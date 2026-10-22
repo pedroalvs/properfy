@@ -144,7 +144,8 @@ describe('useAppointmentSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
       body: {
         scheduledDate: VALID_CREATE_DATA.scheduledDate,
         timeSlotStart: VALID_CREATE_DATA.timeSlotStart,
@@ -176,7 +177,7 @@ describe('useAppointmentSave', () => {
     await act(async () => {
       await result.current.save(VALID_CREATE_DATA);
     });
-    expect((mockPost.mock.calls[0]![1] as any).body).not.toHaveProperty('observation');
+    expect((mockPost.mock.calls[0]![1] as { body: Record<string, unknown> }).body).not.toHaveProperty('observation');
   });
 
   it('sends observation as null on edit when cleared', async () => {
@@ -186,7 +187,8 @@ describe('useAppointmentSave', () => {
     await act(async () => {
       await result.current.save({ ...VALID_CREATE_DATA, observation: '' }, 'apt-01');
     });
-    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
       body: expect.objectContaining({ observation: null }),
     });
   });
@@ -228,7 +230,8 @@ describe('useAppointmentSave', () => {
       }, 'apt-01');
     });
 
-    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
       body: expect.objectContaining({
         restriction: null,
       }),
@@ -248,7 +251,7 @@ describe('useAppointmentSave', () => {
           name: 'John Doe',
           email: 'john@test.com',
           phone: '11999999999',
-          role: 'RENTAL_TENANT' as any,
+          role: 'RENTAL_TENANT',
           isPrimary: true,
         },
       ],
@@ -283,7 +286,7 @@ describe('useAppointmentSave', () => {
           name: 'Jane Doe',
           email: 'jane@test.com',
           phone: '',
-          role: 'PROPERTY_MANAGER' as any,
+          role: 'PROPERTY_MANAGER',
           isPrimary: true,
         },
       ],
@@ -324,7 +327,7 @@ describe('useAppointmentSave', () => {
           name: 'Registry Contact',
           email: 'reg@test.com',
           phone: '',
-          role: 'RENTAL_TENANT' as any,
+          role: 'RENTAL_TENANT',
           isPrimary: true,
         },
         {
@@ -332,7 +335,7 @@ describe('useAppointmentSave', () => {
           name: 'New Contact',
           email: '',
           phone: '11888888888',
-          role: 'HOUSEKEEPER' as any,
+          role: 'HOUSEKEEPER',
           isPrimary: false,
         },
       ],
@@ -343,11 +346,11 @@ describe('useAppointmentSave', () => {
     });
 
     const call = mockPost.mock.calls[0]!;
-    const contacts = (call[1] as any).body.contacts;
+    const contacts = (call[1] as { body: { contacts: Array<{ inline: { displayName: string } }> } }).body.contacts;
     expect(contacts).toHaveLength(2);
     expect(contacts[0]).toEqual({ contactId: 'f47ac10b-58cc-4372-a567-0e02b2c3d499', role: 'RENTAL_TENANT', isPrimary: true });
     expect(contacts[1]).toHaveProperty('inline');
-    expect(contacts[1].inline.displayName).toBe('New Contact');
+    expect(contacts[1]!.inline.displayName).toBe('New Contact');
   });
 
   it('save returns failure on API error', async () => {
@@ -390,7 +393,7 @@ describe('useAppointmentSave', () => {
       await act(async () => {
         await result.current.save({ ...VALID_CREATE_DATA, customFields: [cf('', ''), cf('  ', '  ')] });
       });
-      expect((mockPost.mock.calls[0]![1] as any).body).not.toHaveProperty('customFields');
+      expect((mockPost.mock.calls[0]![1] as { body: Record<string, unknown> }).body).not.toHaveProperty('customFields');
     });
 
     it('always sends customFields array on edit (empty array clears)', async () => {
@@ -400,7 +403,8 @@ describe('useAppointmentSave', () => {
       await act(async () => {
         await result.current.save({ ...VALID_CREATE_DATA, customFields: [] }, 'apt-01');
       });
-      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
         body: expect.objectContaining({ customFields: [] }),
       });
 
@@ -408,7 +412,8 @@ describe('useAppointmentSave', () => {
       await act(async () => {
         await result.current.save({ ...VALID_CREATE_DATA, customFields: [cf('Gate', '1')] }, 'apt-01');
       });
-      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/apt-01', {
+      expect(mockPatch).toHaveBeenCalledWith('/v1/appointments/{appointmentId}', {
+      params: { path: { appointmentId: 'apt-01' } },
         body: expect.objectContaining({ customFields: [{ label: 'Gate', value: '1' }] }),
       });
     });
@@ -501,7 +506,7 @@ describe('useAppointmentSave', () => {
           message: 'Validation failed',
           details: [
             { field: 'scheduledDate', message: 'Scheduled date cannot be in the past' },
-            { field: 'contact.rentalTenantName', message: 'Contact name is required' },
+            { field: 'restriction.notes', message: 'Restriction notes are required' },
           ],
         },
       },
@@ -516,7 +521,7 @@ describe('useAppointmentSave', () => {
 
     expect(saveResult?.success).toBe(false);
     expect(saveResult?.fieldErrors?.scheduledDate).toBe('Scheduled date cannot be in the past');
-    expect(saveResult?.fieldErrors?.contactName).toBe('Contact name is required');
+    expect(saveResult?.fieldErrors?.restrictionNotes).toBe('Restriction notes are required');
     expect(saveResult?.errorCode).toBe('VALIDATION_ERROR');
     // All details matched — no summary error, no snackbar fallback needed.
     expect(saveResult?.error).toBeUndefined();

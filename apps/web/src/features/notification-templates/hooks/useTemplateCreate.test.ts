@@ -42,8 +42,8 @@ describe('useTemplateCreate', () => {
     });
 
     expect(mockPut).toHaveBeenCalledWith(
-      '/v1/notification-templates/INSPECTION_NOTICE_SMS/SMS',
-      { body: { subject: 'Hi', bodyHtml: data.body, isActive: true, tenantId: 'agency-1' } },
+      '/v1/notification-templates/{templateCode}/{channel}',
+      { params: { path: { templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS' } }, body: { subject: 'Hi', bodyHtml: data.body, isActive: true, tenantId: 'agency-1' } },
     );
   });
 });

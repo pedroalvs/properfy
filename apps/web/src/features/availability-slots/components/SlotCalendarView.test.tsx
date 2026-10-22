@@ -147,6 +147,25 @@ describe('SlotCalendarView', () => {
     expect(calledDate.getDate()).toBe(23);
   });
 
+  it('opens a slot tooltip on click and dismisses it with Escape', async () => {
+    const user = userEvent.setup();
+    render(
+      <SlotCalendarView
+        slots={MOCK_SLOTS}
+        selectedInspectorId=""
+        onInspectorChange={vi.fn()}
+        weekStart={MONDAY}
+        onWeekChange={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByTestId('slot-block-slot-01'));
+    expect(screen.getByTestId('slot-tooltip')).toBeInTheDocument();
+    // Keyboard users must be able to dismiss the tooltip; the backdrop click is
+    // mouse-only.
+    await user.keyboard('{Escape}');
+    expect(screen.queryByTestId('slot-tooltip')).not.toBeInTheDocument();
+  });
+
   it('renders inspector filter dropdown', () => {
     render(
       <SlotCalendarView

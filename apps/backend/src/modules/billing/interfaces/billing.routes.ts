@@ -12,6 +12,7 @@ import {
   invoiceSummaryQuerySchema,
   listInvoicesQuerySchema,
   voidFinancialEntrySchema,
+  updateFinancialEntrySchema,
   rejectDraftInvoiceSchema,
   financialEntryResponseSchema,
   agencyFinancialExportResponseSchema,
@@ -42,6 +43,7 @@ import type { GetReconciliationSummaryUseCase } from '../application/use-cases/g
 import type { GetInvoiceSummaryUseCase } from '../application/use-cases/get-invoice-summary.use-case';
 import type { CreateFinancialEntriesOnDoneUseCase } from '../application/use-cases/create-financial-entries-on-done.use-case';
 import type { VoidFinancialEntryUseCase } from '../application/use-cases/void-financial-entry.use-case';
+import type { UpdateFinancialEntryUseCase } from '../application/use-cases/update-financial-entry.use-case';
 import type { ApproveDraftInvoiceUseCase } from '../application/use-cases/approve-draft-invoice.use-case';
 import type { RejectDraftInvoiceUseCase } from '../application/use-cases/reject-draft-invoice.use-case';
 import type { ExportAgencyFinancialUseCase } from '../application/use-cases/export-agency-financial.use-case';
@@ -66,6 +68,7 @@ export interface BillingRouteContainer {
   getReconciliationSummaryUseCase: GetReconciliationSummaryUseCase;
   getInvoiceSummaryUseCase: GetInvoiceSummaryUseCase;
   voidFinancialEntryUseCase: VoidFinancialEntryUseCase;
+  updateFinancialEntryUseCase: UpdateFinancialEntryUseCase;
   approveDraftInvoiceUseCase: ApproveDraftInvoiceUseCase;
   rejectDraftInvoiceUseCase: RejectDraftInvoiceUseCase;
   exportAgencyFinancialUseCase: ExportAgencyFinancialUseCase;
@@ -525,19 +528,50 @@ export async function registerBillingRoutes(
     },
   );
 
+  // PATCH /v1/financial/entries/:entryId (WEB-FIN-TYPING) — edit a PENDING manual
+  // adjustment in place. AM/OP only (enforced in the use-case); only amount,
+  // description, effectiveAt and reason are writable. Idempotency-Key required.
+  app.patch(
+    '/v1/financial/entries/:entryId',
+    { preHandler: authenticate, schema: { params: entryIdParam, headers: idempotencyKeyHeaders, body: updateFinancialEntrySchema, response: { 200: successResponseSchema(financialEntryResponseSchema) } } },
+    async (request, reply) => {
+      const params = entryIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid entry ID', params.error.errors);
+      }
+      const parsed = updateFinancialEntrySchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const idempotencyKey = requireIdempotencyKey(request);
+      const result = await container.updateFinancialEntryUseCase.execute({
+        entryId: params.data.entryId,
+        amount: parsed.data.amount,
+        description: parsed.data.description,
+        effectiveAt: parsed.data.effectiveAt ? new Date(parsed.data.effectiveAt) : undefined,
+        reason: parsed.data.reason,
+        idempotencyKey,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
   // --- Invoice regeneration routes (GAP-007) ---
 
   // POST /v1/billing/invoices/:invoiceId/approve-draft
   app.post(
     '/v1/billing/invoices/:invoiceId/approve-draft',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }) } },
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), headers: idempotencyKeyHeaders } },
     async (request, reply) => {
       const params = invoiceIdParam.safeParse(request.params);
       if (!params.success) {
         throw new ValidationError('Invalid invoice ID', params.error.errors);
       }
+      const idempotencyKey = requireIdempotencyKey(request);
       const result = await container.approveDraftInvoiceUseCase.execute({
         invoiceId: params.data.invoiceId,
+        idempotencyKey,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -547,7 +581,7 @@ export async function registerBillingRoutes(
   // POST /v1/billing/invoices/:invoiceId/reject-draft
   app.post(
     '/v1/billing/invoices/:invoiceId/reject-draft',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: rejectDraftInvoiceSchema } },
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), headers: idempotencyKeyHeaders, body: rejectDraftInvoiceSchema } },
     async (request, reply) => {
       const params = invoiceIdParam.safeParse(request.params);
       if (!params.success) {
@@ -557,9 +591,11 @@ export async function registerBillingRoutes(
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
+      const idempotencyKey = requireIdempotencyKey(request);
       const result = await container.rejectDraftInvoiceUseCase.execute({
         invoiceId: params.data.invoiceId,
         reason: parsed.data.reason,
+        idempotencyKey,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

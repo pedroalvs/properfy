@@ -78,7 +78,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={testQueryClient}>
       <SnackbarProvider>
-        <MemoryRouter>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           {children}
           <SnackbarDisplay />
         </MemoryRouter>

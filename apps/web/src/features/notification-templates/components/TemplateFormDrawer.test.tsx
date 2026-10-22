@@ -59,7 +59,7 @@ function createWrapper() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <SnackbarProvider>
-            <MemoryRouter>{children}</MemoryRouter>
+            <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>{children}</MemoryRouter>
           </SnackbarProvider>
         </AuthProvider>
       </QueryClientProvider>
@@ -535,7 +535,7 @@ describe('TemplateFormDrawer', () => {
 
     await waitFor(() => {
       expect(mockPut).toHaveBeenCalledWith(
-        '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
+        '/v1/notification-templates/{templateCode}/{channel}',
         expect.objectContaining({ body: expect.any(Object) }),
       );
     });
@@ -553,7 +553,7 @@ describe('TemplateFormDrawer', () => {
 
     await waitFor(() => {
       expect(mockPut).toHaveBeenCalledWith(
-        '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
+        '/v1/notification-templates/{templateCode}/{channel}',
         expect.objectContaining({ body: expect.objectContaining({ tenantId: 'agency-1' }) }),
       );
     });

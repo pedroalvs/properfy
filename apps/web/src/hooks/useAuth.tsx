@@ -133,13 +133,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error, response } = await api.POST('/v1/auth/login', {
       body: { email, password, ...(totpCode ? { totpCode } : {}) },
     });
-    const err = error as any;
-    if (err || !data) {
-      throw new ApiError(
-        response.status,
-        err?.error?.message ?? 'Login failed',
-        err?.error?.code,
-      );
+    if (error || !data) {
+      const apiError = toApiError(error, (response as Response | undefined)?.status);
+      throw new ApiError(apiError.status, apiError.message || 'Login failed', apiError.code);
     }
     // The account still owes a 2FA enrolment (AM). The backend issues only a
     // `totp_setup`-stage token, rejected by every protected route, so it must NOT
@@ -195,9 +191,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // the gap), the account is already enrolled — re-confirming would 409, so a
       // retry must skip straight to re-authentication with a fresh code.
       if (!pending.confirmed) {
-        // The generated types don't model this route's body (mirrors useTotpConfirm).
-        const { error, response } = await api.POST('/v1/auth/2fa/confirm' as any, {
-          body: { totpCode } as any,
+        const { error, response } = await api.POST('/v1/auth/2fa/confirm', {
+          body: { totpCode },
           headers: { Authorization: `Bearer ${pending.stagedToken}` },
         });
         if (error) throw toApiError(error, (response as Response | undefined)?.status);
