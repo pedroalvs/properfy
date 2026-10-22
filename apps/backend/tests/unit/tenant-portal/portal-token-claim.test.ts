@@ -8,7 +8,7 @@ import type { IAppointmentRepository } from '../../../src/modules/appointment/do
 import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
-import { PortalTokenAlreadyUsedError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
+import { PortalTokenAlreadyUsedError, PortalAppointmentInactiveError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
 // Freeze "now" so the mock scheduledDate stays in the future and the 30-day
 // reschedule window guard never trips on CI date drift (same convention as
@@ -183,6 +183,55 @@ describe('ConfirmAppointmentUseCase atomic token claim', () => {
     expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     expect(appointmentRepo.update).not.toHaveBeenCalled();
     expect(activityRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('releases the claim and throws inactive when the appointment turned terminal after the claim', async () => {
+    const { useCase, activityRepo, appointmentRepo, tokenRepo, input } = build();
+    appointmentRepo.findById
+      .mockResolvedValueOnce({ appointment: makeAppointment(), contact: null, contacts: [], restrictions: [] })
+      .mockResolvedValueOnce({ appointment: makeAppointment({ status: 'CANCELLED' }), contact: null, contacts: [], restrictions: [] });
+
+    await expect(useCase.execute(input)).rejects.toThrow(PortalAppointmentInactiveError);
+
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+    expect(activityRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('releases the claim when the post-claim re-read itself fails', async () => {
+    // The claim is already held at this point, so a transient read failure must
+    // not strand the token — otherwise it reintroduces the very bug this fixes.
+    const { useCase, tokenRepo, appointmentRepo, input } = build();
+    appointmentRepo.findById
+      .mockResolvedValueOnce({ appointment: makeAppointment(), contact: null, contacts: [], restrictions: [] })
+      .mockRejectedValueOnce(new Error('db read failed'));
+
+    await expect(useCase.execute(input)).rejects.toThrow('db read failed');
+
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+  });
+
+  it('applies the confirmation against the fresh post-claim read, not the pre-claim snapshot', async () => {
+    const { useCase, appointmentRepo, input } = build();
+    const operatorRestriction = {
+      id: 'restr-1', appointmentId: 'appt-1', isHome: true,
+      unavailableDaysJson: null, unavailableHoursJson: null,
+      availableSlotsJson: [{ date: '2026-04-16', timeSlotStart: '09:00', timeSlotEnd: '12:00' }],
+      notes: null, source: 'OPERATOR', createdAt: new Date(), updatedAt: new Date(),
+    };
+    // Pre-claim read has no restrictions; the fresh read gains an operator one.
+    appointmentRepo.findById
+      .mockResolvedValueOnce({ appointment: makeAppointment(), contact: null, contacts: [], restrictions: [] })
+      .mockResolvedValueOnce({ appointment: makeAppointment(), contact: null, contacts: [], restrictions: [operatorRestriction] });
+
+    await useCase.execute(input);
+
+    // Using the stale pre-claim read would pass null; the fresh read preserves
+    // the operator restriction (with its offered availability dropped).
+    expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledWith(
+      'appt-1',
+      expect.objectContaining({ source: 'OPERATOR', availableSlotsJson: null }),
+    );
   });
 
   it('does not claim the token on the idempotent already-CONFIRMED path', async () => {

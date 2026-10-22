@@ -106,19 +106,27 @@ export class ConfirmAppointmentUseCase {
       // both requests would apply the confirmation and emit duplicate activity,
       // audit, notification and CONFIRMED events. Mirrors join-group's post-claim
       // re-read. Only reachable with a tokenRepo, which is what serialises.
-      const fresh = await this.appointmentRepo.findById(input.appointmentId, null);
-      if (!fresh || INACTIVE_STATUSES.includes(fresh.appointment.status as (typeof INACTIVE_STATUSES)[number])) {
+      //
+      // Wrapped so that a failure of the re-read itself hands the claim back:
+      // the claim is already held here, so a transient read error must not strand
+      // the token exactly as the pre-fix bug did.
+      try {
+        const fresh = await this.appointmentRepo.findById(input.appointmentId, null);
+        if (!fresh || INACTIVE_STATUSES.includes(fresh.appointment.status as (typeof INACTIVE_STATUSES)[number])) {
+          throw new PortalAppointmentInactiveError();
+        }
+        if (fresh.appointment.rentalTenantConfirmationStatus === 'CONFIRMED') {
+          await this.releaseClaimQuietly(input);
+          return {
+            rentalTenantConfirmationStatus: 'CONFIRMED' as const,
+            confirmedAt: new Date().toISOString(),
+          };
+        }
+        confirmSource = fresh;
+      } catch (error) {
         await this.releaseClaimQuietly(input);
-        throw new PortalAppointmentInactiveError();
+        throw error;
       }
-      if (fresh.appointment.rentalTenantConfirmationStatus === 'CONFIRMED') {
-        await this.releaseClaimQuietly(input);
-        return {
-          rentalTenantConfirmationStatus: 'CONFIRMED' as const,
-          confirmedAt: new Date().toISOString(),
-        };
-      }
-      confirmSource = fresh;
     }
 
     try {
