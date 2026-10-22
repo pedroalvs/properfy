@@ -123,12 +123,15 @@ describe('ConfirmAppointmentUseCase atomic token claim', () => {
     return { useCase, activityRepo, appointmentRepo, tokenRepo, input };
   }
 
-  it('claims the token atomically before any side effect', async () => {
+  it('claims the token atomically before any side effect, then hands it back', async () => {
     const { useCase, tokenRepo, input } = build();
     await useCase.execute(input);
     expect(tokenRepo.tryClaim).toHaveBeenCalledTimes(1);
     expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
-    expect(tokenRepo.releaseClaim).not.toHaveBeenCalled();
+    // The claim is released on success so the same link can still change time
+    // afterwards (symmetry with the decline path). The "already CONFIRMED"
+    // short-circuit is the replay guard, not a permanently consumed token.
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
   });
 
   it('throws PortalTokenAlreadyUsedError and performs no side effect when the claim loses the race', async () => {
@@ -141,6 +144,18 @@ describe('ConfirmAppointmentUseCase atomic token claim', () => {
     expect(appointmentRepo.deleteRestrictionsByAppointmentId).not.toHaveBeenCalled();
     expect(activityRepo.save).not.toHaveBeenCalled();
     expect(tokenRepo.releaseClaim).not.toHaveBeenCalled();
+  });
+
+  it('succeeds even when the post-confirmation claim release fails', async () => {
+    // The confirmation is already committed by the time the claim is handed
+    // back, so a release failure must not surface as an error to the tenant.
+    const { useCase, tokenRepo, input } = build();
+    tokenRepo.releaseClaim.mockRejectedValue(new Error('release failed'));
+
+    const result = await useCase.execute(input);
+
+    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
   });
 
   it('does not claim the token on the idempotent already-CONFIRMED path', async () => {

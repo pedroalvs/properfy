@@ -881,7 +881,7 @@ export function createContainer(logger: Logger): AppContainer {
   const submitSatisfactionSurveyUseCase = new SubmitSatisfactionSurveyUseCase(satisfactionSurveyRepo, appointmentRepo, rentalTenantPortalActivityRepo, auditService);
 
   const getPortalDataUseCase = new GetPortalDataUseCase(rentalTenantPortalTokenRepo, rentalTenantPortalActivityRepo, appointmentRepo, propertyRepo, serviceTypeRepo, tenantRepo, satisfactionSurveyRepo, inspectorRepo);
-  const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(rentalTenantPortalActivityRepo, appointmentRepo, auditService, notifyOnRentalTenantPortalActionHandler, domainEventBus, rentalTenantPortalTokenRepo, confirmationCycleService);
+  const confirmAppointmentUseCase = new ConfirmAppointmentUseCase(rentalTenantPortalActivityRepo, appointmentRepo, auditService, notifyOnRentalTenantPortalActionHandler, domainEventBus, rentalTenantPortalTokenRepo, confirmationCycleService, logger);
   const updateContactUseCase = new UpdateContactUseCase(rentalTenantPortalActivityRepo, appointmentRepo, auditService, domainEventBus, contactRepo);
   const generatePortalTokenUseCase = new GeneratePortalTokenUseCase(rentalTenantPortalTokenRepo, appointmentRepo, tenantRepo, mintPortalTokenService, auditService, env.TENANT_PORTAL_BASE_URL, createNotificationUseCase, confirmationCycleService, prisma, logger);
   const getPortalLinkUseCase = portalTokenEncrypter

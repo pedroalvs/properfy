@@ -10,6 +10,7 @@ import { AppointmentRestrictionEntity } from '../../../appointment/domain/appoin
 import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
 import { ConfirmationCycleNotFoundError } from '../../../appointment/domain/confirmation-cycle.errors';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 import {
   PortalActionBlockedError,
   PortalAppointmentInactiveError,
@@ -45,6 +46,7 @@ export class ConfirmAppointmentUseCase {
     private readonly domainEventBus?: DomainEventBus,
     private readonly tokenRepo?: IRentalTenantPortalTokenRepository,
     private readonly cycleService?: ConfirmationCycleService,
+    private readonly logger?: Logger,
   ) {}
 
   async execute(input: ConfirmAppointmentInput) {
@@ -109,6 +111,27 @@ export class ConfirmAppointmentUseCase {
         }
       }
       throw error;
+    }
+
+    // Hand the link back. Confirming is not the tenant's last possible action:
+    // the appointment stays non-terminal and the change-time picker revives it,
+    // so consuming the token here would strand them on "contact our team". The
+    // replay guard for a re-confirm is the "already CONFIRMED" short-circuit
+    // above, not the claim — exactly as decline relies on "already UNAVAILABLE".
+    //
+    // Not allowed to fail the request: the confirmation is already committed, so
+    // throwing here would show an error for a confirmation that worked. Logged
+    // instead, because the outcome — token consumed, change-time broken for this
+    // link — still needs to be visible.
+    if (this.tokenRepo) {
+      try {
+        await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
+      } catch (err) {
+        this.logger?.error(
+          { err, appointmentId: input.appointmentId, tokenId: input.tokenId },
+          'Failed to release the portal token after a confirmation; the tenant cannot change time with this link',
+        );
+      }
     }
 
     return {
