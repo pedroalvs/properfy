@@ -67,6 +67,9 @@ export class ConfirmAppointmentUseCase {
     }
 
     const { appointment } = result;
+    // The read applyConfirmation runs against. Replaced by the post-claim re-read
+    // below so the side effects use the freshest state, not the pre-claim one.
+    let confirmSource = result;
 
     // 3. Block for inactive appointment statuses FIRST — a cancelled appointment must
     // never confirm, not even through the idempotent path below (residual CONFIRMED).
@@ -115,10 +118,11 @@ export class ConfirmAppointmentUseCase {
           confirmedAt: new Date().toISOString(),
         };
       }
+      confirmSource = fresh;
     }
 
     try {
-      await this.applyConfirmation(input, appointment, result.restrictions);
+      await this.applyConfirmation(input, confirmSource.appointment, confirmSource.restrictions);
     } catch (error) {
       // Best-effort release so the tenant can retry with the same link;
       // never mask the original failure.
