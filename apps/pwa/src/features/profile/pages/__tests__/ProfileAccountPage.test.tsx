@@ -92,6 +92,11 @@ describe('ProfileAccountPage', () => {
     expect(screen.getByTestId('sessions-section')).toBeInTheDocument();
   });
 
+  it('links to App settings in the growth list', () => {
+    renderWithProviders(<ProfileAccountPage />);
+    expect(screen.getByRole('link', { name: 'App settings' })).toHaveAttribute('href', '/profile/settings');
+  });
+
   it('calls useUnsavedChangesPrompt with aggregated dirty state', () => {
     renderWithProviders(<ProfileAccountPage />);
     expect(mockUsePrompt).toHaveBeenCalledWith(false);

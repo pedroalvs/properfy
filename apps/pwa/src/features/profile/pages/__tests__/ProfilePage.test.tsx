@@ -4,13 +4,27 @@ import { renderWithProviders } from '@/test-utils';
 import { ProfilePage } from '../ProfilePage';
 
 const mockUseAuth = vi.fn();
+const mockUseInspectorMe = vi.fn();
+const mockUseAvailability = vi.fn();
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-describe('ProfilePage (menu)', () => {
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
+vi.mock('../../hooks/useInspectorMe', () => ({
+  useInspectorMe: () => mockUseInspectorMe(),
+}));
+
+vi.mock('../../hooks/useInspectorAvailabilityTemplate', () => ({
+  useInspectorAvailabilityTemplate: () => mockUseAvailability(),
+}));
+
+describe('ProfilePage (tiles)', () => {
   const logout = vi.fn();
 
   beforeEach(() => {
@@ -29,6 +43,8 @@ describe('ProfilePage (menu)', () => {
       },
       logout,
     });
+    mockUseInspectorMe.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    mockUseAvailability.mockReturnValue({ data: undefined, isLoading: false, isError: false });
   });
 
   it('renders the identity header with name and an Active badge', () => {
@@ -37,14 +53,93 @@ describe('ProfilePage (menu)', () => {
     expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
-  it('renders the menu rows pointing at the correct sub-routes', () => {
+  it('renders the four tiles pointing at the correct destinations', () => {
     renderWithProviders(<ProfilePage />);
+    // The tile's accessible name folds in its status line ("Earnings, Payments & invoices"),
+    // so match on the leading label rather than an exact string.
+    expect(screen.getByRole('link', { name: /^Earnings/ })).toHaveAttribute('href', '/earnings');
+    expect(screen.getByRole('link', { name: /^Availability/ })).toHaveAttribute('href', '/profile/availability');
+    expect(screen.getByRole('link', { name: /^Documents/ })).toHaveAttribute('href', '/profile/documents');
+    expect(screen.getByRole('link', { name: /^My account/ })).toHaveAttribute('href', '/profile/account');
+  });
 
-    expect(screen.getByRole('link', { name: 'Earnings' })).toHaveAttribute('href', '/earnings');
-    expect(screen.getByRole('link', { name: 'Availability' })).toHaveAttribute('href', '/profile/availability');
-    expect(screen.getByRole('link', { name: 'Documents' })).toHaveAttribute('href', '/profile/documents');
-    expect(screen.getByRole('link', { name: 'Account details' })).toHaveAttribute('href', '/profile/account');
-    expect(screen.getByRole('link', { name: 'App settings' })).toHaveAttribute('href', '/profile/settings');
+  it('exposes the documents status in the tile accessible name', () => {
+    mockUseInspectorMe.mockReturnValue({
+      data: {
+        data: {
+          insuranceFileKey: 'ins.pdf',
+          insuranceExpiresAt: '2000-01-01',
+          policeCheckFileKey: 'pc.pdf',
+          policeCheckExpiresAt: '2999-01-01',
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByRole('link', { name: /Documents, Action needed/ })).toBeInTheDocument();
+  });
+
+  it('shows a neutral availability label while the template has not loaded', () => {
+    // default beforeEach mocks availability data: undefined
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByText('Working days')).toBeInTheDocument();
+    expect(screen.queryByText('Not set')).not.toBeInTheDocument();
+  });
+
+  it('no longer surfaces App settings or Account details on the main screen', () => {
+    renderWithProviders(<ProfilePage />);
+    expect(screen.queryByRole('link', { name: 'App settings' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Account details' })).not.toBeInTheDocument();
+  });
+
+  it('shows the rating from the inspector record in the header', () => {
+    mockUseInspectorMe.mockReturnValue({
+      data: { data: { rating: { average: 4.8, responseCount: 12, doneServicesCount: 132 } } },
+      isLoading: false,
+      isError: false,
+    });
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByText('4.8')).toBeInTheDocument();
+  });
+
+  it('flags documents needing attention with a status label', () => {
+    mockUseInspectorMe.mockReturnValue({
+      // insurance expired → danger / "Action needed"
+      data: {
+        data: {
+          insuranceFileKey: 'ins.pdf',
+          insuranceExpiresAt: '2000-01-01',
+          policeCheckFileKey: 'pc.pdf',
+          policeCheckExpiresAt: '2999-01-01',
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByText('Action needed')).toBeInTheDocument();
+  });
+
+  it('summarises availability on the tile', () => {
+    mockUseAvailability.mockReturnValue({
+      data: {
+        template: {
+          mon: { am: true, pm: true },
+          tue: { am: true, pm: true },
+          wed: { am: true, pm: true },
+          thu: { am: true, pm: true },
+          fri: { am: true, pm: true },
+          sat: { am: false, pm: false },
+          sun: { am: false, pm: false },
+        },
+        overrides: {},
+      },
+      isLoading: false,
+      isError: false,
+    });
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByText('Mon–Fri')).toBeInTheDocument();
   });
 
   it('logs out when the Log out row is pressed', async () => {

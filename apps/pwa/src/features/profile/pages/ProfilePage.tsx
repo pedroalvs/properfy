@@ -1,30 +1,47 @@
-import { CalendarClock, FileText, LogOut, SlidersHorizontal, User, Wallet } from 'lucide-react';
+import { useMemo } from 'react';
+import { CalendarClock, FileText, LogOut, Star, User, Wallet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { MenuList, MenuRow } from '@/components/ui/MenuRow';
 import { Badge } from '@/components/ui/Badge';
-
-/** Small eyebrow label above each menu group. */
-function SectionLabel({ children }: { children: string }) {
-  return (
-    <p className="px-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-      {children}
-    </p>
-  );
-}
+import { ProfileTile, type ProfileTileTone } from '../components/ProfileTile';
+import { useInspectorMe } from '../hooks/useInspectorMe';
+import { useInspectorAvailabilityTemplate } from '../hooks/useInspectorAvailabilityTemplate';
+import { getDocumentsStatus } from '../lib/documents-status';
+import { summarizeAvailability } from '../lib/availability-summary';
 
 export function ProfilePage() {
   const { user, logout } = useAuth();
+  const timeZone = useEffectiveTimezone();
+  const { data: inspectorMe } = useInspectorMe();
+  const { data: availability } = useInspectorAvailabilityTemplate();
+
+  // useInspectorMe resolves to the `{ data: InspectorMe }` envelope.
+  const inspector = inspectorMe?.data;
+
+  const documents = useMemo(
+    () => (inspector ? getDocumentsStatus(inspector, timeZone) : null),
+    [inspector, timeZone],
+  );
+  // While the template is loading/errored/uncached, show a neutral label rather
+  // than "Not set" (which would wrongly imply the inspector has no schedule).
+  const availabilitySummary = useMemo(
+    () => (availability ? summarizeAvailability(availability.template) : 'Working days'),
+    [availability],
+  );
+  const rating = inspector?.rating;
 
   if (!user) return null;
 
   // A logged-in inspector is Active unless the account carries another status.
   const isActive = (user.status ?? 'ACTIVE') === 'ACTIVE';
 
+  const documentsTone: ProfileTileTone = documents?.tone ?? 'default';
+  const documentsValue = documents?.label ?? 'Insurance & police check';
+
   return (
     <div className="w-full pb-20">
-      {/* v3 Profile opens directly on the identity card — no redundant "Account"
-          title bar above it. The global OfflineBanner + bottom nav are unaffected. */}
-      <div className="flex flex-col gap-3 p-4">
+      <div className="flex flex-col gap-4 p-4">
         {/* Identity header */}
         <section className="flex items-center gap-4 rounded-card border border-border bg-card p-4 shadow-sm">
           {user.inspectorPhotoUrl ? (
@@ -40,53 +57,51 @@ export function ProfilePage() {
           )}
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-extrabold tracking-tight text-foreground">{user.name}</h1>
-            <p className="truncate text-sm text-muted-foreground">Inspector</p>
+            <p className="flex items-center gap-1.5 truncate text-sm text-muted-foreground">
+              <span>Inspector</span>
+              {rating?.average != null && (
+                <span className="inline-flex items-center gap-0.5 font-semibold text-foreground">
+                  <Star className="h-3.5 w-3.5 fill-current text-warning" aria-hidden="true" />
+                  {rating.average.toFixed(1)}
+                </span>
+              )}
+            </p>
           </div>
           {isActive && <Badge tone="green">Active</Badge>}
         </section>
 
-        {/* Work */}
-        <SectionLabel>Work</SectionLabel>
-        <MenuList>
-          <MenuRow
-            icon={<Wallet className="h-5 w-5" aria-hidden="true" />}
+        {/* Big tiles — glanceable, large touch targets for the field. */}
+        <div className="grid grid-cols-2 gap-3">
+          <ProfileTile
+            icon={<Wallet className="h-6 w-6" aria-hidden="true" />}
             label="Earnings"
-            sublabel="Payments and invoices"
+            value="Payments & invoices"
             to="/earnings"
           />
-        </MenuList>
-
-        {/* Account */}
-        <SectionLabel>Account</SectionLabel>
-        <MenuList>
-          <MenuRow
-            icon={<CalendarClock className="h-5 w-5" aria-hidden="true" />}
+          <ProfileTile
+            icon={<CalendarClock className="h-6 w-6" aria-hidden="true" />}
             label="Availability"
-            sublabel="Working days and areas"
+            value={availabilitySummary}
             to="/profile/availability"
           />
-          <MenuRow
-            icon={<FileText className="h-5 w-5" aria-hidden="true" />}
+          <ProfileTile
+            icon={<FileText className="h-6 w-6" aria-hidden="true" />}
             label="Documents"
-            sublabel="Insurance, police check, ABN"
+            value={documentsValue}
+            tone={documentsTone}
             to="/profile/documents"
+            data-testid="profile-tile-documents"
           />
-          <MenuRow
-            icon={<User className="h-5 w-5" aria-hidden="true" />}
-            label="Account details"
-            sublabel="Profile, phone, timezone and security"
+          <ProfileTile
+            icon={<User className="h-6 w-6" aria-hidden="true" />}
+            label="My account"
+            value="Details & security"
             to="/profile/account"
           />
-          <MenuRow
-            icon={<SlidersHorizontal className="h-5 w-5" aria-hidden="true" />}
-            label="App settings"
-            sublabel="Install and app info"
-            to="/profile/settings"
-          />
-        </MenuList>
+        </div>
 
         {/* Log out */}
-        <MenuList className="mt-2">
+        <MenuList className="mt-1">
           <MenuRow
             icon={<LogOut className="h-5 w-5" aria-hidden="true" />}
             label="Log out"

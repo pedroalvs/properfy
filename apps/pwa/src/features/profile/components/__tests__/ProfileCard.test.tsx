@@ -3,15 +3,13 @@ import { renderWithProviders } from '@/test-utils';
 import { ProfileCard } from '../ProfileCard';
 
 describe('ProfileCard', () => {
-  it('renders profile details and security fields', () => {
+  it('renders the condensed identity and account summary', () => {
     renderWithProviders(
       <ProfileCard
         name="Inspector Jane"
         email="jane@test.com"
         role="INSP"
         status="ACTIVE"
-        phone="+5511999999999"
-        totpEnabled
         lastLoginAt="2026-03-24T10:00:00Z"
       />,
     );
@@ -21,12 +19,17 @@ describe('ProfileCard', () => {
     expect(screen.getByText('Inspector')).toBeInTheDocument();
     expect(screen.getByText('Account Status')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
-    expect(screen.getByText('Phone')).toBeInTheDocument();
-    expect(screen.getByText('+5511999999999')).toBeInTheDocument();
-    expect(screen.getByText('Two-Factor')).toBeInTheDocument();
-    expect(screen.getByText('Enabled')).toBeInTheDocument();
     expect(screen.getByText('Last Login')).toBeInTheDocument();
     expect(screen.getByText(/managed by your operations team/i)).toBeInTheDocument();
+  });
+
+  it('no longer duplicates the editable phone / timezone / 2FA fields', () => {
+    renderWithProviders(
+      <ProfileCard name="Inspector Jane" email="jane@test.com" role="INSP" status="ACTIVE" />,
+    );
+    expect(screen.queryByText('Phone')).not.toBeInTheDocument();
+    expect(screen.queryByText('Timezone')).not.toBeInTheDocument();
+    expect(screen.queryByText('Two-Factor')).not.toBeInTheDocument();
   });
 
   it('renders <img> avatar when photoUrl is provided', () => {

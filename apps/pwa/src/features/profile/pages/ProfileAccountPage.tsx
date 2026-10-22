@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { TIMING } from '@properfy/frontend-standards';
 import { z } from 'zod';
+import { SlidersHorizontal } from 'lucide-react';
 import { applyPhoneMask, formatAuPhone, maxPhoneDigits, stripNonDigits, toE164Au } from '@properfy/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { TopBar } from '@/components/shell/TopBar';
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/Form';
 import { TimezonePicker } from '@/components/ui/TimezonePicker';
+import { MenuList, MenuRow } from '@/components/ui/MenuRow';
 import { ProfileCard } from '../components/ProfileCard';
 import { AvatarUploader } from '../components/AvatarUploader';
 import { ChangePasswordSection } from '../components/ChangePasswordSection';
@@ -130,7 +132,7 @@ export function ProfileAccountPage() {
 
   return (
     <div className="w-full pb-20">
-      <TopBar title="Account details" showBack backTo="/profile" backHideOnWide />
+      <TopBar title="My account" showBack backTo="/profile" backHideOnWide />
 
       {/* Settings read best as a comfortable centered column; short cards pair 2-up on tablet to
           shorten the page. Inert on phone (max-w-2xl > phone width). */}
@@ -140,9 +142,6 @@ export function ProfileAccountPage() {
           email={user.email}
           role={user.role}
           status={user.status}
-          phone={user.phone}
-          timezone={user.timezone}
-          totpEnabled={totpEnabled}
           lastLoginAt={user.lastLoginAt}
           photoUrl={user.inspectorPhotoUrl}
           showStats={user.role === 'INSP'}
@@ -245,6 +244,17 @@ export function ProfileAccountPage() {
         <ChangePasswordSection />
         <TwoFactorSection enabled={totpEnabled} onEnabled={() => setTotpEnabled(true)} />
         <SessionsSection />
+
+        {/* More — the growth list for future account sub-screens. */}
+        <SectionLabel>More</SectionLabel>
+        <MenuList>
+          <MenuRow
+            icon={<SlidersHorizontal className="h-5 w-5" aria-hidden="true" />}
+            label="App settings"
+            sublabel="Install and app info"
+            to="/profile/settings"
+          />
+        </MenuList>
       </div>
     </div>
   );
