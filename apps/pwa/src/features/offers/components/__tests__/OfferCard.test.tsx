@@ -53,6 +53,34 @@ describe('OfferCard', () => {
     expect(cta.className).toContain('border-primary');
   });
 
+  it('wires the disclosure toggle to its panel when used as an accordion header', () => {
+    render(
+      <OfferCard
+        offer={baseOffer}
+        state="IDLE"
+        onAccept={onAccept}
+        onViewDetail={vi.fn()}
+        showAccept={false}
+        expanded
+        panelId="offer-detail-x"
+      />,
+    );
+    const cta = screen.getByTestId('view-detail-button');
+    expect(cta).toHaveTextContent('Hide details');
+    expect(cta).toHaveAttribute('aria-expanded', 'true');
+    expect(cta).toHaveAttribute('aria-controls', 'offer-detail-x');
+    // Accept CTA is suppressed in accordion-header mode (accept lives in the panel).
+    expect(screen.queryByTestId('accept-button')).toBeNull();
+  });
+
+  it('keeps the plain "View details" (no disclosure semantics) in the feed', () => {
+    render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} onViewDetail={vi.fn()} />);
+    const cta = screen.getByTestId('view-detail-button');
+    expect(cta).toHaveTextContent('View details');
+    expect(cta).not.toHaveAttribute('aria-controls');
+    expect(cta.getAttribute('aria-expanded')).toBeNull();
+  });
+
   it('fires the drill-down navigation when "View details" is clicked', async () => {
     vi.useRealTimers();
     const user = userEvent.setup();

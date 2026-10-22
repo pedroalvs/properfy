@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { Clock, ClockAlert, Home, MapPin } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, ClockAlert, Home, MapPin } from 'lucide-react';
 import { cn, TIMING } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
 import { Badge, type BadgeProps } from '@/components/ui/Badge';
@@ -24,6 +24,14 @@ interface OfferCardProps {
   state: OfferAcceptState;
   onAccept: () => void;
   onViewDetail?: () => void;
+  /** Hide the inline "Accept offer" CTA (accordion header: accept lives in the expanded panel). */
+  showAccept?: boolean;
+  /** Ring highlight when this offer is the selected/expanded one (extended layout). */
+  selected?: boolean;
+  /** Flips the detail toggle to "Hide details" + up-chevron and sets aria-expanded (accordion). */
+  expanded?: boolean;
+  /** Id of the disclosure panel this card's toggle controls (accordion a11y). */
+  panelId?: string;
 }
 
 /**
@@ -70,7 +78,16 @@ const stateLabels: Partial<Record<OfferAcceptState, { label: string; tone: Badge
   GONE: { label: 'No longer available', tone: 'gray' },
 };
 
-export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onViewDetail }: OfferCardProps) {
+export const OfferCard = memo(function OfferCard({
+  offer,
+  state,
+  onAccept,
+  onViewDetail,
+  showAccept = true,
+  selected = false,
+  expanded = false,
+  panelId,
+}: OfferCardProps) {
   const timeZone = useEffectiveTimezone();
   const dayLabel = relativeDayLabel(offer.scheduledDate, timeZone);
   const resolved = stateLabels[state];
@@ -102,6 +119,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
     <Card
       className={cn(
         'overflow-hidden p-0 transition-opacity duration-500',
+        selected && 'ring-2 ring-primary/40',
         faded && 'opacity-40',
       )}
       data-testid={`offer-card-${offer.groupId}`}
@@ -210,16 +228,19 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
           </div>
         )}
 
-        {/* Actions: outline "View details" drill-down + primary Accept, side by side per v3 p8 */}
+        {/* Actions: outline "View details"/disclosure toggle + primary Accept, side by side per v3 p8 */}
         <div className="mt-4 flex gap-2">
           {onViewDetail && (
             <Button
               variant="outlined"
               onClick={onViewDetail}
-              className="flex-1"
+              className="flex-1 gap-1"
               data-testid="view-detail-button"
+              aria-expanded={panelId ? expanded : undefined}
+              aria-controls={panelId}
             >
-              View details
+              {expanded ? 'Hide details' : 'View details'}
+              {panelId && (expanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />)}
             </Button>
           )}
           {resolved ? (
@@ -231,7 +252,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
             >
               {resolved.label}
             </Badge>
-          ) : (
+          ) : showAccept ? (
             <Button
               variant="primary"
               onClick={onAccept}
@@ -242,7 +263,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
             >
               Accept offer
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
     </Card>

@@ -1,6 +1,5 @@
 import { PROPERTY_TYPE_LABELS } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { formatCurrency } from '@/lib/format-currency';
 import { formatCivilDate, formatWallTimeRange, formatWallTimeWindow } from '@/lib/format-date';
 import { useIsOnline } from '@/hooks/useIsOnline';
@@ -72,58 +71,60 @@ export function GroupDetailContent({ groupId, onAccept, accepting }: Props) {
               <span className="text-xs text-muted-foreground">{formatCivilDate(data.scheduledDate)}</span>
             </div>
 
-            <ul className="divide-y divide-border">
-              {data.appointments.map((appt) => (
-                <li key={appt.id} className="py-3">
-                  <div className="flex items-start justify-between">
-                    <div className="text-sm">
-                      {appt.appointmentCode && (
-                        <Badge tone="gray" className="mb-1 h-auto px-1.5 py-0.5 text-[11px]">
-                          {appt.appointmentCode}
-                        </Badge>
-                      )}
-                      <p className="flex items-start gap-1 font-medium text-foreground" data-testid="appointment-address">
-                        {appt.propertyType && (() => {
-                          const Icon = PROPERTY_TYPE_ICONS[appt.propertyType!];
-                          return (
-                            <Icon
-                              className="mt-0.5 shrink-0 text-muted-foreground"
-                              size={14}
-                              data-testid="appointment-property-type-icon"
-                              role="img"
-                              aria-label={PROPERTY_TYPE_LABELS[appt.propertyType!]}
-                            />
-                          );
-                        })()}
-                        {/* Full address (doc §7.2); street is blank for a
-                            soft-deleted property, leaving the suburb alone. */}
-                        <span>{[appt.street, appt.suburb].filter(Boolean).join(', ')}</span>
-                      </p>
-                      <p data-testid="appointment-time" className="text-xs font-semibold text-foreground">
-                        {formatWallTimeRange(appt.timeSlotStart, appt.timeSlotEnd)}
-                      </p>
-                      {appt.tenantName && (
-                        <p data-testid="appointment-agency" className="text-xs text-muted-foreground">{appt.tenantName}</p>
-                      )}
-                      {appt.keyRequired && (
-                        <p className="text-xs text-warning">Key required</p>
-                      )}
-                      {appt.notes && (
-                        <p className="text-xs text-muted-foreground">{appt.notes}</p>
-                      )}
-                    </div>
-                    {appt.payoutAmount != null && (
-                      <span
-                        data-testid="appointment-payout"
-                        className="text-sm font-semibold text-success"
-                      >
-                        {formatCurrency(appt.payoutAmount)}
-                      </span>
+            {/* Stops numbered 1..N to mirror the numbered pins on the map. The
+                per-stop appointment code is intentionally not shown on this
+                screen — the inspector decides by address / time / payout. */}
+            <ol className="divide-y divide-border" data-testid="detail-stops">
+              {data.appointments.map((appt, index) => (
+                <li key={appt.id} className="flex items-start gap-3 py-3">
+                  <span
+                    className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
+                    aria-hidden="true"
+                  >
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1 text-sm">
+                    <p className="flex items-start gap-1 font-medium text-foreground" data-testid="appointment-address">
+                      {appt.propertyType && (() => {
+                        const Icon = PROPERTY_TYPE_ICONS[appt.propertyType!];
+                        return (
+                          <Icon
+                            className="mt-0.5 shrink-0 text-muted-foreground"
+                            size={14}
+                            data-testid="appointment-property-type-icon"
+                            role="img"
+                            aria-label={PROPERTY_TYPE_LABELS[appt.propertyType!]}
+                          />
+                        );
+                      })()}
+                      {/* Full address (doc §7.2); street is blank for a
+                          soft-deleted property, leaving the suburb alone. */}
+                      <span>{[appt.street, appt.suburb].filter(Boolean).join(', ')}</span>
+                    </p>
+                    <p data-testid="appointment-time" className="text-xs font-semibold text-foreground">
+                      {formatWallTimeRange(appt.timeSlotStart, appt.timeSlotEnd)}
+                    </p>
+                    {appt.tenantName && (
+                      <p data-testid="appointment-agency" className="text-xs text-muted-foreground">{appt.tenantName}</p>
+                    )}
+                    {appt.keyRequired && (
+                      <p className="text-xs text-warning">Key required</p>
+                    )}
+                    {appt.notes && (
+                      <p className="text-xs text-muted-foreground">{appt.notes}</p>
                     )}
                   </div>
+                  {appt.payoutAmount != null && (
+                    <span
+                      data-testid="appointment-payout"
+                      className="shrink-0 text-sm font-semibold text-success"
+                    >
+                      {formatCurrency(appt.payoutAmount)}
+                    </span>
+                  )}
                 </li>
               ))}
-            </ul>
+            </ol>
           </>
         )}
       </div>

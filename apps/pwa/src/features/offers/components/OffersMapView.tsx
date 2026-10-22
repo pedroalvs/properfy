@@ -5,6 +5,7 @@ import type { ExpandedGroup } from '../lib/offers-map/types';
 import { computeCenter, useMapCamera } from '../hooks/useMapCamera';
 import { useMapboxInstance } from '../hooks/useMapboxInstance';
 import { useOfferPins } from '../hooks/useOfferPins';
+import { useOfferRoute } from '../hooks/useOfferRoute';
 import { MapOverlays } from './MapOverlays';
 
 export type { ExpandedGroup, ExpandedGroupAppointment } from '../lib/offers-map/types';
@@ -46,6 +47,9 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
     onToggleAppointment: toggleAppointment,
     syncCamera: camera.syncCamera,
   });
+
+  // Route polyline through the expanded group's pins (drill-down only).
+  useOfferRoute({ mapRef, mapLoadedRef, mapReady, expandedGroup });
 
   // Close the info chip whenever the drill-down target changes or is cleared.
   useEffect(() => {
