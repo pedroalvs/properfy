@@ -96,17 +96,17 @@ export function TopBar({
           </div>
         )}
         {/* v3 has no persistent Online pill — signal only when offline. The global
-            OfflineBanner (PwaLayout) remains the primary offline cue; this is a compact
-            in-header echo so offline is obvious from any screen. */}
+            OfflineBanner and the schedule's ScheduleOfflineBanner carry the offline
+            wording; the TopBar keeps only a compact dot so the state is glanceable
+            from any screen without a third copy of the "offline" text. */}
         {!isOnline && (
-          <div className="flex items-center gap-2 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
-            <span
-              className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-destructive"
-              title="Offline"
-              data-testid="connection-indicator"
-            />
-            <span>Offline</span>
-          </div>
+          <span
+            className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-destructive"
+            role="img"
+            aria-label="Offline"
+            title="Offline"
+            data-testid="connection-indicator"
+          />
         )}
       </div>
       </div>
