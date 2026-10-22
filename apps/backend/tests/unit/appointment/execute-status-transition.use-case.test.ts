@@ -1415,6 +1415,51 @@ describe('ExecuteStatusTransitionUseCase – reject/cancel unlinks group and ins
     expect(updateData).not.toHaveProperty('serviceGroupId');
     expect(updateData.inspectorId).toBeNull();
   });
+
+  it('records the released group and inspector ids in the audit log', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1', serviceGroupId: 'sg-live' }),
+    );
+    await makeUseCase().execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'Impossible to execute',
+      actor: makeActor('OP'),
+    });
+    // The null-out is irreversible, so the audit row is the only durable trace of
+    // which group and inspector the appointment was released from. Ids only — no
+    // extra repo lookup in the after-commit closure, no names in an immutable row.
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'appointment.status_transition',
+        before: expect.objectContaining({ serviceGroupId: 'sg-live', inspectorId: 'insp-1' }),
+        after: expect.objectContaining({ serviceGroupId: null, inspectorId: null }),
+        metadata: expect.objectContaining({ unlinkedServiceGroupId: 'sg-live', releasedInspectorId: 'insp-1' }),
+      }),
+    );
+    // No inspector-name resolution is attempted during a reject/cancel audit.
+    expect(inspectorRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('omits released-field audit keys when the appointment was not grouped or assigned', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'DRAFT', inspectorId: null, serviceGroupId: null }),
+    );
+    await makeUseCase().execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client request',
+      actor: makeActor('AM'),
+    });
+    const auditCall = auditService.log.mock.calls.find(
+      (c) => (c[0] as { action: string }).action === 'appointment.status_transition',
+    )!;
+    const logged = auditCall[0] as { before: Record<string, unknown>; after: Record<string, unknown> };
+    expect(logged.before).not.toHaveProperty('serviceGroupId');
+    expect(logged.before).not.toHaveProperty('inspectorId');
+    expect(logged.after).not.toHaveProperty('serviceGroupId');
+    expect(logged.after).not.toHaveProperty('inspectorId');
+  });
 });
 
 // =============================================================================

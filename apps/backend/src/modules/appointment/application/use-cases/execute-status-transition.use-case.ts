@@ -463,6 +463,27 @@ export class ExecuteStatusTransitionUseCase {
       if (appointment.status === 'DONE' && targetStatus === 'DRAFT') {
         afterSnapshot.reviewedBy = null;
       }
+      // Reject/cancel irreversibly null `service_group_id` and `inspector_id` in
+      // the write phase (block 7c). Record what was released: the audit row is the
+      // only durable trace of which group and inspector the appointment belonged
+      // to — nothing else persists it once the columns are cleared. Store ids only,
+      // never a resolved name: this runs in the after-commit closure, so an extra
+      // repo lookup here could throw and abort the remaining side effects (the
+      // audit write itself, notifications, the empty-group cleanup emit) on a
+      // transition that already committed — and ids match the "no recipient names
+      // in immutable audit rows" stance used by the dispatch-failure branch below.
+      if (targetStatus === 'REJECTED' || targetStatus === 'CANCELLED') {
+        if (appointment.serviceGroupId) {
+          beforeSnapshot.serviceGroupId = appointment.serviceGroupId;
+          afterSnapshot.serviceGroupId = null;
+          metadata.unlinkedServiceGroupId = appointment.serviceGroupId;
+        }
+        if (appointment.inspectorId) {
+          beforeSnapshot.inspectorId = appointment.inspectorId;
+          afterSnapshot.inspectorId = null;
+          metadata.releasedInspectorId = appointment.inspectorId;
+        }
+      }
 
       this.auditService.log({
         action: 'appointment.status_transition',
