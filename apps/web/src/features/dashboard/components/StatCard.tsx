@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { cn } from '@properfy/frontend-standards';
 
 /**
  * W7 #404: a bounded `variant` replaces the free-form `colorClass`/
@@ -40,12 +41,15 @@ export function StatCard({ icon, value, label, sublabel, variant, href }: StatCa
   const { border, icon: iconClass } = VARIANT_CLASSES[variant];
   const content = (
     <div
-      className={`rounded bg-card-bg shadow-sm border-l-4 ${border} p-4 flex items-start gap-3 ${
-        href ? 'cursor-pointer transition hover:shadow-md' : ''
-      }`}
+      className={cn(
+        'rounded bg-card-bg shadow-sm border-l-4',
+        border,
+        'p-4 flex items-start gap-3',
+        href && 'cursor-pointer transition hover:shadow-md',
+      )}
       data-testid="stat-card"
     >
-      <i className={`mdi ${icon} text-2xl ${iconClass}`} aria-hidden="true" />
+      <i className={cn('mdi', icon, 'text-2xl', iconClass)} aria-hidden="true" />
       <div>
         <div className="text-2xl font-bold text-text-primary">{value}</div>
         <div className="text-sm text-text-secondary">{label}</div>

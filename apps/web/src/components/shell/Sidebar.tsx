@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { UserRole } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { useAuth } from '@/hooks/useAuth';
 import { SidebarItem } from './SidebarItem';
 import { SidebarSubmenu } from './SidebarSubmenu';
@@ -124,7 +125,7 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
       }
       data-testid="sidebar"
     >
-      <div className={`flex items-center ${mobile ? 'justify-between border-b border-border-subtle px-4 py-4' : 'justify-center py-4'}`}>
+      <div className={cn('flex items-center', mobile ? 'justify-between border-b border-border-subtle px-4 py-4' : 'justify-center py-4')}>
         {mobile ? (
           <div className="flex items-center gap-2">
             <img src="/images/properfy-icon-square.png" alt="Properfy" className="h-8 w-8 object-contain" />
@@ -135,7 +136,7 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
         )}
       </div>
 
-      <nav className={`flex flex-1 flex-col ${mobile ? 'gap-3 overflow-y-auto px-3 py-4' : 'items-center gap-1 overflow-y-auto py-4 min-h-0'}`}>
+      <nav className={cn('flex flex-1 flex-col', mobile ? 'gap-3 overflow-y-auto px-3 py-4' : 'items-center gap-1 overflow-y-auto py-4 min-h-0')}>
         {visibleItems.map((item) =>
           item.submenu ? (
             <SidebarSubmenu

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { cn } from '@properfy/frontend-standards';
 
 interface IntegrationTileProps {
   to: string;
@@ -22,7 +23,7 @@ export function IntegrationTile({ to, name, caption, badge, logo }: IntegrationT
       {logo}
       <span className="mt-1 text-sm font-bold text-text-primary">{name}</span>
       <span className="min-h-8 text-xs text-text-secondary">{caption}</span>
-      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}>
+      <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', badge.className)}>
         {badge.label}
       </span>
     </Link>

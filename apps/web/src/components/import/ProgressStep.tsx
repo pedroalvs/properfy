@@ -1,3 +1,5 @@
+import { cn } from '@properfy/frontend-standards';
+
 interface ProgressStepProps {
   status: 'PROCESSING' | 'COMPLETED' | 'FAILED';
   progress: number;
@@ -81,13 +83,14 @@ export function ProgressStep({
           aria-label="Import progress"
         >
           <div
-            className={`h-full rounded-full transition-all duration-300 ${
+            className={cn(
+              'h-full rounded-full transition-all duration-300',
               status === 'FAILED'
                 ? 'bg-[var(--color-error)]'
                 : status === 'COMPLETED'
                   ? 'bg-[var(--color-success)]'
-                  : 'bg-[var(--color-primary)]'
-            }`}
+                  : 'bg-[var(--color-primary)]',
+            )}
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -105,18 +108,20 @@ export function ProgressStep({
             </p>
           </div>
           <div
-            className={`rounded-lg border p-4 text-center ${
+            className={cn(
+              'rounded-lg border p-4 text-center',
               errorCount > 0
                 ? 'border-red-200 bg-red-50'
-                : 'border-gray-200 bg-gray-50'
-            }`}
+                : 'border-gray-200 bg-gray-50',
+            )}
           >
             <p
-              className={`text-2xl font-bold ${
+              className={cn(
+                'text-2xl font-bold',
                 errorCount > 0
                   ? 'text-[var(--color-error)]'
-                  : 'text-[var(--color-text-muted)]'
-              }`}
+                  : 'text-[var(--color-text-muted)]',
+              )}
             >
               {errorCount}
             </p>

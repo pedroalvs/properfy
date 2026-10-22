@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
 import { StatusTransitionDialog } from './StatusTransitionDialog';
 import type { StatusTransitionConfirmPayload } from './StatusTransitionDialog';
@@ -75,7 +76,7 @@ export function AppointmentTransitionActions({
               className={extraClass}
               onClick={() => handleClick(transition)}
             >
-              <i className={`mdi ${transition.icon} text-base`} aria-hidden="true" />
+              <i className={cn('mdi', transition.icon, 'text-base')} aria-hidden="true" />
               {transition.label}
             </Button>
           );

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 interface InfoBannerProps {
   children: ReactNode;
@@ -16,11 +17,11 @@ export function InfoBanner({ children, className = '', variant = 'info' }: InfoB
   const styles = VARIANTS[variant];
   return (
     <div
-      className={`flex items-start gap-3 rounded px-4 py-3 text-sm ${styles.container} ${className}`}
+      className={cn('flex items-start gap-3 rounded px-4 py-3 text-sm', styles.container, className)}
       // Errors interrupt; info and warnings are ambient.
       role={variant === 'error' ? 'alert' : 'status'}
     >
-      <i className={`mdi mt-0.5 text-lg ${styles.icon}`} />
+      <i className={cn('mdi mt-0.5 text-lg', styles.icon)} />
       {/* A div, not a span: callers legitimately pass flow content (lists,
           paragraphs), which is invalid inside phrasing content. As a flex item
           it renders identically to the span it replaced. */}

@@ -1,4 +1,5 @@
 import type { InspectorWorkloadResponse } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { formatMonthLabel } from './workload-visuals';
 
 interface CompletedSummaryProps {
@@ -20,7 +21,7 @@ function Delta({ current, previous }: { current: number; previous: number }) {
   return (
     <span className={up ? 'text-success' : 'text-error'}>
       {/* An arrow glyph plus a signed number — direction never rests on colour. */}
-      <i className={`mdi ${up ? 'mdi-arrow-up' : 'mdi-arrow-down'} mr-0.5`} aria-hidden="true" />
+      <i className={cn('mdi', up ? 'mdi-arrow-up' : 'mdi-arrow-down', 'mr-0.5')} aria-hidden="true" />
       {up ? '+' : ''}
       {difference}
     </span>

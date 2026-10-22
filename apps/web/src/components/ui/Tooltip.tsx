@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { cn } from '@properfy/frontend-standards';
 
 /** Max bubble width; long text wraps instead of running off the screen. */
 const MAX_WIDTH = 320;
@@ -78,7 +79,7 @@ export function Tooltip({ label, children, className = '' }: TooltipProps) {
         ref={setAnchor}
         tabIndex={0}
         aria-describedby={open ? id : undefined}
-        className={`inline-flex cursor-help rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${className}`}
+        className={cn('inline-flex cursor-help rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary', className)}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         onFocus={() => setOpen(true)}

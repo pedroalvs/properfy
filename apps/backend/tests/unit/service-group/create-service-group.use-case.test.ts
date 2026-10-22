@@ -96,6 +96,17 @@ function makeAppointmentIds(count: number): string[] {
   return Array.from({ length: count }, (_, i) => `appt-${i + 1}`);
 }
 
+/** Batch of `count` appointments (`appt-1`..`appt-N`) for the `findManyByIds`
+ * read. `perIndex` overrides fields on each entry (e.g. status, tenantId). */
+function manyAppointments(
+  count: number,
+  perIndex: (i: number) => Partial<ConstructorParameters<typeof AppointmentEntity>[0]> = () => ({}),
+): AppointmentWithRelations[] {
+  return Array.from({ length: count }, (_, i) =>
+    makeAppointmentWithRelations({ id: `appt-${i + 1}`, ...perIndex(i) }),
+  );
+}
+
 function createMockRegionRepo(regionEntity?: ServiceRegionEntity | null): IServiceRegionRepository {
   const entity = regionEntity === undefined ? makeRegionEntity() : regionEntity;
   return {
@@ -146,6 +157,7 @@ describe('CreateServiceGroupUseCase', () => {
     };
     appointmentRepo = {
       findById: vi.fn(),
+      findManyByIds: vi.fn(),
       findAll: vi.fn(),
       count: vi.fn(),
       save: vi.fn(),
@@ -174,11 +186,7 @@ describe('CreateServiceGroupUseCase', () => {
 
   it('should return the DB-assigned sequential group code after save', async () => {
     const appointmentIds = makeAppointmentIds(5);
-    for (let i = 0; i < 5; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-      );
-    }
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(manyAppointments(5));
     // Simulate the DB sequence assigning group_number on persist.
     vi.mocked(serviceGroupRepo.save).mockImplementation(async (g) => {
       g.groupNumber = 42;
@@ -199,11 +207,7 @@ describe('CreateServiceGroupUseCase', () => {
 
   it('should create a service group with 5 valid appointments (happy path)', async () => {
     const appointmentIds = makeAppointmentIds(5);
-    for (let i = 0; i < 5; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-      );
-    }
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(manyAppointments(5));
 
     const result = await useCase.execute({
       appointmentIds,
@@ -234,9 +238,9 @@ describe('CreateServiceGroupUseCase', () => {
   });
 
   it('syncs an appointment outside the group time window to the full group window', async () => {
-    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce([
       makeAppointmentWithRelations({ id: 'appt-1', timeSlotStart: '08:00', timeSlotEnd: '10:00' }),
-    );
+    ]);
 
     await useCase.execute({
       appointmentIds: ['appt-1'],
@@ -263,9 +267,9 @@ describe('CreateServiceGroupUseCase', () => {
 
   it('replaces the appointment date with the group date when they differ', async () => {
     const otherDate = futureDateStr(90);
-    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce([
       makeAppointmentWithRelations({ id: 'appt-1', scheduledDate: new Date(otherDate), timeSlotStart: '09:30', timeSlotEnd: '10:30' }),
-    );
+    ]);
 
     await useCase.execute({
       appointmentIds: ['appt-1'],
@@ -290,9 +294,9 @@ describe('CreateServiceGroupUseCase', () => {
   });
 
   it('does not update appointment time when it is fully inside the group time window', async () => {
-    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce([
       makeAppointmentWithRelations({ id: 'appt-1', timeSlotStart: '09:30', timeSlotEnd: '10:30' }),
-    );
+    ]);
 
     await useCase.execute({
       appointmentIds: ['appt-1'],
@@ -315,9 +319,9 @@ describe('CreateServiceGroupUseCase', () => {
   });
 
   it('does not fail group creation when an appointment has malformed legacy time values', async () => {
-    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce([
       makeAppointmentWithRelations({ id: 'appt-1', timeSlotStart: '010:00', timeSlotEnd: '10:00' }),
-    );
+    ]);
 
     const result = await useCase.execute({
       appointmentIds: ['appt-1'],
@@ -340,9 +344,9 @@ describe('CreateServiceGroupUseCase', () => {
   });
 
   it('does not fail group creation when the post-link time sync update fails', async () => {
-    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce([
       makeAppointmentWithRelations({ id: 'appt-1', timeSlotStart: '08:00', timeSlotEnd: '10:00' }),
-    );
+    ]);
     vi.mocked(appointmentRepo.update).mockRejectedValueOnce(new Error('sync failed'));
 
     const result = await useCase.execute({
@@ -384,11 +388,7 @@ describe('CreateServiceGroupUseCase', () => {
     );
 
     const appointmentIds = makeAppointmentIds(5);
-    for (let i = 0; i < 5; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-      );
-    }
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(manyAppointments(5));
 
     await expect(
       useCase.execute({
@@ -410,11 +410,7 @@ describe('CreateServiceGroupUseCase', () => {
     );
 
     const appointmentIds = makeAppointmentIds(5);
-    for (let i = 0; i < 5; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-      );
-    }
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(manyAppointments(5));
 
     await expect(
       useCase.execute({
@@ -455,10 +451,14 @@ describe('CreateServiceGroupUseCase', () => {
   });
 
   it('should throw AppointmentNotFoundError when an appointment is missing', async () => {
-    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+    // The batch resolves only the ids that exist; 'appt-missing' has no row, so
+    // the use case must detect the gap and fail closed.
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce([
       makeAppointmentWithRelations({ id: 'appt-1' }),
-    );
-    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(null);
+      makeAppointmentWithRelations({ id: 'appt-3' }),
+      makeAppointmentWithRelations({ id: 'appt-4' }),
+      makeAppointmentWithRelations({ id: 'appt-5' }),
+    ]);
 
     await expect(
       useCase.execute({
@@ -474,13 +474,8 @@ describe('CreateServiceGroupUseCase', () => {
 
   it('should throw when appointment is in invalid status (e.g. SCHEDULED)', async () => {
     const appointmentIds = makeAppointmentIds(5);
-    for (let i = 0; i < 4; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-      );
-    }
-    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-      makeAppointmentWithRelations({ id: 'appt-5', status: 'SCHEDULED' }),
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(
+      manyAppointments(5, (i) => (i === 4 ? { status: 'SCHEDULED' } : {})),
     );
 
     await expect(
@@ -497,13 +492,8 @@ describe('CreateServiceGroupUseCase', () => {
 
   it('should allow mixed-agency (cross-tenant) groups without a region', async () => {
     const appointmentIds = makeAppointmentIds(5);
-    for (let i = 0; i < 4; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}`, tenantId: 'tenant-1' }),
-      );
-    }
-    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-      makeAppointmentWithRelations({ id: 'appt-5', tenantId: 'tenant-2' }),
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(
+      manyAppointments(5, (i) => ({ tenantId: i === 4 ? 'tenant-2' : 'tenant-1' })),
     );
 
     const result = await useCase.execute({
@@ -521,13 +511,8 @@ describe('CreateServiceGroupUseCase', () => {
 
   it('should reject assigning a region to a mixed-agency group', async () => {
     const appointmentIds = makeAppointmentIds(5);
-    for (let i = 0; i < 4; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}`, tenantId: 'tenant-1' }),
-      );
-    }
-    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-      makeAppointmentWithRelations({ id: 'appt-5', tenantId: 'tenant-2' }),
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(
+      manyAppointments(5, (i) => ({ tenantId: i === 4 ? 'tenant-2' : 'tenant-1' })),
     );
 
     await expect(
@@ -544,11 +529,7 @@ describe('CreateServiceGroupUseCase', () => {
 
   it('should allow fewer than 5 appointments (no minimum beyond 1)', async () => {
     const appointmentIds = makeAppointmentIds(3);
-    for (let i = 0; i < 3; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-      );
-    }
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(manyAppointments(3));
 
     const result = await useCase.execute({
       appointmentIds,
@@ -565,11 +546,7 @@ describe('CreateServiceGroupUseCase', () => {
 
   it('should allow more than 30 appointments (no upper bound)', async () => {
     const appointmentIds = makeAppointmentIds(31);
-    for (let i = 0; i < 31; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-      );
-    }
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(manyAppointments(31));
 
     const result = await useCase.execute({
       appointmentIds,
@@ -586,11 +563,7 @@ describe('CreateServiceGroupUseCase', () => {
 
   it('should allow OP role to create group', async () => {
     const appointmentIds = makeAppointmentIds(5);
-    for (let i = 0; i < 5; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-      );
-    }
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(manyAppointments(5));
 
     const result = await useCase.execute({
       appointmentIds,
@@ -609,9 +582,9 @@ describe('CreateServiceGroupUseCase', () => {
     // Groups are tenant-agnostic and only AM/OP (cross-tenant) reach here. Even if an
     // OP token carried a stray tenantId, appointment lookup must stay cross-tenant —
     // otherwise other agencies' appointments would silently 404 during create.
-    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce([
       makeAppointmentWithRelations({ id: 'appt-1', tenantId: 'tenant-2' }),
-    );
+    ]);
 
     await useCase.execute({
       appointmentIds: ['appt-1'],
@@ -621,13 +594,34 @@ describe('CreateServiceGroupUseCase', () => {
       actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
     });
 
-    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
+    // Batch read stays cross-tenant: null tenant arg, same semantics as the old
+    // per-id findById(id, null).
+    expect(appointmentRepo.findManyByIds).toHaveBeenCalledWith(['appt-1'], null);
+  });
+
+  it('reads all appointments in a single batched query, not one per id (HOL-5)', async () => {
+    const appointmentIds = makeAppointmentIds(5);
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(manyAppointments(5));
+
+    await useCase.execute({
+      appointmentIds,
+      serviceTypeId: 'svc-type-1',
+      scheduledDate: farFutureDate,
+      timeWindow: '09:00-12:00',
+      serviceRegionId: REGION_ID,
+      actor: makeActor(),
+    });
+
+    // One round-trip for the whole set — the fix for the N+1 findById loop.
+    expect(appointmentRepo.findManyByIds).toHaveBeenCalledTimes(1);
+    expect(appointmentRepo.findManyByIds).toHaveBeenCalledWith(appointmentIds, null);
+    expect(appointmentRepo.findById).not.toHaveBeenCalled();
   });
 
   it('should allow a single-appointment group', async () => {
-    vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce([
       makeAppointmentWithRelations({ id: 'appt-1' }),
-    );
+    ]);
 
     const result = await useCase.execute({
       appointmentIds: ['appt-1'],
@@ -644,11 +638,7 @@ describe('CreateServiceGroupUseCase', () => {
 
   it('should call audit log on success', async () => {
     const appointmentIds = makeAppointmentIds(5);
-    for (let i = 0; i < 5; i++) {
-      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: `appt-${i + 1}` }),
-      );
-    }
+    vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(manyAppointments(5));
 
     await useCase.execute({
       appointmentIds,
@@ -683,11 +673,9 @@ describe('CreateServiceGroupUseCase', () => {
   // -------------------------------------------------------------------------
   describe('SYS actor', () => {
     async function executeAsSys(overrides: Record<string, unknown> = {}) {
-      for (let i = 0; i < 5; i++) {
-        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-          makeAppointmentWithRelations({ id: `appt-${i + 1}`, tenantId: 'tenant-1' }),
-        );
-      }
+      vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(
+        manyAppointments(5, () => ({ tenantId: 'tenant-1' })),
+      );
       return useCase.execute({
         appointmentIds: makeAppointmentIds(5),
         serviceTypeId: 'svc-type-1',
@@ -753,11 +741,9 @@ describe('CreateServiceGroupUseCase', () => {
     });
 
     function execute(overrides: Record<string, unknown>) {
-      for (let i = 0; i < 5; i++) {
-        vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-          makeAppointmentWithRelations({ id: `appt-${i + 1}`, tenantId: 'tenant-1' }),
-        );
-      }
+      vi.mocked(appointmentRepo.findManyByIds).mockResolvedValueOnce(
+        manyAppointments(5, () => ({ tenantId: 'tenant-1' })),
+      );
       return useCase.execute({
         appointmentIds: makeAppointmentIds(5),
         serviceTypeId: 'svc-type-1',

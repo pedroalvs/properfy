@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useId } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import {
   filterContainer,
   filterLabel,
@@ -159,7 +160,7 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
   };
 
   return (
-    <div ref={containerRef} className={`${filterContainer} cursor-pointer`}>
+    <div ref={containerRef} className={cn(filterContainer, 'cursor-pointer')}>
       {showFloatingLabel && (
         <span className={focused || open ? filterLabelFocused : filterLabel}>{label}</span>
       )}
@@ -183,18 +184,19 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
         aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
       >
         <span
-          className={`${selectedLabel ? 'text-text-primary' : 'text-text-muted'} ${
+          className={cn(
+            selectedLabel ? 'text-text-primary' : 'text-text-muted',
             // Keeps the label out from under the clear button. This padding
             // must sit on the label, NOT on the trigger: the chevron is the
             // trigger's last flex item, so padding the trigger moves the
             // chevron left instead of making room beside it — which is how it
             // ended up under the clear and stealing its clicks.
-            showClear ? 'pr-9' : ''
-          }`}
+            showClear && 'pr-9',
+          )}
         >
           {selectedLabel ?? (showFloatingLabel ? placeholder || '' : label)}
         </span>
-        <i className={`mdi mdi-menu-down ${filterIcon} transition-transform ${open ? 'rotate-180' : ''}`} />
+        <i className={cn('mdi mdi-menu-down', filterIcon, 'transition-transform', open && 'rotate-180')} />
       </button>
 
       {/*
@@ -212,7 +214,7 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
       {showClear && (
         <button
           type="button"
-          className={`absolute right-7 top-1/2 -translate-y-1/2 ${filterClearButton}`}
+          className={cn('absolute right-7 top-1/2 -translate-y-1/2', filterClearButton)}
           onClick={() => {
             onChange('');
             closeMenu();

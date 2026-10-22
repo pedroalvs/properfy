@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { lockBodyScroll } from '@/lib/body-scroll-lock';
 import { focusFirstFocusable } from '@/lib/focus';
 
@@ -62,9 +63,10 @@ export function DrawerPanel({ open, onClose, size = 'narrow', ariaLabel, childre
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 ${
-          open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
-        }`}
+        className={cn(
+          'fixed inset-0 z-40 bg-black/50 transition-opacity duration-300',
+          open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
+        )}
         onClick={onClose}
         aria-hidden="true"
       />
@@ -73,9 +75,11 @@ export function DrawerPanel({ open, onClose, size = 'narrow', ariaLabel, childre
       <div
         ref={panelRef}
         tabIndex={-1}
-        className={`fixed right-0 top-0 z-50 h-screen bg-card-bg shadow-xl outline-none transition-transform duration-300 ${
-          sizeClasses[size]
-        } ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={cn(
+          'fixed right-0 top-0 z-50 h-screen bg-card-bg shadow-xl outline-none transition-transform duration-300',
+          sizeClasses[size],
+          open ? 'translate-x-0' : 'translate-x-full',
+        )}
         role="dialog"
         aria-modal={open}
         aria-label={ariaLabel}

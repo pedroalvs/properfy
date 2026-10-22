@@ -1,4 +1,5 @@
 import type { NotificationClass } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 
 /**
  * Feature 018: visual chip for a notification's classification.
@@ -35,7 +36,7 @@ export function NotificationClassChip({ notificationClass, className = '' }: Not
   return (
     <span
       data-variant={notificationClass}
-      className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${style.color} ${className}`}
+      className={cn('inline-block rounded px-2 py-0.5 text-xs font-semibold', style.color, className)}
       title={style.title}
     >
       {style.label}

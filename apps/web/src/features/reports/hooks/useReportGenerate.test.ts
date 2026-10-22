@@ -53,7 +53,7 @@ describe('useReportGenerate', () => {
   });
 
   it('shows success snackbar and runs the caller onSuccess on success', () => {
-    mockMutate.mockImplementation((_data: unknown, opts: any) => opts.onSuccess());
+    mockMutate.mockImplementation((_data: unknown, opts: { onSuccess: () => void }) => opts.onSuccess());
     const onSuccess = vi.fn();
 
     const { result } = renderHook(() => useReportGenerate(), { wrapper });
@@ -67,7 +67,7 @@ describe('useReportGenerate', () => {
   });
 
   it('shows error snackbar on failure', () => {
-    mockMutate.mockImplementation((_data: unknown, opts: any) =>
+    mockMutate.mockImplementation((_data: unknown, opts: { onError: (error: Error) => void }) =>
       opts.onError(new Error('Generation failed')),
     );
 
