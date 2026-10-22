@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { getPasswordStrength } from '@/lib/validation';
 
 const BAR_COLORS: Record<number, string> = {
@@ -40,13 +41,14 @@ export function PasswordStrengthIndicator({
           {[1, 2, 3, 4].map((level) => (
             <div
               key={level}
-              className={`h-1 flex-1 rounded-full transition-colors ${
-                score >= level ? BAR_COLORS[score] : 'bg-black/10'
-              }`}
+              className={cn(
+                'h-1 flex-1 rounded-full transition-colors',
+                score >= level ? BAR_COLORS[score] : 'bg-black/10',
+              )}
             />
           ))}
         </div>
-        <span className={`text-xs font-medium ${LABEL_COLORS[score]}`}>{label}</span>
+        <span className={cn('text-xs font-medium', LABEL_COLORS[score])}>{label}</span>
       </div>
 
       {showMismatch && (

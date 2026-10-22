@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { toApiError } from '@/lib/api-error';
 
 export interface DeactivateResult {
   success: boolean;
@@ -24,7 +25,8 @@ export function useAppDeactivate(): UseAppDeactivateReturn {
     try {
       const { error } = await fn();
       if (error) {
-        return { success: false, errorCode: (error as any)?.error?.code, errorMessage: (error as any)?.error?.message ?? 'Request failed' };
+        const apiError = toApiError(error);
+        return { success: false, errorCode: apiError.code, errorMessage: apiError.message || 'Request failed' };
       }
       queryClient.invalidateQueries({ queryKey: ['app-credentials'] });
       return { success: true };

@@ -59,10 +59,9 @@ export function TotpEnrollmentSteps({ onEnrolled, onCancel }: TotpEnrollmentStep
       .then((url) => {
         if (!cancelled) setQrDataUrl(url);
       })
-      .catch((err) => {
+      .catch(() => {
         if (cancelled) return;
         setQrDataUrl(null);
-        console.error('Failed to generate TOTP QR code', err);
       });
     return () => {
       cancelled = true;

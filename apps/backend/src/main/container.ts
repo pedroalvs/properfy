@@ -412,6 +412,7 @@ import { PreviewInvoiceUseCase } from '../modules/billing/application/use-cases/
 import { RequestInvoiceUseCase } from '../modules/billing/application/use-cases/request-invoice.use-case';
 import { ReopenForRescheduleUseCase } from '../modules/appointment/application/use-cases/reopen-for-reschedule.use-case';
 import { PrismaAppointmentImportRepository } from '../modules/appointment/infrastructure/prisma-appointment-import.repository';
+import { AppointmentImportFileParser } from '../modules/appointment/infrastructure/appointment-import-parser';
 import { AppointmentImportRowResolver } from '../modules/appointment/application/services/appointment-import-row-resolver';
 import { AppointmentImportCommitWorker } from '../modules/appointment/infrastructure/workers/appointment-import-commit.worker';
 import { SweepAbandonedAppointmentImportsWorker } from '../modules/appointment/infrastructure/workers/sweep-abandoned-appointment-imports.worker';
@@ -1148,8 +1149,8 @@ export function createContainer(logger: Logger): AppContainer {
   const getInvoiceSummaryUseCase = new GetInvoiceSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
   const updateFinancialEntryUseCase = new UpdateFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
-  const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, authorizationService, billingJobQueue);
-  const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService);
+  const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, authorizationService, billingJobQueue, idempotencyService);
+  const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
 
   // Report repositories and use cases
   const reportRepo = new PrismaReportRepository(prisma);
@@ -1352,9 +1353,11 @@ export function createContainer(logger: Logger): AppContainer {
     propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,
   );
   const appointmentImportGeocodeVerifier = new ImportGeocodeVerifier(geocodingService);
+  const appointmentImportFileParser = new AppointmentImportFileParser();
   const previewAppointmentImportUseCase = new PreviewAppointmentImportUseCase(
     appointmentImportRepo, reportStorageService, branchRepo, appointmentImportRowResolver,
     appointmentImportGeocodeVerifier, authorizationService,
+    appointmentImportFileParser,
     tenantTimezoneLookup,
   );
   const commitAppointmentImportUseCase = new CommitAppointmentImportUseCase(

@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
 
 interface EmptyStateProps {
@@ -15,7 +16,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <i className={`mdi ${icon} text-[48px] text-text-muted`} aria-hidden="true" />
+      <i className={cn('mdi', icon, 'text-[48px] text-text-muted')} aria-hidden="true" />
       <p className="mt-4 text-base font-semibold text-text-primary">{title}</p>
       {description && (
         <p className="mt-1 text-sm text-text-secondary">{description}</p>

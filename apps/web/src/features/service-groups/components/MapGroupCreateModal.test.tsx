@@ -58,7 +58,7 @@ vi.mock('./TimeWindowPicker', () => ({
 beforeEach(() => {
   mockShowSuccess.mockReset();
   mockShowError.mockReset();
-  vi.mocked(api.POST).mockResolvedValue({ data: {} } as any);
+  vi.mocked(api.POST).mockResolvedValue({ data: {} } as unknown as Awaited<ReturnType<typeof api.POST>>);
 });
 
 function renderModal(props: Partial<React.ComponentProps<typeof MapGroupCreateModal>> = {}) {
@@ -104,7 +104,7 @@ describe('MapGroupCreateModal', () => {
       selectedAppointments: [
         { id: 'apt-1', code: 'INS-0001', status: 'DRAFT', propertyAddress: '1 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlotStart: '09:00', timeSlotEnd: '10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-1', clientName: 'Acme' },
         { id: 'apt-2', code: 'INS-0002', status: 'DRAFT', propertyAddress: '2 Test St', latitude: 0, longitude: 0, scheduledDate: '2026-07-01', timeSlotStart: '09:00', timeSlotEnd: '10:00', inspectorName: null, branchName: 'Br', tenantId: 'tenant-2', clientName: 'Globex' },
-      ] as any,
+      ],
     });
     expect(screen.queryByTestId('region-selector')).not.toBeInTheDocument();
     expect(screen.getByText(/spans 2 agencies/i)).toBeInTheDocument();
@@ -191,7 +191,7 @@ describe('MapGroupCreateModal', () => {
   it('includes the group code in the success toast when the API returns it', async () => {
     vi.mocked(api.POST).mockResolvedValueOnce({
       data: { data: { id: 'bbbbbbbb-0000-4000-8000-000000000001', code: 'G-123', groupNumber: 123 } },
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof api.POST>>);
 
     await submitModal();
 
@@ -212,7 +212,7 @@ describe('MapGroupCreateModal', () => {
   it('calls showError and does NOT call showSuccess when api.POST returns an error envelope', async () => {
     vi.mocked(api.POST).mockResolvedValueOnce({
       error: { error: { message: 'All appointments must have the same service type', code: 'SERVICE_TYPE_MISMATCH' } },
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof api.POST>>);
 
     // 5 appointments with same serviceTypeId (valid UUID) so the standard-size check passes.
     // serviceTypeId must be a UUID — createServiceGroupSchema enforces z.string().uuid().

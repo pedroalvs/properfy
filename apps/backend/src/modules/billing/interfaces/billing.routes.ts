@@ -562,14 +562,16 @@ export async function registerBillingRoutes(
   // POST /v1/billing/invoices/:invoiceId/approve-draft
   app.post(
     '/v1/billing/invoices/:invoiceId/approve-draft',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }) } },
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), headers: idempotencyKeyHeaders } },
     async (request, reply) => {
       const params = invoiceIdParam.safeParse(request.params);
       if (!params.success) {
         throw new ValidationError('Invalid invoice ID', params.error.errors);
       }
+      const idempotencyKey = requireIdempotencyKey(request);
       const result = await container.approveDraftInvoiceUseCase.execute({
         invoiceId: params.data.invoiceId,
+        idempotencyKey,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
@@ -579,7 +581,7 @@ export async function registerBillingRoutes(
   // POST /v1/billing/invoices/:invoiceId/reject-draft
   app.post(
     '/v1/billing/invoices/:invoiceId/reject-draft',
-    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), body: rejectDraftInvoiceSchema } },
+    { preHandler: authenticate, schema: { params: z.object({ invoiceId: z.string().uuid() }), headers: idempotencyKeyHeaders, body: rejectDraftInvoiceSchema } },
     async (request, reply) => {
       const params = invoiceIdParam.safeParse(request.params);
       if (!params.success) {
@@ -589,9 +591,11 @@ export async function registerBillingRoutes(
       if (!parsed.success) {
         throw new ValidationError('Request payload is invalid', parsed.error.errors);
       }
+      const idempotencyKey = requireIdempotencyKey(request);
       const result = await container.rejectDraftInvoiceUseCase.execute({
         invoiceId: params.data.invoiceId,
         reason: parsed.data.reason,
+        idempotencyKey,
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));

@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import { RATING_COMMENT_MAX_LENGTH, type RatingValue } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { StarRatingInput } from '@/components/ui/StarRatingInput';
 import { OfflineBanner } from '@/components/feedback/OfflineBanner';
 import { useIsOnline } from '@/hooks/useIsOnline';
@@ -80,9 +81,10 @@ export function SatisfactionSurveyForm({
           </p>
           <span
             aria-live="polite"
-            className={`shrink-0 text-xs ${
-              comment.length >= RATING_COMMENT_MAX_LENGTH * 0.9 ? 'text-warning' : 'text-text-muted'
-            }`}
+            className={cn(
+              'shrink-0 text-xs',
+              comment.length >= RATING_COMMENT_MAX_LENGTH * 0.9 ? 'text-warning' : 'text-text-muted',
+            )}
           >
             {comment.length}/{RATING_COMMENT_MAX_LENGTH}
           </span>

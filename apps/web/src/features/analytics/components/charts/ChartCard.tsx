@@ -1,4 +1,5 @@
 import { useId, useState, type ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 export interface ChartTableColumn<T> {
   header: string;
@@ -43,7 +44,7 @@ export function ChartCard<T>({
   const isEmpty = tableRows.length === 0;
 
   return (
-    <div className={`rounded bg-card-bg p-4 shadow-sm ${className}`} data-testid="chart-card">
+    <div className={cn('rounded bg-card-bg p-4 shadow-sm', className)} data-testid="chart-card">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-secondary">{title}</h2>
@@ -57,7 +58,7 @@ export function ChartCard<T>({
             aria-controls={panelId}
             className="shrink-0 rounded border border-black/10 px-2 py-1 text-xs font-bold text-text-secondary transition hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
-            <i className={`mdi ${showTable ? 'mdi-chart-line' : 'mdi-table'} mr-1`} aria-hidden="true" />
+            <i className={cn('mdi', showTable ? 'mdi-chart-line' : 'mdi-table', 'mr-1')} aria-hidden="true" />
             {showTable ? 'Chart' : 'Table'}
           </button>
         )}
@@ -76,7 +77,7 @@ export function ChartCard<T>({
                     <th
                       key={column.header}
                       scope="col"
-                      className={`py-2 text-xs font-bold text-text-secondary ${column.numeric ? 'text-right' : 'text-left'}`}
+                      className={cn('py-2 text-xs font-bold text-text-secondary', column.numeric ? 'text-right' : 'text-left')}
                     >
                       {column.header}
                     </th>
@@ -89,7 +90,7 @@ export function ChartCard<T>({
                     {tableColumns.map((column) => (
                       <td
                         key={column.header}
-                        className={`py-1.5 text-text-primary ${column.numeric ? 'text-right tabular-nums' : 'text-left'}`}
+                        className={cn('py-1.5 text-text-primary', column.numeric ? 'text-right tabular-nums' : 'text-left')}
                       >
                         {column.cell(row)}
                       </td>

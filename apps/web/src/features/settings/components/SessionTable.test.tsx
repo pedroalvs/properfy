@@ -84,7 +84,7 @@ describe('SessionTable', () => {
     await evt.click(within(dialog).getByRole('button', { name: 'Revoke' }));
 
     await waitFor(() => {
-      expect(mockDelete).toHaveBeenCalledWith('/v1/auth/sessions/sess-02', expect.anything());
+      expect(mockDelete).toHaveBeenCalledWith('/v1/auth/sessions/{sessionId}', expect.objectContaining({ params: { path: { sessionId: 'sess-02' } } }));
     });
 
     // The query for ['sessions'] is invalidated, triggering a refetch of the list.

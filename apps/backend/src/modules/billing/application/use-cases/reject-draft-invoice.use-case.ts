@@ -3,13 +3,21 @@ import type { IInspectorInvoiceRepository } from '../../domain/inspector-invoice
 import {
   InvoiceNotFoundError,
   InvoiceNotPendingReviewError,
+  BillingIdempotencyPayloadMismatchError,
+  BillingIdempotencyInProgressError,
 } from '../../domain/billing.errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
+import { hashIdempotencyPayload } from '../../../../shared/domain/idempotency-payload-hash';
+
+const IDEMPOTENCY_SCOPE = 'reject-draft-invoice';
+const IDEMPOTENCY_TTL_HOURS = 24;
 
 export interface RejectDraftInvoiceInput {
   invoiceId: string;
   reason: string;
+  idempotencyKey: string;
   actor: AuthContext;
 }
 
@@ -23,6 +31,7 @@ export class RejectDraftInvoiceUseCase {
     private readonly invoiceRepo: IInspectorInvoiceRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    private readonly idempotencyService: IIdempotencyService,
   ) {}
 
   async execute(input: RejectDraftInvoiceInput): Promise<RejectDraftInvoiceOutput> {
@@ -35,6 +44,52 @@ export class RejectDraftInvoiceUseCase {
       entityId: invoiceId,
     });
 
+    // 1.5 Idempotency (HOL-3b): claim the key before any write so a retry or a
+    // concurrent duplicate never re-runs the PENDING_REVIEW → VOID transition.
+    // The DB optimistic guard (voidIfPendingReview) already blocks a second
+    // mutation, but without this a legitimate retry would get
+    // InvoiceNotPendingReviewError instead of the original success response.
+    const payloadHash = hashIdempotencyPayload({
+      invoiceId,
+      reason,
+      actor: { userId: actor.userId, tenantId: actor.tenantId, role: actor.role },
+    });
+    const claim = await this.idempotencyService.tryAcquire<RejectDraftInvoiceOutput>(
+      input.idempotencyKey,
+      IDEMPOTENCY_SCOPE,
+      payloadHash,
+      IDEMPOTENCY_TTL_HOURS,
+    );
+    if (claim.status !== 'acquired' && claim.payloadHash !== payloadHash) {
+      throw new BillingIdempotencyPayloadMismatchError();
+    }
+    if (claim.status === 'completed') {
+      // Output is all primitives, so no Date coercion is needed on replay.
+      return claim.response;
+    }
+    if (claim.status === 'in_progress') {
+      throw new BillingIdempotencyInProgressError();
+    }
+    const ownerToken = claim.ownerToken;
+
+    try {
+      return await this.reject(invoiceId, reason, actor, input.idempotencyKey, ownerToken, payloadHash);
+    } catch (error) {
+      await this.idempotencyService
+        .release(input.idempotencyKey, IDEMPOTENCY_SCOPE, payloadHash, ownerToken)
+        .catch(() => {});
+      throw error;
+    }
+  }
+
+  private async reject(
+    invoiceId: string,
+    reason: string,
+    actor: AuthContext,
+    idempotencyKey: string,
+    ownerToken: string,
+    payloadHash: string,
+  ): Promise<RejectDraftInvoiceOutput> {
     // 2. Load invoice
     const invoice = await this.invoiceRepo.findById(invoiceId);
     if (!invoice) {
@@ -73,9 +128,23 @@ export class RejectDraftInvoiceUseCase {
       },
     });
 
-    return {
+    const result: RejectDraftInvoiceOutput = {
       invoiceId,
       status: 'VOID',
     };
+
+    const completed = await this.idempotencyService.complete(
+      idempotencyKey,
+      IDEMPOTENCY_SCOPE,
+      ownerToken,
+      result,
+      IDEMPOTENCY_TTL_HOURS,
+      payloadHash,
+    );
+    if (!completed) {
+      throw new BillingIdempotencyInProgressError();
+    }
+
+    return result;
   }
 }

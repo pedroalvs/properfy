@@ -26,21 +26,21 @@ const mockPoints: LassoPoint[] = [
 function makeMockMap() {
   // Allow event handlers registered via `map.on(...)` to be captured so
   // tests can simulate the events.
-  const listeners = new Map<string, ((...args: any[]) => void)[]>();
+  const listeners = new Map<string, ((...args: unknown[]) => void)[]>();
   return {
     listeners,
     addControl: vi.fn(),
     removeControl: vi.fn(),
-    on: vi.fn((event: string, handler: (...args: any[]) => void) => {
+    on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
       const arr = listeners.get(event) ?? [];
       arr.push(handler);
       listeners.set(event, arr);
     }),
-    off: vi.fn((event: string, handler: (...args: any[]) => void) => {
+    off: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
       const arr = listeners.get(event) ?? [];
       listeners.set(event, arr.filter((h) => h !== handler));
     }),
-    fire: (event: string, ...args: any[]) => {
+    fire: (event: string, ...args: unknown[]) => {
       (listeners.get(event) ?? []).forEach((h) => h(...args));
     },
     dragPan: { enable: vi.fn(), disable: vi.fn() },

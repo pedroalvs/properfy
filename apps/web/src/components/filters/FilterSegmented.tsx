@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 interface FilterSegmentedProps {
   label: string;
@@ -66,11 +67,12 @@ export function FilterSegmented({ label, value, options, onChange }: FilterSegme
               tabIndex={active ? 0 : -1}
               onClick={() => onChange(opt.value)}
               onKeyDown={(e) => handleKeyDown(e, index)}
-              className={`flex-1 rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+              className={cn(
+                'flex-1 rounded px-2 py-1.5 text-xs font-medium transition-colors',
                 active
                   ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-text-secondary hover:bg-gray-200'
-              }`}
+                  : 'bg-gray-100 text-text-secondary hover:bg-gray-200',
+              )}
             >
               {opt.label}
             </button>

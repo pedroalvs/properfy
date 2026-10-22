@@ -1,33 +1,11 @@
-import { useState, useEffect } from 'react';
-import { getAllQueuedActions } from '../lib/indexeddb';
+import { useSyncExternalStore } from 'react';
+import { subscribeQueue, getQueueSnapshot } from './useOfflineQueue';
 
-const POLL_INTERVAL_MS = 5000;
-
+/**
+ * Number of queued offline actions, read from the shared offline-queue snapshot.
+ * There is no independent poll: the snapshot is kept current by the queue runner
+ * ({@link useOfflineQueue}) and by the enqueue paths, so the badge never lags.
+ */
 export function useQueuedActionCount(): number {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function fetchCount() {
-      try {
-        const actions = await getAllQueuedActions();
-        if (mounted) {
-          setCount(actions.length);
-        }
-      } catch {
-        // IndexedDB may be unavailable; keep current count
-      }
-    }
-
-    fetchCount();
-    const interval = setInterval(fetchCount, POLL_INTERVAL_MS);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, []);
-
-  return count;
+  return useSyncExternalStore(subscribeQueue, getQueueSnapshot).length;
 }

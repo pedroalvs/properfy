@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 interface Tab {
   id: string;
@@ -53,9 +54,10 @@ export function TabsNav({ tabs, activeTab, onChange }: TabsNavProps) {
               role="tab"
               aria-selected={isActive}
               onClick={() => onChange(tab.id)}
-              className={`relative px-4 py-3 text-tabs font-bold transition-colors duration-150 ${
-                isActive ? 'text-secondary' : 'text-text-inactive'
-              }`}
+              className={cn(
+                'relative px-4 py-3 text-tabs font-bold transition-colors duration-150',
+                isActive ? 'text-secondary' : 'text-text-inactive',
+              )}
             >
               {tab.label}
               {tab.badge !== undefined && (

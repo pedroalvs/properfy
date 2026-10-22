@@ -12,6 +12,7 @@ import { TimeWindowPicker } from './TimeWindowPicker';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { api } from '@/services/api';
+import { getErrorMessage } from '@/lib/api-error';
 import type { AppointmentMapItem } from '@/features/appointments/hooks/useAppointmentMapData';
 
 interface MapGroupCreateModalProps {
@@ -94,10 +95,9 @@ export function MapGroupCreateModal({
 
     setSubmitting(true);
     try {
-      const { data, error: apiError } = await api.POST('/v1/service-groups' as any, { body: result.data as any });
+      const { data, error: apiError } = await api.POST('/v1/service-groups', { body: result.data });
       if (apiError) {
-        const env = apiError as { error?: { message?: string; code?: string } };
-        showError(env?.error?.message ?? 'Failed to create service group');
+        showError(getErrorMessage(apiError, 'Failed to create service group'));
         return;
       }
       const groupCode = (data as { data?: { code?: string } } | undefined)?.data?.code;
@@ -105,8 +105,8 @@ export function MapGroupCreateModal({
       queryClient.invalidateQueries({ queryKey: ['service-groups'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       onSuccess();
-    } catch (err: any) {
-      showError(err?.message ?? 'Failed to create service group');
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to create service group');
     } finally {
       setSubmitting(false);
     }
