@@ -10,6 +10,7 @@ import { AppointmentRestrictionEntity } from '../../../appointment/domain/appoin
 import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
 import { ConfirmationCycleNotFoundError } from '../../../appointment/domain/confirmation-cycle.errors';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 import {
   PortalActionBlockedError,
   PortalAppointmentInactiveError,
@@ -45,6 +46,7 @@ export class ConfirmAppointmentUseCase {
     private readonly domainEventBus?: DomainEventBus,
     private readonly tokenRepo?: IRentalTenantPortalTokenRepository,
     private readonly cycleService?: ConfirmationCycleService,
+    private readonly logger?: Logger,
   ) {}
 
   async execute(input: ConfirmAppointmentInput) {
@@ -65,6 +67,9 @@ export class ConfirmAppointmentUseCase {
     }
 
     const { appointment } = result;
+    // The read applyConfirmation runs against. Replaced by the post-claim re-read
+    // below so the side effects use the freshest state, not the pre-claim one.
+    let confirmSource = result;
 
     // 3. Block for inactive appointment statuses FIRST — a cancelled appointment must
     // never confirm, not even through the idempotent path below (residual CONFIRMED).
@@ -94,27 +99,80 @@ export class ConfirmAppointmentUseCase {
       if (!claimed) {
         throw new PortalTokenAlreadyUsedError();
       }
+
+      // Re-read under the claim. The guards above ran against a read taken before
+      // it, and — now that confirm hands the claim back on success — a concurrent
+      // confirm can complete and release the token in between. Without this,
+      // both requests would apply the confirmation and emit duplicate activity,
+      // audit, notification and CONFIRMED events. Mirrors join-group's post-claim
+      // re-read. Only reachable with a tokenRepo, which is what serialises.
+      //
+      // Wrapped so that a failure of the re-read itself hands the claim back:
+      // the claim is already held here, so a transient read error must not strand
+      // the token exactly as the pre-fix bug did.
+      try {
+        const fresh = await this.appointmentRepo.findById(input.appointmentId, null);
+        if (!fresh || INACTIVE_STATUSES.includes(fresh.appointment.status as (typeof INACTIVE_STATUSES)[number])) {
+          throw new PortalAppointmentInactiveError();
+        }
+        if (fresh.appointment.rentalTenantConfirmationStatus === 'CONFIRMED') {
+          await this.releaseClaimQuietly(input);
+          return {
+            rentalTenantConfirmationStatus: 'CONFIRMED' as const,
+            confirmedAt: new Date().toISOString(),
+          };
+        }
+        confirmSource = fresh;
+      } catch (error) {
+        await this.releaseClaimQuietly(input);
+        throw error;
+      }
     }
 
     try {
-      await this.applyConfirmation(input, appointment, result.restrictions);
+      await this.applyConfirmation(input, confirmSource.appointment, confirmSource.restrictions);
     } catch (error) {
       // Best-effort release so the tenant can retry with the same link;
       // never mask the original failure.
-      if (this.tokenRepo) {
-        try {
-          await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
-        } catch {
-          // release failure leaves the token consumed — fail-closed
-        }
-      }
+      await this.releaseClaimQuietly(input);
       throw error;
+    }
+
+    // Hand the link back. Confirming is not the tenant's last possible action:
+    // the appointment stays non-terminal and the change-time picker revives it,
+    // so consuming the token here would strand them on "contact our team". The
+    // replay guard for a re-confirm is the "already CONFIRMED" short-circuit
+    // above, not the claim — exactly as decline relies on "already UNAVAILABLE".
+    //
+    // Not allowed to fail the request: the confirmation is already committed, so
+    // throwing here would show an error for a confirmation that worked. Logged
+    // instead, because the outcome — token consumed, change-time broken for this
+    // link — still needs to be visible.
+    if (this.tokenRepo) {
+      try {
+        await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
+      } catch (err) {
+        this.logger?.error(
+          { err, appointmentId: input.appointmentId, tokenId: input.tokenId },
+          'Failed to release the portal token after a confirmation; the tenant cannot change time with this link',
+        );
+      }
     }
 
     return {
       rentalTenantConfirmationStatus: 'CONFIRMED' as const,
       confirmedAt: new Date().toISOString(),
     };
+  }
+
+  /** Best-effort, silent release of the token claim (fail-closed on error). */
+  private async releaseClaimQuietly(input: ConfirmAppointmentInput): Promise<void> {
+    if (!this.tokenRepo) return;
+    try {
+      await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
+    } catch {
+      // release failure leaves the token consumed — fail-closed
+    }
   }
 
   private async applyConfirmation(

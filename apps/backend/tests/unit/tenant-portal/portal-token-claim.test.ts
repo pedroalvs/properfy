@@ -8,7 +8,7 @@ import type { IAppointmentRepository } from '../../../src/modules/appointment/do
 import type { PersistentAuditService } from '../../../src/modules/audit/application/services/persistent-audit.service';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
-import { PortalTokenAlreadyUsedError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
+import { PortalTokenAlreadyUsedError, PortalAppointmentInactiveError } from '../../../src/modules/rental-tenant-portal/domain/rental-tenant-portal.errors';
 
 // Freeze "now" so the mock scheduledDate stays in the future and the 30-day
 // reschedule window guard never trips on CI date drift (same convention as
@@ -103,6 +103,7 @@ describe('ConfirmAppointmentUseCase atomic token claim', () => {
     const activityRepo = makeActivityRepo();
     const appointmentRepo = makeAppointmentRepo();
     const tokenRepo = makeTokenRepo();
+    const logger = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
     const useCase = new ConfirmAppointmentUseCase(
       activityRepo as unknown as IRentalTenantPortalActivityRepository,
       appointmentRepo as unknown as IAppointmentRepository,
@@ -110,6 +111,8 @@ describe('ConfirmAppointmentUseCase atomic token claim', () => {
       undefined,
       undefined,
       tokenRepo as unknown as IRentalTenantPortalTokenRepository,
+      undefined,
+      logger as any,
     );
     const input = {
       tokenId: 'token-1',
@@ -120,15 +123,18 @@ describe('ConfirmAppointmentUseCase atomic token claim', () => {
       ipAddress: '127.0.0.1',
       userAgent: 'Test/1.0',
     };
-    return { useCase, activityRepo, appointmentRepo, tokenRepo, input };
+    return { useCase, activityRepo, appointmentRepo, tokenRepo, logger, input };
   }
 
-  it('claims the token atomically before any side effect', async () => {
+  it('claims the token atomically before any side effect, then hands it back', async () => {
     const { useCase, tokenRepo, input } = build();
     await useCase.execute(input);
     expect(tokenRepo.tryClaim).toHaveBeenCalledTimes(1);
     expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
-    expect(tokenRepo.releaseClaim).not.toHaveBeenCalled();
+    // The claim is released on success so the same link can still change time
+    // afterwards (symmetry with the decline path). The "already CONFIRMED"
+    // short-circuit is the replay guard, not a permanently consumed token.
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
   });
 
   it('throws PortalTokenAlreadyUsedError and performs no side effect when the claim loses the race', async () => {
@@ -141,6 +147,94 @@ describe('ConfirmAppointmentUseCase atomic token claim', () => {
     expect(appointmentRepo.deleteRestrictionsByAppointmentId).not.toHaveBeenCalled();
     expect(activityRepo.save).not.toHaveBeenCalled();
     expect(tokenRepo.releaseClaim).not.toHaveBeenCalled();
+  });
+
+  it('succeeds but logs when the post-confirmation claim release fails', async () => {
+    // The confirmation is already committed by the time the claim is handed
+    // back, so a release failure must not surface as an error to the tenant —
+    // but the stranded link is an operational fact that must be logged.
+    const { useCase, tokenRepo, logger, input } = build();
+    tokenRepo.releaseClaim.mockRejectedValue(new Error('release failed'));
+
+    const result = await useCase.execute(input);
+
+    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: 'appt-1', tokenId: 'token-1' }),
+      expect.stringContaining('release the portal token'),
+    );
+  });
+
+  it('does not re-apply when a concurrent confirm already completed (post-claim re-read)', async () => {
+    // Race: this request read the appointment as PENDING, then a concurrent
+    // confirm committed and handed the claim back. After winning the claim, the
+    // re-read now sees CONFIRMED, so this request must short-circuit idempotently
+    // instead of emitting a duplicate activity / audit / notification / event.
+    const { useCase, activityRepo, appointmentRepo, tokenRepo, input } = build();
+    appointmentRepo.findById
+      .mockResolvedValueOnce({ appointment: makeAppointment(), contact: null, contacts: [], restrictions: [] })
+      .mockResolvedValueOnce({ appointment: makeAppointment({ rentalTenantConfirmationStatus: 'CONFIRMED' }), contact: null, contacts: [], restrictions: [] });
+
+    const result = await useCase.execute(input);
+
+    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
+    expect(tokenRepo.tryClaim).toHaveBeenCalledTimes(1);
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledTimes(1);
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+    expect(activityRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('releases the claim and throws inactive when the appointment turned terminal after the claim', async () => {
+    const { useCase, activityRepo, appointmentRepo, tokenRepo, input } = build();
+    appointmentRepo.findById
+      .mockResolvedValueOnce({ appointment: makeAppointment(), contact: null, contacts: [], restrictions: [] })
+      .mockResolvedValueOnce({ appointment: makeAppointment({ status: 'CANCELLED' }), contact: null, contacts: [], restrictions: [] });
+
+    await expect(useCase.execute(input)).rejects.toThrow(PortalAppointmentInactiveError);
+
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledTimes(1);
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+    expect(activityRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('releases the claim when the post-claim re-read itself fails', async () => {
+    // The claim is already held at this point, so a transient read failure must
+    // not strand the token — otherwise it reintroduces the very bug this fixes.
+    const { useCase, tokenRepo, appointmentRepo, input } = build();
+    appointmentRepo.findById
+      .mockResolvedValueOnce({ appointment: makeAppointment(), contact: null, contacts: [], restrictions: [] })
+      .mockRejectedValueOnce(new Error('db read failed'));
+
+    await expect(useCase.execute(input)).rejects.toThrow('db read failed');
+
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledTimes(1);
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
+  });
+
+  it('applies the confirmation against the fresh post-claim read, not the pre-claim snapshot', async () => {
+    const { useCase, appointmentRepo, input } = build();
+    const operatorRestriction = {
+      id: 'restr-1', appointmentId: 'appt-1', isHome: true,
+      unavailableDaysJson: null, unavailableHoursJson: null,
+      availableSlotsJson: [{ date: '2026-04-16', timeSlotStart: '09:00', timeSlotEnd: '12:00' }],
+      notes: null, source: 'OPERATOR', createdAt: new Date(), updatedAt: new Date(),
+    };
+    // Pre-claim read has no restrictions; the fresh read gains an operator one.
+    appointmentRepo.findById
+      .mockResolvedValueOnce({ appointment: makeAppointment(), contact: null, contacts: [], restrictions: [] })
+      .mockResolvedValueOnce({ appointment: makeAppointment(), contact: null, contacts: [], restrictions: [operatorRestriction] });
+
+    await useCase.execute(input);
+
+    // Using the stale pre-claim read would pass null; the fresh read preserves
+    // the operator restriction (with its offered availability dropped).
+    expect(appointmentRepo.replaceRestrictions).toHaveBeenCalledWith(
+      'appt-1',
+      expect.objectContaining({ source: 'OPERATOR', availableSlotsJson: null }),
+    );
   });
 
   it('does not claim the token on the idempotent already-CONFIRMED path', async () => {
@@ -216,9 +310,9 @@ describe('ReportUnavailabilityUseCase atomic token claim', () => {
     await useCase.execute(input);
     expect(tokenRepo.tryClaim).toHaveBeenCalledTimes(1);
     expect(tokenRepo.tryClaim).toHaveBeenCalledWith('token-1', 'appt-1');
-    // Unlike confirm and join, the claim is released on success: a decline
-    // auto-rejects the appointment, and the tenant still needs this link to pick
-    // another time. The claim only serialises concurrent declines; the
+    // Like confirm (but unlike join), the claim is released on success: a
+    // decline auto-rejects the appointment, and the tenant still needs this link
+    // to pick another time. The claim only serialises concurrent declines; the
     // "already UNAVAILABLE" short-circuit is the replay guard.
     expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
   });

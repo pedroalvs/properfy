@@ -149,9 +149,9 @@ describe('SubmitSatisfactionSurveyUseCase', () => {
   });
 
   it('does NOT block a token that was already used for a mutation', async () => {
-    // The single easiest mistake in this module. `used_at` is set by confirm and
-    // join-group, so copying the sibling use-cases' `isUsed` guard would deny the
-    // survey to every tenant who confirmed attendance — i.e. the happy path.
+    // The single easiest mistake in this module. `used_at` is set by join-group
+    // (confirm and decline hand the claim back on success), so copying the sibling
+    // use-cases' `isUsed` guard would deny the survey to tenants who rescheduled.
     const result = await useCase.execute(baseInput({ isUsed: true }));
 
     expect(result).toMatchObject({ rating: 5 });

@@ -297,8 +297,8 @@ export function PortalPage() {
 
         {hasResponse && !isReadOnly && !isTerminal && !isRejected && (
           <InfoBanner>
-            Your response has been recorded. If you need to make further changes, please
-            contact our team.
+            Your response has been recorded. You can still change your time above if you
+            need to.
           </InfoBanner>
         )}
 

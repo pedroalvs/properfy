@@ -49,11 +49,11 @@ export class SubmitSatisfactionSurveyUseCase {
     }
 
     // NOTE: there is deliberately NO `isUsed` check and NO `tryClaim` call here,
-    // unlike confirm/join-group. `used_at` is set when the tenant confirms or
-    // joins a group, so guarding on it would deny the survey to everyone who
-    // confirmed attendance — the happy path. Replay safety comes from the unique
-    // index on appointment_id instead, which is stronger anyway: it holds across
-    // tokens, not just within one.
+    // unlike join-group. `used_at` is set when the tenant joins a group via the
+    // portal (confirm and decline hand the claim back on success), so guarding on
+    // it would deny the survey to tenants who rescheduled. Replay safety comes
+    // from the unique index on appointment_id instead, which is stronger anyway:
+    // it holds across tokens, not just within one.
 
     // Same reason `isPastConfirmCutoff` is not consulted: on a DONE appointment
     // the confirmation cutoff is long past by definition, and it gates attending,
