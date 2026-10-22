@@ -314,15 +314,42 @@ export interface IServiceGroupRepository {
   incrementConfirmedCount(groupId: string, tx?: Prisma.TransactionClient): Promise<void>;
   /** Set service_group_id on appointments */
   /**
-   * Links appointments to the group, but only while the group is still addable
-   * (`ADDABLE_GROUP_STATUSES`), evaluated in the same statement as the write.
+   * Plain-links appointments to the group (sets `service_group_id` without
+   * scheduling), but only while the group is in a linkable, non-committed state
+   * (`LINKABLE_GROUP_STATUSES` = DRAFT/PUBLISHED), evaluated in the same statement
+   * as the write.
    *
-   * Returns the number of rows linked. **0 means the group changed status first**
-   * — e.g. the empty-group cleanup cancelled it after the caller read it — and the
+   * Returns the number of rows linked. **0 means the group was no longer linkable**
+   * — the empty-group cleanup cancelled it, or it was accepted (an ACCEPTED group
+   * takes members via `commitAppointmentToAcceptedGroup`, not a bare link) — and the
    * caller must not proceed, or it would strand a live appointment on a group the
-   * marketplace never offers and `canAddToGroup` refuses to replace.
+   * marketplace never offers / that is already committed to an inspector.
    */
   linkAppointments(appointmentIds: string[], groupId: string): Promise<number>;
+  /**
+   * Atomically link one appointment into an ACCEPTED group AND schedule it under
+   * that group's committed inspector (status SCHEDULED, inspector_id set,
+   * confirmed_count incremented) — all in one transaction that locks the group row
+   * (`FOR UPDATE`) so a concurrent accept/reject/reassign cannot be interleaved.
+   *
+   * The whole commit is guarded on the group still being ACCEPTED with the exact
+   * `expectedInspectorId` the caller decided from, closing the snapshot race that a
+   * plain `linkAppointments` (which only checks the status is addable) would leave
+   * open — it could otherwise schedule under a stale inspector, or link without
+   * scheduling. Returns:
+   *  - `SCHEDULED` — committed.
+   *  - `GROUP_CHANGED` — the group is no longer ACCEPTED under that inspector; nothing written.
+   *  - `APPOINTMENT_CONFLICT` — the appointment is no longer schedulable into the group
+   *    (soft-deleted, left a groupable status, or grabbed by another group) between the
+   *    snapshot and the write; nothing written. Because this call *sets* the status, that
+   *    guard is what stops a concurrently cancelled/rejected/DONE appointment being
+   *    resurrected into a SCHEDULED job.
+   */
+  commitAppointmentToAcceptedGroup(params: {
+    appointmentId: string;
+    groupId: string;
+    expectedInspectorId: string;
+  }): Promise<'SCHEDULED' | 'GROUP_CHANGED' | 'APPOINTMENT_CONFLICT'>;
   /** Just the group's status, or null if it does not exist. Cheap membership check. */
   findStatusById(id: string, tx?: Prisma.TransactionClient): Promise<string | null>;
   /**

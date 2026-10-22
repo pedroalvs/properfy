@@ -1061,6 +1061,9 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo,
     auditService,
     authorizationService,
+    inspectorRepo,
+    serviceRegionRepo,
+    domainEventBus,
     logger,
   );
   const checkAppointmentsEligibilityForGroupUseCase = new CheckAppointmentsEligibilityForGroupUseCase(

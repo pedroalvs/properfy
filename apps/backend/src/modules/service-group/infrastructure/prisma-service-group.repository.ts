@@ -24,8 +24,9 @@ import {
   TERMINAL_APPOINTMENT_STATUSES,
 } from '@properfy/shared';
 import { phoneColumnSearchClauses } from '../../../shared/infrastructure/phone-search-clause';
-import { ADDABLE_GROUP_STATUSES, TERMINAL_GROUP_STATUSES } from '../domain/service-group.validator';
+import { LINKABLE_GROUP_STATUSES, TERMINAL_GROUP_STATUSES } from '../domain/service-group.validator';
 import { computeWindowAvailability } from '../domain/portal-slot-capacity';
+import { formatDate, startOfPlatformToday } from '../../../shared/domain/timezone-date';
 
 /** Same idiom as prisma-confirmation-cycle.repository.ts — the tx client is a narrowed PrismaClient. */
 type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -1039,7 +1040,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
                SELECT 1
                  FROM service_groups g
                 WHERE g.id = ${groupId}
-                  AND g.status::text IN (${Prisma.join([...ADDABLE_GROUP_STATUSES])})
+                  AND g.status::text IN (${Prisma.join([...LINKABLE_GROUP_STATUSES])})
              )
          -- Appointment-side precondition. Without it two concurrent adds both read
          -- the appointment as ungrouped and the later write silently steals it out
@@ -1057,6 +1058,65 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
                )
              )
     `;
+  }
+
+  async commitAppointmentToAcceptedGroup(params: {
+    appointmentId: string;
+    groupId: string;
+    expectedInspectorId: string;
+  }): Promise<'SCHEDULED' | 'GROUP_CHANGED' | 'APPOINTMENT_CONFLICT'> {
+    const { appointmentId, groupId, expectedInspectorId } = params;
+    return this.prisma.$transaction(async (tx) => {
+      // Lock the group row so a concurrent accept / reject / reassign serializes
+      // behind us: the status + inspector we re-read here cannot then change until
+      // this commit lands. This is what makes the whole decision atomic.
+      const grp = await tx.$queryRaw<Array<{ status: string; assigned_inspector_id: string | null }>>`
+        SELECT status::text AS status, assigned_inspector_id
+          FROM service_groups
+         WHERE id = ${groupId}
+           FOR UPDATE
+      `;
+      const row = grp[0];
+      if (!row || row.status !== 'ACCEPTED' || row.assigned_inspector_id !== expectedInspectorId) {
+        return 'GROUP_CHANGED';
+      }
+
+      // Link + schedule in one statement. Because this write *sets* the status (unlike
+      // the link-only `linkAppointments`), it must also re-assert the appointment-side
+      // preconditions the snapshot validation checked, or a concurrent cancel / reject /
+      // DONE / soft-delete landing between the snapshot and here would be silently
+      // resurrected into a billable SCHEDULED job. Guards:
+      //  - not soft-deleted;
+      //  - still in a groupable status (DRAFT / AWAITING_INSPECTOR / REJECTED);
+      //  - ungrouped, already in THIS group, or linked only to a dead terminal group.
+      const linked = await tx.$executeRaw`
+        UPDATE appointments a
+           SET service_group_id = ${groupId},
+               status = 'SCHEDULED'::"AppointmentStatus",
+               inspector_id = ${expectedInspectorId},
+               updated_at = NOW()
+         WHERE a.id = ${appointmentId}
+           AND a.deleted_at IS NULL
+           AND a.status::text IN ('DRAFT', 'AWAITING_INSPECTOR', 'REJECTED')
+           AND (
+                 a.service_group_id IS NULL
+              OR a.service_group_id = ${groupId}
+              OR EXISTS (
+                   SELECT 1 FROM service_groups og
+                    WHERE og.id = a.service_group_id
+                      AND og.status::text IN (${Prisma.join([...TERMINAL_GROUP_STATUSES])})
+                 )
+               )
+      `;
+      if (linked === 0) {
+        return 'APPOINTMENT_CONFLICT';
+      }
+
+      await tx.$executeRaw`
+        UPDATE service_groups SET confirmed_count = confirmed_count + 1 WHERE id = ${groupId}
+      `;
+      return 'SCHEDULED';
+    });
   }
 
   async unlinkAppointments(groupId: string): Promise<void> {
@@ -1425,6 +1485,14 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   }>> {
     const capacity = 30;
 
+    // Lower bound for "not in the past" anchored to the platform timezone (Sydney),
+    // not the DB server clock. `scheduled_date` is a `@db.Date` pinned to UTC midnight
+    // of a Sydney civil date, so comparing against Postgres `CURRENT_DATE` (a UTC date)
+    // dropped groups scheduled for *today* during the ~10h window each day where Sydney
+    // has rolled over but UTC has not. `startOfPlatformToday()` is UTC midnight of today's
+    // Sydney civil date; bound as a `::date` string it includes today and excludes yesterday.
+    const todayStr = formatDate(startOfPlatformToday());
+
     // Use $queryRaw to get appointment count and service type name in one round-trip.
     type Row = {
       id: string;
@@ -1450,8 +1518,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       LEFT JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
       LEFT JOIN service_types st ON st.id = sg.service_type_id
       WHERE sg.service_type_id = ${params.serviceTypeId}
-        AND sg.status IN ('DRAFT', 'PUBLISHED')
-        AND sg.scheduled_date >= CURRENT_DATE
+        AND sg.status IN ('DRAFT', 'PUBLISHED', 'ACCEPTED')
+        AND sg.scheduled_date >= ${todayStr}::date
       GROUP BY sg.id, sg.group_number, sg.status, sg.scheduled_date, sg.time_window, sg.service_type_id, st.name
       ORDER BY sg.created_at ASC
     `;
