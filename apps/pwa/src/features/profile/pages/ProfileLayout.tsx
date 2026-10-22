@@ -16,7 +16,7 @@ export function ProfileLayout() {
       master={<ProfilePage />}
       detail={<Outlet />}
       hasSelection={hasSelection}
-      onClose={() => navigate('/profile')}
+      onClose={() => navigate('/profile', { replace: true })}
     />
   );
 }

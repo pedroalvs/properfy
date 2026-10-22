@@ -52,6 +52,6 @@ describe('ProfileLayout', () => {
     const user = userEvent.setup();
     renderAt('/profile/account');
     await user.click(screen.getByTestId('two-pane-close'));
-    expect(mockNavigate).toHaveBeenCalledWith('/profile');
+    expect(mockNavigate).toHaveBeenCalledWith('/profile', { replace: true });
   });
 });

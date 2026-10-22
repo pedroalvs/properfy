@@ -58,6 +58,6 @@ describe('ScheduleLayout', () => {
     const user = userEvent.setup();
     renderAt('/schedule/appt-1');
     await user.click(screen.getByTestId('two-pane-close'));
-    expect(mockNavigate).toHaveBeenCalledWith('/schedule');
+    expect(mockNavigate).toHaveBeenCalledWith('/schedule', { replace: true });
   });
 });

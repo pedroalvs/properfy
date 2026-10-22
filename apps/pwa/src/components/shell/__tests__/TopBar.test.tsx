@@ -4,9 +4,16 @@ import { TopBar } from '../TopBar';
 import { renderWithProviders } from '@/test-utils';
 
 const mockNavigate = vi.fn();
+// `useGoBack` decides via `location.key`: a non-'default' key means real in-app history
+// exists (→ navigate(-1)); 'default' is React Router's cold/direct-load marker (→ fallback).
+let mockLocationKey = 'abc123';
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
-  return { ...actual, useNavigate: () => mockNavigate };
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+    useLocation: () => ({ key: mockLocationKey, pathname: '/', search: '', hash: '', state: null }),
+  };
 });
 
 let mockQueuedCount = 0;
@@ -20,18 +27,11 @@ vi.mock('@/hooks/useIsOnline', () => ({
 }));
 
 describe('TopBar', () => {
-  let historyStateSpy: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
     mockNavigate.mockClear();
     mockQueuedCount = 0;
     mockIsOnline = true;
-    historyStateSpy = vi.spyOn(window.history, 'state', 'get');
-    historyStateSpy.mockReturnValue({ idx: 1 });
-  });
-
-  afterEach(() => {
-    historyStateSpy.mockRestore();
+    mockLocationKey = 'abc123';
   });
 
   it('renders title', () => {
@@ -61,21 +61,21 @@ describe('TopBar', () => {
     expect(screen.getByTestId('back-button').className).toContain('md:hidden');
   });
 
-  it('navigates back when back button is clicked', async () => {
+  it('pops in-app history when back is clicked and history exists', async () => {
     const user = userEvent.setup();
     renderWithProviders(<TopBar title="Detail" showBack />);
     await user.click(screen.getByTestId('back-button'));
     expect(mockNavigate).toHaveBeenCalledWith(-1);
   });
 
-  it('falls back to /schedule on direct entry with no in-app history', async () => {
-    historyStateSpy.mockReturnValue({ idx: 0 });
+  it('falls back to backTo on direct entry with no in-app history', async () => {
+    mockLocationKey = 'default';
     const user = userEvent.setup();
 
-    renderWithProviders(<TopBar title="Detail" showBack />);
+    renderWithProviders(<TopBar title="Detail" showBack backTo="/earnings/invoices" />);
     await user.click(screen.getByTestId('back-button'));
 
-    expect(mockNavigate).toHaveBeenCalledWith('/schedule', { replace: true });
+    expect(mockNavigate).toHaveBeenCalledWith('/earnings/invoices', { replace: true });
   });
 
   it('hides the connection indicator when online (v3 has no persistent pill)', () => {
