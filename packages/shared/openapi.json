@@ -16074,6 +16074,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "assignedInspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "serviceRegionId": {
                           "type": "string",
                           "format": "uuid",
@@ -16401,6 +16405,10 @@
                             "format": "uuid",
                             "nullable": true
                           },
+                          "assignedInspectorName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "serviceRegionId": {
                             "type": "string",
                             "format": "uuid",
@@ -16613,6 +16621,10 @@
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
+                          "nullable": true
+                        },
+                        "assignedInspectorName": {
+                          "type": "string",
                           "nullable": true
                         },
                         "serviceRegionId": {
@@ -16830,6 +16842,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "assignedInspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "serviceRegionId": {
                           "type": "string",
                           "format": "uuid",
@@ -17016,6 +17032,10 @@
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
+                          "nullable": true
+                        },
+                        "assignedInspectorName": {
+                          "type": "string",
                           "nullable": true
                         },
                         "serviceRegionId": {

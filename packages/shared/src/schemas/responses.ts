@@ -619,6 +619,11 @@ export const serviceGroupResponseSchema = z.object({
   regionName: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   assignedInspectorId: z.string().uuid().nullable(),
+  // Resolved name of the assigned inspector. The repository/use-case already
+  // produce it; without this field the Zod response serializer strips it off
+  // the wire (and it is absent from the generated contract), so the UI shows
+  // "—" even for assigned groups. Optional — write paths omit it.
+  assignedInspectorName: z.string().nullable().optional(),
   serviceRegionId: z.string().uuid().nullable().optional(),
   publishedAt: instantStrNullable(),
   assignedAt: instantStrNullable().optional(),

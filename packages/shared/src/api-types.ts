@@ -6718,6 +6718,7 @@ export interface paths {
                                 description?: string | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
+                                assignedInspectorName?: string | null;
                                 /** Format: uuid */
                                 serviceRegionId?: string | null;
                                 publishedAt: (string) | null;
@@ -6795,6 +6796,7 @@ export interface paths {
                                 description?: string | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
+                                assignedInspectorName?: string | null;
                                 /** Format: uuid */
                                 serviceRegionId?: string | null;
                                 publishedAt: (string) | null;
@@ -6867,6 +6869,7 @@ export interface paths {
                                 description?: string | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
+                                assignedInspectorName?: string | null;
                                 /** Format: uuid */
                                 serviceRegionId?: string | null;
                                 publishedAt: (string) | null;
@@ -6941,6 +6944,7 @@ export interface paths {
                                 description?: string | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
+                                assignedInspectorName?: string | null;
                                 /** Format: uuid */
                                 serviceRegionId?: string | null;
                                 publishedAt: (string) | null;
@@ -7011,6 +7015,7 @@ export interface paths {
                                 description?: string | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
+                                assignedInspectorName?: string | null;
                                 /** Format: uuid */
                                 serviceRegionId?: string | null;
                                 publishedAt: (string) | null;

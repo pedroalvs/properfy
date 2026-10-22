@@ -27,6 +27,8 @@ interface GroupMapDetailPanelProps {
     scheduledDate: string;
     /** `HH:mm-HH:mm`. Absent payloads degrade the publish gate to date-only. */
     timeWindow?: string;
+    /** Assigned inspector's name — rendered when present (accepted groups). */
+    inspectorName?: string | null;
   } | null;
   /**
    * The group's appointments (fetched by the page via
@@ -193,11 +195,21 @@ export function GroupMapDetailPanel({
       </div>
 
       {/* Summary */}
-      <div className="border-b border-border-subtle px-4 py-3">
-        <p className="text-[10px] uppercase tracking-wide text-text-muted">Appointments</p>
-        <p className="text-sm text-text-primary" data-testid="group-map-detail-size">
-          {group.groupSize} appointment{group.groupSize === 1 ? '' : 's'}
-        </p>
+      <div className="space-y-2 border-b border-border-subtle px-4 py-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-text-muted">Appointments</p>
+          <p className="text-sm text-text-primary" data-testid="group-map-detail-size">
+            {group.groupSize} appointment{group.groupSize === 1 ? '' : 's'}
+          </p>
+        </div>
+        {group.inspectorName && (
+          <div>
+            <p className="text-[10px] uppercase tracking-wide text-text-muted">Inspector</p>
+            <p className="text-sm text-text-primary" data-testid="group-map-detail-inspector">
+              {group.inspectorName}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Footer — VIEW GROUP navigates to the full detail page; the second

@@ -92,6 +92,16 @@ describe('GroupMapDetailPanel', () => {
     expect(screen.queryByText(/#/)).toBeNull();
   });
 
+  it('shows the inspector name when one is assigned', () => {
+    renderPanel({ group: { ...sampleGroup, inspectorName: 'Alice Smith' } });
+    expect(screen.getByTestId('group-map-detail-inspector')).toHaveTextContent('Alice Smith');
+  });
+
+  it('omits the inspector block when no inspector is assigned', () => {
+    renderPanel();
+    expect(screen.queryByTestId('group-map-detail-inspector')).toBeNull();
+  });
+
   it('uses singular "appointment" for groupSize 1', () => {
     renderPanel({ group: { ...sampleGroup, groupSize: 1 } });
     expect(screen.getByTestId('group-map-detail-size')).toHaveTextContent('1 appointment');
