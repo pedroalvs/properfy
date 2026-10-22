@@ -15,6 +15,7 @@ export function ScheduleLayout() {
 
   return (
     <TwoPaneLayout
+      fillHeight
       master={<SchedulePage />}
       detail={<Outlet />}
       hasSelection={hasSelection}

@@ -13,6 +13,7 @@ export function ProfileLayout() {
 
   return (
     <TwoPaneLayout
+      fillHeight
       master={<ProfilePage />}
       detail={<Outlet />}
       hasSelection={hasSelection}

@@ -136,6 +136,16 @@ describe('AppointmentDetailPage', () => {
     expect(screen.getByTestId('start-inspection-cta')).toHaveTextContent('Start Inspection');
   });
 
+  it('pins the CTA to the bottom of the detail pane on tablet', () => {
+    // In the fillHeight two-pane detail pane the CTA stays reachable as the pane scrolls on its
+    // own; phone keeps it inline at the end (the md: gate). The opaque footer spans the pane width.
+    renderPage();
+    const ctaWrapper = screen.getByTestId('start-inspection-cta').parentElement!;
+    expect(ctaWrapper.className).toContain('md:sticky');
+    expect(ctaWrapper.className).toContain('md:bottom-0');
+    expect(ctaWrapper.className).toContain('md:bg-background');
+  });
+
   it('shows resume CTA when there is local execution in progress', () => {
     mockUseLocalExecutionState.mockReturnValue({
       state: { phase: 'IN_PROGRESS' },

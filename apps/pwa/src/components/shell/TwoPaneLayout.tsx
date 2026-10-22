@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
+import { WidePaneProvider, STICKY_HEADER } from './WidePaneContext';
 
 type TwoPaneVariant = 'master' | 'canvas';
 type DetailMode = 'inline' | 'overlay';
@@ -27,6 +28,14 @@ interface TwoPaneLayoutProps {
    * renders its own bottom-sheet overlay, so the inline detail pane is tablet-only.
    */
   detailMode?: DetailMode;
+  /**
+   * At `md`+, bound the frame to the viewport (minus the fixed-nav clearance) and give each pane
+   * its own scroll region, instead of letting the whole document body scroll. Off by default so
+   * overlay/map consumers (Marketplace) are unaffected. Opt in only for inline master-detail
+   * screens whose panes are tall reading surfaces (Schedule / Profile / Invoices). Also pins each
+   * pane's `TopBar` to its top via `WidePaneContext`.
+   */
+  fillHeight?: boolean;
 }
 
 // Open width of the detail pane at the tablet breakpoint. The master is `flex-1` and reflows into the
@@ -50,20 +59,35 @@ export function TwoPaneLayout({
   showClose = true,
   variant = 'master',
   detailMode = 'inline',
+  fillHeight = false,
 }: TwoPaneLayoutProps) {
   // Phone: `inline` swaps master and detail by selection; `overlay` keeps the master and the caller
   // owns the detail overlay (so the inline detail pane is tablet-only).
   const detailHiddenOnPhone = detailMode === 'overlay' || !hasSelection;
   const masterHiddenOnPhone = detailMode === 'inline' && hasSelection;
 
-  return (
-    <div className="w-full md:flex" data-testid="two-pane-layout">
+  const frame = (
+    <div
+      className={cn(
+        'w-full md:flex',
+        // Bound the frame to the viewport minus the fixed-nav clearance so each pane (below) can own
+        // its own scroll; `<main>`'s existing `pb-nav-clear` fills the remaining space the nav floats
+        // over. `md:` only — phone keeps the validated single-column body scroll.
+        fillHeight && 'md:h-[calc(100dvh-theme(spacing.nav-clear))] md:overflow-hidden',
+      )}
+      data-testid="two-pane-layout"
+    >
       {/* Detail — left column on tablet (inverted), width animates open/closed. */}
       <div
         className={cn(
           'min-w-0',
           detailHiddenOnPhone ? 'hidden md:block' : 'block',
-          'md:shrink-0 md:overflow-hidden md:transition-[width,opacity] md:duration-200 md:ease-out',
+          'md:shrink-0 md:transition-[width,opacity] md:duration-200 md:ease-out',
+          // `fillHeight`: keep the horizontal clip the width open/close animation relies on, but
+          // scroll vertically within the pane. Otherwise keep the original both-axes clip.
+          fillHeight
+            ? 'md:h-full md:overflow-x-hidden md:overflow-y-auto'
+            : 'md:overflow-hidden',
           hasSelection
             ? cn('md:border-r md:border-border md:opacity-100', DETAIL_OPEN_WIDTH[variant])
             : 'md:w-0 md:opacity-0',
@@ -99,11 +123,18 @@ export function TwoPaneLayout({
 
       {/* Master — right column on tablet, fills the remaining space. */}
       <div
-        className={cn('min-w-0 md:flex-1', masterHiddenOnPhone && 'hidden md:block')}
+        className={cn(
+          'min-w-0 md:flex-1',
+          fillHeight && 'md:h-full md:overflow-y-auto',
+          masterHiddenOnPhone && 'hidden md:block',
+        )}
         data-testid="two-pane-master"
       >
         {master}
       </div>
     </div>
   );
+
+  // When the panes own their scroll, tell the headers inside them to pin to the pane top.
+  return fillHeight ? <WidePaneProvider value={STICKY_HEADER}>{frame}</WidePaneProvider> : frame;
 }

@@ -3,6 +3,7 @@ import { cn } from '@properfy/frontend-standards';
 import { useGoBack } from '@/hooks/useGoBack';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import { useQueuedActionCount } from '@/features/execution/hooks/useQueuedActionCount';
+import { useWidePane } from './WidePaneContext';
 
 interface TopBarProps {
   title: string;
@@ -34,11 +35,21 @@ export function TopBar({
   const handleBack = useGoBack(backTo);
   const isOnline = useIsOnline();
   const queuedCount = useQueuedActionCount();
+  // Inside a scroll-owning two-pane pane (fillHeight), pin the header to the pane top on tablet so
+  // the title stays visible while the pane scrolls. Phone keeps the v3 non-sticky behaviour.
+  const { stickyHeader } = useWidePane();
 
-  // v3: the title is NOT a sticky bar — it scrolls away as the first element of the
-  // content, with no header divider (hence no `sticky`/`border-b`).
+  // v3: by default the title is NOT a sticky bar — it scrolls away as the first element of the
+  // content, with no header divider. The exception is a scroll-owning two-pane pane (`stickyHeader`),
+  // where it pins to the pane top on tablet so the title stays visible while the pane scrolls.
   return (
-    <header className="bg-background px-page-x py-3">
+    <header
+      className={cn(
+        'bg-background px-page-x py-3',
+        // `bg-background` is opaque, so scrolled content passes cleanly under the pinned header.
+        stickyHeader && 'md:sticky md:top-0 md:z-10',
+      )}
+    >
       <div className="flex min-h-[52px] items-center gap-3">
       {showBack && (
         // v3: a plain "‹" chevron, no circle/border. `-ml-2` pulls the glyph to the
