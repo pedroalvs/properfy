@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test-utils';
 import { MarketplacePage } from '../MarketplacePage';
@@ -641,5 +641,85 @@ describe('MarketplacePage — tablet 2-column layout', () => {
     await user.click(screen.getByTestId('acc-toggle-grp-1'));
     await user.click(screen.getByTestId('acc-accept-grp-1'));
     expect(mockAccept).toHaveBeenCalledWith('grp-1');
+  });
+});
+
+describe('MarketplacePage — breakpoint crossing', () => {
+  const originalMatchMedia = window.matchMedia;
+  let mediaListeners: Set<() => void>;
+  let mediaMatches: boolean;
+
+  // matchMedia mock that captures change listeners so the test can flip the
+  // breakpoint at runtime (tablet rotation portrait→landscape).
+  function installMatchMedia(initial: boolean) {
+    mediaListeners = new Set();
+    mediaMatches = initial;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      get matches() {
+        return mediaMatches;
+      },
+      media: query,
+      onchange: null,
+      addEventListener: (_event: string, cb: () => void) => mediaListeners.add(cb),
+      removeEventListener: (_event: string, cb: () => void) => mediaListeners.delete(cb),
+      addListener: (cb: () => void) => mediaListeners.add(cb),
+      removeListener: (cb: () => void) => mediaListeners.delete(cb),
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+  }
+
+  function crossTo(matches: boolean) {
+    act(() => {
+      mediaMatches = matches;
+      mediaListeners.forEach((cb) => cb());
+    });
+  }
+
+  beforeEach(() => {
+    mockUseMarketplaceOffers.mockReset();
+    mockUseIsOnline.mockReset();
+    mockUseIsOnline.mockReturnValue(true);
+    mockAccept.mockReset();
+    mockGetState.mockReset();
+    mockGetState.mockReturnValue('IDLE');
+    mockUseOfferDetail.mockReset();
+    mockUseOfferDetail.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    mockShowInfo.mockReset();
+    mockShowError.mockReset();
+  });
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  const offer = {
+    groupId: 'grp-1',
+    tenantName: 'Agency',
+    serviceTypeName: 'Routine Inspection',
+    groupSize: 1,
+    scheduledDate: '2026-03-26',
+    timeWindow: '09:00-11:00',
+    priorityMode: 'STANDARD',
+    priorityExpiresAt: null,
+    suburbs: ['Brunswick'],
+  } as unknown as MarketplaceOffer;
+
+  it('clears a narrow bottom-sheet selection when crossing into the wide extended layout', async () => {
+    installMatchMedia(false); // start narrow
+    mockUseMarketplaceOffers.mockReturnValue(offersHookReturn([offer]));
+    const user = userEvent.setup();
+    renderWithProviders(<MarketplacePage />);
+
+    // Narrow: open the detail bottom sheet.
+    await user.click(screen.getByTestId('view-detail'));
+    expect(screen.getByTestId('detail-sheet')).toBeInTheDocument();
+
+    // Rotate into the wide extended layout.
+    crossTo(true);
+
+    // The stale selection is cleared: no bottom sheet, no split-pane over the grid.
+    expect(screen.queryByTestId('detail-sheet')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('group-detail-pane')).not.toBeInTheDocument();
+    expect(screen.getByTestId('marketplace-extended')).toBeInTheDocument();
   });
 });

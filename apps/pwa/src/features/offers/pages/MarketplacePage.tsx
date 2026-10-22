@@ -109,10 +109,12 @@ export function MarketplacePage() {
   };
 
   // Crossing the layout breakpoint (e.g. a tablet rotating between portrait and
-  // landscape) starts a fresh selection, so a wide drill-down doesn't silently
-  // reopen when the narrow map view is next shown.
+  // landscape) starts a fresh selection in BOTH tracks, so neither a wide
+  // drill-down reopens in the narrow map view, nor a narrow bottom-sheet
+  // selection (`detailGroupId`) pops a stale split-pane over the extended grid.
   useEffect(() => {
     setExpandedGroupId(null);
+    setDetailGroupId(null);
   }, [isWide]);
 
   // Shared detail acceptance, used by both the phone bottom-sheet and the tablet pane.
