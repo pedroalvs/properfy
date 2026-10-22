@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
 import { buildAddressLabel } from '@/lib/address';
 import { formatCivilDate, formatWallTimeRange } from '@/lib/format-date';
@@ -97,9 +98,10 @@ export function AppointmentInfoCard({
 
       {deadline && countdown.isUrgent && !countdown.isExpired && (
         <div
-          className={`mt-4 flex items-center gap-2 rounded px-3 py-2 text-sm font-semibold ${
-            countdown.isCritical ? 'bg-error/10 text-error' : 'bg-warning/10 text-warning'
-          }`}
+          className={cn(
+            'mt-4 flex items-center gap-2 rounded px-3 py-2 text-sm font-semibold',
+            countdown.isCritical ? 'bg-error/10 text-error' : 'bg-warning/10 text-warning',
+          )}
           role="status"
           aria-label="Countdown timer"
         >

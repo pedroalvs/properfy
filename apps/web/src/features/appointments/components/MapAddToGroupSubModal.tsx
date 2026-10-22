@@ -90,6 +90,10 @@ export function MapAddToGroupSubModal({
         });
       })
       .catch(() => setGroupsState({ phase: 'error' }));
+    // Keyed on the stable appointmentIdsKey, not the `appointments` array (fresh
+    // identity each parent render) or the react-query mutation (recreated every
+    // render) — including either would re-fire this fetch in a loop (PR #961).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, appointmentIdsKey]);
 
   const groupOptions = groupsState.phase === 'ready'
@@ -120,7 +124,10 @@ export function MapAddToGroupSubModal({
       .catch((err) => {
         setEligibility({ phase: 'error', message: err instanceof Error ? err.message : 'Eligibility check failed' });
       });
-    // eligibilityMutation.mutateAsync intentionally omitted from deps.
+    // Keyed on the stable appointmentIdsKey, not the `appointments` array or the
+    // react-query mutation (fresh identity each render) — either would re-fire the
+    // eligibility check in a loop (PR #961).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGroupId, open, appointmentIdsKey]);
 
   const handleAdd = async () => {

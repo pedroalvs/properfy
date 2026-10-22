@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 interface ImportWizardProps {
   steps: string[];
@@ -20,22 +21,24 @@ export function ImportWizard({ steps, currentStep, children }: ImportWizardProps
             <div key={label} className="flex items-center gap-2">
               {index > 0 && (
                 <div
-                  className={`h-0.5 w-8 sm:w-12 ${
-                    isCompleted ? 'bg-[var(--color-success)]' : 'bg-[var(--color-disabled-bg)]'
-                  }`}
+                  className={cn(
+                    'h-0.5 w-8 sm:w-12',
+                    isCompleted ? 'bg-[var(--color-success)]' : 'bg-[var(--color-disabled-bg)]',
+                  )}
                   aria-hidden="true"
                 />
               )}
               <div className="flex flex-col items-center gap-1">
                 <div
                   data-testid={`step-indicator-${index}`}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition-colors ${
+                  className={cn(
+                    'flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition-colors',
                     isCompleted
                       ? 'bg-[var(--color-success)] text-white'
                       : isActive
                         ? 'bg-[var(--color-primary)] text-white'
-                        : 'bg-[var(--color-disabled-bg)] text-[var(--color-text-muted)]'
-                  }`}
+                        : 'bg-[var(--color-disabled-bg)] text-[var(--color-text-muted)]',
+                  )}
                 >
                   {isCompleted ? (
                     <i className="mdi mdi-check text-base" aria-hidden="true" />
@@ -44,15 +47,16 @@ export function ImportWizard({ steps, currentStep, children }: ImportWizardProps
                   )}
                 </div>
                 <span
-                  className={`text-xs font-semibold whitespace-nowrap ${
+                  className={cn(
+                    'text-xs font-semibold whitespace-nowrap',
                     isActive
                       ? 'text-[var(--color-primary)]'
                       : isCompleted
                         ? 'text-[var(--color-success)]'
                         : isPending
                           ? 'text-[var(--color-text-muted)]'
-                          : ''
-                  }`}
+                          : '',
+                  )}
                 >
                   {label}
                 </span>

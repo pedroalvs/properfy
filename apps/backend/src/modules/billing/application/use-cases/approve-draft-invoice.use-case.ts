@@ -7,14 +7,22 @@ import {
   InvoiceNotPendingReviewError,
   InvoiceEmptyPeriodError,
   InvoiceMixedCurrencyError,
+  BillingIdempotencyPayloadMismatchError,
+  BillingIdempotencyInProgressError,
 } from '../../domain/billing.errors';
 import { periodEffectiveRange } from '../../domain/billing-period.service';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
+import { hashIdempotencyPayload } from '../../../../shared/domain/idempotency-payload-hash';
+
+const IDEMPOTENCY_SCOPE = 'approve-draft-invoice';
+const IDEMPOTENCY_TTL_HOURS = 24;
 
 export interface ApproveDraftInvoiceInput {
   invoiceId: string;
+  idempotencyKey: string;
   actor: AuthContext;
 }
 
@@ -40,6 +48,7 @@ export class ApproveDraftInvoiceUseCase {
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
     private readonly jobQueue: IJobQueue,
+    private readonly idempotencyService: IIdempotencyService,
   ) {}
 
   async execute(input: ApproveDraftInvoiceInput): Promise<ApproveDraftInvoiceOutput> {
@@ -52,6 +61,51 @@ export class ApproveDraftInvoiceUseCase {
       entityId: invoiceId,
     });
 
+    // 1.5 Idempotency (HOL-3b): acquire the claim before any write so a retry or
+    // a concurrent duplicate never re-runs the PENDING_REVIEW → CLOSED transition.
+    // The DB optimistic guard (assignNumberAndFreeze) already blocks a second
+    // mutation, but without this a legitimate retry would get
+    // InvoiceNotPendingReviewError instead of the original success response.
+    const payloadHash = hashIdempotencyPayload({
+      invoiceId,
+      actor: { userId: actor.userId, tenantId: actor.tenantId, role: actor.role },
+    });
+    const claim = await this.idempotencyService.tryAcquire<ApproveDraftInvoiceOutput>(
+      input.idempotencyKey,
+      IDEMPOTENCY_SCOPE,
+      payloadHash,
+      IDEMPOTENCY_TTL_HOURS,
+    );
+    if (claim.status !== 'acquired' && claim.payloadHash !== payloadHash) {
+      throw new BillingIdempotencyPayloadMismatchError();
+    }
+    if (claim.status === 'completed') {
+      // The output is all primitives (issuedAt is already an ISO string), so the
+      // JSON round-trip through storage needs no Date coercion on replay.
+      return claim.response;
+    }
+    if (claim.status === 'in_progress') {
+      throw new BillingIdempotencyInProgressError();
+    }
+    const ownerToken = claim.ownerToken;
+
+    try {
+      return await this.approve(invoiceId, actor, input.idempotencyKey, ownerToken, payloadHash);
+    } catch (error) {
+      await this.idempotencyService
+        .release(input.idempotencyKey, IDEMPOTENCY_SCOPE, payloadHash, ownerToken)
+        .catch(() => {});
+      throw error;
+    }
+  }
+
+  private async approve(
+    invoiceId: string,
+    actor: AuthContext,
+    idempotencyKey: string,
+    ownerToken: string,
+    payloadHash: string,
+  ): Promise<ApproveDraftInvoiceOutput> {
     // 2. Load invoice, require PENDING_REVIEW.
     const invoice = await this.invoiceRepo.findById(invoiceId);
     if (!invoice) {
@@ -127,7 +181,7 @@ export class ApproveDraftInvoiceUseCase {
       // swallow — audit is best-effort relative to the committed state transition.
     }
 
-    return {
+    const result: ApproveDraftInvoiceOutput = {
       id: invoiceId,
       invoiceNumber: assignedNumber,
       invoiceNumberDisplay: formatInvoiceNumber(assignedNumber)!,
@@ -135,5 +189,19 @@ export class ApproveDraftInvoiceUseCase {
       generatedByUserId: actor.userId,
       issuedAt: now.toISOString(),
     };
+
+    const completed = await this.idempotencyService.complete(
+      idempotencyKey,
+      IDEMPOTENCY_SCOPE,
+      ownerToken,
+      result,
+      IDEMPOTENCY_TTL_HOURS,
+      payloadHash,
+    );
+    if (!completed) {
+      throw new BillingIdempotencyInProgressError();
+    }
+
+    return result;
   }
 }

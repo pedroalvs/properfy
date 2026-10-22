@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError } from '@/lib/api-error';
+import type { ApiError } from '@/lib/api-error';
 import type { AddressLookupSuggestion } from '@/lib/address';
 
 interface AddressSuggestionResponse {
@@ -13,23 +14,17 @@ export function useAddressSuggestions(search: string, enabled = true, country?: 
     enabled: enabled && search.trim().length >= 3,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await api.GET('/v1/address/suggestions' as any, {
+      const { data, error, response } = await api.GET('/v1/address/suggestions', {
         params: {
           query: {
             q: search.trim(),
-            limit: '5',
+            limit: 5,
             ...(country ? { country } : {}),
-          } as any,
+          },
         },
       });
-      if (error) {
-        throw new ApiError(
-          (error as { status?: number }).status ?? 500,
-          (error as { message?: string }).message ?? 'Failed to search addresses',
-          (error as { code?: string }).code,
-        );
-      }
-      return ((data as AddressSuggestionResponse | undefined)?.data ?? []);
+      if (error) throw toApiError(error, (response as Response | undefined)?.status);
+      return ((data as unknown as AddressSuggestionResponse | undefined)?.data ?? []);
     },
   });
 }

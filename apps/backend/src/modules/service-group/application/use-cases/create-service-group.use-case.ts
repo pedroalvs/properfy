@@ -96,16 +96,19 @@ export class CreateServiceGroupUseCase {
     //    (cross-tenant, asserted above) reach here, so look up appointments
     //    cross-tenant: scoping to actor.tenantId would silently exclude other
     //    agencies' appointments and break cross-agency group creation.
-    const appointments = [];
+    // Batch read: one query for all ids instead of one round-trip per id
+    // (HOL-5). Cross-tenant (tenantId null) is preserved — see the comment
+    // above. The batch may omit ids that are missing or soft-deleted, so map
+    // back over the input to keep order and fail closed on any gap.
+    const found = await this.appointmentRepo.findManyByIds(input.appointmentIds, null);
+    const foundById = new Map(found.map((r) => [r.appointment.id, r.appointment]));
 
-    for (const id of input.appointmentIds) {
-      const result = await this.appointmentRepo.findById(id, null);
-      if (!result) {
+    const appointments = input.appointmentIds.map((id) => {
+      const appt = foundById.get(id);
+      if (!appt) {
         throw new AppointmentNotFoundError();
       }
-      const appt = result.appointment;
-
-      appointments.push({
+      return {
         id: appt.id,
         appointmentNumber: appt.appointmentNumber,
         status: appt.status,
@@ -115,8 +118,8 @@ export class CreateServiceGroupUseCase {
         scheduledDate: appt.scheduledDate,
         timeSlotStart: appt.timeSlotStart,
         timeSlotEnd: appt.timeSlotEnd,
-      });
-    }
+      };
+    });
 
     // Derive the group's tenant set: a single agency, or null when mixed.
     const tenantIds = [...new Set(appointments.map((a) => a.tenantId))];

@@ -33,8 +33,8 @@ const PAYOUT_TONE: Record<string, { label: string; tone: BadgeTone }> = {
   VOIDED: { label: 'Voided', tone: 'gray' },
 };
 
-/** Payment status chip for a payout entry. */
-function StatusChip({ status }: { status: string }) {
+/** Payment status chip for a payout entry (distinct from the ui `StatusChip`). */
+function PayoutStatusChip({ status }: { status: string }) {
   const s = PAYOUT_TONE[status] ?? { label: status, tone: 'gray' as BadgeTone };
   return <Badge tone={s.tone}>{s.label}</Badge>;
 }
@@ -203,7 +203,7 @@ export function EarningsPage() {
                           <p className="text-sm font-medium text-foreground">{formatCurrency(entry.amount, entry.currency)}</p>
                           <p className="text-xs text-muted-foreground">{formatInstantDateTime(entry.effectiveAt)}</p>
                         </div>
-                        <StatusChip status={entry.status} />
+                        <PayoutStatusChip status={entry.status} />
                       </div>
                     ))}
                   </div>
@@ -278,7 +278,7 @@ export function EarningsPage() {
                       <p className="text-sm font-medium text-foreground">{formatCurrency(entry.amount, entry.currency)}</p>
                       <p className="text-xs text-muted-foreground">{formatInstantDateTime(entry.effectiveAt)}</p>
                     </div>
-                    <StatusChip status={entry.status} />
+                    <PayoutStatusChip status={entry.status} />
                   </Card>
                 ))}
                 </div>

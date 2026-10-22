@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError } from '@/lib/api-error';
+import type { ApiError } from '@/lib/api-error';
 import type { PaginatedResponse } from '@/hooks/useApiQuery';
 
 export interface ContactSearchResult {
@@ -17,15 +18,10 @@ function useContactSearchQuery(search: string, tenantId: string | undefined, ena
   return useQuery<ContactSearchResult[], ApiError>({
     queryKey: ['contacts', 'search', search, tenantId],
     queryFn: async () => {
-      const { data, error } = await api.GET('/v1/contacts' as any, {
-        params: { query: { search, pageSize: '10', isActive: 'true', ...(tenantId ? { tenantId } : {}) } as any },
+      const { data, error, response: httpResponse } = await api.GET('/v1/contacts', {
+        params: { query: { search, pageSize: 10, isActive: 'true', ...(tenantId ? { tenantId } : {}) } },
       });
-      if (error) {
-        throw new ApiError(
-          (error as any).status ?? 500,
-          (error as any).message ?? 'Failed to search contacts',
-        );
-      }
+      if (error) throw toApiError(error, (httpResponse as Response | undefined)?.status);
       const response = data as unknown as PaginatedResponse<ContactSearchResult>;
       return response.data;
     },

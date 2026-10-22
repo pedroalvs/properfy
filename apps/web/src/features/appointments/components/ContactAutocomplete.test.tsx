@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import type { ContactSearchResult } from '../hooks/useContactSearch';
 
 const mockSetSearch = vi.fn();
 const mockReset = vi.fn();
-const mockResults: any[] = [];
+const mockResults: ContactSearchResult[] = [];
 let mockSearchValue = '';
 
 vi.mock('../hooks/useContactSearch', () => ({
@@ -152,10 +153,10 @@ describe('ContactAutocomplete keyboard navigation', () => {
   const onSelect = vi.fn();
   const onClear = vi.fn();
 
-  const contacts = [
-    { id: 'c1', displayName: 'Alice Smith', type: 'RENTAL_TENANT', primaryEmail: 'a@x.com', primaryPhone: null },
-    { id: 'c2', displayName: 'Bob Jones', type: 'PROPERTY_MANAGER', primaryEmail: null, primaryPhone: null },
-    { id: 'c3', displayName: 'Cara Lee', type: 'BROKER', primaryEmail: null, primaryPhone: null },
+  const contacts: ContactSearchResult[] = [
+    { id: 'c1', displayName: 'Alice Smith', type: 'RENTAL_TENANT', primaryEmail: 'a@x.com', primaryPhone: null, isActive: true },
+    { id: 'c2', displayName: 'Bob Jones', type: 'PROPERTY_MANAGER', primaryEmail: null, primaryPhone: null, isActive: true },
+    { id: 'c3', displayName: 'Cara Lee', type: 'BROKER', primaryEmail: null, primaryPhone: null, isActive: true },
   ];
 
   beforeEach(() => {

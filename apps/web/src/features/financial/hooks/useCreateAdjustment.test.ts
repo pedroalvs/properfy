@@ -79,4 +79,37 @@ describe('useCreateAdjustment', () => {
       }),
     ).rejects.toBeDefined();
   });
+
+  // HOL-3a: stable key while one adjustment is in flight, rotated only on success.
+  it('reuses the key across a retry of a failed call and rotates only after success', async () => {
+    const keyOf = (n: number) =>
+      (mockPost.mock.calls[n]![1] as { headers: Record<string, string> }).headers['Idempotency-Key'];
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useCreateAdjustment(), { wrapper });
+    const input = {
+      tenantId: 'tenant-1',
+      amount: 100,
+      effectiveAt: '2026-03-15T00:00:00.000Z',
+      description: 'Manual adjustment',
+      reason: 'Test note',
+    };
+
+    // 1. First attempt fails — no rotation.
+    mockPost.mockResolvedValueOnce({ data: undefined, error: { message: 'boom' } });
+    await act(async () => {
+      await expect(result.current.mutateAsync(input)).rejects.toBeDefined();
+    });
+
+    // 2. Retry of the same adjustment reuses the key (default mock = success).
+    await act(async () => {
+      await result.current.mutateAsync(input);
+    });
+    expect(keyOf(0)).toBe(keyOf(1));
+
+    // 3. After that success, the next adjustment gets a fresh key.
+    await act(async () => {
+      await result.current.mutateAsync(input);
+    });
+    expect(keyOf(2)).not.toBe(keyOf(1));
+  });
 });

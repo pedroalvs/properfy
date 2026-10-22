@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 const typeStyles: Record<string, string> = {
@@ -22,10 +23,10 @@ export function Snackbar() {
       {messages.map((msg) => (
         <div
           key={msg.id}
-          className={`flex max-w-sm items-start gap-3 rounded px-4 py-3 shadow-lg ${typeStyles[msg.type]}`}
+          className={cn('flex max-w-sm items-start gap-3 rounded px-4 py-3 shadow-lg', typeStyles[msg.type])}
           role="alert"
         >
-          <i className={`mdi ${typeIcons[msg.type]} mt-0.5 text-lg`} />
+          <i className={cn('mdi', typeIcons[msg.type], 'mt-0.5 text-lg')} />
           <span className="flex-1 text-sm">{msg.message}</span>
           <button
             onClick={() => dismiss(msg.id)}

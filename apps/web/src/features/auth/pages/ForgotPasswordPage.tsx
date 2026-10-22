@@ -67,7 +67,7 @@ export function ForgotPasswordPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
-          autoFocus
+          focusOnMount
           disabled={isLoading}
           hint="Enter the address you use to sign in."
         />

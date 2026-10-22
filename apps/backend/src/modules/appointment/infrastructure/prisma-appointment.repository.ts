@@ -142,6 +142,87 @@ function mapRestrictionToEntity(row: any): AppointmentRestrictionEntity {
   });
 }
 
+/** The relation set `findById`/`findManyByIds` hydrate for an
+ * `AppointmentWithRelations`. A function (not a plain const) because
+ * `portal_tokens` filters on `new Date()` — it must be evaluated per query, not
+ * frozen at module load. */
+function appointmentDetailInclude() {
+  return {
+    contacts: true,
+    restrictions: true,
+    property: { select: { property_code: true, type: true, street: true, address_line_2: true, suburb: true, state: true, postcode: true, lat: true, lng: true, private_area_m2: true, total_area_m2: true, furnished: true, linen_provided: true, rent_amount: true } },
+    // settings_json rides along on the detail read only: it feeds the "Send Portal
+    // Link" disabled state, and the list has no such action.
+    tenant: { select: { name: true, appointment_code_prefix: true, settings_json: true } },
+    branch: { select: { name: true } },
+    service_type: { select: { name: true, flow_type: true } },
+    inspector: { select: { name: true } },
+    service_group: { select: { group_number: true } },
+    // AC-2.1: filtered include — only returns a row when status='ACTIVE' AND expires_at > now().
+    // Node clock is the authority per AC-2.5 (matches expire-tokens worker convention).
+    // Relation field name is `portal_tokens` (Prisma model field); DB table is `rental_tenant_portal_tokens` via @@map.
+    portal_tokens: {
+      where: { status: 'ACTIVE', expires_at: { gt: new Date() } },
+      select: { id: true },
+      take: 1,
+    },
+  } as const;
+}
+
+/** Maps a row loaded with `appointmentDetailInclude()` to the hydrated
+ * `AppointmentWithRelations`. Shared by the single and batch reads so the
+ * enrichment stays identical between them. */
+function mapRowToWithRelations(row: any): AppointmentWithRelations {
+  const appointment = mapToEntity(row);
+  // Sort contacts: primary first, then insertion order
+  const sortedContacts = [...row.contacts].sort((a, b) => {
+    if (a.is_primary && !b.is_primary) return -1;
+    if (!a.is_primary && b.is_primary) return 1;
+    return a.created_at.getTime() - b.created_at.getTime();
+  });
+  const allContacts = sortedContacts.map(mapContactToEntity);
+  const contact = allContacts[0] ?? null;
+  const restrictions = row.restrictions.map(mapRestrictionToEntity);
+
+  const propertyAddress = formatPropertyAddress(row.property);
+
+  const tenantAppointmentCodePrefix =
+    (row as any).tenant?.appointment_code_prefix ?? null;
+
+  return {
+    appointment,
+    contact,
+    contacts: allContacts,
+    restrictions,
+    propertyCode: row.property?.property_code ?? '',
+    propertyAddress,
+    propertySuburb: row.property?.suburb ?? '',
+    propertyLatitude: row.property?.lat ? Number(row.property.lat) : null,
+    propertyLongitude: row.property?.lng ? Number(row.property.lng) : null,
+    propertyType: row.property?.type ?? null,
+    propertyAddressLine2: row.property?.address_line_2 ?? null,
+    propertyPrivateAreaM2:
+      row.property?.private_area_m2 != null ? Number(row.property.private_area_m2) : null,
+    propertyTotalAreaM2:
+      row.property?.total_area_m2 != null ? Number(row.property.total_area_m2) : null,
+    propertyFurnished: row.property?.furnished ?? null,
+    propertyLinenProvided: row.property?.linen_provided ?? null,
+    propertyRentAmount:
+      row.property?.rent_amount != null ? Number(row.property.rent_amount) : null,
+    branchName: row.branch?.name ?? '',
+    serviceTypeName: row.service_type?.name ?? '',
+    serviceTypeFlowType: (row.service_type?.flow_type ?? 'ROUTINE') as ServiceTypeFlowType,
+    inspectorName: row.inspector?.name ?? null,
+    tenantName: (row as any).tenant?.name ?? '',
+    tenantAppointmentCodePrefix,
+    tenantRentalTenantNotificationsEnabled: isRentalTenantNotificationsEnabled(
+      (row as any).tenant?.settings_json as Record<string, unknown> | null,
+    ),
+    hasActivePortalToken: ((row as any).portal_tokens as Array<{ id: string }>).length > 0,
+    serviceGroupNumber: (row as any).service_group?.group_number ?? null,
+  };
+}
+
 export class PrismaAppointmentRepository implements IAppointmentRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -160,78 +241,29 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
 
     const row = await this.db(tx).appointment.findFirst({
       where,
-      include: {
-        contacts: true,
-        restrictions: true,
-        property: { select: { property_code: true, type: true, street: true, address_line_2: true, suburb: true, state: true, postcode: true, lat: true, lng: true, private_area_m2: true, total_area_m2: true, furnished: true, linen_provided: true, rent_amount: true } },
-        // settings_json rides along on the detail read only: it feeds the "Send Portal
-        // Link" disabled state, and the list has no such action.
-        tenant: { select: { name: true, appointment_code_prefix: true, settings_json: true } },
-        branch: { select: { name: true } },
-        service_type: { select: { name: true, flow_type: true } },
-        inspector: { select: { name: true } },
-        service_group: { select: { group_number: true } },
-        // AC-2.1: filtered include — only returns a row when status='ACTIVE' AND expires_at > now().
-        // Node clock is the authority per AC-2.5 (matches expire-tokens worker convention).
-        // Relation field name is `portal_tokens` (Prisma model field); DB table is `rental_tenant_portal_tokens` via @@map.
-        portal_tokens: {
-          where: { status: 'ACTIVE', expires_at: { gt: new Date() } },
-          select: { id: true },
-          take: 1,
-        },
-      },
+      include: appointmentDetailInclude(),
     });
 
     if (!row) return null;
+    return mapRowToWithRelations(row);
+  }
 
-    const appointment = mapToEntity(row);
-    // Sort contacts: primary first, then insertion order
-    const sortedContacts = [...row.contacts].sort((a, b) => {
-      if (a.is_primary && !b.is_primary) return -1;
-      if (!a.is_primary && b.is_primary) return 1;
-      return a.created_at.getTime() - b.created_at.getTime();
+  async findManyByIds(
+    ids: string[],
+    tenantId: string | null,
+    tx?: Prisma.TransactionClient,
+  ): Promise<AppointmentWithRelations[]> {
+    if (ids.length === 0) return [];
+
+    const where: Record<string, unknown> = { id: { in: ids }, deleted_at: null };
+    if (tenantId) where['tenant_id'] = tenantId;
+
+    const rows = await this.db(tx).appointment.findMany({
+      where,
+      include: appointmentDetailInclude(),
     });
-    const allContacts = sortedContacts.map(mapContactToEntity);
-    const contact = allContacts[0] ?? null;
-    const restrictions = row.restrictions.map(mapRestrictionToEntity);
 
-    const propertyAddress = formatPropertyAddress(row.property);
-
-    const tenantAppointmentCodePrefix =
-      (row as any).tenant?.appointment_code_prefix ?? null;
-
-    return {
-      appointment,
-      contact,
-      contacts: allContacts,
-      restrictions,
-      propertyCode: row.property?.property_code ?? '',
-      propertyAddress,
-      propertySuburb: row.property?.suburb ?? '',
-      propertyLatitude: row.property?.lat ? Number(row.property.lat) : null,
-      propertyLongitude: row.property?.lng ? Number(row.property.lng) : null,
-      propertyType: row.property?.type ?? null,
-      propertyAddressLine2: row.property?.address_line_2 ?? null,
-      propertyPrivateAreaM2:
-        row.property?.private_area_m2 != null ? Number(row.property.private_area_m2) : null,
-      propertyTotalAreaM2:
-        row.property?.total_area_m2 != null ? Number(row.property.total_area_m2) : null,
-      propertyFurnished: row.property?.furnished ?? null,
-      propertyLinenProvided: row.property?.linen_provided ?? null,
-      propertyRentAmount:
-        row.property?.rent_amount != null ? Number(row.property.rent_amount) : null,
-      branchName: row.branch?.name ?? '',
-      serviceTypeName: row.service_type?.name ?? '',
-      serviceTypeFlowType: (row.service_type?.flow_type ?? 'ROUTINE') as ServiceTypeFlowType,
-      inspectorName: row.inspector?.name ?? null,
-      tenantName: (row as any).tenant?.name ?? '',
-      tenantAppointmentCodePrefix,
-      tenantRentalTenantNotificationsEnabled: isRentalTenantNotificationsEnabled(
-        (row as any).tenant?.settings_json as Record<string, unknown> | null,
-      ),
-      hasActivePortalToken: ((row as any).portal_tokens as Array<{ id: string }>).length > 0,
-      serviceGroupNumber: (row as any).service_group?.group_number ?? null,
-    };
+    return rows.map(mapRowToWithRelations);
   }
 
   async findAll(

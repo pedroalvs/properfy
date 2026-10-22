@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { ResolvedImportRow, ImportSummary } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { DetailRow } from '@/components/data/DetailRow';
 import { Button } from '@/components/ui/Button';
@@ -126,9 +127,10 @@ export function AppointmentImportPreview({ rows, summary }: AppointmentImportPre
             <div
               key={row.rowNumber}
               data-testid={`preview-row-${row.rowNumber}`}
-              className={`rounded-lg border p-4 ${
-                row.severity === 'error' ? 'border-red-200 bg-red-50' : row.severity === 'warning' ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-white'
-              }`}
+              className={cn(
+                'rounded-lg border p-4',
+                row.severity === 'error' ? 'border-red-200 bg-red-50' : row.severity === 'warning' ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-white',
+              )}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -167,10 +169,10 @@ export function AppointmentImportPreview({ rows, summary }: AppointmentImportPre
                   {row.issues.map((issue, idx) => (
                     <li
                       key={idx}
-                      className={`text-xs ${issue.severity === 'error' ? 'text-[var(--color-error)]' : 'text-[var(--color-warning)]'}`}
+                      className={cn('text-xs', issue.severity === 'error' ? 'text-[var(--color-error)]' : 'text-[var(--color-warning)]')}
                     >
                       <i
-                        className={`mdi ${issue.severity === 'error' ? 'mdi-alert-circle' : 'mdi-alert'} mr-1`}
+                        className={cn('mdi', issue.severity === 'error' ? 'mdi-alert-circle' : 'mdi-alert', 'mr-1')}
                         aria-hidden="true"
                       />
                       {issue.message}

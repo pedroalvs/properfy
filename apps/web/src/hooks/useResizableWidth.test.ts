@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type React from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useResizableWidth } from './useResizableWidth';
 
@@ -52,7 +53,10 @@ describe('useResizableWidth', () => {
   it('sets isDragging to true on handleMouseDown', () => {
     const { result } = renderHook(() => useResizableWidth({ initialPx: 480 }));
     act(() => {
-      result.current.onHandleMouseDown({ clientX: 500, preventDefault: vi.fn() } as any);
+      result.current.onHandleMouseDown({
+        clientX: 500,
+        preventDefault: vi.fn(),
+      } as unknown as React.MouseEvent);
     });
     expect(result.current.isDragging).toBe(true);
   });

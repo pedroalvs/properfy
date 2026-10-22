@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { AuthField, type AuthFieldProps } from './AuthField';
 
 export type AuthPasswordFieldProps = Omit<AuthFieldProps, 'type' | 'trailing'>;
@@ -29,7 +30,7 @@ export function AuthPasswordField(props: AuthPasswordFieldProps) {
           className="flex h-9 w-9 items-center justify-center rounded text-text-muted transition-colors hover:text-text-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
         >
           <i
-            className={`mdi text-lg ${revealed ? 'mdi-eye-off-outline' : 'mdi-eye-outline'}`}
+            className={cn('mdi text-lg', revealed ? 'mdi-eye-off-outline' : 'mdi-eye-outline')}
             aria-hidden="true"
           />
         </button>

@@ -1,4 +1,5 @@
 import type { InspectorWorkloadResponse } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 
 interface WorkloadKpiGridProps {
   kpis: InspectorWorkloadResponse['kpis'];
@@ -15,7 +16,7 @@ interface TileProps {
 function Tile({ label, value, hint, accentClass = 'border-l-primary' }: TileProps) {
   return (
     <div
-      className={`rounded border-l-4 bg-card-bg p-4 shadow-sm ${accentClass}`}
+      className={cn('rounded border-l-4 bg-card-bg p-4 shadow-sm', accentClass)}
       data-testid="workload-kpi"
     >
       <div className="text-xs font-bold uppercase tracking-wide text-text-muted">{label}</div>

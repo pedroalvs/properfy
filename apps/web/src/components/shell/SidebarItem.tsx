@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { cn } from '@properfy/frontend-standards';
 
 import { SidebarTooltip } from './SidebarTooltip';
 
@@ -44,21 +45,25 @@ export function SidebarItem({ icon, label, to, mobile = false, onNavigate }: Sid
         <>
           {!mobile && (
             <span
-              className={`absolute left-0 top-[-4px] h-[calc(100%+8px)] w-1 rounded-r transition-colors ${
-                isActive ? 'bg-realty' : 'bg-transparent'
-              }`}
+              className={cn(
+                'absolute left-0 top-[-4px] h-[calc(100%+8px)] w-1 rounded-r transition-colors',
+                isActive ? 'bg-realty' : 'bg-transparent',
+              )}
             />
           )}
           <i
-            className={`mdi ${icon} transition-opacity ${
+            className={cn(
+              'mdi',
+              icon,
+              'transition-opacity',
               mobile
                 ? `text-xl ${isActive ? 'text-real-estate' : 'text-text-secondary'}`
                 : `text-2xl ${
                     isActive
                       ? 'text-realty opacity-100'
                       : 'opacity-65 group-hover:text-realty group-hover:opacity-100'
-                  }`
-            }`}
+                  }`,
+            )}
           />
           {mobile ? (
             <span className="truncate">{label}</span>

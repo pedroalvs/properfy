@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { ALLOWED_VARIABLES } from '../types';
 
 interface VariableInsertToolbarProps {
@@ -27,8 +28,10 @@ export function VariableInsertToolbar({ onInsert, disabled, variables }: Variabl
             e.dataTransfer.setData('text/plain', `{{${variable}}}`);
             e.dataTransfer.effectAllowed = 'copy';
           }}
-          className={`rounded border border-border-subtle bg-white px-2 py-0.5 text-xs font-medium text-text-primary transition-colors
-            ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-grab hover:border-primary hover:bg-primary/5 active:cursor-grabbing'}`}
+          className={cn(
+            'rounded border border-border-subtle bg-white px-2 py-0.5 text-xs font-medium text-text-primary transition-colors',
+            disabled ? 'cursor-not-allowed opacity-40' : 'cursor-grab hover:border-primary hover:bg-primary/5 active:cursor-grabbing',
+          )}
           aria-label={`Insert ${variable}`}
         >
           {variable}

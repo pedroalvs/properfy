@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { IntegrationDetail, IntegrationTestResult } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 
 import { Button } from '@/components/ui';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -90,7 +91,7 @@ export function IntegrationCard({ meta, detail }: IntegrationCardProps) {
             <p className="text-xs text-text-secondary">{meta.affectedCapability}</p>
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}>
+            <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', badge.className)}>
               {badge.label}
             </span>
             <Button
@@ -137,11 +138,11 @@ export function IntegrationCard({ meta, detail }: IntegrationCardProps) {
 
         {testResult && (
           <p
-            className={`mt-3 text-sm ${testResult.ok ? 'text-success' : 'text-error'}`}
+            className={cn('mt-3 text-sm', testResult.ok ? 'text-success' : 'text-error')}
             role="status"
           >
             <i
-              className={`mdi ${testResult.ok ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline'} mr-1`}
+              className={cn('mdi', testResult.ok ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline', 'mr-1')}
               aria-hidden="true"
             />
             {testResult.message}

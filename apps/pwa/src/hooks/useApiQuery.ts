@@ -1,10 +1,4 @@
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  type UseQueryOptions,
-  type UseMutationOptions,
-} from '@tanstack/react-query';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { toApiError, type ApiError } from '@/lib/api-error';
 
@@ -82,23 +76,6 @@ export function useListQuery<T>(
   return useQuery<T, ApiError>({
     queryKey,
     queryFn: () => apiGet<T>(path, params),
-    ...options,
-  });
-}
-
-export function useActionMutation<TResponse = unknown, TInput = unknown>(
-  path: string,
-  invalidateKeys?: unknown[][],
-  options?: Omit<UseMutationOptions<SuccessResponse<TResponse>, ApiError, TInput>, 'mutationFn'>,
-) {
-  const queryClient = useQueryClient();
-
-  return useMutation<SuccessResponse<TResponse>, ApiError, TInput>({
-    mutationFn: (data) => apiPost<SuccessResponse<TResponse>>(path, data),
-    onSuccess: (...args) => {
-      invalidateKeys?.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
-      options?.onSuccess?.(...args);
-    },
     ...options,
   });
 }

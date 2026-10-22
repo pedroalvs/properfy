@@ -9,7 +9,6 @@ import { AppointmentCodePill } from './AppointmentCodePill';
 interface MapBulkReturnToPoolFormProps {
   /** Rows the operator ticked in the bulk modal — drives the same-group precheck. */
   checkedAppointments: AppointmentMapItem[];
-  onCancel: () => void;
   /** Result envelope is the same shape as 025 bulk actions; the modal renders the summary. */
   onComplete: (results: Array<{ appointmentId: string; status: string; error?: { code: string; message: string } }>) => void;
 }
@@ -29,7 +28,6 @@ interface MapBulkReturnToPoolFormProps {
  */
 export function MapBulkReturnToPoolForm({
   checkedAppointments,
-  onCancel: _onCancel,
   onComplete,
 }: MapBulkReturnToPoolFormProps) {
   const [newTimeSlotStart, setNewTimeSlotStart] = useState('');
