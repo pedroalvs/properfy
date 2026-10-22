@@ -180,6 +180,7 @@ describe('ConfirmAppointmentUseCase atomic token claim', () => {
 
     expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
     expect(tokenRepo.tryClaim).toHaveBeenCalledTimes(1);
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledTimes(1);
     expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     expect(appointmentRepo.update).not.toHaveBeenCalled();
     expect(activityRepo.save).not.toHaveBeenCalled();
@@ -193,6 +194,7 @@ describe('ConfirmAppointmentUseCase atomic token claim', () => {
 
     await expect(useCase.execute(input)).rejects.toThrow(PortalAppointmentInactiveError);
 
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledTimes(1);
     expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
     expect(appointmentRepo.update).not.toHaveBeenCalled();
     expect(activityRepo.save).not.toHaveBeenCalled();
@@ -208,6 +210,7 @@ describe('ConfirmAppointmentUseCase atomic token claim', () => {
 
     await expect(useCase.execute(input)).rejects.toThrow('db read failed');
 
+    expect(tokenRepo.releaseClaim).toHaveBeenCalledTimes(1);
     expect(tokenRepo.releaseClaim).toHaveBeenCalledWith('token-1', 'appt-1');
   });
 
