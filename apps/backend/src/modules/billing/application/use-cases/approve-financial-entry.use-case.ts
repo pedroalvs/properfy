@@ -72,16 +72,34 @@ export class ApproveFinancialEntryUseCase {
         throw new EntryNotPendingError();
       }
 
-      // 4. Prevent self-approval
+      // 4. Prevent self-approval (fast, precise, audited error in the common case).
       this.authorizationService.assertNotSelfApproval(actor.userId, entry.initiatedByUserId, {
         action: 'financial.approve',
         entityType: 'FinancialEntry',
         entityId: input.entryId,
       });
 
-      // 5. Approve (validate PENDING -> APPROVED transition)
+      // 5. Approve via an atomic compare-and-swap that ALSO re-checks maker≠checker.
+      // The pre-check above reads a point-in-time value; this guarded CAS is the
+      // backstop that closes the TOCTOU window — a concurrent edit that re-binds the
+      // maker to the approver (keeping status=PENDING) now makes it match zero rows.
       const approvedAt = new Date();
-      await this.financialEntryRepo.transitionStatus(entryId, entry.tenantId, 'PENDING', 'APPROVED', actor.userId, approvedAt);
+      const affected = await this.financialEntryRepo.approvePendingEntry(entryId, entry.tenantId, actor.userId, approvedAt);
+      if (affected === 0) {
+        // Lost the race between the pre-check and the commit. Re-read to emit the
+        // precise, audited error: a still-PENDING row that the guard refused means
+        // the maker was re-bound to the approver (self-approval); anything else is
+        // no longer pending.
+        const current = await this.financialEntryRepo.findById(entryId);
+        if (current && current.status === 'PENDING') {
+          this.authorizationService.assertNotSelfApproval(actor.userId, current.initiatedByUserId, {
+            action: 'financial.approve',
+            entityType: 'FinancialEntry',
+            entityId: input.entryId,
+          });
+        }
+        throw new EntryNotPendingError();
+      }
 
       // 6. Audit log
       this.auditService.log({

@@ -328,6 +328,36 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
     return updated.count;
   }
 
+  async approvePendingEntry(
+    id: string,
+    tenantId: string,
+    approverUserId: string,
+    approvedAt: Date,
+  ): Promise<number> {
+    // The maker≠checker predicate lives in the WHERE so the self-approval check is
+    // atomic with the commit. A concurrent edit that re-bound initiated_by_user_id
+    // to the approver (keeping status=PENDING) makes this match zero rows instead
+    // of approving the approver's own content.
+    //
+    // The OR(null) branch is load-bearing: `NULL <> approver` is NULL (not TRUE) in
+    // SQL, so `{ not: approverUserId }` alone would silently exclude system-minted
+    // (null-initiator) entries, which are always approvable.
+    const updated = await this.prisma.financialEntry.updateMany({
+      where: {
+        id,
+        tenant_id: tenantId,
+        status: 'PENDING',
+        OR: [{ initiated_by_user_id: null }, { initiated_by_user_id: { not: approverUserId } }],
+      },
+      data: {
+        status: 'APPROVED',
+        approved_by_user_id: approverUserId,
+        approved_at: approvedAt,
+      },
+    });
+    return updated.count;
+  }
+
   async transitionStatus(
     id: string,
     tenantId: string,
