@@ -6,6 +6,7 @@ import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { Card } from '@/components/ui/Card';
 import { TwoPaneLayout } from '@/components/shell/TwoPaneLayout';
 import { OfferFeed } from '../components/OfferFeed';
+import { OfferAccordionList } from '../components/OfferAccordionList';
 import { OfflineMarketplaceBanner } from '../components/OfflineMarketplaceBanner';
 import { GroupDetailBottomSheet } from '../components/GroupDetailBottomSheet';
 import { GroupDetailPane } from '../components/GroupDetailPane';
@@ -96,6 +97,24 @@ export function MarketplacePage() {
     setView(nextView);
   };
 
+  // Extended (tablet/landscape) layout: the accordion list and the map share one
+  // selected id. Toggling an offer open — or tapping its map pin — drives both.
+  const handleToggleExpanded = (groupId: string) => {
+    setExpandedGroupId((current) => (current === groupId ? null : groupId));
+  };
+
+  const handleAcceptGroup = async (groupId: string) => {
+    const outcome = await accept(groupId);
+    if (outcome !== 'ERROR') setExpandedGroupId(null);
+  };
+
+  // Crossing the layout breakpoint (e.g. a tablet rotating between portrait and
+  // landscape) starts a fresh selection, so a wide drill-down doesn't silently
+  // reopen when the narrow map view is next shown.
+  useEffect(() => {
+    setExpandedGroupId(null);
+  }, [isWide]);
+
   // Shared detail acceptance, used by both the phone bottom-sheet and the tablet pane.
   const closeDetail = () => setDetailGroupId(null);
   const detailAccepting = detailGroupId ? getState(detailGroupId) === 'ACCEPTING' : false;
@@ -123,12 +142,13 @@ export function MarketplacePage() {
     return () => observer.disconnect();
   }, [view, hasNextPage, fetchNextPage, offers.length]);
 
-  // Map view has no scroll to drive pagination — drain the remaining pages so
-  // every offer (including the furthest-dated ones) gets a pin.
+  // The map (map view, or the always-on map in the extended layout) has no
+  // scroll to drive pagination — drain the remaining pages so every offer
+  // (including the furthest-dated ones) gets a pin.
   useEffect(() => {
-    if (view !== 'map' || !hasNextPage || isFetchingNextPage) return;
+    if (!(view === 'map' || isWide) || !hasNextPage || isFetchingNextPage) return;
     void fetchNextPage();
-  }, [view, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [view, isWide, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const master = (
     <div className="w-full">
@@ -150,7 +170,7 @@ export function MarketplacePage() {
         </Card>
       </div>
 
-      <OffersViewToggle value={view} onChange={handleViewChange} />
+      {!isWide && <OffersViewToggle value={view} onChange={handleViewChange} />}
 
       {!isOnline && <OfflineMarketplaceBanner />}
 
@@ -168,7 +188,7 @@ export function MarketplacePage() {
         />
       )}
 
-      {view === 'map' && (
+      {!isWide && view === 'map' && (
         <div className="flex flex-col gap-2 px-page-x py-2">
           {expandedGroupId && (
             <MapGroupActionBar
@@ -189,7 +209,7 @@ export function MarketplacePage() {
         </div>
       )}
 
-      {view === 'list' && shouldShowFeed && (
+      {!isWide && view === 'list' && shouldShowFeed && (
         <PullToRefresh onRefresh={refetch}>
           {dataUpdatedAt > 0 && (
             <p className="px-page-x pt-1 text-xs text-muted-foreground" data-testid="last-updated">
@@ -216,6 +236,31 @@ export function MarketplacePage() {
             </div>
           )}
         </PullToRefresh>
+      )}
+
+      {/* Extended layout (tablet/landscape): persistent map + accordion list,
+          driven by a single shared selection. */}
+      {isWide && shouldShowFeed && (
+        <div
+          className="grid gap-4 px-page-x py-2 lg:grid-cols-[1fr_minmax(360px,420px)]"
+          data-testid="marketplace-extended"
+        >
+          <div className="self-start lg:sticky lg:top-4">
+            <OffersMapView
+              offers={offers}
+              onSelectOffer={setExpandedGroupId}
+              expandedGroup={expandedGroup}
+            />
+          </div>
+          <OfferAccordionList
+            offers={offers}
+            expandedGroupId={expandedGroupId}
+            onToggle={handleToggleExpanded}
+            getState={getState}
+            onAcceptGroup={handleAcceptGroup}
+            onRefresh={refetch}
+          />
+        </div>
       )}
 
     </div>

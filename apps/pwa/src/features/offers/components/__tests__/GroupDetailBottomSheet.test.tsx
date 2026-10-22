@@ -212,11 +212,23 @@ describe('GroupDetailBottomSheet', () => {
     expect(screen.getByTestId('detail-error')).toBeInTheDocument();
   });
 
-  it('renders appointmentCode badge for each appointment', () => {
+  // Deliberately withheld on this screen: the inspector decides by address /
+  // time / payout, not by the per-stop appointment code.
+  it('does not render the appointment code on this screen', () => {
     mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
     render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
-    expect(screen.getByText('APT-1001')).toBeInTheDocument();
-    expect(screen.getByText('APT-1002')).toBeInTheDocument();
+    expect(screen.queryByText('APT-1001')).toBeNull();
+    expect(screen.queryByText('APT-1002')).toBeNull();
+  });
+
+  // Stops are numbered 1..N, mirroring the numbered pins on the map.
+  it('numbers each stop 1..N', () => {
+    mockUseDetail.mockReturnValue({ data: mockDetail, isLoading: false, isError: false } as ReturnType<typeof useMarketplaceOfferDetail>);
+    render(<GroupDetailBottomSheet groupId={GROUP_ID} onClose={onClose} />);
+    const stops = screen.getByTestId('detail-stops');
+    expect(stops.querySelectorAll('li')).toHaveLength(2);
+    expect(stops).toHaveTextContent('1');
+    expect(stops).toHaveTextContent('2');
   });
 
   it("renders each appointment's own time slot", () => {

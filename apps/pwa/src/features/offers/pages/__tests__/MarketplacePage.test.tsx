@@ -51,6 +51,37 @@ vi.mock('@/features/offers/components/OffersMapView', () => ({
   ),
 }));
 
+// Extended-layout accordion stub: echoes the shared expanded id and surfaces
+// toggle / accept per offer.
+vi.mock('@/features/offers/components/OfferAccordionList', () => ({
+  OfferAccordionList: ({
+    offers,
+    expandedGroupId,
+    onToggle,
+    onAcceptGroup,
+  }: {
+    offers: MarketplaceOffer[];
+    expandedGroupId: string | null;
+    onToggle: (groupId: string) => void;
+    onAcceptGroup: (groupId: string) => void;
+  }) => (
+    <div data-testid="offer-accordion" data-expanded={expandedGroupId ?? ''}>
+      {offers.map((o) => (
+        <div key={o.groupId}>
+          <button data-testid={`acc-toggle-${o.groupId}`} onClick={() => onToggle(o.groupId)}>
+            toggle
+          </button>
+          {expandedGroupId === o.groupId && (
+            <button data-testid={`acc-accept-${o.groupId}`} onClick={() => onAcceptGroup(o.groupId)}>
+              accept
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  ),
+}));
+
 vi.mock('@/features/offers/hooks/useAcceptOffer', () => ({
   useAcceptOffer: () => ({
     getState: mockGetState,
@@ -579,23 +610,36 @@ describe('MarketplacePage — tablet 2-column layout', () => {
     suburbs: ['Brunswick'],
   } as unknown as MarketplaceOffer;
 
-  it('shows only the list (collapsed detail) before any offer is selected', () => {
+  it('renders the map + accordion extended layout and hides the list/map toggle', () => {
     mockUseMarketplaceOffers.mockReturnValue(offersHookReturn([offer]));
     renderWithProviders(<MarketplacePage />);
-    expect(screen.getByTestId('two-pane-detail').className).toContain('md:w-0');
+    expect(screen.getByTestId('marketplace-extended')).toBeInTheDocument();
+    expect(screen.getByTestId('map-view')).toBeInTheDocument();
+    expect(screen.getByTestId('offer-accordion')).toBeInTheDocument();
+    // No List/Map toggle, no tablet detail pane, no phone bottom-sheet in the extended layout.
+    expect(screen.queryByRole('tab', { name: 'Map' })).toBeNull();
     expect(screen.queryByTestId('group-detail-pane')).not.toBeInTheDocument();
-    // The phone bottom-sheet is suppressed on tablet even with nothing selected.
     expect(screen.queryByTestId('detail-sheet')).not.toBeInTheDocument();
   });
 
-  it('renders the detail inline in the right pane and suppresses the bottom sheet', async () => {
+  it('shares one selection: tapping a map pin expands that offer in the accordion', async () => {
     mockUseMarketplaceOffers.mockReturnValue(offersHookReturn([offer]));
     const user = userEvent.setup();
     renderWithProviders(<MarketplacePage />);
+    expect(screen.getByTestId('offer-accordion')).toHaveAttribute('data-expanded', '');
 
-    await user.click(screen.getByTestId('view-detail'));
+    await user.click(screen.getByTestId('map-select-offer'));
+    expect(screen.getByTestId('offer-accordion')).toHaveAttribute('data-expanded', 'grp-1');
+  });
 
-    expect(screen.getByTestId('group-detail-pane')).toBeInTheDocument();
-    expect(screen.queryByTestId('detail-sheet')).not.toBeInTheDocument();
+  it('accepts a group from the accordion panel', async () => {
+    mockUseMarketplaceOffers.mockReturnValue(offersHookReturn([offer]));
+    mockAccept.mockResolvedValue('ACCEPTED');
+    const user = userEvent.setup();
+    renderWithProviders(<MarketplacePage />);
+
+    await user.click(screen.getByTestId('acc-toggle-grp-1'));
+    await user.click(screen.getByTestId('acc-accept-grp-1'));
+    expect(mockAccept).toHaveBeenCalledWith('grp-1');
   });
 });
