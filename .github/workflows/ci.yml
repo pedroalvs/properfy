@@ -224,6 +224,7 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           build-shared: "true"
+          build-frontend-standards: "true"
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
