@@ -143,16 +143,31 @@ describe('ViewportAwareDropdown', () => {
     expect(document.body.contains(menu)).toBe(true);
   });
 
-  it('exposes aria-haspopup + aria-expanded on the trigger wrapper', () => {
+  it('exposes aria-haspopup + aria-expanded on the focusable trigger itself', () => {
     render(
       <ViewportAwareDropdown trigger={<button type="button">Open</button>}>
         <div>menu</div>
       </ViewportAwareDropdown>,
     );
-    const wrapper = screen.getByTestId('viewport-aware-dropdown').firstElementChild as HTMLElement;
-    expect(wrapper.getAttribute('aria-haspopup')).toBe('menu');
-    expect(wrapper.getAttribute('aria-expanded')).toBe('false');
-    fireEvent.click(screen.getByText('Open'));
-    expect(wrapper.getAttribute('aria-expanded')).toBe('true');
+    // The ARIA state must live on the element the keyboard/AT user focuses (the
+    // button), not on a wrapper div they never land on.
+    const trigger = screen.getByRole('button', { name: 'Open' });
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(trigger.getAttribute('aria-controls')).toBeTruthy();
+  });
+
+  it('preserves the trigger\'s own onClick while adding the toggle', () => {
+    const onClick = vi.fn();
+    render(
+      <ViewportAwareDropdown trigger={<button type="button" onClick={onClick}>Open</button>}>
+        <div>menu-content</div>
+      </ViewportAwareDropdown>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('viewport-aware-dropdown-menu')).toBeInTheDocument();
   });
 });

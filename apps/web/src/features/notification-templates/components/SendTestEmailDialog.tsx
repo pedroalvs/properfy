@@ -92,7 +92,7 @@ export function SendTestEmailDialog({
           onChange={handleEmailChange}
           placeholder="recipient@example.com"
           error={!!emailError}
-          autoFocus
+          focusOnMount
           aria-label="Recipient email"
         />
       </FormField>

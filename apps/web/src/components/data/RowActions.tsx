@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { cn } from '@properfy/frontend-standards';
 
 interface RowAction {
   icon: string;
@@ -28,7 +29,7 @@ export function RowActions({ actions }: RowActionsProps) {
   return (
     <div className="flex items-center gap-1">
       {actions.map((action) => {
-        const icon = <i className={`mdi ${action.icon} text-lg`} aria-hidden="true" />;
+        const icon = <i className={cn('mdi', action.icon, 'text-lg')} aria-hidden="true" />;
         const handleClick = (e: MouseEvent) => {
           e.stopPropagation();
           action.onClick?.();

@@ -1,10 +1,11 @@
 {
   "root": true,
   "parser": "@typescript-eslint/parser",
-  "plugins": ["@typescript-eslint", "react-hooks"],
+  "plugins": ["@typescript-eslint", "react-hooks", "jsx-a11y"],
   "extends": [
     "eslint:recommended",
-    "plugin:@typescript-eslint/recommended"
+    "plugin:@typescript-eslint/recommended",
+    "plugin:jsx-a11y/recommended"
   ],
   "parserOptions": {
     "ecmaVersion": 2022,
@@ -14,7 +15,14 @@
     "@typescript-eslint/no-explicit-any": "warn",
     "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
     "@typescript-eslint/consistent-type-imports": "error",
-    "no-console": "warn",
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "jsx-a11y/click-events-have-key-events": "warn",
+    "jsx-a11y/no-static-element-interactions": "warn",
+    "jsx-a11y/no-autofocus": "warn",
+    "jsx-a11y/label-has-associated-control": "warn",
+    "jsx-a11y/interactive-supports-focus": "warn",
+    "jsx-a11y/no-noninteractive-tabindex": "warn",
+    "jsx-a11y/no-noninteractive-element-interactions": "warn",
     "no-restricted-syntax": [
       "warn",
       {
@@ -25,6 +33,50 @@
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": "warn"
   },
+  "overrides": [
+    {
+      "files": [
+        "apps/web/src/components/forms/SelectInput.tsx",
+        "apps/web/src/components/forms/AddressLookupInput.tsx",
+        "apps/web/src/components/forms/TimezoneSelect.tsx",
+        "apps/web/src/components/filters/FilterSelect.tsx",
+        "apps/web/src/components/filters/FilterMultiSelect.tsx",
+        "apps/web/src/features/appointments/components/ContactAutocomplete.tsx",
+        "apps/web/src/features/apps/components/AgencySelect.tsx"
+      ],
+      "rules": {
+        "jsx-a11y/click-events-have-key-events": "off"
+      }
+    },
+    {
+      "files": ["apps/web/**/*.test.ts", "apps/web/**/*.test.tsx"],
+      "rules": {
+        "jsx-a11y/click-events-have-key-events": "off",
+        "jsx-a11y/no-static-element-interactions": "off",
+        "jsx-a11y/no-noninteractive-element-interactions": "off",
+        "jsx-a11y/interactive-supports-focus": "off",
+        "jsx-a11y/no-noninteractive-tabindex": "off"
+      }
+    },
+    {
+      "files": ["apps/web/src/components/forms/DateInput.tsx"],
+      "rules": {
+        "jsx-a11y/no-noninteractive-element-interactions": "off"
+      }
+    },
+    {
+      "files": ["apps/web/src/components/ui/StarRatingInput.tsx"],
+      "rules": {
+        "jsx-a11y/interactive-supports-focus": "off"
+      }
+    },
+    {
+      "files": ["apps/web/src/components/ui/Tooltip.tsx"],
+      "rules": {
+        "jsx-a11y/no-noninteractive-tabindex": "off"
+      }
+    }
+  ],
   "env": {
     "node": true,
     "es2022": true

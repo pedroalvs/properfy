@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useId } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import {
   formInputContainer,
   formInputContainerDisabled,
@@ -257,7 +258,7 @@ export function AgencySelect({
                     // The selected row already carries `bg-primary/10` (formOptionActive),
                     // so the active cursor uses an inset ring instead of another
                     // background — it stays visible even when it lands on the selected row.
-                    className={`${isSelected ? formOptionActive : formOption}${isActive ? ' ring-2 ring-inset ring-primary' : ''} flex items-center justify-between`}
+                    className={cn(isSelected ? formOptionActive : formOption, isActive && 'ring-2 ring-inset ring-primary', 'flex items-center justify-between')}
                     onClick={() => handleSelect(agency)}
                     onMouseEnter={() => setActiveIndex(index)}
                   >

@@ -1,4 +1,5 @@
-import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { useResizableWidth } from '@/hooks/useResizableWidth';
 import { Dialog } from '@/components/ui/Dialog';
 import { ViewportAwareDropdown } from '@/components/ui/ViewportAwareDropdown';
@@ -137,6 +138,9 @@ function isActionAllowed(
   return true;
 }
 
+// T-C4-1 L1 / T-C5-1 L4 — REJECTED is groupable (auto-transitions to AWAITING_INSPECTOR on join).
+const GROUPABLE_STATUSES = new Set(['DRAFT', 'AWAITING_INSPECTOR', 'REJECTED']);
+
 export function MapBulkActionModal({
   appointments,
   open,
@@ -171,11 +175,16 @@ export function MapBulkActionModal({
   // page can use it as flyTo right-padding when focusing a code-pill click.
   const onResizeRef = useRef(onResize);
   onResizeRef.current = onResize;
-  // Mount: widthPx is stable here (read from sessionStorage / initial), ref avoids stale closure.
-  useEffect(() => { onResizeRef.current?.(widthPx); }, []); // intentional mount-only
+  // Latest width read via ref so the report effects below stay mount-only /
+  // drag-end-only without the lint rule demanding `widthPx` as a dep (which
+  // would re-fire them on every drag tick).
+  const widthPxRef = useRef(widthPx);
+  widthPxRef.current = widthPx;
+  // Mount: report the initial width (from sessionStorage / initial).
+  useEffect(() => { onResizeRef.current?.(widthPxRef.current); }, []); // intentional mount-only
   useEffect(() => {
     if (isDragging) return;
-    onResizeRef.current?.(widthPx);
+    onResizeRef.current?.(widthPxRef.current);
   }, [isDragging]); // intentional: only re-run when isDragging flips
 
   // Default UNCHECKED per mockup empty-state: nothing happens until the user
@@ -222,13 +231,13 @@ export function MapBulkActionModal({
   const allChecked = appointments.length > 0 && checkedIds.size === appointments.length;
   const indeterminate = checkedIds.size > 0 && checkedIds.size < appointments.length;
 
-  const toggleAll = () => {
+  const toggleAll = useCallback(() => {
     if (allChecked) {
       setCheckedIds(new Set());
     } else {
       setCheckedIds(new Set(appointments.map((a) => a.id)));
     }
-  };
+  }, [allChecked, appointments]);
 
   const toggleOne = (id: string) => {
     setCheckedIds((prev) => {
@@ -354,7 +363,7 @@ export function MapBulkActionModal({
         );
       },
     },
-  ], [allChecked, indeterminate, checkedIds, onOpenDetailPanel]);
+  ], [allChecked, indeterminate, checkedIds, onOpenDetailPanel, toggleAll]);
 
   // ─── Step 2 — action form rendering ──────────────────────────────────────
   const cancelMutation = useBulkCancelAppointments();
@@ -407,8 +416,6 @@ export function MapBulkActionModal({
   //   - selection mixes service types
   // Groups are tenant-agnostic — a selection MAY span multiple agencies.
   const canAddToGroup = actorRole === 'AM' || actorRole === 'OP';
-  // T-C4-1 L1 / T-C5-1 L4 — REJECTED is now groupable (auto-transitions to AWAITING_INSPECTOR on join).
-  const GROUPABLE_STATUSES = new Set(['DRAFT', 'AWAITING_INSPECTOR', 'REJECTED']);
   const groupButtonState = useMemo<{ disabled: boolean; reason?: string }>(() => {
     if (!canAddToGroup) return { disabled: true, reason: 'Add to group is AM/OP only' };
     if (checkedIds.size === 0) return { disabled: true, reason: 'Tick at least one appointment first' };
@@ -680,7 +687,7 @@ export function MapBulkActionModal({
   if (position === 'top-right') {
     return (
       <div
-        className={`fixed right-4 top-16 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg shadow-xl${isDragging ? ' select-none' : ''}`}
+        className={cn('fixed right-4 top-16 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg shadow-xl', isDragging && 'select-none')}
         style={{
           width: `min(${widthPx}px, calc(100vw - 32px))`,
           maxHeight: 'calc(100vh - 80px)',
@@ -768,11 +775,12 @@ function BulkActionsDropdown({ actions, isDisabled, selectedCount, onSelect }: B
                 if (disabled.disabled) return;
                 onSelect(action.key);
               }}
-              className={`block w-full px-3 py-2 text-left text-sm ${
+              className={cn(
+                'block w-full px-3 py-2 text-left text-sm',
                 disabled.disabled
                   ? 'cursor-not-allowed text-text-muted'
-                  : 'text-text-primary hover:bg-gray-50'
-              }`}
+                  : 'text-text-primary hover:bg-gray-50',
+              )}
               data-testid={`bulk-action-${action.key}`}
               role="menuitem"
             >

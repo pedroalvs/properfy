@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 interface EntityListCardProps {
   children: ReactNode;
@@ -7,7 +8,7 @@ interface EntityListCardProps {
 
 export function EntityListCard({ children, className = '' }: EntityListCardProps) {
   return (
-    <div className={`bg-card-bg ${className}`}>
+    <div className={cn('bg-card-bg', className)}>
       {children}
     </div>
   );

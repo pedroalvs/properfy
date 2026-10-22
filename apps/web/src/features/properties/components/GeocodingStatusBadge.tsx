@@ -1,4 +1,5 @@
 import { GeocodingStatus } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { GEOCODING_STATUS_MAP } from '@/lib/status-colors';
 
 interface GeocodingStatusBadgeProps {
@@ -22,10 +23,10 @@ export function GeocodingStatusBadge({ status, size = 'md' }: GeocodingStatusBad
 
   return (
     <span
-      className={`inline-flex items-center rounded font-medium ${sizeClass}`}
+      className={cn('inline-flex items-center rounded font-medium', sizeClass)}
       style={{ backgroundColor: style.bg, color: style.text }}
     >
-      <i className={`mdi ${icon} ${animate ? 'mdi-spin' : ''}`} aria-hidden="true" />
+      <i className={cn('mdi', icon, animate && 'mdi-spin')} aria-hidden="true" />
       {style.label}
     </span>
   );

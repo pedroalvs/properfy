@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 interface ProviderLogoProps {
   /** File name (without extension) under /images/integrations/. */
@@ -17,9 +18,10 @@ export function ProviderLogo({ logoKey, brandColor, size = 64 }: ProviderLogoPro
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-md ${
-        missing ? 'border border-dashed border-text-muted bg-app-bg' : ''
-      }`}
+      className={cn(
+        'inline-flex shrink-0 items-center justify-center rounded-md',
+        missing && 'border border-dashed border-text-muted bg-app-bg',
+      )}
       style={{ width: size, height: size, backgroundColor: missing ? undefined : brandColor }}
       aria-hidden="true"
     >

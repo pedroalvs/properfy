@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { cn } from '@properfy/frontend-standards';
 import { formatCivilDate, formatWallTimeRange } from '@/lib/format-date';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { RentalTenantConfirmationChip } from './RentalTenantConfirmationChip';
@@ -34,9 +35,10 @@ export function AppointmentBoardCard({
 
   return (
     <article
-      className={`group relative rounded border bg-card-bg p-3 shadow-sm transition focus-within:border-primary hover:border-primary ${
-        selected ? 'border-primary ring-1 ring-primary' : 'border-border-subtle'
-      }`}
+      className={cn(
+        'group relative rounded border bg-card-bg p-3 shadow-sm transition focus-within:border-primary hover:border-primary',
+        selected ? 'border-primary ring-1 ring-primary' : 'border-border-subtle',
+      )}
     >
       <div className="flex items-start gap-2">
         {onToggleSelect && (
@@ -111,7 +113,7 @@ export function AppointmentBoardCard({
               title={action.label}
               className="inline-flex h-7 w-7 items-center justify-center rounded text-text-secondary hover:bg-app-bg hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
-              <i className={`mdi ${action.icon} text-base`} aria-hidden="true" />
+              <i className={cn('mdi', action.icon, 'text-base')} aria-hidden="true" />
             </button>
           ))}
         </div>

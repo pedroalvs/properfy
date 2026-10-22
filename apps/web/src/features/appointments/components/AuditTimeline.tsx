@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { formatInstantDateTime } from '@/lib/format-date';
 import type { AuditLogEntry } from '../hooks/useAppointmentAuditLog';
 
@@ -171,8 +172,8 @@ export function AuditTimeline({ entries }: AuditTimelineProps) {
 
           return (
             <li key={entry.id} className="relative">
-              <div className={`absolute -left-4 top-1.5 flex h-5 w-5 items-center justify-center rounded-full border-2 bg-white ${style.color}`}>
-                <i className={`mdi ${style.icon} text-[10px]`} aria-hidden="true" />
+              <div className={cn('absolute -left-4 top-1.5 flex h-5 w-5 items-center justify-center rounded-full border-2 bg-white', style.color)}>
+                <i className={cn('mdi', style.icon, 'text-[10px]')} aria-hidden="true" />
               </div>
               <div className="ml-3">
                 <p className="text-sm font-semibold text-text-primary">{formatAction(entry.action)}</p>

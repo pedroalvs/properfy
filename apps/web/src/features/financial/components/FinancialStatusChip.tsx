@@ -1,4 +1,5 @@
 import type { FinancialEntryStatus } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { FINANCIAL_ENTRY_STATUS_MAP } from '@/lib/status-colors';
 
 interface FinancialStatusChipProps {
@@ -12,7 +13,7 @@ export function FinancialStatusChip({ status, className = '' }: FinancialStatusC
 
   return (
     <span
-      className={`inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5 ${className}`}
+      className={cn('inline-block rounded px-2 py-0.5 text-xs font-semibold leading-5', className)}
       style={{ backgroundColor: style.bg, color: style.text }}
     >
       {style.label}

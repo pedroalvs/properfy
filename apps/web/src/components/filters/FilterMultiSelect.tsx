@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useId } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import {
   filterContainer,
   filterLabel,
@@ -191,7 +192,7 @@ export function FilterMultiSelect({
   return (
     <div
       ref={containerRef}
-      className={`${filterContainer} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      className={cn(filterContainer, disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer')}
       aria-disabled={disabled}
     >
       {showFloatingLabel && (
@@ -220,15 +221,16 @@ export function FilterMultiSelect({
         disabled={disabled}
       >
         <span
-          className={`${triggerSummary ? 'text-text-primary' : 'text-text-muted'} ${
+          className={cn(
+            triggerSummary ? 'text-text-primary' : 'text-text-muted',
             // On the label, not the trigger — see FilterSelect for why padding
             // the trigger pushes the chevron under the clear.
-            showClear ? 'pr-9' : ''
-          }`}
+            showClear && 'pr-9',
+          )}
         >
           {triggerSummary ?? (showFloatingLabel ? placeholder || '' : label)}
         </span>
-        <i className={`mdi mdi-menu-down ${filterIcon} transition-transform ${open ? 'rotate-180' : ''}`} />
+        <i className={cn('mdi mdi-menu-down', filterIcon, 'transition-transform', open && 'rotate-180')} />
       </button>
 
       {/*
@@ -239,7 +241,7 @@ export function FilterMultiSelect({
       {showClear && (
         <button
           type="button"
-          className={`absolute right-7 top-1/2 -translate-y-1/2 ${filterClearButton}`}
+          className={cn('absolute right-7 top-1/2 -translate-y-1/2', filterClearButton)}
           onClick={() => {
             onChange([]);
             closeMenu();
@@ -263,7 +265,7 @@ export function FilterMultiSelect({
           aria-multiselectable="true"
         >
           {options.length === 0 ? (
-            <li className={`${filterOption} cursor-default text-text-muted`} role="presentation">
+            <li className={cn(filterOption, 'cursor-default text-text-muted')} role="presentation">
               No options
             </li>
           ) : (
@@ -275,13 +277,13 @@ export function FilterMultiSelect({
                   id={optionId(index)}
                   role="option"
                   aria-selected={selected}
-                  className={`${optionClass(index, selected)} flex items-center gap-2`}
+                  className={cn(optionClass(index, selected), 'flex items-center gap-2')}
                   onClick={() => toggleOption(opt.value)}
                   onMouseEnter={() => setActiveIndex(index)}
                 >
                   <i
                     aria-hidden="true"
-                    className={`mdi ${selected ? 'mdi-checkbox-marked text-primary' : 'mdi-checkbox-blank-outline text-text-muted'} text-base`}
+                    className={cn('mdi', selected ? 'mdi-checkbox-marked text-primary' : 'mdi-checkbox-blank-outline text-text-muted', 'text-base')}
                   />
                   <span className="flex-1">{opt.label}</span>
                 </li>

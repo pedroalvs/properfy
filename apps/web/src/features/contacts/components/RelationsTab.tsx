@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { Link, useNavigate } from 'react-router-dom';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -137,7 +138,7 @@ export function RelationsTab({ contactId, enabled }: RelationsTabProps) {
                 aria-controls={`relations-${g.propertyId}`}
               >
                 <i
-                  className={`mdi ${expanded ? 'mdi-chevron-down' : 'mdi-chevron-right'} text-lg text-text-secondary`}
+                  className={cn('mdi', expanded ? 'mdi-chevron-down' : 'mdi-chevron-right', 'text-lg text-text-secondary')}
                   aria-hidden="true"
                 />
                 <div className="flex flex-col">

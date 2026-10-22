@@ -7,7 +7,6 @@ import {
 } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { toApiError, type ApiError } from '@/lib/api-error';
-import type { paths } from '@properfy/shared';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -93,23 +92,40 @@ async function unwrapApiResult<T>(
   return data as unknown as T;
 }
 
+/**
+ * openapi-fetch types each verb against a *literal* key of `paths`, but these
+ * helpers take a runtime string path (and dynamic query/body) assembled at call
+ * sites like `/v1/inspectors/${id}/surveys`. That coupling cannot be expressed
+ * statically, so we view the client through a dynamic-path facade. This single
+ * `as unknown as` is the one untyped boundary of the module — every caller above
+ * stays fully typed through the `<T>` return. Confining the escape hatch to one
+ * documented adapter is why there is no per-call `any` cast below.
+ */
+type ApiCallResult = { data?: unknown; error?: unknown; response?: Response };
+interface DynamicApiClient {
+  GET(path: string, init: { params: { query?: Record<string, string | string[]> } }): Promise<ApiCallResult>;
+  POST(path: string, init: { body?: unknown }): Promise<ApiCallResult>;
+  PATCH(path: string, init: { body?: unknown }): Promise<ApiCallResult>;
+}
+const dynApi = api as unknown as DynamicApiClient;
+
 async function apiGet<T>(path: string, params?: Record<string, string | string[]>): Promise<T> {
-  return unwrapApiResult<T>(() => api.GET(path as any, { params: { query: params as any } }));
+  return unwrapApiResult<T>(() => dynApi.GET(path, { params: { query: params } }));
 }
 
 async function apiPost<T>(path: string, body?: unknown): Promise<T> {
-  return unwrapApiResult<T>(() => api.POST(path as any, { body: body as any }));
+  return unwrapApiResult<T>(() => dynApi.POST(path, { body }));
 }
 
 async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
-  return unwrapApiResult<T>(() => api.PATCH(path as any, { body: body as any }));
+  return unwrapApiResult<T>(() => dynApi.PATCH(path, { body }));
 }
 
 // ─── Paginated List Query ──────────────────────────────────────────────────
 
-export function usePaginatedQuery<T, P extends keyof paths = any>(
+export function usePaginatedQuery<T>(
   queryKey: unknown[],
-  path: P | string,
+  path: string,
   params?: ListParams,
   options?: Omit<UseQueryOptions<PaginatedResponse<T>, ApiError>, 'queryKey' | 'queryFn'>,
 ) {
@@ -117,7 +133,7 @@ export function usePaginatedQuery<T, P extends keyof paths = any>(
 
   return useQuery<PaginatedResponse<T>, ApiError>({
     queryKey: [...queryKey, params],
-    queryFn: () => apiGet<PaginatedResponse<T>>(path as string, stringParams),
+    queryFn: () => apiGet<PaginatedResponse<T>>(path, stringParams),
     ...options,
   });
 }
@@ -162,44 +178,44 @@ async function fetchAllPages<T>(path: string, params?: ListParams): Promise<Pagi
  * Like usePaginatedQuery, but aggregates ALL pages of the endpoint. Any
  * `page`/`pageSize` in `params` is ignored — the loop drives both.
  */
-export function useAllPagesQuery<T, P extends keyof paths = any>(
+export function useAllPagesQuery<T>(
   queryKey: unknown[],
-  path: P | string,
+  path: string,
   params?: ListParams,
   options?: Omit<UseQueryOptions<PaginatedResponse<T>, ApiError>, 'queryKey' | 'queryFn'>,
 ) {
   return useQuery<PaginatedResponse<T>, ApiError>({
     queryKey: [...queryKey, params],
-    queryFn: () => fetchAllPages<T>(path as string, params),
+    queryFn: () => fetchAllPages<T>(path, params),
     ...options,
   });
 }
 
 // ─── Detail Query ──────────────────────────────────────────────────────────
 
-export function useDetailQuery<T, P extends keyof paths = any>(
+export function useDetailQuery<T>(
   queryKey: unknown[],
-  path: P | string,
+  path: string,
   options?: Omit<UseQueryOptions<SuccessResponse<T>, ApiError>, 'queryKey' | 'queryFn'>,
 ) {
   return useQuery<SuccessResponse<T>, ApiError>({
     queryKey,
-    queryFn: () => apiGet<SuccessResponse<T>>(path as string),
+    queryFn: () => apiGet<SuccessResponse<T>>(path),
     ...options,
   });
 }
 
 // ─── Create Mutation ───────────────────────────────────────────────────────
 
-export function useCreateMutation<TInput, TResponse = unknown, P extends keyof paths = any>(
-  path: P | string,
+export function useCreateMutation<TInput, TResponse = unknown>(
+  path: string,
   invalidateKeys?: unknown[][],
   options?: Omit<UseMutationOptions<SuccessResponse<TResponse>, ApiError, TInput>, 'mutationFn'>,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation<SuccessResponse<TResponse>, ApiError, TInput>({
-    mutationFn: (data) => apiPost<SuccessResponse<TResponse>>(path as string, data),
+    mutationFn: (data) => apiPost<SuccessResponse<TResponse>>(path, data),
     onSuccess: (...args) => {
       invalidateKeys?.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
       options?.onSuccess?.(...args);
@@ -210,15 +226,15 @@ export function useCreateMutation<TInput, TResponse = unknown, P extends keyof p
 
 // ─── Update Mutation ───────────────────────────────────────────────────────
 
-export function useUpdateMutation<TInput, TResponse = unknown, P extends keyof paths = any>(
-  path: P | string,
+export function useUpdateMutation<TInput, TResponse = unknown>(
+  path: string,
   invalidateKeys?: unknown[][],
   options?: Omit<UseMutationOptions<SuccessResponse<TResponse>, ApiError, TInput>, 'mutationFn'>,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation<SuccessResponse<TResponse>, ApiError, TInput>({
-    mutationFn: (data) => apiPatch<SuccessResponse<TResponse>>(path as string, data),
+    mutationFn: (data) => apiPatch<SuccessResponse<TResponse>>(path, data),
     onSuccess: (...args) => {
       invalidateKeys?.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
       options?.onSuccess?.(...args);
@@ -229,15 +245,15 @@ export function useUpdateMutation<TInput, TResponse = unknown, P extends keyof p
 
 // ─── Action Mutation (POST without body emphasis) ──────────────────────────
 
-export function useActionMutation<TResponse = unknown, P extends keyof paths = any>(
-  path: P | string,
+export function useActionMutation<TResponse = unknown>(
+  path: string,
   invalidateKeys?: unknown[][],
   options?: Omit<UseMutationOptions<SuccessResponse<TResponse>, ApiError, unknown>, 'mutationFn'>,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation<SuccessResponse<TResponse>, ApiError, unknown>({
-    mutationFn: (data) => apiPost<SuccessResponse<TResponse>>(path as string, data),
+    mutationFn: (data) => apiPost<SuccessResponse<TResponse>>(path, data),
     onSuccess: (...args) => {
       invalidateKeys?.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
       options?.onSuccess?.(...args);
