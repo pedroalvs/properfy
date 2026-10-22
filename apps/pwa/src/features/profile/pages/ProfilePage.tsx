@@ -23,8 +23,10 @@ export function ProfilePage() {
     () => (inspector ? getDocumentsStatus(inspector, timeZone) : null),
     [inspector, timeZone],
   );
+  // While the template is loading/errored/uncached, show a neutral label rather
+  // than "Not set" (which would wrongly imply the inspector has no schedule).
   const availabilitySummary = useMemo(
-    () => summarizeAvailability(availability?.template),
+    () => (availability ? summarizeAvailability(availability.template) : 'Working days'),
     [availability],
   );
   const rating = inspector?.rating;

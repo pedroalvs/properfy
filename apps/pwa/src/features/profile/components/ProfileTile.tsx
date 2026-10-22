@@ -45,7 +45,9 @@ export function ProfileTile({
   return (
     <Link
       to={to}
-      aria-label={label}
+      // Fold the status line into the accessible name so a screen reader announces
+      // e.g. "Documents, 1 expiring" — the dot is decorative (aria-hidden).
+      aria-label={value ? `${label}, ${value}` : label}
       data-testid={testId}
       className={cn(
         'relative flex min-h-[112px] touch-manipulation flex-col justify-between gap-3 rounded-card border border-border bg-card p-4 shadow-sm',

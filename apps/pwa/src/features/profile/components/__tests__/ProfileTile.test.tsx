@@ -19,6 +19,13 @@ describe('ProfileTile', () => {
     expect(screen.getByText('Mon–Fri')).toBeInTheDocument();
   });
 
+  it('folds the value into the accessible name so screen readers announce the status', () => {
+    renderWithProviders(
+      <ProfileTile icon={<FileText />} label="Documents" to="/profile/documents" value="1 expiring" />,
+    );
+    expect(screen.getByRole('link', { name: 'Documents, 1 expiring' })).toBeInTheDocument();
+  });
+
   it('renders a status dot for a non-default tone', () => {
     renderWithProviders(
       <ProfileTile

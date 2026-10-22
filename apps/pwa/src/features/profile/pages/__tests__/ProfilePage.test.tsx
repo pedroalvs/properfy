@@ -55,10 +55,36 @@ describe('ProfilePage (tiles)', () => {
 
   it('renders the four tiles pointing at the correct destinations', () => {
     renderWithProviders(<ProfilePage />);
-    expect(screen.getByRole('link', { name: 'Earnings' })).toHaveAttribute('href', '/earnings');
-    expect(screen.getByRole('link', { name: 'Availability' })).toHaveAttribute('href', '/profile/availability');
-    expect(screen.getByRole('link', { name: 'Documents' })).toHaveAttribute('href', '/profile/documents');
-    expect(screen.getByRole('link', { name: 'My account' })).toHaveAttribute('href', '/profile/account');
+    // The tile's accessible name folds in its status line ("Earnings, Payments & invoices"),
+    // so match on the leading label rather than an exact string.
+    expect(screen.getByRole('link', { name: /^Earnings/ })).toHaveAttribute('href', '/earnings');
+    expect(screen.getByRole('link', { name: /^Availability/ })).toHaveAttribute('href', '/profile/availability');
+    expect(screen.getByRole('link', { name: /^Documents/ })).toHaveAttribute('href', '/profile/documents');
+    expect(screen.getByRole('link', { name: /^My account/ })).toHaveAttribute('href', '/profile/account');
+  });
+
+  it('exposes the documents status in the tile accessible name', () => {
+    mockUseInspectorMe.mockReturnValue({
+      data: {
+        data: {
+          insuranceFileKey: 'ins.pdf',
+          insuranceExpiresAt: '2000-01-01',
+          policeCheckFileKey: 'pc.pdf',
+          policeCheckExpiresAt: '2999-01-01',
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByRole('link', { name: /Documents, Action needed/ })).toBeInTheDocument();
+  });
+
+  it('shows a neutral availability label while the template has not loaded', () => {
+    // default beforeEach mocks availability data: undefined
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByText('Working days')).toBeInTheDocument();
+    expect(screen.queryByText('Not set')).not.toBeInTheDocument();
   });
 
   it('no longer surfaces App settings or Account details on the main screen', () => {
