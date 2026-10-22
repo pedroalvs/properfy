@@ -38,7 +38,11 @@ export type AddToGroupReason =
   | 'ALREADY_GROUPED'
   | 'INVALID_SERVICE_TYPE'
   | 'GROUP_IN_TERMINAL_STATE'
-  | 'GROUP_CAPACITY_EXCEEDED';
+  | 'GROUP_CAPACITY_EXCEEDED'
+  // Only reachable on the ACCEPTED path: the group's committed inspector is not
+  // eligible (agency/region/service type) for the appointment being added, so
+  // scheduling it under them would assign work they cannot serve.
+  | 'INSPECTOR_INELIGIBLE';
 
 export type AddToGroupValidation =
   | { ok: true }
@@ -64,6 +68,17 @@ export type AppointmentForAddValidation = AppointmentForValidation;
  * than restating it in SQL.
  */
 export const ADDABLE_GROUP_STATUSES = new Set<ServiceGroupStatus>(['DRAFT', 'PUBLISHED', 'ACCEPTED']);
+
+/**
+ * Statuses into which an appointment may be *plain-linked* (set `service_group_id`
+ * without scheduling) — the non-committed marketplace path. ACCEPTED is excluded on
+ * purpose: a committed group must take new members through the atomic
+ * link-and-schedule commit (`commitAppointmentToAcceptedGroup`), never a bare link,
+ * or a concurrent accept mid-batch could leave an appointment linked to an ACCEPTED
+ * group but still AWAITING_INSPECTOR and unscheduled. The `linkAppointments` SQL
+ * guard uses this set so that race resolves to 0 rows instead of a stranded member.
+ */
+export const LINKABLE_GROUP_STATUSES = new Set<ServiceGroupStatus>(['DRAFT', 'PUBLISHED']);
 
 /**
  * A group that will never run again. Membership of a terminal group is dead

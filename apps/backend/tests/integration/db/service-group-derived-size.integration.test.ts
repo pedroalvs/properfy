@@ -29,6 +29,8 @@ import type { PrismaClient } from '@prisma/client';
 import { setupDbHarness, teardownDbHarness, type DbHarness } from './harness';
 import { PrismaServiceGroupRepository } from '../../../src/modules/service-group/infrastructure/prisma-service-group.repository';
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
+import { PrismaInspectorRepository } from '../../../src/modules/inspector/infrastructure/prisma-inspector.repository';
+import { PrismaServiceRegionRepository } from '../../../src/modules/service-region/infrastructure/prisma-service-region.repository';
 import { AddAppointmentsToGroupUseCase } from '../../../src/modules/service-group/application/use-cases/add-appointments-to-group.use-case';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
@@ -284,6 +286,8 @@ describe('service group size is derived from linked appointments (real DB)', () 
       new PrismaAppointmentRepository(prisma()),
       silentAuditService(),
       new AuthorizationService(silentAuditService()),
+      new PrismaInspectorRepository(prisma()),
+      new PrismaServiceRegionRepository(prisma()),
       new DomainEventBus(),
     );
 

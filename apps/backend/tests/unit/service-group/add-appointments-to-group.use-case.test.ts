@@ -9,6 +9,19 @@ import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { ServiceGroupTimeSyncLogger } from '../../../src/modules/service-group/application/sync-appointment-time-slot-to-group';
 import { DomainEventBus, SERVICE_GROUP_EVENTS } from '../../../src/shared/application/events/domain-event-bus';
+import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
+import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
+import type { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
+
+/** Minimal inspector that passes every `assertInspectorEligibleForGroup` gate. */
+function makeEligibleInspector(id = 'insp-1'): InspectorEntity {
+  return {
+    id,
+    isActive: () => true,
+    supportsServiceType: () => true,
+    isEligibleForTenant: () => true,
+  } as unknown as InspectorEntity;
+}
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -107,6 +120,8 @@ function makeGroupWithAppointments(
 describe('AddAppointmentsToGroupUseCase', () => {
   let groupRepo: IServiceGroupRepository;
   let appointmentRepo: IAppointmentRepository;
+  let inspectorRepo: IInspectorRepository;
+  let serviceRegionRepo: IServiceRegionRepository;
   let auditService: AuditService;
   let logger: ServiceGroupTimeSyncLogger;
   let eventBus: DomainEventBus;
@@ -117,11 +132,20 @@ describe('AddAppointmentsToGroupUseCase', () => {
       findById: vi.fn().mockResolvedValue(makeGroupWithAppointments()),
       linkAppointments: vi.fn().mockResolvedValue(1),
       incrementConfirmedCount: vi.fn(),
+      commitAppointmentToAcceptedGroup: vi.fn().mockResolvedValue('SCHEDULED'),
+      findStatusById: vi.fn(),
     } as unknown as IServiceGroupRepository;
     appointmentRepo = {
       findById: vi.fn(),
       update: vi.fn(),
     } as unknown as IAppointmentRepository;
+    inspectorRepo = {
+      findById: vi.fn().mockResolvedValue(makeEligibleInspector()),
+    } as unknown as IInspectorRepository;
+    serviceRegionRepo = {
+      // Covers the fixture property so region eligibility passes by default.
+      findPropertyIdsInInspectorRegions: vi.fn().mockResolvedValue(['property-1']),
+    } as unknown as IServiceRegionRepository;
     auditService = { log: vi.fn() } as unknown as AuditService;
     logger = { error: vi.fn() } as unknown as ServiceGroupTimeSyncLogger;
     eventBus = new DomainEventBus();
@@ -130,6 +154,8 @@ describe('AddAppointmentsToGroupUseCase', () => {
       appointmentRepo,
       auditService,
       new AuthorizationService(auditService),
+      inspectorRepo,
+      serviceRegionRepo,
       eventBus,
       logger,
     );
@@ -395,10 +421,9 @@ describe('AddAppointmentsToGroupUseCase', () => {
     const acceptedGroup = () =>
       makeGroupWithAppointments({ status: 'ACCEPTED', assignedInspectorId: 'insp-1' });
 
-    it('schedules the appointment under the group inspector and increments confirmed count', async () => {
+    it('commits the appointment into the accepted group under its inspector (atomic)', async () => {
       vi.mocked(groupRepo.findById).mockResolvedValue(acceptedGroup());
-      // Same date/slot as the group so the schedule sync makes no update and the only
-      // write asserted here is the SCHEDULED + inspector transition.
+      // Same date/slot as the group so the schedule sync makes no update.
       vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
         makeAppointmentWithRelations({ id: 'appt-1', status: 'DRAFT', timeSlotStart: '09:30', timeSlotEnd: '10:30' }),
       );
@@ -410,19 +435,53 @@ describe('AddAppointmentsToGroupUseCase', () => {
       });
 
       expect(result.results).toEqual([{ appointmentId: 'appt-1', status: 'OK' }]);
-      expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
-        status: 'SCHEDULED',
-        inspectorId: 'insp-1',
+      // The commit is atomic in the repo — the use case must not do the separate
+      // link + status update + increment that would reopen the race.
+      expect(groupRepo.commitAppointmentToAcceptedGroup).toHaveBeenCalledWith({
+        appointmentId: 'appt-1',
+        groupId: 'group-1',
+        expectedInspectorId: 'insp-1',
       });
-      expect(groupRepo.incrementConfirmedCount).toHaveBeenCalledWith('group-1');
+      expect(groupRepo.linkAppointments).not.toHaveBeenCalled();
+      expect(groupRepo.incrementConfirmedCount).not.toHaveBeenCalled();
       expect(appointmentRepo.update).not.toHaveBeenCalledWith('appt-1', 'tenant-1', { status: 'AWAITING_INSPECTOR' });
+      // The atomic write is audited as the two legal hops, not one illegal edge.
       expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
         action: 'appointment.status_transition',
         actorType: 'SYSTEM',
         entityId: 'appt-1',
         before: { status: 'DRAFT' },
+        after: { status: 'AWAITING_INSPECTOR' },
+      }));
+      expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'appointment.status_transition',
+        actorType: 'SYSTEM',
+        entityId: 'appt-1',
+        before: { status: 'AWAITING_INSPECTOR' },
         after: { status: 'SCHEDULED' },
         metadata: expect.objectContaining({ groupId: 'group-1', assignedInspectorId: 'insp-1' }),
+      }));
+    });
+
+    it('audits the REJECTED revival hop as a USER action, not SYSTEM', async () => {
+      vi.mocked(groupRepo.findById).mockResolvedValue(acceptedGroup());
+      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+        makeAppointmentWithRelations({ id: 'appt-1', status: 'REJECTED', timeSlotStart: '09:30', timeSlotEnd: '10:30' }),
+      );
+
+      await useCase.execute({ groupId: 'group-1', appointmentIds: ['appt-1'], actor: makeActor() });
+
+      expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'appointment.status_transition',
+        actorType: 'USER',
+        entityId: 'appt-1',
+        before: { status: 'REJECTED' },
+        after: { status: 'AWAITING_INSPECTOR' },
+      }));
+      expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+        actorType: 'SYSTEM',
+        before: { status: 'AWAITING_INSPECTOR' },
+        after: { status: 'SCHEDULED' },
       }));
     });
 
@@ -450,22 +509,77 @@ describe('AddAppointmentsToGroupUseCase', () => {
       }));
     });
 
-    it('does not emit MEMBERS_ADDED when nothing was added to the accepted group', async () => {
+    it('rejects when the group inspector is not eligible for the appointment (no commit, no event)', async () => {
       vi.mocked(groupRepo.findById).mockResolvedValue(acceptedGroup());
-      // Wrong service type → rejected by the validator, never linked/scheduled.
+      // Inspector cannot serve this appointment's agency.
+      vi.mocked(inspectorRepo.findById).mockResolvedValue({
+        id: 'insp-1',
+        isActive: () => true,
+        supportsServiceType: () => true,
+        isEligibleForTenant: () => false,
+      } as unknown as InspectorEntity);
       vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
-        makeAppointmentWithRelations({ id: 'appt-1', serviceTypeId: 'svc-type-other' }),
+        makeAppointmentWithRelations({ id: 'appt-1', status: 'DRAFT' }),
       );
       const emitSpy = vi.spyOn(eventBus, 'emit');
 
-      await useCase.execute({
+      const result = await useCase.execute({
         groupId: 'group-1',
         appointmentIds: ['appt-1'],
         actor: makeActor(),
       });
 
+      expect(result.results).toEqual([{
+        appointmentId: 'appt-1',
+        status: 'INSPECTOR_INELIGIBLE',
+        error: expect.objectContaining({ code: 'INSPECTOR_INELIGIBLE' }),
+      }]);
+      expect(groupRepo.commitAppointmentToAcceptedGroup).not.toHaveBeenCalled();
       expect(emitSpy).not.toHaveBeenCalled();
-      expect(groupRepo.incrementConfirmedCount).not.toHaveBeenCalled();
+    });
+
+    it('reports a retryable conflict when the group changed mid-batch (GROUP_CHANGED)', async () => {
+      vi.mocked(groupRepo.findById).mockResolvedValue(acceptedGroup());
+      vi.mocked(groupRepo.commitAppointmentToAcceptedGroup).mockResolvedValue('GROUP_CHANGED');
+      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+        makeAppointmentWithRelations({ id: 'appt-1', status: 'DRAFT' }),
+      );
+      const emitSpy = vi.spyOn(eventBus, 'emit');
+
+      const result = await useCase.execute({
+        groupId: 'group-1',
+        appointmentIds: ['appt-1'],
+        actor: makeActor(),
+      });
+
+      expect(result.results).toEqual([{
+        appointmentId: 'appt-1',
+        status: 'ERROR',
+        error: expect.objectContaining({ code: 'GROUP_STATE_CHANGED' }),
+      }]);
+      expect(emitSpy).not.toHaveBeenCalled();
+    });
+
+    it('reports a retryable conflict when the appointment changed mid-batch (APPOINTMENT_CONFLICT)', async () => {
+      vi.mocked(groupRepo.findById).mockResolvedValue(acceptedGroup());
+      vi.mocked(groupRepo.commitAppointmentToAcceptedGroup).mockResolvedValue('APPOINTMENT_CONFLICT');
+      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+        makeAppointmentWithRelations({ id: 'appt-1', status: 'DRAFT' }),
+      );
+      const emitSpy = vi.spyOn(eventBus, 'emit');
+
+      const result = await useCase.execute({
+        groupId: 'group-1',
+        appointmentIds: ['appt-1'],
+        actor: makeActor(),
+      });
+
+      expect(result.results).toEqual([{
+        appointmentId: 'appt-1',
+        status: 'ERROR',
+        error: expect.objectContaining({ code: 'APPOINTMENT_STATE_CHANGED' }),
+      }]);
+      expect(emitSpy).not.toHaveBeenCalled();
     });
 
     it('rejects an appointment when the accepted group is already at capacity (30)', async () => {
@@ -507,8 +621,7 @@ describe('AddAppointmentsToGroupUseCase', () => {
           message: 'Group has reached its capacity of 30 appointments',
         },
       }]);
-      expect(groupRepo.linkAppointments).not.toHaveBeenCalled();
-      expect(groupRepo.incrementConfirmedCount).not.toHaveBeenCalled();
+      expect(groupRepo.commitAppointmentToAcceptedGroup).not.toHaveBeenCalled();
     });
   });
 });
