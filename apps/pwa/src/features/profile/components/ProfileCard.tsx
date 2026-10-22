@@ -1,17 +1,12 @@
 
 import { formatInstantDateTime } from '@/lib/format-date';
 import { StarRating } from '@/components/ui/StarRating';
-import { formatTimezoneLabel } from '@/components/ui/TimezonePicker';
 
 interface ProfileCardProps {
   name: string;
   email: string;
   role: string;
   status?: string;
-  phone?: string | null;
-  /** Effective IANA timezone (personal ?? platform). */
-  timezone?: string | null;
-  totpEnabled?: boolean;
   lastLoginAt?: string | null;
   photoUrl?: string | null;
   avatarUploader?: React.ReactNode;
@@ -46,7 +41,7 @@ function formatStatus(value: string | null | undefined): string {
     .join(' ');
 }
 
-export function ProfileCard({ name, email, role, status, phone, timezone, totpEnabled, lastLoginAt, photoUrl, avatarUploader, ratingAvg, ratingCount = 0, completedCount = 0, ratingLoading = false, showStats = false }: ProfileCardProps) {
+export function ProfileCard({ name, email, role, status, lastLoginAt, photoUrl, avatarUploader, ratingAvg, ratingCount = 0, completedCount = 0, ratingLoading = false, showStats = false }: ProfileCardProps) {
   const roleLabel = roleLabelMap[role] ?? role;
 
   return (
@@ -119,20 +114,6 @@ export function ProfileCard({ name, email, role, status, phone, timezone, totpEn
         <div className="flex items-center justify-between gap-4">
           <span className="text-muted-foreground">Account Status</span>
           <span className="font-medium text-foreground">{formatStatus(status)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-muted-foreground">Phone</span>
-          <span className="font-medium text-foreground">{phone ?? '—'}</span>
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-muted-foreground">Timezone</span>
-          <span className="font-medium text-foreground">{formatTimezoneLabel(timezone) ?? '—'}</span>
-        </div>
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-muted-foreground">Two-Factor</span>
-          <span className={totpEnabled ? 'font-medium text-success' : 'font-medium text-warning'}>
-            {totpEnabled ? 'Enabled' : 'Not enabled'}
-          </span>
         </div>
         <div className="flex items-center justify-between gap-4">
           <span className="text-muted-foreground">Last Login</span>
