@@ -34,7 +34,7 @@ RUN pnpm --filter backend build
 FROM node:20-slim
 
 RUN apt-get update -y && apt-get install -y openssl wget && rm -rf /var/lib/apt/lists/* && \
-    npm install -g prisma@5.22.0 && \
+    npm install -g prisma@6.19.3 && \
     corepack enable && corepack prepare pnpm@9 --activate
 
 WORKDIR /app
@@ -53,8 +53,8 @@ RUN pnpm install --frozen-lockfile --prod
 COPY --from=builder /app/packages/shared/dist/ packages/shared/dist/
 
 # Copy Prisma generated client from builder
-COPY --from=builder /app/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/ \
-     node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/
+COPY --from=builder /app/node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_magicast@0.3.5_typescript@5.9.3__typescript@5.9.3/node_modules/.prisma/ \
+     node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_magicast@0.3.5_typescript@5.9.3__typescript@5.9.3/node_modules/.prisma/
 
 # Copy built backend bundle + static assets needed at runtime
 COPY --from=builder /app/apps/backend/dist/ apps/backend/dist/
