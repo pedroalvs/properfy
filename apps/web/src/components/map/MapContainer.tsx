@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback, type ReactNode } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { cn } from '@properfy/frontend-standards';
 import { env } from '@/config/env';
 
 export interface MapViewState {
@@ -86,7 +87,7 @@ export function MapContainer({
   if (tokenMissing) {
     return (
       <div
-        className={`relative flex h-full w-full items-center justify-center bg-gray-100 ${className}`}
+        className={cn('relative flex h-full w-full items-center justify-center bg-gray-100', className)}
         data-testid="map-container"
         role="application"
         aria-label="Map"
@@ -105,7 +106,7 @@ export function MapContainer({
   return (
     <div
       ref={containerRef}
-      className={`relative h-full w-full ${className}`}
+      className={cn('relative h-full w-full', className)}
       data-testid="map-container"
       role="application"
       aria-label="Map"

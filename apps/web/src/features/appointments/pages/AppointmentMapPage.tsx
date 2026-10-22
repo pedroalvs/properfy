@@ -650,7 +650,7 @@ export function AppointmentMapPage() {
   // the panel owns its own click-outside logic and we don't want a
   // single map click to dismiss the popup while the user is reading.
   useEffect(() => {
-    if (!mapInstance || !appointmentDetailEnabled || !selectedItem
+    if (!mapInstance || !appointmentDetailEnabled || !selectedItem?.id
         || selectedItem.latitude == null || selectedItem.longitude == null) {
       // Cleanup any existing popup if the selection cleared.
       if (appointmentPopupRef.current) {
@@ -692,7 +692,7 @@ export function AppointmentMapPage() {
   // positioning, React portals the GroupMapDetailPanel content into it.
   // Only alive while showing group pins (not inside a drill-down).
   useEffect(() => {
-    if (!mapInstance || mode !== 'groups' || !!selectedGroupItem || !previewGroup) {
+    if (!mapInstance || mode !== 'groups' || !!selectedGroupItem || !previewGroup?.id) {
       if (groupPopupRef.current) {
         groupPopupRef.current.remove();
         groupPopupRef.current = null;

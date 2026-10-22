@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { ChangePasswordDialog } from './ChangePasswordDialog';
@@ -39,7 +40,7 @@ export function SecuritySettingsSection() {
             <h3 className="text-lg font-semibold text-secondary">Two-factor authentication</h3>
             <p className="mt-1 flex items-center gap-2 text-sm text-text-secondary">
               <span
-                className={`inline-block h-2 w-2 rounded-full ${isTotpEnabled ? 'bg-success' : 'bg-text-muted'}`}
+                className={cn('inline-block h-2 w-2 rounded-full', isTotpEnabled ? 'bg-success' : 'bg-text-muted')}
                 aria-hidden="true"
               />
               {isTotpEnabled ? 'Enabled' : 'Not enabled'}

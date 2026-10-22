@@ -1,21 +1,35 @@
 import { createBrowserRouter, Navigate, useParams, type RouteObject } from 'react-router-dom';
-import { lazy, Suspense, type ComponentType } from 'react';
+import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from 'react';
 import { retryLazyImportOnce } from '@properfy/shared';
+
+/**
+ * Every lazily-loaded route page is rendered prop-less (`<LoginPage />`), so the
+ * precise domain type is "a component that accepts no props". `ComponentType<P>`
+ * is contravariant in `P`, which is why a generic over the page union collapses
+ * to `never` — a fixed prop-less type sidesteps that and stays `any`-free.
+ */
+type PageComponent = ComponentType<Record<string, never>>;
 
 /**
  * Handles stale chunk hashes after a new deployment: reloads the intended URL
  * once on the first import failure, then lets a repeated failure surface to
  * the route error boundary. See retryLazyImportOnce in @properfy/shared.
  */
-function lazyRetry<T extends { default: ComponentType<any> }>(importFn: () => Promise<T>) {
+function lazyRetry(
+  importFn: () => Promise<{ default: PageComponent }>,
+): LazyExoticComponent<PageComponent> {
   return lazy(() => retryLazyImportOnce(importFn, window.sessionStorage, window.location, console));
 }
 
-const Loadable = (Component: any) => (props: any) => (
-  <Suspense fallback={<div className="flex h-full w-full items-center justify-center p-8"><i className="mdi mdi-loading mdi-spin text-4xl text-primary" /></div>}>
-    <Component {...props} />
-  </Suspense>
-);
+function Loadable(Component: PageComponent): ComponentType {
+  return function LoadableComponent() {
+    return (
+      <Suspense fallback={<div className="flex h-full w-full items-center justify-center p-8"><i className="mdi mdi-loading mdi-spin text-4xl text-primary" /></div>}>
+        <Component />
+      </Suspense>
+    );
+  };
+}
 
 const LoginPage = Loadable(lazyRetry(() => import('@/features/auth/pages/LoginPage').then(m => ({ default: m.LoginPage }))));
 const ForgotPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage }))));

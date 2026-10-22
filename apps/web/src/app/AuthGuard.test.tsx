@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthGuard } from './AuthGuard';
+import type { UserRole } from '@properfy/shared';
 
 const mockUseAuth = vi.fn();
 const mockShowInfo = vi.fn();
@@ -12,7 +13,7 @@ vi.mock('@/hooks/useSnackbar', () => ({
   useSnackbar: () => ({ showInfo: mockShowInfo, showError: vi.fn(), showSuccess: vi.fn() }),
 }));
 
-function renderWithRouter(roles: string[], currentPath = '/protected') {
+function renderWithRouter(roles: UserRole[], currentPath = '/protected') {
   return render(
     <MemoryRouter
       initialEntries={[currentPath]}
@@ -22,7 +23,7 @@ function renderWithRouter(roles: string[], currentPath = '/protected') {
         <Route
           path="/protected"
           element={
-            <AuthGuard roles={roles as any}>
+            <AuthGuard roles={roles}>
               <div>Protected Content</div>
             </AuthGuard>
           }

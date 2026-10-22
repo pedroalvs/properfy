@@ -205,6 +205,14 @@ class InMemoryAppointmentRepo implements IAppointmentRepository {
     };
   }
 
+  async findManyByIds(
+    ids: string[],
+    tenantId: string | null,
+  ): Promise<AppointmentWithRelations[]> {
+    const results = await Promise.all(ids.map((id) => this.findById(id, tenantId)));
+    return results.filter((r): r is AppointmentWithRelations => r !== null);
+  }
+
   async findAll(
     filters: AppointmentFilters,
     pagination: AppointmentPaginationParams,

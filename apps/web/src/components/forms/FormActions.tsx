@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 interface FormActionsProps {
   children: ReactNode;
@@ -11,7 +12,7 @@ export function FormActions({ children, align = 'right', className = '' }: FormA
 
   return (
     <div
-      className={`flex gap-2 border-t border-black/10 pt-4 ${justifyClass} ${className}`}
+      className={cn('flex gap-2 border-t border-black/10 pt-4', justifyClass, className)}
     >
       {children}
     </div>

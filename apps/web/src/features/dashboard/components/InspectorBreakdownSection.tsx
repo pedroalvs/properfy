@@ -3,6 +3,7 @@ import {
   WEEKLY_WORKLOAD_THRESHOLDS,
   type WorkloadThresholds,
 } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import type { InspectorBreakdowns, InspectorDayCount } from '../types';
 
 interface Props {
@@ -66,12 +67,12 @@ function InspectorListCard({ title, rows, thresholds, unit }: InspectorListCardP
                 >
                   <span className="flex items-center gap-2 text-sm text-text-primary min-w-0">
                     <span
-                      className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${cls.dot}`}
+                      className={cn('inline-block w-2 h-2 rounded-full flex-shrink-0', cls.dot)}
                       aria-hidden="true"
                     />
                     <span className="truncate">{row.inspectorName}</span>
                   </span>
-                  <span className={`text-sm font-semibold flex-shrink-0 ${cls.count}`}>
+                  <span className={cn('text-sm font-semibold flex-shrink-0', cls.count)}>
                     {row.count}
                   </span>
                 </li>

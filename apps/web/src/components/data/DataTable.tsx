@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -220,11 +221,18 @@ export function DataTable<T>({
     return (
       <div className="space-y-3" data-testid="data-table-mobile-list">
         {sortedData.map((row, index) => (
+          // The card onClick is a redundant pointer-only shortcut (same role as
+          // the desktop <tr onClick>, which the linter leaves unflagged): every
+          // row exposes its real actions as focusable controls — a detail link
+          // and/or RowActions buttons — so keyboard users are never dependent on
+          // the row click. Scoped to this line so the rest of the file stays linted.
+          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
           <div
-            key={keyExtractor ? keyExtractor(row, index) : ((row as any).id ?? index)}
-            className={`rounded-xl border border-border-subtle bg-card-bg p-4 shadow-sm ${
-              onRowClick ? 'cursor-pointer transition-colors hover:bg-hover-row' : ''
-            }`}
+            key={keyExtractor ? keyExtractor(row, index) : ((row as { id?: string | number }).id ?? index)}
+            className={cn(
+              'rounded-xl border border-border-subtle bg-card-bg p-4 shadow-sm',
+              onRowClick && 'cursor-pointer transition-colors hover:bg-hover-row',
+            )}
             onClick={onRowClick ? () => onRowClick(row) : undefined}
             data-testid="data-table-mobile-card"
           >
@@ -237,7 +245,7 @@ export function DataTable<T>({
                   <span className="min-w-0 text-xs font-semibold uppercase tracking-wide text-text-muted">
                     {column.headerRender ? column.headerRender() : column.label}
                   </span>
-                  <div className={`min-w-0 flex-1 text-sm text-text-primary ${alignClass(column.align)}`}>
+                  <div className={cn('min-w-0 flex-1 text-sm text-text-primary', alignClass(column.align))}>
                     {renderCellValue(row, column, index)}
                   </div>
                 </div>
@@ -266,28 +274,51 @@ export function DataTable<T>({
           <table className="w-full min-w-[640px] border-collapse md:min-w-[800px]">
             <thead>
               <tr className="border-b border-border-subtle">
-                {columns.map((col) => (
-                  <th
-                    key={col.key}
-                    className={`px-3 py-3 text-table-header text-text-secondary md:px-4 ${alignClass(col.align)} ${
-                      col.sortable ? 'cursor-pointer select-none hover:text-text-primary' : ''
-                    } ${col.hideOnMobile ? 'hidden md:table-cell' : ''}`}
-                    style={col.width ? { width: col.width } : undefined}
-                    onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      {col.headerRender ? col.headerRender() : col.label}
-                      {col.sortable && sortBy === col.key && (
-                        <i
-                          className={`mdi ${
-                            sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down'
-                          } text-xs`}
-                          aria-hidden="true"
-                        />
+                {columns.map((col) => {
+                  const sortIndicator = col.sortable && sortBy === col.key && (
+                    <i
+                      className={cn('mdi', sortOrder === 'asc' ? 'mdi-arrow-up' : 'mdi-arrow-down', 'text-xs')}
+                      aria-hidden="true"
+                    />
+                  );
+                  const headerContent = col.headerRender ? col.headerRender() : col.label;
+                  return (
+                    <th
+                      key={col.key}
+                      className={cn(
+                        'px-3 py-3 text-table-header text-text-secondary md:px-4',
+                        alignClass(col.align),
+                        col.hideOnMobile && 'hidden md:table-cell',
                       )}
-                    </span>
-                  </th>
-                ))}
+                      style={col.width ? { width: col.width } : undefined}
+                      // Sorting is reachable by keyboard because the control is a
+                      // real <button>, not an onClick on the <th>; aria-sort
+                      // announces the current column/direction to assistive tech.
+                      aria-sort={
+                        col.sortable
+                          ? sortBy === col.key
+                            ? sortOrder === 'asc'
+                              ? 'ascending'
+                              : 'descending'
+                            : 'none'
+                          : undefined
+                      }
+                    >
+                      {col.sortable ? (
+                        <button
+                          type="button"
+                          onClick={() => handleSort(col.key)}
+                          className="inline-flex items-center gap-1 cursor-pointer select-none border-0 bg-transparent p-0 [font:inherit] text-inherit hover:text-text-primary"
+                        >
+                          {headerContent}
+                          {sortIndicator}
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">{headerContent}</span>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
@@ -316,16 +347,17 @@ export function DataTable<T>({
                 !error &&
                 sortedData.map((row, index) => (
                   <tr
-                    key={keyExtractor ? keyExtractor(row, index) : ((row as any).id ?? index)}
-                    className={`border-b border-border-light text-table-body text-text-primary ${
-                      onRowClick ? 'cursor-pointer hover:bg-hover-row' : ''
-                    }`}
+                    key={keyExtractor ? keyExtractor(row, index) : ((row as { id?: string | number }).id ?? index)}
+                    className={cn(
+                      'border-b border-border-light text-table-body text-text-primary',
+                      onRowClick && 'cursor-pointer hover:bg-hover-row',
+                    )}
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
                   >
                     {columns.map((col) => (
                       <td
                         key={col.key}
-                        className={`px-3 py-3 md:px-4 ${alignClass(col.align)} ${col.hideOnMobile ? 'hidden md:table-cell' : ''}`}
+                        className={cn('px-3 py-3 md:px-4', alignClass(col.align), col.hideOnMobile && 'hidden md:table-cell')}
                       >
                         {renderCellValue(row, col, index)}
                       </td>

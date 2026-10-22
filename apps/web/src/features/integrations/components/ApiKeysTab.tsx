@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ApiKeyResponse } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { formatInstantDate } from '@/lib/format-date';
 
 import { Button } from '@/components/ui';
@@ -110,7 +111,7 @@ export function ApiKeysTab() {
                     <td className="px-4 py-3">{formatKeyDate(key.expiresAt)}</td>
                     <td className="px-4 py-3">{formatKeyDate(key.lastUsedAt)}</td>
                     <td className="px-4 py-3">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${status.className}`}>
+                      <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', status.className)}>
                         {status.label}
                       </span>
                     </td>

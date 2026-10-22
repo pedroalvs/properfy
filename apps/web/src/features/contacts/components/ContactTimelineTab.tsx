@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -51,9 +52,9 @@ export function ContactTimelineTab({ contactId, enabled }: ContactTimelineTabPro
         const label = CONTACT_ACTION_LABELS[entry.action] ?? entry.action;
         const style = CONTACT_ACTION_STYLES[entry.action] ?? { icon: 'mdi-information-outline', color: 'border-default' };
         return (
-          <li key={entry.id} className={`mb-6 ms-6 ps-4 ${style.color}`}>
+          <li key={entry.id} className={cn('mb-6 ms-6 ps-4', style.color)}>
             <span className="absolute -start-3 flex h-6 w-6 items-center justify-center rounded-full bg-surface ring-2 ring-default">
-              <i className={`mdi ${style.icon} text-base`} aria-hidden="true" />
+              <i className={cn('mdi', style.icon, 'text-base')} aria-hidden="true" />
             </span>
             <div className="flex flex-col">
               <div className="flex items-baseline justify-between gap-2">
