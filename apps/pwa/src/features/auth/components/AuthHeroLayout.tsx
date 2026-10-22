@@ -26,7 +26,7 @@ export function AuthHeroLayout({ title, subtitle, children }: AuthHeroLayoutProp
     <div className="auth-reveal relative flex min-h-[100dvh] flex-col bg-background lg:flex-row">
       <div
         data-testid="auth-hero"
-        className="auth-hero-gradient relative h-[42vh] min-h-[248px] flex-shrink-0 overflow-hidden lg:h-auto lg:min-h-screen lg:w-[44%]"
+        className="auth-hero-gradient relative h-[42dvh] min-h-[248px] flex-shrink-0 overflow-hidden lg:h-auto lg:min-h-[100dvh] lg:w-[44%]"
       >
         <RouteArt className="absolute inset-0 h-full w-full" />
 

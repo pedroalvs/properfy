@@ -136,7 +136,6 @@ export function RouteArt({ className }: { className?: string }) {
               x={stop.x}
               y={stop.y + 4}
               textAnchor="middle"
-              fontFamily="Inter, sans-serif"
               fontSize={12}
               fontWeight={800}
               fill="#ffffff"
@@ -147,7 +146,7 @@ export function RouteArt({ className }: { className?: string }) {
         ))}
       </g>
 
-      <g className="auth-reveal-labels auth-route-labels" fontFamily="Inter, sans-serif">
+      <g className="auth-reveal-labels auth-route-labels">
         {ROUTE_STOPS.map((stop) => (
           <g key={stop.name} data-testid="route-label">
             <text
