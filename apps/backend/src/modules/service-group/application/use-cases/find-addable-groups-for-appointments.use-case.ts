@@ -33,8 +33,11 @@ export interface FindAddableGroupsOutput {
  *    types → early return with reason = 'MIXED_APPOINTMENT_PROPERTIES'.
  *
  * Group filters applied by the repository query:
- *  - Same serviceType (date and time window are not filters)
- *  - Status ∈ {DRAFT, PUBLISHED}
+ *  - Same serviceType (the appointment's own date and time window are not
+ *    filters — it is re-scheduled to the group's on join)
+ *  - Status ∈ {DRAFT, PUBLISHED, ACCEPTED} (an ACCEPTED group still accepts
+ *    members; the add flow schedules them under its committed inspector)
+ *  - Not scheduled before today in the platform timezone (Sydney)
  *  - currentSize + |appointmentIds| ≤ capacity (default 30)
  */
 export class FindAddableGroupsForAppointmentsUseCase {

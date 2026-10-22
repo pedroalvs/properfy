@@ -8,6 +8,7 @@ import { AppointmentEntity } from '../../../src/modules/appointment/domain/appoi
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { ServiceGroupTimeSyncLogger } from '../../../src/modules/service-group/application/sync-appointment-time-slot-to-group';
+import { DomainEventBus, SERVICE_GROUP_EVENTS } from '../../../src/shared/application/events/domain-event-bus';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -108,12 +109,14 @@ describe('AddAppointmentsToGroupUseCase', () => {
   let appointmentRepo: IAppointmentRepository;
   let auditService: AuditService;
   let logger: ServiceGroupTimeSyncLogger;
+  let eventBus: DomainEventBus;
   let useCase: AddAppointmentsToGroupUseCase;
 
   beforeEach(() => {
     groupRepo = {
       findById: vi.fn().mockResolvedValue(makeGroupWithAppointments()),
-      linkAppointments: vi.fn(),
+      linkAppointments: vi.fn().mockResolvedValue(1),
+      incrementConfirmedCount: vi.fn(),
     } as unknown as IServiceGroupRepository;
     appointmentRepo = {
       findById: vi.fn(),
@@ -121,11 +124,13 @@ describe('AddAppointmentsToGroupUseCase', () => {
     } as unknown as IAppointmentRepository;
     auditService = { log: vi.fn() } as unknown as AuditService;
     logger = { error: vi.fn() } as unknown as ServiceGroupTimeSyncLogger;
+    eventBus = new DomainEventBus();
     useCase = new AddAppointmentsToGroupUseCase(
       groupRepo,
       appointmentRepo,
       auditService,
       new AuthorizationService(auditService),
+      eventBus,
       logger,
     );
   });
@@ -383,5 +388,127 @@ describe('AddAppointmentsToGroupUseCase', () => {
       before: { status: 'REJECTED' },
       after: { status: 'AWAITING_INSPECTOR' },
     }));
+  });
+
+  // ── ACCEPTED group: members join the committed inspector ────────────────────
+  describe('adding to an ACCEPTED group', () => {
+    const acceptedGroup = () =>
+      makeGroupWithAppointments({ status: 'ACCEPTED', assignedInspectorId: 'insp-1' });
+
+    it('schedules the appointment under the group inspector and increments confirmed count', async () => {
+      vi.mocked(groupRepo.findById).mockResolvedValue(acceptedGroup());
+      // Same date/slot as the group so the schedule sync makes no update and the only
+      // write asserted here is the SCHEDULED + inspector transition.
+      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+        makeAppointmentWithRelations({ id: 'appt-1', status: 'DRAFT', timeSlotStart: '09:30', timeSlotEnd: '10:30' }),
+      );
+
+      const result = await useCase.execute({
+        groupId: 'group-1',
+        appointmentIds: ['appt-1'],
+        actor: makeActor(),
+      });
+
+      expect(result.results).toEqual([{ appointmentId: 'appt-1', status: 'OK' }]);
+      expect(appointmentRepo.update).toHaveBeenCalledWith('appt-1', 'tenant-1', {
+        status: 'SCHEDULED',
+        inspectorId: 'insp-1',
+      });
+      expect(groupRepo.incrementConfirmedCount).toHaveBeenCalledWith('group-1');
+      expect(appointmentRepo.update).not.toHaveBeenCalledWith('appt-1', 'tenant-1', { status: 'AWAITING_INSPECTOR' });
+      expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'appointment.status_transition',
+        actorType: 'SYSTEM',
+        entityId: 'appt-1',
+        before: { status: 'DRAFT' },
+        after: { status: 'SCHEDULED' },
+        metadata: expect.objectContaining({ groupId: 'group-1', assignedInspectorId: 'insp-1' }),
+      }));
+    });
+
+    it('emits a single MEMBERS_ADDED event for only the newly added appointments', async () => {
+      vi.mocked(groupRepo.findById).mockResolvedValue(acceptedGroup());
+      vi.mocked(appointmentRepo.findById)
+        .mockResolvedValueOnce(makeAppointmentWithRelations({ id: 'appt-1', status: 'DRAFT', timeSlotStart: '09:30', timeSlotEnd: '10:30' }))
+        .mockResolvedValueOnce(makeAppointmentWithRelations({ id: 'appt-2', status: 'AWAITING_INSPECTOR', timeSlotStart: '09:30', timeSlotEnd: '10:30' }));
+      const emitSpy = vi.spyOn(eventBus, 'emit');
+
+      await useCase.execute({
+        groupId: 'group-1',
+        appointmentIds: ['appt-1', 'appt-2'],
+        actor: makeActor(),
+      });
+
+      expect(emitSpy).toHaveBeenCalledTimes(1);
+      expect(emitSpy).toHaveBeenCalledWith(expect.objectContaining({
+        type: SERVICE_GROUP_EVENTS.MEMBERS_ADDED,
+        payload: {
+          groupId: 'group-1',
+          inspectorId: 'insp-1',
+          appointmentIds: ['appt-1', 'appt-2'],
+        },
+      }));
+    });
+
+    it('does not emit MEMBERS_ADDED when nothing was added to the accepted group', async () => {
+      vi.mocked(groupRepo.findById).mockResolvedValue(acceptedGroup());
+      // Wrong service type → rejected by the validator, never linked/scheduled.
+      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+        makeAppointmentWithRelations({ id: 'appt-1', serviceTypeId: 'svc-type-other' }),
+      );
+      const emitSpy = vi.spyOn(eventBus, 'emit');
+
+      await useCase.execute({
+        groupId: 'group-1',
+        appointmentIds: ['appt-1'],
+        actor: makeActor(),
+      });
+
+      expect(emitSpy).not.toHaveBeenCalled();
+      expect(groupRepo.incrementConfirmedCount).not.toHaveBeenCalled();
+    });
+
+    it('rejects an appointment when the accepted group is already at capacity (30)', async () => {
+      const full = makeGroupWithAppointments(
+        { status: 'ACCEPTED', assignedInspectorId: 'insp-1' },
+        Array.from({ length: 30 }, (_, i) => ({
+          id: `member-${i}`,
+          appointmentNumber: i + 1,
+          status: 'SCHEDULED',
+          serviceTypeId: 'svc-type-1',
+          tenantId: 'tenant-1',
+          propertyId: `prop-${i}`,
+          serviceGroupId: 'group-1',
+          scheduledDate: new Date('2026-08-01T00:00:00.000Z'),
+          timeSlotStart: '09:00',
+          timeSlotEnd: '12:00',
+          rentalTenantConfirmationStatus: 'PENDING',
+          activeConfirmationCycleId: null,
+          propertyAddress: null,
+          propertyCode: null,
+        })),
+      );
+      vi.mocked(groupRepo.findById).mockResolvedValue(full);
+      vi.mocked(appointmentRepo.findById).mockResolvedValueOnce(
+        makeAppointmentWithRelations({ id: 'appt-1', status: 'DRAFT' }),
+      );
+
+      const result = await useCase.execute({
+        groupId: 'group-1',
+        appointmentIds: ['appt-1'],
+        actor: makeActor(),
+      });
+
+      expect(result.results).toEqual([{
+        appointmentId: 'appt-1',
+        status: 'GROUP_CAPACITY_EXCEEDED',
+        error: {
+          code: 'GROUP_CAPACITY_EXCEEDED',
+          message: 'Group has reached its capacity of 30 appointments',
+        },
+      }]);
+      expect(groupRepo.linkAppointments).not.toHaveBeenCalled();
+      expect(groupRepo.incrementConfirmedCount).not.toHaveBeenCalled();
+    });
   });
 });

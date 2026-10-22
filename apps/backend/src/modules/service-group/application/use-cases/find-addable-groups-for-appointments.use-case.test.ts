@@ -90,6 +90,26 @@ describe('FindAddableGroupsForAppointmentsUseCase', () => {
     expect(groupRepo.findAddableForAppointments).toHaveBeenCalledOnce();
   });
 
+  it('passes through an ACCEPTED group returned by the repository (addable statuses include ACCEPTED)', async () => {
+    const apptDraft = makeAppointment('id-acc', 'DRAFT');
+    const { useCase, groupRepo } = makeUseCase([apptDraft]);
+    const acceptedGroup = {
+      id: 'g-accepted',
+      groupNumber: 7,
+      code: '7',
+      status: 'ACCEPTED',
+      scheduledDate: SCHEDULED_DATE,
+      timeWindow: TIME_SLOT,
+      currentSize: 3,
+      serviceTypeName: 'Routine',
+    };
+    vi.mocked(groupRepo.findAddableForAppointments).mockResolvedValueOnce([acceptedGroup]);
+
+    const result = await useCase.execute({ appointmentIds: ['id-acc'], actor: actorOp });
+
+    expect(result.groups).toEqual([acceptedGroup]);
+  });
+
   it('should return MIXED_APPOINTMENT_PROPERTIES before status check when properties differ', async () => {
     // Tenant may differ (groups are tenant-agnostic); a different service type
     // is still a mixed-property rejection.

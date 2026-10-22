@@ -32,6 +32,7 @@ import { PrismaAppointmentRepository } from '../../../src/modules/appointment/in
 import { AddAppointmentsToGroupUseCase } from '../../../src/modules/service-group/application/use-cases/add-appointments-to-group.use-case';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
+import { DomainEventBus } from '../../../src/shared/application/events/domain-event-bus';
 
 function silentAuditService(): AuditService {
   return { log: () => {} } as unknown as AuditService;
@@ -283,6 +284,7 @@ describe('service group size is derived from linked appointments (real DB)', () 
       new PrismaAppointmentRepository(prisma()),
       silentAuditService(),
       new AuthorizationService(silentAuditService()),
+      new DomainEventBus(),
     );
 
     const result = await useCase.execute({

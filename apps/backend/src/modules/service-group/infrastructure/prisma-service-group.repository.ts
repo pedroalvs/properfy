@@ -26,6 +26,7 @@ import {
 import { phoneColumnSearchClauses } from '../../../shared/infrastructure/phone-search-clause';
 import { ADDABLE_GROUP_STATUSES, TERMINAL_GROUP_STATUSES } from '../domain/service-group.validator';
 import { computeWindowAvailability } from '../domain/portal-slot-capacity';
+import { formatDate, startOfPlatformToday } from '../../../shared/domain/timezone-date';
 
 /** Same idiom as prisma-confirmation-cycle.repository.ts — the tx client is a narrowed PrismaClient. */
 type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -1403,6 +1404,14 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
   }>> {
     const capacity = 30;
 
+    // Lower bound for "not in the past" anchored to the platform timezone (Sydney),
+    // not the DB server clock. `scheduled_date` is a `@db.Date` pinned to UTC midnight
+    // of a Sydney civil date, so comparing against Postgres `CURRENT_DATE` (a UTC date)
+    // dropped groups scheduled for *today* during the ~10h window each day where Sydney
+    // has rolled over but UTC has not. `startOfPlatformToday()` is UTC midnight of today's
+    // Sydney civil date; bound as a `::date` string it includes today and excludes yesterday.
+    const todayStr = formatDate(startOfPlatformToday());
+
     // Use $queryRaw to get appointment count and service type name in one round-trip.
     type Row = {
       id: string;
@@ -1428,8 +1437,8 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       LEFT JOIN appointments a ON a.service_group_id = sg.id AND a.deleted_at IS NULL
       LEFT JOIN service_types st ON st.id = sg.service_type_id
       WHERE sg.service_type_id = ${params.serviceTypeId}
-        AND sg.status IN ('DRAFT', 'PUBLISHED')
-        AND sg.scheduled_date >= CURRENT_DATE
+        AND sg.status IN ('DRAFT', 'PUBLISHED', 'ACCEPTED')
+        AND sg.scheduled_date >= ${todayStr}::date
       GROUP BY sg.id, sg.group_number, sg.status, sg.scheduled_date, sg.time_window, sg.service_type_id, st.name
       ORDER BY sg.created_at ASC
     `;

@@ -55,14 +55,15 @@ export interface GroupForValidation {
 export type AppointmentForAddValidation = AppointmentForValidation;
 
 /**
- * Group statuses that still accept new members. ACCEPTED locks the
- * group (inspector committed); CANCELLED/REJECTED are terminal.
+ * Group statuses that still accept new members. ACCEPTED is included:
+ * an inspector has committed, but members may still be added — the add
+ * flow schedules the new appointment under that inspector (see
+ * `add-appointments-to-group.use-case.ts`). CANCELLED/REJECTED are terminal.
+ *
+ * Exported so the repository's conditional link uses the same set rather
+ * than restating it in SQL.
  */
-/**
- * Statuses a group can still accept members in. Exported so the repository's
- * conditional link uses the same set rather than restating it in SQL.
- */
-export const ADDABLE_GROUP_STATUSES = new Set<ServiceGroupStatus>(['DRAFT', 'PUBLISHED']);
+export const ADDABLE_GROUP_STATUSES = new Set<ServiceGroupStatus>(['DRAFT', 'PUBLISHED', 'ACCEPTED']);
 
 /**
  * A group that will never run again. Membership of a terminal group is dead

@@ -403,6 +403,7 @@ describe('isPlatformScopedEditableCode', () => {
       'INSPECTOR_GROUP_ASSIGNED',
       'INSPECTOR_GROUP_UNASSIGNED',
       'INSPECTOR_GROUP_RESCHEDULED',
+      'INSPECTOR_GROUP_JOBS_ADDED',
     ] as const) {
       expect(getDefaultClass(code)).toBe('TRANSACTIONAL');
     }
@@ -421,6 +422,7 @@ describe('isPlatformScopedEditableCode', () => {
       'INSPECTOR_GROUP_ASSIGNED',
       'INSPECTOR_GROUP_UNASSIGNED',
       'INSPECTOR_GROUP_RESCHEDULED',
+      'INSPECTOR_GROUP_JOBS_ADDED',
       'TENANT_NOTICE_FORWARDED_AGENCY',
     ] as const) {
       expect(TEMPLATE_VARIABLES[code].required).toEqual([]);

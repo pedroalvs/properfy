@@ -175,4 +175,24 @@ describe('NotifyOnGroupInspectorChangeSubscriber', () => {
 
     expect(createNotification.execute).not.toHaveBeenCalled();
   });
+
+  it('tells the committed inspector how many jobs were just added (not the group total)', async () => {
+    // Group has 2 members; only 1 was just added. jobCount must reflect the added
+    // count, not loadContext's group total — the inspector cares about new stops.
+    const { handlers, createNotification } = setup();
+
+    await handlers[SERVICE_GROUP_EVENTS.MEMBERS_ADDED]!({
+      type: SERVICE_GROUP_EVENTS.MEMBERS_ADDED,
+      payload: { groupId: 'group-1', inspectorId: 'insp-new', appointmentIds: ['appt-2'] },
+      occurredAt: new Date(),
+    });
+
+    expect(createNotification.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipient: 'new@example.com',
+        templateCode: 'INSPECTOR_GROUP_JOBS_ADDED',
+        payloadJson: expect.objectContaining({ inspectorName: 'New Inspector', groupCode: '42', jobCount: '1' }),
+      }),
+    );
+  });
 });

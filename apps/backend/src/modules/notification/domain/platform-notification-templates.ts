@@ -350,6 +350,16 @@ const INSPECTOR_GROUP_RESCHEDULED_HTML = renderSystemEmailHtml({
     `<p style="${SYSTEM_NOTE_STYLE}"><strong>Action required:</strong> check the new time fits your schedule and contact the operations team if it does not.</p>`,
 });
 
+const INSPECTOR_GROUP_JOBS_ADDED_HTML = renderSystemEmailHtml({
+  heading: 'New jobs added to a group you accepted',
+  contentHtml:
+    '<p>Hi {{inspectorName}}, an operator has added {{jobCount}} new job(s) to a group already assigned to you.</p>' +
+    '<p>Group <strong>{{groupCode}}</strong> — <strong>{{jobCount}}</strong> new job(s)<br>' +
+    'Date: <strong>{{scheduledDate}}</strong><br>' +
+    'Time window: <strong>{{timeWindow}}</strong></p>' +
+    `<p style="${SYSTEM_NOTE_STYLE}"><strong>Action required:</strong> open the Properfy app to see the new addresses and re-plan your route.</p>`,
+});
+
 export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
   // ── EMAIL templates ────────────────────────────────────────────────────────
   {
@@ -508,6 +518,16 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     subject: 'Group {{groupCode}} has been rescheduled',
     body: 'Hi {{inspectorName}}, an operator has rescheduled group {{groupCode}} ({{jobCount}} job(s)) from {{previousScheduledDate}} {{previousTimeWindow}} to {{scheduledDate}} {{timeWindow}}. Check the new time fits your schedule and contact the operations team if it does not.',
     bodyHtml: INSPECTOR_GROUP_RESCHEDULED_HTML,
+    notificationClass: 'TRANSACTIONAL',
+  },
+  {
+    // Sent when an operator adds appointments to a group this inspector already
+    // accepted. {{jobCount}} is the number of NEW jobs, not the group total.
+    code: 'INSPECTOR_GROUP_JOBS_ADDED',
+    channel: 'EMAIL',
+    subject: 'New jobs added to group {{groupCode}}',
+    body: 'Hi {{inspectorName}}, an operator has added {{jobCount}} new job(s) to group {{groupCode}}, scheduled for {{scheduledDate}} at {{timeWindow}}. Open the Properfy app to see the new addresses.',
+    bodyHtml: INSPECTOR_GROUP_JOBS_ADDED_HTML,
     notificationClass: 'TRANSACTIONAL',
   },
   // ── SMS templates ─────────────────────────────────────────────────────────
