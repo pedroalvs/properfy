@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useSyncExternalStore } from 'react';
+import { useEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import {
   getAllQueuedActions,
@@ -12,40 +12,66 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 
 const MAX_RETRIES = 3;
 
-// Module-level store so every hook instance (app shell sync, page banners)
-// shares the same failed-action list and only one queue run happens at a time.
-let failedSnapshot: QueuedAction[] = [];
+// Module-level store so every consumer (app shell sync, page banners, the TopBar
+// badge count) shares ONE snapshot of the queued actions and only one queue run
+// happens at a time. The snapshot holds the full queue; consumers derive what they
+// need from it (the failed subset, the total count) so there is no second polling
+// mechanism that can drift out of sync.
+let queueSnapshot: QueuedAction[] = [];
 const listeners = new Set<() => void>();
 let currentRun: Promise<void> | null = null;
 let rerunRequested = false;
+// Bumped on logout. A queue run captures the generation it started under and bails
+// (stops sending, skips the snapshot refresh) once it changes, so an in-flight run
+// can't keep syncing the previous inspector's actions — or repopulate the badge —
+// after a logout has wiped the queue on a shared device.
+let queueGeneration = 0;
 
-function subscribe(listener: () => void): () => void {
+export function subscribeQueue(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
 
-function getSnapshot(): QueuedAction[] {
-  return failedSnapshot;
+export function getQueueSnapshot(): QueuedAction[] {
+  return queueSnapshot;
 }
 
-function setFailedSnapshot(actions: QueuedAction[]): void {
-  failedSnapshot = actions;
+function setQueueSnapshot(actions: QueuedAction[]): void {
+  queueSnapshot = actions;
   listeners.forEach((listener) => listener());
 }
 
-async function refreshFailedSnapshot(): Promise<void> {
+/** Re-read the full queue from IndexedDB into the shared snapshot. */
+export async function refreshQueueSnapshot(): Promise<void> {
+  const gen = queueGeneration;
   try {
-    const all = await getAllQueuedActions();
-    setFailedSnapshot(all.filter((action) => action.status === 'FAILED'));
+    const actions = await getAllQueuedActions();
+    // A logout during the read invalidated this result (the queue was wiped) —
+    // don't repopulate the badge with the previous inspector's actions.
+    if (gen !== queueGeneration) return;
+    setQueueSnapshot(actions);
   } catch {
     // IndexedDB may be unavailable; keep the current snapshot.
   }
 }
 
+/**
+ * Drop the in-memory snapshot and invalidate any in-flight run (e.g. on logout,
+ * so the badge doesn't leak a count and a running sync stops touching the queue).
+ */
+export function resetQueueSnapshot(): void {
+  queueGeneration += 1;
+  setQueueSnapshot([]);
+}
+
 export function useOfflineQueue() {
   const isOnline = useIsOnline();
   const { showError } = useSnackbar();
-  const failedActions = useSyncExternalStore(subscribe, getSnapshot);
+  const queue = useSyncExternalStore(subscribeQueue, getQueueSnapshot);
+  const failedActions = useMemo(
+    () => queue.filter((action) => action.status === 'FAILED'),
+    [queue],
+  );
 
   const processQueue = useCallback(async () => {
     if (currentRun) {
@@ -54,10 +80,15 @@ export function useOfflineQueue() {
       rerunRequested = true;
       return currentRun;
     }
+    // Tracks the generation this run is acting under. Re-read at the start of each
+    // pass so a rerun triggered by a fresh login adopts the new generation instead
+    // of staying stuck on the logged-out one.
+    let runGeneration = queueGeneration;
     currentRun = (async () => {
       try {
         do {
           rerunRequested = false;
+          runGeneration = queueGeneration;
           try {
             const actions = (await getAllQueuedActions()).sort((a, b) =>
               a.createdAt.localeCompare(b.createdAt),
@@ -73,6 +104,10 @@ export function useOfflineQueue() {
             await Promise.allSettled(
               Array.from(actionsByAppointment.values()).map(async (group) => {
                 for (const action of group) {
+                  // A logout happened mid-run: stop syncing the previous
+                  // inspector's actions on this (now shared) device.
+                  if (runGeneration !== queueGeneration) break;
+
                   // Stop the whole chain on a permanent failure: a FINISH must
                   // never be sent after its START permanently failed.
                   if (action.status === 'FAILED') break;
@@ -96,11 +131,19 @@ export function useOfflineQueue() {
                       'Idempotency-Key': action.idempotencyKey,
                     });
 
+                    // A logout may have landed while the request was in flight —
+                    // don't write back a now-wiped inspector's bookkeeping.
+                    if (runGeneration !== queueGeneration) break;
+
                     await removeQueuedAction(action.id);
                     if (action.type === 'FINISH') {
                       await clearExecutionState(action.appointmentId);
                     }
                   } catch (err) {
+                    // Same guard on the failure path: a post-logout 401/network
+                    // error must not resurrect the action in IndexedDB.
+                    if (runGeneration !== queueGeneration) break;
+
                     const lastError = err instanceof Error ? err.message : 'Unknown error';
                     const retryCount = (action.retryCount ?? 0) + 1;
                     const exhausted = retryCount > MAX_RETRIES;
@@ -124,7 +167,8 @@ export function useOfflineQueue() {
         } while (rerunRequested);
       } finally {
         currentRun = null;
-        await refreshFailedSnapshot();
+        // Don't repopulate a snapshot that a logout cleared out from under us.
+        if (runGeneration === queueGeneration) await refreshQueueSnapshot();
       }
     })();
     return currentRun;
@@ -137,7 +181,7 @@ export function useOfflineQueue() {
         const action = actions.find((a) => a.id === id);
         if (!action) return;
         await updateQueuedAction({ ...action, retryCount: 0, lastError: null, status: 'PENDING' });
-        await refreshFailedSnapshot();
+        await refreshQueueSnapshot();
         await processQueue();
       } catch {
         showError('Unable to retry this sync right now.');
@@ -151,7 +195,7 @@ export function useOfflineQueue() {
       processQueue();
     } else {
       // Still surface previously failed syncs while offline.
-      refreshFailedSnapshot();
+      refreshQueueSnapshot();
     }
   }, [isOnline, processQueue]);
 

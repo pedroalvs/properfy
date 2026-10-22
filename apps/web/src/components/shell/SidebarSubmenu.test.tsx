@@ -14,7 +14,7 @@ const ITEMS = [
 
 function renderDesktop(label = 'Configuration') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <SidebarSubmenu icon="mdi-cog-outline" label={label} items={ITEMS} />
     </MemoryRouter>,
   );
@@ -79,6 +79,16 @@ describe('SidebarSubmenu (desktop)', () => {
       vi.advanceTimersByTime(200);
     });
     expect(document.body.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it('renders the menu container as a programmatically focusable element', () => {
+    renderDesktop();
+    const container = screen.getByRole('button', { name: /configuration/i }).closest('div')!;
+    fireEvent.mouseEnter(container);
+    const menu = document.body.querySelector('[role="menu"]')!;
+    // Focusable (-1) so the APG menu pattern's Escape/focus handling is valid,
+    // but kept out of the tab order — the menuitem links carry it.
+    expect(menu).toHaveAttribute('tabindex', '-1');
   });
 
   it('closes submenu and returns focus to trigger on Escape', () => {

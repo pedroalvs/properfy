@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
 
 export interface PageHeaderAction {
@@ -38,7 +39,7 @@ export function PageHeader({ title, primaryAction, secondaryActions, children }:
             disabled={action.disabled}
             className="w-full justify-center sm:w-auto"
           >
-            {action.icon && <i className={`mdi ${action.icon}`} aria-hidden="true" />}
+            {action.icon && <i className={cn('mdi', action.icon)} aria-hidden="true" />}
             {action.label}
           </Button>
         ))}
@@ -53,7 +54,7 @@ export function PageHeader({ title, primaryAction, secondaryActions, children }:
               className="hidden sm:inline-flex"
             >
               {primaryAction.icon && (
-                <i className={`mdi ${primaryAction.icon}`} aria-hidden="true" />
+                <i className={cn('mdi', primaryAction.icon)} aria-hidden="true" />
               )}
               {primaryAction.label}
             </Button>
@@ -67,7 +68,7 @@ export function PageHeader({ title, primaryAction, secondaryActions, children }:
               {primaryAction.loading ? (
                 <i className="mdi mdi-loading mdi-spin text-2xl" aria-hidden="true" />
               ) : (
-                <i className={`mdi ${primaryAction.icon || 'mdi-plus'} text-2xl`} aria-hidden="true" />
+                <i className={cn('mdi', primaryAction.icon || 'mdi-plus', 'text-2xl')} aria-hidden="true" />
               )}
             </button>
           </>

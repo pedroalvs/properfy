@@ -9,6 +9,9 @@ interface SidebarUserMenuProps {
   onNavigate?: () => void;
 }
 
+/** Stable no-op so `onClose ?? NOOP` keeps a constant identity across renders. */
+const NOOP = () => {};
+
 export function SidebarUserMenu({
   open,
   onClose,
@@ -19,7 +22,7 @@ export function SidebarUserMenu({
   const { logout } = useAuth();
   const menuRef = useRef<HTMLDivElement>(null);
   const isOpen = open ?? false;
-  const handleClose = onClose ?? (() => {});
+  const handleClose = onClose ?? NOOP;
 
   useEffect(() => {
     if (!isOpen) {

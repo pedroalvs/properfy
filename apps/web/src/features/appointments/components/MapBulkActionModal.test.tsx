@@ -36,9 +36,6 @@ const bulkStatusMock = vi.hoisted(() => vi.fn());
 vi.mock('../hooks/useBulkStatusTransition', () => ({
   useBulkStatusTransition: () => ({ mutateAsync: bulkStatusMock, isPending: false }),
 }));
-vi.mock('../hooks/useBulkAssignInspector', () => ({
-  useBulkAssignInspector: () => ({ mutateAsync: vi.fn(), isPending: false }),
-}));
 vi.mock('../hooks/useBulkResendReminder', () => ({
   useBulkResendReminder: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
@@ -71,7 +68,7 @@ function renderModal(overrides: Partial<Parameters<typeof MapBulkActionModal>[0]
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <MapBulkActionModal
           appointments={sampleAppointments}
           open
@@ -95,7 +92,7 @@ function renderTree(props: Partial<Parameters<typeof MapBulkActionModal>[0]> = {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const ui = (p: Partial<Parameters<typeof MapBulkActionModal>[0]>) => (
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <MapBulkActionModal
           appointments={sampleAppointments}
           open
@@ -497,7 +494,7 @@ describe('MapBulkActionModal', () => {
 
     rerender(
       <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <MapBulkActionModal
             appointments={sampleAppointments}
             open

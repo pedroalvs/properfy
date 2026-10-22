@@ -11,6 +11,7 @@ import { RequestInvoiceUseCase } from '../../../src/modules/billing/application/
 import { ApproveDraftInvoiceUseCase } from '../../../src/modules/billing/application/use-cases/approve-draft-invoice.use-case';
 import { RejectDraftInvoiceUseCase } from '../../../src/modules/billing/application/use-cases/reject-draft-invoice.use-case';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
+import { PrismaIdempotencyService } from '../../../src/modules/inspector-execution/infrastructure/prisma-idempotency.service';
 import { FakeClock } from '../../helpers/fake-clock';
 
 let harness: DbHarness;
@@ -19,6 +20,12 @@ const PERIOD = { periodStart: '2026-06-29', periodEnd: '2026-07-12' };
 const auditStub = { log: () => {} } as any;
 const jobQueueStub = { enqueue: async () => {} } as any;
 let amActor: any;
+
+// Real idempotency service backed by the test DB, so the approve/reject guards
+// exercise their actual acquire/complete/release against Postgres.
+function idempotency() {
+  return new PrismaIdempotencyService(harness.prisma);
+}
 
 async function seedApprover(): Promise<void> {
   // generated_by_user_id has a FK to users; approvals must reference a real user.
@@ -85,9 +92,9 @@ describe('Invoice approval flow (real DB)', () => {
   it('freezes the snapshot with agency/branch, assigns a number and sets issued_at', async () => {
     const invoiceId = await seedRequestedInvoice('a');
     const { invoiceRepo, financialEntryRepo } = repos();
-    const approve = new ApproveDraftInvoiceUseCase(invoiceRepo, financialEntryRepo, auditStub, new AuthorizationService(auditStub), jobQueueStub);
+    const approve = new ApproveDraftInvoiceUseCase(invoiceRepo, financialEntryRepo, auditStub, new AuthorizationService(auditStub), jobQueueStub, idempotency());
 
-    const result = await approve.execute({ invoiceId, actor: amActor });
+    const result = await approve.execute({ invoiceId, idempotencyKey: 'approve-a', actor: amActor });
     expect(result.status).toBe('CLOSED');
     expect(result.invoiceNumber).toBeGreaterThan(0);
     expect(result.invoiceNumberDisplay).toMatch(/^PINV-\d{6}$/);
@@ -115,17 +122,17 @@ describe('Invoice approval flow (real DB)', () => {
 
   it('assigns strictly increasing numbers across invoices (sequence)', async () => {
     const { invoiceRepo, financialEntryRepo } = repos();
-    const approve = new ApproveDraftInvoiceUseCase(invoiceRepo, financialEntryRepo, auditStub, new AuthorizationService(auditStub), jobQueueStub);
-    const first = await approve.execute({ invoiceId: await seedRequestedInvoice('b'), actor: amActor });
-    const second = await approve.execute({ invoiceId: await seedRequestedInvoice('c'), actor: amActor });
+    const approve = new ApproveDraftInvoiceUseCase(invoiceRepo, financialEntryRepo, auditStub, new AuthorizationService(auditStub), jobQueueStub, idempotency());
+    const first = await approve.execute({ invoiceId: await seedRequestedInvoice('b'), idempotencyKey: 'approve-b', actor: amActor });
+    const second = await approve.execute({ invoiceId: await seedRequestedInvoice('c'), idempotencyKey: 'approve-c', actor: amActor });
     expect(second.invoiceNumber).toBeGreaterThan(first.invoiceNumber);
   });
 
   it('reject transitions PENDING_REVIEW → VOID and retains the row with the reason', async () => {
     const invoiceId = await seedRequestedInvoice('d');
     const { invoiceRepo } = repos();
-    const reject = new RejectDraftInvoiceUseCase(invoiceRepo, auditStub, new AuthorizationService(auditStub));
-    const result = await reject.execute({ invoiceId, reason: 'Wrong period, please resubmit', actor: amActor });
+    const reject = new RejectDraftInvoiceUseCase(invoiceRepo, auditStub, new AuthorizationService(auditStub), idempotency());
+    const result = await reject.execute({ invoiceId, reason: 'Wrong period, please resubmit', idempotencyKey: 'reject-d', actor: amActor });
     expect(result.status).toBe('VOID');
     const row = await harness.prisma.inspectorInvoice.findUniqueOrThrow({ where: { id: invoiceId } });
     expect(row.status).toBe('VOID');
@@ -135,11 +142,15 @@ describe('Invoice approval flow (real DB)', () => {
   it('two concurrent approvals of the same invoice: exactly one wins (CAS), one gets NotPendingReview', async () => {
     const invoiceId = await seedRequestedInvoice('e');
     const { invoiceRepo, financialEntryRepo } = repos();
-    const approve = new ApproveDraftInvoiceUseCase(invoiceRepo, financialEntryRepo, auditStub, new AuthorizationService(auditStub), jobQueueStub);
+    const approve = new ApproveDraftInvoiceUseCase(invoiceRepo, financialEntryRepo, auditStub, new AuthorizationService(auditStub), jobQueueStub, idempotency());
 
+    // Distinct idempotency keys: two genuinely different client requests, so both
+    // clear the idempotency guard and race at the DB CAS (assignNumberAndFreeze),
+    // which is what this test proves. A shared key would short-circuit one at the
+    // idempotency layer before the CAS ever runs.
     const results = await Promise.allSettled([
-      approve.execute({ invoiceId, actor: amActor }),
-      approve.execute({ invoiceId, actor: amActor }),
+      approve.execute({ invoiceId, idempotencyKey: 'approve-e-1', actor: amActor }),
+      approve.execute({ invoiceId, idempotencyKey: 'approve-e-2', actor: amActor }),
     ]);
     const fulfilled = results.filter((r) => r.status === 'fulfilled');
     const rejected = results.filter((r) => r.status === 'rejected');
@@ -154,12 +165,12 @@ describe('Invoice approval flow (real DB)', () => {
   it('concurrent approve + reject: exactly one wins, the invoice ends CLOSED xor VOID (no overwrite)', async () => {
     const invoiceId = await seedRequestedInvoice('f');
     const { invoiceRepo, financialEntryRepo } = repos();
-    const approve = new ApproveDraftInvoiceUseCase(invoiceRepo, financialEntryRepo, auditStub, new AuthorizationService(auditStub), jobQueueStub);
-    const reject = new RejectDraftInvoiceUseCase(invoiceRepo, auditStub, new AuthorizationService(auditStub));
+    const approve = new ApproveDraftInvoiceUseCase(invoiceRepo, financialEntryRepo, auditStub, new AuthorizationService(auditStub), jobQueueStub, idempotency());
+    const reject = new RejectDraftInvoiceUseCase(invoiceRepo, auditStub, new AuthorizationService(auditStub), idempotency());
 
     const results = await Promise.allSettled([
-      approve.execute({ invoiceId, actor: amActor }),
-      reject.execute({ invoiceId, reason: 'Rejecting concurrently', actor: amActor }),
+      approve.execute({ invoiceId, idempotencyKey: 'approve-f', actor: amActor }),
+      reject.execute({ invoiceId, reason: 'Rejecting concurrently', idempotencyKey: 'reject-f', actor: amActor }),
     ]);
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);

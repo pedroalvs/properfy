@@ -14,7 +14,6 @@ import { LeaveWarningModal } from '../components/LeaveWarningModal';
 import { SyncConfirmModal } from '../components/SyncConfirmModal';
 import { PastTimeConfirmModal } from '../components/PastTimeConfirmModal';
 import { useLocalExecutionState } from '../hooks/useLocalExecutionState';
-import { useAutoSave } from '../hooks/useAutoSave';
 import { useStartInspection } from '../hooks/useStartInspection';
 import { useFinishInspection } from '../hooks/useFinishInspection';
 import { useInspectorAppointment } from '@/features/schedule/hooks/useInspectorAppointment';
@@ -38,7 +37,6 @@ export function ExecutionPage() {
   const finishMutation = useFinishInspection();
   const { showInfo, showError } = useSnackbar();
   const effectiveTimezone = useEffectiveTimezone();
-  useAutoSave(state);
   const resumeBannerShown = useRef(false);
   const [confirmStep, setConfirmStep] = useState<FinishConfirmStep>(null);
   const [pendingLocation, setPendingLocation] = useState<CapturedLocation | null>(null);

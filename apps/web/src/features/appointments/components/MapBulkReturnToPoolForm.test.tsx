@@ -38,10 +38,9 @@ function renderForm(appointments: AppointmentMapItem[]) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <MapBulkReturnToPoolForm
           checkedAppointments={appointments}
-          onCancel={vi.fn()}
           onComplete={vi.fn()}
         />
       </MemoryRouter>

@@ -10,6 +10,7 @@ import {
   wallTimeToMasked,
   type Meridiem,
 } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import {
   formInput,
   formInputContainer,
@@ -146,11 +147,12 @@ export function TimeInput({
               onClick={() => setMeridiem(option)}
               aria-pressed={meridiem === option}
               aria-label={option === 'am' ? 'AM' : 'PM'}
-              className={`rounded px-1.5 py-0.5 text-[11px] font-bold uppercase transition-colors ${
+              className={cn(
+                'rounded px-1.5 py-0.5 text-[11px] font-bold uppercase transition-colors',
                 meridiem === option
                   ? 'bg-primary text-white'
-                  : 'text-text-muted hover:bg-primary/10 hover:text-primary'
-              }`}
+                  : 'text-text-muted hover:bg-primary/10 hover:text-primary',
+              )}
             >
               {option}
             </button>

@@ -4,16 +4,10 @@ import type { JobDetails } from '../types';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { buttonVariants } from '@/components/ui/Button';
+import { formatCurrency } from '@/lib/format-currency';
 
 interface JobDetailsSectionProps {
   jobDetails: JobDetails;
-}
-
-function formatCurrency(amount: number, currency = 'AUD'): string {
-  return new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency,
-  }).format(amount);
 }
 
 export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {

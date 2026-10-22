@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { isRouteErrorResponse, useRouteError } from 'react-router-dom';
+import { cn } from '@properfy/frontend-standards';
 import { useGoBack } from '@/hooks/useGoBack';
 
 /**
@@ -107,7 +108,7 @@ export function AppErrorBoundary() {
             aria-controls="app-error-boundary-stack"
           >
             <i
-              className={`mdi mdi-chevron-${showStack ? 'down' : 'right'} mr-1`}
+              className={cn('mdi', `mdi-chevron-${showStack ? 'down' : 'right'}`, 'mr-1')}
               aria-hidden="true"
             />
             Developer details

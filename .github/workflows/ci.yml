@@ -20,34 +20,29 @@ jobs:
   lint-typecheck:
     name: Lint & Typecheck
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
+    # Node 24 is the forward-compat probe (HOL-11): its cell reports data but
+    # never blocks — only the Node 20 column gates a PR.
+    continue-on-error: ${{ matrix.node == 24 }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      # Shared setup: pnpm + Node + install + shared build + Prisma client.
+      # Prisma client is generated on-demand from schema.prisma — without it,
+      # backend typecheck fails with "Module '@prisma/client' has no exported
+      # member 'PrismaClient'" and similar enum errors. Shared must be built so
+      # downstream typecheck can resolve it via package exports.
+      - uses: ./.github/actions/setup
         with:
-          node-version: 20
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      # Workspace packages that ship compiled output need to be built so
-      # downstream typecheck/test can resolve them via package exports.
-      - name: Build shared (required by backend/web type resolution)
-        run: pnpm --filter shared build
-
-      - name: Build frontend-standards (required by pwa type resolution)
-        run: pnpm --filter @properfy/frontend-standards build
-
-      # Prisma client is generated on-demand from schema.prisma — without
-      # this, backend typecheck fails with "Module '@prisma/client' has
-      # no exported member 'PrismaClient'" and similar enum errors.
-      - name: Generate Prisma client
-        working-directory: apps/backend
-        run: npx prisma generate
+          node-version: ${{ matrix.node }}
+          build-shared: "true"
+          build-frontend-standards: "true"
+          prisma-generate: "true"
 
       - name: Lint shared
         run: pnpm --filter shared lint
@@ -79,50 +74,92 @@ jobs:
       - name: Typecheck pwa
         run: pnpm --filter pwa typecheck
 
-  test-shared:
-    name: Test shared
+  # Contract freshness — the committed OpenAPI spec and the generated typed
+  # client must never drift from the backend route schemas. Regenerate both
+  # from source and fail if anything changed vs what is committed. Without this
+  # gate a route/schema change can land while packages/shared/openapi.json and
+  # src/api-types.ts stay stale, so the web/pwa typed client silently lies
+  # about the contract (HOL-7). generate:openapi builds the Fastify app
+  # in-memory (NODE_ENV=test → routes only, no DB connection) and validateEnv
+  # requires these vars to be present; the values are throwaway placeholders.
+  contract-freshness:
+    name: OpenAPI ↔ api-types freshness
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
+      JWT_PRIVATE_KEY: ci-placeholder-private-key
+      JWT_PUBLIC_KEY: ci-placeholder-public-key
+      PORTAL_TOKEN_ENC_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      APP_CREDENTIAL_ENC_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 20
-          cache: pnpm
+          build-shared: "true"
+          prisma-generate: "true"
 
-      - run: pnpm install --frozen-lockfile
+      - name: Regenerate OpenAPI spec + typed client
+        run: pnpm generate:api
+
+      - name: Fail if the committed contract is stale
+        run: |
+          if ! git diff --exit-code -- packages/shared/openapi.json packages/shared/src/api-types.ts; then
+            echo "::error::OpenAPI spec / api-types are stale. Run 'pnpm generate:api' and commit the result."
+            exit 1
+          fi
+
+  test-shared:
+    name: Test shared
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
+    continue-on-error: ${{ matrix.node == 24 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+        with:
+          node-version: ${{ matrix.node }}
+
       - run: pnpm --filter shared test
 
   test-backend:
     name: Test backend
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
+    continue-on-error: ${{ matrix.node == 24 }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 20
-          cache: pnpm
+          node-version: ${{ matrix.node }}
+          build-shared: "true"
+          prisma-generate: "true"
 
-      - run: pnpm install --frozen-lockfile
-      - name: Build shared
-        run: pnpm --filter shared build
-      - name: Generate Prisma client
-        working-directory: apps/backend
-        run: npx prisma generate
       - run: pnpm --filter backend test
 
   test-web:
     name: Test web
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
+    continue-on-error: ${{ matrix.node == 24 }}
     # Hard gate. A prior "cumulative web-suite OOM" was misdiagnosed as a
     # suite-wide map/GL teardown leak and worked around with an 8-shard
     # matrix + `continue-on-error` (one shard always OOMed, non-blocking).
@@ -139,39 +176,33 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 20
-          cache: pnpm
+          node-version: ${{ matrix.node }}
+          build-shared: "true"
 
-      - run: pnpm install --frozen-lockfile
-      - name: Build shared (required for @properfy/shared resolution)
-        run: pnpm --filter shared build
       - name: Test web
         run: pnpm --filter web test
 
   test-pwa:
     name: Test pwa
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
+    continue-on-error: ${{ matrix.node == 24 }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 20
-          cache: pnpm
+          node-version: ${{ matrix.node }}
+          build-shared: "true"
+          build-frontend-standards: "true"
 
-      - run: pnpm install --frozen-lockfile
-      - name: Build shared (required for @properfy/shared resolution)
-        run: pnpm --filter shared build
-      - name: Build frontend-standards (required for @properfy/frontend-standards resolution)
-        run: pnpm --filter @properfy/frontend-standards build
       - name: Test pwa
         run: pnpm --filter pwa test
 
@@ -189,16 +220,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 20
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-      - name: Build shared (required for @properfy/shared resolution)
-        run: pnpm --filter shared build
+          build-shared: "true"
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -226,38 +250,33 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
+    continue-on-error: ${{ matrix.node == 24 }}
     # All `needs` jobs are hard gates. (test-web was restored to a blocking
-    # check once the single-file web-suite OOM was fixed.)
+    # check once the single-file web-suite OOM was fixed.) `needs` waits for
+    # every matrix cell of each listed job; the Node 24 cells are
+    # continue-on-error (always success), so build still gates on Node 20.
     needs: [lint-typecheck, test-shared, test-backend, test-web, test-pwa]
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 20
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Build shared
-        run: pnpm --filter shared build
-
-      - name: Generate Prisma client
-        working-directory: apps/backend
-        run: npx prisma generate
+          node-version: ${{ matrix.node }}
+          build-shared: "true"
+          build-frontend-standards: "true"
+          prisma-generate: "true"
 
       - name: Build backend
         run: pnpm --filter backend build
 
       - name: Build web
         run: pnpm --filter web build
-
-      - name: Build frontend-standards
-        run: pnpm --filter @properfy/frontend-standards build
 
       # No env needed: apps/pwa/src/config/env.ts falls back to localhost when
       # VITE_API_BASE_URL is absent. This job proves the bundle compiles; the
@@ -273,14 +292,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
 
       - name: Validate Prisma schema
         working-directory: apps/backend
@@ -311,6 +323,11 @@ jobs:
   prisma-migrate-check:
     name: Prisma migrate deploy (fresh DB)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
+    continue-on-error: ${{ matrix.node == 24 }}
     services:
       postgres:
         image: postgis/postgis:16-3.4-alpine
@@ -332,12 +349,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+
+      - uses: ./.github/actions/setup
         with:
-          node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+          node-version: ${{ matrix.node }}
+
       - name: Apply migrations against fresh Postgres
         working-directory: apps/backend
         run: npx prisma migrate deploy
@@ -359,19 +375,24 @@ jobs:
   integration-db:
     name: Integration tests (real DB via testcontainers)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
+    # The Node 24 cell is the non-required forward-compat probe (HOL-11): it is
+    # the riskiest surface for the bump (testcontainers + Prisma under real SQL),
+    # so its result is data, not a gate.
+    continue-on-error: ${{ matrix.node == 24 }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+
+      - uses: ./.github/actions/setup
         with:
-          node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Generate Prisma client
-        working-directory: apps/backend
-        run: npx prisma generate
+          node-version: ${{ matrix.node }}
+          prisma-generate: "true"
+
       - name: Run real-DB integration tests
         working-directory: apps/backend
         run: pnpm test:integration:db

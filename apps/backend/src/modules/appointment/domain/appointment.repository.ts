@@ -183,6 +183,19 @@ export interface IAppointmentRepository {
     tenantId: string | null,
     tx?: Prisma.TransactionClient,
   ): Promise<AppointmentWithRelations | null>;
+  /**
+   * Batch sibling of `findById`: resolves many ids in a single query instead of
+   * one round-trip per id. `tenantId` null means cross-tenant (AM/OP only), with
+   * the exact same scoping semantics as `findById(id, null)`. Soft-deleted rows
+   * are excluded. The result is NOT guaranteed to be ordered or complete — a
+   * missing or soft-deleted id simply has no entry, so callers that require
+   * every id to exist must detect the gap themselves (e.g. compare counts).
+   */
+  findManyByIds(
+    ids: string[],
+    tenantId: string | null,
+    tx?: Prisma.TransactionClient,
+  ): Promise<AppointmentWithRelations[]>;
   findAll(filters: AppointmentFilters, pagination: PaginationParams): Promise<AppointmentListItem[]>;
   /**
    * Returns SCHEDULED appointments for the inspector within the date range,

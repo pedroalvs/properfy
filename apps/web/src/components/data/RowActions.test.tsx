@@ -53,7 +53,7 @@ describe('RowActions', () => {
 
   it('renders a link when `to` is provided', () => {
     render(
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <RowActions actions={[{ icon: 'mdi-eye-outline', label: 'View', to: '/appointments/apt-1' }]} />
       </MemoryRouter>,
     );
@@ -67,7 +67,7 @@ describe('RowActions', () => {
     const user = userEvent.setup();
     const parentClick = vi.fn();
     render(
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <div onClick={parentClick}>
           <RowActions actions={[{ icon: 'mdi-eye-outline', label: 'View', to: '/appointments/apt-1' }]} />
         </div>

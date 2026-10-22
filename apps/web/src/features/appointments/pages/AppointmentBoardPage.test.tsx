@@ -151,7 +151,7 @@ function renderBoard() {
   // required — reusing one reference makes React bail out of reconciliation.)
   const tree = () => (
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/appointments/board']}>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={['/appointments/board']}>
         <AppointmentBoardPage />
       </MemoryRouter>
     </QueryClientProvider>

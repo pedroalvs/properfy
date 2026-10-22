@@ -34,7 +34,7 @@ afterEach(() => {
 
 function wrapperFor(initialUrl: string) {
   return function Wrapper({ children }: { children: ReactNode }) {
-    return <MemoryRouter initialEntries={[initialUrl]}>{children}</MemoryRouter>;
+    return <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[initialUrl]}>{children}</MemoryRouter>;
   };
 }
 
