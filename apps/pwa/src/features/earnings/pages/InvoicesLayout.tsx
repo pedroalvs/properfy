@@ -17,7 +17,7 @@ export function InvoicesLayout() {
       master={<InvoiceListPage />}
       detail={<Outlet />}
       hasSelection={hasSelection}
-      onClose={() => navigate('/earnings/invoices')}
+      onClose={() => navigate('/earnings/invoices', { replace: true })}
     />
   );
 }

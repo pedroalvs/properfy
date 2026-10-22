@@ -18,7 +18,7 @@ export function ScheduleLayout() {
       master={<SchedulePage />}
       detail={<Outlet />}
       hasSelection={hasSelection}
-      onClose={() => navigate('/schedule')}
+      onClose={() => navigate('/schedule', { replace: true })}
     />
   );
 }

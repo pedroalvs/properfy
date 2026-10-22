@@ -53,6 +53,6 @@ describe('InvoicesLayout', () => {
     const user = userEvent.setup();
     renderAt('/earnings/invoices/inv-1');
     await user.click(screen.getByTestId('two-pane-close'));
-    expect(mockNavigate).toHaveBeenCalledWith('/earnings/invoices');
+    expect(mockNavigate).toHaveBeenCalledWith('/earnings/invoices', { replace: true });
   });
 });

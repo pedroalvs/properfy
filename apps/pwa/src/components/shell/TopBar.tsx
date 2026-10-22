@@ -1,6 +1,6 @@
-import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, RefreshCw } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
+import { useGoBack } from '@/hooks/useGoBack';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import { useQueuedActionCount } from '@/features/execution/hooks/useQueuedActionCount';
 
@@ -31,22 +31,9 @@ export function TopBar({
   backHideOnWide = false,
   size = 'default',
 }: TopBarProps) {
-  const navigate = useNavigate();
+  const handleBack = useGoBack(backTo);
   const isOnline = useIsOnline();
   const queuedCount = useQueuedActionCount();
-
-  const handleBack = () => {
-    const historyIndex = typeof window !== 'undefined'
-      ? (window.history.state as { idx?: number } | null)?.idx ?? 0
-      : 0;
-
-    if (historyIndex > 0) {
-      navigate(-1);
-      return;
-    }
-
-    navigate(backTo, { replace: true });
-  };
 
   // v3: the title is NOT a sticky bar — it scrolls away as the first element of the
   // content, with no header divider (hence no `sticky`/`border-b`).
