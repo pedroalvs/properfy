@@ -107,4 +107,35 @@ describe('TwoPaneLayout', () => {
       expect(screen.getByTestId('two-pane-detail').className).toContain('hidden md:block');
     });
   });
+
+  describe('fillHeight — each pane owns its own scroll at md+', () => {
+    it('bounds the frame to the viewport minus the nav clearance and clips it', () => {
+      renderPane({ hasSelection: true, fillHeight: true });
+      const root = screen.getByTestId('two-pane-layout');
+      expect(root.className).toContain('md:h-[calc(100dvh-theme(spacing.nav-clear))]');
+      expect(root.className).toContain('md:overflow-hidden');
+    });
+
+    it('gives each pane a full-height vertical scroll region', () => {
+      renderPane({ hasSelection: true, fillHeight: true });
+      const detailEl = screen.getByTestId('two-pane-detail');
+      const masterEl = screen.getByTestId('two-pane-master');
+      expect(detailEl.className).toContain('md:h-full');
+      expect(detailEl.className).toContain('md:overflow-y-auto');
+      // The detail keeps a horizontal clip for the width open/close animation, not a both-axes clip.
+      expect(detailEl.className).toContain('md:overflow-x-hidden');
+      expect(detailEl.className).not.toContain('md:overflow-hidden');
+      expect(masterEl.className).toContain('md:h-full');
+      expect(masterEl.className).toContain('md:overflow-y-auto');
+    });
+
+    it('is off by default — no height bound, panes keep the original both-axes clip', () => {
+      renderPane({ hasSelection: true });
+      expect(screen.getByTestId('two-pane-layout').className).not.toContain('100dvh');
+      const detailEl = screen.getByTestId('two-pane-detail');
+      expect(detailEl.className).toContain('md:overflow-hidden');
+      expect(detailEl.className).not.toContain('md:overflow-y-auto');
+      expect(screen.getByTestId('two-pane-master').className).not.toContain('md:overflow-y-auto');
+    });
+  });
 });

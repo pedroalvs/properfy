@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TopBar } from '../TopBar';
+import { WidePaneProvider, STICKY_HEADER } from '../WidePaneContext';
 import { renderWithProviders } from '@/test-utils';
 
 const mockNavigate = vi.fn();
@@ -134,6 +135,26 @@ describe('TopBar', () => {
     const badge = screen.getByTestId('queue-badge');
     expect(badge).toBeInTheDocument();
     expect(badge).toHaveTextContent('3 pending');
+  });
+
+  it('does not pin itself by default (v3: the title scrolls away with the content)', () => {
+    const { container } = renderWithProviders(<TopBar title="Schedule" />);
+    const header = container.querySelector('header')!;
+    expect(header.className).not.toContain('md:sticky');
+  });
+
+  it('pins to the pane top on tablet inside a scroll-owning two-pane pane', () => {
+    // A `fillHeight` TwoPaneLayout provides STICKY_HEADER so the title stays visible while the
+    // pane scrolls on its own. Phone stays non-sticky (the md: gate), hence md:sticky md:top-0.
+    const { container } = renderWithProviders(
+      <WidePaneProvider value={STICKY_HEADER}>
+        <TopBar title="Inspection" />
+      </WidePaneProvider>,
+    );
+    const header = container.querySelector('header')!;
+    expect(header.className).toContain('md:sticky');
+    expect(header.className).toContain('md:top-0');
+    expect(header.className).toContain('md:z-10');
   });
 
   it('paints an opaque background instead of a backdrop filter', () => {

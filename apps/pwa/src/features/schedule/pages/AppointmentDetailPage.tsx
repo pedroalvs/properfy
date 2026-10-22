@@ -207,9 +207,11 @@ export function AppointmentDetailPage() {
         {/* Job Details */}
         {jobDetails && <JobDetailsSection jobDetails={jobDetails} />}
 
-        {/* CTA */}
+        {/* CTA — pinned to the bottom of the detail pane on tablet (where the pane owns its own
+            scroll) so the primary action stays reachable; phone keeps it inline at the end. The
+            negative page margin lets the opaque footer bar span the full pane width. */}
         {showCTA && (
-          <div className="mt-2 pb-2">
+          <div className="mt-2 pb-2 md:sticky md:bottom-0 md:z-10 md:-mx-page-x md:border-t md:border-border md:bg-background md:px-page-x md:pb-4 md:pt-3">
             <StartInspectionButton
               appointmentId={apt.id}
               scheduledDate={apt.scheduledDate}

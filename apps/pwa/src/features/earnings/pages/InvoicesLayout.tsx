@@ -14,6 +14,7 @@ export function InvoicesLayout() {
 
   return (
     <TwoPaneLayout
+      fillHeight
       master={<InvoiceListPage />}
       detail={<Outlet />}
       hasSelection={hasSelection}
