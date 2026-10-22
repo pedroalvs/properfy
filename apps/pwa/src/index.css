@@ -1,6 +1,7 @@
 /* Inter is self-hosted via @fontsource-variable/inter (imported in main.tsx),
    so it precaches with the SW and works offline — no render-blocking Google Fonts. */
 @import './styles/tokens.css';
+@import './styles/auth-pane.css';
 
 @tailwind base;
 @tailwind components;
