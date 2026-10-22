@@ -109,4 +109,10 @@ export {
   isWithheldForNonNotifyingFlow,
   FLOW_TYPE_NO_OCCUPANT_CODE,
 } from './non-notifying-flow-types';
+export { formatCurrency } from './format-currency';
+export {
+  generateIdempotencyKey,
+  createIdempotencyKeyManager,
+  type IdempotencyKeyManager,
+} from './idempotency-key';
 export { formatConfirmationDateCell } from './confirmation-date-cell';

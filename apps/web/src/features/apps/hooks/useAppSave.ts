@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { appCredentialCreateSchema, appCredentialUpdateSchema } from '@properfy/shared';
 import { api } from '@/services/api';
+import { toApiError } from '@/lib/api-error';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AppFormData, AppFormErrors } from '../types';
 
@@ -80,12 +81,12 @@ export function useAppSave(): UseAppSaveReturn {
           body: toUpdatePayload(data),
         });
         if (error) {
-          return { success: false, errorCode: (error as any)?.error?.code, errorMessage: (error as any)?.error?.message ?? 'Request failed' };
+          return { success: false, errorCode: toApiError(error).code, errorMessage: toApiError(error).message || 'Request failed' };
         }
       } else {
         const { data: responseData, error } = await api.POST('/v1/app-credentials', { body: toCreatePayload(data) });
         if (error) {
-          return { success: false, errorCode: (error as any)?.error?.code, errorMessage: (error as any)?.error?.message ?? 'Request failed' };
+          return { success: false, errorCode: toApiError(error).code, errorMessage: toApiError(error).message || 'Request failed' };
         }
         newId = responseData?.data?.id;
       }

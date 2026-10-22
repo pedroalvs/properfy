@@ -33,11 +33,11 @@ export function usePortalActivities(appointmentId: string | null): UsePortalActi
   const { data, isLoading, isError, error, refetch } = useQuery<PortalActivitiesResponse, ApiError>({
     queryKey: ['portal-activities', appointmentId],
     queryFn: async () => {
-      const { data: response, error, response: httpResponse } = await (api.GET as any)(
-        `/v1/appointments/${appointmentId}/portal-activities`,
-        { params: { query: { page: '1', pageSize: '50' } } },
+      const { data: response, error, response: httpResponse } = await api.GET(
+        '/v1/appointments/{appointmentId}/portal-activities',
+        { params: { path: { appointmentId: appointmentId! }, query: { page: 1, pageSize: 50 } } },
       );
-      if (error) throw toApiError(error, httpResponse?.status);
+      if (error) throw toApiError(error, (httpResponse as Response | undefined)?.status);
       return response as unknown as PortalActivitiesResponse;
     },
     enabled: !!appointmentId,

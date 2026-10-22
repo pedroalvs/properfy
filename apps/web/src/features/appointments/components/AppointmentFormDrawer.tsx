@@ -24,6 +24,7 @@ import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { api } from '@/services/api';
+import { getErrorMessage } from '@/lib/api-error';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { useAppointmentCrossCheck } from '../hooks/useAppointmentCrossCheck';
 import { useAppointmentSave } from '../hooks/useAppointmentSave';
@@ -583,19 +584,20 @@ export function AppointmentFormDrawer({
 
     if (hasInspectorAssignmentChange && appointmentId) {
       const { error } = await api.POST(
-        `/v1/appointments/${appointmentId}/status-transitions` as any,
+        '/v1/appointments/{appointmentId}/status-transitions',
         {
+          params: { path: { appointmentId } },
           body: {
             targetStatus: AppointmentStatus.SCHEDULED,
             inspectorId: selectedInspectorId,
-          } as any,
+          },
           headers: {
             'Idempotency-Key': crypto.randomUUID(),
           },
         },
       );
       if (error) {
-        const message = (error as any)?.error?.message ?? 'Failed to assign inspector';
+        const message = getErrorMessage(error, 'Failed to assign inspector');
         showError(
           savedAppointment
             ? `Appointment updated, but inspector assignment failed: ${message}`
@@ -623,6 +625,7 @@ export function AppointmentFormDrawer({
   }, [
     isEditMode,
     appointment,
+    isInServiceGroup,
     form,
     effectiveTimezone,
     validate,

@@ -114,7 +114,7 @@ export function ResetPasswordPage() {
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
           autoComplete="new-password"
-          autoFocus
+          focusOnMount
           disabled={isLoading}
           error={validationErrors.newPassword}
           hint="At least 8 characters, with uppercase, lowercase, a number and a special character."

@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { createServiceGroupSchema, UserRole, currentTimeInTzHHmm, todayInTzDateString, PLATFORM_TIMEZONE } from '@properfy/shared';
+import { getErrorMessage } from '@/lib/api-error';
+import { cn } from '@properfy/frontend-standards';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -114,14 +116,15 @@ export function ServiceGroupCreatePage() {
         return;
       }
 
-      const { data, error } = await api.POST('/v1/service-groups' as any, {
-        body: parsedCreatePayload.data as any,
+      const { data, error } = await api.POST('/v1/service-groups', {
+        body: parsedCreatePayload.data,
       });
-      if (error) throw new Error((error as any)?.error?.message ?? 'Request failed');
+      if (error) throw new Error(getErrorMessage(error, 'Request failed'));
       queryClient.invalidateQueries({ queryKey: ['service-groups'] });
-      const groupCode = (data as { data?: { code?: string } } | undefined)?.data?.code;
+      const result = (data as unknown as { data?: { id?: string; code?: string } } | undefined)?.data;
+      const groupCode = result?.code;
       showSuccess(groupCode ? `Service group ${groupCode} created` : 'Service group created');
-      const newId = (data as any)?.data?.id ?? (data as any)?.id;
+      const newId = result?.id;
       if (newId) {
         navigate(`/service-groups/${newId}`);
       } else {
@@ -158,24 +161,26 @@ export function ServiceGroupCreatePage() {
         {/* Step indicators */}
         <div className="mb-6 flex items-center gap-4">
           <div
-            className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
-              step === 1 ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
-            }`}
+            className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold',
+              step === 1 ? 'bg-primary text-white' : 'bg-primary/10 text-primary',
+            )}
           >
             1
           </div>
-          <span className={`text-sm font-medium ${step === 1 ? 'text-text-primary' : 'text-text-muted'}`}>
+          <span className={cn('text-sm font-medium', step === 1 ? 'text-text-primary' : 'text-text-muted')}>
             Select Appointments
           </span>
           <div className="h-px flex-1 bg-border-subtle" />
           <div
-            className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
-              step === 2 ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
-            }`}
+            className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold',
+              step === 2 ? 'bg-primary text-white' : 'bg-primary/10 text-primary',
+            )}
           >
             2
           </div>
-          <span className={`text-sm font-medium ${step === 2 ? 'text-text-primary' : 'text-text-muted'}`}>
+          <span className={cn('text-sm font-medium', step === 2 ? 'text-text-primary' : 'text-text-muted')}>
             Configure & Create
           </span>
         </div>

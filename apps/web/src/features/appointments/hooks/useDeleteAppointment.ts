@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError } from '@/lib/api-error';
 
 export interface UseDeleteAppointmentReturn {
   remove: () => void;
@@ -17,15 +17,12 @@ export function useDeleteAppointment(
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const { error } = await api.DELETE(
-        `/v1/appointments/${appointmentId}` as never,
+      const { error, response } = await api.DELETE(
+        '/v1/appointments/{appointmentId}',
+        { params: { path: { appointmentId: appointmentId! } } },
       );
       if (error) {
-        const apiError = error as { status?: number; message?: string; error?: { message?: string } };
-        throw new ApiError(
-          apiError.status ?? 500,
-          apiError.error?.message ?? apiError.message ?? 'Failed to delete appointment',
-        );
+        throw toApiError(error, (response as Response | undefined)?.status);
       }
     },
     onSuccess: () => {

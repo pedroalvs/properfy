@@ -4,6 +4,7 @@ import {
   AGENCY_VISIBLE_ENTRY_TYPES,
   DAILY_WORKLOAD_THRESHOLDS,
   mondayOf,
+  NON_TERMINAL_APPOINTMENT_STATUSES,
   WEEKLY_WORKLOAD_THRESHOLDS,
   workloadAlertLevel,
   type WorkloadThresholds,
@@ -130,7 +131,7 @@ export class PrismaDashboardRepository implements DashboardRepository {
         where: {
           ...tenantFilter,
           deleted_at: null,
-          status: { in: ['DRAFT', 'AWAITING_INSPECTOR', 'SCHEDULED'] },
+          status: { in: [...NON_TERMINAL_APPOINTMENT_STATUSES] },
         },
         _count: true,
       }),
