@@ -36,7 +36,7 @@ export const ROUTE_STOPS: readonly Stop[] = [
   { numeral: '02', name: 'Surry Hills', x: 250, y: 380, labelX: 268, anchor: 'start' },
   { numeral: '03', name: 'Paddington', x: 330, y: 300, labelX: 348, anchor: 'start' },
   { numeral: '04', name: 'Bondi Junction', x: 420, y: 210, labelX: 402, anchor: 'end' },
-  { numeral: '05', name: 'Randwick', x: 470, y: 120, labelX: 452, anchor: 'end' },
+  { numeral: '05', name: 'Randwick', x: 445, y: 178, labelX: 427, anchor: 'end' },
 ];
 
 const ROUTE_PATH = [
@@ -44,7 +44,7 @@ const ROUTE_PATH = [
   'C200 430 212 420 250 380',
   'S312 332 330 300',
   'S402 250 420 210',
-  'S462 162 470 120',
+  'S452 200 445 178',
 ].join(' ');
 
 /** Streets the round does not use — they give the route something to be a choice against. */
