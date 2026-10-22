@@ -96,6 +96,25 @@ export class ConfirmAppointmentUseCase {
       if (!claimed) {
         throw new PortalTokenAlreadyUsedError();
       }
+
+      // Re-read under the claim. The guards above ran against a read taken before
+      // it, and — now that confirm hands the claim back on success — a concurrent
+      // confirm can complete and release the token in between. Without this,
+      // both requests would apply the confirmation and emit duplicate activity,
+      // audit, notification and CONFIRMED events. Mirrors join-group's post-claim
+      // re-read. Only reachable with a tokenRepo, which is what serialises.
+      const fresh = await this.appointmentRepo.findById(input.appointmentId, null);
+      if (!fresh || INACTIVE_STATUSES.includes(fresh.appointment.status as (typeof INACTIVE_STATUSES)[number])) {
+        await this.releaseClaimQuietly(input);
+        throw new PortalAppointmentInactiveError();
+      }
+      if (fresh.appointment.rentalTenantConfirmationStatus === 'CONFIRMED') {
+        await this.releaseClaimQuietly(input);
+        return {
+          rentalTenantConfirmationStatus: 'CONFIRMED' as const,
+          confirmedAt: new Date().toISOString(),
+        };
+      }
     }
 
     try {
@@ -103,13 +122,7 @@ export class ConfirmAppointmentUseCase {
     } catch (error) {
       // Best-effort release so the tenant can retry with the same link;
       // never mask the original failure.
-      if (this.tokenRepo) {
-        try {
-          await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
-        } catch {
-          // release failure leaves the token consumed — fail-closed
-        }
-      }
+      await this.releaseClaimQuietly(input);
       throw error;
     }
 
@@ -138,6 +151,16 @@ export class ConfirmAppointmentUseCase {
       rentalTenantConfirmationStatus: 'CONFIRMED' as const,
       confirmedAt: new Date().toISOString(),
     };
+  }
+
+  /** Best-effort, silent release of the token claim (fail-closed on error). */
+  private async releaseClaimQuietly(input: ConfirmAppointmentInput): Promise<void> {
+    if (!this.tokenRepo) return;
+    try {
+      await this.tokenRepo.releaseClaim(input.tokenId, input.appointmentId);
+    } catch {
+      // release failure leaves the token consumed — fail-closed
+    }
   }
 
   private async applyConfirmation(
