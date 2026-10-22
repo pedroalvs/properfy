@@ -20,6 +20,7 @@ const financialEntryRepo = {
   save: vi.fn(),
   updateStatus: vi.fn(),
   transitionStatus: vi.fn(),
+  approvePendingEntry: vi.fn(),
   sumApprovedPayoutsForInspectorInPeriod: vi.fn(),
 };
 
@@ -96,6 +97,7 @@ describe('ApproveFinancialEntryUseCase', () => {
     const pendingEntry = makePendingEntry();
     financialEntryRepo.findById.mockResolvedValue(pendingEntry);
     financialEntryRepo.transitionStatus.mockResolvedValue(undefined);
+    financialEntryRepo.approvePendingEntry.mockResolvedValue(1);
     financialEntryRepo.findByIdEnriched.mockImplementation(async () => {
       return makeApprovedEnrichedEntry(pendingEntry, 'op-1', new Date());
     });
@@ -123,11 +125,9 @@ describe('ApproveFinancialEntryUseCase', () => {
     expect(result.relatedEntityName).toBe('Test Agency');
     expect(result.approvedByName).toBe('Test Approver');
 
-    expect(financialEntryRepo.transitionStatus).toHaveBeenCalledWith(
+    expect(financialEntryRepo.approvePendingEntry).toHaveBeenCalledWith(
       'entry-1',
       'tenant-1',
-      'PENDING',
-      'APPROVED',
       'op-1',
       expect.any(Date),
     );
@@ -247,7 +247,7 @@ describe('ApproveFinancialEntryUseCase', () => {
       const result = await sut.execute({ entryId: 'entry-1', idempotencyKey: 'idem-1', actor: opActor });
 
       expect(result).toEqual(cachedResult);
-      expect(financialEntryRepo.transitionStatus).not.toHaveBeenCalled();
+      expect(financialEntryRepo.approvePendingEntry).not.toHaveBeenCalled();
       expect(financialEntryRepo.findByIdEnriched).not.toHaveBeenCalled();
       expect(auditService.log).not.toHaveBeenCalled();
     });
@@ -262,7 +262,7 @@ describe('ApproveFinancialEntryUseCase', () => {
       await expect(
         sut.execute({ entryId: 'entry-1', idempotencyKey: 'idem-1', actor: opActor }),
       ).rejects.toThrow(BillingIdempotencyPayloadMismatchError);
-      expect(financialEntryRepo.transitionStatus).not.toHaveBeenCalled();
+      expect(financialEntryRepo.approvePendingEntry).not.toHaveBeenCalled();
     });
 
     it('throws a conflict when a request with the same key and payload is already in progress', async () => {
@@ -275,7 +275,41 @@ describe('ApproveFinancialEntryUseCase', () => {
       await expect(
         sut.execute({ entryId: 'entry-1', idempotencyKey: 'idem-1', actor: opActor }),
       ).rejects.toThrow(BillingIdempotencyInProgressError);
-      expect(financialEntryRepo.transitionStatus).not.toHaveBeenCalled();
+      expect(financialEntryRepo.approvePendingEntry).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('maker-checker TOCTOU', () => {
+    it('maps an atomic self-approval rejection (race: maker re-bound to the approver after the pre-check) to SELF_APPROVAL_FORBIDDEN', async () => {
+      // Pre-check reads a DIFFERENT author, so assertNotSelfApproval passes...
+      financialEntryRepo.findById
+        .mockResolvedValueOnce(makePendingEntry({ initiatedByUserId: 'someone-else' }))
+        // ...but the guarded commit matches zero rows, and the re-read now shows the
+        // approver as the recorded maker on a still-PENDING row.
+        .mockResolvedValueOnce(makePendingEntry({ initiatedByUserId: 'op-1' }));
+      financialEntryRepo.approvePendingEntry.mockResolvedValue(0);
+      const sut = makeSut();
+
+      await expect(
+        sut.execute({ entryId: 'entry-1', idempotencyKey: 'idem-toctou', actor: opActor }),
+      ).rejects.toThrow(ForbiddenError);
+
+      expect(financialEntryRepo.approvePendingEntry).toHaveBeenCalledOnce();
+      // The approval never commits.
+      expect(financialEntryRepo.findByIdEnriched).not.toHaveBeenCalled();
+    });
+
+    it('maps an atomic rejection on a no-longer-PENDING row to EntryNotPendingError', async () => {
+      financialEntryRepo.findById
+        .mockResolvedValueOnce(makePendingEntry({ initiatedByUserId: 'someone-else' }))
+        .mockResolvedValueOnce(makePendingEntry({ status: 'APPROVED', initiatedByUserId: 'someone-else' }));
+      financialEntryRepo.approvePendingEntry.mockResolvedValue(0);
+      const sut = makeSut();
+
+      await expect(
+        sut.execute({ entryId: 'entry-1', idempotencyKey: 'idem-race-status', actor: opActor }),
+      ).rejects.toThrow(EntryNotPendingError);
+      expect(financialEntryRepo.findByIdEnriched).not.toHaveBeenCalled();
     });
   });
 });
