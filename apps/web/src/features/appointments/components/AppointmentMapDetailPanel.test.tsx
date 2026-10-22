@@ -146,6 +146,16 @@ describe('AppointmentMapDetailPanel (content)', () => {
     expect(detailIdSpy).toHaveBeenCalledWith(sampleAppointment.id);
   });
 
+  it('shows the inspector name under the agency when one is assigned', () => {
+    renderPanel();
+    expect(screen.getByTestId('map-detail-inspector')).toHaveTextContent('Alice Smith');
+  });
+
+  it('omits the inspector block when no inspector is assigned', () => {
+    renderPanel({ appointment: { ...sampleAppointment, inspectorName: null } });
+    expect(screen.queryByTestId('map-detail-inspector')).toBeNull();
+  });
+
   it('all collapsible sections start closed', () => {
     renderPanel();
     const sections = ['confirmation', 'meeting', 'contacts', 'service', 'restrictions', 'notes', 'history', 'financials'];

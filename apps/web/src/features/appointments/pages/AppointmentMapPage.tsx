@@ -91,10 +91,16 @@ interface ServiceGroupMapItem {
    * gates PUBLISH on same-day groups.
    */
   timeWindow: string;
+  /** Resolved name of the assigned inspector (null until a group is accepted). */
+  assignedInspectorName?: string | null;
   appointments: ServiceGroupMapAppointment[];
 }
 
-type ServiceGroupMapPin = ServiceGroupMapItem & { latitude: number; longitude: number };
+type ServiceGroupMapPin = ServiceGroupMapItem & {
+  latitude: number;
+  longitude: number;
+  inspectorName: string | null;
+};
 
 /**
  * Marker-click camera move shared by every pin handler. `Math.max(getZoom(),
@@ -944,7 +950,7 @@ export function AppointmentMapPage() {
         .map((item) => {
           const centroid = computeGroupCentroid(item.appointments);
           if (!centroid) return null;
-          return { ...item, ...centroid };
+          return { ...item, ...centroid, inspectorName: item.assignedInspectorName ?? null };
         })
         .filter((item): item is ServiceGroupMapPin => item !== null),
     [groupData],

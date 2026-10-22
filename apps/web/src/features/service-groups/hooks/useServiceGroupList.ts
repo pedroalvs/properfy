@@ -7,18 +7,11 @@ import { DEFAULT_FILTERS, type ServiceGroup, type ServiceGroupFiltersState } fro
 
 /**
  * API-side list item, derived from the generated contract so a backend rename
- * of a mapped field (`groupSize`, `assignedInspectorId`, `regionName`, …) breaks
- * the build instead of silently producing `undefined`.
- *
- * Two fields are narrowed on top of the contract because the OpenAPI
- * registration under-specifies them (a known gap — see
- * `audit-specs/service-groups.md` risk #8; fixing it is backend scope): the
- * backend returns `assignedInspectorName`, absent from the schema entirely.
+ * of a mapped field (`groupSize`, `assignedInspectorId`, `assignedInspectorName`,
+ * `regionName`, …) breaks the build instead of silently producing `undefined`.
  */
 type ServiceGroupListItem =
-  paths['/v1/service-groups']['get']['responses'][200]['content']['application/json']['data'][number] & {
-    assignedInspectorName?: string | null;
-  };
+  paths['/v1/service-groups']['get']['responses'][200]['content']['application/json']['data'][number];
 
 export interface UseServiceGroupListReturn {
   data: ServiceGroup[];

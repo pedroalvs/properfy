@@ -141,6 +141,9 @@ export function AppointmentMapDetailPanel({
 
   // CLIENT comes from the marker clientName (no fetch), with the detail's clientName as authoritative once available.
   const clientName = detail?.clientName ?? appointment.clientName ?? '—';
+  // Inspector is only assigned from SCHEDULED onwards — shown under the agency
+  // when present. Same marker-then-detail fallback as clientName.
+  const inspectorName = detail?.inspectorName ?? appointment.inspectorName ?? null;
 
   return (
     <div
@@ -202,6 +205,12 @@ export function AppointmentMapDetailPanel({
           <p className="text-[10px] uppercase tracking-wide text-text-muted">Agency</p>
           <p className="text-sm text-text-primary" data-testid="map-detail-client">{clientName}</p>
         </div>
+        {inspectorName && (
+          <div>
+            <p className="text-[10px] uppercase tracking-wide text-text-muted">Inspector</p>
+            <p className="text-sm text-text-primary" data-testid="map-detail-inspector">{inspectorName}</p>
+          </div>
+        )}
         <div>
           <p className="text-[10px] uppercase tracking-wide text-text-muted">Properties</p>
           <p className="text-xs text-text-secondary">{appointment.propertyAddress}</p>
