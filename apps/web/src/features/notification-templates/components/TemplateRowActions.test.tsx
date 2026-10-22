@@ -39,7 +39,7 @@ function renderRow(template: NotificationTemplate, canDelete: boolean, isGlobalR
   render(
     <QueryClientProvider client={queryClient}>
       <SnackbarProvider>
-        <MemoryRouter>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <TemplateRowActions
             template={template}
             onEdit={vi.fn()}

@@ -43,7 +43,7 @@ function renderForm(
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <MapBulkRescheduleForm
           checkedAppointments={appointments}
           serviceGroups={group ? [group] : []}

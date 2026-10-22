@@ -103,7 +103,7 @@ function renderPage(url = '/inspector-workload?week=2026-07-27') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[url]}>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[url]}>
         <InspectorWorkloadPage />
         <LocationDisplay />
       </MemoryRouter>

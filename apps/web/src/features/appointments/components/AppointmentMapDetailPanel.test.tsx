@@ -62,7 +62,7 @@ function renderPanel(props: Partial<Parameters<typeof AppointmentMapDetailPanel>
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AppointmentMapDetailPanel
           appointment={sampleAppointment}
           onClose={vi.fn()}
@@ -187,7 +187,7 @@ describe('AppointmentMapDetailPanel (content)', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     rerender(
       <QueryClientProvider client={client}>
-        <MemoryRouter>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AppointmentMapDetailPanel
             appointment={other}
             onClose={vi.fn()}
@@ -209,7 +209,7 @@ describe('AppointmentMapDetailPanel (content)', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>
-        <MemoryRouter initialEntries={['/appointments/map']}>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={['/appointments/map']}>
           <Routes>
             <Route
               path="/appointments/map"

@@ -58,7 +58,7 @@ function createWrapper(initialPath: string = '/portal/test-token') {
     return (
       <QueryClientProvider client={queryClient}>
         <SnackbarProvider>
-          <MemoryRouter initialEntries={[initialPath]}>
+          <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[initialPath]}>
             <Routes>
               <Route path="/portal/:token" element={children} />
             </Routes>

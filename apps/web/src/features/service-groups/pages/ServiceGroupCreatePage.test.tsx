@@ -116,7 +116,7 @@ function createWrapper() {
     return (
       <QueryClientProvider client={queryClient}>
         <SnackbarProvider>
-          <MemoryRouter initialEntries={['/service-groups/new']}>
+          <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={['/service-groups/new']}>
             <Routes>
               <Route path="/service-groups/new" element={children} />
               <Route path="/service-groups/:id" element={<div>detail page</div>} />
