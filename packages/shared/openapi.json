@@ -24615,6 +24615,16 @@
             "in": "path",
             "name": "invoiceId",
             "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
           }
         ],
         "responses": {
@@ -24656,6 +24666,16 @@
             "in": "path",
             "name": "invoiceId",
             "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
           }
         ],
         "responses": {
