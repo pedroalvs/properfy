@@ -126,6 +126,13 @@ export function MarketplacePage() {
     void fetchNextPage();
   }, [view, isWide, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // Crossing the layout breakpoint (e.g. a tablet rotating between portrait and
+  // landscape) starts a fresh selection, so a wide drill-down doesn't silently
+  // reopen when the narrow map view is next shown.
+  useEffect(() => {
+    setExpandedGroupId(null);
+  }, [isWide]);
+
   return (
     <div className="w-full" data-testid="marketplace-page">
       <TopBar title="Marketplace" />

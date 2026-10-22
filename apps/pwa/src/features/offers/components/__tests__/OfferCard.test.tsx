@@ -50,6 +50,23 @@ describe('OfferCard', () => {
     expect(cta.className).toContain('min-h-[44px]');
   });
 
+  it('wires the disclosure toggle to its panel (aria-expanded + aria-controls)', () => {
+    render(
+      <OfferCard
+        offer={baseOffer}
+        state="IDLE"
+        onAccept={onAccept}
+        onViewDetail={vi.fn()}
+        expanded
+        panelId="offer-detail-x"
+      />,
+    );
+    const cta = screen.getByTestId('view-detail-button');
+    expect(cta).toHaveAttribute('aria-expanded', 'true');
+    expect(cta).toHaveAttribute('aria-controls', 'offer-detail-x');
+    expect(cta).toHaveTextContent('Hide inspections');
+  });
+
   it('renders offer details', () => {
     render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
     expect(screen.getByText('Routine Inspection')).toBeInTheDocument();

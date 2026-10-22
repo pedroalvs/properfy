@@ -55,6 +55,8 @@ export function OfferAccordionList({
       {sorted.map((offer) => {
         const expanded = offer.groupId === expandedGroupId;
         const state = getState(offer.groupId);
+        const resolved = RESOLVED_STATES.includes(state);
+        const panelId = `offer-detail-${offer.groupId}`;
         return (
           <div key={offer.groupId}>
             <OfferCard
@@ -65,15 +67,21 @@ export function OfferAccordionList({
               showAccept={false}
               selected={expanded}
               expanded={expanded}
+              panelId={panelId}
             />
             {expanded && (
               <div
+                id={panelId}
+                role="region"
+                aria-label={`Inspections for ${offer.serviceTypeName}`}
                 className="mt-2 flex max-h-[380px] flex-col overflow-hidden rounded-[20px] border border-primary/20 bg-white"
-                data-testid={`offer-detail-${offer.groupId}`}
+                data-testid={panelId}
               >
                 <GroupDetailContent
                   groupId={offer.groupId}
-                  onAccept={() => onAcceptGroup(offer.groupId)}
+                  // A resolved offer (accepted / taken / gone) is no longer
+                  // acceptable: show its details and total, but not a live CTA.
+                  onAccept={resolved ? undefined : () => onAcceptGroup(offer.groupId)}
                   accepting={state === 'ACCEPTING'}
                 />
               </div>

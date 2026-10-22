@@ -26,6 +26,8 @@ interface OfferCardProps {
   selected?: boolean;
   /** Flips the detail toggle label and chevron when the card is expanded (accordion). */
   expanded?: boolean;
+  /** Id of the disclosure panel this card's toggle controls (accordion a11y). */
+  panelId?: string;
 }
 
 /**
@@ -80,6 +82,7 @@ export const OfferCard = memo(function OfferCard({
   showAccept = true,
   selected = false,
   expanded = false,
+  panelId,
 }: OfferCardProps) {
   const timeZone = useEffectiveTimezone();
   const dayLabel = relativeDayLabel(offer.scheduledDate, timeZone);
@@ -199,6 +202,7 @@ export const OfferCard = memo(function OfferCard({
             className="mt-1 inline-flex min-h-[44px] items-center gap-1 py-2 pr-2 text-xs font-semibold text-primary underline-offset-2 hover:underline"
             data-testid="view-detail-button"
             aria-expanded={expanded}
+            aria-controls={panelId}
           >
             {expanded ? 'Hide inspections' : 'View inspections'}
             <i className={`mdi ${expanded ? 'mdi-chevron-up' : 'mdi-chevron-down'} text-sm`} aria-hidden="true" />

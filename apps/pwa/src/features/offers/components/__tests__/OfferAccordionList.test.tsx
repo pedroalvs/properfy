@@ -31,9 +31,12 @@ vi.mock('../OfferCard', () => ({
 vi.mock('../GroupDetailContent', () => ({
   GroupDetailContent: ({ groupId, onAccept }: { groupId: string | null; onAccept?: () => void }) => (
     <div data-testid={`detail-content-${groupId}`}>
-      <button data-testid="accept-group" onClick={onAccept}>
-        Accept group
-      </button>
+      {/* Mirrors the real component: the accept CTA renders only when onAccept is given. */}
+      {onAccept && (
+        <button data-testid="accept-group" onClick={onAccept}>
+          Accept group
+        </button>
+      )}
     </div>
   ),
 }));
@@ -155,6 +158,39 @@ describe('OfferAccordionList', () => {
     );
     fireEvent.click(screen.getByTestId('accept-group'));
     expect(onAcceptGroup).toHaveBeenCalledWith('g1');
+  });
+
+  it('does not offer a live accept for a resolved (accepted/taken/gone) offer', () => {
+    const getState = (id: string): OfferAcceptState => (id === 'g1' ? 'ACCEPTED' : 'IDLE');
+    render(
+      <OfferAccordionList
+        offers={offers}
+        expandedGroupId="g1"
+        onToggle={onToggle}
+        getState={getState}
+        onAcceptGroup={onAcceptGroup}
+        onRefresh={onRefresh}
+      />,
+    );
+    expect(screen.getByTestId('detail-content-g1')).toBeInTheDocument();
+    expect(screen.queryByTestId('accept-group')).toBeNull();
+  });
+
+  it('exposes the expanded panel as a labelled region tied to its toggle', () => {
+    render(
+      <OfferAccordionList
+        offers={offers}
+        expandedGroupId="g1"
+        onToggle={onToggle}
+        getState={idle}
+        onAcceptGroup={onAcceptGroup}
+        onRefresh={onRefresh}
+      />,
+    );
+    const panel = screen.getByTestId('offer-detail-g1');
+    expect(panel).toHaveAttribute('role', 'region');
+    expect(panel).toHaveAttribute('id', 'offer-detail-g1');
+    expect(panel.getAttribute('aria-label')).toMatch(/Inspections for/);
   });
 
   it('sinks resolved offers below open ones', () => {
