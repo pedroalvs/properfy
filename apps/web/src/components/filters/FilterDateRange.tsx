@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { filterContainer, filterLabel, filterIcon } from './filter-styles';
 import { DateInput } from '@/components/forms/DateInput';
 
@@ -23,12 +24,12 @@ export function FilterDateRange({
       {hasValue && <span className={filterLabel}>{label}</span>}
       <div className="px-3 py-[7px]">
         <div className="mb-2 flex items-center gap-2 sm:mb-0 sm:hidden">
-          <i className={`mdi mdi-calendar ${filterIcon}`} />
+          <i className={cn('mdi mdi-calendar', filterIcon)} />
           <span className="text-sm text-text-muted">{label}</span>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="hidden items-center gap-2 sm:flex">
-            <i className={`mdi mdi-calendar ${filterIcon}`} />
+            <i className={cn('mdi mdi-calendar', filterIcon)} />
           </div>
           <div className="min-w-0 flex-1">
             <DateInput

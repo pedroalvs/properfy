@@ -46,13 +46,14 @@ describe('useAppointmentTransition', () => {
     );
 
     act(() => {
-      result.current.transition('CANCELLED' as any, 'No longer needed');
+      result.current.transition('CANCELLED', 'No longer needed');
     });
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith(
-        '/v1/appointments/appt-1/status-transitions',
+        '/v1/appointments/{appointmentId}/status-transitions',
         {
+          params: { path: { appointmentId: 'appt-1' } },
           body: { targetStatus: 'CANCELLED', reason: 'No longer needed' },
           headers: { 'Idempotency-Key': expect.any(String) },
         },
@@ -64,13 +65,14 @@ describe('useAppointmentTransition', () => {
     const { result } = renderHook(() => useAppointmentTransition('appt-1'), { wrapper });
 
     act(() => {
-      result.current.transition('CANCELLED' as any, 'No longer needed', 'CLIENT_REQUEST', true);
+      result.current.transition('CANCELLED', 'No longer needed', 'CLIENT_REQUEST', true);
     });
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith(
-        '/v1/appointments/appt-1/status-transitions',
+        '/v1/appointments/{appointmentId}/status-transitions',
         expect.objectContaining({
+          params: { path: { appointmentId: 'appt-1' } },
           body: expect.objectContaining({
             targetStatus: 'CANCELLED',
             cancellationReasonCode: 'CLIENT_REQUEST',
@@ -88,7 +90,7 @@ describe('useAppointmentTransition', () => {
       // A stray `true` on a REJECTED transition must not reach the wire: the
       // backend only consults the flag for CANCELLED, so sending it would
       // misrepresent the request.
-      result.current.transition('REJECTED' as any, 'Invalid address', 'INVALID_ADDRESS', true);
+      result.current.transition('REJECTED', 'Invalid address', 'INVALID_ADDRESS', true);
     });
 
     await waitFor(() => {
@@ -105,7 +107,7 @@ describe('useAppointmentTransition', () => {
     );
 
     act(() => {
-      result.current.transition('DONE' as any);
+      result.current.transition('DONE');
     });
 
     expect(mockPost).not.toHaveBeenCalled();
@@ -128,7 +130,7 @@ describe('useAppointmentTransition', () => {
     );
 
     act(() => {
-      result.current.transition('DONE' as any);
+      result.current.transition('DONE');
     });
 
     await waitFor(() => {
@@ -146,7 +148,7 @@ describe('useAppointmentTransition', () => {
     );
 
     act(() => {
-      result.current.transition('DONE' as any);
+      result.current.transition('DONE');
     });
 
     await waitFor(() => {

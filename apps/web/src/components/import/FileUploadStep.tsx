@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, type DragEvent } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 interface FileUploadStepProps {
   onFileSelect: (file: File) => void;
@@ -100,11 +101,12 @@ export function FileUploadStep({
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        className={`flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors ${
+        className={cn(
+          'flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors',
           isDragOver
             ? 'border-[var(--color-primary)] bg-blue-50'
-            : 'border-gray-300 bg-gray-50 hover:border-gray-400'
-        }`}
+            : 'border-gray-300 bg-gray-50 hover:border-gray-400',
+        )}
         onClick={handleBrowseClick}
         role="button"
         tabIndex={0}

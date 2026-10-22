@@ -73,7 +73,7 @@ export function GroupMapDetailPanel({
   // Dialog focus management: move focus into the card on open and restore it
   // to the previously focused element (the pin button) on unmount/close.
   useEffect(() => {
-    if (!group) return;
+    if (!group?.id) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     cardRef.current?.focus();
     return () => {

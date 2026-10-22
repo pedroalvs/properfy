@@ -1,3 +1,5 @@
+import { cn } from '@properfy/frontend-standards';
+
 export type SlotView = 'table' | 'calendar';
 
 interface SlotViewToggleProps {
@@ -14,7 +16,7 @@ export function SlotViewToggle({ view, onChange }: SlotViewToggleProps) {
     <div className="flex items-center gap-2">
       <button
         type="button"
-        className={`${baseClass} ${view === 'table' ? activeClass : inactiveClass}`}
+        className={cn(baseClass, view === 'table' ? activeClass : inactiveClass)}
         onClick={() => onChange('table')}
         aria-label="Table view"
         aria-pressed={view === 'table'}
@@ -24,7 +26,7 @@ export function SlotViewToggle({ view, onChange }: SlotViewToggleProps) {
       </button>
       <button
         type="button"
-        className={`${baseClass} ${view === 'calendar' ? activeClass : inactiveClass}`}
+        className={cn(baseClass, view === 'calendar' ? activeClass : inactiveClass)}
         onClick={() => onChange('calendar')}
         aria-label="Calendar view"
         aria-pressed={view === 'calendar'}

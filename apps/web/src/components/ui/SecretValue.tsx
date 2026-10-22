@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 interface SecretValueProps {
   value: string;
@@ -40,7 +41,7 @@ export function SecretValue({ value, maskable = false, label = 'value' }: Secret
           aria-label={revealed ? `Hide ${label}` : `Show ${label}`}
           className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[rgba(0,0,0,0.54)] hover:bg-black/5"
         >
-          <i className={`mdi ${revealed ? 'mdi-eye-off-outline' : 'mdi-eye-outline'} text-base`} aria-hidden="true" />
+          <i className={cn('mdi', revealed ? 'mdi-eye-off-outline' : 'mdi-eye-outline', 'text-base')} aria-hidden="true" />
         </button>
       )}
       <button
@@ -49,7 +50,7 @@ export function SecretValue({ value, maskable = false, label = 'value' }: Secret
         aria-label={copied ? `${label} copied` : `Copy ${label}`}
         className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[rgba(0,0,0,0.54)] hover:bg-black/5"
       >
-        <i className={`mdi ${copied ? 'mdi-check' : 'mdi-content-copy'} text-base`} aria-hidden="true" />
+        <i className={cn('mdi', copied ? 'mdi-check' : 'mdi-content-copy', 'text-base')} aria-hidden="true" />
       </button>
     </span>
   );

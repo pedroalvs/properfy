@@ -33,7 +33,7 @@ const sampleGroup = {
 
 function renderPanel(props: Partial<Parameters<typeof GroupMapDetailPanel>[0]> = {}) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <GroupMapDetailPanel
         group={sampleGroup}
         actorRole="AM"

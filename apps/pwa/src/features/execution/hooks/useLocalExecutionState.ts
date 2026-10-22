@@ -40,7 +40,10 @@ export function useLocalExecutionState(appointmentId: string) {
   useEffect(() => {
     if (!isRestored || !shouldPersistRef.current) return;
     shouldPersistRef.current = false;
-    saveExecutionState(appointmentId, state);
+    // Stamp the save time on write. This hook is the single persister of the
+    // execution state (the old `useAutoSave` interval was removed), so it also
+    // owns `lastSavedAt` now.
+    saveExecutionState(appointmentId, { ...state, lastSavedAt: new Date().toISOString() });
   }, [appointmentId, isRestored, state]);
 
   const updateState = useCallback(

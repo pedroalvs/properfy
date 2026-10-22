@@ -50,7 +50,7 @@ function buildRouterWithRenderCrash() {
         children: [{ path: 'crash', element: <Crasher /> }],
       },
     ],
-    { initialEntries: ['/crash'] },
+    { initialEntries: ['/crash'], future: { v7_relativeSplatPath: true } },
   );
 }
 
@@ -66,7 +66,7 @@ describe('AppErrorBoundary — Issue #2 anti-regression', () => {
   it('is wired via errorElement and replaces the React Router placeholder on a render crash', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    render(<RouterProvider router={buildRouterWithRenderCrash()} />);
+    render(<RouterProvider future={{ v7_startTransition: true }} router={buildRouterWithRenderCrash()} />);
 
     expect(await screen.findByTestId('app-error-boundary')).toBeInTheDocument();
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe('AppErrorBoundary — Issue #2 anti-regression', () => {
     // a minimal MemoryRouter provides it without re-entering the
     // memory-router-loader path that hit jsdom's AbortSignal issue.
     render(
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AppErrorBoundary />
       </MemoryRouter>,
     );
@@ -108,7 +108,7 @@ describe('AppErrorBoundary — Issue #2 anti-regression', () => {
     // a minimal MemoryRouter provides it without re-entering the
     // memory-router-loader path that hit jsdom's AbortSignal issue.
     render(
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AppErrorBoundary />
       </MemoryRouter>,
     );
@@ -127,7 +127,7 @@ describe('AppErrorBoundary — Issue #2 anti-regression', () => {
     // a minimal MemoryRouter provides it without re-entering the
     // memory-router-loader path that hit jsdom's AbortSignal issue.
     render(
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AppErrorBoundary />
       </MemoryRouter>,
     );
@@ -146,7 +146,7 @@ describe('AppErrorBoundary — Issue #2 anti-regression', () => {
     // a minimal MemoryRouter provides it without re-entering the
     // memory-router-loader path that hit jsdom's AbortSignal issue.
     render(
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AppErrorBoundary />
       </MemoryRouter>,
     );
@@ -162,7 +162,7 @@ describe('AppErrorBoundary — Issue #2 anti-regression', () => {
     // a minimal MemoryRouter provides it without re-entering the
     // memory-router-loader path that hit jsdom's AbortSignal issue.
     render(
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AppErrorBoundary />
       </MemoryRouter>,
     );

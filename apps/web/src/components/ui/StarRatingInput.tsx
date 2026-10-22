@@ -1,5 +1,6 @@
 import { useId, useState, type KeyboardEvent } from 'react';
 import { RATING_LABELS, RATING_MAX, RATING_MIN, type RatingValue } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 
 export interface StarRatingInputProps {
   value: number | null;
@@ -112,7 +113,7 @@ export function StarRatingInput({
                 filled ? 'text-real-estate' : 'text-gray-300',
               ].join(' ')}
             >
-              <i className={`mdi ${filled ? 'mdi-star' : 'mdi-star-outline'} text-[32px]`} aria-hidden="true" />
+              <i className={cn('mdi', filled ? 'mdi-star' : 'mdi-star-outline', 'text-[32px]')} aria-hidden="true" />
             </button>
           );
         })}

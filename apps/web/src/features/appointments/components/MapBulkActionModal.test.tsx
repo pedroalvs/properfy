@@ -36,9 +36,6 @@ const bulkStatusMock = vi.hoisted(() => vi.fn());
 vi.mock('../hooks/useBulkStatusTransition', () => ({
   useBulkStatusTransition: () => ({ mutateAsync: bulkStatusMock, isPending: false }),
 }));
-vi.mock('../hooks/useBulkAssignInspector', () => ({
-  useBulkAssignInspector: () => ({ mutateAsync: vi.fn(), isPending: false }),
-}));
 vi.mock('../hooks/useBulkResendReminder', () => ({
   useBulkResendReminder: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
@@ -71,7 +68,7 @@ function renderModal(overrides: Partial<Parameters<typeof MapBulkActionModal>[0]
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <MapBulkActionModal
           appointments={sampleAppointments}
           open
@@ -95,7 +92,7 @@ function renderTree(props: Partial<Parameters<typeof MapBulkActionModal>[0]> = {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const ui = (p: Partial<Parameters<typeof MapBulkActionModal>[0]>) => (
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <MapBulkActionModal
           appointments={sampleAppointments}
           open
@@ -207,6 +204,28 @@ describe('MapBulkActionModal', () => {
       expect(bulkStatusMock).toHaveBeenCalledWith(
         expect.objectContaining({ targetStatus: 'CANCELLED', notifyRentalTenant: true }),
       );
+    });
+
+    it('requires a reason when a non-first selected row needs one for the target (WEB-9)', () => {
+      // Row 0 is DRAFT (DRAFT → AWAITING_INSPECTOR needs no reason); row 1 is
+      // REJECTED (REJECTED → AWAITING_INSPECTOR DOES). The old code judged this
+      // from checkedAppointments[0] alone, hid the reason field, and submitted a
+      // reasonless request the server then rejected. The shared `.some()` logic
+      // must surface the reason field here.
+      const mixed: AppointmentMapItem[] = [
+        { ...sampleAppointments[0]!, id: UUID_A, code: 'INS-DRAFT', status: 'DRAFT' },
+        { ...sampleAppointments[0]!, id: UUID_B, code: 'INS-REJ', status: 'REJECTED' },
+      ];
+      renderModal({ appointments: mixed });
+      fireEvent.click(screen.getByTestId('bulk-modal-row-INS-DRAFT'));
+      fireEvent.click(screen.getByTestId('bulk-modal-row-INS-REJ'));
+      fireEvent.click(screen.getByTestId('bulk-actions-toggle'));
+      fireEvent.click(screen.getByTestId('bulk-action-change_status'));
+
+      fireEvent.change(screen.getByTestId('bulk-change-status-target'), {
+        target: { value: 'AWAITING_INSPECTOR' },
+      });
+      expect(screen.getByTestId('bulk-change-status-reason')).toBeInTheDocument();
     });
 
     it('drops the tick when the target status changes, so off stays the default', () => {
@@ -475,7 +494,7 @@ describe('MapBulkActionModal', () => {
 
     rerender(
       <QueryClientProvider client={new QueryClient()}>
-        <MemoryRouter>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <MapBulkActionModal
             appointments={sampleAppointments}
             open

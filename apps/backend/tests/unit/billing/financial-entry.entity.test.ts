@@ -118,4 +118,45 @@ describe('FinancialEntryEntity', () => {
     expect(entry.inspectorId).toBeNull();
     expect(entry.entryType).toBe('MANUAL_ADJUSTMENT');
   });
+
+  describe('canBeEdited()', () => {
+    // In-place edit (WEB-FIN-TYPING) is intentionally narrow: only a manual
+    // adjustment that is still PENDING may be mutated. System-minted entries
+    // (TENANT_DEBIT / INSPECTOR_PAYOUT) and anything already APPROVED/VOIDED
+    // stay frozen so the ledger and invoice snapshots are never retro-altered.
+    it('should return true for a PENDING MANUAL_ADJUSTMENT', () => {
+      const entry = makeFinancialEntry({ entryType: 'MANUAL_ADJUSTMENT', status: 'PENDING' });
+      expect(entry.canBeEdited()).toBe(true);
+    });
+
+    it('should return false for a PENDING TENANT_DEBIT (system-minted)', () => {
+      const entry = makeFinancialEntry({ entryType: 'TENANT_DEBIT', status: 'PENDING' });
+      expect(entry.canBeEdited()).toBe(false);
+    });
+
+    it('should return false for a PENDING INSPECTOR_PAYOUT (system-minted)', () => {
+      const entry = makeFinancialEntry({ entryType: 'INSPECTOR_PAYOUT', status: 'PENDING' });
+      expect(entry.canBeEdited()).toBe(false);
+    });
+
+    it('should return false for a PENDING REFUND', () => {
+      const entry = makeFinancialEntry({ entryType: 'REFUND', status: 'PENDING' });
+      expect(entry.canBeEdited()).toBe(false);
+    });
+
+    it('should return false for an APPROVED MANUAL_ADJUSTMENT', () => {
+      const entry = makeFinancialEntry({ entryType: 'MANUAL_ADJUSTMENT', status: 'APPROVED' });
+      expect(entry.canBeEdited()).toBe(false);
+    });
+
+    it('should return false for a VOIDED MANUAL_ADJUSTMENT', () => {
+      const entry = makeFinancialEntry({ entryType: 'MANUAL_ADJUSTMENT', status: 'VOIDED' });
+      expect(entry.canBeEdited()).toBe(false);
+    });
+
+    it('should return false for a CANCELLED MANUAL_ADJUSTMENT', () => {
+      const entry = makeFinancialEntry({ entryType: 'MANUAL_ADJUSTMENT', status: 'CANCELLED' });
+      expect(entry.canBeEdited()).toBe(false);
+    });
+  });
 });

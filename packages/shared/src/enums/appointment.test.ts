@@ -5,6 +5,7 @@ import {
   RentalTenantConfirmationStatus,
   RestrictionSource,
   TERMINAL_APPOINTMENT_STATUSES,
+  NON_TERMINAL_APPOINTMENT_STATUSES,
   isTerminalAppointmentStatus,
 } from './appointment';
 
@@ -80,5 +81,30 @@ describe('TERMINAL_APPOINTMENT_STATUSES', () => {
 
   it('does not throw on an unknown status', () => {
     expect(isTerminalAppointmentStatus('NOT_A_STATUS')).toBe(false);
+  });
+});
+
+describe('NON_TERMINAL_APPOINTMENT_STATUSES', () => {
+  it('covers exactly the statuses whose schedule can still move', () => {
+    expect([...NON_TERMINAL_APPOINTMENT_STATUSES].sort()).toEqual([
+      'AWAITING_INSPECTOR',
+      'DRAFT',
+      'SCHEDULED',
+    ]);
+  });
+
+  it('is the exact complement of TERMINAL_APPOINTMENT_STATUSES', () => {
+    const terminal = new Set<string>(TERMINAL_APPOINTMENT_STATUSES);
+    const nonTerminal = new Set<string>(NON_TERMINAL_APPOINTMENT_STATUSES);
+
+    // No status is in both sets.
+    for (const status of nonTerminal) {
+      expect(terminal.has(status)).toBe(false);
+    }
+    // Together they cover every AppointmentStatus, with no extras.
+    expect(terminal.size + nonTerminal.size).toBe(Object.keys(AppointmentStatus).length);
+    for (const status of Object.values(AppointmentStatus)) {
+      expect(terminal.has(status) || nonTerminal.has(status)).toBe(true);
+    }
   });
 });

@@ -43,7 +43,7 @@ function CurrentPath() {
 
 function renderRedirectAt(initialPath: string) {
   return render(
-    <MemoryRouter initialEntries={[initialPath]}>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={[initialPath]}>
       <Routes>
         <Route path="/portal/:token" element={<CurrentPath />} />
         <Route path="/rental-tenant-portal/:token" element={<PortalRedirect />} />

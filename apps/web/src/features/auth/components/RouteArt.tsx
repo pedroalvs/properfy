@@ -16,6 +16,8 @@
  * route can never be dashed — `stroke-dasharray` is spoken for.
  */
 
+import { cn } from '@properfy/frontend-standards';
+
 interface Stop {
   /** Rendered as the eyebrow. Order is the information — see the labelling test. */
   numeral: string;
@@ -113,7 +115,7 @@ export function RouteArt({ className }: { className?: string }) {
     <svg
       data-testid="route-art"
       viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-      className={`overflow-visible ${className ?? ''}`}
+      className={cn('overflow-visible', className ?? '')}
       preserveAspectRatio="xMidYMid meet"
       aria-hidden="true"
       focusable="false"

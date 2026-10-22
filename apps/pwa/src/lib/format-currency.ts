@@ -1,8 +1,4 @@
-export function formatCurrency(amount: number, currency = 'AUD'): string {
-  return new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
+// Currency formatting lives in @properfy/shared so web and PWA agree (mirrors
+// format-date / api-error). Re-exported here to keep the `@/lib/format-currency`
+// import path stable for existing callers.
+export { formatCurrency } from '@properfy/shared';

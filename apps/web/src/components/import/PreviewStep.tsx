@@ -1,3 +1,5 @@
+import { cn } from '@properfy/frontend-standards';
+
 interface PreviewError {
   row: number;
   column: string;
@@ -64,9 +66,7 @@ export function PreviewStep({ columns, rows, errors, totalRows }: PreviewStepPro
                 <tr
                   key={rowNumber}
                   data-testid={`preview-row-${rowNumber}`}
-                  className={`border-t border-gray-100 ${
-                    hasError ? 'bg-red-50' : ''
-                  }`}
+                  className={cn('border-t border-gray-100', hasError && 'bg-red-50')}
                 >
                   <td className="px-3 py-2 text-xs text-[var(--color-text-muted)]">
                     {rowNumber}

@@ -1,4 +1,5 @@
 import { formatRatingAverage, RATING_MAX } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 
 export interface StarRatingProps {
   /** Average rating, or `null` when there are no responses. Never pass 0 for "unrated". */
@@ -43,7 +44,7 @@ export function StarRating({
       <span
         role="img"
         aria-label="No ratings yet"
-        className={`text-text-muted ${classes.text} ${className}`}
+        className={cn('text-text-muted', classes.text, className)}
       >
         {emptyLabel}
       </span>
@@ -59,10 +60,10 @@ export function StarRating({
     <span
       role="img"
       aria-label={label}
-      className={`inline-flex items-center gap-1 ${classes.text} ${className}`}
+      className={cn('inline-flex items-center gap-1', classes.text, className)}
     >
       {showValue && <span className="text-text-primary">{formatted}</span>}
-      <i className={`mdi mdi-star text-real-estate ${classes.star}`} aria-hidden="true" />
+      <i className={cn('mdi mdi-star text-real-estate', classes.star)} aria-hidden="true" />
       {count !== undefined && <span className="text-text-muted">({count})</span>}
     </span>
   );

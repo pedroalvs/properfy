@@ -27,9 +27,8 @@ interface FinancialEntryFormDrawerProps {
 }
 
 export function FinancialEntryFormDrawer({ open, onClose, entryId, onSaved }: FinancialEntryFormDrawerProps) {
-  const isEditMode = !!entryId;
-  const { entry, isLoading: isLoadingDetail } = useFinancialEntryDetail(isEditMode ? entryId : null);
-  const { save, isSaving, validate, resetIdempotencyKey } = useFinancialEntrySave();
+  const { entry, isLoading: isLoadingDetail } = useFinancialEntryDetail(entryId ?? null);
+  const { save, isSaving, validate } = useFinancialEntrySave();
   const { showSuccess, showError } = useSnackbar();
   const submittingRef = useRef(false);
 
@@ -39,7 +38,7 @@ export function FinancialEntryFormDrawer({ open, onClose, entryId, onSaved }: Fi
   const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
-    if (isEditMode && entry) {
+    if (entry) {
       const data: FinancialEntryFormData = {
         entryType: entry.entryType,
         amount: String(Math.abs(entry.amount)),
@@ -53,17 +52,7 @@ export function FinancialEntryFormDrawer({ open, onClose, entryId, onSaved }: Fi
       setInitialData(data);
       setErrors({});
     }
-  }, [isEditMode, entry]);
-
-  useEffect(() => {
-    if (open && !isEditMode) {
-      setForm(EMPTY_FINANCIAL_ENTRY_FORM);
-      setInitialData(EMPTY_FINANCIAL_ENTRY_FORM);
-      setErrors({});
-      resetIdempotencyKey();
-      submittingRef.current = false;
-    }
-  }, [open, isEditMode, resetIdempotencyKey]);
+  }, [entry]);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
 
@@ -76,15 +65,14 @@ export function FinancialEntryFormDrawer({ open, onClose, entryId, onSaved }: Fi
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (submittingRef.current) return;
+    if (submittingRef.current || !entryId) return;
     submittingRef.current = true;
     try {
-      const mode = isEditMode ? 'edit' : 'create';
-      const validationErrors = validate(form, mode);
+      const validationErrors = validate(form);
       if (Object.keys(validationErrors).length > 0) { setErrors(validationErrors); return; }
-      const result = await save(form, entryId ?? undefined);
+      const result = await save(form, entryId);
       if (result.success) {
-        showSuccess(isEditMode ? 'Entry updated successfully' : 'Entry created successfully');
+        showSuccess('Entry updated successfully');
         onSaved();
       } else {
         showError(result.error ?? 'Failed to save');
@@ -92,7 +80,7 @@ export function FinancialEntryFormDrawer({ open, onClose, entryId, onSaved }: Fi
     } finally {
       submittingRef.current = false;
     }
-  }, [isEditMode, form, validate, save, entryId, showSuccess, showError, onSaved]);
+  }, [form, validate, save, entryId, showSuccess, showError, onSaved]);
 
   const handleClose = useCallback(() => {
     if (isDirty) { setShowConfirm(true); } else { onClose(); }
@@ -105,8 +93,8 @@ export function FinancialEntryFormDrawer({ open, onClose, entryId, onSaved }: Fi
     <>
       <DrawerPanel open={open} onClose={handleClose} size="wide">
         <div className="flex h-full flex-col">
-          <DrawerHeader title={isEditMode ? 'Edit Entry' : 'New Entry'} onClose={handleClose} />
-          {isEditMode && isLoadingDetail ? (
+          <DrawerHeader title="Edit Entry" onClose={handleClose} />
+          {isLoadingDetail ? (
             <div className="flex-1 px-6 py-4"><LoadingState rows={6} /></div>
           ) : (
             <>
@@ -119,7 +107,7 @@ export function FinancialEntryFormDrawer({ open, onClose, entryId, onSaved }: Fi
                         onChange={(v) => updateField('entryType', v)}
                         options={ENTRY_TYPE_OPTIONS}
                         placeholder="Select type"
-                        disabled={isEditMode}
+                        disabled
                         aria-label="Type"
                       />
                     </FormField>
@@ -181,7 +169,7 @@ export function FinancialEntryFormDrawer({ open, onClose, entryId, onSaved }: Fi
                 <FormActions>
                   <Button variant="secondary" onClick={handleClose}>Cancel</Button>
                   <Button variant="primary" loading={isSaving} onClick={handleSubmit}>
-                    {isEditMode ? 'Save' : 'Create Entry'}
+                    Save
                   </Button>
                 </FormActions>
               </div>

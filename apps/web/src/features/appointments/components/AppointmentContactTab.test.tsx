@@ -15,8 +15,8 @@ const MOCK_APPOINTMENT: AppointmentDetail = {
   propertyAddress: '123 Flower Street',
   serviceTypeId: 'st-1',
   serviceTypeName: 'Inspection',
-  status: 'SCHEDULED' as any,
-  rentalTenantConfirmationStatus: 'PENDING' as any,
+  status: 'SCHEDULED',
+  rentalTenantConfirmationStatus: 'PENDING',
   contactName: 'John Doe',
   contactPhone: '+5511999000000',
   contactEmail: 'john@example.com',
@@ -54,7 +54,7 @@ const MOCK_WITH_CONTACTS: AppointmentDetail = {
     {
       id: 'ac-1',
       contactId: null,
-      role: 'RENTAL_TENANT' as any,
+      role: 'RENTAL_TENANT',
       isPrimary: true,
       snapshotName: 'John Doe',
       snapshotEmail: 'john@example.com',
@@ -63,7 +63,7 @@ const MOCK_WITH_CONTACTS: AppointmentDetail = {
     {
       id: 'ac-2',
       contactId: null,
-      role: 'HOUSEKEEPER' as any,
+      role: 'HOUSEKEEPER',
       isPrimary: false,
       snapshotName: 'Maria Silva',
       snapshotEmail: 'maria@example.com',
@@ -152,7 +152,7 @@ describe('AppointmentContactTab', () => {
         {
           id: 'ac-1',
           contactId: null,
-          role: 'RENTAL_TENANT' as any,
+          role: 'RENTAL_TENANT',
           isPrimary: true,
           snapshotName: 'Jane',
           snapshotEmail: null,

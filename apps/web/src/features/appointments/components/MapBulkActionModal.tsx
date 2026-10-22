@@ -1,4 +1,5 @@
-import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
+import { cn } from '@properfy/frontend-standards';
 import { useResizableWidth } from '@/hooks/useResizableWidth';
 import { Dialog } from '@/components/ui/Dialog';
 import { ViewportAwareDropdown } from '@/components/ui/ViewportAwareDropdown';
@@ -9,8 +10,8 @@ import { Checkbox } from '@/components/forms/Checkbox';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { getErrorMessage } from '@/lib/api-error';
 import { formatCivilDate, formatWallTimeRange } from '@/lib/format-date';
-import { getValidTransitions, isReasonRequired } from '@properfy/shared';
 import type { AppointmentStatus, UserRole } from '@properfy/shared';
+import { useSelectionTransitions } from '../hooks/useSelectionTransitions';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { AppointmentCodePill } from './AppointmentCodePill';
 import { wasRentalTenantNotified } from '../lib/rental-tenant-notice';
@@ -137,6 +138,9 @@ function isActionAllowed(
   return true;
 }
 
+// T-C4-1 L1 / T-C5-1 L4 — REJECTED is groupable (auto-transitions to AWAITING_INSPECTOR on join).
+const GROUPABLE_STATUSES = new Set(['DRAFT', 'AWAITING_INSPECTOR', 'REJECTED']);
+
 export function MapBulkActionModal({
   appointments,
   open,
@@ -171,11 +175,16 @@ export function MapBulkActionModal({
   // page can use it as flyTo right-padding when focusing a code-pill click.
   const onResizeRef = useRef(onResize);
   onResizeRef.current = onResize;
-  // Mount: widthPx is stable here (read from sessionStorage / initial), ref avoids stale closure.
-  useEffect(() => { onResizeRef.current?.(widthPx); }, []); // intentional mount-only
+  // Latest width read via ref so the report effects below stay mount-only /
+  // drag-end-only without the lint rule demanding `widthPx` as a dep (which
+  // would re-fire them on every drag tick).
+  const widthPxRef = useRef(widthPx);
+  widthPxRef.current = widthPx;
+  // Mount: report the initial width (from sessionStorage / initial).
+  useEffect(() => { onResizeRef.current?.(widthPxRef.current); }, []); // intentional mount-only
   useEffect(() => {
     if (isDragging) return;
-    onResizeRef.current?.(widthPx);
+    onResizeRef.current?.(widthPxRef.current);
   }, [isDragging]); // intentional: only re-run when isDragging flips
 
   // Default UNCHECKED per mockup empty-state: nothing happens until the user
@@ -222,13 +231,13 @@ export function MapBulkActionModal({
   const allChecked = appointments.length > 0 && checkedIds.size === appointments.length;
   const indeterminate = checkedIds.size > 0 && checkedIds.size < appointments.length;
 
-  const toggleAll = () => {
+  const toggleAll = useCallback(() => {
     if (allChecked) {
       setCheckedIds(new Set());
     } else {
       setCheckedIds(new Set(appointments.map((a) => a.id)));
     }
-  };
+  }, [allChecked, appointments]);
 
   const toggleOne = (id: string) => {
     setCheckedIds((prev) => {
@@ -354,7 +363,7 @@ export function MapBulkActionModal({
         );
       },
     },
-  ], [allChecked, indeterminate, checkedIds, onOpenDetailPanel]);
+  ], [allChecked, indeterminate, checkedIds, onOpenDetailPanel, toggleAll]);
 
   // ─── Step 2 — action form rendering ──────────────────────────────────────
   const cancelMutation = useBulkCancelAppointments();
@@ -407,8 +416,6 @@ export function MapBulkActionModal({
   //   - selection mixes service types
   // Groups are tenant-agnostic — a selection MAY span multiple agencies.
   const canAddToGroup = actorRole === 'AM' || actorRole === 'OP';
-  // T-C4-1 L1 / T-C5-1 L4 — REJECTED is now groupable (auto-transitions to AWAITING_INSPECTOR on join).
-  const GROUPABLE_STATUSES = new Set(['DRAFT', 'AWAITING_INSPECTOR', 'REJECTED']);
   const groupButtonState = useMemo<{ disabled: boolean; reason?: string }>(() => {
     if (!canAddToGroup) return { disabled: true, reason: 'Add to group is AM/OP only' };
     if (checkedIds.size === 0) return { disabled: true, reason: 'Tick at least one appointment first' };
@@ -517,7 +524,6 @@ export function MapBulkActionModal({
         <CancelForm
           loading={cancelMutation.isPending}
           checkedAppointments={checkedAppointments}
-          onCancel={() => setActiveAction(null)}
           onSubmit={async (reason, notifyRentalTenant) => {
             const res = await cancelMutation.mutateAsync({
               appointmentIds: Array.from(checkedIds),
@@ -533,7 +539,6 @@ export function MapBulkActionModal({
         <MapBulkRescheduleForm
           checkedAppointments={checkedAppointments}
           {...(serviceGroups ? { serviceGroups } : {})}
-          onCancel={() => setActiveAction(null)}
           onComplete={handleActionComplete}
         />
       )}
@@ -541,7 +546,6 @@ export function MapBulkActionModal({
       {activeAction === 'return_to_pool' && !results && (
         <MapBulkReturnToPoolForm
           checkedAppointments={checkedAppointments}
-          onCancel={() => setActiveAction(null)}
           onComplete={handleActionComplete}
         />
       )}
@@ -552,7 +556,6 @@ export function MapBulkActionModal({
           actorRole={actorRole}
           clUserFlags={clUserFlags}
           loading={statusMutation.isPending}
-          onCancel={() => setActiveAction(null)}
           onSubmit={async ({ targetStatus, reason, notifyRentalTenant }) => {
             const res = await statusMutation.mutateAsync({
               appointmentIds: Array.from(checkedIds),
@@ -568,7 +571,6 @@ export function MapBulkActionModal({
       {activeAction === 'resend_reminder' && !results && (
         <ResendReminderForm
           loading={resendMutation.isPending}
-          onCancel={() => setActiveAction(null)}
           onSubmit={async () => {
             const res = await resendMutation.mutateAsync({
               appointmentIds: Array.from(checkedIds),
@@ -685,7 +687,7 @@ export function MapBulkActionModal({
   if (position === 'top-right') {
     return (
       <div
-        className={`fixed right-4 top-16 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg shadow-xl${isDragging ? ' select-none' : ''}`}
+        className={cn('fixed right-4 top-16 z-40 flex flex-col overflow-hidden rounded-lg border border-border-subtle bg-card-bg shadow-xl', isDragging && 'select-none')}
         style={{
           width: `min(${widthPx}px, calc(100vw - 32px))`,
           maxHeight: 'calc(100vh - 80px)',
@@ -773,11 +775,12 @@ function BulkActionsDropdown({ actions, isDisabled, selectedCount, onSelect }: B
                 if (disabled.disabled) return;
                 onSelect(action.key);
               }}
-              className={`block w-full px-3 py-2 text-left text-sm ${
+              className={cn(
+                'block w-full px-3 py-2 text-left text-sm',
                 disabled.disabled
                   ? 'cursor-not-allowed text-text-muted'
-                  : 'text-text-primary hover:bg-gray-50'
-              }`}
+                  : 'text-text-primary hover:bg-gray-50',
+              )}
               data-testid={`bulk-action-${action.key}`}
               role="menuitem"
             >
@@ -795,14 +798,12 @@ function BulkActionsDropdown({ actions, isDisabled, selectedCount, onSelect }: B
 interface CancelFormProps {
   loading: boolean;
   checkedAppointments: AppointmentMapItem[];
-  onCancel: () => void;
   onSubmit: (reason: string, notifyRentalTenant: boolean) => Promise<void>;
 }
 
 function CancelForm({
   loading,
   checkedAppointments,
-  onCancel: _onCancel,
   onSubmit,
 }: CancelFormProps) {
   const [reason, setReason] = useState('');
@@ -883,7 +884,6 @@ interface ChangeStatusFormProps {
   actorRole: UserRole;
   clUserFlags?: MapBulkActionModalProps['clUserFlags'];
   loading: boolean;
-  onCancel: () => void;
   onSubmit: (input: {
     targetStatus: AppointmentStatus;
     reason?: string;
@@ -891,19 +891,11 @@ interface ChangeStatusFormProps {
   }) => Promise<void>;
 }
 
-function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading, onCancel: _onCancel, onSubmit }: ChangeStatusFormProps) {
-  // Compute the intersection of valid transitions across all checked rows
-  // using the shared matrix. Only show targets that EVERY row can reach so
-  // the bulk action is meaningful (mixed-state rows still surface per-item
-  // failures via the result envelope, but the menu won't lie about options).
-  const targets = useMemo(() => {
-    if (checkedAppointments.length === 0) return [] as AppointmentStatus[];
-    const sets = checkedAppointments.map((a) =>
-      new Set(getValidTransitions(a.status as AppointmentStatus, actorRole, clUserFlags)),
-    );
-    const intersection = sets.reduce((acc, s) => new Set([...acc].filter((x) => s.has(x))));
-    return Array.from(intersection);
-  }, [checkedAppointments, actorRole, clUserFlags]);
+function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading, onSubmit }: ChangeStatusFormProps) {
+  // Shared with BulkEditModal (WEB-9): targets are the intersection every
+  // checked row can reach, and reason-required is decided with `.some()` so a
+  // mixed batch where only a non-first row needs a reason is handled correctly.
+  const { targets, isReasonRequired } = useSelectionTransitions(checkedAppointments, actorRole, clUserFlags);
 
   const [target, setTarget] = useState<AppointmentStatus | ''>('');
   const [reason, setReason] = useState('');
@@ -922,11 +914,8 @@ function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading
     setNotifyRentalTenant(false);
   }, [target]);
 
-  // Look up reason requirement from the shared matrix when we have a
-  // reasonable "from" status (use the first checked row — same row pinned
-  // by the intersection above).
-  const fromStatus = checkedAppointments[0]?.status as AppointmentStatus | undefined;
-  const needsReason = target && fromStatus ? isReasonRequired(fromStatus, target) : false;
+  // WEB-9: reason-required across the whole selection (any row), not just row 0.
+  const needsReason = isReasonRequired(target);
   const canSubmit = !!target && (!needsReason || reason.trim().length >= 3);
 
   return (
@@ -1016,11 +1005,10 @@ function ChangeStatusForm({ checkedAppointments, actorRole, clUserFlags, loading
 
 interface ResendReminderFormProps {
   loading: boolean;
-  onCancel: () => void;
   onSubmit: () => Promise<void>;
 }
 
-function ResendReminderForm({ loading, onCancel: _onCancel, onSubmit }: ResendReminderFormProps) {
+function ResendReminderForm({ loading, onSubmit }: ResendReminderFormProps) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-text-secondary">

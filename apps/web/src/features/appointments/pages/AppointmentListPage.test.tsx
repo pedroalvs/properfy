@@ -83,7 +83,7 @@ function createWrapper(initialEntries: string[] = ['/appointments']) {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <SnackbarProvider>
-            <MemoryRouter initialEntries={initialEntries}>
+            <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={initialEntries}>
               {children}
               <LocationProbe />
             </MemoryRouter>
