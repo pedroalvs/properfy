@@ -22,18 +22,18 @@ describe('PendingActionsCard', () => {
   };
 
   it('renders section title "Pending Actions"', () => {
-    render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><PendingActionsCard {...defaultProps} /></MemoryRouter>);
     expect(screen.getByText('Pending Actions')).toBeInTheDocument();
   });
 
   it('renders four action items', () => {
-    render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><PendingActionsCard {...defaultProps} /></MemoryRouter>);
     const items = screen.getAllByTestId('pending-action-item');
     expect(items).toHaveLength(4);
   });
 
   it('W11 #754: action icons are decorative (aria-hidden)', () => {
-    const { container } = render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+    const { container } = render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><PendingActionsCard {...defaultProps} /></MemoryRouter>);
     const icons = container.querySelectorAll('i.mdi');
     expect(icons.length).toBeGreaterThan(0);
     icons.forEach((icon) => expect(icon).toHaveAttribute('aria-hidden', 'true'));
@@ -41,14 +41,14 @@ describe('PendingActionsCard', () => {
 
   it('W12 #742: a non-AM/OP role does not see the financial-entries action', () => {
     mockUser.mockReturnValue({ id: 'u', role: 'CL_ADMIN', tenantId: 'tenant-1' });
-    render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><PendingActionsCard {...defaultProps} /></MemoryRouter>);
     // FINANCIAL_ROLES gate: AM/OP only.
     expect(screen.queryByText('Pending financial entries')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('pending-action-item')).toHaveLength(3);
   });
 
   it('renders correct descriptions', () => {
-    render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><PendingActionsCard {...defaultProps} /></MemoryRouter>);
     expect(screen.getByText('No-response tenants')).toBeInTheDocument();
     expect(screen.getByText('Pending operator cross-checks')).toBeInTheDocument();
     expect(screen.getByText('Pending financial entries')).toBeInTheDocument();
@@ -56,7 +56,7 @@ describe('PendingActionsCard', () => {
   });
 
   it('renders correct counts as badge text', () => {
-    render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><PendingActionsCard {...defaultProps} /></MemoryRouter>);
     expect(screen.getByText('5')).toBeInTheDocument();
     expect(screen.getByText('4')).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument();
@@ -64,7 +64,7 @@ describe('PendingActionsCard', () => {
   });
 
   it('renders actionable links to canonical destinations', () => {
-    render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><PendingActionsCard {...defaultProps} /></MemoryRouter>);
 
     expect(screen.getByRole('link', { name: /No-response tenants/i })).toHaveAttribute(
       'href',
@@ -86,7 +86,7 @@ describe('PendingActionsCard', () => {
 
   it('renders zero counts', () => {
     render(
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <PendingActionsCard
           noResponseRentalTenants={0}
           pendingOperatorCrossChecks={0}
@@ -105,25 +105,25 @@ describe('PendingActionsCard', () => {
   describe('Reports shortcut visibility', () => {
     it.each(['AM', 'OP', 'CL_ADMIN'])('shows it to %s', (role) => {
       mockUser.mockReturnValue({ id: 'u', role, tenantId: 'tenant-1' });
-      render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+      render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><PendingActionsCard {...defaultProps} /></MemoryRouter>);
       expect(screen.getByText('Reports processing')).toBeInTheDocument();
     });
 
     it('hides it from INSP', () => {
       mockUser.mockReturnValue({ id: 'u', role: 'INSP', tenantId: null });
-      render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+      render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><PendingActionsCard {...defaultProps} /></MemoryRouter>);
       expect(screen.queryByText('Reports processing')).not.toBeInTheDocument();
     });
 
     it('hides it from a CL_USER without view_financials', () => {
       mockUser.mockReturnValue({ id: 'u', role: 'CL_USER', tenantId: 'tenant-1', clUserPermissions: [] });
-      render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+      render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><PendingActionsCard {...defaultProps} /></MemoryRouter>);
       expect(screen.queryByText('Reports processing')).not.toBeInTheDocument();
     });
 
     it('shows it to a CL_USER holding view_financials', () => {
       mockUser.mockReturnValue({ id: 'u', role: 'CL_USER', tenantId: 'tenant-1', clUserPermissions: ['view_financials'] });
-      render(<MemoryRouter><PendingActionsCard {...defaultProps} /></MemoryRouter>);
+      render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><PendingActionsCard {...defaultProps} /></MemoryRouter>);
       expect(screen.getByText('Reports processing')).toBeInTheDocument();
     });
   });

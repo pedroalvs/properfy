@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test-utils';
 import { MarketplacePage } from '../MarketplacePage';
@@ -47,6 +47,37 @@ vi.mock('@/features/offers/components/OffersMapView', () => ({
           pin
         </button>
       )}
+    </div>
+  ),
+}));
+
+// Extended-layout accordion stub: echoes the shared expanded id and surfaces
+// toggle / accept per offer.
+vi.mock('@/features/offers/components/OfferAccordionList', () => ({
+  OfferAccordionList: ({
+    offers,
+    expandedGroupId,
+    onToggle,
+    onAcceptGroup,
+  }: {
+    offers: MarketplaceOffer[];
+    expandedGroupId: string | null;
+    onToggle: (groupId: string) => void;
+    onAcceptGroup: (groupId: string) => void;
+  }) => (
+    <div data-testid="offer-accordion" data-expanded={expandedGroupId ?? ''}>
+      {offers.map((o) => (
+        <div key={o.groupId}>
+          <button data-testid={`acc-toggle-${o.groupId}`} onClick={() => onToggle(o.groupId)}>
+            toggle
+          </button>
+          {expandedGroupId === o.groupId && (
+            <button data-testid={`acc-accept-${o.groupId}`} onClick={() => onAcceptGroup(o.groupId)}>
+              accept
+            </button>
+          )}
+        </div>
+      ))}
     </div>
   ),
 }));
@@ -529,5 +560,166 @@ describe('MarketplacePage — offers pagination', () => {
     );
     renderWithProviders(<MarketplacePage />);
     expect(screen.getByText(/45 available offers/)).toBeInTheDocument();
+  });
+});
+
+describe('MarketplacePage — tablet 2-column layout', () => {
+  const originalMatchMedia = window.matchMedia;
+
+  // Force the wide (tablet) breakpoint so useIsWide() returns true.
+  function setWide(matches: boolean) {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+  }
+
+  beforeEach(() => {
+    mockUseMarketplaceOffers.mockReset();
+    mockUseIsOnline.mockReset();
+    mockUseIsOnline.mockReturnValue(true);
+    mockAccept.mockReset();
+    mockGetState.mockReset();
+    mockGetState.mockReturnValue('IDLE');
+    mockUseOfferDetail.mockReset();
+    mockUseOfferDetail.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    mockShowInfo.mockReset();
+    mockShowError.mockReset();
+    setWide(true);
+  });
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  const offer = {
+    groupId: 'grp-1',
+    tenantName: 'Agency',
+    serviceTypeName: 'Routine Inspection',
+    groupSize: 1,
+    scheduledDate: '2026-03-26',
+    timeWindow: '09:00-11:00',
+    priorityMode: 'STANDARD',
+    priorityExpiresAt: null,
+    suburbs: ['Brunswick'],
+  } as unknown as MarketplaceOffer;
+
+  it('renders the map + accordion extended layout and hides the list/map toggle', () => {
+    mockUseMarketplaceOffers.mockReturnValue(offersHookReturn([offer]));
+    renderWithProviders(<MarketplacePage />);
+    expect(screen.getByTestId('marketplace-extended')).toBeInTheDocument();
+    expect(screen.getByTestId('map-view')).toBeInTheDocument();
+    expect(screen.getByTestId('offer-accordion')).toBeInTheDocument();
+    // No List/Map toggle, no tablet detail pane, no phone bottom-sheet in the extended layout.
+    expect(screen.queryByRole('tab', { name: 'Map' })).toBeNull();
+    expect(screen.queryByTestId('group-detail-pane')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('detail-sheet')).not.toBeInTheDocument();
+  });
+
+  it('shares one selection: tapping a map pin expands that offer in the accordion', async () => {
+    mockUseMarketplaceOffers.mockReturnValue(offersHookReturn([offer]));
+    const user = userEvent.setup();
+    renderWithProviders(<MarketplacePage />);
+    expect(screen.getByTestId('offer-accordion')).toHaveAttribute('data-expanded', '');
+
+    await user.click(screen.getByTestId('map-select-offer'));
+    expect(screen.getByTestId('offer-accordion')).toHaveAttribute('data-expanded', 'grp-1');
+  });
+
+  it('accepts a group from the accordion panel', async () => {
+    mockUseMarketplaceOffers.mockReturnValue(offersHookReturn([offer]));
+    mockAccept.mockResolvedValue('ACCEPTED');
+    const user = userEvent.setup();
+    renderWithProviders(<MarketplacePage />);
+
+    await user.click(screen.getByTestId('acc-toggle-grp-1'));
+    await user.click(screen.getByTestId('acc-accept-grp-1'));
+    expect(mockAccept).toHaveBeenCalledWith('grp-1');
+  });
+});
+
+describe('MarketplacePage — breakpoint crossing', () => {
+  const originalMatchMedia = window.matchMedia;
+  let mediaListeners: Set<() => void>;
+  let mediaMatches: boolean;
+
+  // matchMedia mock that captures change listeners so the test can flip the
+  // breakpoint at runtime (tablet rotation portrait→landscape).
+  function installMatchMedia(initial: boolean) {
+    mediaListeners = new Set();
+    mediaMatches = initial;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      get matches() {
+        return mediaMatches;
+      },
+      media: query,
+      onchange: null,
+      addEventListener: (_event: string, cb: () => void) => mediaListeners.add(cb),
+      removeEventListener: (_event: string, cb: () => void) => mediaListeners.delete(cb),
+      addListener: (cb: () => void) => mediaListeners.add(cb),
+      removeListener: (cb: () => void) => mediaListeners.delete(cb),
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+  }
+
+  function crossTo(matches: boolean) {
+    act(() => {
+      mediaMatches = matches;
+      mediaListeners.forEach((cb) => cb());
+    });
+  }
+
+  beforeEach(() => {
+    mockUseMarketplaceOffers.mockReset();
+    mockUseIsOnline.mockReset();
+    mockUseIsOnline.mockReturnValue(true);
+    mockAccept.mockReset();
+    mockGetState.mockReset();
+    mockGetState.mockReturnValue('IDLE');
+    mockUseOfferDetail.mockReset();
+    mockUseOfferDetail.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    mockShowInfo.mockReset();
+    mockShowError.mockReset();
+  });
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  const offer = {
+    groupId: 'grp-1',
+    tenantName: 'Agency',
+    serviceTypeName: 'Routine Inspection',
+    groupSize: 1,
+    scheduledDate: '2026-03-26',
+    timeWindow: '09:00-11:00',
+    priorityMode: 'STANDARD',
+    priorityExpiresAt: null,
+    suburbs: ['Brunswick'],
+  } as unknown as MarketplaceOffer;
+
+  it('clears a narrow bottom-sheet selection when crossing into the wide extended layout', async () => {
+    installMatchMedia(false); // start narrow
+    mockUseMarketplaceOffers.mockReturnValue(offersHookReturn([offer]));
+    const user = userEvent.setup();
+    renderWithProviders(<MarketplacePage />);
+
+    // Narrow: open the detail bottom sheet.
+    await user.click(screen.getByTestId('view-detail'));
+    expect(screen.getByTestId('detail-sheet')).toBeInTheDocument();
+
+    // Rotate into the wide extended layout.
+    crossTo(true);
+
+    // The stale selection is cleared: no bottom sheet, no split-pane over the grid.
+    expect(screen.queryByTestId('detail-sheet')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('group-detail-pane')).not.toBeInTheDocument();
+    expect(screen.getByTestId('marketplace-extended')).toBeInTheDocument();
   });
 });

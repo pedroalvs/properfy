@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { cn } from '@properfy/frontend-standards';
 import { SlotFormDrawer } from '@/features/availability-slots/components/SlotFormDrawer';
 import { nextOccurrence } from '@/lib/next-day-of-week';
 import { useInspectorAvailabilityTemplateById } from '../hooks/useInspectorAvailabilityTemplateById';
@@ -73,7 +74,7 @@ export function InspectorAvailabilityTab({ inspectorId }: InspectorAvailabilityT
             return (
               <div
                 key={`${key}-${slot}`}
-                className={`flex items-center justify-center rounded py-1 text-xs font-medium ${CELL_CLASSES[state]}`}
+                className={cn('flex items-center justify-center rounded py-1 text-xs font-medium', CELL_CLASSES[state])}
               >
                 {slot.toUpperCase()}
               </div>

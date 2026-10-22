@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import { cn } from '@properfy/frontend-standards';
 
 interface MultiDatePickerProps {
   selectedDates: string[];
@@ -190,13 +191,14 @@ export function MultiDatePicker({
                 day: 'numeric',
               })}
               aria-pressed={isSelected}
-              className={`flex h-9 w-full items-center justify-center rounded text-sm transition-colors ${
+              className={cn(
+                'flex h-9 w-full items-center justify-center rounded text-sm transition-colors',
                 disabled
                   ? 'cursor-not-allowed text-text-disabled'
                   : isSelected
                     ? 'bg-primary font-bold text-white'
-                    : 'cursor-pointer text-text-primary hover:bg-primary/10'
-              }`}
+                    : 'cursor-pointer text-text-primary hover:bg-primary/10',
+              )}
             >
               {date.getDate()}
             </button>

@@ -21,10 +21,9 @@ import type { FinancialEntryFormData } from '../types';
 import { EMPTY_FINANCIAL_ENTRY_FORM } from '../types';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
 
-const mockPost = api.POST as ReturnType<typeof vi.fn>;
 const mockPatch = api.PATCH as ReturnType<typeof vi.fn>;
 
-const VALID_CREATE_DATA: FinancialEntryFormData = {
+const VALID_EDIT_DATA: FinancialEntryFormData = {
   entryType: 'TENANT_DEBIT',
   amount: '350',
   description: 'Test debit',
@@ -34,30 +33,18 @@ const VALID_CREATE_DATA: FinancialEntryFormData = {
   notes: '',
 };
 
+const ENTRY_ID = 'fin-01';
+
 beforeEach(() => {
-  mockPost.mockReset();
   mockPatch.mockReset();
-  mockPost.mockResolvedValue({ data: { data: { id: 'new-fin' } } });
-  mockPatch.mockResolvedValue({ data: { data: { id: 'fin-01' } } });
+  mockPatch.mockResolvedValue({ data: { data: { id: ENTRY_ID } } });
 });
 
-describe('useFinancialEntrySave', () => {
-  it('validate returns errors for required fields when form is empty (create mode)', () => {
+describe('useFinancialEntrySave (edit-only)', () => {
+  it('validate returns errors for the required edit fields when the form is empty', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useFinancialEntrySave(), { wrapper });
-    const errors = result.current.validate(EMPTY_FINANCIAL_ENTRY_FORM, 'create');
-    expect(Object.keys(errors)).toHaveLength(5);
-    expect(errors.entryType).toBe('Required field');
-    expect(errors.amount).toBe('Required field');
-    expect(errors.description).toBe('Required field');
-    expect(errors.relatedEntityName).toBe('Required field');
-    expect(errors.effectiveAt).toBe('Required field');
-  });
-
-  it('validate returns errors for required fields when form is empty (edit mode)', () => {
-    const wrapper = createQueryWrapper();
-    const { result } = renderHook(() => useFinancialEntrySave(), { wrapper });
-    const errors = result.current.validate(EMPTY_FINANCIAL_ENTRY_FORM, 'edit');
+    const errors = result.current.validate(EMPTY_FINANCIAL_ENTRY_FORM);
     expect(Object.keys(errors)).toHaveLength(4);
     expect(errors.entryType).toBeUndefined();
     expect(errors.amount).toBe('Required field');
@@ -66,52 +53,39 @@ describe('useFinancialEntrySave', () => {
     expect(errors.effectiveAt).toBe('Required field');
   });
 
-  it('validate returns no errors for valid create form data', () => {
+  it('validate returns no errors for valid edit form data', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useFinancialEntrySave(), { wrapper });
-    const errors = result.current.validate(VALID_CREATE_DATA, 'create');
+    const errors = result.current.validate(VALID_EDIT_DATA);
     expect(Object.keys(errors)).toHaveLength(0);
   });
 
   it('validate accepts empty optional fields (referenceNumber, notes)', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useFinancialEntrySave(), { wrapper });
-    const errors = result.current.validate(VALID_CREATE_DATA, 'create');
+    const errors = result.current.validate(VALID_EDIT_DATA);
     expect(errors.referenceNumber).toBeUndefined();
     expect(errors.notes).toBeUndefined();
   });
 
-  it('save returns success on create', async () => {
+  it('save PATCHes the entry and returns success', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useFinancialEntrySave(), { wrapper });
 
     let saveResult: { success: boolean } | undefined;
     await act(async () => {
-      saveResult = await result.current.save(VALID_CREATE_DATA);
+      saveResult = await result.current.save(VALID_EDIT_DATA, ENTRY_ID);
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/financial/entries/adjust', {
+    expect(mockPatch).toHaveBeenCalledWith('/v1/financial/entries/{entryId}', {
+      params: { path: { entryId: ENTRY_ID } },
       body: expect.any(Object),
-      headers: { 'Idempotency-Key': expect.any(String) },
     });
-  });
-
-  it('save returns success on edit', async () => {
-    const wrapper = createQueryWrapper();
-    const { result } = renderHook(() => useFinancialEntrySave(), { wrapper });
-
-    let saveResult: { success: boolean } | undefined;
-    await act(async () => {
-      saveResult = await result.current.save(VALID_CREATE_DATA, 'fin-01');
-    });
-
-    expect(saveResult?.success).toBe(true);
-    expect(mockPatch).toHaveBeenCalledWith('/v1/financial/entries/fin-01', { body: expect.any(Object) });
   });
 
   it('save resolves { success: false, error } with the mapped message on a failed request (#681)', async () => {
-    mockPost.mockResolvedValueOnce({
+    mockPatch.mockResolvedValueOnce({
       data: undefined,
       error: { error: { message: 'Amount exceeds limit' } },
     });
@@ -120,15 +94,15 @@ describe('useFinancialEntrySave', () => {
 
     let saveResult: { success: boolean; error?: string } | undefined;
     await act(async () => {
-      saveResult = await result.current.save(VALID_CREATE_DATA);
+      saveResult = await result.current.save(VALID_EDIT_DATA, ENTRY_ID);
     });
 
     expect(saveResult).toEqual({ success: false, error: 'Amount exceeds limit' });
   });
 
   it('the in-flight guard makes a second concurrent save a no-op while the first is pending (#681)', async () => {
-    let resolvePost!: (value: unknown) => void;
-    mockPost.mockReturnValueOnce(new Promise((resolve) => { resolvePost = resolve; }));
+    let resolvePatch!: (value: unknown) => void;
+    mockPatch.mockReturnValueOnce(new Promise((resolve) => { resolvePatch = resolve; }));
 
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useFinancialEntrySave(), { wrapper });
@@ -136,24 +110,24 @@ describe('useFinancialEntrySave', () => {
     let firstSave!: Promise<{ success: boolean }>;
     let secondSave!: Promise<{ success: boolean; error?: string }>;
     act(() => {
-      firstSave = result.current.save(VALID_CREATE_DATA);
-      secondSave = result.current.save(VALID_CREATE_DATA);
+      firstSave = result.current.save(VALID_EDIT_DATA, ENTRY_ID);
+      secondSave = result.current.save(VALID_EDIT_DATA, ENTRY_ID);
     });
 
     const secondResult = await secondSave;
     expect(secondResult.success).toBe(false);
 
     await act(async () => {
-      resolvePost({ data: { data: { id: 'new-fin' } } });
+      resolvePatch({ data: { data: { id: ENTRY_ID } } });
       await firstSave;
     });
 
-    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(mockPatch).toHaveBeenCalledTimes(1);
   });
 
   it('isSaving is true during save operation', async () => {
-    let resolvePost!: (value: unknown) => void;
-    mockPost.mockReturnValueOnce(new Promise((resolve) => { resolvePost = resolve; }));
+    let resolvePatch!: (value: unknown) => void;
+    mockPatch.mockReturnValueOnce(new Promise((resolve) => { resolvePatch = resolve; }));
 
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useFinancialEntrySave(), { wrapper });
@@ -162,13 +136,13 @@ describe('useFinancialEntrySave', () => {
 
     let savePromise: Promise<unknown>;
     act(() => {
-      savePromise = result.current.save(VALID_CREATE_DATA);
+      savePromise = result.current.save(VALID_EDIT_DATA, ENTRY_ID);
     });
 
     expect(result.current.isSaving).toBe(true);
 
     await act(async () => {
-      resolvePost({ data: { data: { id: 'new' } } });
+      resolvePatch({ data: { data: { id: ENTRY_ID } } });
       await savePromise!;
     });
 

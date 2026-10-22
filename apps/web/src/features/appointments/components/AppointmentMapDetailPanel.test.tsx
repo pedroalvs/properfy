@@ -62,7 +62,7 @@ function renderPanel(props: Partial<Parameters<typeof AppointmentMapDetailPanel>
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AppointmentMapDetailPanel
           appointment={sampleAppointment}
           onClose={vi.fn()}
@@ -146,6 +146,16 @@ describe('AppointmentMapDetailPanel (content)', () => {
     expect(detailIdSpy).toHaveBeenCalledWith(sampleAppointment.id);
   });
 
+  it('shows the inspector name under the agency when one is assigned', () => {
+    renderPanel();
+    expect(screen.getByTestId('map-detail-inspector')).toHaveTextContent('Alice Smith');
+  });
+
+  it('omits the inspector block when no inspector is assigned', () => {
+    renderPanel({ appointment: { ...sampleAppointment, inspectorName: null } });
+    expect(screen.queryByTestId('map-detail-inspector')).toBeNull();
+  });
+
   it('all collapsible sections start closed', () => {
     renderPanel();
     const sections = ['confirmation', 'meeting', 'contacts', 'service', 'restrictions', 'notes', 'history', 'financials'];
@@ -187,7 +197,7 @@ describe('AppointmentMapDetailPanel (content)', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     rerender(
       <QueryClientProvider client={client}>
-        <MemoryRouter>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AppointmentMapDetailPanel
             appointment={other}
             onClose={vi.fn()}
@@ -209,7 +219,7 @@ describe('AppointmentMapDetailPanel (content)', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>
-        <MemoryRouter initialEntries={['/appointments/map']}>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={['/appointments/map']}>
           <Routes>
             <Route
               path="/appointments/map"

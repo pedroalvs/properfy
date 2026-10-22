@@ -1,3 +1,6 @@
+import { Phone } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
 import type { ContactChannel, JobDetailsTenantContact } from '../types';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -31,12 +34,9 @@ export function ContactsSection({ contacts }: ContactsSectionProps) {
   if (contacts.length === 0) return null;
 
   return (
-    <section
-      className="overflow-hidden rounded-[20px] border border-black/[0.06] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.07)]"
-      data-testid="contacts-section"
-    >
+    <Card className="overflow-hidden p-0" data-testid="contacts-section">
       <div className="px-4 pt-4 pb-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Contacts</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Contacts</p>
       </div>
       <ul>
         {contacts.map((contact, index) => {
@@ -47,41 +47,36 @@ export function ContactsSection({ contacts }: ContactsSectionProps) {
           return (
             <li
               key={index}
-              className={index > 0 ? 'border-t border-black/[0.06]' : ''}
+              className={index > 0 ? 'border-t border-border' : ''}
               data-testid="contact-item"
             >
               <div className="px-4 pt-3 pb-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold text-text-primary">{contact.name}</p>
-                  <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[10px] font-semibold text-text-secondary">
-                    {roleLabel(contact.role)}
-                  </span>
+                  <p className="text-sm font-semibold text-foreground">{contact.name}</p>
+                  <Badge tone="gray">{roleLabel(contact.role)}</Badge>
                   {contact.isPrimary && (
-                    <span
-                      className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary"
-                      data-testid="contact-primary-badge"
-                    >
+                    <Badge tone="blue" data-testid="contact-primary-badge">
                       Primary
-                    </span>
+                    </Badge>
                   )}
                 </div>
                 {contact.company && (
-                  <p className="mt-0.5 text-xs text-text-muted">{contact.company}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{contact.company}</p>
                 )}
                 {!hasDetails && (
-                  <p className="mt-1 text-xs text-text-muted">No contact details available.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">No contact details available.</p>
                 )}
               </div>
 
               {hasDetails && (
-                <div className="divide-y divide-black/[0.04]">
+                <div className="divide-y divide-border">
                   {contact.phone && (
                     <a
                       href={`tel:${contact.phone}`}
                       className="flex min-h-touch items-center gap-2 px-4 py-2.5 text-sm font-semibold text-success"
                       data-testid={`contact-phone-link-${index}`}
                     >
-                      <i className="mdi mdi-phone text-base" aria-hidden="true" />
+                      <Phone className="h-4 w-4 shrink-0" aria-hidden="true" />
                       {contact.phone}
                     </a>
                   )}
@@ -89,10 +84,10 @@ export function ContactsSection({ contacts }: ContactsSectionProps) {
                     const href = channelHref(channel);
                     const content = (
                       <>
-                        <i className="mdi mdi-phone text-base" aria-hidden="true" />
+                        <Phone className="h-4 w-4 shrink-0" aria-hidden="true" />
                         <span className="flex flex-col text-left">
                           {channel.label && (
-                            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                               {channel.label}
                             </span>
                           )}
@@ -112,7 +107,7 @@ export function ContactsSection({ contacts }: ContactsSectionProps) {
                     ) : (
                       <p
                         key={channelIndex}
-                        className="flex min-h-touch items-center gap-2 px-4 py-2.5 text-sm text-text-primary"
+                        className="flex min-h-touch items-center gap-2 px-4 py-2.5 text-sm text-foreground"
                         data-testid={`contact-extra-channel-${index}-${channelIndex}`}
                       >
                         {content}
@@ -125,6 +120,6 @@ export function ContactsSection({ contacts }: ContactsSectionProps) {
           );
         })}
       </ul>
-    </section>
+    </Card>
   );
 }

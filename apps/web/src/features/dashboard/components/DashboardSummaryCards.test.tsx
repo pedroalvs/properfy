@@ -21,7 +21,7 @@ describe('DashboardSummaryCards', () => {
   // ─── Row 1: status cards ──────────────────────────────────────────────────
 
   it('Row 1 renders 4 cards with correct status labels', () => {
-    render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
 
     expect(screen.getByText('Draft')).toBeInTheDocument();
     expect(screen.getByText('Awaiting Inspector')).toBeInTheDocument();
@@ -30,7 +30,7 @@ describe('DashboardSummaryCards', () => {
   });
 
   it('Row 2 renders 3 cards with correct temporal labels', () => {
-    render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
 
     expect(screen.getByText('Done This Week')).toBeInTheDocument();
     expect(screen.getByText('Done This Month')).toBeInTheDocument();
@@ -38,7 +38,7 @@ describe('DashboardSummaryCards', () => {
   });
 
   it('Row 2 has a section label element above the row', () => {
-    render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
 
     // The section label is present as uppercase secondary text
     const sectionLabel = screen.getByTestId('temporal-section-label');
@@ -46,7 +46,7 @@ describe('DashboardSummaryCards', () => {
   });
 
   it('renders 7 stat cards total (4 + 3)', () => {
-    render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
     const cards = screen.getAllByTestId('stat-card');
     expect(cards).toHaveLength(7);
   });
@@ -54,7 +54,7 @@ describe('DashboardSummaryCards', () => {
   // ─── Values ───────────────────────────────────────────────────────────────
 
   it('renders correct values for all cards', () => {
-    render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
     expect(screen.getByText('2')).toBeInTheDocument(); // draft
     expect(screen.getByText('4')).toBeInTheDocument(); // scheduled
     expect(screen.getByText('5')).toBeInTheDocument(); // rejectedTotal
@@ -64,7 +64,7 @@ describe('DashboardSummaryCards', () => {
 
   it('renders zero values correctly', () => {
     render(
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <DashboardSummaryCards
           draft={0}
           awaitingInspector={0}
@@ -83,7 +83,7 @@ describe('DashboardSummaryCards', () => {
   // ─── Row 1 grid structure ─────────────────────────────────────────────────
 
   it('Row 1 grid uses lg:grid-cols-4', () => {
-    const { container } = render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
+    const { container } = render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
     // The wrapper div contains two grids; the first is Row 1
     const wrapper = container.firstElementChild as HTMLElement;
     const row1 = wrapper.firstElementChild as HTMLElement;
@@ -97,7 +97,7 @@ describe('DashboardSummaryCards', () => {
   // ─── Links ────────────────────────────────────────────────────────────────
 
   it('W5 #418: scheduled drill-down matches the full aggregate (no date scope)', () => {
-    render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
 
     // The card shows the full `scheduled` aggregate, so the link must not scope
     // to today; `status=SCHEDULED` alone is a faithful drill-down.
@@ -111,7 +111,7 @@ describe('DashboardSummaryCards', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 2, 25, 23, 30));
 
-    render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
 
     expect(screen.getByRole('link', { name: /done this month/i })).toHaveAttribute(
       'href',
@@ -120,7 +120,7 @@ describe('DashboardSummaryCards', () => {
   });
 
   it('rejected total card links to /appointments?status=REJECTED', () => {
-    render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
 
     expect(screen.getByRole('link', { name: /rejected total/i })).toHaveAttribute(
       'href',
@@ -132,7 +132,7 @@ describe('DashboardSummaryCards', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 2, 25, 0, 0)); // Wednesday 25 Mar 2026
 
-    render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
 
     const doneThisWeekLink = screen.getByRole('link', { name: /done this week/i });
     expect(doneThisWeekLink.getAttribute('href')).toContain('status=DONE');
@@ -144,7 +144,7 @@ describe('DashboardSummaryCards', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 2, 25, 0, 0));
 
-    render(<MemoryRouter><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
+    render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><DashboardSummaryCards {...defaultProps} /></MemoryRouter>);
 
     const scheduledThisWeekLink = screen.getByRole('link', { name: /scheduled this week/i });
     expect(scheduledThisWeekLink.getAttribute('href')).toContain('status=SCHEDULED');

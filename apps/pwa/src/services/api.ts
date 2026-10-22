@@ -10,6 +10,14 @@ export const api = createClient<paths>({
 
 let refreshPromise: Promise<boolean> | null = null;
 
+// A 401 retry has to rebuild the request, but by the time `onResponse` runs the
+// original request's body stream has already been consumed by the initial fetch —
+// rebuilding from it throws `TypeError: ...Request object that has already been used`
+// on every body-bearing call (START/FINISH/accept-offer). Stash an untouched clone
+// per request (keyed by openapi-fetch's stable middleware `id`) so the retry can be
+// rebuilt from a request whose body is still readable.
+const pendingRequestClones = new Map<string, Request>();
+
 async function refreshAccessToken(): Promise<boolean> {
   const refreshToken = authStorage.getRefreshToken();
   if (!refreshToken) return false;
@@ -38,16 +46,25 @@ function redirectToLogin(): void {
 }
 
 api.use({
-  async onRequest({ request }) {
+  async onRequest({ request, id }) {
     const token = authStorage.getAccessToken();
     if (token) {
       request.headers.set('Authorization', `Bearer ${token}`);
     }
     request.headers.set('x-request-id', crypto.randomUUID());
+    // Clone now, while the body is still intact, in case a 401 forces a retry.
+    pendingRequestClones.set(id, request.clone());
     return request;
   },
 
-  async onResponse({ response, request }) {
+  async onError({ id }) {
+    pendingRequestClones.delete(id);
+  },
+
+  async onResponse({ response, request, id }) {
+    const requestClone = pendingRequestClones.get(id);
+    pendingRequestClones.delete(id);
+
     if (response.status === 403) {
       try {
         const body = await response.clone().json();
@@ -79,8 +96,11 @@ api.use({
     }
 
     const newToken = authStorage.getAccessToken();
-    const retryRequest = new Request(request, {
-      headers: new Headers(request.headers),
+    // Rebuild from the untouched clone so a body-bearing retry keeps its payload;
+    // fall back to the original request for bodyless calls (GET/DELETE).
+    const retrySource = requestClone ?? request;
+    const retryRequest = new Request(retrySource, {
+      headers: new Headers(retrySource.headers),
     });
     if (newToken) {
       retryRequest.headers.set('Authorization', `Bearer ${newToken}`);

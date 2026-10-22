@@ -27,6 +27,7 @@ export interface MarketplaceOfferOutput {
   timeWindow: string;
   suburbs: string[];
   payoutEstimate: number | null;
+  payoutFrom: number | null;
   appointmentCount: number;
   centroid: { lat: number; lng: number } | null;
   properties: MarketplaceOfferProperty[];
@@ -89,6 +90,7 @@ export class GetMarketplaceOffersUseCase {
         timeWindow: offer.timeWindow,
         suburbs: offer.suburbs,
         payoutEstimate: offer.payoutEstimate,
+        payoutFrom: offer.payoutFrom,
         appointmentCount: offer.appointmentCount,
         centroid: offer.centroid,
         properties: offer.properties,

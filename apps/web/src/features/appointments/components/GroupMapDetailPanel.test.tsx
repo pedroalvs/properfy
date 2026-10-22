@@ -33,7 +33,7 @@ const sampleGroup = {
 
 function renderPanel(props: Partial<Parameters<typeof GroupMapDetailPanel>[0]> = {}) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <GroupMapDetailPanel
         group={sampleGroup}
         actorRole="AM"
@@ -90,6 +90,16 @@ describe('GroupMapDetailPanel', () => {
     renderPanel();
     expect(screen.getByRole('heading', { name: 'North Shore run' })).toBeInTheDocument();
     expect(screen.queryByText(/#/)).toBeNull();
+  });
+
+  it('shows the inspector name when one is assigned', () => {
+    renderPanel({ group: { ...sampleGroup, inspectorName: 'Alice Smith' } });
+    expect(screen.getByTestId('group-map-detail-inspector')).toHaveTextContent('Alice Smith');
+  });
+
+  it('omits the inspector block when no inspector is assigned', () => {
+    renderPanel();
+    expect(screen.queryByTestId('group-map-detail-inspector')).toBeNull();
   });
 
   it('uses singular "appointment" for groupSize 1', () => {

@@ -1,0 +1,44 @@
+{
+  "name": "@properfy/frontend-standards",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared, non-visual frontend standards for Properfy: cn(), CVA conventions, constants, ESLint config. No app visuals — adoptable by web and pwa without changing a pixel.",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./eslint": "./eslint/index.cjs"
+  },
+  "files": [
+    "dist",
+    "eslint"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.5.5"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3",
+    "vitest": "^1.6.0"
+  }
+}

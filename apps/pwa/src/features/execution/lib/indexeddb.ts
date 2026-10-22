@@ -64,6 +64,15 @@ export async function clearExecutionState(appointmentId: string): Promise<void> 
   await db.delete('execution-states', appointmentId);
 }
 
+/**
+ * Wipe every local store. Used on logout so a shared contractor device never
+ * leaks the previous inspector's execution drafts or queued actions (PWA-7).
+ */
+export async function clearAllLocalData(): Promise<void> {
+  const db = await getDB();
+  await Promise.all([db.clear('execution-states'), db.clear('queued-actions')]);
+}
+
 export async function enqueueAction(action: QueuedAction): Promise<void> {
   const db = await getDB();
   await db.put('queued-actions', action, action.id);

@@ -1,9 +1,12 @@
 import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, ClockAlert, KeyRound } from 'lucide-react';
+import { cn } from '@properfy/frontend-standards';
 import { AppointmentStatus, todayInTzDateString } from '@properfy/shared';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
+import { Badge } from '@/components/ui/Badge';
 import { RentalTenantConfirmationBadge } from './RentalTenantConfirmationBadge';
-import { FLOW_TYPE_MAP } from '@/lib/status-colors';
+import { FLOW_TYPE_MAP, PILL_TONE_CLASS } from '@/lib/status-colors';
 import type { InspectorAppointment } from '../types';
 import { formatTimeWindow, isScheduleRisk } from '../lib/time-slot';
 
@@ -27,7 +30,7 @@ function getStatusAccent(status: AppointmentStatus): string {
     case AppointmentStatus.REJECTED:
       return 'border-l-error';
     default:
-      return 'border-l-border-subtle';
+      return 'border-l-border';
   }
 }
 
@@ -49,13 +52,17 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
   return (
     <button
       onClick={() => navigate(`/schedule/${appointment.id}`)}
-      className={`w-full overflow-hidden rounded-[20px] border border-black/[0.06] bg-white text-left shadow-[0_8px_24px_rgba(15,23,42,0.07)] transition-shadow hover:shadow-[0_12px_30px_rgba(15,23,42,0.10)] border-l-4 ${accentClass} ${isDone || isCancelled ? 'opacity-60' : ''}`}
+      className={cn(
+        'w-full overflow-hidden rounded-card border border-l-4 border-border bg-card text-left shadow-sm transition-shadow hover:shadow-md',
+        accentClass,
+        (isDone || isCancelled) && 'opacity-60',
+      )}
       data-testid={`appointment-card-${appointment.id}`}
     >
       {/* Time + warnings header */}
-      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-black/[0.05] bg-gray-50 px-4 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-border bg-muted px-4 py-2">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="shrink-0 text-sm font-bold text-text-primary">
+          <span className="shrink-0 text-sm font-bold text-foreground">
             {formatTimeWindow(appointment.timeSlotStart, appointment.timeSlotEnd)}
           </span>
           {/*
@@ -67,23 +74,16 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
             `inspectorScheduleMonthItemSchema` in packages/shared/src/schemas/responses.ts.
           */}
           {appointment.isOverdue && (
-            <span
-              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-error/10 px-2 py-0.5 text-[11px] font-semibold text-error"
-              data-testid="overdue-badge"
-            >
-              <i className="mdi mdi-clock-alert-outline text-xs" aria-hidden="true" />
+            <Badge tone="red" className="shrink-0" data-testid="overdue-badge">
+              <ClockAlert className="h-3.5 w-3.5" aria-hidden="true" />
               Past date
-            </span>
+            </Badge>
           )}
           {showT1Warning && !appointment.isOverdue && (
-            <span
-              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-semibold text-warning"
-              data-testid="t1-warning"
-              aria-label="Tenant not confirmed"
-            >
-              <i className="mdi mdi-alert text-xs" aria-hidden="true" />
+            <Badge tone="amber" className="shrink-0" data-testid="t1-warning" aria-label="Tenant not confirmed">
+              <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
               Unconfirmed
-            </span>
+            </Badge>
           )}
         </div>
         <RentalTenantConfirmationBadge status={appointment.rentalTenantConfirmation} />
@@ -93,7 +93,7 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
         {/* Service type + flow */}
         <div className="flex items-center gap-2">
           <span
-            className="shrink-0 rounded bg-secondary/10 px-1.5 py-0.5 text-[11px] font-bold text-secondary"
+            className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-bold text-primary"
             data-testid="appointment-code"
           >
             {appointment.appointmentCode}
@@ -104,12 +104,14 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
             type pushes the chip past the card's overflow-hidden edge and it is
             silently clipped on a narrow phone.
           */}
-          <span className="min-w-0 flex-1 truncate text-sm font-bold text-text-primary">
+          <span className="min-w-0 flex-1 truncate text-sm font-bold text-foreground">
             {appointment.serviceTypeName}
           </span>
           <span
-            className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
-            style={{ backgroundColor: flowStyle.bg, color: flowStyle.text ?? '#333' }}
+            className={cn(
+              'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold',
+              PILL_TONE_CLASS[flowStyle.tone],
+            )}
           >
             {flowStyle.label}
           </span>
@@ -117,20 +119,20 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
 
         {/* Agency name */}
         {appointment.agencyName && (
-          <p className="mt-0.5 text-xs text-text-muted" data-testid="agency-name">{appointment.agencyName}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground" data-testid="agency-name">{appointment.agencyName}</p>
         )}
 
         {/* Address */}
-        <p className="mt-1.5 text-sm leading-5 text-text-secondary">{fullAddress}</p>
+        <p className="mt-1.5 text-sm leading-5 text-muted-foreground">{fullAddress}</p>
 
         {/* Badges */}
         {(appointment.keyRequired) && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {appointment.keyRequired && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-semibold text-warning">
-                <i className="mdi mdi-key-outline text-xs" aria-hidden="true" />
+              <Badge tone="gray">
+                <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
                 Key required
-              </span>
+              </Badge>
             )}
           </div>
         )}

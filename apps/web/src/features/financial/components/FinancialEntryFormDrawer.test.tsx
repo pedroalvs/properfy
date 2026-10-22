@@ -29,22 +29,17 @@ vi.mock('@/hooks/useAuth', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+// Stable references: the real useFinancialEntrySave memoizes save/validate with
+// useCallback and FinancialEntryFormDrawer lists them in dependency arrays.
+// Returning fresh vi.fn()s per render would churn those deps and re-run effects.
 const mockSave = vi.fn();
 const mockValidate = vi.fn();
-// Must be a STABLE reference: the real useFinancialEntrySave memoizes this
-// with useCallback, and FinancialEntryFormDrawer lists it in a useEffect
-// dependency array. Returning a fresh vi.fn() per render (as before) made
-// the dep change every render → effect re-ran → setErrors({}) → re-render →
-// an unbounded re-render loop that exhausted the heap (OOM) instead of
-// failing fast. A stable fn makes the mock faithful to the real hook.
-const mockResetIdempotencyKey = vi.fn();
 
 vi.mock('../hooks/useFinancialEntrySave', () => ({
   useFinancialEntrySave: () => ({
     save: mockSave,
     isSaving: false,
     validate: mockValidate,
-    resetIdempotencyKey: mockResetIdempotencyKey,
   }),
 }));
 
@@ -90,30 +85,24 @@ describe('FinancialEntryFormDrawer', () => {
     mockValidate.mockReturnValue({});
   });
 
-  it('renders create mode with correct title, form sections, and cancel calls onClose', () => {
+  it('renders edit mode with populated fields, correct title/button, and cancel calls onClose', () => {
     const onClose = vi.fn();
-    renderDrawer({ onClose });
-    expect(screen.getByText('New Entry')).toBeInTheDocument();
-    expect(screen.getByText('Create Entry')).toBeInTheDocument();
+    renderDrawer({ entryId: 'fin-01', onClose });
+    expect(screen.getByText('Edit Entry')).toBeInTheDocument();
+    expect(screen.getByText('Save')).toBeInTheDocument();
     expect(screen.getByText('Type & Values')).toBeInTheDocument();
     expect(screen.getByText('Details')).toBeInTheDocument();
+    expect(screen.getByLabelText('Description')).toHaveValue('Inspection fee');
+    expect(screen.getByLabelText('Related Entity')).toHaveValue('Agency Alpha');
+    expect(screen.getByLabelText('Reference')).toHaveValue('REF-001');
     fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('renders edit mode with populated fields and correct buttons', () => {
-    renderDrawer({ entryId: 'fin-01' });
-    expect(screen.getByText('Edit Entry')).toBeInTheDocument();
-    expect(screen.getByText('Save')).toBeInTheDocument();
-    expect(screen.getByLabelText('Description')).toHaveValue('Inspection fee');
-    expect(screen.getByLabelText('Related Entity')).toHaveValue('Agency Alpha');
-    expect(screen.getByLabelText('Reference')).toHaveValue('REF-001');
-  });
-
   it('shows validation errors and prevents save when validation fails', () => {
     mockValidate.mockReturnValue({ description: 'Required field' });
-    renderDrawer();
-    fireEvent.click(screen.getByText('Create Entry'));
+    renderDrawer({ entryId: 'fin-01' });
+    fireEvent.click(screen.getByText('Save'));
     expect(screen.getByText('Required field')).toBeInTheDocument();
     expect(mockSave).not.toHaveBeenCalled();
   });

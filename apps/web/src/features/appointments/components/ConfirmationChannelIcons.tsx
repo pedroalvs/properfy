@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { Tooltip } from '@/components/ui';
 
 interface ConfirmationChannelIconsProps {
@@ -57,7 +58,7 @@ function labelFor(status: string | undefined, channel: 'SMS' | 'Email', hasChann
 export function ChannelIcon({ icon, label, colour, testId }: { icon: string; label: string; colour: string; testId?: string }) {
   return (
     <Tooltip label={label}>
-      <i className={`mdi ${icon} text-base ${colour}`} aria-label={label} data-testid={testId} />
+      <i className={cn('mdi', icon, 'text-base', colour)} aria-label={label} data-testid={testId} />
     </Tooltip>
   );
 }

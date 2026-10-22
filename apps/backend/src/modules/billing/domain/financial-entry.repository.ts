@@ -81,7 +81,39 @@ export interface IFinancialEntryRepository {
   count(filters: FinancialEntryFilters): Promise<number>;
   save(entry: FinancialEntryEntity): Promise<void>;
   updateStatus(id: string, tenantId: string, status: FinancialEntryStatus, approvedByUserId?: string, approvedAt?: Date): Promise<void>;
+  /**
+   * Atomically updates the editable columns of a PENDING MANUAL_ADJUSTMENT entry.
+   * The status + entry_type predicate lives in the WHERE clause so a concurrent
+   * approve/void can never be overwritten (no read-then-write race). Returns the
+   * number of rows affected: 0 means the guard rejected it — the row is absent in
+   * that tenant, or is no longer a pending manual adjustment.
+   *
+   * `editorUserId` is written to `initiated_by_user_id`: the editor becomes the
+   * recorded author of the entry's economic content, so the approval self-approval
+   * guard (assertNotSelfApproval on initiatedByUserId) blocks whoever last edited
+   * the amount from also approving it — preserving maker≠checker segregation.
+   */
+  updateManualAdjustmentFields(
+    id: string,
+    tenantId: string,
+    editorUserId: string,
+    fields: { amount?: number; description?: string; effectiveAt?: Date; reason?: string },
+  ): Promise<number>;
   transitionStatus(id: string, tenantId: string, fromStatus: FinancialEntryStatus, toStatus: FinancialEntryStatus, approvedByUserId?: string, approvedAt?: Date): Promise<void>;
+  /**
+   * Atomic PENDING→APPROVED compare-and-swap that also enforces maker≠checker in
+   * the same WHERE clause: the row is approved only if its `initiated_by_user_id`
+   * is NULL (system-minted, never a self-approval) OR differs from `approverUserId`.
+   *
+   * Folding the self-approval predicate into the CAS — rather than relying only on
+   * the use-case's read-then-check — closes the TOCTOU window where a concurrent
+   * in-place edit re-binds the maker to the approver AFTER the pre-check but before
+   * the commit. The edit keeps status=PENDING, so a status-only guard would miss it.
+   *
+   * Returns the number of rows affected: 0 means the guard rejected it — the row is
+   * absent in that tenant, no longer PENDING, or a self-approval.
+   */
+  approvePendingEntry(id: string, tenantId: string, approverUserId: string, approvedAt: Date): Promise<number>;
   sumApprovedPayoutsForInspectorInPeriod(inspectorId: string, periodStart: Date, periodEnd: Date): Promise<number>;
   /**
    * Aggregate of approved INSPECTOR_PAYOUT entries in a period: total, count and distinct

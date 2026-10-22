@@ -1,10 +1,9 @@
 import type { PrismaClient } from '@prisma/client';
+import { NON_TERMINAL_APPOINTMENT_STATUSES } from '@properfy/shared';
 import type {
   IInspectorAppointmentChecker,
   OpenAppointmentCounts,
 } from '../domain/inspector-appointment-checker';
-
-const NON_TERMINAL_STATUSES = ['DRAFT', 'AWAITING_INSPECTOR', 'SCHEDULED'] as const;
 
 export class PrismaInspectorAppointmentChecker implements IInspectorAppointmentChecker {
   constructor(private readonly prisma: PrismaClient) {}
@@ -14,7 +13,7 @@ export class PrismaInspectorAppointmentChecker implements IInspectorAppointmentC
       by: ['status'],
       where: {
         inspector_id: inspectorId,
-        status: { in: [...NON_TERMINAL_STATUSES] },
+        status: { in: [...NON_TERMINAL_APPOINTMENT_STATUSES] },
       },
       _count: { status: true },
     });

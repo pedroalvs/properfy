@@ -45,8 +45,8 @@ describe('useTemplateSave', () => {
 
     expect(saveResult?.success).toBe(true);
     expect(mockPut).toHaveBeenCalledWith(
-      '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
-      { body: { subject: VALID_DATA.subject, bodyHtml: VALID_DATA.body, isActive: VALID_DATA.active } },
+      '/v1/notification-templates/{templateCode}/{channel}',
+      { params: { path: { templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL' } }, body: { subject: VALID_DATA.subject, bodyHtml: VALID_DATA.body, isActive: VALID_DATA.active } },
     );
   });
 
@@ -59,8 +59,8 @@ describe('useTemplateSave', () => {
     });
 
     expect(mockPut).toHaveBeenCalledWith(
-      '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
-      { body: { subject: VALID_DATA.subject, bodyHtml: VALID_DATA.body, isActive: VALID_DATA.active, tenantId: 'tenant-1' } },
+      '/v1/notification-templates/{templateCode}/{channel}',
+      { params: { path: { templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL' } }, body: { subject: VALID_DATA.subject, bodyHtml: VALID_DATA.body, isActive: VALID_DATA.active, tenantId: 'tenant-1' } },
     );
   });
 
@@ -182,8 +182,8 @@ describe('useTemplateSave', () => {
     });
 
     expect(mockPut).toHaveBeenCalledWith(
-      '/v1/notification-templates/INSPECTION_NOTICE/EMAIL',
-      { body: { subject: 'Test', bodyHtml: '<p>Hello {{rentalTenantName}}</p>', isActive: true } },
+      '/v1/notification-templates/{templateCode}/{channel}',
+      { params: { path: { templateCode: 'INSPECTION_NOTICE', channel: 'EMAIL' } }, body: { subject: 'Test', bodyHtml: '<p>Hello {{rentalTenantName}}</p>', isActive: true } },
     );
   });
 

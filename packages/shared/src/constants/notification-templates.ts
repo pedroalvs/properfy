@@ -66,6 +66,7 @@ export const PLATFORM_ONLY_TEMPLATE_CODES = [
   'INSPECTOR_GROUP_ASSIGNED',
   'INSPECTOR_GROUP_UNASSIGNED',
   'INSPECTOR_GROUP_RESCHEDULED',
+  'INSPECTOR_GROUP_JOBS_ADDED',
   'TENANT_NOTICE_FORWARDED_AGENCY',
 ] as const;
 
@@ -175,6 +176,7 @@ export const PLATFORM_TEMPLATE_CODE_LABELS: Record<PlatformOnlyTemplateCode, str
   INSPECTOR_GROUP_ASSIGNED: 'Inspector Group Assigned',
   INSPECTOR_GROUP_UNASSIGNED: 'Inspector Group Unassigned',
   INSPECTOR_GROUP_RESCHEDULED: 'Inspector Group Rescheduled',
+  INSPECTOR_GROUP_JOBS_ADDED: 'Inspector Group Jobs Added',
   TENANT_NOTICE_FORWARDED_AGENCY: 'Tenant Notice Forwarded to Agency',
 };
 
@@ -290,6 +292,7 @@ export const TEMPLATE_TARGETS: Record<
   INSPECTOR_GROUP_ASSIGNED: 'INSPECTOR',
   INSPECTOR_GROUP_UNASSIGNED: 'INSPECTOR',
   INSPECTOR_GROUP_RESCHEDULED: 'INSPECTOR',
+  INSPECTOR_GROUP_JOBS_ADDED: 'INSPECTOR',
   // Must stay PROPERTY_MANAGER: this is the mirror sent when an occupant-directed
   // message is suppressed, so a RENTAL_TENANT target here would suppress the mirror
   // too and forward it again, forever.
@@ -341,6 +344,7 @@ export const PROTECTED_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClas
   INSPECTOR_GROUP_ASSIGNED: 'TRANSACTIONAL',
   INSPECTOR_GROUP_UNASSIGNED: 'TRANSACTIONAL',
   INSPECTOR_GROUP_RESCHEDULED: 'TRANSACTIONAL',
+  INSPECTOR_GROUP_JOBS_ADDED: 'TRANSACTIONAL',
 };
 
 /** Protected code strings — used by UI to disable reclassification. */
@@ -559,6 +563,12 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
   INSPECTOR_GROUP_RESCHEDULED: {
     required: [],
     optional: ['inspectorName', 'groupCode', 'scheduledDate', 'timeWindow', 'jobCount', 'previousScheduledDate', 'previousTimeWindow', 'properfyLogoUrl'],
+  },
+  // `jobCount` here is the number of jobs ADDED to the group, not the group total —
+  // the dispatch site sets it to the count of newly scheduled members.
+  INSPECTOR_GROUP_JOBS_ADDED: {
+    required: [],
+    optional: ['inspectorName', 'groupCode', 'scheduledDate', 'timeWindow', 'jobCount', 'properfyLogoUrl'],
   },
   // The agency-forward mirror reuses the suppressed occupant payload (appointment vars)
   // plus the suppressed-notice context keys, all assembled in SendNotificationUseCase.

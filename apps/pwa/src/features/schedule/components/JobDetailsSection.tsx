@@ -1,14 +1,13 @@
+import { ExternalLink, KeyRound, Mail, Navigation, Phone } from 'lucide-react';
+import { cn } from '@properfy/frontend-standards';
 import type { JobDetails } from '../types';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { buttonVariants } from '@/components/ui/Button';
+import { formatCurrency } from '@/lib/format-currency';
 
 interface JobDetailsSectionProps {
   jobDetails: JobDetails;
-}
-
-function formatCurrency(amount: number, currency = 'AUD'): string {
-  return new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency,
-  }).format(amount);
 }
 
 export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
@@ -25,15 +24,15 @@ export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
     <div className="flex flex-col gap-3" data-testid="job-details-section">
       {/* Agency */}
       {agency && (
-        <section className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Agency</p>
-          <p className="mt-1 text-sm font-semibold text-text-primary">{agency.name}</p>
+        <Card>
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Agency</p>
+          <p className="mt-1 text-sm font-semibold text-foreground">{agency.name}</p>
           {agency.branchName && (
-            <p className="mt-0.5 text-xs text-text-muted" data-testid="job-agency-branch">
+            <p className="mt-0.5 text-xs text-muted-foreground" data-testid="job-agency-branch">
               {agency.branchName}
             </p>
           )}
-        </section>
+        </Card>
       )}
 
       {/* Tenant contacts render in the page-level ContactsSection (no duplication here). */}
@@ -41,17 +40,15 @@ export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
       {/* Keys */}
       {keys.keyRequired && (
         <section
-          className="overflow-hidden rounded-[20px] border border-warning/20 bg-warning/8 shadow-[0_8px_24px_rgba(15,23,42,0.07)]"
+          className="overflow-hidden rounded-card border border-warning/20 bg-warning/8 shadow-sm"
           data-testid="job-keys-section"
         >
           <div className="flex items-center gap-3 px-4 py-3.5">
-            <i className="mdi mdi-key text-xl text-warning shrink-0" aria-hidden="true" />
+            <KeyRound className="h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
             <div>
-              <span className="inline-flex items-center rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
-                Key required
-              </span>
+              <Badge tone="amber">Key required</Badge>
               {keys.keyLocation && (
-                <p className="mt-1 text-sm text-text-primary">{keys.keyLocation}</p>
+                <p className="mt-1 text-sm text-foreground">{keys.keyLocation}</p>
               )}
             </div>
           </div>
@@ -63,7 +60,7 @@ export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
               className="flex items-center justify-center gap-2 border-t border-warning/20 bg-warning/5 px-4 py-3 text-sm font-bold text-warning"
               data-testid="key-location-map-link"
             >
-              <i className="mdi mdi-navigation text-base" aria-hidden="true" />
+              <Navigation className="h-4 w-4" aria-hidden="true" />
               Open in Maps
             </a>
           )}
@@ -72,52 +69,44 @@ export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
 
       {/* Property Manager */}
       {propertyManager && (propertyManager.name || propertyManager.email || propertyManager.phone) && (
-        <section
-          className="overflow-hidden rounded-[20px] border border-black/[0.06] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.07)]"
-          data-testid="job-property-manager"
-        >
-          <div className="px-4 pt-4 pb-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Property Manager</p>
-            {propertyManager.name && (
-              <p className="mt-1 text-sm font-semibold text-text-primary">{propertyManager.name}</p>
+        <Card className="overflow-hidden" data-testid="job-property-manager">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Property Manager</p>
+          {propertyManager.name && (
+            <p className="mt-1 text-sm font-semibold text-foreground">{propertyManager.name}</p>
+          )}
+          <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs">
+            {propertyManager.email && (
+              <a
+                href={`mailto:${propertyManager.email}`}
+                className="inline-flex items-center gap-1 text-primary"
+                data-testid="pm-email-link"
+              >
+                <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                {propertyManager.email}
+              </a>
             )}
-            <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs">
-              {propertyManager.email && (
-                <a
-                  href={`mailto:${propertyManager.email}`}
-                  className="inline-flex items-center gap-1 text-primary"
-                  data-testid="pm-email-link"
-                >
-                  <i className="mdi mdi-email-outline text-sm" aria-hidden="true" />
-                  {propertyManager.email}
-                </a>
-              )}
-              {propertyManager.phone && (
-                <a
-                  href={`tel:${propertyManager.phone}`}
-                  className="inline-flex items-center gap-1 text-success"
-                  data-testid="pm-phone-link"
-                >
-                  <i className="mdi mdi-phone text-sm" aria-hidden="true" />
-                  {propertyManager.phone}
-                </a>
-              )}
-            </div>
+            {propertyManager.phone && (
+              <a
+                href={`tel:${propertyManager.phone}`}
+                className="inline-flex items-center gap-1 text-success"
+                data-testid="pm-phone-link"
+              >
+                <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                {propertyManager.phone}
+              </a>
+            )}
           </div>
-        </section>
+        </Card>
       )}
 
       {/* Payment */}
       {payment && (
-        <section
-          className="rounded-[20px] border border-black/[0.06] bg-white px-4 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.07)]"
-          data-testid="job-payment-section"
-        >
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-muted">Payment</p>
-          <p className="mt-1 text-lg font-bold text-text-primary">
+        <Card data-testid="job-payment-section">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Payment</p>
+          <p className="mt-1 text-lg font-bold text-foreground">
             {formatCurrency(payment.payoutAmount, payment.currency)}
           </p>
-        </section>
+        </Card>
       )}
 
       {/* Inspection App Link */}
@@ -126,10 +115,10 @@ export function JobDetailsSection({ jobDetails }: JobDetailsSectionProps) {
           href={inspectionAppLink.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 rounded-[20px] border border-primary/20 bg-primary/5 px-4 py-3.5 text-sm font-bold text-primary shadow-[0_8px_24px_rgba(15,23,42,0.07)]"
+          className={cn(buttonVariants({ variant: 'outlined', block: true }))}
           data-testid="inspection-app-link"
         >
-          <i className="mdi mdi-open-in-new text-base" aria-hidden="true" />
+          <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
           {inspectionAppLink.label}
         </a>
       )}

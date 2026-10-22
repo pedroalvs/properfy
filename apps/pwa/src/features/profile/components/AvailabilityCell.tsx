@@ -1,3 +1,5 @@
+import { cn } from '@properfy/frontend-standards';
+
 interface AvailabilityCellProps {
   active: boolean;
   override: boolean;
@@ -8,8 +10,8 @@ interface AvailabilityCellProps {
 const STATE_CLASSES: Record<string, string> = {
   'on-override': 'bg-primary/20 text-primary border border-primary/40',
   'on': 'bg-primary text-white',
-  'off-override': 'bg-amber-100 text-amber-700 border border-amber-300',
-  'off': 'bg-gray-100 text-gray-400',
+  'off-override': 'bg-warning/10 text-warning border border-warning/30',
+  'off': 'bg-muted text-muted-foreground',
 };
 
 export function AvailabilityCell({ active, override, label, onToggle }: AvailabilityCellProps) {
@@ -28,7 +30,9 @@ export function AvailabilityCell({ active, override, label, onToggle }: Availabi
         data-state={state}
         aria-pressed={active}
         onClick={onToggle}
-        className={className}
+        // Interactive toggle gets the 44px a11y tap target; the display-only
+        // variant below stays compact since it is not a touch affordance.
+        className={cn(className, 'min-h-touch')}
       >
         {label}
       </button>

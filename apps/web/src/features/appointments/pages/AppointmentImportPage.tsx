@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { UserRole } from '@properfy/shared';
 import type { AppointmentImportPreviewResponse } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ImportWizard, FileUploadStep, ProgressStep } from '@/components/import';
 import { FormField } from '@/components/forms/FormField';
@@ -26,10 +27,10 @@ async function downloadErrorsCsv(importId: string, onError: (message: string) =>
   try {
     // Routed through the shared client (not a bespoke fetch) so auth
     // headers and the 401-refresh-and-retry flow apply here too.
-    const { data, error } = await api.GET('/v1/appointments/import/{importId}/errors.csv' as any, {
-      params: { path: { importId } } as any,
+    const { data, error } = await api.GET('/v1/appointments/import/{importId}/errors.csv', {
+      params: { path: { importId } },
       parseAs: 'blob',
-    } as any);
+    });
 
     if (error || !data) {
       onError('Failed to download the errors file');
@@ -274,8 +275,8 @@ export function AppointmentImportPage() {
                 <p className="text-2xl font-bold text-[var(--color-success)]">{previewResult.summary.importable}</p>
                 <p className="mt-1 text-xs font-semibold text-[var(--color-text-muted)]">Importable</p>
               </div>
-              <div className={`rounded-lg border p-4 text-center ${previewResult.summary.withErrors > 0 ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50'}`}>
-                <p className={`text-2xl font-bold ${previewResult.summary.withErrors > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-text-muted)]'}`}>
+              <div className={cn('rounded-lg border p-4 text-center', previewResult.summary.withErrors > 0 ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50')}>
+                <p className={cn('text-2xl font-bold', previewResult.summary.withErrors > 0 ? 'text-[var(--color-error)]' : 'text-[var(--color-text-muted)]')}>
                   {previewResult.summary.withErrors}
                 </p>
                 <p className="mt-1 text-xs font-semibold text-[var(--color-text-muted)]">Error Rows</p>

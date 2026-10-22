@@ -18,7 +18,46 @@ import {
   invoiceResponseSchema,
   inspectorResponseSchema,
   startInspectionResponseSchema,
+  serviceGroupResponseSchema,
 } from './responses';
+
+describe('serviceGroupResponseSchema — assignedInspectorName', () => {
+  const validBase = {
+    id: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee201',
+    tenantId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee202',
+    serviceTypeId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee203',
+    status: 'ACCEPTED',
+    groupSize: 1,
+    offeredCount: 0,
+    confirmedCount: 0,
+    scheduledDate: '2026-07-10',
+    timeWindow: '08:00-12:00',
+    assignedInspectorId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee204',
+    publishedAt: null,
+    createdAt: '2026-07-01T00:00:00.000Z',
+  };
+
+  // Regression: the Fastify Zod serializer strips any undeclared key, so the
+  // inspector name must be part of the schema or it never reaches the UI (which
+  // then shows "—"). This guards the field against being dropped again.
+  it('retains assignedInspectorName when present', () => {
+    const result = serviceGroupResponseSchema.safeParse({ ...validBase, assignedInspectorName: 'Alice Smith' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.assignedInspectorName).toBe('Alice Smith');
+  });
+
+  it('accepts a null assignedInspectorName', () => {
+    const result = serviceGroupResponseSchema.safeParse({ ...validBase, assignedInspectorName: null });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.assignedInspectorName).toBeNull();
+  });
+
+  it('accepts omission of assignedInspectorName', () => {
+    const result = serviceGroupResponseSchema.safeParse(validBase);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.assignedInspectorName).toBeUndefined();
+  });
+});
 
 describe('appointmentResponseSchema — appointmentCode / code', () => {
   const validBase = {
@@ -1015,6 +1054,26 @@ describe('marketplaceOfferResponseSchema — properties[]', () => {
     const result = marketplaceOfferResponseSchema.safeParse(validBase);
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.suburbs).toEqual(['Bondi NSW', 'Coogee NSW']);
+  });
+
+  // payoutFrom ("from $X each"): optional + nullable so the additive field does not
+  // widen the detail schema's required shape for apps/web.
+  it('accepts a numeric payoutFrom', () => {
+    const result = marketplaceOfferResponseSchema.safeParse({ ...validBase, payoutFrom: 15 });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.payoutFrom).toBe(15);
+  });
+
+  it('accepts a null payoutFrom (payouts unknown)', () => {
+    const result = marketplaceOfferResponseSchema.safeParse({ ...validBase, payoutFrom: null });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.payoutFrom).toBeNull();
+  });
+
+  it('accepts an absent payoutFrom (optional field)', () => {
+    const result = marketplaceOfferResponseSchema.safeParse(validBase);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.payoutFrom).toBeUndefined();
   });
 });
 

@@ -3,9 +3,13 @@ import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
+import { Card } from '@/components/ui/Card';
+import { TwoPaneLayout } from '@/components/shell/TwoPaneLayout';
 import { OfferFeed } from '../components/OfferFeed';
+import { OfferAccordionList } from '../components/OfferAccordionList';
 import { OfflineMarketplaceBanner } from '../components/OfflineMarketplaceBanner';
 import { GroupDetailBottomSheet } from '../components/GroupDetailBottomSheet';
+import { GroupDetailPane } from '../components/GroupDetailPane';
 import { OffersViewToggle } from '../components/OffersViewToggle';
 import { OffersMapView, type ExpandedGroup } from '../components/OffersMapView';
 import { MapGroupActionBar } from '../components/MapGroupActionBar';
@@ -13,6 +17,7 @@ import { useMarketplaceOffers } from '../hooks/useMarketplaceOffers';
 import { useMarketplaceOfferDetail } from '../hooks/useMarketplaceOfferDetail';
 import { useAcceptOffer } from '../hooks/useAcceptOffer';
 import { useIsOnline } from '@/hooks/useIsOnline';
+import { useIsWide } from '@/hooks/useMediaQuery';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 function formatTimeAgo(timestamp: number): string {
@@ -26,6 +31,7 @@ function formatTimeAgo(timestamp: number): string {
 
 export function MarketplacePage() {
   const isOnline = useIsOnline();
+  const isWide = useIsWide();
   const {
     offers,
     data,
@@ -91,6 +97,40 @@ export function MarketplacePage() {
     setView(nextView);
   };
 
+  // Extended (tablet/landscape) layout: the accordion list and the map share one
+  // selected id. Toggling an offer open — or tapping its map pin — drives both.
+  const handleToggleExpanded = (groupId: string) => {
+    setExpandedGroupId((current) => (current === groupId ? null : groupId));
+  };
+
+  const handleAcceptGroup = async (groupId: string) => {
+    const outcome = await accept(groupId);
+    if (outcome !== 'ERROR') setExpandedGroupId(null);
+  };
+
+  // Crossing the layout breakpoint (e.g. a tablet rotating between portrait and
+  // landscape) starts a fresh selection in BOTH tracks, so neither a wide
+  // drill-down reopens in the narrow map view, nor a narrow bottom-sheet
+  // selection (`detailGroupId`) pops a stale split-pane over the extended grid.
+  useEffect(() => {
+    setExpandedGroupId(null);
+    setDetailGroupId(null);
+  }, [isWide]);
+
+  // Shared detail acceptance, used by both the phone bottom-sheet and the tablet pane.
+  const closeDetail = () => setDetailGroupId(null);
+  const detailAccepting = detailGroupId ? getState(detailGroupId) === 'ACCEPTING' : false;
+  const acceptDetail = detailGroupId
+    ? async () => {
+        const outcome = await accept(detailGroupId);
+        // Keep the detail open on retryable failure so the user can try again.
+        if (outcome !== 'ERROR') {
+          setDetailGroupId(null);
+          setExpandedGroupId(null);
+        }
+      }
+    : undefined;
+
   // Infinite scroll (list view): fetch the next page when the sentinel enters
   // the viewport — same pattern as the Schedule History tab.
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -104,30 +144,35 @@ export function MarketplacePage() {
     return () => observer.disconnect();
   }, [view, hasNextPage, fetchNextPage, offers.length]);
 
-  // Map view has no scroll to drive pagination — drain the remaining pages so
-  // every offer (including the furthest-dated ones) gets a pin.
+  // The map (map view, or the always-on map in the extended layout) has no
+  // scroll to drive pagination — drain the remaining pages so every offer
+  // (including the furthest-dated ones) gets a pin.
   useEffect(() => {
-    if (view !== 'map' || !hasNextPage || isFetchingNextPage) return;
+    if (!(view === 'map' || isWide) || !hasNextPage || isFetchingNextPage) return;
     void fetchNextPage();
-  }, [view, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [view, isWide, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  return (
-    <div className="w-full" data-testid="marketplace-page">
-      <TopBar title="Marketplace" />
+  const master = (
+    <div className="w-full">
+      <TopBar title="Offers" size="lg" />
 
       <div className="px-page-x py-4">
-        <section className="rounded-[28px] border border-primary/10 bg-[linear-gradient(135deg,_rgba(239,246,255,0.96),_rgba(224,231,255,0.92))] px-5 py-5 shadow-[0_16px_38px_rgba(37,99,235,0.10)]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/70">Open work</p>
-          <h2 className="mt-3 text-xl font-bold tracking-tight text-secondary">
-            {total} available {total === 1 ? 'offer' : 'offers'}
-          </h2>
-          <p className="mt-1 text-sm text-text-secondary">
+        {/* Compact header: a stacked banner on phone, a single row (count left, guidance right) on
+            tablet so it doesn't eat vertical space above the grid. Phone classes are unchanged. */}
+        <Card className="bg-primary/5 px-5 py-5 md:flex md:items-center md:justify-between md:gap-6 md:py-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Open work</p>
+            <h2 className="mt-3 text-xl font-bold tracking-tight text-foreground md:mt-1">
+              {total} available {total === 1 ? 'offer' : 'offers'}
+            </h2>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground md:mt-0 md:max-w-xs md:text-right">
             Review grouped inspections and accept only when you can commit to the route.
           </p>
-        </section>
+        </Card>
       </div>
 
-      <OffersViewToggle value={view} onChange={handleViewChange} />
+      {!isWide && <OffersViewToggle value={view} onChange={handleViewChange} />}
 
       {!isOnline && <OfflineMarketplaceBanner />}
 
@@ -145,7 +190,7 @@ export function MarketplacePage() {
         />
       )}
 
-      {view === 'map' && (
+      {!isWide && view === 'map' && (
         <div className="flex flex-col gap-2 px-page-x py-2">
           {expandedGroupId && (
             <MapGroupActionBar
@@ -166,10 +211,10 @@ export function MarketplacePage() {
         </div>
       )}
 
-      {view === 'list' && shouldShowFeed && (
+      {!isWide && view === 'list' && shouldShowFeed && (
         <PullToRefresh onRefresh={refetch}>
           {dataUpdatedAt > 0 && (
-            <p className="px-page-x pt-1 text-xs text-text-muted" data-testid="last-updated">
+            <p className="px-page-x pt-1 text-xs text-muted-foreground" data-testid="last-updated">
               Last updated {formatTimeAgo(dataUpdatedAt)}
             </p>
           )}
@@ -195,22 +240,62 @@ export function MarketplacePage() {
         </PullToRefresh>
       )}
 
-      <GroupDetailBottomSheet
-        groupId={detailGroupId}
-        onClose={() => setDetailGroupId(null)}
-        accepting={detailGroupId ? getState(detailGroupId) === 'ACCEPTING' : false}
-        onAccept={
-          detailGroupId
-            ? async () => {
-                const outcome = await accept(detailGroupId);
-                // Keep the sheet open on retryable failure so the user can try again
-                if (outcome !== 'ERROR') {
-                  setDetailGroupId(null);
-                  setExpandedGroupId(null);
-                }
-              }
-            : undefined
+      {/* Extended layout (tablet/landscape): persistent map + accordion list,
+          driven by a single shared selection. */}
+      {isWide && shouldShowFeed && (
+        <div
+          className="grid gap-4 px-page-x py-2 lg:grid-cols-[1fr_minmax(360px,420px)]"
+          data-testid="marketplace-extended"
+        >
+          <div className="self-start lg:sticky lg:top-4">
+            <OffersMapView
+              offers={offers}
+              onSelectOffer={setExpandedGroupId}
+              expandedGroup={expandedGroup}
+            />
+          </div>
+          <OfferAccordionList
+            offers={offers}
+            expandedGroupId={expandedGroupId}
+            onToggle={handleToggleExpanded}
+            getState={getState}
+            onAcceptGroup={handleAcceptGroup}
+            onRefresh={refetch}
+          />
+        </div>
+      )}
+
+    </div>
+  );
+
+  return (
+    <div className="w-full" data-testid="marketplace-page">
+      <TwoPaneLayout
+        variant="canvas"
+        detailMode="overlay"
+        hasSelection={detailGroupId !== null}
+        onClose={closeDetail}
+        showClose={false}
+        master={master}
+        detail={
+          isWide && detailGroupId ? (
+            <GroupDetailPane
+              groupId={detailGroupId}
+              onClose={closeDetail}
+              accepting={detailAccepting}
+              onAccept={acceptDetail}
+            />
+          ) : null
         }
+      />
+
+      {/* Phone presents the detail as a bottom-sheet overlay; on tablet the inline pane above
+          replaces it, so the sheet is suppressed there (gated groupId keeps it closed). */}
+      <GroupDetailBottomSheet
+        groupId={isWide ? null : detailGroupId}
+        onClose={closeDetail}
+        accepting={detailAccepting}
+        onAccept={acceptDetail}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { PlayCircle, RotateCcw } from 'lucide-react';
 import { todayInTzDateString } from '@properfy/shared';
 import { Button } from '@/components/ui/Button';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
@@ -61,20 +62,22 @@ export function StartInspectionButton({
   return (
     <div className="flex flex-col gap-1">
       <Button
-        variant="primary"
+        variant="success"
+        block
         disabled={!enabled}
         onClick={() => navigate(`/execution/${appointmentId}`)}
-        className={`!w-full !min-h-[56px] !rounded-2xl !text-base !font-bold ${resume ? '!bg-warning' : ''}`}
+        className="min-h-[56px] text-base font-bold"
         data-testid="start-inspection-button"
       >
-        <i
-          className={`mdi ${resume ? 'mdi-play-circle' : 'mdi-play-circle-outline'} text-xl`}
-          aria-hidden="true"
-        />
+        {resume ? (
+          <RotateCcw className="h-5 w-5" aria-hidden="true" />
+        ) : (
+          <PlayCircle className="h-5 w-5" aria-hidden="true" />
+        )}
         {label}
       </Button>
       {sublabel && (
-        <p className="text-center text-xs text-text-muted" data-testid="start-inspection-sublabel">{sublabel}</p>
+        <p className="text-center text-xs text-muted-foreground" data-testid="start-inspection-sublabel">{sublabel}</p>
       )}
     </div>
   );

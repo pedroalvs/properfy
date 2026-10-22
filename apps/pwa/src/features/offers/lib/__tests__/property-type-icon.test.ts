@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { Building2, Home } from 'lucide-react';
 import {
   PROPERTY_TYPE_ICONS,
   distinctPropertyTypes,
@@ -7,9 +8,9 @@ import {
 } from '../property-type-icon';
 
 describe('PROPERTY_TYPE_ICONS', () => {
-  it('maps every PropertyType to an mdi class', () => {
-    expect(PROPERTY_TYPE_ICONS.APARTMENT).toBe('mdi-office-building-outline');
-    expect(PROPERTY_TYPE_ICONS.HOUSE).toBe('mdi-home-outline');
+  it('maps every PropertyType to a lucide icon component', () => {
+    expect(PROPERTY_TYPE_ICONS.APARTMENT).toBe(Building2);
+    expect(PROPERTY_TYPE_ICONS.HOUSE).toBe(Home);
   });
 });
 

@@ -1,5 +1,10 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useOfflineQueue } from '../useOfflineQueue';
+import {
+  useOfflineQueue,
+  resetQueueSnapshot,
+  refreshQueueSnapshot,
+  getQueueSnapshot,
+} from '../useOfflineQueue';
 
 const mockApiPost = vi.fn();
 const mockGetAllQueuedActions = vi.fn();
@@ -395,6 +400,131 @@ describe('useOfflineQueue', () => {
       ),
     );
     expect(mockApiPost).not.toHaveBeenCalled();
+  });
+
+  it('stops sending queued actions once a logout wipes the queue mid-run (PWA-7)', async () => {
+    mockUseIsOnline.mockReturnValue(true);
+    // Two actions in the same appointment group, processed sequentially.
+    mockGetAllQueuedActions.mockResolvedValue([
+      {
+        id: 'a',
+        type: 'START',
+        appointmentId: 'apt-1',
+        payload: { latitude: 1, longitude: 2 },
+        idempotencyKey: 'start-key',
+        createdAt: '2026-03-25T10:00:00.000Z',
+        retryCount: 0,
+        lastError: null,
+        status: 'PENDING',
+      },
+      {
+        id: 'b',
+        type: 'FINISH',
+        appointmentId: 'apt-1',
+        payload: { latitude: 3, longitude: 4 },
+        idempotencyKey: 'finish-key',
+        createdAt: '2026-03-25T10:05:00.000Z',
+        retryCount: 0,
+        lastError: null,
+        status: 'PENDING',
+      },
+    ]);
+
+    // Hold the first (START) send open until the test releases it, then simulate a
+    // logout before releasing so the FINISH iteration sees the bumped generation.
+    let releaseStart!: () => void;
+    const startInFlight = new Promise<void>((resolve) => {
+      releaseStart = resolve;
+    });
+    mockApiPost.mockImplementation(async (path: string) => {
+      if (path.endsWith('/start')) {
+        await startInFlight;
+        return { data: { ok: true } };
+      }
+      return { data: { ok: true } };
+    });
+
+    renderHook(() => useOfflineQueue());
+
+    await waitFor(() => expect(mockApiPost).toHaveBeenCalledTimes(1));
+    expect(mockApiPost.mock.calls[0][0]).toBe('/v1/inspector/appointments/apt-1/start');
+
+    await act(async () => {
+      resetQueueSnapshot(); // logout
+      releaseStart();
+      // Let the run settle: the post-await guard fires, the loop breaks, the
+      // allSettled resolves and the finally runs.
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    // The in-flight START's write-backs are skipped (the queue was wiped) and the
+    // FINISH is never sent after the logout invalidated the run.
+    expect(mockApiPost).toHaveBeenCalledTimes(1);
+    expect(mockRemoveQueuedAction).not.toHaveBeenCalled();
+    expect(mockApiPost).not.toHaveBeenCalledWith(
+      '/v1/inspector/appointments/apt-1/finish',
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('does not resurrect a failed action in IndexedDB when it fails after logout (PWA-7)', async () => {
+    mockUseIsOnline.mockReturnValue(true);
+    mockGetAllQueuedActions.mockResolvedValue([
+      {
+        id: 'a',
+        type: 'START',
+        appointmentId: 'apt-1',
+        payload: { latitude: 1, longitude: 2 },
+        idempotencyKey: 'start-key',
+        createdAt: '2026-03-25T10:00:00.000Z',
+        retryCount: 0,
+        lastError: null,
+        status: 'PENDING',
+      },
+    ]);
+
+    // Hold the send open, log out while it is in flight, then let it reject the way
+    // a post-logout request would (tokens cleared → 401 / network error).
+    let rejectStart!: (err: Error) => void;
+    const startInFlight = new Promise<void>((_resolve, reject) => {
+      rejectStart = reject;
+    });
+    mockApiPost.mockReturnValue(startInFlight);
+
+    renderHook(() => useOfflineQueue());
+    await waitFor(() => expect(mockApiPost).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      resetQueueSnapshot(); // logout
+      rejectStart(new Error('Unauthorized'));
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    // The catch block must not re-put the previous inspector's action.
+    expect(mockUpdateQueuedAction).not.toHaveBeenCalled();
+    expect(mockShowError).not.toHaveBeenCalled();
+  });
+
+  it('does not repopulate the badge snapshot when a logout lands during the read (PWA-7)', async () => {
+    resetQueueSnapshot();
+    expect(getQueueSnapshot()).toEqual([]);
+
+    // The IndexedDB read is in flight when the logout fires.
+    let resolveRead!: (actions: unknown[]) => void;
+    mockGetAllQueuedActions.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRead = resolve;
+      }),
+    );
+
+    const refreshing = refreshQueueSnapshot();
+    resetQueueSnapshot(); // logout bumps the generation mid-read
+    resolveRead([{ id: 'stale', status: 'PENDING' }]); // old inspector's actions arrive late
+    await refreshing;
+
+    // The late read is discarded; the badge stays empty.
+    expect(getQueueSnapshot()).toEqual([]);
   });
 
   it('surfaces an error toast when retryAction hits an IndexedDB failure', async () => {

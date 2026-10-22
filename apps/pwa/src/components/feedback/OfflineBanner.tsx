@@ -1,3 +1,5 @@
+import { WifiOff } from 'lucide-react';
+import { Alert } from '@/components/ui/Alert';
 import { useIsOnline } from '@/hooks/useIsOnline';
 
 export function OfflineBanner() {
@@ -6,13 +8,14 @@ export function OfflineBanner() {
   if (isOnline) return null;
 
   return (
-    <div
+    <Alert
+      tone="warning"
       role="status"
-      className="flex items-center gap-2 bg-warning px-4 py-2 text-sm font-semibold text-white"
+      className="items-center rounded-none border-x-0 border-t-0 py-2 font-semibold"
       data-testid="offline-banner"
     >
-      <i className="mdi mdi-wifi-off" aria-hidden="true" />
+      <WifiOff className="h-4 w-4" aria-hidden="true" />
       <span>You are offline</span>
-    </div>
+    </Alert>
   );
 }

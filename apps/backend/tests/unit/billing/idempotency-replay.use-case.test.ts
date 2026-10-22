@@ -211,6 +211,7 @@ describe('idempotency replay (real InMemoryIdempotencyService)', () => {
     const financialEntryRepo = {
       findById: vi.fn().mockResolvedValue(pendingEntry),
       transitionStatus: vi.fn().mockResolvedValue(undefined),
+      approvePendingEntry: vi.fn().mockResolvedValue(1),
       findByIdEnriched: vi.fn().mockImplementation(async () => ({
         entity: new FinancialEntryEntity({ ...pendingEntry, status: 'APPROVED', approvedByUserId: 'op-1', approvedAt: new Date() }),
         appointmentCode: 'INS-2026-0001',
@@ -227,13 +228,13 @@ describe('idempotency replay (real InMemoryIdempotencyService)', () => {
     const first = await sut.execute(input);
     const second = await sut.execute({ ...input });
 
-    expect(financialEntryRepo.transitionStatus).toHaveBeenCalledOnce();
+    expect(financialEntryRepo.approvePendingEntry).toHaveBeenCalledOnce();
     expect(second).toEqual(first);
 
     await expect(
       sut.execute({ entryId: 'entry-1', idempotencyKey: 'dedup-key-4', actor: { ...opActor, userId: 'op-2' } }),
     ).rejects.toThrow(BillingIdempotencyPayloadMismatchError);
-    expect(financialEntryRepo.transitionStatus).toHaveBeenCalledOnce();
+    expect(financialEntryRepo.approvePendingEntry).toHaveBeenCalledOnce();
   });
 
   it('MarkInvoicePaidUseCase: dedups on replay, conflicts on payload mismatch', async () => {

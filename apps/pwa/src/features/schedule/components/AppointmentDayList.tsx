@@ -1,3 +1,4 @@
+import { CalendarDays } from 'lucide-react';
 import { AppointmentCard } from './AppointmentCard';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import type { InspectorAppointment } from '../types';
@@ -14,7 +15,7 @@ export function AppointmentDayList({ appointments, today }: AppointmentDayListPr
       <EmptyState
         title="No appointments"
         description="You have no inspections scheduled for this day"
-        icon="mdi-calendar-blank"
+        icon={CalendarDays}
       />
     );
   }

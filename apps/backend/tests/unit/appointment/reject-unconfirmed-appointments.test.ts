@@ -161,6 +161,8 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
         rejectionReasonCode: 'TENANT_NO_RESPONSE',
         rentalTenantConfirmationStatus: 'NO_RESPONSE',
         serviceGroupId: null,
+        // Rejected means no inspector — same invariant as the manual reject path.
+        inspectorId: null,
       },
       undefined,
     );

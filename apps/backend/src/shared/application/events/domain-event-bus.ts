@@ -62,6 +62,13 @@ export const SERVICE_GROUP_EVENTS = {
   INSPECTOR_CHANGED: 'service_group.inspector_changed.v1',
   /** The group's date and/or time window moved; members were cascaded to match. */
   SCHEDULE_CHANGED: 'service_group.schedule_changed.v1',
+  /**
+   * New appointments were added to an already-ACCEPTED group and scheduled under its
+   * committed inspector. Carries `inspectorId` and `addedCount` so the inspector can
+   * be told their schedule grew. Distinct from ACCEPTED/MANUALLY_ASSIGNED, which
+   * re-notify the whole group; this one concerns only the newly added members.
+   */
+  MEMBERS_ADDED: 'service_group.members_added.v1',
 } as const;
 
 export const TENANT_PORTAL_EVENTS = {

@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import { MapPin, Play } from 'lucide-react';
+import { cn } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { GeoLocationCapture } from './GeoLocationCapture';
 import { useGeolocation } from '../hooks/useGeolocation';
 import type { CapturedLocation } from '../types';
@@ -25,10 +28,13 @@ export function PreStartPanel({ propertyAddress, propertyLatitude, propertyLongi
 
   return (
     <div className="flex flex-col gap-4 px-page-x py-4" data-testid="pre-start-panel">
-      <div className="rounded-lg bg-card-bg p-4">
-        <h3 className="text-xs font-bold uppercase text-text-secondary">Property</h3>
-        <p className="mt-1 text-sm text-text-primary">{propertyAddress}</p>
-      </div>
+      <Card className="flex items-start gap-3 p-4">
+        <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+        <div className="flex flex-col gap-1">
+          <h3 className="text-xs font-bold uppercase text-muted-foreground">Property</h3>
+          <p className="text-sm text-foreground">{propertyAddress}</p>
+        </div>
+      </Card>
 
       <GeoLocationCapture
         status={status}
@@ -39,7 +45,7 @@ export function PreStartPanel({ propertyAddress, propertyLatitude, propertyLongi
         propertyLongitude={propertyLongitude}
       />
 
-      <label className="flex items-center gap-3 rounded-lg bg-card-bg p-4" data-testid="address-confirm-label">
+      <label className="flex items-center gap-3 rounded-card border border-border bg-card p-4" data-testid="address-confirm-label">
         <input
           type="checkbox"
           checked={addressConfirmed}
@@ -47,12 +53,20 @@ export function PreStartPanel({ propertyAddress, propertyLatitude, propertyLongi
           className="h-5 w-5 accent-primary"
           data-testid="address-confirm-checkbox"
         />
-        <span className="text-sm text-text-primary">I confirm I am at this address</span>
+        <span className="text-sm text-foreground">I confirm I am at this address</span>
       </label>
+
+      <p className="text-xs text-muted-foreground">
+        We capture your location to confirm you&apos;re on site. This starts the inspection — no
+        checklist or photos are required.
+      </p>
 
       {!location && (
         <p
-          className={`text-xs font-medium ${awaitingLocation ? 'text-text-secondary' : 'text-error'}`}
+          className={cn(
+            'text-xs font-medium',
+            awaitingLocation ? 'text-muted-foreground' : 'text-destructive',
+          )}
           data-testid="location-required-note"
         >
           {awaitingLocation
@@ -62,15 +76,15 @@ export function PreStartPanel({ propertyAddress, propertyLatitude, propertyLongi
       )}
 
       <Button
-        variant="primary"
+        variant="success"
+        block
         disabled={!location || isStarting || !addressConfirmed}
         loading={isStarting}
         onClick={() => location && onStart(location)}
-        className="!w-full !min-h-[48px]"
         data-testid="start-button"
       >
-        <i className="mdi mdi-play-circle-outline text-lg" aria-hidden="true" />
-        Start Inspection
+        <Play className="h-5 w-5" aria-hidden="true" />
+        Start inspection
       </Button>
     </div>
   );

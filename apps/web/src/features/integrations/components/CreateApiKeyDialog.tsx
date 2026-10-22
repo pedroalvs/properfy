@@ -80,20 +80,26 @@ export function CreateApiKeyDialog({ open, onClose }: CreateApiKeyDialogProps) {
         }
       >
         <div className="space-y-3">
-          <label className="block text-sm">
+          <label htmlFor="create-api-key-name" className="block text-sm">
             <span className="mb-1 block text-xs font-medium text-text-secondary">Name</span>
             <TextInput
+              id="create-api-key-name"
               value={name}
               onChange={setName}
               placeholder="e.g. Fy production"
               aria-label="API key name"
             />
           </label>
-          <label className="block text-sm">
+          <label htmlFor="create-api-key-expiry" className="block text-sm">
             <span className="mb-1 block text-xs font-medium text-text-secondary">
               Expiry date (optional)
             </span>
-            <DateInput value={expiresAt} onChange={setExpiresAt} aria-label="API key expiry date" />
+            <DateInput
+              id="create-api-key-expiry"
+              value={expiresAt}
+              onChange={setExpiresAt}
+              aria-label="API key expiry date"
+            />
           </label>
         </div>
       </Dialog>

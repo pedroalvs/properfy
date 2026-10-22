@@ -19,7 +19,7 @@ export function useSessionList(): UseSessionListReturn {
   const isNotFound = isError && (error as ApiError)?.status === 404;
 
   return {
-    sessions: (response as any)?.data ?? [],
+    sessions: response?.data ?? [],
     isLoading,
     isError: isError && !isNotFound,
     isNotFound,

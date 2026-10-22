@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { ApiError } from '@/lib/api-error';
+import { toApiError } from '@/lib/api-error';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 export interface UseAppointmentCrossCheckReturn {
@@ -17,14 +17,11 @@ export function useAppointmentCrossCheck(
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await api.POST(
-        `/v1/appointments/${appointmentId}/cross-check-done` as any,
-        { body: {} as any },
+      const { data, error, response } = await api.POST(
+        '/v1/appointments/{appointmentId}/cross-check-done',
+        { params: { path: { appointmentId: appointmentId! } }, body: {} },
       );
-      if (error) {
-        const apiError = error as { status?: number; message?: string };
-        throw new ApiError(apiError.status ?? 500, apiError.message ?? 'Cross-check failed');
-      }
+      if (error) throw toApiError(error, (response as Response | undefined)?.status);
       return data;
     },
     onSuccess: () => {

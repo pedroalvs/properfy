@@ -170,9 +170,9 @@ export async function registerRentalTenantPortalRoutes(
         null;
       const userAgent = request.headers['user-agent'] ?? null;
 
-      // Note: `ctx.isUsed` is deliberately NOT forwarded. It is set by confirm and
-      // join-group, so gating the survey on it would lock out every tenant who
-      // confirmed attendance.
+      // Note: `ctx.isUsed` is deliberately NOT forwarded. It is set by join-group
+      // (confirm and decline hand the claim back on success), so gating the survey
+      // on it would lock out every tenant who rescheduled via the portal.
       const result = await container.submitSatisfactionSurveyUseCase.execute({
         tokenId: ctx.tokenId,
         appointmentId: ctx.appointmentId,

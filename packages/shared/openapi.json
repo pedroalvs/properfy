@@ -16074,6 +16074,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "assignedInspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "serviceRegionId": {
                           "type": "string",
                           "format": "uuid",
@@ -16401,6 +16405,10 @@
                             "format": "uuid",
                             "nullable": true
                           },
+                          "assignedInspectorName": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "serviceRegionId": {
                             "type": "string",
                             "format": "uuid",
@@ -16613,6 +16621,10 @@
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
+                          "nullable": true
+                        },
+                        "assignedInspectorName": {
+                          "type": "string",
                           "nullable": true
                         },
                         "serviceRegionId": {
@@ -16830,6 +16842,10 @@
                           "format": "uuid",
                           "nullable": true
                         },
+                        "assignedInspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "serviceRegionId": {
                           "type": "string",
                           "format": "uuid",
@@ -17016,6 +17032,10 @@
                         "assignedInspectorId": {
                           "type": "string",
                           "format": "uuid",
+                          "nullable": true
+                        },
+                        "assignedInspectorName": {
+                          "type": "string",
                           "nullable": true
                         },
                         "serviceRegionId": {
@@ -18324,6 +18344,10 @@
                             "type": "number",
                             "nullable": true
                           },
+                          "payoutFrom": {
+                            "type": "number",
+                            "nullable": true
+                          },
                           "appointmentCount": {
                             "type": "number"
                           },
@@ -18484,6 +18508,10 @@
                           }
                         },
                         "payoutEstimate": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "payoutFrom": {
                           "type": "number",
                           "nullable": true
                         },
@@ -21875,6 +21903,10 @@
                             "type": "number",
                             "nullable": true
                           },
+                          "payoutFrom": {
+                            "type": "number",
+                            "nullable": true
+                          },
                           "appointmentCount": {
                             "type": "number"
                           },
@@ -22662,6 +22694,211 @@
             "in": "path",
             "name": "entryId",
             "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "tenantId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "appointmentId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "inspectorId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "entryType": {
+                          "type": "string"
+                        },
+                        "amount": {
+                          "type": "number"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "effectiveAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "initiatedByUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "approvedByUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "approvedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "referenceEntryId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "reason": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "updatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "appointmentCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "relatedEntityName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "approvedByName": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "tenantId",
+                        "appointmentId",
+                        "inspectorId",
+                        "entryType",
+                        "amount",
+                        "currency",
+                        "status",
+                        "description",
+                        "effectiveAt",
+                        "initiatedByUserId",
+                        "approvedByUserId",
+                        "approvedAt",
+                        "referenceEntryId",
+                        "reason",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "number",
+                    "exclusiveMinimum": true,
+                    "minimum": 0
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "effectiveAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "entryId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
           }
         ],
         "responses": {
@@ -24398,6 +24635,16 @@
             "in": "path",
             "name": "invoiceId",
             "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
           }
         ],
         "responses": {
@@ -24439,6 +24686,16 @@
             "in": "path",
             "name": "invoiceId",
             "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false
           }
         ],
         "responses": {

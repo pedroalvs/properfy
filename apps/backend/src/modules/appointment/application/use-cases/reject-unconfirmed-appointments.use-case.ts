@@ -77,6 +77,11 @@ export class RejectUnconfirmedAppointmentsUseCase {
             rejectionReasonCode: 'TENANT_NO_RESPONSE',
             rentalTenantConfirmationStatus: 'NO_RESPONSE',
             serviceGroupId: null,
+            // Match the manual reject invariant: a rejected appointment keeps no
+            // inspector. Usually a no-op here (unconfirmed routine appointments
+            // selected by the sweep sit in AWAITING_INSPECTOR with none), but it
+            // keeps "rejected => no inspector" airtight across every reject path.
+            inspectorId: null,
           }, tx);
           if (this.cycleService) {
             await this.cycleService.invalidateOnReject(appointment.id, appointment.tenantId, tx);

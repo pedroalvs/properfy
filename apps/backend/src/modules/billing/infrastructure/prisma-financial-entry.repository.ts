@@ -304,6 +304,60 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
     });
   }
 
+  async updateManualAdjustmentFields(
+    id: string,
+    tenantId: string,
+    editorUserId: string,
+    fields: { amount?: number; description?: string; effectiveAt?: Date; reason?: string },
+  ): Promise<number> {
+    // The editor becomes the recorded author of the economic content so the
+    // self-approval guard blocks them from also approving it (maker≠checker).
+    const data: Record<string, unknown> = { initiated_by_user_id: editorUserId };
+    if (fields.amount !== undefined) data.amount = fields.amount;
+    if (fields.description !== undefined) data.description = fields.description;
+    if (fields.effectiveAt !== undefined) data.effective_at = fields.effectiveAt;
+    if (fields.reason !== undefined) data.reason = fields.reason;
+
+    // Status + type guard in the WHERE: a concurrent approve/void that flipped the
+    // row out of (PENDING, MANUAL_ADJUSTMENT) makes this match zero rows, so the
+    // edit is dropped atomically rather than overwriting a frozen ledger entry.
+    const updated = await this.prisma.financialEntry.updateMany({
+      where: { id, tenant_id: tenantId, status: 'PENDING', entry_type: 'MANUAL_ADJUSTMENT' },
+      data,
+    });
+    return updated.count;
+  }
+
+  async approvePendingEntry(
+    id: string,
+    tenantId: string,
+    approverUserId: string,
+    approvedAt: Date,
+  ): Promise<number> {
+    // The maker≠checker predicate lives in the WHERE so the self-approval check is
+    // atomic with the commit. A concurrent edit that re-bound initiated_by_user_id
+    // to the approver (keeping status=PENDING) makes this match zero rows instead
+    // of approving the approver's own content.
+    //
+    // The OR(null) branch is load-bearing: `NULL <> approver` is NULL (not TRUE) in
+    // SQL, so `{ not: approverUserId }` alone would silently exclude system-minted
+    // (null-initiator) entries, which are always approvable.
+    const updated = await this.prisma.financialEntry.updateMany({
+      where: {
+        id,
+        tenant_id: tenantId,
+        status: 'PENDING',
+        OR: [{ initiated_by_user_id: null }, { initiated_by_user_id: { not: approverUserId } }],
+      },
+      data: {
+        status: 'APPROVED',
+        approved_by_user_id: approverUserId,
+        approved_at: approvedAt,
+      },
+    });
+    return updated.count;
+  }
+
   async transitionStatus(
     id: string,
     tenantId: string,

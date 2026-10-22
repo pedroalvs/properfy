@@ -40,6 +40,11 @@ describe('useLocalExecutionState', () => {
 
     await waitFor(() => expect(mockSave).toHaveBeenCalled());
     expect(mockSave).toHaveBeenCalledTimes(1);
+    // This hook owns the save-time stamp now that useAutoSave is gone (PWA-13).
+    expect(mockSave).toHaveBeenCalledWith(
+      'apt-1',
+      expect.objectContaining({ phase: 'IN_PROGRESS', lastSavedAt: expect.any(String) }),
+    );
   });
 
   // Regression: the persist effect must not resurrect the row clearState just

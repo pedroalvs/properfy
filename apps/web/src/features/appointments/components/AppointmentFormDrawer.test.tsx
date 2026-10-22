@@ -506,13 +506,12 @@ describe('AppointmentFormDrawer', () => {
   });
 
   it('shows inspector assignment section for awaiting inspector appointments', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
-      if (path === '/v1/inspectors') {
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/inspectors') {
         return { options: [{ value: 'insp-01', label: 'Inspector One' }], isLoading: false };
       }
       return { options: [], isLoading: false };
-    }) as any);
+    });
 
     renderDrawer({ appointmentId: 'apt-01' });
 
@@ -600,13 +599,12 @@ describe('AppointmentFormDrawer', () => {
   });
 
   it('assigns inspector from the edit drawer via appointment transition', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
-      if (path === '/v1/inspectors') {
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/inspectors') {
         return { options: [{ value: 'insp-01', label: 'Inspector One' }], isLoading: false };
       }
       return { options: [], isLoading: false };
-    }) as any);
+    });
 
     renderDrawer({ appointmentId: 'apt-01' });
 
@@ -621,8 +619,9 @@ describe('AppointmentFormDrawer', () => {
 
     expect(mockSave).not.toHaveBeenCalled();
     expect(mockPost).toHaveBeenCalledWith(
-      '/v1/appointments/apt-01/status-transitions',
+      '/v1/appointments/{appointmentId}/status-transitions',
       {
+        params: { path: { appointmentId: 'apt-01' } },
         body: {
           targetStatus: 'SCHEDULED',
           inspectorId: 'insp-01',
@@ -633,12 +632,11 @@ describe('AppointmentFormDrawer', () => {
   });
 
   it('opens the inline property drawer pre-filled with agency and locked branch (create mode)', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
-      if (path === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
-      if (path === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
+      if (args[1] === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
       return { options: [], isLoading: false };
-    }) as any);
+    });
 
     renderDrawer();
 
@@ -656,13 +654,12 @@ describe('AppointmentFormDrawer', () => {
   });
 
   it('auto-selects the created property and closes only the nested drawer on create success', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
-      if (path === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
-      if (path === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
-      if (path === '/v1/properties') return { options: [{ value: 'prop-new', label: 'AG-PROP-0009 - New St' }], isLoading: false };
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
+      if (args[1] === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
+      if (args[1] === '/v1/properties') return { options: [{ value: 'prop-new', label: 'AG-PROP-0009 - New St' }], isLoading: false };
       return { options: [], isLoading: false };
-    }) as any);
+    });
 
     renderDrawer();
 
@@ -683,12 +680,11 @@ describe('AppointmentFormDrawer', () => {
   });
 
   it('Escape closes only the nested property drawer, not the appointment drawer', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
-      if (path === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
-      if (path === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
+      if (args[1] === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
       return { options: [], isLoading: false };
-    }) as any);
+    });
     const onClose = vi.fn();
 
     renderDrawer({ onClose });
@@ -712,12 +708,11 @@ describe('AppointmentFormDrawer', () => {
   });
 
   it('backdrop-style close dismisses only the nested property drawer', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
-      if (path === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
-      if (path === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/tenants') return { options: [{ value: 'tenant-1', label: 'Agency One' }], isLoading: false };
+      if (args[1] === '/v1/branches') return { options: [{ value: 'branch-9', label: 'Branch Nine' }], isLoading: false };
       return { options: [], isLoading: false };
-    }) as any);
+    });
     const onClose = vi.fn();
 
     renderDrawer({ onClose });
@@ -754,13 +749,12 @@ describe('AppointmentFormDrawer', () => {
     });
 
     // Provide tenant options so the agency dropdown has something to pick.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockUseFormOptions.mockImplementation(((_key: any, path: any) => {
-      if (path === '/v1/tenants') {
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/tenants') {
         return { options: [{ value: 't-agency-99', label: 'Agency Beta' }], isLoading: false };
       }
       return { options: [], isLoading: false };
-    }) as any);
+    });
 
     renderDrawer();
 
@@ -852,8 +846,8 @@ describe('AppointmentFormDrawer', () => {
 
       await waitFor(() => {
         expect(mockPost).toHaveBeenCalledWith(
-          '/v1/appointments/apt-done/cross-check-done',
-          { body: {} },
+          '/v1/appointments/{appointmentId}/cross-check-done',
+          { params: { path: { appointmentId: 'apt-done' } }, body: {} },
         );
       });
 

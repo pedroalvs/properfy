@@ -1,0 +1,174 @@
+/*
+ * Load reveal for the signed-out auth hero ("The Round"), ported from apps/web's
+ * styles/auth-pane.css. One orchestrated sequence when the screen opens (~1.4s), then
+ * nothing — inspectors hit this screen every morning, so ambient motion would wear out.
+ *
+ * Kept as plain CSS (not tailwind.config.ts) because that config must stay byte-identical
+ * to apps/web's (tailwind-config-parity). The hero gradient is NOT animated — fading the
+ * background in produces a flash on first paint.
+ */
+
+@keyframes auth-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes auth-draw-in {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes auth-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes auth-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/*
+ * The hero is a bespoke "splash" surface: a deliberate teal band that sits outside the app's
+ * (now blue) shadcn tokens, so the gradient is literal here. Kept in CSS rather than a
+ * `bg-[linear-gradient(...)]` utility because a hex inside a className is banned by check:ds.
+ * The solid background-color is a fallback for engines without color-mix/gradient support.
+ */
+.auth-hero-gradient {
+  background-color: #21566e;
+  background-image: linear-gradient(160deg, #2b6075, #143b50);
+}
+
+/* Suburb labels clutter the short mobile hero band; they only earn their place in the
+   tall split-pane at lg, where there is room beside the route. */
+.auth-route-labels {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .auth-route-labels {
+    display: inline;
+  }
+}
+
+/*
+ * `both` on every layer: `backwards` holds the from-state through the delay (otherwise
+ * each layer flashes at full opacity before its turn) and `forwards` holds the end state.
+ */
+.auth-reveal .auth-reveal-structure,
+.auth-reveal .auth-reveal-context,
+.auth-reveal .auth-reveal-stops > *,
+.auth-reveal .auth-reveal-labels > *,
+.auth-reveal .auth-reveal-lockup {
+  animation-duration: 400ms;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+.auth-reveal .auth-reveal-lockup {
+  animation-name: auth-rise-in;
+  animation-duration: 500ms;
+  animation-delay: 140ms;
+}
+
+.auth-reveal .auth-reveal-structure {
+  animation-name: auth-fade-in;
+  animation-delay: 120ms;
+}
+
+.auth-reveal .auth-reveal-context {
+  animation-name: auth-fade-in;
+  animation-delay: 260ms;
+}
+
+.auth-reveal .auth-reveal-route {
+  stroke-dasharray: 1;
+  animation: auth-draw-in 950ms ease-out 360ms both;
+}
+
+/*
+ * Pins scale around themselves, not the SVG origin. Without `fill-box` the transform
+ * origin is the viewBox corner and the pins fly in from off-canvas.
+ */
+.auth-reveal .auth-reveal-stops > * {
+  animation-name: auth-pop-in;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.auth-reveal .auth-reveal-labels > * {
+  animation-name: auth-fade-in;
+}
+
+/* The round is walked in order, so it arrives in order. */
+.auth-reveal .auth-reveal-stops > *:nth-child(1) {
+  animation-delay: 920ms;
+}
+.auth-reveal .auth-reveal-stops > *:nth-child(2) {
+  animation-delay: 1010ms;
+}
+.auth-reveal .auth-reveal-stops > *:nth-child(3) {
+  animation-delay: 1100ms;
+}
+.auth-reveal .auth-reveal-stops > *:nth-child(4) {
+  animation-delay: 1190ms;
+}
+.auth-reveal .auth-reveal-stops > *:nth-child(5) {
+  animation-delay: 1280ms;
+}
+
+.auth-reveal .auth-reveal-labels > *:nth-child(1) {
+  animation-delay: 1020ms;
+}
+.auth-reveal .auth-reveal-labels > *:nth-child(2) {
+  animation-delay: 1110ms;
+}
+.auth-reveal .auth-reveal-labels > *:nth-child(3) {
+  animation-delay: 1200ms;
+}
+.auth-reveal .auth-reveal-labels > *:nth-child(4) {
+  animation-delay: 1290ms;
+}
+.auth-reveal .auth-reveal-labels > *:nth-child(5) {
+  animation-delay: 1380ms;
+}
+
+/*
+ * The route's resting state is `stroke-dashoffset: 1` — fully retracted, invisible.
+ * Cancelling the animation alone would hide the artwork for anyone who asked for less
+ * motion, so the end state is restated here, not just the animation cancelled. Same
+ * reason `opacity` and `transform` are pinned.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .auth-reveal .auth-reveal-structure,
+  .auth-reveal .auth-reveal-context,
+  .auth-reveal .auth-reveal-route,
+  .auth-reveal .auth-reveal-stops > *,
+  .auth-reveal .auth-reveal-labels > *,
+  .auth-reveal .auth-reveal-lockup {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+}

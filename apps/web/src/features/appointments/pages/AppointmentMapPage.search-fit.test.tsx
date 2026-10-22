@@ -127,7 +127,7 @@ function renderPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <SnackbarProvider>
-        <MemoryRouter initialEntries={['/map']}>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={['/map']}>
           <AppointmentMapPage />
         </MemoryRouter>
       </SnackbarProvider>

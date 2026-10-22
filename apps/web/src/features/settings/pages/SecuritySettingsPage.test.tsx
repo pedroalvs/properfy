@@ -6,7 +6,7 @@ import { SecuritySettingsPage } from './SecuritySettingsPage';
 describe('SecuritySettingsPage', () => {
   it('redirects to the account page Security tab', () => {
     render(
-      <MemoryRouter initialEntries={['/settings/security']}>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={['/settings/security']}>
         <Routes>
           <Route path="/settings/security" element={<SecuritySettingsPage />} />
           <Route path="/settings/account" element={<div>Account Settings Page</div>} />

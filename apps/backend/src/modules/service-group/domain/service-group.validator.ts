@@ -38,7 +38,11 @@ export type AddToGroupReason =
   | 'ALREADY_GROUPED'
   | 'INVALID_SERVICE_TYPE'
   | 'GROUP_IN_TERMINAL_STATE'
-  | 'GROUP_CAPACITY_EXCEEDED';
+  | 'GROUP_CAPACITY_EXCEEDED'
+  // Only reachable on the ACCEPTED path: the group's committed inspector is not
+  // eligible (agency/region/service type) for the appointment being added, so
+  // scheduling it under them would assign work they cannot serve.
+  | 'INSPECTOR_INELIGIBLE';
 
 export type AddToGroupValidation =
   | { ok: true }
@@ -55,14 +59,26 @@ export interface GroupForValidation {
 export type AppointmentForAddValidation = AppointmentForValidation;
 
 /**
- * Group statuses that still accept new members. ACCEPTED locks the
- * group (inspector committed); CANCELLED/REJECTED are terminal.
+ * Group statuses that still accept new members. ACCEPTED is included:
+ * an inspector has committed, but members may still be added — the add
+ * flow schedules the new appointment under that inspector (see
+ * `add-appointments-to-group.use-case.ts`). CANCELLED/REJECTED are terminal.
+ *
+ * Exported so the repository's conditional link uses the same set rather
+ * than restating it in SQL.
  */
+export const ADDABLE_GROUP_STATUSES = new Set<ServiceGroupStatus>(['DRAFT', 'PUBLISHED', 'ACCEPTED']);
+
 /**
- * Statuses a group can still accept members in. Exported so the repository's
- * conditional link uses the same set rather than restating it in SQL.
+ * Statuses into which an appointment may be *plain-linked* (set `service_group_id`
+ * without scheduling) — the non-committed marketplace path. ACCEPTED is excluded on
+ * purpose: a committed group must take new members through the atomic
+ * link-and-schedule commit (`commitAppointmentToAcceptedGroup`), never a bare link,
+ * or a concurrent accept mid-batch could leave an appointment linked to an ACCEPTED
+ * group but still AWAITING_INSPECTOR and unscheduled. The `linkAppointments` SQL
+ * guard uses this set so that race resolves to 0 rows instead of a stranded member.
  */
-export const ADDABLE_GROUP_STATUSES = new Set<ServiceGroupStatus>(['DRAFT', 'PUBLISHED']);
+export const LINKABLE_GROUP_STATUSES = new Set<ServiceGroupStatus>(['DRAFT', 'PUBLISHED']);
 
 /**
  * A group that will never run again. Membership of a terminal group is dead

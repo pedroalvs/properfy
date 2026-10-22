@@ -1,15 +1,31 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useMatches } from 'react-router-dom';
+import { cn } from '@properfy/frontend-standards';
 import { BottomNavBar } from './BottomNavBar';
 import { OfflineBanner } from '@/components/feedback/OfflineBanner';
 
+/** A route opts into the wide (2-column) shell by exporting `handle: { wide: true }`. */
+interface WideHandle {
+  wide?: boolean;
+}
+
 export function PwaLayout() {
+  // Screens that present a 2-column master-detail (Schedule, Profile, Marketplace) mark their
+  // route `handle: { wide: true }` so the shell lifts the 640px single-column cap on tablet.
+  // Every other screen keeps the validated phone-width column, centered. `md:` gates the wider
+  // cap, so on phone (<768px) the cap is 640 either way and nothing changes.
+  const matches = useMatches();
+  const isWide = matches.some((match) => (match.handle as WideHandle | undefined)?.wide === true);
+
   return (
-    <div
-      className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(30,64,175,0.08),_transparent_38%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)]"
-      data-testid="pwa-layout"
-    >
+    <div className="flex min-h-[100dvh] flex-col bg-background" data-testid="pwa-layout">
       <OfflineBanner />
-      <main className="mx-auto flex w-full max-w-screen-sm flex-1 pb-nav-clear">
+      <main
+        className={cn(
+          'mx-auto flex w-full flex-1 pb-nav-clear',
+          isWide ? 'max-w-screen-sm md:max-w-screen-lg' : 'max-w-screen-sm',
+        )}
+        data-wide={isWide ? 'true' : undefined}
+      >
         <Outlet />
       </main>
       <BottomNavBar />

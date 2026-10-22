@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, type ReactNode } from 'react';
+import { ArrowDown, Loader2 } from 'lucide-react';
 
 interface PullToRefreshProps {
   onRefresh: () => void | Promise<unknown>;
@@ -64,9 +65,11 @@ export function PullToRefresh({ onRefresh, children }: PullToRefreshProps) {
           style={{ height: pullDistance }}
           data-testid="pull-indicator"
         >
-          <i
-            className={`mdi ${refreshing ? 'mdi-loading mdi-spin' : 'mdi-arrow-down'} text-xl text-primary`}
-          />
+          {refreshing ? (
+            <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
+          ) : (
+            <ArrowDown className="h-5 w-5 text-primary" aria-hidden="true" />
+          )}
         </div>
       )}
       {children}

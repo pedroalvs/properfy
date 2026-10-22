@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { CancellationReasonCode, RejectionReasonCode, formatReasonCodeLabel } from '@properfy/shared';
+import { cn } from '@properfy/frontend-standards';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
@@ -115,9 +116,11 @@ export function StatusTransitionDialog({
             Cancel
           </Button>
           <button
-            className={`inline-flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-150 select-none ${confirmButtonClass} ${
-              !isValid || loading ? 'pointer-events-none opacity-40' : 'cursor-pointer'
-            }`}
+            className={cn(
+              'inline-flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-150 select-none',
+              confirmButtonClass,
+              !isValid || loading ? 'pointer-events-none opacity-40' : 'cursor-pointer',
+            )}
             disabled={!isValid || loading}
             onClick={handleConfirm}
           >

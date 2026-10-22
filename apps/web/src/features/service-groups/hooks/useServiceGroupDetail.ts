@@ -6,10 +6,9 @@ import type { ServiceGroupDetail } from '../types';
 /**
  * API-side detail payload, derived from the generated contract so a backend
  * rename of a mapped field breaks the build instead of silently yielding
- * `undefined`. Two areas are narrowed on top of the contract because the
- * OpenAPI registration under-specifies them (`appointments`/`assignedInspector`
- * typed as `unknown`, `assignedInspectorName` omitted) — a known gap, see
- * `audit-specs/service-groups.md` risk #8; fixing it is backend scope.
+ * `undefined`. `appointments` is still narrowed on top of the contract because
+ * the OpenAPI registration types it as `unknown` (a known gap, see
+ * `audit-specs/service-groups.md` risk #8; fixing it is backend scope).
  */
 type ServiceGroupDetailResponse =
   paths['/v1/service-groups/{groupId}']['get']['responses'][200]['content']['application/json']['data'];
@@ -27,7 +26,6 @@ interface RawGroupAppointment {
 }
 
 type RawServiceGroupDetail = Omit<ServiceGroupDetailResponse, 'appointments'> & {
-  assignedInspectorName?: string | null;
   appointments?: RawGroupAppointment[];
 };
 

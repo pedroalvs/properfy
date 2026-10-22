@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { RefreshCw } from 'lucide-react';
 import { ConfirmationSheet } from '../ConfirmationSheet';
 
 describe('ConfirmationSheet', () => {
@@ -7,7 +8,7 @@ describe('ConfirmationSheet', () => {
   const onCancel = vi.fn();
 
   const baseProps = {
-    icon: 'mdi-sync',
+    icon: RefreshCw,
     iconClassName: 'text-primary',
     title: 'Confirm this?',
     confirmLabel: 'Yes',

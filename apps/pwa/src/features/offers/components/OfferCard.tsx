@@ -1,5 +1,9 @@
 import { memo, useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp, Clock, ClockAlert, Home, MapPin } from 'lucide-react';
+import { cn, TIMING } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
+import { Badge, type BadgeProps } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
 import {
   PROPERTY_TYPE_LABELS,
   addCivilDays,
@@ -20,6 +24,14 @@ interface OfferCardProps {
   state: OfferAcceptState;
   onAccept: () => void;
   onViewDetail?: () => void;
+  /** Hide the inline "Accept offer" CTA (accordion header: accept lives in the expanded panel). */
+  showAccept?: boolean;
+  /** Ring highlight when this offer is the selected/expanded one (extended layout). */
+  selected?: boolean;
+  /** Flips the detail toggle to "Hide details" + up-chevron and sets aria-expanded (accordion). */
+  expanded?: boolean;
+  /** Id of the disclosure panel this card's toggle controls (accordion a11y). */
+  panelId?: string;
 }
 
 /**
@@ -60,13 +72,22 @@ function usePriorityCountdown(expiresAt: string | null): { label: string; isUrge
   return { label, isUrgent };
 }
 
-const stateLabels: Partial<Record<OfferAcceptState, { label: string; className: string }>> = {
-  ACCEPTED: { label: 'Accepted', className: 'bg-success/10 text-success' },
-  CONFLICT: { label: 'Already taken', className: 'bg-warning/10 text-warning' },
-  GONE: { label: 'No longer available', className: 'bg-text-muted/10 text-text-muted' },
+const stateLabels: Partial<Record<OfferAcceptState, { label: string; tone: BadgeProps['tone'] }>> = {
+  ACCEPTED: { label: 'Accepted', tone: 'green' },
+  CONFLICT: { label: 'Already taken', tone: 'amber' },
+  GONE: { label: 'No longer available', tone: 'gray' },
 };
 
-export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onViewDetail }: OfferCardProps) {
+export const OfferCard = memo(function OfferCard({
+  offer,
+  state,
+  onAccept,
+  onViewDetail,
+  showAccept = true,
+  selected = false,
+  expanded = false,
+  panelId,
+}: OfferCardProps) {
   const timeZone = useEffectiveTimezone();
   const dayLabel = relativeDayLabel(offer.scheduledDate, timeZone);
   const resolved = stateLabels[state];
@@ -77,7 +98,7 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
 
   useEffect(() => {
     if (state === 'ACCEPTED') {
-      const timer = setTimeout(() => setFaded(true), 3000);
+      const timer = setTimeout(() => setFaded(true), TIMING.toastDismiss);
       return () => clearTimeout(timer);
     }
     setFaded(false);
@@ -95,26 +116,31 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
   );
 
   return (
-    <div
-      className={`overflow-hidden rounded-[20px] border border-black/[0.06] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.07)] transition-opacity duration-500 ${faded ? 'opacity-40' : ''}`}
+    <Card
+      className={cn(
+        'overflow-hidden p-0 transition-opacity duration-500',
+        selected && 'ring-2 ring-primary/40',
+        faded && 'opacity-40',
+      )}
       data-testid={`offer-card-${offer.groupId}`}
     >
       {/* Header strip: date + time */}
-      <div className="flex items-center gap-2 bg-gray-50 px-4 py-2.5 border-b border-black/[0.05]">
+      <div className="flex items-center gap-2 border-b border-border bg-muted px-4 py-2.5">
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           {dayLabel && (
-            <span
-              className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white ${dayLabel === 'TODAY' ? 'bg-warning' : 'bg-primary'}`}
+            <Badge
+              tone={dayLabel === 'TODAY' ? 'amber' : 'blue'}
+              className="shrink-0 h-auto px-1.5 py-0.5 text-[10px] uppercase tracking-wide"
               data-testid="day-badge"
             >
               {dayLabel}
-            </span>
+            </Badge>
           )}
-          <span className="text-xs font-semibold text-text-secondary truncate">
+          <span className="text-xs font-semibold text-muted-foreground truncate">
             {formatCivilDate(offer.scheduledDate)}
           </span>
         </div>
-        <span className="shrink-0 text-xs font-bold text-text-primary">
+        <span className="shrink-0 text-xs font-bold text-foreground">
           {formatWallTimeWindow(offer.timeWindow)}
         </span>
       </div>
@@ -123,11 +149,11 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
         {/* Service + payout */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-[15px] font-bold text-text-primary leading-tight">
+            <p className="text-[15px] font-bold text-foreground leading-tight">
               {offer.serviceTypeName}
-              {offer.code ? <span className="ml-2 font-mono text-xs font-semibold text-text-muted">#{offer.code}</span> : null}
+              {offer.code ? <span className="ml-2 font-mono text-xs font-semibold text-muted-foreground">#{offer.code}</span> : null}
             </p>
-            <p className="mt-0.5 text-xs text-text-muted">{offer.tenantName}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{offer.tenantName}</p>
           </div>
           <div className="shrink-0 text-right">
             {offer.payoutEstimate != null ? (
@@ -135,10 +161,10 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
                 <p className="text-lg font-bold text-success leading-none" data-testid="payout-estimate">
                   {formatCurrency(offer.payoutEstimate)}
                 </p>
-                <p className="text-[10px] text-text-muted">est. payout</p>
+                <p className="text-[10px] text-muted-foreground">est. payout</p>
               </>
             ) : (
-              <span className="text-sm font-bold text-text-muted">—</span>
+              <span className="text-sm font-bold text-muted-foreground">—</span>
             )}
           </div>
         </div>
@@ -147,83 +173,99 @@ export const OfferCard = memo(function OfferCard({ offer, state, onAccept, onVie
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
             {propertyTypes.length > 0 ? (
-              propertyTypes.map((type) => (
-                <i
-                  key={type}
-                  className={`mdi ${PROPERTY_TYPE_ICONS[type]} text-[13px]`}
-                  data-testid="property-type-icon"
-                  role="img"
-                  aria-label={PROPERTY_TYPE_LABELS[type]}
-                />
-              ))
+              propertyTypes.map((type) => {
+                const Icon = PROPERTY_TYPE_ICONS[type];
+                return (
+                  <Icon
+                    key={type}
+                    size={13}
+                    data-testid="property-type-icon"
+                    role="img"
+                    aria-label={PROPERTY_TYPE_LABELS[type]}
+                  />
+                );
+              })
             ) : (
-              <i className="mdi mdi-home-outline text-[13px]" aria-hidden="true" />
+              <Home size={13} data-testid="property-type-icon-fallback" aria-hidden="true" />
             )}
             {offer.appointmentCount} {offer.appointmentCount === 1 ? 'inspection' : 'inspections'}
+            {offer.payoutFrom != null && (
+              <span data-testid="offer-from-price">{` · from ${formatCurrency(offer.payoutFrom)} each`}</span>
+            )}
           </span>
         </div>
 
         {/* Location: one full street address, plus how many more the group holds */}
         {address.primary && (
-          <div className="mt-2.5 text-sm text-text-secondary">
+          <div className="mt-2.5 text-sm text-muted-foreground">
             <p data-testid="offer-address">
-              <i className="mdi mdi-map-marker-outline mr-1 text-text-muted" aria-hidden="true" />
+              <MapPin size={14} className="mr-1 inline text-muted-foreground" aria-hidden="true" />
               {address.primary}
             </p>
             {address.remaining > 0 && (
-              <p className="mt-0.5 pl-5 text-xs text-text-muted" data-testid="offer-address-more">
+              <p className="mt-0.5 pl-5 text-xs text-muted-foreground" data-testid="offer-address-more">
                 +{address.remaining} more {address.remaining === 1 ? 'address' : 'addresses'}
               </p>
             )}
           </div>
         )}
 
-        {/* Details drill-down */}
-        {onViewDetail && (
-          <button
-            onClick={onViewDetail}
-            className="mt-1 inline-flex min-h-[44px] items-center py-2 pr-2 text-xs font-semibold text-primary underline-offset-2 hover:underline"
-            data-testid="view-detail-button"
-          >
-            View inspections
-          </button>
-        )}
-
         {/* Priority countdown */}
         {countdown && (
           <div
-            className={`mt-2 flex items-center gap-1 text-xs font-semibold ${countdown.isUrgent ? 'text-error' : 'text-warning'}`}
+            className={cn(
+              'mt-2 flex items-center gap-1 text-xs font-semibold',
+              countdown.isUrgent ? 'text-destructive' : 'text-warning',
+            )}
             data-testid="priority-countdown"
           >
-            <i className={`mdi ${countdown.isUrgent ? 'mdi-clock-alert-outline' : 'mdi-clock-outline'}`} />
+            {countdown.isUrgent ? (
+              <ClockAlert size={12} aria-hidden="true" />
+            ) : (
+              <Clock size={12} aria-hidden="true" />
+            )}
             Priority: {countdown.label}
           </div>
         )}
 
-        {/* Action */}
-        <div className="mt-4">
+        {/* Actions: outline "View details"/disclosure toggle + primary Accept, side by side per v3 p8 */}
+        <div className="mt-4 flex gap-2">
+          {onViewDetail && (
+            <Button
+              variant="outlined"
+              onClick={onViewDetail}
+              className="flex-1 gap-1"
+              data-testid="view-detail-button"
+              aria-expanded={panelId ? expanded : undefined}
+              aria-controls={panelId}
+            >
+              {expanded ? 'Hide details' : 'View details'}
+              {panelId && (expanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />)}
+            </Button>
+          )}
           {resolved ? (
-            <div
-              className={`rounded-xl px-3 py-2.5 text-center text-sm font-semibold ${resolved.className}`}
+            <Badge
+              tone={resolved.tone}
+              className="h-auto flex-1 justify-center py-2.5 text-sm"
               data-testid="offer-state-label"
               role="alert"
             >
               {resolved.label}
-            </div>
-          ) : (
+            </Badge>
+          ) : showAccept ? (
             <Button
               variant="primary"
               onClick={onAccept}
               loading={state === 'ACCEPTING'}
               disabled={state === 'ACCEPTING' || state === 'CONFIRMING'}
-              className="!w-full !min-h-touch !rounded-xl !bg-success !text-base !font-bold"
+              className="flex-1 text-base"
               data-testid="accept-button"
             >
               Accept offer
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
-    </div>
+    </Card>
   );
 });

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Tag } from 'lucide-react';
 import { OfferCard } from './OfferCard';
 import { AcceptOfferModal } from './AcceptOfferModal';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -24,7 +25,7 @@ export function OfferFeed({ offers, onRefresh, onViewDetail }: OfferFeedProps) {
       <EmptyState
         title="No offers available"
         description="Check back later for new inspection offers"
-        icon="mdi-tag-off-outline"
+        icon={Tag}
         action={{ label: 'Refresh', onClick: onRefresh }}
       />
     );
@@ -66,7 +67,10 @@ export function OfferFeed({ offers, onRefresh, onViewDetail }: OfferFeedProps) {
 
   return (
     <div data-testid="offer-feed">
-      <div className="flex flex-col gap-3 px-page-x py-4">
+      {/* Fluid card grid: the minmax template is driven by the actual container width, so it is a
+          single column on a phone (and inside a narrow master rail) and reflows to 2–3 columns as the
+          Offers pane widens on tablet — no viewport breakpoint needed. */}
+      <div className="grid gap-3 px-page-x py-4 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]" data-testid="offer-grid">
         {sorted.map((offer) => (
           <OfferCard
             key={offer.groupId}

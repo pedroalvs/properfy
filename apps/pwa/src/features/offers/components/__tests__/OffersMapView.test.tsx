@@ -14,6 +14,8 @@ const spies = vi.hoisted(() => ({
   /** When true, 'load' is only registered — the test decides when it fires. */
   deferLoad: false,
   setOffset: vi.fn(),
+  /** Captures what the route line source is fed (LineString feature or empty FC). */
+  setRouteData: vi.fn(),
   markers: [] as Array<{
     el: HTMLElement;
     coords: [number, number] | null;
@@ -47,6 +49,14 @@ vi.mock('mapbox-gl', () => {
     }
     addControl() {}
     remove() {}
+    // Route line source/layer plumbing (useOfferRoute). getSource returns a stub
+    // whose setData the route tests assert on; returning truthy also makes the
+    // hook skip addSource/addLayer, which is fine for the fake.
+    addSource() {}
+    addLayer() {}
+    getSource() {
+      return { setData: spies.setRouteData };
+    }
     project([lng, lat]: [number, number]) {
       const scale = projectScale();
       return { x: lng * scale, y: -lat * scale };
@@ -158,6 +168,7 @@ beforeEach(() => {
   for (const key of Object.keys(spies.handlers)) delete spies.handlers[key];
   spies.deferLoad = false;
   spies.setOffset.mockClear();
+  spies.setRouteData.mockClear();
   spies.markers.length = 0;
   spies.zoom = BASE_ZOOM;
   document.body.replaceChildren();
@@ -865,5 +876,53 @@ describe('OffersMapView — expanded group (drill-down)', () => {
     await waitForPins('map-pin', 1);
     expect(screen.queryAllByTestId('map-appointment-pin')).toHaveLength(0);
     expect(screen.queryByTestId('map-appointment-chip')).toBeNull();
+  });
+});
+
+describe('OffersMapView — route line', () => {
+  it('draws a route line through the expanded group appointment coordinates, in order', async () => {
+    render(<OffersMapView offers={[makeOffer()]} onSelectOffer={vi.fn()} expandedGroup={EXPANDED} />);
+    await waitForPins('map-appointment-pin', 2);
+
+    await waitFor(() => {
+      const last = spies.setRouteData.mock.calls.at(-1)?.[0];
+      expect(last).toMatchObject({
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          // Only the two located appointments; the third (null coords) is skipped.
+          coordinates: [
+            [151.2093, -33.8688],
+            [151.2743, -33.8908],
+          ],
+        },
+      });
+    });
+  });
+
+  it('clears the route line in offers mode (nothing expanded)', async () => {
+    render(<OffersMapView offers={[makeOffer()]} onSelectOffer={vi.fn()} />);
+    await waitForPins('map-pin', 1);
+
+    await waitFor(() => {
+      const last = spies.setRouteData.mock.calls.at(-1)?.[0];
+      expect(last).toMatchObject({ type: 'FeatureCollection', features: [] });
+    });
+  });
+
+  it('draws no line for a single-appointment group (needs two points)', async () => {
+    render(
+      <OffersMapView
+        offers={[makeOffer()]}
+        onSelectOffer={vi.fn()}
+        expandedGroup={{ groupId: 'group-1', appointments: [EXPANDED.appointments[0]] }}
+      />,
+    );
+    await waitForPins('map-appointment-pin', 1);
+
+    await waitFor(() => {
+      const last = spies.setRouteData.mock.calls.at(-1)?.[0];
+      expect(last).toMatchObject({ type: 'FeatureCollection', features: [] });
+    });
   });
 });

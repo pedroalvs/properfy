@@ -1,12 +1,20 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TopBar } from '../TopBar';
+import { WidePaneProvider, STICKY_HEADER } from '../WidePaneContext';
 import { renderWithProviders } from '@/test-utils';
 
 const mockNavigate = vi.fn();
+// `useGoBack` decides via `location.key`: a non-'default' key means real in-app history
+// exists (→ navigate(-1)); 'default' is React Router's cold/direct-load marker (→ fallback).
+let mockLocationKey = 'abc123';
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
-  return { ...actual, useNavigate: () => mockNavigate };
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+    useLocation: () => ({ key: mockLocationKey, pathname: '/', search: '', hash: '', state: null }),
+  };
 });
 
 let mockQueuedCount = 0;
@@ -14,18 +22,17 @@ vi.mock('@/features/execution/hooks/useQueuedActionCount', () => ({
   useQueuedActionCount: () => mockQueuedCount,
 }));
 
-describe('TopBar', () => {
-  let historyStateSpy: ReturnType<typeof vi.spyOn>;
+let mockIsOnline = true;
+vi.mock('@/hooks/useIsOnline', () => ({
+  useIsOnline: () => mockIsOnline,
+}));
 
+describe('TopBar', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
     mockQueuedCount = 0;
-    historyStateSpy = vi.spyOn(window.history, 'state', 'get');
-    historyStateSpy.mockReturnValue({ idx: 1 });
-  });
-
-  afterEach(() => {
-    historyStateSpy.mockRestore();
+    mockIsOnline = true;
+    mockLocationKey = 'abc123';
   });
 
   it('renders title', () => {
@@ -43,32 +50,67 @@ describe('TopBar', () => {
     expect(screen.getByTestId('back-button')).toBeInTheDocument();
   });
 
-  it('navigates back when back button is clicked', async () => {
+  it('keeps the back button visible at all widths by default', () => {
+    renderWithProviders(<TopBar title="Detail" showBack />);
+    expect(screen.getByTestId('back-button').className).not.toContain('md:hidden');
+  });
+
+  it('hides the back button at the tablet breakpoint when backHideOnWide is set', () => {
+    // In a 2-column pane the master list is always visible, so "back" is redundant on
+    // tablet — but the phone stack still needs it (no md:hidden collapse on phone).
+    renderWithProviders(<TopBar title="Detail" showBack backHideOnWide />);
+    expect(screen.getByTestId('back-button').className).toContain('md:hidden');
+  });
+
+  it('pops in-app history when back is clicked and history exists', async () => {
     const user = userEvent.setup();
     renderWithProviders(<TopBar title="Detail" showBack />);
     await user.click(screen.getByTestId('back-button'));
     expect(mockNavigate).toHaveBeenCalledWith(-1);
   });
 
-  it('falls back to /schedule on direct entry with no in-app history', async () => {
-    historyStateSpy.mockReturnValue({ idx: 0 });
+  it('falls back to backTo on direct entry with no in-app history', async () => {
+    mockLocationKey = 'default';
     const user = userEvent.setup();
 
-    renderWithProviders(<TopBar title="Detail" showBack />);
+    renderWithProviders(<TopBar title="Detail" showBack backTo="/earnings/invoices" />);
     await user.click(screen.getByTestId('back-button'));
 
-    expect(mockNavigate).toHaveBeenCalledWith('/schedule', { replace: true });
+    expect(mockNavigate).toHaveBeenCalledWith('/earnings/invoices', { replace: true });
   });
 
-  it('shows connection indicator', () => {
+  it('hides the connection indicator when online (v3 has no persistent pill)', () => {
+    mockIsOnline = true;
     renderWithProviders(<TopBar title="Schedule" />);
-    expect(screen.getByTestId('connection-indicator')).toBeInTheDocument();
+    expect(screen.queryByTestId('connection-indicator')).not.toBeInTheDocument();
+    expect(screen.queryByText('Online')).not.toBeInTheDocument();
   });
 
-  it('shows green indicator when online', () => {
+  it('shows a dot-only Offline indicator (no text) when offline', () => {
+    mockIsOnline = false;
     renderWithProviders(<TopBar title="Schedule" />);
     const indicator = screen.getByTestId('connection-indicator');
-    expect(indicator.className).toContain('bg-success');
+    expect(indicator).toBeInTheDocument();
+    expect(indicator.className).toContain('bg-destructive');
+    // PWA-12: the TopBar keeps the dot but no longer repeats the "offline" wording;
+    // the a11y name carries it instead (the banners carry the visible copy).
+    expect(indicator).toHaveAccessibleName('Offline');
+    expect(screen.queryByText('Offline')).not.toBeInTheDocument();
+  });
+
+  it('renders the lg primary-tab title at the .pf-h1 scale (27px / -0.4px tracking)', () => {
+    renderWithProviders(<TopBar title="Schedule" size="lg" />);
+    const title = screen.getByText('Schedule');
+    expect(title.className).toContain('text-[27px]');
+    expect(title.className).toContain('tracking-[-0.4px]');
+    expect(title.className).toContain('font-extrabold');
+  });
+
+  it('keeps the sub-page title at the smaller .pf-h2 scale (text-xl)', () => {
+    renderWithProviders(<TopBar title="Inspection" />);
+    const title = screen.getByText('Inspection');
+    expect(title.className).toContain('text-xl');
+    expect(title.className).not.toContain('text-[27px]');
   });
 
   it('does not show subtitle when not provided', () => {
@@ -95,13 +137,34 @@ describe('TopBar', () => {
     expect(badge).toHaveTextContent('3 pending');
   });
 
+  it('does not pin itself by default (v3: the title scrolls away with the content)', () => {
+    const { container } = renderWithProviders(<TopBar title="Schedule" />);
+    const header = container.querySelector('header')!;
+    expect(header.className).not.toContain('md:sticky');
+  });
+
+  it('pins to the pane top on tablet inside a scroll-owning two-pane pane', () => {
+    // A `fillHeight` TwoPaneLayout provides STICKY_HEADER so the title stays visible while the
+    // pane scrolls on its own. Phone stays non-sticky (the md: gate), hence md:sticky md:top-0.
+    const { container } = renderWithProviders(
+      <WidePaneProvider value={STICKY_HEADER}>
+        <TopBar title="Inspection" />
+      </WidePaneProvider>,
+    );
+    const header = container.querySelector('header')!;
+    expect(header.className).toContain('md:sticky');
+    expect(header.className).toContain('md:top-0');
+    expect(header.className).toContain('md:z-10');
+  });
+
   it('paints an opaque background instead of a backdrop filter', () => {
-    // Same reasoning as BottomNavBar: this header is `sticky`, so `backdrop-filter`
-    // promotes it to its own composited layer, which WebKit can mispaint while scrolling.
+    // Same reasoning as BottomNavBar: an opaque background keeps the header off its own
+    // composited layer. `backdrop-filter`/translucency would promote one, which WebKit
+    // can mispaint while scrolling — kept defensive even though v3 drops `sticky`.
     const { container } = renderWithProviders(<TopBar title="Schedule" />);
     const header = container.querySelector('header')!;
     expect(header.className).not.toContain('backdrop-blur');
     expect(header.className).not.toMatch(/bg-white\/\d+/);
-    expect(header.className).toContain('bg-card-bg');
+    expect(header.className).toContain('bg-background');
   });
 });

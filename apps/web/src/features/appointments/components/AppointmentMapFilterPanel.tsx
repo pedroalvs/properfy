@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { FilterSelect } from '@/components/filters/FilterSelect';
 import { FilterSegmented } from '@/components/filters/FilterSegmented';
 import { FilterInput } from '@/components/filters/FilterInput';
@@ -212,11 +213,12 @@ function StatusMultiSelect({
               key={opt.value}
               type="button"
               onClick={() => onToggle(opt.value)}
-              className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+              className={cn(
+                'rounded px-2 py-1 text-xs font-medium transition-colors',
                 active
                   ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-text-secondary hover:bg-gray-200'
-              }`}
+                  : 'bg-gray-100 text-text-secondary hover:bg-gray-200',
+              )}
               aria-pressed={active}
             >
               {opt.label}

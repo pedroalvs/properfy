@@ -1,3 +1,4 @@
+import { cn } from '@properfy/frontend-standards';
 import { getTemplateTarget, type NotificationTarget } from '../types';
 
 /**
@@ -45,13 +46,13 @@ export function NotificationTargetChip({ templateCode, className = '' }: Notific
 
   // Custom templates can carry a code outside both catalogs, so there is nothing to declare.
   if (!target) {
-    return <span className={`text-sm text-text-secondary ${className}`}>—</span>;
+    return <span className={cn('text-sm text-text-secondary', className)}>—</span>;
   }
 
   const style = TARGET_STYLES[target];
   return (
     <span
-      className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${style.color} ${className}`}
+      className={cn('inline-block rounded px-2 py-0.5 text-xs font-semibold', style.color, className)}
       title={style.title}
     >
       {style.label}

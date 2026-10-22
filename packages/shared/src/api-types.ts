@@ -6718,6 +6718,7 @@ export interface paths {
                                 description?: string | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
+                                assignedInspectorName?: string | null;
                                 /** Format: uuid */
                                 serviceRegionId?: string | null;
                                 publishedAt: (string) | null;
@@ -6795,6 +6796,7 @@ export interface paths {
                                 description?: string | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
+                                assignedInspectorName?: string | null;
                                 /** Format: uuid */
                                 serviceRegionId?: string | null;
                                 publishedAt: (string) | null;
@@ -6867,6 +6869,7 @@ export interface paths {
                                 description?: string | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
+                                assignedInspectorName?: string | null;
                                 /** Format: uuid */
                                 serviceRegionId?: string | null;
                                 publishedAt: (string) | null;
@@ -6941,6 +6944,7 @@ export interface paths {
                                 description?: string | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
+                                assignedInspectorName?: string | null;
                                 /** Format: uuid */
                                 serviceRegionId?: string | null;
                                 publishedAt: (string) | null;
@@ -7011,6 +7015,7 @@ export interface paths {
                                 description?: string | null;
                                 /** Format: uuid */
                                 assignedInspectorId: string | null;
+                                assignedInspectorName?: string | null;
                                 /** Format: uuid */
                                 serviceRegionId?: string | null;
                                 publishedAt: (string) | null;
@@ -7720,6 +7725,7 @@ export interface paths {
                                 timeWindow: string;
                                 suburbs: string[];
                                 payoutEstimate: number | null;
+                                payoutFrom?: number | null;
                                 appointmentCount: number;
                                 centroid: {
                                     lat: number;
@@ -7788,6 +7794,7 @@ export interface paths {
                                 timeWindow: string;
                                 suburbs: string[];
                                 payoutEstimate: number | null;
+                                payoutFrom?: number | null;
                                 appointmentCount: number;
                                 centroid: {
                                     lat: number;
@@ -9552,6 +9559,7 @@ export interface paths {
                                 timeWindow: string;
                                 suburbs: string[];
                                 payoutEstimate: number | null;
+                                payoutFrom?: number | null;
                                 appointmentCount: number;
                                 centroid: {
                                     lat: number;
@@ -9997,7 +10005,70 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
+                path: {
+                    entryId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        amount?: number;
+                        description?: string;
+                        /** Format: date-time */
+                        effectiveAt?: string;
+                        reason?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                tenantId: string;
+                                /** Format: uuid */
+                                appointmentId: string | null;
+                                /** Format: uuid */
+                                inspectorId: string | null;
+                                entryType: string;
+                                amount: number;
+                                currency: string;
+                                status: string;
+                                description: string;
+                                effectiveAt: string;
+                                /** Format: uuid */
+                                initiatedByUserId: string | null;
+                                /** Format: uuid */
+                                approvedByUserId: string | null;
+                                approvedAt: (string) | null;
+                                /** Format: uuid */
+                                referenceEntryId: string | null;
+                                reason: string | null;
+                                createdAt: string;
+                                updatedAt?: string;
+                                appointmentCode?: string | null;
+                                relatedEntityName?: string | null;
+                                approvedByName?: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/v1/financial/entries/{entryId}/approve": {
@@ -10756,7 +10827,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path: {
                     invoiceId: string;
                 };
@@ -10791,7 +10864,9 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    "idempotency-key"?: string;
+                };
                 path: {
                     invoiceId: string;
                 };
