@@ -322,6 +322,23 @@ export class ExecuteStatusTransitionUseCase {
       }
     }
 
+    // 7c. Rejecting or cancelling a grouped appointment removes it from the group
+    // and releases its inspector. A dead member left linked keeps consuming group
+    // capacity, blocks offer acceptance (every member must be AWAITING_INSPECTOR),
+    // and — because `canAddToGroup` refuses any non-null link to a *live* group —
+    // can never be re-grouped. Unlike the → DRAFT branch above, this is
+    // unconditional: reject/cancel always leave a live state, so the link goes
+    // regardless of the group's status and no group read is needed. The
+    // STATUS_TRANSITION event still carries the pre-write `serviceGroupId`
+    // (snapshot, below), so the empty-group cleanup subscriber can still cancel a
+    // group this was the last live member of.
+    if (targetStatus === 'REJECTED' || targetStatus === 'CANCELLED') {
+      if (appointment.serviceGroupId) {
+        updateData.serviceGroupId = null;
+      }
+      updateData.inspectorId = null;
+    }
+
     // Set typed reason codes based on target status
     if (targetStatus === 'CANCELLED' && cancellationReasonCode) {
       updateData.cancellationReasonCode = cancellationReasonCode;
@@ -445,6 +462,27 @@ export class ExecuteStatusTransitionUseCase {
       }
       if (appointment.status === 'DONE' && targetStatus === 'DRAFT') {
         afterSnapshot.reviewedBy = null;
+      }
+      // Reject/cancel irreversibly null `service_group_id` and `inspector_id` in
+      // the write phase (block 7c). Record what was released: the audit row is the
+      // only durable trace of which group and inspector the appointment belonged
+      // to — nothing else persists it once the columns are cleared. Store ids only,
+      // never a resolved name: this runs in the after-commit closure, so an extra
+      // repo lookup here could throw and abort the remaining side effects (the
+      // audit write itself, notifications, the empty-group cleanup emit) on a
+      // transition that already committed — and ids match the "no recipient names
+      // in immutable audit rows" stance used by the dispatch-failure branch below.
+      if (targetStatus === 'REJECTED' || targetStatus === 'CANCELLED') {
+        if (appointment.serviceGroupId) {
+          beforeSnapshot.serviceGroupId = appointment.serviceGroupId;
+          afterSnapshot.serviceGroupId = null;
+          metadata.unlinkedServiceGroupId = appointment.serviceGroupId;
+        }
+        if (appointment.inspectorId) {
+          beforeSnapshot.inspectorId = appointment.inspectorId;
+          afterSnapshot.inspectorId = null;
+          metadata.releasedInspectorId = appointment.inspectorId;
+        }
       }
 
       this.auditService.log({

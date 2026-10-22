@@ -1312,6 +1312,157 @@ describe('ExecuteStatusTransitionUseCase – terminal service-group links', () =
 });
 
 // =============================================================================
+// Reject / cancel: unlink from service group + release inspector
+// =============================================================================
+
+/**
+ * Rejecting or cancelling a grouped appointment must remove it from its service
+ * group and release its inspector, so the dead member stops consuming group
+ * capacity, no longer blocks offer acceptance, and can be re-grouped later.
+ *
+ * Unlike the → DRAFT reopen (which only drops *dead* links, guarded by a group
+ * status read), reject/cancel always happen from a live state, so the link is
+ * dropped unconditionally and no service-group repo lookup is needed — hence these
+ * use `makeUseCase()` with no `withServiceGroupRepo`.
+ */
+describe('ExecuteStatusTransitionUseCase – reject/cancel unlinks group and inspector', () => {
+  it('SCHEDULED → REJECTED clears serviceGroupId and inspectorId', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1', serviceGroupId: 'sg-live' }),
+    );
+    const result = await makeUseCase().execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'Impossible to execute',
+      actor: makeActor('OP'),
+    });
+    const [, , updateData] = appointmentRepo.update.mock.calls[0]!;
+    expect(updateData.serviceGroupId).toBeNull();
+    expect(updateData.inspectorId).toBeNull();
+    expect(result.inspectorId).toBeNull();
+  });
+
+  it('AWAITING_INSPECTOR → REJECTED clears serviceGroupId', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'AWAITING_INSPECTOR', inspectorId: null, serviceGroupId: 'sg-live' }),
+    );
+    await makeUseCase().execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'Property invalid',
+      actor: makeActor('AM'),
+    });
+    expect(appointmentRepo.update.mock.calls[0]![2].serviceGroupId).toBeNull();
+    expect(appointmentRepo.update.mock.calls[0]![2].inspectorId).toBeNull();
+  });
+
+  it('SCHEDULED → CANCELLED clears serviceGroupId and inspectorId', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1', serviceGroupId: 'sg-live' }),
+    );
+    await makeUseCase().execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client request',
+      actor: makeActor('AM'),
+    });
+    expect(appointmentRepo.update.mock.calls[0]![2].serviceGroupId).toBeNull();
+    expect(appointmentRepo.update.mock.calls[0]![2].inspectorId).toBeNull();
+  });
+
+  it('DONE → REJECTED clears serviceGroupId and inspectorId and still emits DONE_REJECTED', async () => {
+    const eventBus = new DomainEventBus();
+    const emitSpy = vi.spyOn(eventBus, 'emit');
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({
+        status: 'DONE',
+        inspectorId: 'insp-1',
+        serviceGroupId: 'sg-live',
+        doneCheckedByUserId: 'checker-1',
+      }),
+    );
+    await makeUseCase({ domainEventBus: eventBus }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'Inspection not actually done',
+      actor: makeActor('AM'),
+    });
+    const [, , updateData] = appointmentRepo.update.mock.calls[0]!;
+    expect(updateData.serviceGroupId).toBeNull();
+    expect(updateData.inspectorId).toBeNull();
+    // Financial compensation is unaffected: the handler reads the INSPECTOR_PAYOUT
+    // entry (keyed by appointmentId), not the appointment's inspectorId.
+    const eventTypes = emitSpy.mock.calls.map((c) => c[0].type);
+    expect(eventTypes).toContain(APPOINTMENT_EVENTS.DONE_REJECTED);
+    // The STATUS_TRANSITION event still carries the pre-write group id, so the
+    // empty-group cleanup subscriber can still find and cancel an emptied group.
+    const statusEvent = emitSpy.mock.calls.find((c) => c[0].type === APPOINTMENT_EVENTS.STATUS_TRANSITION);
+    expect((statusEvent![0].payload as { serviceGroupId: string | null }).serviceGroupId).toBe('sg-live');
+  });
+
+  it('rejecting a non-grouped appointment leaves no group link and clears the inspector', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1', serviceGroupId: null }),
+    );
+    await makeUseCase().execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'No longer needed',
+      actor: makeActor('OP'),
+    });
+    const [, , updateData] = appointmentRepo.update.mock.calls[0]!;
+    // No redundant write of an already-null link.
+    expect(updateData).not.toHaveProperty('serviceGroupId');
+    expect(updateData.inspectorId).toBeNull();
+  });
+
+  it('records the released group and inspector ids in the audit log', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1', serviceGroupId: 'sg-live' }),
+    );
+    await makeUseCase().execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'Impossible to execute',
+      actor: makeActor('OP'),
+    });
+    // The null-out is irreversible, so the audit row is the only durable trace of
+    // which group and inspector the appointment was released from. Ids only — no
+    // extra repo lookup in the after-commit closure, no names in an immutable row.
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'appointment.status_transition',
+        before: expect.objectContaining({ serviceGroupId: 'sg-live', inspectorId: 'insp-1' }),
+        after: expect.objectContaining({ serviceGroupId: null, inspectorId: null }),
+        metadata: expect.objectContaining({ unlinkedServiceGroupId: 'sg-live', releasedInspectorId: 'insp-1' }),
+      }),
+    );
+    // No inspector-name resolution is attempted during a reject/cancel audit.
+    expect(inspectorRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('omits released-field audit keys when the appointment was not grouped or assigned', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'DRAFT', inspectorId: null, serviceGroupId: null }),
+    );
+    await makeUseCase().execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'CANCELLED',
+      reason: 'Client request',
+      actor: makeActor('AM'),
+    });
+    const auditCall = auditService.log.mock.calls.find(
+      (c) => (c[0] as { action: string }).action === 'appointment.status_transition',
+    )!;
+    const logged = auditCall[0] as { before: Record<string, unknown>; after: Record<string, unknown> };
+    expect(logged.before).not.toHaveProperty('serviceGroupId');
+    expect(logged.before).not.toHaveProperty('inspectorId');
+    expect(logged.after).not.toHaveProperty('serviceGroupId');
+    expect(logged.after).not.toHaveProperty('inspectorId');
+  });
+});
+
+// =============================================================================
 // SYS actor attribution
 // =============================================================================
 
