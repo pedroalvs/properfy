@@ -216,6 +216,7 @@ describe('GET /v1/inspector/appointments/:appointmentId', () => {
       rentalTenantPhone: '+61400000000',
       rentalTenantEmail: 'john@example.com',
       notes: null,
+      rentalTenantNote: 'If possible please come at 11am',
       observation: null,
       restrictionsSummary: null,
       contact: null,
@@ -233,6 +234,8 @@ describe('GET /v1/inspector/appointments/:appointmentId', () => {
     expect(res.body.data.id).toBe(APPOINTMENT_ID);
     // doc §7.4 "Realty codes" — must survive the response serializer.
     expect(res.body.data.propertyCode).toBe('ACM-PROP-0007');
+    // Rental tenant portal note must survive the response serializer too.
+    expect(res.body.data.rentalTenantNote).toBe('If possible please come at 11am');
   });
 
   it('should return 401 without auth token', async () => {

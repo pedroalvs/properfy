@@ -43,6 +43,8 @@ export interface InspectorAppointment {
   propertyFurnished?: boolean | null;
   propertyLinenProvided?: boolean | null;
   notes: string | null;
+  /** Note left by the rental tenant via the portal (detail endpoint only). */
+  rentalTenantNote: string | null;
   observation: string | null;
   /** Operator-defined custom fields, read-only for the inspector (max 4). */
   customFields: AppointmentCustomField[];
@@ -124,6 +126,7 @@ export interface InspectorAppointmentDetailResponse {
     propertyFurnished?: boolean | null;
     propertyLinenProvided?: boolean | null;
     notes: string | null;
+    rentalTenantNote: string | null;
     observation: string | null;
     customFields?: AppointmentCustomField[];
     restrictions?: Array<{

@@ -238,6 +238,26 @@ describe('GetAppointmentDetailUseCase', () => {
     expect(result.execution!.startLatitude).toBe(-33.8688);
   });
 
+  it('should surface the rental tenant portal note on the detail output', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(
+      makeAppointmentWithRelations({ rentalTenantNote: 'If possible please come at 11am' }),
+    );
+    vi.mocked(executionRepo.findByAppointmentId).mockResolvedValue(null);
+
+    const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+
+    expect(result.rentalTenantNote).toBe('If possible please come at 11am');
+  });
+
+  it('should return a null rental tenant note when none was left', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(executionRepo.findByAppointmentId).mockResolvedValue(null);
+
+    const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+
+    expect(result.rentalTenantNote).toBeNull();
+  });
+
   it('should return detail without execution when inspection not started', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({}, true, false),

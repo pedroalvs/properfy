@@ -173,6 +173,14 @@ export function AppointmentDetailPage() {
         {/* Scheduling restrictions — structured when available, summary otherwise */}
         <RestrictionsSection restrictions={apt.restrictionDetails ?? []} summary={apt.restrictions} />
 
+        {/* Tenant note (left by the rental tenant via the portal) */}
+        {apt.rentalTenantNote && (
+          <Card>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Tenant Note</p>
+            <p className="mt-1 whitespace-pre-line break-words text-sm text-foreground">{apt.rentalTenantNote}</p>
+          </Card>
+        )}
+
         {/* Notes */}
         {apt.notes && (
           <Card>

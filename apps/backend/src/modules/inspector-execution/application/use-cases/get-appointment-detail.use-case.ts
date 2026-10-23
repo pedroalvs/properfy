@@ -115,6 +115,8 @@ export interface AppointmentDetailOutput {
   rentalTenantPhone: string | null;
   rentalTenantEmail: string | null;
   notes: string | null;
+  /** Note left by the rental tenant via the portal (distinct from `notes`/`observation`). */
+  rentalTenantNote: string | null;
   observation: string | null;
   restrictionsSummary: string | null;
   /** Operator-defined custom fields, read-only for the inspector (max 4). */
@@ -278,6 +280,7 @@ export class GetAppointmentDetailUseCase {
       rentalTenantPhone: contact?.effectivePhone ?? null,
       rentalTenantEmail: contact?.effectiveEmail ?? null,
       notes: appointment.notes,
+      rentalTenantNote: appointment.rentalTenantNote,
       observation: appointment.observation,
       restrictionsSummary,
       customFields: normalizeCustomFields(appointment.customFieldsJson),
