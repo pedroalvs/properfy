@@ -28,6 +28,7 @@ function makeResponse(
       propertyLatitude: null,
       propertyLongitude: null,
       notes: null,
+      rentalTenantNote: null,
       observation: null,
       ...overrides,
     },
@@ -54,5 +55,17 @@ describe('mapInspectorAppointmentDetail — customFields', () => {
   it('defaults to an empty array when custom fields are absent', () => {
     const result = mapInspectorAppointmentDetail(makeResponse());
     expect(result.customFields).toEqual([]);
+  });
+
+  it('carries the rental tenant note through to the UI model', () => {
+    const result = mapInspectorAppointmentDetail(
+      makeResponse({ rentalTenantNote: 'If possible please come at 11am' }),
+    );
+    expect(result.rentalTenantNote).toBe('If possible please come at 11am');
+  });
+
+  it('maps a null rental tenant note to null', () => {
+    const result = mapInspectorAppointmentDetail(makeResponse());
+    expect(result.rentalTenantNote).toBeNull();
   });
 });

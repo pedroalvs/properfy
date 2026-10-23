@@ -80,6 +80,7 @@ async function setupExecutionAtFinishing(
           propertyLatitude: -33.8688,
           propertyLongitude: 151.2093,
           notes: null,
+          rentalTenantNote: null,
           observation: null,
           customFields: [],
           restrictions: [],

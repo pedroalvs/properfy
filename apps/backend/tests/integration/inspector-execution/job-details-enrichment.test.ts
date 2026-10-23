@@ -72,6 +72,7 @@ const baseDetail = {
   rentalTenantPhone: '+61400000000',
   rentalTenantEmail: 'john@example.com',
   notes: null,
+  rentalTenantNote: null,
   observation: null,
   restrictionsSummary: null,
   contact: null,
