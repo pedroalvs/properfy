@@ -23,10 +23,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    # Node 24 is the forward-compat probe (HOL-11): its cell reports data but
-    # never blocks — only the Node 20 column gates a PR.
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
+    # Node 24-only after the hard cutover (HOL-11): Node 24 is the sole
+    # supported runtime and every job gates on it.
     steps:
       - uses: actions/checkout@v4
         with:
@@ -118,8 +117,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -137,8 +135,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -158,8 +155,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
     # Hard gate. A prior "cumulative web-suite OOM" was misdiagnosed as a
     # suite-wide map/GL teardown leak and worked around with an 8-shard
     # matrix + `continue-on-error` (one shard always OOMed, non-blocking).
@@ -191,8 +187,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -255,12 +250,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
     # All `needs` jobs are hard gates. (test-web was restored to a blocking
     # check once the single-file web-suite OOM was fixed.) `needs` waits for
-    # every matrix cell of each listed job; the Node 24 cells are
-    # continue-on-error (always success), so build still gates on Node 20.
+    # every matrix cell of each listed job. The pipeline is Node 24-only after
+    # the hard cutover, so `build` gates on Node 24.
     needs: [lint-typecheck, test-shared, test-backend, test-web, test-pwa]
     steps:
       - uses: actions/checkout@v4
@@ -328,8 +322,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
     services:
       postgres:
         image: postgis/postgis:16-3.4-alpine
@@ -380,11 +373,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    # The Node 24 cell is the non-required forward-compat probe (HOL-11): it is
-    # the riskiest surface for the bump (testcontainers + Prisma under real SQL),
-    # so its result is data, not a gate.
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
+    # Integration is the riskiest surface for the Node 24 cutover (HOL-11):
+    # testcontainers + Prisma under real SQL. It is now a hard gate on Node 24
+    # like every other job.
     steps:
       - uses: actions/checkout@v4
         with:
