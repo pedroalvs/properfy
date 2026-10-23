@@ -44,6 +44,7 @@ function toCardAppointment(item: HistoryItem): InspectorAppointment {
     propertyLatitude: null,
     propertyLongitude: null,
     notes: null,
+    rentalTenantNote: null,
     observation: null,
     customFields: [],
     agencyName: item.agencyName ?? undefined,

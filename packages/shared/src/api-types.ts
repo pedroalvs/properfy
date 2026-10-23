@@ -9263,6 +9263,7 @@ export interface paths {
                                 rentalTenantPhone: string | null;
                                 rentalTenantEmail: string | null;
                                 notes: string | null;
+                                rentalTenantNote: string | null;
                                 observation: string | null;
                                 restrictionsSummary: string | null;
                                 customFields?: {

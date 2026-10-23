@@ -523,6 +523,9 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
   rentalTenantPhone: z.string().nullable(),
   rentalTenantEmail: z.string().nullable(),
   notes: z.string().nullable(),
+  // Note left by the rental tenant via the portal (distinct from the internal
+  // operational `notes` and the operator `observation`).
+  rentalTenantNote: z.string().nullable(),
   observation: z.string().nullable(),
   restrictionsSummary: z.string().nullable(),
   /**
