@@ -656,6 +656,7 @@ describe('inspectorAppointmentDetailResponseSchema — customFields', () => {
     rentalTenantPhone: null,
     rentalTenantEmail: null,
     notes: null,
+    rentalTenantNote: null,
     observation: null,
     restrictionsSummary: null,
     contact: null,
@@ -711,6 +712,21 @@ describe('inspectorAppointmentDetailResponseSchema — customFields', () => {
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.propertyCode).toBeUndefined();
   });
+
+  it('carries the rental tenant portal note', () => {
+    const result = inspectorAppointmentDetailResponseSchema.safeParse({
+      ...validBase,
+      rentalTenantNote: 'If possible please come at 11am',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.rentalTenantNote).toBe('If possible please come at 11am');
+  });
+
+  it('requires rentalTenantNote to be present (nullable, not optional)', () => {
+    const { rentalTenantNote: _omitted, ...withoutNote } = validBase;
+    const result = inspectorAppointmentDetailResponseSchema.safeParse(withoutNote);
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('inspectorAppointmentDetailResponseSchema — jobDetails.tenantContacts enrichment', () => {
@@ -737,6 +753,7 @@ describe('inspectorAppointmentDetailResponseSchema — jobDetails.tenantContacts
     rentalTenantPhone: null,
     rentalTenantEmail: null,
     notes: null,
+    rentalTenantNote: null,
     observation: null,
     restrictionsSummary: null,
     contact: null,

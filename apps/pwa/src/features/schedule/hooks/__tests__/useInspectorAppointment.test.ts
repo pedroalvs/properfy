@@ -39,6 +39,7 @@ const MOCK_RAW_DETAIL = {
   propertyLatitude: null,
   propertyLongitude: null,
   notes: null,
+  rentalTenantNote: null,
   observation: null,
   customFields: [],
   isOverdue: false,

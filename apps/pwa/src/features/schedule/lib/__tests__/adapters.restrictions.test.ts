@@ -28,6 +28,7 @@ function makeResponse(
       propertyLatitude: null,
       propertyLongitude: null,
       notes: null,
+      rentalTenantNote: null,
       observation: null,
       ...overrides,
     } as InspectorAppointmentDetailResponse['data'],

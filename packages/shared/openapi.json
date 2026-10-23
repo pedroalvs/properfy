@@ -21120,6 +21120,10 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "rentalTenantNote": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "observation": {
                           "type": "string",
                           "nullable": true
@@ -21524,6 +21528,7 @@
                         "rentalTenantPhone",
                         "rentalTenantEmail",
                         "notes",
+                        "rentalTenantNote",
                         "observation",
                         "restrictionsSummary",
                         "contact",

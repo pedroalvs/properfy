@@ -86,6 +86,7 @@ const appointmentData = {
     propertyLatitude: null,
     propertyLongitude: null,
     notes: null,
+    rentalTenantNote: null,
     observation: null,
     customFields: [],
   },
@@ -199,6 +200,28 @@ describe('AppointmentDetailPage', () => {
     renderPage();
 
     expect(screen.queryByText('Observation')).not.toBeInTheDocument();
+  });
+
+  it('renders the Tenant Note section when the rental tenant left a note', () => {
+    mockUseInspectorAppointment.mockReturnValue({
+      data: {
+        data: { ...appointmentData.data, rentalTenantNote: 'If possible please come at 11am' },
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.getByText('Tenant Note')).toBeInTheDocument();
+    expect(screen.getByText('If possible please come at 11am')).toBeInTheDocument();
+  });
+
+  it('hides the Tenant Note section when there is no rental tenant note', () => {
+    renderPage();
+
+    expect(screen.queryByText('Tenant Note')).not.toBeInTheDocument();
   });
 
   it('renders the Custom Fields section read-only when present', () => {

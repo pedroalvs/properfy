@@ -8,15 +8,22 @@ const ROUTE_LAYER_ID = 'offer-route-line';
 const EMPTY_FEATURE_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
 
 /**
- * The route line is a Mapbox paint property, which (unlike the DOM marker
- * styles that can use `hsl(var(--primary))`) needs a concrete colour. Resolve
- * the `--primary` HSL triplet to an `hsl(...)` string at runtime, falling back
- * to the brand hex if the token is not yet applied (SSR / jsdom).
+ * shadcn stores `--primary` as a space-separated HSL triplet ("221 83% 53%").
+ * Mapbox's paint color parser rejects the CSS Color 4 space syntax
+ * (`hsl(221 83% 53%)` → "color expected") and needs the legacy comma form
+ * (`hsl(221, 83%, 53%)`), so convert the triplet rather than wrapping it as-is.
+ * Falls back to the brand hex when the token is absent (SSR / jsdom).
  */
+export function hslTripletToMapboxColor(raw: string): string {
+  const triplet = raw.trim();
+  if (!triplet) return '#2563EB';
+  return `hsl(${triplet.replace(/\s+/g, ', ')})`;
+}
+
+/** The route line is a Mapbox paint property and needs a concrete colour. */
 function resolvePrimaryColor(): string {
   if (typeof document === 'undefined') return '#2563EB';
-  const raw = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
-  return raw ? `hsl(${raw})` : '#2563EB';
+  return hslTripletToMapboxColor(getComputedStyle(document.documentElement).getPropertyValue('--primary'));
 }
 
 interface UseOfferRouteArgs {
