@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderEmailBody } from '../../../src/modules/notification/application/render-email-body';
 import type { RenderEmailBodyDeps, RenderEmailBodyInput } from '../../../src/modules/notification/application/render-email-body';
-import type { TemplateRendererService } from '../../../src/modules/notification/domain/template-renderer.service';
+import { TemplateRendererService } from '../../../src/modules/notification/domain/template-renderer.service';
 
 function makeTemplateRenderer(): TemplateRendererService {
   return {
@@ -110,6 +110,25 @@ describe('renderEmailBody', () => {
       expect(htmlToText.convert).not.toHaveBeenCalled();
       expect(htmlSanitizer.sanitizeForRender).not.toHaveBeenCalled();
       expect(result.renderedBodyText).toBe('Properfy: Hi Alice, confirm at https://p.example/x');
+    });
+
+    // Real renderer: the mock above cannot observe Handlebars escaping.
+    it('renders variables verbatim, without HTML-escaping, on the SMS channel', () => {
+      const result = renderEmailBody(
+        { ...smsInput, bodyTextSource: 'Hi {{name}}', variables: { name: 'Smith & Sons <Pty> "Ltd"' } },
+        { templateRenderer: new TemplateRendererService() },
+      );
+
+      expect(result.renderedBodyText).toBe('Hi Smith & Sons <Pty> "Ltd"');
+    });
+
+    it('still HTML-escapes variables in the email HTML body', () => {
+      const result = renderEmailBody(
+        { ...baseInput, bodyHtmlSource: '<p>Hi {{name}}</p>', variables: { name: 'Smith & Sons <Pty>' } },
+        { templateRenderer: new TemplateRendererService() },
+      );
+
+      expect(result.renderedBodyHtml).toBe('<p>Hi Smith &amp; Sons &lt;Pty&gt;</p>');
     });
   });
 });

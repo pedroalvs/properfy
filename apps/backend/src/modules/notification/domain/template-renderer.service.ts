@@ -56,22 +56,27 @@ handlebars.registerHelper('formatCurrency', (amount: unknown, currency: unknown)
 // editor is a new entry — bounded as an LRU or a long editing session would
 // grow the heap monotonically. 200 comfortably covers all persisted templates.
 const TEMPLATE_CACHE_MAX = 200;
-const templateCache = new Map<string, HandlebarsTemplateDelegate>();
+// noEscape is a compile-time option, so each escaping mode needs its own delegate.
+interface CompiledModes {
+  escaped?: HandlebarsTemplateDelegate;
+  plain?: HandlebarsTemplateDelegate;
+}
+const templateCache = new Map<string, CompiledModes>();
 
-function getCompiledTemplate(template: string): HandlebarsTemplateDelegate {
-  const hit = templateCache.get(template);
-  if (hit) {
+function getCompiledTemplate(template: string, escapeHtml: boolean): HandlebarsTemplateDelegate {
+  let entry = templateCache.get(template);
+  if (entry) {
     // Map preserves insertion order; re-inserting marks this entry most-recent.
     templateCache.delete(template);
-    templateCache.set(template, hit);
-    return hit;
+  } else {
+    entry = {};
   }
-  const compiled = handlebars.compile(template, { noEscape: false });
-  templateCache.set(template, compiled);
+  templateCache.set(template, entry);
   if (templateCache.size > TEMPLATE_CACHE_MAX) {
     templateCache.delete(templateCache.keys().next().value as string);
   }
-  return compiled;
+  const mode = escapeHtml ? 'escaped' : 'plain';
+  return (entry[mode] ??= handlebars.compile(template, { noEscape: !escapeHtml }));
 }
 
 /** Test-only observability for the LRU bound. */
@@ -85,9 +90,17 @@ export function templateCacheHas(template: string): boolean {
 }
 
 export class TemplateRendererService {
-  render(template: string, variables: Record<string, unknown>): string {
+  /**
+   * `escapeHtml: false` is for plain-text output (SMS): there `{{var}}` must
+   * deliver `&` and `<` as-is, not as `&amp;`/`&lt;`. HTML output keeps the default.
+   */
+  render(
+    template: string,
+    variables: Record<string, unknown>,
+    options: { escapeHtml?: boolean } = {},
+  ): string {
     if (!template) return '';
-    const compiled = getCompiledTemplate(template);
+    const compiled = getCompiledTemplate(template, options.escapeHtml ?? true);
     return compiled(variables);
   }
 
