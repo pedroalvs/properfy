@@ -53,13 +53,8 @@ function filterByRole(
       return targets.filter((t) => {
         // AWAITING_INSPECTOR only via service group creation — never a standalone UI action
         if (t === AppointmentStatus.AWAITING_INSPECTOR) return false;
-        // → SCHEDULED is never a dropdown action: AWAITING_INSPECTOR → SCHEDULED is handled by
-        // the Assign Inspector button; DRAFT → SCHEDULED is not a supported UI transition.
-        if (
-          (currentStatus === AppointmentStatus.AWAITING_INSPECTOR ||
-            currentStatus === AppointmentStatus.DRAFT) &&
-          t === AppointmentStatus.SCHEDULED
-        )
+        // AWAITING_INSPECTOR → SCHEDULED is handled by the Assign Inspector button, not the dropdown
+        if (currentStatus === AppointmentStatus.AWAITING_INSPECTOR && t === AppointmentStatus.SCHEDULED)
           return false;
         // AM cannot directly mark SCHEDULED → DONE (inspector action via cross-check)
         if (currentStatus === AppointmentStatus.SCHEDULED && t === AppointmentStatus.DONE)
@@ -71,13 +66,8 @@ function filterByRole(
       return targets.filter((t) => {
         // AWAITING_INSPECTOR only via service group creation — never a standalone UI action
         if (t === AppointmentStatus.AWAITING_INSPECTOR) return false;
-        // → SCHEDULED is never a dropdown action: AWAITING_INSPECTOR → SCHEDULED is handled by
-        // the Assign Inspector button; DRAFT → SCHEDULED is not a supported UI transition.
-        if (
-          (currentStatus === AppointmentStatus.AWAITING_INSPECTOR ||
-            currentStatus === AppointmentStatus.DRAFT) &&
-          t === AppointmentStatus.SCHEDULED
-        )
+        // AWAITING_INSPECTOR → SCHEDULED is handled by the Assign Inspector button, not the dropdown
+        if (currentStatus === AppointmentStatus.AWAITING_INSPECTOR && t === AppointmentStatus.SCHEDULED)
           return false;
         if (currentStatus === AppointmentStatus.DONE && t === AppointmentStatus.DRAFT) return false;
         return true;
