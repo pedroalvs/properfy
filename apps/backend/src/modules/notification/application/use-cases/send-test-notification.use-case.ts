@@ -219,6 +219,7 @@ export class SendTestNotificationUseCase {
       const renderedBodyText = this.templateRenderer.render(
         input.draftBodyText ?? template?.bodyText ?? '',
         vars,
+        { escapeHtml: false },
       );
       if (renderedBodyText.trim().length === 0) {
         throw new ValidationError('Rendered SMS body is empty');
