@@ -1,39 +1,26 @@
 import { test, expect } from '@playwright/test';
+import { stubJson } from './support/api';
+import { loginAsInspector } from './support/auth';
+import { SCHEDULE_APPOINTMENT, makeScheduleMonth } from './support/fixtures';
+
+/**
+ * "Today" in the app's civil-date logic is Sydney wall-clock. The runner is UTC in
+ * CI, so a `new Date()` here would diverge from the app between ~00:00 and ~10:00
+ * Sydney. Derive the date in the Sydney zone so the card/day-strip line up with the
+ * app's notion of today regardless of the host clock.
+ */
+function sydneyToday(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Sydney' }).format(new Date());
+}
 
 test.describe('Schedule', () => {
   test.beforeEach(async ({ page }) => {
-    // Set up auth tokens in localStorage before navigating
-    await page.goto('/login');
-    await page.evaluate(() => {
-      localStorage.setItem('access_token', 'test-token');
-      localStorage.setItem('refresh_token', 'test-refresh');
-    });
+    await loginAsInspector(page);
   });
 
   test('shows schedule page with day selector', async ({ page }) => {
-    // Mock the /v1/me endpoint
-    await page.route('**/v1/me', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'user-1',
-          name: 'Inspector',
-          email: 'insp@test.com',
-          role: 'INSP',
-          tenantId: null,
-        }),
-      });
-    });
-
-    // Mock schedule endpoint
-    await page.route('**/v1/inspector/schedule/range**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ appointments: [] }),
-      });
-    });
+    const today = sydneyToday();
+    await stubJson(page, '/v1/inspector/schedule/month', { data: makeScheduleMonth(today) });
 
     await page.goto('/schedule');
     await expect(page.getByTestId('schedule-page')).toBeVisible();
@@ -41,27 +28,8 @@ test.describe('Schedule', () => {
   });
 
   test('shows bottom navigation with 4 tabs', async ({ page }) => {
-    await page.route('**/v1/me', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'user-1',
-          name: 'Inspector',
-          email: 'insp@test.com',
-          role: 'INSP',
-          tenantId: null,
-        }),
-      });
-    });
-
-    await page.route('**/v1/inspector/schedule/range**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ appointments: [] }),
-      });
-    });
+    const today = sydneyToday();
+    await stubJson(page, '/v1/inspector/schedule/month', { data: makeScheduleMonth(today) });
 
     await page.goto('/schedule');
     await expect(page.getByTestId('bottom-nav')).toBeVisible();
@@ -71,67 +39,19 @@ test.describe('Schedule', () => {
     await expect(page.getByTestId('nav-profile')).toBeVisible();
   });
 
-  // The schedule card shows the appointment code but NOT the property (realty)
-  // code, even when the payload carries one. The page reads
-  // `/v1/inspector/schedule/month`, which the two specs above never stub — hence
-  // the empty list they assert against.
+  // The schedule card shows the appointment code but NOT the property (realty) code,
+  // even when the payload carries one. The page reads /v1/inspector/schedule/month.
   test('appointment card shows the appointment code but not the property code', async ({ page }) => {
-    await page.route('**/v1/me', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'user-1',
-          name: 'Inspector',
-          email: 'insp@test.com',
-          role: 'INSP',
-          tenantId: null,
-        }),
-      });
-    });
-
-    const today = new Date().toISOString().slice(0, 10);
-    const appointment = {
-      id: '00000000-0000-0000-0000-0000000000a1',
-      appointmentCode: 'INS-0042',
-      propertyCode: 'ACM-PROP-0007',
-      status: 'SCHEDULED',
-      scheduledDate: today,
-      timeSlotStart: '09:00',
-      timeSlotEnd: '11:00',
-      serviceTypeId: '00000000-0000-0000-0000-0000000000b1',
-      propertyId: '00000000-0000-0000-0000-0000000000c1',
-      rentalTenantConfirmationStatus: 'CONFIRMED',
-      keyRequired: false,
-      meetingLocation: null,
-      executionStatus: 'NOT_STARTED',
-      agencyName: 'Acme Realty',
-      propertyAddress: '123 Collins St',
-      suburb: 'Melbourne',
-      serviceTypeName: 'Routine Inspection',
-      flowType: 'ROUTINE',
-    };
-
-    await page.route('**/v1/inspector/schedule/month*', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          data: {
-            today,
-            from: today,
-            to: today,
-            days: [{ date: today, count: 1, hasUrgent: false }],
-            appointments: [appointment],
-            overdueAppointments: [],
-          },
-        }),
-      });
+    const today = sydneyToday();
+    const appointment = { ...SCHEDULE_APPOINTMENT, scheduledDate: today };
+    await stubJson(page, '/v1/inspector/schedule/month', {
+      data: makeScheduleMonth(today, [appointment]),
     });
 
     await page.goto('/schedule');
-    await expect(page.getByTestId(`appointment-card-${appointment.id}`)).toBeVisible();
-    await expect(page.getByTestId('appointment-code')).toHaveText('INS-0042');
+    const card = page.getByTestId(`appointment-card-${appointment.id}`);
+    await expect(card).toBeVisible();
+    await expect(card.getByTestId('appointment-code')).toHaveText('INS-0042');
     // The property (realty) code is not shown on the schedule card.
     await expect(page.getByTestId('property-code')).toHaveCount(0);
   });
