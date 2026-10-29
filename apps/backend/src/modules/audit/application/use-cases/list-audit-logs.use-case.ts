@@ -214,9 +214,12 @@ export class ListAuditLogsUseCase {
           requestId: entry.requestId,
           ipAddress: entry.ipAddress,
           // F03 (D10): agency roles never see the inspector's raw coordinates.
-          // FULL-redacted entries are already stripped, so don't re-mask.
+          // Masked regardless of redactionStatus — FULL redaction only strips
+          // registered PII (name/email/phone), NOT coordinates, so they survive
+          // it; re-stamping `[MASKED]` over an already-redacted field is harmless
+          // and keeps the privacy invariant independent of PII-mapping config.
           metadataJson:
-            role === 'CL_ADMIN' && entry.redactionStatus !== 'FULL'
+            role === 'CL_ADMIN'
               ? (maskCoordinateKeys(entry.metadataJson) as Record<string, unknown> | null)
               : entry.metadataJson,
           createdAt: entry.createdAt,

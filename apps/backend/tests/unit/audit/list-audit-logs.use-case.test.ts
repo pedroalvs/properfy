@@ -575,12 +575,15 @@ describe('ListAuditLogsUseCase', () => {
       expect(op.data[0]!.metadataJson).toEqual(metadataJson);
     });
 
-    it('does not re-mask a FULL-redacted entry and passes null metadata through', async () => {
+    it('still masks coordinates on a FULL-redacted entry (FULL redaction does not strip coordinates) and passes null metadata through', async () => {
+      // FULL redaction only strips registered PII (name/email/phone); coordinates
+      // are not PII, so they survive it. The mask must not depend on redactionStatus,
+      // or a future coordinate-bearing action with a PII mapping would leak to CL.
       repo.findAll.mockResolvedValue([
         makeAuditLog({ action: 'inspection.started', redactionStatus: 'FULL', metadataJson: { latitude: -33.86 } }),
       ]);
       const full = await run(clAdminActor);
-      expect(full.data[0]!.metadataJson).toEqual({ latitude: -33.86 });
+      expect(full.data[0]!.metadataJson).toEqual({ latitude: '[MASKED]' });
 
       repo.findAll.mockResolvedValue([makeAuditLog({ action: 'inspection.started', metadataJson: null })]);
       const nullMeta = await run(clAdminActor);
