@@ -17,16 +17,16 @@ You MUST:
 
 ## 1. Tech stack
 
-- **Runtime:** Node.js
-- **Framework:** Fastify
+- **Runtime:** Node.js 24
+- **Framework:** Fastify 4
 - **Architecture:** Clean Architecture (monolith)
-- **ORM:** Prisma
+- **ORM:** Prisma 6
 - **Database:** PostgreSQL (Supabase as infrastructure)
 - **Connection pool:** PgBouncer
-- **Queue:** pg-boss (PostgreSQL-backed — no Redis required)
+- **Queue:** pg-boss 9 (PostgreSQL-backed — no Redis required)
 - **Auth:** Internal JWT (RS256 with `kid` rotation)
 - **Validation:** Zod
-- **Tests:** Vitest (unit/integration) + Supertest (API E2E)
+- **Tests:** Vitest (unit/integration) + Supertest (API) + testcontainers (real PostGIS, `test:integration:db`)
 - **Package manager:** pnpm
 - **Commits:** Conventional Commits
 
@@ -55,20 +55,26 @@ pnpm lint
 # Typecheck
 pnpm typecheck
 
-# Generate Prisma client
-pnpm prisma generate
+# Generate Prisma client (required before typecheck/tests)
+pnpm prisma:generate
 
-# Run migrations (dev)
-pnpm prisma migrate dev
+# Create/apply a migration (dev)
+pnpm prisma:migrate --name <migration_name>
 
-# Create migration
-pnpm prisma migrate dev --name <migration_name>
+# Validate the schema (CI also replays every migration twice on a fresh PostGIS DB)
+pnpm exec prisma validate
 
-# Validate migration (dry-run for CI)
-pnpm prisma migrate diff
+# Unit / route-integration tests (default suite; excludes tests/integration/db)
+pnpm test            # or test:unit / test:integration
+
+# Real-database integration tests (testcontainers, serial)
+pnpm test:integration:db
+
+# Regenerate the OpenAPI spec (then `pnpm --filter shared generate:types`, or `pnpm generate:api` from the root)
+pnpm generate:openapi
 
 # Seed database
-pnpm prisma db seed
+pnpm prisma:seed
 
 # Build
 pnpm build
@@ -89,38 +95,53 @@ apps/backend/
 │   │   │   ├── application/      # Use cases, DTOs, validators
 │   │   │   ├── infrastructure/   # Prisma repos, external services
 │   │   │   └── interfaces/       # Fastify routes, controllers
-│   │   ├── tenant/
-│   │   ├── user/
-│   │   ├── property/
+│   │   ├── app-credential/
 │   │   ├── appointment/
-│   │   ├── service-group/
-│   │   ├── marketplace/
-│   │   ├── rental-tenant-portal/
-│   │   ├── inspector-execution/
-│   │   ├── notification/
+│   │   ├── audit/
 │   │   ├── billing/
+│   │   ├── contact/
+│   │   ├── dashboard/
+│   │   ├── fy/                     # Fy agent integration (API keys, webhooks)
+│   │   ├── inspector/
+│   │   ├── inspector-execution/
+│   │   ├── integration/            # Integrations Hub (provider config, dynamic providers)
+│   │   ├── notification/
+│   │   ├── pricing-rule/
+│   │   ├── property/
+│   │   ├── rental-tenant-portal/
 │   │   ├── report/
-│   │   └── audit/
+│   │   ├── satisfaction-survey/
+│   │   ├── service-group/          # includes the marketplace routes (marketplace.routes.ts)
+│   │   ├── service-region/
+│   │   ├── service-type/
+│   │   ├── tenant/
+│   │   └── user/
 │   ├── shared/
-│   │   ├── domain/               # Shared domain primitives
-│   │   ├── application/          # Shared use case utilities
-│   │   ├── infrastructure/       # Logger, queue, storage, auth middleware
-│   │   └── interfaces/           # Error handler, response helpers, plugins
+│   │   ├── domain/               # Errors, AuditService (audit.ts), requireTenantScope, idempotency, clock
+│   │   ├── application/          # Unit of work (runInTransaction), domain event bus, tenant cron tick
+│   │   ├── infrastructure/       # Prisma client, logger, pg-boss queue, metrics, circuit breaker, rate limiter
+│   │   └── interfaces/           # Error handler, auth/api-key middleware, role guard, response helpers
 │   └── main/
 │       ├── server.ts             # Fastify server setup
+│       ├── env.ts                # Zod-validated environment
 │       ├── routes.ts             # Route registration
 │       ├── plugins.ts            # Plugin registration
-│       └── container.ts          # Dependency injection setup
+│       ├── container.ts          # Dependency injection setup
+│       └── workers.ts            # pg-boss worker registration
 ├── prisma/
 │   ├── schema.prisma
-│   ├── migrations/
+│   ├── migrations/             # squashed to `20260806000000_v1_baseline`; new ones `YYYYMMDDhhmmss_name` (`prisma migrate dev`)
 │   └── seed.ts
 ├── tests/
 │   ├── unit/
-│   ├── integration/
-│   └── e2e/
+│   ├── integration/              # route-level tests (Supertest, in-memory/stubbed deps)
+│   │   └── db/                   # real PostGIS via testcontainers — excluded from `pnpm test`, run with `pnpm test:integration:db`
+│   ├── fixtures/
+│   └── helpers/
 └── ...
 ```
+
+`tests/` is outside the backend `tsconfig` include, so `pnpm typecheck` does not type-check tests; a broken test wiring shows up only when the test runs.
 
 **Convention per module (e.g., `appointment/`):**
 
@@ -176,9 +197,9 @@ When you add a new module, follow this same structure.
 
 ### JWT model
 
-- **Access token:** RS256 with `kid`, TTL 15 minutes.
+- **Access token:** RS256 with `kid`, TTL `JWT_ACCESS_TOKEN_TTL_MINUTES` (default and all environments: 60 minutes).
 - **Refresh token:** rotative, 10-day validity, stored in sessions table.
-- Claims: `userId`, `tenantId` (nullable for AM), `role`, `email`.
+- Claims: `sub` (user id), `tenant_id` (null for AM, OP and INSP), `role`, `branch_id`, `inspector_id`, `sid` (session id). Mapped to `AuthContext` (`userId`, `tenantId`, `role`, …).
 
 ### Roles
 
@@ -189,21 +210,25 @@ When you add a new module, follow this same structure.
 | Client Admin | `CL_ADMIN` | Own tenant |
 | Client User | `CL_USER` | Own tenant, configurable permissions |
 | Inspector | `INSP` | Own schedule |
+| Rental tenant | `TNT` | Portal token only |
+| System | `SYS` | Jobs and automatic transitions (cross-tenant) |
 
 ### Rules
 
 - 2FA mandatory for `AM` from first version.
 - Password policy: min 8 chars + uppercase + lowercase + number + special + blacklist.
 - Audit: login, failure, lock, revoke, refresh, password change.
-- Rate limiting on auth endpoints (see `infra-tecnologia-production-ready.md` for limits).
+- Rate limiting on auth endpoints: per-route `rateLimit` config in `auth/interfaces/auth.routes.ts` (see `docs/runbooks/auth-and-sessions.md`).
 
 ### Multi-tenant enforcement
 
 1. Extract `tenantId` from JWT in middleware.
 2. For tenant routes: **never** trust `tenantId` from request body/query – use JWT context.
 3. Every repository method must scope by `tenantId`.
-4. Super Admin (AM) can specify tenant explicitly when needed.
+4. Cross-tenant roles (`AM`, `OP`, `SYS`) may read without a tenant predicate or target a tenant explicitly; resolve this with `requireTenantScope(actor, action)`, which throws for pinned roles without a tenant and for `INSP`/`TNT` on tenant-dispatching paths.
 5. Never return or modify data of another tenant in tenant context.
+6. Platform-scoped entities (no `tenant_id`; list in the root `CLAUDE.md` §7.1) are guarded by role and `inspectorId`, never by an absent tenant filter. Add the scoping integration test in the same PR as the entity.
+7. Never return or audit the inspector's raw latitude/longitude to/for `CL_*` roles (root `CLAUDE.md` §7.9): expose distance, accuracy and flags only.
 
 ---
 
@@ -224,7 +249,7 @@ When you add a new module, follow this same structure.
 }
 ```
 
-- Error codes: `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409), `INTERNAL_ERROR` (500)
+- Error codes are domain-specific strings (e.g. `AUTH_FORBIDDEN`, `TENANT_SCOPE_REQUIRED`); the HTTP status comes from the error class in `shared/domain/errors.ts`: `ValidationError` 400, `UnauthorizedError` 401, `ForbiddenError` 403, `NotFoundError` 404, `ConflictError` 409, 422 (unprocessable), 429 (rate limit, with `retryAfter`), 503 (storage not configured), 500 otherwise.
 - `request_id` mandatory on every request and job (via middleware)
 
 ### Status transition endpoint
@@ -240,7 +265,7 @@ All state transitions go through this single endpoint.
 
 ## 7. Data model
 
-See `projeto-consolidado/modelo-dados-executavel.md` for complete entity definitions.
+See `prisma/schema.prisma` for complete entity definitions.
 
 **Key conventions:**
 
@@ -251,41 +276,37 @@ See `projeto-consolidado/modelo-dados-executavel.md` for complete entity definit
 - Soft delete: `deleted_at` for operational/cadastral entities
 - Audit and financial entries are immutable
 
-**Core entities:**
+**Core entities** (authoritative list: `prisma/schema.prisma`):
 
-1. `Tenant` – agency account
-2. `Branch` – agency branch
-3. `User` – internal authenticated user
-4. `Inspector` – contractor
-5. `Property` – property linked to tenant
-6. `Appointment` – central business entity (state machine)
-7. `AppointmentContact` – tenant contact info
-8. `AppointmentRestriction` – scheduling constraints
-9. `ServiceType` – service catalog
-10. `ServicePriceRule` – pricing per client/type
-11. `ServiceGroup` – grouped inspections for marketplace
-12. `InspectorAvailabilitySlot` – inspector schedule
-13. `RentalTenantPortalToken` – portal access token
-14. `Notification` – sent notification record
-15. `InspectionExecution` – execution record with geolocation
-16. `InspectionAsset` – evidence files
-17. `FinancialEntry` – ledger entries
-18. `InspectorInvoice` – inspector payment closing
-19. `AuditLog` – audit trail
+- Tenancy and access: `Tenant`, `Branch`, `User`, `Session`, `ApiKey`, `IntegrationSetting`
+- Inspectors: `Inspector`, `InspectorAvailabilitySlot`, `ServiceRegion`, `InspectorRegion`
+- Catalog: `ServiceType`, `ServicePriceRule`, `Property`, `Contact`, `AppCredential`
+- Appointments: `Appointment` (state machine), `AppointmentContact`, `AppointmentRestriction`, `AppointmentConfirmationCycle`, `AppointmentImport`, `ServiceGroup`
+- Execution: `InspectionExecution` (start/finish with geolocation)
+- Rental tenant portal: `RentalTenantPortalToken`, `RentalTenantPortalActivity`, `SatisfactionSurvey`
+- Notifications: `Notification`, `NotificationAttempt`, `NotificationTemplate`, `NotificationConsent`
+- Finance: `FinancialEntry`, `InspectorInvoice`
+- Audit and compliance: `AuditLog` (+ archive, retention, legal hold), `DataSubjectErasureRequest`, `IdempotencyKey`, `Report`
 
 **Key enums:**
 
 - `appointment_status`: `DRAFT`, `AWAITING_INSPECTOR`, `SCHEDULED`, `REJECTED`, `CANCELLED`, `DONE`
 - `rental_tenant_confirmation_status`: `PENDING`, `CONFIRMED`, `UNAVAILABLE`, `NO_RESPONSE`
-- `notification_channel`: `EMAIL`, `SMS`, `WHATSAPP`
-- `notification_status`: `PENDING`, `SENT`, `DELIVERED`, `FAILED`
+- `notification_channel`: `EMAIL`, `SMS`
+- `notification_status`: `PENDING`, `SENT`, `DELIVERED`, `FAILED`, `SKIPPED`, `SKIPPED_OPT_OUT`
 - `financial_entry_type`: `TENANT_DEBIT`, `INSPECTOR_PAYOUT`, `REFUND`, `MANUAL_ADJUSTMENT`
+
+### Configuration: platform vs. agency
+
+- **Platform-wide settings** (thresholds, radii, weights, onboarding values that apply to every agency or to inspectors) go into **`PlatformSetting`**: one row per key, value validated by the typed registry in `packages/shared` (`PLATFORM_SETTINGS_REGISTRY`), read through the `IPlatformSettingsReader` port with a short cache, written only by AM/OP via `/v1/platform-settings/:key` with an audit entry (`platform_setting.updated`, `tenantId: null`). It is created by F03 (TASK-F03-1) and reused by F04–F10. Never add an env var or a hard-coded constant for a value the operation must tune.
+- **Per-agency settings** stay in `tenants.settings_json`, validated by `tenantSettingsSchema` (`packages/shared/src/schemas/tenant.ts`); add new fields as optional so existing rows keep parsing.
+- A per-inspector override, when a feature needs one, lives on the inspector record and falls back to the platform value.
 
 ---
 
 ## 8. State machine implementation
 
-See `projeto-consolidado/state-machine-executavel.md` for the full transition table.
+See `src/modules/appointment/domain/appointment-state-machine.ts` (`TRANSITION_RULES`) for the full transition table.
 
 **Implementation rules:**
 
@@ -342,7 +363,7 @@ because `tests/` is outside the backend `tsconfig` include.
 - Uses the same PostgreSQL database (Supabase). pg-boss manages its own `pgboss.*` schema tables.
 - Job naming convention: `domain.action` (e.g., `notification.send`, `import.process`, `finance.close`)
 - Internal events: versioned (e.g., `appointment.created.v1`)
-- Dedicated workers for: `notifications`, `imports`, `finance`
+- Workers: all `boss.work(...)` registrations live in `src/main/workers.ts` (one worker process per app instance), wrapped with `withJobMetrics`. Recurring jobs that run per agency use `shared/application/tenant-cron-tick.ts`.
 
 **pg-boss usage pattern:**
 ```typescript
@@ -392,8 +413,17 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 ### Maps/Geocoding
 
 - Provider: Mapbox
-- Fallback: mark `pending_geocode` for manual correction
+- Fallback: `GeocodingStatus` `PENDING` → `SUCCESS`/`FAILED` via the `property.geocode` and `property.geocode-retry` jobs; `MANUAL` when the user types lat/lng.
 - `MAPBOX_ACCESS_TOKEN` is called server-to-server: it must have **no browser URL restriction**. It is a distinct credential from the frontend's `VITE_MAPBOX_TOKEN` (which is legitimately URL-restricted). A URL-restricted token used here fails every call with 403, since Mapbox's restriction checks the `Referer` header, which server-side requests never send.
+- **Every coordinate written to the database comes from permanent geocoding** (`permanent=true`, Mapbox terms). Temporary geocoding (the default mode, and the address autocomplete in `mapbox-address-lookup.service.ts`) is for display only and must never be persisted. Clients never send autocomplete coordinates (`createPropertySchema` strips them; the web branch/property forms do not post them); the backend geocodes the address in permanent mode. A latitude/longitude in an **update** body is user input: stored as `MANUAL` only when it differs from the stored pair, otherwise the current status is kept. A stored coordinate is permanent iff `geocoded_permanently_at` is set. If the account rejects permanent mode (`MAPBOX_PERMANENT_GEOCODING_UNAVAILABLE`), store no coordinate, set `FAILED` with `geocoding_failure_code`, and do not re-enqueue (the retry sweep skips coded failures). (X02 adds the `mode` option to `IGeocodingService` with `permanent` as the default; until it merges, do not add any new write path that stores Mapbox coordinates.)
+
+### Routing
+
+- Provider: **Mapbox**, behind a routing port (`IRoutingService`, created by F04) with a haversine stub for tests, wired through the Integrations Hub `mapbox` config like geocoding.
+- **Matrix** (`driving-traffic` up to 10 coordinates, `driving` above) is used **only to choose the stop order**. **Directions** (GA) computes the final ETAs and the geometry, **one call per leg with `depart_at`** = that leg's planned departure.
+- **No beta APIs:** no Matrix `depart_at`, no Optimization API v2.
+- **Server-side token only**, resolved per call from the Integrations Hub `mapbox` config (`IntegrationConfigResolver.getConfig('mapbox')`, stub when unset); `MAPBOX_ACCESS_TOKEN` is only the bootstrap default for that config, never read directly by adapters. Never expose it to the PWA — geometry reaches clients as GeoJSON from the backend.
+- **Google is a measured exit, not an option.** Google Route Optimization's terms forbid using its output with a non-Google map, so switching means replacing the routing adapter **and** both route maps (PWA route and web Live Day) with Google Maps. It happens only if the measured ETA error (planned stop time vs. actual start) averages above 10 minutes over 30 days. Do not mix providers.
 
 ### Storage
 
@@ -438,7 +468,7 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 - ORM: Prisma
 - Migrations: `prisma/migrations/`
 - Strategy: expand/contract (never breaking changes directly)
-- Apply migrations to `staging` first, validate, then promote to `prod`
+- Migrations run in each Fly app's `release_command` (`prisma migrate deploy`): DEV (from `develop`) first, then STAGING, then PROD. CI proves a fresh replay plus idempotence (`prisma-migrate-check`).
 
 **Rules:**
 
@@ -448,9 +478,9 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 - Seed: minimal for `dev` and `staging`; none in `prod`.
 - **Production notification templates**: after the first deploy to a new prod environment, run the one-shot seed script to create platform-default templates (`tenant_id = NULL`):
   ```bash
-  fly ssh console -a properfy-prod -C "cd /app && node apps/backend/dist/seed-platform-notification-templates.js"
+  fly ssh console -a properfy-api -C "cd /app && node apps/backend/dist/seed-platform-notification-templates.js"
   ```
-  The script is idempotent (upserts by `template_code + channel`) and lives at `src/scripts/seed-platform-notification-templates.ts`.
+  The script is idempotent (upserts by `template_code + channel`) and lives at `src/scripts/seed-platform-notification-templates.ts`. Production access only on explicit request.
 - Critical indexes: `tenant_id`, `status`, `scheduled_date`, `service_type_id`, `inspector_id`, `branch_id`
 
 ---
@@ -462,7 +492,7 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 - Integration tests: repositories, auth, queue, integrations (Vitest + Prisma test DB)
 - API E2E: critical flows (Supertest)
 - Mock external providers (SMS, email, maps) in tests. Never make real external calls.
-- Coverage: 70% global minimum, 80%+ for `auth`, `appointments`, `finance`
+- Coverage target (not enforced by CI today): 70% global, 80%+ for `auth`, `appointments`, `finance`
 
 **Critical E2E flows:**
 
@@ -481,7 +511,7 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 - Secret rotation: every 6 months for critical keys.
 - Signed URLs for upload/download.
 - Rate limit: hybrid policy (edge + application rules per endpoint).
-- SAST and dependency scan mandatory in CI.
+- SAST and dependency scanning are **not wired into CI today** (no such job in `.github/workflows`). PRs get an automated review from CodeRabbit (`.coderabbit.yaml`). Do not claim a scan ran.
 
 ---
 
@@ -500,4 +530,4 @@ When you (Claude Code) implement or refactor backend code:
 9. **Idempotency on critical operations** – always check before implementing financial, notification or acceptance logic.
 10. **Audit critical actions** – status changes, financial operations, permission changes.
 
-For complete business rules, entity definitions and API contracts, consult `projeto-consolidado/`.
+For complete business rules, entity definitions and API contracts, see the root `CLAUDE.md`, `prisma/schema.prisma` and `packages/shared/openapi.json`.

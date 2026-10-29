@@ -14,16 +14,17 @@ The frontend is an **evolution of the legacy UI system** (Vue 2 + Vuetify 2), no
 
 ## 1. Tech stack
 
-- **Build tool:** Vite
-- **Framework:** React
+- **Build tool:** Vite 5
+- **Framework:** React 18 + React Router 6 (data router)
 - **Language:** TypeScript
-- **Styling:** Tailwind CSS
+- **Styling:** Tailwind CSS 3
 - **Font:** Nunito (Google Fonts)
 - **Icons:** Material Design Icons (`@mdi/font`)
-- **Maps:** Mapbox
-- **HTTP client:** OpenAPI-generated client (source of truth for API contracts)
-- **State:** React Query + local component state
-- **Tests:** Vitest (unit) + Playwright (E2E)
+- **Maps:** Mapbox (mapbox-gl 3)
+- **HTTP client:** `openapi-fetch` typed by `paths` from `@properfy/shared`
+- **State:** TanStack Query 5 + local component state
+- **Shared standards:** `@properfy/frontend-standards` (`cn()`, constants, ESLint config)
+- **Tests:** Vitest (unit/component) + Playwright E2E (`tests/e2e`, Chromium only, every API call stubbed; a CI gate — `test-web-e2e`)
 
 Do **not** change the stack unless explicitly instructed.
 
@@ -53,7 +54,7 @@ pnpm lint
 # Typecheck
 pnpm typecheck
 
-# Generate API client from OpenAPI spec
+# Regenerate OpenAPI spec + typed client (run from the repo root)
 pnpm generate:api
 ```
 
@@ -64,34 +65,27 @@ pnpm generate:api
 ```text
 apps/web/
 ├── src/
-│   ├── app/                    # App shell, routing, providers
+│   ├── app/                    # Router (router.tsx), AuthGuard, ProtectedRoute, ErrorBoundary, QueryProvider
 │   ├── components/
-│   │   ├── shell/              # AppShell, Sidebar, SidebarItem, SidebarSubmenu, SidebarUser
-│   │   ├── ui/                 # Design system primitives (buttons, inputs, chips, dialogs, tabs, drawers)
-│   │   ├── data/               # DataTable, RowActions, EntityListCard, TableSwitch, BooleanIcon
-│   │   ├── filters/            # FilterBar, FilterInput, FilterSelect, FilterMultiSelect, FilterSegmented, FilterDateRange, FilterBoolean
-│   │   ├── feedback/           # Snackbar, EmptyState, ErrorState, LoadingState, InfoBanner
-│   │   ├── layout/             # PageHeader, PageSectionHeader, templates
-│   │   └── map/                # MapScreenLayout, MapContainer, MapMarker, MapFloatingAction
-│   ├── features/
-│   │   ├── auth/
-│   │   ├── dashboard/
-│   │   ├── appointments/
-│   │   ├── properties/
-│   │   ├── service-groups/
-│   │   ├── marketplace/
-│   │   ├── inspectors/
-│   │   ├── tenants/
-│   │   ├── rental-tenant-portal/
-│   │   ├── notifications/
-│   │   ├── billing/
-│   │   ├── reports/
-│   │   └── settings/
-│   ├── services/               # API clients (generated from OpenAPI)
-│   ├── hooks/                  # Shared hooks (useAuth, useSnackbar, useApiQuery, useUrlFilters, etc.)
-│   ├── lib/                    # Helpers (formatCurrency, formatDate, status helpers, masks)
-│   ├── types/                  # DTOs and API types (from packages/shared when applicable)
-│   ├── assets/                 # Validated SVG assets (no legacy branding)
+│   │   ├── shell/              # AppShell, Sidebar, SidebarItem, SidebarSubmenu, SidebarUser(Menu), MobileDrawer
+│   │   ├── ui/                 # Design system primitives (Button, Dialog, ConfirmDialog, DrawerPanel, StatusChip, Tooltip, …)
+│   │   ├── forms/              # TextInput, SelectInput, DateInput, PhoneInput, AddressLookupInput, FormField, …
+│   │   ├── data/               # DataTable, RowActions, EntityListCard, TableSwitch, DetailRow
+│   │   ├── filters/            # FilterBar, FilterInput, FilterSelect, FilterMultiSelect, FilterSegmented, FilterDateRange, FilterTimeRange, FilterBoolean
+│   │   ├── feedback/           # Snackbar, EmptyState, ErrorState, LoadingState, InfoBanner, NoPermissionState, FilterRequiredState, OfflineBanner
+│   │   ├── import/             # ImportWizard steps
+│   │   ├── layout/             # PageHeader, PageSectionHeader, TabsNav, FloatingTotalBar, templates
+│   │   └── map/                # MapScreenLayout, MapContainer, MapMarker, MapFloatingAction, MapLassoSelect, …
+│   ├── features/               # one folder per domain: analytics, appointments, apps, audit-logs, auth, availability-slots,
+│   │                           # contacts, dashboard, financial, inspector-workload, inspectors, integrations, marketplace,
+│   │                           # notification-consents, notification-templates, pricing-rules, properties, rental-tenant-portal,
+│   │                           # reports, service-groups, service-regions, service-types, settings, tenants, users
+│   ├── services/               # api.ts — the single openapi-fetch client
+│   ├── hooks/                  # useAuth, useApiQuery, useUrlFilters, useGoBack, usePermissions, useSnackbar, …
+│   ├── lib/                    # Helpers (format-date, status-colors, permissions, phone-mask, …)
+│   ├── config/                 # env
+│   ├── styles/
+│   ├── test-utils/
 │   └── main.tsx
 └── ...
 ```
@@ -100,7 +94,7 @@ apps/web/
 
 - **Shell components** are generic and reusable.
 - **Features** group pages, specific components and hooks by domain.
-- **Services** are generated from OpenAPI – do not create manual API clients.
+- **API access** goes through `services/api.ts` (typed by `@properfy/shared` `paths`) and `hooks/useApiQuery.ts` – do not create another HTTP client.
 - Avoid putting business logic directly in page components.
 - Use components from `packages/shared` for shared types and enums.
 
@@ -197,6 +191,15 @@ apps/web/
 - Title left-aligned, CTA right-aligned
 - CTA always coral (`#F37A76`)
 
+### Back navigation
+
+- **Every web sub-screen has a Back button** in the top-left of its header: icon + visible text "Back" (`aria-label="Back"`), via the shared `BackButton` (or `PageHeader`'s `backTo` prop), which calls `useGoBack(parentPath)` (`hooks/useGoBack.ts`): previous in-app screen when history exists, otherwise the parent screen (first history entry: `history.state.idx === 0`, kept by `replace`, e.g. a fresh tab, a direct link or a login redirect).
+- A sub-screen is any screen that is not a sidebar destination: detail, create, import and settings sub-pages. Top-level screens (sidebar items, including Analytics and Workload) have no Back button. `/notification-consents` and redirect-only routes are out of scope.
+- `backTo` must be a route every role of the sub-screen can open; otherwise compute it per role. Test the direct-entry fallback with the most restricted role that opens the screen.
+- Screens with unsaved changes pass `onBack(goBack)` to show the discard confirmation instead of navigating; the override receives the button's `goBack` and calls it after the user confirms. The page's own `useGoBack` and `backTo` use the same fallback constant.
+- Wizard "previous step" buttons are labelled **"Previous step"**, never "Back", so they never share the header button's accessible name.
+- `BackButton`, `backTo`, the `onBack(goBack)` contract and the `history.state.idx` criterion are introduced by X01. Until X01 merges, a new sub-screen uses `useGoBack(parentPath)` directly with the same icon + "Back" text; X01 migrates it.
+
 ### Filters
 
 - Compact visual, custom style (not generic Tailwind inputs)
@@ -242,6 +245,7 @@ apps/web/
 - Floating submenu with glassmorphism (blur + semi-transparent)
 - User section fixed at bottom
 - Map views: sidebar background changes to `#F5F5F5`
+- **Panel screens live in the `Dashboard` sidebar group** (`NAV_ITEMS` in `components/shell/Sidebar.tsx`): Overview (`/dashboard`), Analytics (`/analytics`), Workload (`/inspector-workload`), plus any new panel screen (e.g. Phase 2 "Live Day"). Children follow one canonical order (operations first, then analysis): Overview · Live Day · Inspector notices · Analytics · Workload · Inspector performance · Goals & rewards. A PR that adds a child inserts it at its position in this order (between the children that already exist), never as a placeholder; menu tests assert presence and relative order by label, never by index or count. Each child's `roles` must mirror the route's `AuthGuard` exactly. The group collapses to a plain "Dashboard" item when the user can see only one child (`collapseIfSingle`, used by this group only). Panel screens are top-level: no Back button, no cross-navigation buttons in their headers. (The group is introduced by X01; until it merges, add new panel screens to the group in the same PR that creates them.)
 
 ### Drawers
 
@@ -306,8 +310,9 @@ apps/web/
    promise about behaviour, not a label: declaring `role="listbox"`/`"option"`/
    `"combobox"`/`"tab"` obliges the widget to implement that pattern's keys. This
    was missed for a long time because a `<li onClick>` looks finished on screen
-   and there is no lint rule here to catch it (no `eslint-plugin-jsx-a11y`, no
-   `axe`) — only tests will.
+   and lint cannot catch it: `eslint-plugin-jsx-a11y` (recommended,
+   `--max-warnings 0`) checks markup, not keyboard behaviour, and there is no
+   `axe` run — only tests will.
    - **Listbox / combobox** (`FilterSelect`, `FilterMultiSelect`,
      `AddressLookupInput`, `SelectInput`, `ContactAutocomplete`): options are `<li>`
      and cannot hold focus, so focus stays on the trigger/input and the active
@@ -334,17 +339,7 @@ apps/web/
 
 ## 11. Implementation order
 
-Follow this order strictly – do not start with final pages:
-
-1. **Phase 0:** Design tokens, Nunito font, typography scale, color utilities, status map
-2. **Phase 1:** AppShell, Sidebar, SidebarItem, SidebarSubmenu, SidebarUser
-3. **Phase 2:** Buttons (Primary, Secondary, Outlined, Icon), StatusChip, BooleanIcon, InfoBanner, Snackbar, Dialog, DrawerPanel
-4. **Phase 3:** FilterBar, FilterInput, FilterSelect, FilterMultiSelect, FilterSegmented, FilterDateRange, FilterBoolean
-5. **Phase 4:** DataTable, RowActions, EntityListCard, TableSwitch, EmptyState, ErrorState, LoadingState
-6. **Phase 5:** PageHeader, TabsNav, page templates (list+filters, tabs+content, grouped list)
-7. **Phase 6:** MapScreenLayout, MapFloatingAction, FloatingTotalBar
-8. **Phase 7:** Domain components (AppointmentStatusChip, AppointmentFilters, GroupOfferCard, etc.)
-9. **Phase 8:** Feature pages by module
+All foundation phases (tokens → shell → primitives → filters → data → layout → map → domain components) are shipped. New pages compose the existing components; add a new primitive only when no existing one fits, and put it in `components/`, not in the feature.
 
 ---
 
@@ -360,6 +355,7 @@ Follow this order strictly – do not start with final pages:
 3. **TableSwitch:** Opt-in per page, not global.
 4. **Snackbar:** No raw JSON in production.
 5. **Status map:** `DONE` and `REJECTED` are mandatory in the design system.
+6. **Existing dashboard screens are frozen (Phase 2 rule, 2026-10-27).** Do not change `DashboardPage` (`/dashboard`), `AnalyticsPage` (`/analytics`) or `InspectorWorkloadPage` (`/inspector-workload`): cards, charts, filters, `WeekSelector`, `IntegrationWarnings` and the "New Appointment" action stay as they are. If a task seems to need a change there, **stop and ask the developer explicitly**. A new requirement goes into a **new screen**. The only authorized change is X01's removal of the cross-navigation buttons from those three headers.
 
 ---
 
@@ -367,7 +363,7 @@ Follow this order strictly – do not start with final pages:
 
 When you (Claude Code) implement or modify frontend code:
 
-1. **Read the frontend documentation first:** `projeto-consolidado/frontend-system-spec.md`, `component-inventory.md`, `layout-behavior-rules.md`, `frontend-decisoes-finais.md`.
+1. **Read this file and the existing components first** – `components/` is the design system; the visual spec lives in this file (§4–§10).
 2. **Do not redesign freely** – preserve the visual language of the legacy system.
 3. **Use design tokens** – no hardcoded colors without justification.
 4. **Reuse base components** before creating page-specific variations.
@@ -378,5 +374,4 @@ When you (Claude Code) implement or modify frontend code:
 9. **If a rule is still open**, declare the assumption explicitly in your output.
 10. **The frontend must NOT look like a generic Tailwind template.**
 11. **Data hooks must return referentially stable values.** Any object/array derived from a query payload (spread, `.map()`, normalization) MUST be wrapped in `useMemo` keyed on the raw query data. An unmemoized derived return caused a production freeze — an infinite render loop via a consumer's `useEffect(..., [entity])` populate effect that starved React Router updates (PR #961). Add future payload transforms inside the existing memo, never outside it.
-
-For complete visual specs, consult `projeto-consolidado/frontend-system-spec.md` and `projeto-consolidado/ui-system-atual.md`.
+12. **Never render inspector GPS coordinates for `CL_ADMIN`/`CL_USER`** (root `CLAUDE.md` §7.9). Show distance, accuracy and flags; coordinates are `AM`/`OP` only.
