@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { blockUnmockedApi, stubJson } from './api';
+import { blockExternal, blockUnmockedApi, stubJson } from './api';
 import { INSPECTOR_ME } from './fixtures';
 
 export { INSPECTOR_ME };
@@ -43,6 +43,11 @@ export async function loginAsInspector(page: Page, opts: LoginOptions = {}): Pro
 
   if (baseline) {
     await blockUnmockedApi(page);
+    // Defense in depth: abort Mapbox tile/telemetry hosts. Hermeticity does not
+    // depend on this (the map never initializes with an empty VITE_MAPBOX_TOKEN and
+    // serviceWorkers are blocked), but it guarantees no external request can escape
+    // even if a future screen changes how the map boots.
+    await blockExternal(page);
     for (const stub of BASELINE_STUBS) {
       const body = stub.path === '/v1/me' ? me : stub.body;
       await stubJson(page, stub.path, body, stub.status ?? 200);
