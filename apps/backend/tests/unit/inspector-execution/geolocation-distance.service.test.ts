@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   haversineDistanceMeters,
-  GEOLOCATION_MISMATCH_THRESHOLD_METERS,
 } from '../../../src/modules/inspector-execution/domain/geolocation-distance.service';
 
 describe('haversineDistanceMeters', () => {
@@ -35,11 +34,5 @@ describe('haversineDistanceMeters', () => {
     const d1 = haversineDistanceMeters(-33.8568, 151.2153, -33.8100, 151.2153);
     const d2 = haversineDistanceMeters(-33.8100, 151.2153, -33.8568, 151.2153);
     expect(d1).toBeCloseTo(d2, 5);
-  });
-});
-
-describe('GEOLOCATION_MISMATCH_THRESHOLD_METERS', () => {
-  it('should be 500', () => {
-    expect(GEOLOCATION_MISMATCH_THRESHOLD_METERS).toBe(500);
   });
 });

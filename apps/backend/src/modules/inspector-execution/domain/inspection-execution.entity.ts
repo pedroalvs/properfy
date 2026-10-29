@@ -14,6 +14,16 @@ export interface InspectionExecutionProps {
   geolocationDistanceMeters: number | null;
   createdAt: Date;
   updatedAt: Date;
+  // F03 capture + geofence fields (optional; default null/false for pre-F03 rows).
+  startAccuracyMeters?: number | null;
+  finishAccuracyMeters?: number | null;
+  startClientAt?: Date | null;
+  finishClientAt?: Date | null;
+  finishGeolocationDistanceMeters?: number | null;
+  outOfRadius?: boolean;
+  outOfWindow?: boolean;
+  finishOutOfRadius?: boolean;
+  geofenceRadiusMeters?: number | null;
 }
 
 export class InspectionExecutionEntity extends BaseEntity {
@@ -27,6 +37,16 @@ export class InspectionExecutionEntity extends BaseEntity {
   finishLatitude: number | null;
   finishLongitude: number | null;
   readonly geolocationDistanceMeters: number | null;
+  readonly startAccuracyMeters: number | null;
+  finishAccuracyMeters: number | null;
+  readonly startClientAt: Date | null;
+  finishClientAt: Date | null;
+  finishGeolocationDistanceMeters: number | null;
+  readonly outOfRadius: boolean;
+  readonly outOfWindow: boolean;
+  finishOutOfRadius: boolean;
+  /** Snapshot of the applied radius at check-in; null only for pre-F03 rows. */
+  readonly geofenceRadiusMeters: number | null;
 
   constructor(props: InspectionExecutionProps) {
     super(props.id, props.createdAt, props.updatedAt);
@@ -40,6 +60,15 @@ export class InspectionExecutionEntity extends BaseEntity {
     this.finishLatitude = props.finishLatitude;
     this.finishLongitude = props.finishLongitude;
     this.geolocationDistanceMeters = props.geolocationDistanceMeters;
+    this.startAccuracyMeters = props.startAccuracyMeters ?? null;
+    this.finishAccuracyMeters = props.finishAccuracyMeters ?? null;
+    this.startClientAt = props.startClientAt ?? null;
+    this.finishClientAt = props.finishClientAt ?? null;
+    this.finishGeolocationDistanceMeters = props.finishGeolocationDistanceMeters ?? null;
+    this.outOfRadius = props.outOfRadius ?? false;
+    this.outOfWindow = props.outOfWindow ?? false;
+    this.finishOutOfRadius = props.finishOutOfRadius ?? false;
+    this.geofenceRadiusMeters = props.geofenceRadiusMeters ?? null;
   }
 
   isFinished(): boolean {

@@ -507,4 +507,95 @@ describe('ListAuditLogsUseCase', () => {
       expect(result.data[0]!.entityName).toBeNull();
     });
   });
+
+  // F03 (D10): inspector coordinates are masked for CL_ADMIN on read.
+  describe('coordinate masking for CL_ADMIN', () => {
+    const run = (actor: AuthContext) =>
+      useCase.execute({ filters: {}, pagination: { page: 1, pageSize: 20, sortOrder: 'desc' }, actor });
+
+    it('masks latitude/longitude but keeps distance for CL_ADMIN', async () => {
+      repo.findAll.mockResolvedValue([
+        makeAuditLog({
+          action: 'inspection.started',
+          metadataJson: { latitude: -33.86, longitude: 151.2, geolocationDistanceMeters: 120 },
+        }),
+      ]);
+      const result = await run(clAdminActor);
+      expect(result.data[0]!.metadataJson).toEqual({
+        latitude: '[MASKED]',
+        longitude: '[MASKED]',
+        geolocationDistanceMeters: 120,
+      });
+    });
+
+    it('masks all four coordinate keys of a legacy mismatch audit, keeps distanceMeters', async () => {
+      repo.findAll.mockResolvedValue([
+        makeAuditLog({
+          action: 'inspection.geolocation_mismatch',
+          metadataJson: {
+            inspectorLatitude: -33.86,
+            inspectorLongitude: 151.2,
+            propertyLatitude: -33.87,
+            propertyLongitude: 151.21,
+            distanceMeters: 640,
+          },
+        }),
+      ]);
+      const result = await run(clAdminActor);
+      expect(result.data[0]!.metadataJson).toEqual({
+        inspectorLatitude: '[MASKED]',
+        inspectorLongitude: '[MASKED]',
+        propertyLatitude: '[MASKED]',
+        propertyLongitude: '[MASKED]',
+        distanceMeters: 640,
+      });
+    });
+
+    it('masks nested and array-held coordinate keys', async () => {
+      repo.findAll.mockResolvedValue([
+        makeAuditLog({
+          action: 'inspection.started',
+          metadataJson: { position: { latitude: -33.86, longitude: 151.2 }, points: [{ latitude: 1 }] },
+        }),
+      ]);
+      const result = await run(clAdminActor);
+      const meta = result.data[0]!.metadataJson as any;
+      expect(meta.position.latitude).toBe('[MASKED]');
+      expect(meta.position.longitude).toBe('[MASKED]');
+      expect(meta.points[0].latitude).toBe('[MASKED]');
+    });
+
+    it('leaves metadataJson intact for AM and OP', async () => {
+      const metadataJson = { latitude: -33.86, longitude: 151.2 };
+      repo.findAll.mockResolvedValue([makeAuditLog({ action: 'inspection.started', metadataJson })]);
+      const am = await run(amActor);
+      expect(am.data[0]!.metadataJson).toEqual(metadataJson);
+      repo.findAll.mockResolvedValue([makeAuditLog({ action: 'inspection.started', metadataJson: { ...metadataJson } })]);
+      const op = await run(opActor);
+      expect(op.data[0]!.metadataJson).toEqual(metadataJson);
+    });
+
+    it('does not re-mask a FULL-redacted entry and passes null metadata through', async () => {
+      repo.findAll.mockResolvedValue([
+        makeAuditLog({ action: 'inspection.started', redactionStatus: 'FULL', metadataJson: { latitude: -33.86 } }),
+      ]);
+      const full = await run(clAdminActor);
+      expect(full.data[0]!.metadataJson).toEqual({ latitude: -33.86 });
+
+      repo.findAll.mockResolvedValue([makeAuditLog({ action: 'inspection.started', metadataJson: null })]);
+      const nullMeta = await run(clAdminActor);
+      expect(nullMeta.data[0]!.metadataJson).toBeNull();
+    });
+
+    it('a CL_ADMIN response carries no number under any coordinate key (fails without the mask)', async () => {
+      repo.findAll.mockResolvedValue([
+        makeAuditLog({ action: 'inspection.started', metadataJson: { latitude: -33.86, longitude: 151.2, geolocationDistanceMeters: 120 } }),
+      ]);
+      const result = await run(clAdminActor);
+      const meta = result.data[0]!.metadataJson as Record<string, unknown>;
+      for (const key of ['latitude', 'longitude']) {
+        expect(typeof meta[key]).not.toBe('number');
+      }
+    });
+  });
 });

@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import { assertTenantScope } from '../../../../shared/domain/require-tenant-scope';
+import { maskCoordinateKeys } from '../../domain/mask-coordinate-keys';
 import type { IAuditLogRepository, AuditLogFilters, PaginationParams } from '../../domain/audit-log.repository';
 import type { IPiiFieldMappingRepository } from '../../domain/pii-field-mapping.repository';
 import type { IAuditEntityLabelResolver } from '../../domain/audit-entity-label-resolver';
@@ -212,7 +213,12 @@ export class ListAuditLogsUseCase {
           afterJson,
           requestId: entry.requestId,
           ipAddress: entry.ipAddress,
-          metadataJson: entry.metadataJson,
+          // F03 (D10): agency roles never see the inspector's raw coordinates.
+          // FULL-redacted entries are already stripped, so don't re-mask.
+          metadataJson:
+            role === 'CL_ADMIN' && entry.redactionStatus !== 'FULL'
+              ? (maskCoordinateKeys(entry.metadataJson) as Record<string, unknown> | null)
+              : entry.metadataJson,
           createdAt: entry.createdAt,
           isArchived: entry.isArchived || undefined,
         };

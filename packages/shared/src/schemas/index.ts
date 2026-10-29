@@ -33,3 +33,4 @@ export * from './service-region';
 export * from './inspector-availability';
 export * from './fy';
 export * from './phone';
+export * from './platform-settings';

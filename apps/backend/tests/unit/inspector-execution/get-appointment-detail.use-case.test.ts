@@ -238,6 +238,41 @@ describe('GetAppointmentDetailUseCase', () => {
     expect(result.execution!.startLatitude).toBe(-33.8688);
   });
 
+  it('serves the geofence radius/mode and the execution capture fields (F03)', async () => {
+    const platformSettings = {
+      get: vi.fn().mockResolvedValue({
+        geofenceRadiusMeters: 250,
+        geofenceMode: 'BLOCK',
+        checkInWindowToleranceMinutes: 15,
+        completionReminderEnabled: true,
+        completionReminderMinutesAfterWindowEnd: 30,
+      }),
+    };
+    const sut = new GetAppointmentDetailUseCase(
+      appointmentRepo,
+      executionRepo,
+      serviceTypeReader,
+      new AuthorizationService({ log: vi.fn() } as never),
+      tenantRepo,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      platformSettings as never,
+    );
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(executionRepo.findByAppointmentId).mockResolvedValue(
+      makeExecution({ outOfRadius: true, outOfWindow: false, startAccuracyMeters: 9 }),
+    );
+
+    const result = await sut.execute({ appointmentId: 'appt-1', actor: inspActor });
+
+    expect(result.geofence).toEqual({ radiusMeters: 250, mode: 'BLOCK' });
+    expect(result.execution!.outOfRadius).toBe(true);
+    expect(result.execution!.outOfWindow).toBe(false);
+    expect(result.execution!.startAccuracyMeters).toBe(9);
+  });
+
   it('should surface the rental tenant portal note on the detail output', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({ rentalTenantNote: 'If possible please come at 11am' }),

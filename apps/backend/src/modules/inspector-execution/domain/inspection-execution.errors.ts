@@ -58,6 +58,23 @@ export class ExecutionTimeWindowError extends DomainError {
   }
 }
 
+/**
+ * Check-in refused by the geofence in BLOCK mode (F03, L-F03-08). The message
+ * reaches the inspector verbatim and tells them what to do; `details` feed the
+ * PWA. `distanceMeters`/`radiusMeters` are whole metres.
+ */
+export class GeofenceOutOfRadiusError extends DomainError {
+  constructor(distanceMeters: number, radiusMeters: number, accuracyMeters: number | null) {
+    super(
+      'GEOFENCE_OUT_OF_RADIUS',
+      `You are ${distanceMeters} m from the property. Check-in is only allowed within ${radiusMeters} m. If you are at the right address, contact operations.`,
+      422,
+      { distanceMeters, radiusMeters, accuracyMeters },
+    );
+    this.name = 'GeofenceOutOfRadiusError';
+  }
+}
+
 export class AssetUploadExpiredError extends DomainError {
   constructor() {
     super('ASSET_UPLOAD_EXPIRED', 'Presigned upload URL has expired', 410);

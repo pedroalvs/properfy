@@ -1,5 +1,6 @@
-import type { AuthContext, AppointmentApp, AppointmentCustomField, PropertyType } from '@properfy/shared';
+import type { AuthContext, AppointmentApp, AppointmentCustomField, PropertyType, GeofenceMode } from '@properfy/shared';
 import { normalizeCustomFields } from '@properfy/shared';
+import type { IPlatformSettingsReader } from '../../../../shared/domain/platform-settings';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../appointment/domain/appointment.repository';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import { toAppointmentApp } from '../../../app-credential/application/appointment-app.mapper';
@@ -143,7 +144,15 @@ export interface AppointmentDetailOutput {
     finishLongitude: number | null;
     geolocationDistanceMeters: number | null;
     status: 'IN_PROGRESS' | 'FINISHED';
+    startAccuracyMeters?: number | null;
+    finishAccuracyMeters?: number | null;
+    finishGeolocationDistanceMeters?: number | null;
+    outOfRadius?: boolean;
+    outOfWindow?: boolean;
+    finishOutOfRadius?: boolean;
   } | null;
+  /** The geofence radius + mode in force (F03), served so the PWA shows the right warning copy. */
+  geofence?: { radiusMeters: number; mode: GeofenceMode };
   jobDetails: JobDetails | null;
   /** App credentials linked to this appointment (live reference). */
   apps: AppointmentApp[];
@@ -163,6 +172,8 @@ export class GetAppointmentDetailUseCase {
     private readonly logger?: Logger,
     /** Cached tenants.timezone lookup — preferred over a full tenant fetch on this hot path. */
     private readonly tenantTimezoneLookup?: ITenantTimezoneLookup,
+    /** Platform settings reader (F03) — serves the geofence radius/mode to the PWA. */
+    private readonly platformSettings?: IPlatformSettingsReader,
   ) {}
 
   async execute(input: GetAppointmentDetailInput): Promise<AppointmentDetailOutput> {
@@ -249,6 +260,10 @@ export class GetAppointmentDetailUseCase {
     const codePadded = String(appointment.appointmentNumber).padStart(4, '0');
     const appointmentCode = `${codePrefix}-${codePadded}`;
 
+    const geofenceSettings = this.platformSettings
+      ? await this.platformSettings.get('fieldEvents')
+      : null;
+
     return {
       id: appointment.id,
       appointmentCode,
@@ -309,8 +324,17 @@ export class GetAppointmentDetailUseCase {
             finishLongitude: execution.finishLongitude,
             geolocationDistanceMeters: execution.geolocationDistanceMeters,
             status: execution.getStatus() as 'IN_PROGRESS' | 'FINISHED',
+            startAccuracyMeters: execution.startAccuracyMeters,
+            finishAccuracyMeters: execution.finishAccuracyMeters,
+            finishGeolocationDistanceMeters: execution.finishGeolocationDistanceMeters,
+            outOfRadius: execution.outOfRadius,
+            outOfWindow: execution.outOfWindow,
+            finishOutOfRadius: execution.finishOutOfRadius,
           }
         : null,
+      geofence: geofenceSettings
+        ? { radiusMeters: geofenceSettings.geofenceRadiusMeters, mode: geofenceSettings.geofenceMode }
+        : undefined,
       jobDetails,
       apps,
     };

@@ -288,6 +288,7 @@ model User {
   requested_reports         Report[]
   created_imports           AppointmentImport[]   @relation("importCreatedBy")
   created_service_regions   ServiceRegion[]       @relation("ServiceRegionCreatedBy")
+  platform_settings_updated PlatformSetting[]     @relation("PlatformSettingUpdatedBy")
 
   @@index([tenant_id])
   @@index([tenant_id, role])
@@ -1190,6 +1191,18 @@ model InspectionExecution {
   finish_latitude             Decimal?  @db.Decimal(10, 7)
   finish_longitude            Decimal?  @db.Decimal(10, 7)
   geolocation_distance_meters Decimal?  @db.Decimal(10, 2)
+  // F03 capture + geofence fields (expand-only; nullable/defaulted).
+  start_accuracy_m                    Decimal? @db.Decimal(10, 2)
+  finish_accuracy_m                   Decimal? @db.Decimal(10, 2)
+  start_client_at                     DateTime?
+  finish_client_at                    DateTime?
+  finish_geolocation_distance_meters  Decimal? @db.Decimal(10, 2)
+  out_of_radius                       Boolean  @default(false)
+  out_of_window                       Boolean  @default(false)
+  finish_out_of_radius                Boolean  @default(false)
+  // Snapshot of the radius applied at check-in; written on every post-F03 start.
+  // NULL means exclusively "execution created before F03".
+  geofence_radius_m                   Int?
   created_at                  DateTime  @default(now())
   updated_at                  DateTime  @updatedAt
 
@@ -1198,6 +1211,8 @@ model InspectionExecution {
 
   @@index([inspector_id])
   @@index([started_at])
+  @@index([out_of_radius, started_at])
+  @@index([out_of_window, started_at])
   @@map("inspection_executions")
 }
 
@@ -1553,6 +1568,23 @@ model IntegrationSetting {
   updated_at       DateTime @updatedAt
 
   @@map("integration_settings")
+}
+
+/// Platform-wide configuration (F03 B6). Deliberately has NO tenant_id: it
+/// configures cross-tenant behaviour (inspectors are cross-tenant). Exception to
+/// CLAUDE.md §7.1, same precedent as IntegrationSetting / global ServiceRegion.
+/// Absence of a row means "use the registry defaults" — nothing is seeded.
+model PlatformSetting {
+  id            String   @id @default(uuid())
+  key           String   @unique @db.VarChar(100)
+  value_json    Json
+  updated_by_id String?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  updated_by User? @relation("PlatformSettingUpdatedBy", fields: [updated_by_id], references: [id], onDelete: SetNull)
+
+  @@map("platform_settings")
 }
 
 model ApiKey {

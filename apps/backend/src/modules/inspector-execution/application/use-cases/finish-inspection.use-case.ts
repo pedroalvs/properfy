@@ -13,11 +13,19 @@ import {
 } from '../../domain/inspection-execution.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import { runInTransaction } from '../../../../shared/application/unit-of-work';
+import { haversineDistanceMeters } from '../../domain/geolocation-distance.service';
+import type { IPlatformSettingsReader } from '../../../../shared/domain/platform-settings';
+
+const MAX_DECIMAL_10_2 = 99_999_999.99;
+const clampAccuracy = (accuracy: number | undefined): number | null =>
+  accuracy === undefined ? null : Math.min(accuracy, MAX_DECIMAL_10_2);
 
 export interface FinishInspectionInput {
   appointmentId: string;
   latitude: number;
   longitude: number;
+  accuracy?: number;
+  clientOccurredAt?: string;
   idempotencyKey: string;
   actor: AuthContext;
 }
@@ -28,6 +36,9 @@ export interface FinishInspectionOutput {
   startedAt: string;
   finishedAt: string;
   appointmentStatus: string;
+  finishAccuracyMeters: number | null;
+  finishGeolocationDistanceMeters: number | null;
+  finishOutOfRadius: boolean;
 }
 
 export class FinishInspectionUseCase {
@@ -38,80 +49,75 @@ export class FinishInspectionUseCase {
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
-    /**
-     * Optional: when wired, the execution-finished persist and the SCHEDULED ->
-     * DONE transition commit together in one transaction, so a transition
-     * failure rolls back finishedAt instead of leaving a half-finished
-     * execution (WI-4 / #119). Without it, degrades to the prior
-     * non-transactional behaviour.
-     */
-    private readonly prisma?: PrismaClient,
+    private readonly prisma: PrismaClient | undefined,
+    private readonly platformSettings: IPlatformSettingsReader,
   ) {}
 
   async execute(input: FinishInspectionInput): Promise<FinishInspectionOutput> {
-    const {
-      appointmentId,
-      latitude,
-      longitude,
-      idempotencyKey,
-      actor,
-    } = input;
+    const { appointmentId, latitude, longitude, idempotencyKey, actor } = input;
+    const accuracy = clampAccuracy(input.accuracy);
 
-    // 1. INSP only
     this.authorizationService.assertRoles(actor, ['INSP'], {
       action: 'appointment.mark_done',
       entityType: 'InspectionExecution',
     });
-
     if (!actor.inspectorId) {
       throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
     }
 
-    // 2. Check idempotency
-    const cached = await this.idempotencyService.get<FinishInspectionOutput>(
-      idempotencyKey,
-      'finish',
-    );
+    const cached = await this.idempotencyService.get<FinishInspectionOutput>(idempotencyKey, 'finish');
     if (cached) return cached;
 
-    // 3. Load execution
     const execution = await this.executionRepo.findByAppointmentId(appointmentId);
     if (!execution) throw new ExecutionNotStartedError();
-
     if (execution.inspectorId !== actor.inspectorId) {
       throw new ForbiddenError('FORBIDDEN', 'Inspection execution is not assigned to this inspector');
     }
-
-    // 4. Check not finished
     if (execution.isFinished()) throw new ExecutionAlreadyFinishedError();
 
     const appointmentResult = await this.appointmentRepo.findById(appointmentId, null);
-    if (!appointmentResult) {
-      throw new ExecutionAppointmentNotFoundError();
-    }
+    if (!appointmentResult) throw new ExecutionAppointmentNotFoundError();
     const { appointment } = appointmentResult;
 
-    // 6-7. Persist finishedAt and trigger the SCHEDULED -> DONE transition atomically:
-    // if the transition is refused, the finishedAt write must not survive it either.
+    // Distance + out-of-radius flag at check-out (the finish never blocks — D15).
+    const propertyLat = appointmentResult.propertyLatitude ?? null;
+    const propertyLng = appointmentResult.propertyLongitude ?? null;
+    const settings = await this.platformSettings.get('fieldEvents');
+    const radiusMeters = settings.geofenceRadiusMeters;
+    const finishDistanceMeters =
+      propertyLat != null && propertyLng != null
+        ? Math.round(haversineDistanceMeters(latitude, longitude, propertyLat, propertyLng))
+        : null;
+    const finishOutOfRadius = finishDistanceMeters != null && finishDistanceMeters > radiusMeters;
+    const clientAt = input.clientOccurredAt ? new Date(input.clientOccurredAt) : null;
+    const finishClientAt = clientAt && !Number.isNaN(clientAt.getTime()) ? clientAt : null;
+
+    // Persist the finish capture and the SCHEDULED -> DONE transition atomically.
     const now = new Date();
     let appointmentStatus = '';
     await runInTransaction(this.prisma, async ({ tx, defer }) => {
-      await this.executionRepo.update(execution.id, {
-        finishedAt: now,
-        finishLatitude: latitude,
-        finishLongitude: longitude,
-      }, tx);
+      await this.executionRepo.update(
+        execution.id,
+        {
+          finishedAt: now,
+          finishLatitude: latitude,
+          finishLongitude: longitude,
+          finishAccuracyMeters: accuracy,
+          finishClientAt,
+          finishGeolocationDistanceMeters: finishDistanceMeters,
+          finishOutOfRadius,
+        },
+        tx,
+      );
 
-      const transitionResult = await this.executeStatusTransition.executeInTransaction({
-        appointmentId,
-        targetStatus: 'DONE',
-        actor,
-      }, tx);
+      const transitionResult = await this.executeStatusTransition.executeInTransaction(
+        { appointmentId, targetStatus: 'DONE', actor },
+        tx,
+      );
       appointmentStatus = transitionResult.output.status;
       defer(transitionResult.runAfterCommit);
     });
 
-    // 8. Audit log
     this.auditService.log({
       action: 'inspection_execution.finished',
       actorType: 'USER',
@@ -123,10 +129,12 @@ export class FinishInspectionUseCase {
         appointmentId,
         finishLatitude: latitude,
         finishLongitude: longitude,
+        accuracyMeters: accuracy,
+        finishGeolocationDistanceMeters: finishDistanceMeters,
+        finishOutOfRadius,
       },
     });
 
-    // 8b. Audit log for appointment timeline
     this.auditService.log({
       action: 'inspection.finished',
       actorType: 'USER',
@@ -134,20 +142,45 @@ export class FinishInspectionUseCase {
       entityType: 'Appointment',
       entityId: appointmentId,
       tenantId: appointment.tenantId,
-      metadata: { latitude, longitude },
+      metadata: {
+        latitude,
+        longitude,
+        accuracyMeters: accuracy,
+        clientOccurredAt: input.clientOccurredAt ?? null,
+        distanceMeters: finishDistanceMeters,
+        outOfRadius: finishOutOfRadius,
+      },
     });
 
-    // 9. Store idempotency
+    // FINISH mismatch audit carries NO inspector coordinates (privacy, D10).
+    if (finishOutOfRadius) {
+      this.auditService.log({
+        action: 'inspection.geolocation_mismatch',
+        actorType: 'USER',
+        actorId: actor.userId,
+        entityType: 'Appointment',
+        entityId: appointmentId,
+        tenantId: appointment.tenantId,
+        metadata: {
+          phase: 'FINISH',
+          distanceMeters: finishDistanceMeters,
+          thresholdMeters: radiusMeters,
+          accuracyMeters: accuracy,
+        },
+      });
+    }
+
     const output: FinishInspectionOutput = {
       executionId: execution.id,
       appointmentId,
       startedAt: execution.startedAt.toISOString(),
       finishedAt: now.toISOString(),
       appointmentStatus,
+      finishAccuracyMeters: accuracy,
+      finishGeolocationDistanceMeters: finishDistanceMeters,
+      finishOutOfRadius,
     };
-
     await this.idempotencyService.set(idempotencyKey, 'finish', output, 24);
-
     return output;
   }
 }

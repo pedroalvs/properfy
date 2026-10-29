@@ -7,7 +7,13 @@ import { availableSlotSchema, storedAvailableSlotSchema } from './available-slot
 // One-way edge: rental-tenant-portal.ts does not import this file (verified — a
 // cycle here typechecks fine and only explodes at runtime).
 import { portalSurveySchema } from './rental-tenant-portal';
-import { AppointmentStatus, ServiceTypeFlowType } from '../enums';
+import { AppointmentStatus, ServiceTypeFlowType, GeofenceMode } from '../enums';
+
+// Geofence fallback reasons surfaced to the PWA (F03). Shared by the start
+// response and the inspector appointment detail.
+const geofenceFallbackReasonSchema = z
+  .enum(['NO_PROPERTY_COORDINATES', 'NO_ACCURACY', 'POOR_ACCURACY'])
+  .nullable();
 
 /**
  * Two kinds of temporal value cross the wire, and they are NOT interchangeable.
@@ -555,7 +561,22 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
     finishLongitude: z.number().nullable(),
     geolocationDistanceMeters: z.number().nullable(),
     status: z.enum(['IN_PROGRESS', 'FINISHED']),
+    // F03 capture fields (optional so pre-F03 executions still serialize).
+    startAccuracyMeters: z.number().nullable().optional(),
+    finishAccuracyMeters: z.number().nullable().optional(),
+    finishGeolocationDistanceMeters: z.number().nullable().optional(),
+    outOfRadius: z.boolean().optional(),
+    outOfWindow: z.boolean().optional(),
+    finishOutOfRadius: z.boolean().optional(),
   }).nullable(),
+  // F03: the geofence radius + mode in force, served so the PWA shows the right
+  // warning copy. Optional so older clients / cached responses stay valid.
+  geofence: z
+    .object({
+      radiusMeters: z.number(),
+      mode: z.nativeEnum(GeofenceMode),
+    })
+    .optional(),
   /** App credentials linked to this appointment (live reference). */
   apps: z.array(appointmentAppSchema).default([]),
   agencyName: z.string().nullable().optional(),
@@ -912,6 +933,10 @@ export const finishInspectionResponseSchema = z.object({
   startedAt: instantStr(),
   finishedAt: instantStr(),
   appointmentStatus: z.nativeEnum(AppointmentStatus),
+  // F03 (optional so idempotency-cached pre-F03 responses still validate).
+  finishAccuracyMeters: z.number().nullable().optional(),
+  finishGeolocationDistanceMeters: z.number().nullable().optional(),
+  finishOutOfRadius: z.boolean().optional(),
 });
 
 export const startInspectionResponseSchema = z.object({
@@ -922,6 +947,18 @@ export const startInspectionResponseSchema = z.object({
   startLongitude: z.number(),
   geolocationDistanceMeters: z.number().nullable(),
   status: z.literal('IN_PROGRESS'),
+  // F03 (all optional so idempotency-cached pre-F03 responses still validate).
+  startAccuracyMeters: z.number().nullable().optional(),
+  outOfRadius: z.boolean().optional(),
+  outOfWindow: z.boolean().optional(),
+  geofence: z
+    .object({
+      mode: z.nativeEnum(GeofenceMode),
+      effectiveMode: z.nativeEnum(GeofenceMode),
+      radiusMeters: z.number(),
+      fallbackReason: geofenceFallbackReasonSchema,
+    })
+    .optional(),
 });
 
 // ─── Financial Entry ───────────────────────────────────────────────────────

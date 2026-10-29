@@ -7,6 +7,7 @@ import {
   ExecutionAlreadyFinishedError,
   ExecutionT1BlockedError,
   ExecutionTimeWindowError,
+  GeofenceOutOfRadiusError,
 } from '../../../src/modules/inspector-execution/domain/inspection-execution.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
@@ -47,6 +48,16 @@ const auditService = { log: vi.fn() };
 
 // Flow type drives whether tenant confirmation is required; default ROUTINE.
 const serviceTypeReader = { findById: vi.fn() };
+
+// Platform-settings reader stub (F03). Default: FLAG, radius 300, tolerance 15.
+const platformSettings = { get: vi.fn() };
+const FIELD_EVENTS_DEFAULTS = {
+  geofenceRadiusMeters: 300,
+  geofenceMode: 'FLAG' as const,
+  checkInWindowToleranceMinutes: 15,
+  completionReminderEnabled: true,
+  completionReminderMinutesAfterWindowEnd: 30,
+};
 
 function makeAppointmentWithRelations(overrides: Record<string, unknown> = {}, relationOverrides: Record<string, unknown> = {}) {
   const appointment = {
@@ -106,6 +117,7 @@ function makeSut() {
     auditService as any,
     serviceTypeReader,
     authorizationService,
+    platformSettings as any,
   );
 }
 
@@ -121,6 +133,7 @@ describe('StartInspectionUseCase', () => {
     idempotencyService.set.mockResolvedValue(undefined);
     appointmentRepo.isAppointmentVisibleForInspector.mockResolvedValue(true);
     serviceTypeReader.findById.mockResolvedValue({ flowType: 'ROUTINE' });
+    platformSettings.get.mockResolvedValue({ ...FIELD_EVENTS_DEFAULTS });
   });
 
   afterEach(() => {
@@ -727,7 +740,9 @@ describe('StartInspectionUseCase', () => {
     );
     expect(mismatchCalls).toHaveLength(1);
     expect(mismatchCalls[0][0].metadata.distanceMeters).toBeGreaterThan(500);
-    expect(mismatchCalls[0][0].metadata.thresholdMeters).toBe(500);
+    // Threshold is now the configured geofence radius (default 300), not a fixed 500.
+    expect(mismatchCalls[0][0].metadata.thresholdMeters).toBe(300);
+    expect(mismatchCalls[0][0].metadata.phase).toBe('START');
   });
 
   it('should not block inspection start when inspector is beyond 500m', async () => {
@@ -788,5 +803,141 @@ describe('StartInspectionUseCase', () => {
     const savedExecution = executionRepo.save.mock.calls[0][0] as InspectionExecutionEntity;
     expect(savedExecution.geolocationDistanceMeters).toBeTypeOf('number');
     expect(savedExecution.geolocationDistanceMeters!).toBeLessThan(10); // same coords ~0m
+  });
+
+  // --- F03: geofence, window, capture ---
+
+  const OPERA = { propertyLatitude: -33.8568, propertyLongitude: 151.2153 };
+  const FAR = { latitude: -33.81, longitude: 151.2153 }; // ~5.2 km from Opera
+
+  it('snapshots the radius and stores accuracy/null client time for an old-body check-in', async () => {
+    const sut = makeSut();
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations({}, OPERA));
+    await sut.execute({ appointmentId: 'appt-1', latitude: -33.8568, longitude: 151.2153, idempotencyKey: 'f-1', actor: inspActor });
+    const saved = executionRepo.save.mock.calls[0][0] as InspectionExecutionEntity;
+    expect(saved.geofenceRadiusMeters).toBe(300);
+    expect(saved.startAccuracyMeters).toBeNull();
+    expect(saved.startClientAt).toBeNull();
+    expect(saved.outOfRadius).toBe(false);
+  });
+
+  it('BLOCK + far + good accuracy → 422 GEOFENCE_OUT_OF_RADIUS, no execution, no idempotency, check_in_blocked audit without coords', async () => {
+    const sut = makeSut();
+    platformSettings.get.mockResolvedValue({ ...FIELD_EVENTS_DEFAULTS, geofenceMode: 'BLOCK' });
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations({}, OPERA));
+
+    let thrown: unknown;
+    try {
+      await sut.execute({ appointmentId: 'appt-1', ...FAR, accuracy: 12, idempotencyKey: 'f-blk', actor: inspActor });
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(GeofenceOutOfRadiusError);
+    const err = thrown as GeofenceOutOfRadiusError;
+    expect(err.message).toMatch(/^You are \d+ m from the property\. Check-in is only allowed within 300 m\. If you are at the right address, contact operations\.$/);
+    expect((err.details as any).radiusMeters).toBe(300);
+    expect((err.details as any).accuracyMeters).toBe(12);
+    expect(executionRepo.save).not.toHaveBeenCalled();
+    expect(idempotencyService.set).not.toHaveBeenCalled();
+
+    const blocked = auditService.log.mock.calls.find((c: any[]) => c[0].action === 'inspection.check_in_blocked');
+    expect(blocked).toBeDefined();
+    const meta = blocked![0].metadata;
+    expect(meta.radiusMeters).toBe(300);
+    expect(meta.accuracyMeters).toBe(12);
+    for (const k of ['latitude', 'longitude', 'inspectorLatitude', 'inspectorLongitude']) {
+      expect(meta).not.toHaveProperty(k);
+    }
+  });
+
+  it('BLOCK + far + poor accuracy (>radius) → falls back to FLAG, creates, outOfRadius true', async () => {
+    const sut = makeSut();
+    platformSettings.get.mockResolvedValue({ ...FIELD_EVENTS_DEFAULTS, geofenceMode: 'BLOCK' });
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations({}, OPERA));
+    const result = await sut.execute({ appointmentId: 'appt-1', ...FAR, accuracy: 350, idempotencyKey: 'f-poor', actor: inspActor });
+    expect(result.outOfRadius).toBe(true);
+    expect(result.geofence.effectiveMode).toBe('FLAG');
+    expect(result.geofence.fallbackReason).toBe('POOR_ACCURACY');
+    expect(executionRepo.save).toHaveBeenCalled();
+  });
+
+  it('BLOCK + property without coordinates → falls back to FLAG, still snapshots radius 300', async () => {
+    const sut = makeSut();
+    platformSettings.get.mockResolvedValue({ ...FIELD_EVENTS_DEFAULTS, geofenceMode: 'BLOCK' });
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations({}, { propertyLatitude: null, propertyLongitude: null }));
+    const result = await sut.execute({ appointmentId: 'appt-1', latitude: -33.9, longitude: 151.2, accuracy: 10, idempotencyKey: 'f-nocoord', actor: inspActor });
+    expect(result.geolocationDistanceMeters).toBeNull();
+    expect(result.outOfRadius).toBe(false);
+    expect(result.geofence.fallbackReason).toBe('NO_PROPERTY_COORDINATES');
+    const saved = executionRepo.save.mock.calls[0][0] as InspectionExecutionEntity;
+    expect(saved.geofenceRadiusMeters).toBe(300);
+  });
+
+  it('in-progress existing execution with BLOCK is returned, never re-evaluated/blocked', async () => {
+    const sut = makeSut();
+    platformSettings.get.mockResolvedValue({ ...FIELD_EVENTS_DEFAULTS, geofenceMode: 'BLOCK' });
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations({}, OPERA));
+    executionRepo.findByAppointmentId.mockResolvedValue(
+      new InspectionExecutionEntity({
+        id: 'exec-x', appointmentId: 'appt-1', inspectorId: 'insp-1',
+        startedAt: new Date('2026-03-21T09:00:00Z'), finishedAt: null, resumedAt: null,
+        startLatitude: -33.5, startLongitude: 151.0, finishLatitude: null, finishLongitude: null,
+        geolocationDistanceMeters: 120, geofenceRadiusMeters: 250, createdAt: new Date(), updatedAt: new Date(),
+      }),
+    );
+    const result = await sut.execute({ appointmentId: 'appt-1', ...FAR, accuracy: 10, idempotencyKey: 'f-inprog', actor: inspActor });
+    expect(result.executionId).toBe('exec-x');
+    expect(result.geofence.radiusMeters).toBe(250); // the stored snapshot, not a re-eval
+    expect(executionRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('check-in before the window (08:30 for a 09:00 slot) flags outOfWindow but still creates', async () => {
+    const sut = makeSut();
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-21', '08:30', PLATFORM_TIMEZONE));
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations({}, OPERA));
+    const result = await sut.execute({ appointmentId: 'appt-1', latitude: -33.8568, longitude: 151.2153, idempotencyKey: 'f-oow', actor: inspActor });
+    expect(result.outOfWindow).toBe(true);
+    expect(executionRepo.save).toHaveBeenCalled();
+  });
+
+  it('uses a plausible device time for the window (late server time, on-time device)', async () => {
+    const sut = makeSut();
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-21', '11:30', PLATFORM_TIMEZONE)); // after window on the server
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations({}, OPERA));
+    const clientOccurredAt = zonedWallTimeToUtc('2026-03-21', '10:00', PLATFORM_TIMEZONE).toISOString();
+    const result = await sut.execute({ appointmentId: 'appt-1', latitude: -33.8568, longitude: 151.2153, accuracy: 8, clientOccurredAt, idempotencyKey: 'f-client', actor: inspActor });
+    expect(result.outOfWindow).toBe(false);
+    const saved = executionRepo.save.mock.calls[0][0] as InspectionExecutionEntity;
+    expect(saved.startClientAt?.toISOString()).toBe(clientOccurredAt);
+    expect(saved.startAccuracyMeters).toBe(8);
+  });
+
+  it('an implausible device time never flags outOfWindow and records windowSkipped', async () => {
+    const sut = makeSut();
+    vi.setSystemTime(zonedWallTimeToUtc('2026-03-21', '10:00', PLATFORM_TIMEZONE));
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations({}, OPERA));
+    const tenDaysAgo = new Date(zonedWallTimeToUtc('2026-03-21', '10:00', PLATFORM_TIMEZONE).getTime() - 10 * 24 * 3600 * 1000).toISOString();
+    const result = await sut.execute({ appointmentId: 'appt-1', latitude: -33.8568, longitude: 151.2153, clientOccurredAt: tenDaysAgo, idempotencyKey: 'f-implaus', actor: inspActor });
+    expect(result.outOfWindow).toBe(false);
+    const started = auditService.log.mock.calls.find((c: any[]) => c[0].action === 'inspection.started');
+    expect(started![0].metadata.windowSkipped).toBe('IMPLAUSIBLE_CLIENT_TIME');
+  });
+
+  it('clamps an absurd accuracy to the Decimal(10,2) ceiling instead of rejecting', async () => {
+    const sut = makeSut();
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations({}, OPERA));
+    await sut.execute({ appointmentId: 'appt-1', latitude: -33.8568, longitude: 151.2153, accuracy: 123456789.5, idempotencyKey: 'f-clamp', actor: inspActor });
+    const saved = executionRepo.save.mock.calls[0][0] as InspectionExecutionEntity;
+    expect(saved.startAccuracyMeters).toBe(99999999.99);
+  });
+
+  it('includes the geofence block and flags in the response', async () => {
+    const sut = makeSut();
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations({}, OPERA));
+    const result = await sut.execute({ appointmentId: 'appt-1', latitude: -33.8568, longitude: 151.2153, accuracy: 10, idempotencyKey: 'f-resp', actor: inspActor });
+    expect(result.geofence).toEqual({ mode: 'FLAG', effectiveMode: 'FLAG', radiusMeters: 300, fallbackReason: null });
+    expect(result.startAccuracyMeters).toBe(10);
+    expect(result.outOfRadius).toBe(false);
+    expect(result.outOfWindow).toBe(false);
   });
 });
