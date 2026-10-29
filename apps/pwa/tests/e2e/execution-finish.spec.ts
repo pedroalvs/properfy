@@ -103,11 +103,11 @@ test.describe('Execution finish confirmations', () => {
   // bounces, so these finish-confirmation flows are fully covered there. Deferred
   // (not silently skipped) with a tracked issue; the app-side fix (WebKit deep-link
   // redirect-target preservation) is its own task and does not block F04-3b.
-  // TODO(issue): replace with the real issue URL before merge.
+  // Tracked: https://github.com/pedroalvs/properfy/issues/1313
   test.beforeEach(({}, testInfo) => {
     test.fixme(
       isWebKitProject(testInfo),
-      'WebKit cold deep-link to /execution is flaky during session restore (tracked issue); covered on Chromium',
+      'WebKit cold deep-link to /execution flakes during session restore — https://github.com/pedroalvs/properfy/issues/1313 (covered on Chromium)',
     );
   });
 
