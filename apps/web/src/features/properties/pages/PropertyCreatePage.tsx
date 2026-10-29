@@ -22,10 +22,14 @@ import { EMPTY_PROPERTY_FORM } from '../types';
 import type { AddressLookupSuggestion } from '@/lib/address';
 import { buildAddressLabel } from '@/lib/address';
 
+// Single source of truth for the Back fallback: the page's own useGoBack and the header's
+// backTo must agree (L-X01-08).
+const BACK_TO = '/properties';
+
 export function PropertyCreatePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const goBack = useGoBack('/properties');
+  const goBack = useGoBack(BACK_TO);
   const { user } = useAuth();
   const { showSuccess, showError } = useSnackbar();
   const { save, isSaving, validate } = usePropertySave();
@@ -176,16 +180,7 @@ export function PropertyCreatePage() {
 
   return (
     <>
-      <PageHeader
-        title="New Property"
-        secondaryActions={[
-          {
-            label: 'Back',
-            icon: 'mdi-arrow-left',
-            onClick: handleBack,
-          },
-        ]}
-      />
+      <PageHeader title="New Property" backTo={BACK_TO} onBack={handleBack} />
 
       <div className="mx-auto max-w-[640px]">
         <div className="rounded bg-card-bg p-6 shadow-sm">

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -306,6 +306,49 @@ describe('AppointmentListPage', () => {
       renderPage();
 
       expect(isCreateDrawerOpen()).toBe(false);
+    });
+  });
+
+  describe('Back navigation', () => {
+    // P-a: a single header Back button, never a duplicated pair.
+    it('renders exactly one header Back button', () => {
+      renderPage();
+      expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+    });
+
+    // P-b: opened directly (single history entry), Back falls back to /map.
+    it('falls back to /map when opened directly', async () => {
+      const user = userEvent.setup();
+      const queryClient = new QueryClient({
+        defaultOptions: {
+          queries: { retry: false, gcTime: 0 },
+          mutations: { retry: false },
+        },
+      });
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <SnackbarProvider>
+              <MemoryRouter
+                future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+                initialEntries={['/appointments']}
+              >
+                <Routes>
+                  <Route path="/appointments" element={<AppointmentListPage />} />
+                  <Route path="/map" element={<div data-testid="map-route">Map</div>} />
+                </Routes>
+              </MemoryRouter>
+            </SnackbarProvider>
+          </AuthProvider>
+        </QueryClientProvider>,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('map-route')).toBeInTheDocument();
+      });
     });
   });
 

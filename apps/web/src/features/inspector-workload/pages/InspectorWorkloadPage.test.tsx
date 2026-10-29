@@ -150,31 +150,25 @@ describe('InspectorWorkloadPage', () => {
     await waitFor(() => expect(mockUseInspectorWorkload).toHaveBeenLastCalledWith('2026-07-20'));
   });
 
-  // The route is AM/OP-only and both roles may open Dashboard and Analytics,
-  // so the actions carry no role gate. With the sidebar entries removed these
-  // buttons are the only way off the screen within the dashboard cluster.
-  it('offers Dashboard and Analytics actions alongside the week selector', () => {
+  // Workload is now a top-level sidebar screen: no in-header cross-navigation, no Back button,
+  // but the week selector stays (X01).
+  // W1 — no Dashboard/Analytics header buttons.
+  it('shows no Dashboard or Analytics header button', () => {
     renderPage();
+    expect(screen.queryByRole('button', { name: 'Dashboard' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Analytics' })).not.toBeInTheDocument();
+  });
 
-    expect(screen.getAllByRole('button', { name: /dashboard/i }).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByRole('button', { name: /analytics/i }).length).toBeGreaterThanOrEqual(1);
+  // W2 — the week selector stays in the header.
+  it('keeps the week selector in the header', () => {
+    renderPage();
     expect(screen.getByTestId('week-selector')).toBeInTheDocument();
   });
 
-  it('navigates to /dashboard when the Dashboard action is clicked', async () => {
-    const user = userEvent.setup();
+  // W3 — top-level screen, no Back button.
+  it('has no Back button', () => {
     renderPage();
-
-    await user.click(screen.getAllByRole('button', { name: /dashboard/i })[0]!);
-    expect(screen.getByTestId('location-display')).toHaveTextContent('/dashboard');
-  });
-
-  it('navigates to /analytics when the Analytics action is clicked', async () => {
-    const user = userEvent.setup();
-    renderPage();
-
-    await user.click(screen.getAllByRole('button', { name: /analytics/i })[0]!);
-    expect(screen.getByTestId('location-display')).toHaveTextContent('/analytics');
+    expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
   });
 
   it('shows a loading placeholder rather than an empty screen', () => {

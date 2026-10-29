@@ -268,6 +268,39 @@ describe('ContactDetailPage — Reactivate in-flight state (WI-5 #547)', () => {
   });
 });
 
+describe('ContactDetailPage — header Back button (X01)', () => {
+  it('renders exactly one header Back button in the loaded state', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0));
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+  });
+
+  it('falls back to the contacts list on Back with no in-app history', async () => {
+    setUser('CL_ADMIN', TENANT_A);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <SnackbarProvider>
+          <MemoryRouter
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+            initialEntries={[`/contacts/${CONTACT_ID}`]}
+          >
+            <Routes>
+              <Route path="/contacts/:id" element={<ContactDetailPage />} />
+              <Route path="/contacts" element={<div>contacts list</div>} />
+            </Routes>
+          </MemoryRouter>
+        </SnackbarProvider>
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('contacts list')).toBeInTheDocument();
+  });
+});
+
 describe('ContactDetailPage — Timeline tab visibility (audit.view RBAC)', () => {
   it('hides the Timeline tab from CL_USER', () => {
     renderPage('CL_USER');

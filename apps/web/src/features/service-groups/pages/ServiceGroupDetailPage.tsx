@@ -27,7 +27,7 @@ import { RepublishGroupModal } from '../components/RepublishGroupModal';
 import { UnpublishGroupModal } from '../components/UnpublishGroupModal';
 import { EditGroupModal } from '../components/EditGroupModal';
 import { SendPortalLinkDialog } from '../components/SendPortalLinkDialog';
-import { useGoBack } from '@/hooks/useGoBack';
+import { BackButton } from '@/components/layout';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { getPublishBlockReason } from '../lib/publish-block-reason';
 
@@ -35,7 +35,6 @@ const PUBLISH_BLOCK_REASON_ID = 'publish-block-reason';
 
 export function ServiceGroupDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const handleBack = useGoBack('/service-groups');
   const { serviceGroup, isLoading, isError, refetch } = useServiceGroupDetail(id ?? null);
   const { publish, isPublishing } = usePublishServiceGroup(id ?? null, refetch);
   const { assign, isAssigning } = useAssignInspector(id ?? null, refetch);
@@ -109,12 +108,7 @@ export function ServiceGroupDetailPage() {
   if (isLoading) {
     return (
       <div>
-        <PageHeader
-          title="Loading..."
-          secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: handleBack },
-          ]}
-        />
+        <PageHeader title="Loading..." backTo="/service-groups" />
         <div className="rounded bg-card-bg p-6 shadow-sm">
           <LoadingState rows={8} />
         </div>
@@ -125,12 +119,7 @@ export function ServiceGroupDetailPage() {
   if (isError || !serviceGroup) {
     return (
       <div>
-        <PageHeader
-          title="Service Group"
-          secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: handleBack },
-          ]}
-        />
+        <PageHeader title="Service Group" backTo="/service-groups" />
         <div className="rounded bg-card-bg p-6 shadow-sm">
           <ErrorState
             message="Failed to load service group details"
@@ -190,13 +179,7 @@ export function ServiceGroupDetailPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleBack}
-            className="rounded p-1 text-text-secondary hover:bg-black/5"
-            aria-label="Go back"
-          >
-            <i className="mdi mdi-arrow-left text-xl" aria-hidden="true" />
-          </button>
+          <BackButton to="/service-groups" />
           <h1 className="text-page-title-mobile text-secondary md:text-page-title">
             {serviceGroup.code ? `Group ${serviceGroup.code}` : '—'}
           </h1>

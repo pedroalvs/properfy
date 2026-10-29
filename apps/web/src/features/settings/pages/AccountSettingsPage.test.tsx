@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { Snackbar } from '@/components/feedback/Snackbar';
 
@@ -116,6 +116,39 @@ describe('AccountSettingsPage', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Security' }));
     expect(screen.getByRole('heading', { name: 'Two-factor authentication' })).toBeInTheDocument();
+  });
+
+  it('renders exactly one header Back button (P-a)', () => {
+    renderPage();
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+  });
+
+  it('Back on a direct entry falls back to the dashboard (P-b)', async () => {
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    function DashboardMarker() {
+      const location = useLocation();
+      return <div data-testid="dashboard-fallback">{location.pathname}</div>;
+    }
+    render(
+      <MemoryRouter
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        initialEntries={['/settings/account']}
+      >
+        <QueryClientProvider client={queryClient}>
+          <SnackbarProvider>
+            <Routes>
+              <Route path="/settings/account" element={<AccountSettingsPage />} />
+              <Route path="/dashboard" element={<DashboardMarker />} />
+            </Routes>
+          </SnackbarProvider>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(screen.getByTestId('dashboard-fallback')).toHaveTextContent('/dashboard');
   });
 });
 

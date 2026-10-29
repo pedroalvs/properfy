@@ -9,6 +9,7 @@ import {
   todayInTzDateString,
 } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { BackButton } from '@/components/layout';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -18,7 +19,6 @@ import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useGoBack } from '@/hooks/useGoBack';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
 import { toApiError } from '@/lib/api-error';
@@ -71,7 +71,6 @@ function isPrivilegedRole(role: string): boolean {
 export function AppointmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const handleBack = useGoBack('/appointments');
   const { user } = useAuth();
   const { appointment, isLoading, isError, refetch } = useAppointmentDetail(id ?? null);
   const { crossCheckDone, isCrossChecking } = useAppointmentCrossCheck(id ?? null, refetch);
@@ -303,12 +302,7 @@ export function AppointmentDetailPage() {
   if (isLoading) {
     return (
       <div>
-        <PageHeader
-          title="Loading..."
-          secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: handleBack },
-          ]}
-        />
+        <PageHeader title="Loading..." backTo="/appointments" />
         <div className="rounded bg-card-bg p-6 shadow-sm">
           <LoadingState rows={8} />
         </div>
@@ -319,12 +313,7 @@ export function AppointmentDetailPage() {
   if (isError || !appointment) {
     return (
       <div>
-        <PageHeader
-          title="Appointment"
-          secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: handleBack },
-          ]}
-        />
+        <PageHeader title="Appointment" backTo="/appointments" />
         <div className="rounded bg-card-bg p-6 shadow-sm">
           <ErrorState
             message="Failed to load appointment details"
@@ -339,13 +328,7 @@ export function AppointmentDetailPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleBack}
-            className="rounded p-1 text-text-secondary hover:bg-black/5"
-            aria-label="Go back"
-          >
-            <i className="mdi mdi-arrow-left text-xl" aria-hidden="true" />
-          </button>
+          <BackButton to="/appointments" />
           <h1 className="text-page-title-mobile text-secondary md:text-page-title">
             {appointment.appointmentCode}
           </h1>
