@@ -8,6 +8,7 @@ The repository is a **monorepo** composed of:
 - `apps/web/` – React + TypeScript + Vite + Tailwind CSS SPA (Portal Master Admin, Portal Imobiliaria, Portal Inquilino)
 - `apps/pwa/` – React + Vite + Tailwind CSS PWA (Inspector Mobile App)
 - `packages/shared/` – Shared schemas, types, enums and contracts (Zod + TypeScript)
+- `packages/frontend-standards/` – Shared non-visual frontend standards (`cn()`, CVA conventions, constants, ESLint config) used by web and pwa
 
 When implementing or modifying features, you must respect the **business rules**, **multi-tenant model**, **state machine** and **API contracts** defined here. Workspace-specific details belong in `apps/backend/CLAUDE.md`, `apps/web/CLAUDE.md`, `apps/pwa/CLAUDE.md` and `packages/shared/CLAUDE.md`.
 
@@ -37,9 +38,9 @@ When implementing or modifying features, you must respect the **business rules**
 
 **Backend (API):**
 
-- Node.js + Fastify
+- Node.js 24 + Fastify 4
 - Clean Architecture (modules: `domain/`, `application/`, `infrastructure/`, `interfaces/`)
-- Prisma ORM + PostgreSQL (Supabase as infrastructure)
+- Prisma 6 ORM + PostgreSQL (Supabase as infrastructure)
 - pg-boss for async jobs (notifications, imports, finance) — PostgreSQL-backed, no Redis
 - Internal JWT authentication (RS256 with `kid` rotation)
 - Stateless application
@@ -47,21 +48,22 @@ When implementing or modifying features, you must respect the **business rules**
 **Frontend (Web + PWA):**
 
 - React + Vite + Tailwind CSS
-- OpenAPI-generated client as source of truth for API contracts
+- Typed API client: `openapi-fetch` typed by the `paths` generated into `packages/shared/src/api-types.ts` from `packages/shared/openapi.json` (`pnpm generate:api`). CI fails when the committed contract is stale (`contract-freshness` job), so regenerate and commit both files whenever a route schema changes.
 - Design system evolved from legacy Vue 2 + Vuetify 2 app (preserve visual identity)
 
 **Infrastructure:**
 
-- `dev` – local
-- `staging` – VPS with Portainer
-- `prod` – Fly.io with rolling deploy + health check
+- `dev` – local (`docker-compose.yml`) and the DEV environment deployed from `develop` (Fly app `properfy-api-dev`, region `iad`)
+- `staging` – deployed from `staging` (Fly app `properfy-api-staging`, region `syd`)
+- `prod` – deployed from `main` (Fly app `properfy-api`, region `syd`), rolling deploy + health check
+- Frontends (web + pwa) – Vercel, one project per environment, built in CI (`frontend-deploy.yml`)
 - Supabase Storage (S3-compatible) for files
 - PgBouncer for connection pooling
 
 **Monorepo tooling:**
 
-- Package manager: `pnpm`
-- Workspace structure: `apps/backend`, `apps/web`, `apps/pwa`, `packages/shared`
+- Package manager: `pnpm` 9 (`packageManager: pnpm@9.15.4`), tasks via Turborepo (`turbo run …`)
+- Workspace structure: `apps/backend`, `apps/web`, `apps/pwa`, `packages/shared`, `packages/frontend-standards`
 
 ---
 
@@ -88,6 +90,19 @@ pnpm lint
 
 # Typecheck all
 pnpm typecheck
+
+# Build workspace packages consumed from dist (required before web/pwa typecheck, lint, test)
+pnpm --filter @properfy/shared build
+pnpm --filter @properfy/frontend-standards build
+
+# Generate the Prisma client (required before backend typecheck/tests)
+pnpm --filter backend prisma:generate
+
+# Regenerate the OpenAPI spec + typed client after any route schema change (CI checks freshness)
+pnpm generate:api
+
+# Backend real-database integration tests (testcontainers; excluded from `pnpm --filter backend test`)
+pnpm --filter backend test:integration:db
 ```
 
 ---
@@ -125,9 +140,9 @@ Official statuses:
 | From | To | Actor | Reason required | Notes |
 |---|---|---|---|---|
 | `DRAFT` | `AWAITING_INSPECTOR` | OP, SYS | No | |
-| `DRAFT` | `REJECTED` | OP, AM | Yes | |
+| `DRAFT` | `REJECTED` | OP, AM, SYS | Yes | |
 | `DRAFT` | `CANCELLED` | OP, CL, AM | Yes | |
-| `AWAITING_INSPECTOR` | `SCHEDULED` | SYS, OP | No | |
+| `AWAITING_INSPECTOR` | `SCHEDULED` | SYS, OP, AM | No | |
 | `AWAITING_INSPECTOR` | `CANCELLED` | OP, CL, AM, SYS | Yes | System-triggered daily for appointments created more than 45 days ago and still not executed (reason code `EXPIRED`) |
 | `AWAITING_INSPECTOR` | `REJECTED` | OP, AM, SYS | Yes | System-triggered when the rental tenant declines in the portal (reason code `TENANT_DECLINED`) or never responds by T-1 (`TENANT_NO_RESPONSE`) |
 | `SCHEDULED` | `DONE` | INSP, OP | No | |
@@ -176,14 +191,15 @@ Official statuses:
 
 ## 7. Multi-tenant rules
 
-1. `tenant_id` is mandatory on all business entities.
+1. `tenant_id` is mandatory on every agency-owned entity (appointments, properties, contacts, branches, financial entries, attachments, field events, …). **Documented exception — platform-scoped entities** have no `tenant_id` (or a nullable one meaning "platform") because their subject is cross-tenant: `Inspector`, `IntegrationSetting`, global `ServiceRegion`s, platform `NotificationTemplate`s, and the Phase 2 `PlatformSetting`, `DayPlan`, `InspectorNotice`, reliability-index snapshots, goals and rewards. For these, scope is guaranteed by (a) RBAC: only `AM`/`OP` read or write them across inspectors; (b) `INSP` access always filtered by its own `inspectorId`; (c) `CL_*` reach them only (i) read-only, for platform **defaults without a subject** (platform `NotificationTemplate`s, used as the agency's fallback catalog), or (ii) through a projection filtered by the agency's own appointments; never any row about another inspector or another agency; (d) an integration test proving a `CL_*`/`INSP` actor cannot read another subject's rows. Every spec that adds such an entity records this exception and the scoping test.
 2. JWT includes `tenant_id` and `role` claims.
 3. Middleware extracts auth context per request.
 4. Authorization is centralized in the application layer (RBAC/ABAC).
-5. Repositories are always scoped by tenant.
+5. Repositories accept the tenant predicate from the caller; tenant-pinned roles (`CL_ADMIN`, `CL_USER`) are always filtered by their own `tenantId`. Cross-tenant roles (`AM`, `OP`, `SYS`) legitimately read without a tenant predicate. Resolve the predicate with `requireTenantScope` / `assertTenantScope` (`apps/backend/src/shared/domain/require-tenant-scope.ts`), never with an `if (tenantId)` that silently drops the filter.
 6. Audit for critical operations (status, financial, permissions).
 7. Idempotency on critical commands (acceptance, execution, notifications, financial entries).
-8. No business query without tenant scope.
+8. No business query without an explicit scope decision: tenant (pinned roles), `inspectorId` (`INSP`), portal token (`TNT`), or a documented platform-scoped entity (see rule 1).
+9. **Inspector GPS coordinates are never exposed to `CL_ADMIN` or `CL_USER`** — not in API responses, exports, the web UI, notifications, nor the audit log. Agency roles see only derived values (distance to the property, accuracy, flags). New audit entries never store the inspector's raw latitude/longitude; legacy entries are masked on read for `CL_*`. Raw inspector coordinates are visible only to `AM`/`OP` (and to the inspector). Known gap until F03 (TASK-F03-1) merges: `GET /v1/audit-logs` returns `inspection.started` metadata with raw coordinates to `CL_ADMIN` — do not add any new leak, and add a test that fails if a `CL_*` response carries a coordinate key.
 
 ---
 
@@ -208,6 +224,7 @@ Official statuses:
 - Naming: `camelCase` in application, `snake_case` in database
 - Idempotency: `Idempotency-Key` header for critical operations
 - `request_id` mandatory on all API requests and jobs
+- **Dates and timezones.** Civil dates (`YYYY-MM-DD`) and time windows are wall-clock values in the **agency timezone** (`tenants.timezone`, default `Australia/Sydney` = `PLATFORM_TIMEZONE` in `packages/shared/src/constants/timezone.ts`); instants (`started_at`, ETAs, `created_at`) are UTC ISO strings. Convert only through the shared helpers (`zonedWallTimeToUtc`, `endOfCivilDayInTz` in `packages/shared/src/utils/timezone-date.ts`; `formatCivilDate`/`formatWallTime*` in `utils/format-display-date.ts`; backend `civilDateInTimezone` in `apps/backend/src/shared/domain/timezone-date.ts`); never `new Date('YYYY-MM-DD')`, never the browser timezone for business rules. Platform jobs ("today", cut-offs) run on `PLATFORM_TIMEZONE`. `users.timezone` (AM/OP/INSP only) is a **display** preference, never a business-rule input (except for the `DayPlan` exception below). **Exception: inspector day plans (`DayPlan`) use the inspector's timezone** (`users.timezone ?? PLATFORM_TIMEZONE`) for the plan's civil date, the 19:30 publication and the publication window, because the plan is per inspector and spans agencies; each stop's time window stays in its appointment's agency timezone. Other Phase 2 cross-tenant entities (goals) use the agency timezone of each appointment; every spec states which timezone each date field is in. Tests that depend on the timezone pin `TZ` away from Sydney.
 
 ---
 
@@ -216,7 +233,7 @@ Official statuses:
 Mandatory notification events:
 
 1. Initial inspection notice (Email)
-2. Reminders at 7, 5, 3 days (Email)
+2. Reminders at 7, 5, 3 days (Email, plus SMS variants)
 3. Escalation to Property Manager (Email)
 4. SMS alert to tenant (SMS)
 5. Confirmation, rescheduling, cancellation (Email)
@@ -230,18 +247,18 @@ Templates are configurable per agency (logo, custom text, signature, dynamic var
 - **TDD mandatory per PR** (red-green-refactor)
 - Unit tests: `Vitest`
 - API integration: `Supertest`
-- Frontend E2E: `Playwright`
-- Coverage: `70%` global minimum, `80%+` for critical modules (auth, appointments, finance)
-- CI gate: lint + typecheck + tests + Prisma migration validation + build
+- Frontend E2E: `Playwright`. The web suite (`apps/web/tests/e2e`, all API calls stubbed) is a CI gate (`test-web-e2e`). The PWA suite (`apps/pwa/tests/e2e`) is **currently broken (56/56 failing on a clean `develop`) and is not run by CI**; do not treat it as evidence until X03 (`fase2-etapa1/X03-e2e-pwa.md`) restores it.
+- Coverage target (not enforced by CI today): `70%` global, `80%+` for critical modules (auth, appointments, finance)
+- CI gate (`.github/workflows/ci.yml`, on every PR and push to `develop`, `staging`, `main`): lint + typecheck (all four workspaces), OpenAPI ↔ api-types freshness, unit/integration tests (shared, backend, web, pwa), web E2E, Prisma schema validation, `prisma migrate deploy` twice against a fresh PostGIS database, real-database integration tests (testcontainers), and build. Node 24 only.
 
 ---
 
 ## 12. CI/CD pipeline
 
-1. **PR to `main`:** lint → typecheck → tests → Prisma migration dry-run → build (all green to merge)
-2. **After merge:** deploy to `staging` (VPS/Portainer) → smoke test → deploy to `prod` (Fly.io)
-3. Migrations: always in `staging` first, then `prod`. Pattern: expand/contract.
-4. Rollback: automatic by health check in prod; manual by release/tag.
+1. **PRs target `develop`.** All CI jobs listed in §11 must be green to merge.
+2. **Deploys are per branch and gated on a green CI run of that branch:** `develop` → DEV, `staging` → STAGING, `main` → PROD (backend: `fly-deploy.yml`; web + pwa: `frontend-deploy.yml`). Promotion is a merge `develop → staging → main`. A green `main` also creates the release tag (`release-tag.yml`).
+3. Migrations: applied by each Fly app's `release_command` (`prisma migrate deploy`), so they reach DEV (develop) first, then STAGING, then PROD. Pattern: expand/contract.
+4. Rollback: rolling deploy with health check in prod (`fly.production.toml`); manual by release/tag.
 5. Deploy window: from 09:00 Brazil (23:00 Sydney reference).
 6. Secrets: injected by provider (no `.env` in staging/prod).
 
@@ -260,7 +277,9 @@ When you (Claude Code) implement or modify code in this project:
    - **PR size hard limit: max 150 changed files per PR.** Verify with `git diff --stat origin/develop... | tail -1` before opening; split larger work into stacked PRs (backend → shared → web/pwa or by feature slice).
 7. **Validate with Zod** – all API payloads must be validated.
 8. **Never skip tests** – TDD is mandatory.
-9. **Consult `projeto-consolidado/`** for complete domain documentation when needed.
+9. **Consult the code and `docs/` for domain detail** – `apps/backend/prisma/schema.prisma` (data model), `apps/backend/src/modules/appointment/domain/appointment-state-machine.ts` (transition rules), `packages/shared/src` (contracts), `docs/` (runbooks, database, deploy). The old consolidated-docs folder is git-ignored and no longer exists; do not cite it.
+10. **Phase 2: 1 task = 1 PR = 1 spec.** Each task in `fase2-etapa1/tarefas/<ID>-tarefas.md` (for example `TASK-F03-1`) is the self-contained input for one `speckit.specify` run and ships as exactly one PR targeting `develop`. Do not merge two tasks into one PR or split one task across PRs without updating the task file first. Anything outside a task's minimal scope goes to `fase2-etapa1/estacionamento.md`, not into the spec.
+11. **Every PR updates the CLAUDE.md of every workspace it changes**, as a step of that same PR (Phase 2 rule, 2026-10-27): new routes, screens, entities, settings keys, jobs, caches, commands or conventions are reflected in the matching `CLAUDE.md` before the PR is opened. A PR that makes a CLAUDE.md statement false must fix it; a PR that ships something a CLAUDE.md rule marks as "introduced by <task>" / "until <task> merges" removes that transition clause. Reviewers check this like a failing test.
 
 ---
 
@@ -268,17 +287,11 @@ When you (Claude Code) implement or modify code in this project:
 
 | Document | Purpose |
 |---|---|
-| `projeto-consolidado/escopo-v2.md` | Full product scope |
-| `projeto-consolidado/modelo-dados-executavel.md` | Data model (entities, fields, relationships) |
-| `projeto-consolidado/state-machine-executavel.md` | State machine (transitions, actors, side effects) |
-| `projeto-consolidado/api-contratos-principais.md` | API contracts |
-| `projeto-consolidado/regras-negocio-respostas-cliente.md` | Business rules (financial, rescheduling, RBAC, notifications) |
-| `projeto-consolidado/infra-tecnologia-production-ready.md` | Infrastructure and production readiness |
-| `projeto-consolidado/checklist-geracao-codigo-ia.md` | Code generation decisions |
-| `projeto-consolidado/decisoes-internas-pendentes.md` | All internal technical decisions (all DEFINIDO) |
-| `projeto-consolidado/instrucoes-cicd-fly-portainer.md` | CI/CD instructions |
-| `projeto-consolidado/frontend-system-spec.md` | Frontend visual spec |
-| `projeto-consolidado/ui-system-atual.md` | Legacy UI system reference |
+| `apps/backend/prisma/schema.prisma` | Data model (entities, enums, relationships) |
+| `apps/backend/src/modules/appointment/domain/appointment-state-machine.ts` | Transition rules (actors, reason, done-check) |
+| `packages/shared/openapi.json` | API contract (generated; `pnpm generate:api`) |
+| `docs/database-schema.md`, `docs/dev-setup.md`, `docs/fly-deploy-guide.md` | Database, local setup, deploy |
+| `docs/runbooks/` | Operational runbooks (auth, queue, notifications, deploy, incidents) |
 | `Escopo Completo Properfy - CLIENTE.md` | Client-facing scope document (contractual feature list) |
 | `escopo-cliente-gap-audit.md` | Item-by-item audit of the client scope vs current implementation |
 | `escopo-pendencias-execucao.md` | **Approved backlog** closing the client-scope gaps — items listed there (incl. Kanban board, satisfaction survey, agency status actions) are IN SCOPE and must not be rejected as out-of-scope in future sessions |
@@ -291,6 +304,8 @@ When you (Claude Code) implement or modify code in this project:
 2. Transactional email: Resend
 3. Maps and geocoding: Mapbox
 4. Database and storage: Supabase (PostgreSQL + S3-compatible storage)
+5. Routing: Mapbox Matrix (stop order) + Directions with per-leg `depart_at` (ETAs, geometry); no beta APIs; Google only through the measured exit described in `apps/backend/CLAUDE.md` §10
+6. Hosting: Fly.io (API, all environments) and Vercel (web + pwa, all environments)
 
 ---
 
@@ -302,7 +317,7 @@ For every task that involves writing or modifying code, you MUST work in an isol
 
 The expected flow is:
 1. Create the worktree yourself with the native `EnterWorktree` tool when available (single cheap call, no heavy output). Only fall back to the `superpowers:using-git-worktrees` skill's manual `git worktree add` path if no native tool exists.
-2. **Delegate dependency install + baseline sanity check to a subagent on a cheap model** — do not run `pnpm install` or any baseline check yourself in the main loop. Spawn a foreground `Agent` with `model: "haiku"` and an explicit prompt: cd into the absolute worktree path, run `pnpm install`, then `pnpm --filter backend exec prisma generate` (backend tests fail without this — `pnpm install` alone does not run it) and `pnpm --filter @properfy/shared build` (web/pwa typecheck imports the built dist, not source), then run `pnpm --filter <affected-workspace(s)> typecheck` and `pnpm --filter <affected-workspace(s)> lint`. **Do not run the full monorepo test suite as a baseline** — `develop` is already CI-gated green on every merge, so a fresh worktree rarely needs the full ~11+ minute test pass just to prove it's clean; typecheck+lint catches drift cheaply. Instruct the subagent to return only a short pass/fail summary (a few lines), never raw install/test logs.
+2. **Delegate dependency install + baseline sanity check to a subagent on a cheap model** — do not run `pnpm install` or any baseline check yourself in the main loop. Spawn a foreground `Agent` with `model: "haiku"` and an explicit prompt: cd into the absolute worktree path, run `pnpm install`, then `pnpm --filter backend exec prisma generate` (backend tests fail without this — `pnpm install` alone does not run it), `pnpm --filter @properfy/shared build` and `pnpm --filter @properfy/frontend-standards build` (web, pwa and their Vite dev servers resolve both packages only through `dist/`, never source — without these builds typecheck, lint, tests and the Playwright `webServer` fail in a fresh worktree; CI builds both in `.github/actions/setup`), then run `pnpm --filter <affected-workspace(s)> typecheck` and `pnpm --filter <affected-workspace(s)> lint`. **Do not run the full monorepo test suite as a baseline** — `develop` is already CI-gated green on every merge, so a fresh worktree rarely needs the full ~11+ minute test pass just to prove it's clean; typecheck+lint catches drift cheaply. Instruct the subagent to return only a short pass/fail summary (a few lines), never raw install/test logs.
 3. Do all implementation work inside that worktree.
 4. Run full verification (lint, typecheck, tests scoped to the touched workspace(s)) inside the worktree before opening a PR — this is the real correctness gate and must actually run. If the relevant suite is large (e.g. backend integration tests), prefer running it via a subagent that reports a condensed pass/fail summary back, rather than letting hundreds of lines of test output land directly in the main loop.
 5. When work is complete, commit and push the feature branch.
@@ -380,6 +395,7 @@ Skip worktrees only for: pure documentation edits, CLAUDE.md updates, or tasks t
 - Add inline comments only where the logic is not self-evident.
 - Update relevant documentation if your change affects public APIs or conventions.
 - Do not add documentation for documentation's sake.
+- If your change makes any CLAUDE.md statement false, fix that statement in the same PR (see §13.11).
 
 ### Capture lessons
 
@@ -410,17 +426,11 @@ Skip worktrees only for: pure documentation edits, CLAUDE.md updates, or tasks t
 - Preserve existing conventions and patterns — match the style of surrounding code.
 
 ## Active Technologies
-- TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, domain port `IAppointmentChecker` (002-tenants-branches)
-- PostgreSQL (Supabase). Tables: `tenants`, `branches`. Audit records in shared `audit_logs`. Default time-slots seeded into `appointment_time_slots`. (002-tenants-branches)
-- TypeScript 5.6 on React 18.3 + Vite 5.4 + React Router 6 (data router), TanStack React Query 5, Tailwind CSS 3.4, mapbox-gl 3.20, openapi-fetch (014-frontend-app-shell-ux)
-- TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, existing `AuthorizationService` (015-permissions-rbac-matrix)
-- PostgreSQL (Supabase) — `tenants.settings_json` (JSONB) for permission flags; `audit_logs` for denial records (015-permissions-rbac-matrix)
-- TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, `pg_trgm` for trigram search (021-contacts)
-- PostgreSQL (Supabase) — new `contacts` table (per-tenant registry), revised `appointment_contacts` (junction + snapshot pattern), new enums `ContactType`, `ContactChannelType`, `AppointmentContactRole` (021-contacts)
-- TypeScript 5.x strict, ES2022 ESM, Node.js 20 (backend), React 18 (PWA). (027-pwa-improvements)
-- PostgreSQL via Prisma. New columns: `inspectors.availability_template_json` (JSONB), `inspector_availability_slots.is_operator_override` (BOOLEAN). No new tables. (027-pwa-improvements)
-- TypeScript 5.x strict, ES2022 ESM. Node.js 20 (backend); React 18 + Vite 5 + Tailwind 3 (web). + Fastify 4, Prisma 5, Zod, Handlebars (existing renderer), Resend SDK, pg-boss, `@aws-sdk/client-s3` + `s3-request-presigner` (existing storage). New: `sanitize-html` (allowlist sanitizer), `html-to-text` (text derivation), `file-type` (magic-byte sniff) + `image-size` (decode dimensions). See research.md for choices. (030-email-html-rawbody)
-- PostgreSQL (Supabase) via Prisma — new tables `email_assets`, `template_image_bindings`; extended `notification_templates` usage (body_html becomes the operator's raw HTML / placeholder-bearing source). New **public** Supabase Storage bucket `email-assets`. (030-email-html-rawbody)
+<!-- Appended by `speckit.plan` (update-agent-context.sh). Keep this list short: the feature PR prunes entries that are no longer true. -->
+- TypeScript 5.6 strict, ES2022 ESM; Node.js 24; pnpm 9 + Turborepo
+- Backend: Fastify 4, Prisma 6 (PostgreSQL/Supabase, PostGIS in CI), Zod 3, pg-boss 9, jose (RS256 JWT), Resend, MobileMessage, Mapbox
+- Web/PWA: React 18, Vite 5, React Router 6, TanStack Query 5, Tailwind 3, mapbox-gl 3, openapi-fetch; PWA adds vite-plugin-pwa (Workbox), react-hook-form, lucide-react
+- Tests: Vitest 1, Supertest, testcontainers, Playwright
 
 ## Recent Changes
-- 002-tenants-branches: Added TypeScript 5.x on Node.js 20 + Fastify, Prisma ORM, Zod, shared `AuditService`, domain port `IAppointmentChecker`
+- Phase 2 Stage 1 planning (`fase2-etapa1/`): CLAUDE.md refreshed (X00); every feature PR updates the CLAUDE.md of the workspace it changes
