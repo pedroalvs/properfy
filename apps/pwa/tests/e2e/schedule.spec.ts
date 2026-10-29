@@ -51,7 +51,7 @@ test.describe('Schedule', () => {
     await page.goto('/schedule');
     const card = page.getByTestId(`appointment-card-${appointment.id}`);
     await expect(card).toBeVisible();
-    await expect(card.getByTestId('appointment-code')).toHaveText('INS-9999');
+    await expect(card.getByTestId('appointment-code')).toHaveText('INS-0042');
     // The property (realty) code is not shown on the schedule card. Assert the
     // actual code VALUE from the payload is absent (a real regression guard — it
     // would fail if the card started surfacing it), not a never-rendered test id.
