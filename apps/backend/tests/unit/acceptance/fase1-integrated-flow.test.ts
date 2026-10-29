@@ -507,6 +507,21 @@ class InMemoryServiceGroupRepo implements IServiceGroupRepository {
     return offers.length;
   }
 
+  async isGroupEligibleForInspector(
+    groupId: string,
+    _inspectorId: string,
+    inspectorServiceTypes: string[],
+    inspectorBlockedClients: string[],
+  ): Promise<boolean> {
+    const group = this.groups.get(groupId);
+    // Region matching is skipped in-memory, as in findPublishedForInspector.
+    return (
+      !!group &&
+      inspectorServiceTypes.includes(group.serviceTypeId) &&
+      !inspectorBlockedClients.includes(group.tenantId)
+    );
+  }
+
   async linkAppointments(appointmentIds: string[], groupId: string): Promise<void> {
     for (const appointmentId of appointmentIds) {
       const appointment = this.appointments.get(appointmentId);

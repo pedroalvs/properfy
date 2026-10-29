@@ -763,29 +763,11 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     }
 
     const rows = await this.prisma.$queryRaw<[{ count: bigint }]>`
-      SELECT COUNT(DISTINCT sg.id) AS count
+      SELECT COUNT(*) AS count
       FROM service_groups sg
-      JOIN appointments a ON a.service_group_id = sg.id
-        AND a.deleted_at IS NULL
-      JOIN properties p ON p.id = a.property_id
-        AND p.deleted_at IS NULL
-        AND p.coordinates IS NOT NULL
-      -- Cross-tenant region match: region ownership is not a filter here; the
-      -- inspector->client denylist below is the isolation boundary.
-      JOIN service_regions sr ON sr.status = 'ACTIVE'
-        AND sr.geom IS NOT NULL
-        AND ST_Intersects(sr.geom, p.coordinates)
-      JOIN inspector_regions ir ON ir.region_id = sr.id
-        AND ir.inspector_id = ${inspectorId}
       WHERE sg.status = 'PUBLISHED'
         AND sg.scheduled_date >= CURRENT_DATE
-        AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
-        AND NOT EXISTS (
-          SELECT 1 FROM appointments ga
-          WHERE ga.service_group_id = sg.id
-            AND ga.deleted_at IS NULL
-            AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
-        )
+        AND ${this.inspectorEligibilitySql(inspectorId, inspectorServiceTypes, inspectorBlockedClients)}
     `;
 
     return Number(rows[0]?.count ?? 0);
@@ -801,32 +783,14 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       return null;
     }
 
-    // Verify the inspector is eligible for this specific group via spatial join
+    // Verify the inspector is eligible for this specific group
     const eligibleRows = await this.prisma.$queryRaw<{ id: string }[]>`
-      SELECT DISTINCT sg.id
+      SELECT sg.id
       FROM service_groups sg
-      JOIN appointments a ON a.service_group_id = sg.id
-        AND a.deleted_at IS NULL
-      JOIN properties p ON p.id = a.property_id
-        AND p.deleted_at IS NULL
-        AND p.coordinates IS NOT NULL
-      -- Cross-tenant region match: region ownership is not a filter here; the
-      -- inspector->client denylist below is the isolation boundary.
-      JOIN service_regions sr ON sr.status = 'ACTIVE'
-        AND sr.geom IS NOT NULL
-        AND ST_Intersects(sr.geom, p.coordinates)
-      JOIN inspector_regions ir ON ir.region_id = sr.id
-        AND ir.inspector_id = ${inspectorId}
       WHERE sg.id = ${groupId}
         AND sg.status = 'PUBLISHED'
         AND sg.scheduled_date >= CURRENT_DATE
-        AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
-        AND NOT EXISTS (
-          SELECT 1 FROM appointments ga
-          WHERE ga.service_group_id = sg.id
-            AND ga.deleted_at IS NULL
-            AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
-        )
+        AND ${this.inspectorEligibilitySql(inspectorId, inspectorServiceTypes, inspectorBlockedClients)}
     `;
 
     if (eligibleRows.length === 0) return null;
@@ -954,13 +918,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     };
   }
 
-  /**
-   * Use PostGIS spatial join to find eligible service group IDs for the inspector.
-   * Region matching is cross-tenant: any ACTIVE region whose polygon contains the
-   * property matches, regardless of which agency owns it (region tenant_id is not
-   * a matching filter). Client isolation is enforced by the per-appointment
-   * inspector->client denylist (NOT EXISTS below), which gates every offer.
-   */
+  /** One page of open offers the inspector is eligible for (see `inspectorEligibilitySql`). */
   private async findEligibleGroupIds(
     inspectorId: string,
     inspectorServiceTypes: string[],
@@ -968,40 +926,80 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     limit: number,
     offset: number,
   ): Promise<string[]> {
-    // GROUP BY (instead of SELECT DISTINCT) so ORDER BY can reference
-    // sg.scheduled_date — Postgres rejects "SELECT DISTINCT … ORDER BY <col not
-    // in select list>" with code 42P10. The id tiebreaker keeps pagination stable.
+    // The id tiebreaker keeps pagination stable.
     const rows = await this.prisma.$queryRaw<{ id: string }[]>`
       SELECT sg.id
       FROM service_groups sg
-      JOIN appointments a ON a.service_group_id = sg.id
-        AND a.deleted_at IS NULL
-      JOIN properties p ON p.id = a.property_id
-        AND p.deleted_at IS NULL
-        AND p.coordinates IS NOT NULL
-      -- Cross-tenant region match: region ownership is not a filter here; the
-      -- inspector->client denylist below is the isolation boundary.
-      JOIN service_regions sr ON sr.status = 'ACTIVE'
-        AND sr.geom IS NOT NULL
-        AND ST_Intersects(sr.geom, p.coordinates)
-      JOIN inspector_regions ir ON ir.region_id = sr.id
-        AND ir.inspector_id = ${inspectorId}
       WHERE sg.status = 'PUBLISHED'
         AND sg.scheduled_date >= CURRENT_DATE
-        AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
-        AND NOT EXISTS (
-          SELECT 1 FROM appointments ga
-          WHERE ga.service_group_id = sg.id
-            AND ga.deleted_at IS NULL
-            AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
-        )
-      GROUP BY sg.id, sg.scheduled_date
+        AND ${this.inspectorEligibilitySql(inspectorId, inspectorServiceTypes, inspectorBlockedClients)}
       ORDER BY sg.scheduled_date ASC, sg.id ASC
       LIMIT ${limit}
       OFFSET ${offset}
     `;
 
     return rows.map((r) => r.id);
+  }
+
+  async isGroupEligibleForInspector(
+    groupId: string,
+    inspectorId: string,
+    inspectorServiceTypes: string[],
+    inspectorBlockedClients: string[],
+  ): Promise<boolean> {
+    if (inspectorServiceTypes.length === 0) return false;
+
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT sg.id
+      FROM service_groups sg
+      WHERE sg.id = ${groupId}
+        AND ${this.inspectorEligibilitySql(inspectorId, inspectorServiceTypes, inspectorBlockedClients)}
+    `;
+    return rows.length > 0;
+  }
+
+  /**
+   * Single source of truth for "may this inspector take this group": a boolean
+   * SQL fragment over a `service_groups sg` alias, shared by the offer list,
+   * count, detail and accept paths. It holds only the inspector-specific rules;
+   * the offer window (status, date) stays with each caller so this composes with
+   * further per-inspector gates.
+   *
+   *  - region: some live appointment's property lies inside an ACTIVE region the
+   *    inspector is linked to. Region ownership (`service_regions.tenant_id`,
+   *    NULL for global regions) is NOT a filter — matching is cross-tenant;
+   *  - service type: the group's type is one the inspector serves;
+   *  - denylist: no live appointment belongs to a client the inspector is
+   *    blocked from. This, not region ownership, is the tenant isolation boundary.
+   */
+  private inspectorEligibilitySql(
+    inspectorId: string,
+    inspectorServiceTypes: string[],
+    inspectorBlockedClients: string[],
+  ): Prisma.Sql {
+    return Prisma.sql`(
+      sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
+      AND EXISTS (
+        SELECT 1
+        FROM appointments a
+        JOIN properties p ON p.id = a.property_id
+          AND p.deleted_at IS NULL
+          AND p.coordinates IS NOT NULL
+        JOIN service_regions sr ON sr.status = 'ACTIVE'
+          AND sr.geom IS NOT NULL
+          AND ST_Intersects(sr.geom, p.coordinates)
+        JOIN inspector_regions ir ON ir.region_id = sr.id
+          AND ir.inspector_id = ${inspectorId}
+        WHERE a.service_group_id = sg.id
+          AND a.deleted_at IS NULL
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM appointments ga
+        WHERE ga.service_group_id = sg.id
+          AND ga.deleted_at IS NULL
+          AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
+      )
+    )`;
   }
 
   async findStatusById(id: string, tx?: Prisma.TransactionClient): Promise<string | null> {
