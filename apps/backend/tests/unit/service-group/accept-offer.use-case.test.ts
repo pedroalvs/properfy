@@ -110,6 +110,8 @@ describe('AcceptOfferUseCase', () => {
       findPublishedForInspector: vi.fn(),
       findPublishedOfferDetail: vi.fn(),
       countPublishedForInspector: vi.fn(),
+      // Eligible by default; the region-rejection case overrides it.
+      isGroupEligibleForInspector: vi.fn().mockResolvedValue(true),
       linkAppointments: vi.fn(),
       unlinkAppointments: vi.fn(),
       scheduleAppointments: vi.fn(),
@@ -235,6 +237,25 @@ describe('AcceptOfferUseCase', () => {
     expect(result.assignedInspectorId).toBe('inspector-1');
     expect(result.appointmentsScheduled).toBe(5);
     expect(result.acceptedAt).toBeInstanceOf(Date);
+  });
+
+  it('should throw InspectorRegionIneligibleError and not lock the group when the inspector does not cover its region', async () => {
+    vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+    vi.mocked(serviceGroupRepo.isGroupEligibleForInspector).mockResolvedValue(false);
+
+    await expect(
+      useCase.execute({ groupId: 'group-1', inspectorId: 'inspector-1', actor: makeActor() }),
+    ).rejects.toThrow(expect.objectContaining({ code: 'INSPECTOR_REGION_INELIGIBLE', statusCode: 422 }));
+
+    expect(serviceGroupRepo.isGroupEligibleForInspector).toHaveBeenCalledWith(
+      'group-1',
+      'inspector-1',
+      makeInspector().serviceTypesJson.map((s) => s.serviceTypeId),
+      makeInspector().blockedClientsJson,
+    );
+    expect(serviceGroupRepo.acceptOptimistic).not.toHaveBeenCalled();
+    expect(idempotencyService.set).not.toHaveBeenCalled();
   });
 
   it('should reject non-INSP actors', async () => {

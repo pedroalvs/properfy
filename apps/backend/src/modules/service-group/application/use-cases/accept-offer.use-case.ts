@@ -13,6 +13,7 @@ import {
   ServiceGroupInvalidStatusError,
   GroupAlreadyAcceptedError,
   InspectorIneligibleError,
+  InspectorRegionIneligibleError,
   InspectorServiceTypeIneligibleError,
   InspectorInactiveError,
   AppointmentsNotAwaitingInspectorError,
@@ -92,6 +93,19 @@ export class AcceptOfferUseCase {
     // is true, which would otherwise grant access to an empty group.
     if (tenantIds.length === 0 || !tenantIds.every((t) => inspector.isEligibleForTenant(t))) {
       throw new InspectorIneligibleError();
+    }
+
+    // The checks above give specific errors for service type and denylist; this
+    // one applies the full marketplace predicate the offer list uses, so a group
+    // the inspector cannot see (outside their regions) cannot be accepted either.
+    const eligible = await this.serviceGroupRepo.isGroupEligibleForInspector(
+      groupId,
+      inspectorId,
+      inspector.serviceTypesJson.map((s) => s.serviceTypeId),
+      inspector.blockedClientsJson,
+    );
+    if (!eligible) {
+      throw new InspectorRegionIneligibleError();
     }
 
     const now = new Date();

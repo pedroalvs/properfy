@@ -44,6 +44,16 @@ export class InspectorIneligibleError extends DomainError {
   }
 }
 
+export class InspectorRegionIneligibleError extends DomainError {
+  constructor() {
+    super(
+      'INSPECTOR_REGION_INELIGIBLE',
+      'Inspector does not cover the region of this service group',
+      422,
+    );
+  }
+}
+
 export class InspectorServiceTypeIneligibleError extends DomainError {
   constructor() {
     super(

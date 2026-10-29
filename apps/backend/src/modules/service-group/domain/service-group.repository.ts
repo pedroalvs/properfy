@@ -308,6 +308,18 @@ export interface IServiceGroupRepository {
     inspectorServiceTypes: string[],
     inspectorBlockedClients: string[],
   ): Promise<MarketplaceOfferDetail | null>;
+  /**
+   * Whether the inspector meets the marketplace eligibility rules for the group
+   * (region, service type, client denylist) — the same predicate the offer
+   * list/count/detail apply. Ignores the group's status and date; the caller
+   * owns those checks.
+   */
+  isGroupEligibleForInspector(
+    groupId: string,
+    inspectorId: string,
+    inspectorServiceTypes: string[],
+    inspectorBlockedClients: string[],
+  ): Promise<boolean>;
   /** Atomic decrement of confirmed_count (for detach flows). */
   decrementConfirmedCount(groupId: string, tx?: Prisma.TransactionClient): Promise<void>;
   /** Atomic increment of confirmed_count (for join flows). */
