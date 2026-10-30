@@ -5088,6 +5088,14 @@ export interface paths {
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
                                 rejectionReasonCode?: string | null;
+                                inspectorIssue?: {
+                                    reason: string;
+                                    note: string | null;
+                                    /** Format: uuid */
+                                    inspectorId?: string | null;
+                                    inspectorName: string | null;
+                                    occurredAt: string;
+                                } | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
@@ -5294,6 +5302,14 @@ export interface paths {
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
                                 rejectionReasonCode?: string | null;
+                                inspectorIssue?: {
+                                    reason: string;
+                                    note: string | null;
+                                    /** Format: uuid */
+                                    inspectorId?: string | null;
+                                    inspectorName: string | null;
+                                    occurredAt: string;
+                                } | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
@@ -5532,6 +5548,14 @@ export interface paths {
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
                                 rejectionReasonCode?: string | null;
+                                inspectorIssue?: {
+                                    reason: string;
+                                    note: string | null;
+                                    /** Format: uuid */
+                                    inspectorId?: string | null;
+                                    inspectorName: string | null;
+                                    occurredAt: string;
+                                } | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
@@ -5738,6 +5762,14 @@ export interface paths {
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
                                 rejectionReasonCode?: string | null;
+                                inspectorIssue?: {
+                                    reason: string;
+                                    note: string | null;
+                                    /** Format: uuid */
+                                    inspectorId?: string | null;
+                                    inspectorName: string | null;
+                                    occurredAt: string;
+                                } | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
@@ -5795,6 +5827,82 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/v1/appointments/{appointmentId}/field-activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                execution: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    inspectorName: string | null;
+                                    startedAt: string;
+                                    finishedAt: (string) | null;
+                                    abandonedAt: (string) | null;
+                                    startClientAt: (string) | null;
+                                    finishClientAt: (string) | null;
+                                    startDistanceMeters: number | null;
+                                    finishDistanceMeters: number | null;
+                                    startAccuracyMeters: number | null;
+                                    finishAccuracyMeters: number | null;
+                                    outOfRadius: boolean;
+                                    outOfWindow: boolean;
+                                    finishOutOfRadius: boolean;
+                                    geofenceRadiusMeters: number | null;
+                                    startLatitude?: number;
+                                    startLongitude?: number;
+                                    finishLatitude?: number | null;
+                                    finishLongitude?: number | null;
+                                } | null;
+                                events: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    type: string;
+                                    reason: string;
+                                    note: string | null;
+                                    minutesLate: number | null;
+                                    inspectorName: string | null;
+                                    occurredAt: string;
+                                    clientOccurredAt: (string) | null;
+                                    accuracyMeters: number | null;
+                                    latitude?: number | null;
+                                    longitude?: number | null;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/appointments/{appointmentId}/portal-link": {
@@ -5868,7 +5976,7 @@ export interface paths {
                         /** @enum {string} */
                         cancellationReasonCode?: "CLIENT_REQUEST" | "TENANT_UNAVAILABLE" | "SCHEDULING_CONFLICT" | "INSPECTOR_UNAVAILABLE" | "DUPLICATE" | "EXPIRED" | "OTHER";
                         /** @enum {string} */
-                        rejectionReasonCode?: "INVALID_ADDRESS" | "PROPERTY_INACCESSIBLE" | "SAFETY_CONCERN" | "INSUFFICIENT_INFO" | "SERVICE_NOT_AVAILABLE" | "TENANT_NO_RESPONSE" | "TENANT_DECLINED" | "OTHER";
+                        rejectionReasonCode?: "INVALID_ADDRESS" | "PROPERTY_INACCESSIBLE" | "SAFETY_CONCERN" | "INSUFFICIENT_INFO" | "SERVICE_NOT_AVAILABLE" | "TENANT_NO_RESPONSE" | "TENANT_DECLINED" | "INSPECTOR_UNABLE" | "OTHER";
                         /** Format: uuid */
                         doneCheckedByUserId?: string;
                         /** Format: uuid */
@@ -9417,6 +9525,11 @@ export interface paths {
                                     /** @enum {string} */
                                     mode: "FLAG" | "BLOCK";
                                 };
+                                lastFieldIssue?: {
+                                    reason: string;
+                                    note: string | null;
+                                    occurredAt: string;
+                                } | null;
                                 /** @default [] */
                                 apps: {
                                     /** Format: uuid */
@@ -9611,6 +9724,132 @@ export interface paths {
                                 finishAccuracyMeters?: number | null;
                                 finishGeolocationDistanceMeters?: number | null;
                                 finishOutOfRadius?: boolean;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector/appointments/{appointmentId}/cant-do": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        reason: "NO_ANSWER" | "KEY_FAILED" | "TENANT_REFUSED" | "UNSAFE" | "SITE_ISSUE" | "CANT_ATTEND";
+                        note?: string;
+                        latitude?: number;
+                        longitude?: number;
+                        accuracy?: number;
+                        /** Format: date-time */
+                        clientOccurredAt?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                eventId: string;
+                                /** Format: uuid */
+                                appointmentId: string;
+                                /** @enum {string} */
+                                appointmentStatus: "REJECTED";
+                                occurredAt: string;
+                                executionAbandoned: boolean;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector/appointments/{appointmentId}/late-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        reason: "TRAFFIC" | "PREVIOUS_JOB_OVERRAN" | "PERSONAL" | "OTHER";
+                        minutesLate: number;
+                        latitude?: number;
+                        longitude?: number;
+                        accuracy?: number;
+                        /** Format: date-time */
+                        clientOccurredAt?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                eventId: string;
+                                /** Format: uuid */
+                                appointmentId: string;
+                                occurredAt: string;
+                                /** @enum {string} */
+                                reason: "TRAFFIC" | "PREVIOUS_JOB_OVERRAN" | "PERSONAL" | "OTHER";
+                                minutesLate: number;
+                                referenceAt: string;
+                                /** @enum {string} */
+                                referenceSource: "PUBLISHED_PLAN" | "WINDOW_START";
+                                estimatedArrivalAt: string;
                             };
                         };
                     };

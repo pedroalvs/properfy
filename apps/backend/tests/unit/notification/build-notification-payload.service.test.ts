@@ -301,6 +301,23 @@ describe('BuildNotificationPayloadService', () => {
     expect(result.serviceTypeName).toBe('');
   });
 
+  // ── Agency rejection email: rejectedByInspector (F03, L-F03-07 / D26) ─────
+  it('flags rejectedByInspector and carries the inspector name for an INSPECTOR_UNABLE rejection', () => {
+    const appointment = makeAppointment({ status: 'REJECTED', rejectionReasonCode: 'INSPECTOR_UNABLE', reason: "Key didn't work — Lockbox code wrong" });
+    const result = svc.build(
+      baseCtx({ templateCode: 'INSPECTION_REJECTED_AGENCY', appointment, inspectorName: 'Jane Doe' }),
+    );
+    expect(result.rejectedByInspector).toBe('true');
+    expect(result.inspectorName).toBe('Jane Doe');
+    expect(result.rejectionReason).toBe("Key didn't work — Lockbox code wrong");
+  });
+
+  it('leaves rejectedByInspector falsy for a tenant-declined rejection', () => {
+    const appointment = makeAppointment({ status: 'REJECTED', rejectionReasonCode: 'TENANT_DECLINED' });
+    const result = svc.build(baseCtx({ templateCode: 'INSPECTION_REJECTED_AGENCY', appointment }));
+    expect(result.rejectedByInspector).toBe('');
+  });
+
   // ── All mandatory template codes build without throwing ───────────────────
 
   // Only appointment-related templates can be built via this service.

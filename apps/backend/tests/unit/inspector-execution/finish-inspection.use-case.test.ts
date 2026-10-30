@@ -30,6 +30,12 @@ const appointmentRepo = {
   findById: vi.fn(),
 };
 
+// F03-2: finish takes the appointment row lock as its first statement (deadlock-safe
+// ordering with can't-do). The use case calls it even when prisma is undefined.
+const fieldEventRepo = {
+  lockAppointmentForFieldEvent: vi.fn().mockResolvedValue(undefined),
+};
+
 const auditService = { log: vi.fn() };
 
 const platformSettings = { get: vi.fn() };
@@ -79,6 +85,7 @@ function makeSut() {
     authorizationService,
     undefined,
     platformSettings as any,
+    fieldEventRepo as any,
   );
 }
 
@@ -142,6 +149,8 @@ describe('FinishInspectionUseCase', () => {
       {
         appointmentId: 'appt-1',
         targetStatus: 'DONE',
+        // F03-2: finish uses a compare-and-swap on the current status.
+        expectedStatus: 'SCHEDULED',
         actor: inspActor,
       },
       undefined,
@@ -254,6 +263,8 @@ describe('FinishInspectionUseCase', () => {
       {
         appointmentId: 'appt-1',
         targetStatus: 'DONE',
+        // F03-2: finish uses a compare-and-swap on the current status.
+        expectedStatus: 'SCHEDULED',
         actor: inspActor,
       },
       undefined,

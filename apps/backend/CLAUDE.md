@@ -261,6 +261,26 @@ Body: { targetStatus, reason? }
 
 All state transitions go through this single endpoint.
 
+### Inspector field events (F03-2)
+
+Two inspector actions from the PWA, both `Idempotency-Key`-required and INSP-only:
+
+```text
+POST /v1/inspector/appointments/:appointmentId/cant-do    → 200  "Can't do this job"
+POST /v1/inspector/appointments/:appointmentId/late-notice → 201  "Running late"
+```
+
+- **cant-do** records an `InspectorFieldEvent` (`CANT_DO`) and, in the same transaction, runs `SCHEDULED → REJECTED` as **SYS** with reason code `INSPECTOR_UNABLE` (`ReportCantDoUseCase`); the existing reject side effects (unlink group, release inspector, `INSPECTION_REJECTED_AGENCY` email) run on commit. After commit it also audits (`inspector_field_event.cant_do`), alerts every active OP/AM by email (`INSPECTOR_UNABLE_ALERT` via `NotifyInspectorUnableService`) and emits `inspector_field_event.recorded.v1`. A check-in open at the time is marked `abandoned_at` (all execution readers then treat it as not started; a later `start` restarts the same row). `INSPECTOR_UNABLE` is **system-assigned only** — `SYSTEM_ONLY_REJECTION_CODES`, enforced in `execute-status-transition.use-case.ts`.
+- **late-notice** records a `LATE_NOTICE` event and returns a server-computed `estimatedArrivalAt = max(reference, effectiveNoticeAt) + minutesLate` (`ReportLateNoticeUseCase` + `domain/late-notice.ts`). `reference` is the published-plan stop start when one exists, else the booked window start, read through the `IPublishedStopStartReader` port — F03 registers `NullPublishedStopStartReader` (always window start); TASK-F04-2 wires the real adapter. Allowed only on the job's civil day (agency tz) and only before check-in. No transition, no notification.
+
+Field activity is read back through the appointment module:
+
+```text
+GET /v1/appointments/:appointmentId/field-activity  → 200  execution + field events
+```
+
+Same tenant scope as `GET /v1/appointments/:appointmentId`, but **INSP has no access (403)**. Agency roles (`CL_ADMIN`/`CL_USER`) never receive the inspector's raw lat/lng — `GetAppointmentFieldActivityUseCase` omits the coordinate keys for them (only distances/accuracy/flags remain). The appointment list/detail also flatten the latest `CANT_DO` onto `inspectorIssue` (one batched `DISTINCT ON` query per page, no N+1); the inspector's own appointment detail (PWA) carries `lastFieldIssue` only when the latest `CANT_DO` is the actor's own (D28). The rental-tenant portal refuses "change time" for a `REJECTED` + `INSPECTOR_UNABLE` appointment (`isPortalChangeTimeBlocked`, `rental-tenant-portal/domain/portal-statuses.ts`) — only operations re-offer it.
+
 ---
 
 ## 7. Data model
@@ -282,7 +302,7 @@ See `prisma/schema.prisma` for complete entity definitions.
 - Inspectors: `Inspector`, `InspectorAvailabilitySlot`, `ServiceRegion`, `InspectorRegion`
 - Catalog: `ServiceType`, `ServicePriceRule`, `Property`, `Contact`, `AppCredential`
 - Appointments: `Appointment` (state machine), `AppointmentContact`, `AppointmentRestriction`, `AppointmentConfirmationCycle`, `AppointmentImport`, `ServiceGroup`
-- Execution: `InspectionExecution` (start/finish with geolocation)
+- Execution: `InspectionExecution` (start/finish with geolocation; `abandoned_at` for a post-check-in can't-do), `InspectorFieldEvent` (`CANT_DO` / `LATE_NOTICE`; has `tenant_id` of the appointment)
 - Rental tenant portal: `RentalTenantPortalToken`, `RentalTenantPortalActivity`, `SatisfactionSurvey`
 - Notifications: `Notification`, `NotificationAttempt`, `NotificationTemplate`, `NotificationConsent`
 - Finance: `FinancialEntry`, `InspectorInvoice`
@@ -295,6 +315,8 @@ See `prisma/schema.prisma` for complete entity definitions.
 - `notification_channel`: `EMAIL`, `SMS`
 - `notification_status`: `PENDING`, `SENT`, `DELIVERED`, `FAILED`, `SKIPPED`, `SKIPPED_OPT_OUT`
 - `financial_entry_type`: `TENANT_DEBIT`, `INSPECTOR_PAYOUT`, `REFUND`, `MANUAL_ADJUSTMENT`
+- `InspectorFieldEventType`: `CANT_DO`, `LATE_NOTICE` (reason/late enums + labels in `packages/shared/src/enums/field-events.ts`)
+- `RejectionReasonCode` includes `INSPECTOR_UNABLE` (system-assigned only; `SYSTEM_ONLY_REJECTION_CODES`)
 
 ### Configuration: platform vs. agency
 

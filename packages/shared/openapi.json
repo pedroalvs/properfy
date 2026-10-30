@@ -12221,6 +12221,46 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "inspectorIssue": {
+                          "type": "object",
+                          "properties": {
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "inspectorId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "nullable": true
+                            },
+                            "inspectorName": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "occurredAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "reason",
+                            "note",
+                            "inspectorName",
+                            "occurredAt"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
                         "createdByUserId": {
                           "type": "string",
                           "format": "uuid"
@@ -12848,6 +12888,46 @@
                           },
                           "rejectionReasonCode": {
                             "type": "string",
+                            "nullable": true
+                          },
+                          "inspectorIssue": {
+                            "type": "object",
+                            "properties": {
+                              "reason": {
+                                "type": "string"
+                              },
+                              "note": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "inspectorId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "inspectorName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "occurredAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "reason",
+                              "note",
+                              "inspectorName",
+                              "occurredAt"
+                            ],
+                            "additionalProperties": false,
                             "nullable": true
                           },
                           "createdByUserId": {
@@ -13606,6 +13686,46 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "inspectorIssue": {
+                          "type": "object",
+                          "properties": {
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "inspectorId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "nullable": true
+                            },
+                            "inspectorName": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "occurredAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "reason",
+                            "note",
+                            "inspectorName",
+                            "occurredAt"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
                         "createdByUserId": {
                           "type": "string",
                           "format": "uuid"
@@ -14291,6 +14411,46 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "inspectorIssue": {
+                          "type": "object",
+                          "properties": {
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "inspectorId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "nullable": true
+                            },
+                            "inspectorName": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "occurredAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "reason",
+                            "note",
+                            "inspectorName",
+                            "occurredAt"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
                         "createdByUserId": {
                           "type": "string",
                           "format": "uuid"
@@ -14546,6 +14706,260 @@
         }
       }
     },
+    "/v1/appointments/{appointmentId}/field-activity": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "appointmentId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "execution": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "inspectorName": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "startedAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              ]
+                            },
+                            "finishedAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              ],
+                              "nullable": true
+                            },
+                            "abandonedAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              ],
+                              "nullable": true
+                            },
+                            "startClientAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              ],
+                              "nullable": true
+                            },
+                            "finishClientAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              ],
+                              "nullable": true
+                            },
+                            "startDistanceMeters": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "finishDistanceMeters": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "startAccuracyMeters": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "finishAccuracyMeters": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "outOfRadius": {
+                              "type": "boolean"
+                            },
+                            "outOfWindow": {
+                              "type": "boolean"
+                            },
+                            "finishOutOfRadius": {
+                              "type": "boolean"
+                            },
+                            "geofenceRadiusMeters": {
+                              "type": "integer",
+                              "nullable": true
+                            },
+                            "startLatitude": {
+                              "type": "number"
+                            },
+                            "startLongitude": {
+                              "type": "number"
+                            },
+                            "finishLatitude": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "finishLongitude": {
+                              "type": "number",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "inspectorName",
+                            "startedAt",
+                            "finishedAt",
+                            "abandonedAt",
+                            "startClientAt",
+                            "finishClientAt",
+                            "startDistanceMeters",
+                            "finishDistanceMeters",
+                            "startAccuracyMeters",
+                            "finishAccuracyMeters",
+                            "outOfRadius",
+                            "outOfWindow",
+                            "finishOutOfRadius",
+                            "geofenceRadiusMeters"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "events": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              },
+                              "note": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "minutesLate": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "inspectorName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "occurredAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ]
+                              },
+                              "clientOccurredAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ],
+                                "nullable": true
+                              },
+                              "accuracyMeters": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "latitude": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "longitude": {
+                                "type": "number",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "type",
+                              "reason",
+                              "note",
+                              "minutesLate",
+                              "inspectorName",
+                              "occurredAt",
+                              "clientOccurredAt",
+                              "accuracyMeters"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "execution",
+                        "events"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/appointments/{appointmentId}/portal-link": {
       "get": {
         "parameters": [
@@ -14642,6 +15056,7 @@
                       "SERVICE_NOT_AVAILABLE",
                       "TENANT_NO_RESPONSE",
                       "TENANT_DECLINED",
+                      "INSPECTOR_UNABLE",
                       "OTHER"
                     ]
                   },
@@ -21795,6 +22210,36 @@
                           ],
                           "additionalProperties": false
                         },
+                        "lastFieldIssue": {
+                          "type": "object",
+                          "properties": {
+                            "reason": {
+                              "type": "string"
+                            },
+                            "note": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "occurredAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "reason",
+                            "note",
+                            "occurredAt"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
                         "apps": {
                           "type": "array",
                           "items": {
@@ -22378,6 +22823,287 @@
                         "startedAt",
                         "finishedAt",
                         "appointmentStatus"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspector/appointments/{appointmentId}/cant-do": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "NO_ANSWER",
+                      "KEY_FAILED",
+                      "TENANT_REFUSED",
+                      "UNSAFE",
+                      "SITE_ISSUE",
+                      "CANT_ATTEND"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "accuracy": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "clientOccurredAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "appointmentId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "eventId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "appointmentId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "appointmentStatus": {
+                          "type": "string",
+                          "enum": [
+                            "REJECTED"
+                          ]
+                        },
+                        "occurredAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "executionAbandoned": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "eventId",
+                        "appointmentId",
+                        "appointmentStatus",
+                        "occurredAt",
+                        "executionAbandoned"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspector/appointments/{appointmentId}/late-notice": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "TRAFFIC",
+                      "PREVIOUS_JOB_OVERRAN",
+                      "PERSONAL",
+                      "OTHER"
+                    ]
+                  },
+                  "minutesLate": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 240
+                  },
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "accuracy": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "clientOccurredAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "reason",
+                  "minutesLate"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "appointmentId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "eventId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "appointmentId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "occurredAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "TRAFFIC",
+                            "PREVIOUS_JOB_OVERRAN",
+                            "PERSONAL",
+                            "OTHER"
+                          ]
+                        },
+                        "minutesLate": {
+                          "type": "integer"
+                        },
+                        "referenceAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "referenceSource": {
+                          "type": "string",
+                          "enum": [
+                            "PUBLISHED_PLAN",
+                            "WINDOW_START"
+                          ]
+                        },
+                        "estimatedArrivalAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "eventId",
+                        "appointmentId",
+                        "occurredAt",
+                        "reason",
+                        "minutesLate",
+                        "referenceAt",
+                        "referenceSource",
+                        "estimatedArrivalAt"
                       ],
                       "additionalProperties": false
                     }

@@ -1,4 +1,4 @@
-import type { AuthContext, AppointmentApp, AppointmentCustomField, PropertyType, GeofenceMode } from '@properfy/shared';
+import type { AuthContext, AppointmentApp, AppointmentCustomField, PropertyType, GeofenceMode, InspectorLastFieldIssue } from '@properfy/shared';
 import { normalizeCustomFields } from '@properfy/shared';
 import type { IPlatformSettingsReader } from '../../../../shared/domain/platform-settings';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../../appointment/domain/appointment.repository';
@@ -6,6 +6,7 @@ import type { IAppCredentialRepository } from '../../../app-credential/domain/ap
 import { toAppointmentApp } from '../../../app-credential/application/appointment-app.mapper';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
+import type { IInspectorFieldEventRepository } from '../../domain/inspector-field-event.repository';
 import type { IServiceTypeReader } from '../../domain/service-type-reader';
 import type { IContactReader, ContactRegistryInfo, ContactRegistryChannel } from '../../domain/contact-reader';
 import { T1VisibilityService } from '../../domain/t1-visibility.service';
@@ -153,6 +154,13 @@ export interface AppointmentDetailOutput {
   } | null;
   /** The geofence radius + mode in force (F03), served so the PWA shows the right warning copy. */
   geofence?: { radiusMeters: number; mode: GeofenceMode };
+  /**
+   * The inspector's own last "Can't do this job" on this appointment (F03, D28).
+   * Set ONLY when the latest CANT_DO was reported by this same inspector (a
+   * re-offered job re-accepted by them); null otherwise — they never see another
+   * inspector's report.
+   */
+  lastFieldIssue?: InspectorLastFieldIssue | null;
   jobDetails: JobDetails | null;
   /** App credentials linked to this appointment (live reference). */
   apps: AppointmentApp[];
@@ -174,6 +182,8 @@ export class GetAppointmentDetailUseCase {
     private readonly tenantTimezoneLookup?: ITenantTimezoneLookup,
     /** Platform settings reader (F03) — serves the geofence radius/mode to the PWA. */
     private readonly platformSettings?: IPlatformSettingsReader,
+    /** Field-event reader (F03, D28) — serves the inspector's own last can't-do. */
+    private readonly fieldEventRepo?: IInspectorFieldEventRepository,
   ) {}
 
   async execute(input: GetAppointmentDetailInput): Promise<AppointmentDetailOutput> {
@@ -266,6 +276,20 @@ export class GetAppointmentDetailUseCase {
       ? await this.platformSettings.get('fieldEvents')
       : null;
 
+    // The inspector's own last can't-do (D28): surfaced only when the latest
+    // CANT_DO of this appointment was reported by this same inspector.
+    const latestCantDo = this.fieldEventRepo
+      ? await this.fieldEventRepo.findLatestCantDoByAppointmentId(appointmentId)
+      : null;
+    const lastFieldIssue: InspectorLastFieldIssue | null =
+      latestCantDo && latestCantDo.inspectorId === actor.inspectorId
+        ? {
+            reason: latestCantDo.reasonCode,
+            note: latestCantDo.note,
+            occurredAt: latestCantDo.occurredAt.toISOString(),
+          }
+        : null;
+
     return {
       id: appointment.id,
       appointmentCode,
@@ -337,6 +361,7 @@ export class GetAppointmentDetailUseCase {
       geofence: geofenceSettings
         ? { radiusMeters: geofenceSettings.geofenceRadiusMeters, mode: geofenceSettings.geofenceMode }
         : undefined,
+      lastFieldIssue,
       jobDetails,
       apps,
     };

@@ -6,6 +6,10 @@ import {
   startInspectionSchema,
   finishInspectionSchema,
   reopenExecutionSchema,
+  cantDoRequestSchema,
+  cantDoResponseSchema,
+  lateNoticeRequestSchema,
+  lateNoticeResponseSchema,
   inspectorScheduleResponseSchema,
   inspectorScheduleMonthItemSchema,
   inspectorScheduleMonthResponseSchema,
@@ -26,6 +30,8 @@ import type { GetAppointmentDetailUseCase } from '../application/use-cases/get-a
 import type { StartInspectionUseCase } from '../application/use-cases/start-inspection.use-case';
 import type { FinishInspectionUseCase } from '../application/use-cases/finish-inspection.use-case';
 import type { ReopenExecutionUseCase } from '../application/use-cases/reopen-execution.use-case';
+import type { ReportCantDoUseCase } from '../application/use-cases/report-cant-do.use-case';
+import type { ReportLateNoticeUseCase } from '../application/use-cases/report-late-notice.use-case';
 import type { GetMarketplaceOffersUseCase } from '../../service-group/application/use-cases/get-marketplace-offers.use-case';
 import type { GetAvailablePeriodsUseCase } from '../../billing/application/use-cases/get-available-periods.use-case';
 import type { GetInspectorEarningsSummaryUseCase } from '../../billing/application/use-cases/get-inspector-earnings-summary.use-case';
@@ -49,6 +55,8 @@ export interface InspectorExecutionRouteContainer {
   startInspectionUseCase: StartInspectionUseCase;
   finishInspectionUseCase: FinishInspectionUseCase;
   reopenExecutionUseCase: ReopenExecutionUseCase;
+  reportCantDoUseCase: ReportCantDoUseCase;
+  reportLateNoticeUseCase: ReportLateNoticeUseCase;
   getMarketplaceOffersUseCase: GetMarketplaceOffersUseCase;
   getAvailablePeriodsUseCase: GetAvailablePeriodsUseCase;
   getInspectorEarningsSummaryUseCase: GetInspectorEarningsSummaryUseCase;
@@ -194,6 +202,58 @@ export async function registerInspectorExecutionRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/inspector/appointments/:appointmentId/cant-do
+  app.post(
+    '/v1/inspector/appointments/:appointmentId/cant-do',
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), body: cantDoRequestSchema, response: { 200: successResponseSchema(cantDoResponseSchema) } } },
+    async (request, reply) => {
+      const params = appointmentIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid appointment ID', params.error.errors);
+      }
+      const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
+      if (!idempotencyKey) throw new IdempotencyKeyMissingError();
+
+      const parsed = cantDoRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.reportCantDoUseCase.execute({
+        appointmentId: params.data.appointmentId,
+        ...parsed.data,
+        idempotencyKey,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/inspector/appointments/:appointmentId/late-notice
+  app.post(
+    '/v1/inspector/appointments/:appointmentId/late-notice',
+    { preHandler: authenticate, schema: { params: z.object({ appointmentId: z.string().uuid() }), body: lateNoticeRequestSchema, response: { 201: successResponseSchema(lateNoticeResponseSchema) } } },
+    async (request, reply) => {
+      const params = appointmentIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid appointment ID', params.error.errors);
+      }
+      const idempotencyKey = request.headers['idempotency-key'] as string | undefined;
+      if (!idempotencyKey) throw new IdempotencyKeyMissingError();
+
+      const parsed = lateNoticeRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.reportLateNoticeUseCase.execute({
+        appointmentId: params.data.appointmentId,
+        ...parsed.data,
+        idempotencyKey,
+        actor: request.authContext!,
+      });
+      return reply.status(201).send(success(result));
     },
   );
 

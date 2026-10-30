@@ -1,4 +1,4 @@
-import { type AuthContext, type AvailableSlotSchema, isAppointmentOverdue } from '@properfy/shared';
+import { type AuthContext, type AvailableSlotSchema, type InspectorIssue, isAppointmentOverdue } from '@properfy/shared';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type {
   IAppointmentRepository,
@@ -6,8 +6,10 @@ import type {
   PaginationParams,
   AppointmentListItem,
 } from '../../domain/appointment.repository';
+import type { IInspectorFieldEventRepository } from '../../../inspector-execution/domain/inspector-field-event.repository';
 import { AppointmentCodeFormatter } from '../../domain/appointment-code.formatter';
 import { APPOINTMENT_LIST_ROLES, resolveAppointmentListTenantScope } from '../appointment-list-scope';
+import { toInspectorIssue } from './get-appointment.use-case';
 
 export interface ListAppointmentsInput {
   filters: {
@@ -99,6 +101,8 @@ export interface ListAppointmentsOutput {
     longitude: number | null;
     /** Property total area in m²; null when the property has no recorded area. */
     propertyTotalAreaM2: number | null;
+    /** Latest "Can't do this job" report, flattened onto the row; null when none (F03). */
+    inspectorIssue: InspectorIssue | null;
   }>;
   total: number;
   page: number;
@@ -109,6 +113,7 @@ export class ListAppointmentsUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly authorizationService: AuthorizationService,
+    private readonly fieldEventRepo?: IInspectorFieldEventRepository,
   ) {}
 
   async execute(input: ListAppointmentsInput): Promise<ListAppointmentsOutput> {
@@ -158,6 +163,19 @@ export class ListAppointmentsUseCase {
       this.appointmentRepo.findAll(repoFilters, pagination),
       this.appointmentRepo.count(repoFilters),
     ]);
+
+    // One batched query for the whole page (DISTINCT ON), merged in memory — no
+    // N+1. Empty page or no field-event repo wired → no query, empty map (F03).
+    const latestCantDoByAppointment = new Map<string, InspectorIssue>();
+    if (this.fieldEventRepo && data.length > 0) {
+      const latest = await this.fieldEventRepo.findLatestCantDoByAppointmentIds(
+        data.map((item) => item.appointment.id),
+      );
+      for (const row of latest) {
+        const issue = toInspectorIssue(row);
+        if (issue) latestCantDoByAppointment.set(row.appointmentId, issue);
+      }
+    }
 
     return {
       data: data.map((item: AppointmentListItem) => {
@@ -219,6 +237,7 @@ export class ListAppointmentsUseCase {
         latitude: item.propertyLatitude,
         longitude: item.propertyLongitude,
         propertyTotalAreaM2: item.propertyTotalAreaM2 ?? null,
+        inspectorIssue: latestCantDoByAppointment.get(item.appointment.id) ?? null,
       };
       }),
       total,

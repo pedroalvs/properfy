@@ -63,6 +63,7 @@ export type MandatoryTemplateCode = (typeof MANDATORY_TEMPLATE_CODES)[number];
 export const PLATFORM_ONLY_TEMPLATE_CODES = [
   'PASSWORD_RESET',
   'INSPECTION_STUCK_ALERT',
+  'INSPECTOR_UNABLE_ALERT',
   'INSPECTOR_GROUP_ASSIGNED',
   'INSPECTOR_GROUP_UNASSIGNED',
   'INSPECTOR_GROUP_RESCHEDULED',
@@ -123,6 +124,7 @@ export const SYSTEM_TEMPLATE_CODES = [
   'REPORT_FAILED',
   'REGION_DEACTIVATED',
   'INSPECTION_STUCK_ALERT',
+  'INSPECTOR_UNABLE_ALERT',
 ] as const satisfies readonly (
   | MandatoryTemplateCode
   | PlatformOnlyTemplateCode
@@ -173,6 +175,7 @@ export const TEMPLATE_CODE_LABELS: Record<MandatoryTemplateCode, string> = {
 export const PLATFORM_TEMPLATE_CODE_LABELS: Record<PlatformOnlyTemplateCode, string> = {
   PASSWORD_RESET: 'Password Reset',
   INSPECTION_STUCK_ALERT: 'Inspection Stuck Alert',
+  INSPECTOR_UNABLE_ALERT: 'Inspector Unable Alert',
   INSPECTOR_GROUP_ASSIGNED: 'Inspector Group Assigned',
   INSPECTOR_GROUP_UNASSIGNED: 'Inspector Group Unassigned',
   INSPECTOR_GROUP_RESCHEDULED: 'Inspector Group Rescheduled',
@@ -289,6 +292,7 @@ export const TEMPLATE_TARGETS: Record<
   INSPECTION_SATISFACTION_SURVEY: 'RENTAL_TENANT',
   PASSWORD_RESET: 'USER_ACCOUNT',
   INSPECTION_STUCK_ALERT: 'PLATFORM_OPS',
+  INSPECTOR_UNABLE_ALERT: 'PLATFORM_OPS',
   INSPECTOR_GROUP_ASSIGNED: 'INSPECTOR',
   INSPECTOR_GROUP_UNASSIGNED: 'INSPECTOR',
   INSPECTOR_GROUP_RESCHEDULED: 'INSPECTOR',
@@ -341,6 +345,7 @@ export const PROTECTED_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClas
   // here to keep them consent-bypassed (matches platform-notification-templates.ts).
   PASSWORD_RESET: 'TRANSACTIONAL',
   INSPECTION_STUCK_ALERT: 'TRANSACTIONAL',
+  INSPECTOR_UNABLE_ALERT: 'TRANSACTIONAL',
   INSPECTOR_GROUP_ASSIGNED: 'TRANSACTIONAL',
   INSPECTOR_GROUP_UNASSIGNED: 'TRANSACTIONAL',
   INSPECTOR_GROUP_RESCHEDULED: 'TRANSACTIONAL',
@@ -506,7 +511,9 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
   // MissingRequiredVariableError and lose the notice entirely.
   INSPECTION_REJECTED_AGENCY: {
     required: ['propertyAddress', 'scheduledDate', 'appointmentCode'],
-    optional: ['rentalTenantName', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl', 'rejectionReason', 'rescheduleLink'],
+    // `rejectedByInspector` (F03, D26) switches the body to the "inspector couldn't
+    // complete it, ops will re-offer" copy; `inspectorName` names them when known.
+    optional: ['rentalTenantName', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl', 'rejectionReason', 'rescheduleLink', 'rejectedByInspector'],
   },
   INSPECTION_UNAVAILABILITY_REPORTED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode'],
@@ -551,6 +558,13 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
   INSPECTION_STUCK_ALERT: {
     required: [],
     optional: ['appointmentId', 'inspectorId', 'startedAt', 'hoursStuck', 'properfyLogoUrl'],
+  },
+  // Ops alert when an inspector reports "Can't do this job". Payload is hand-built in
+  // notify-inspector-unable.service.ts (INSPECTOR_UNABLE_ALERT_PAYLOAD_KEYS); `fieldIssueNote`
+  // is empty when the inspector left no note. `properfyLogoUrl` comes from the system layout.
+  INSPECTOR_UNABLE_ALERT: {
+    required: [],
+    optional: ['appointmentId', 'inspectorName', 'fieldIssueReason', 'fieldIssueNote', 'properfyLogoUrl'],
   },
   INSPECTOR_GROUP_ASSIGNED: {
     required: [],
@@ -618,6 +632,11 @@ export const ALLOWED_VARIABLES = [
   'inspectorId',
   'suppressedTemplateLabel',
   'suppressedChannel',
+  // Inspector "Can't do this job" ops alert (INSPECTOR_UNABLE_ALERT).
+  'fieldIssueReason',
+  'fieldIssueNote',
+  // Agency rejection email: switches copy when the inspector reported can't-do (D26).
+  'rejectedByInspector',
 ] as const;
 
 export type AllowedVariable = (typeof ALLOWED_VARIABLES)[number];
@@ -675,4 +694,9 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   inspectorId: 'e7d6c5b4-4321-4a98-87cd-000000000000',
   suppressedTemplateLabel: 'Inspection Notice',
   suppressedChannel: 'EMAIL',
+  // INSPECTOR_UNABLE_ALERT: the humanized "Can't do this job" reason and the inspector's note.
+  fieldIssueReason: "Key didn't work",
+  fieldIssueNote: 'Lockbox code was wrong',
+  // INSPECTION_REJECTED_AGENCY: non-empty => inspector-driven rejection copy (D26).
+  rejectedByInspector: 'true',
 };

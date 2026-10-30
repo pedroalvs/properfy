@@ -44,10 +44,10 @@ pnpm generate:types
 ```text
 packages/shared/
 ├── src/
-│   ├── enums/          # one file per domain (appointment.ts, notification.ts, user.ts, financial.ts, reason-codes.ts, …) + index.ts
-│   ├── schemas/        # Zod schemas per domain (appointment.ts, tenant.ts — incl. tenantSettingsSchema, property.ts, …) + index.ts
+│   ├── enums/          # one file per domain (appointment.ts, notification.ts, user.ts, financial.ts, reason-codes.ts, field-events.ts, …) + index.ts
+│   ├── schemas/        # Zod schemas per domain (appointment.ts, tenant.ts — incl. tenantSettingsSchema, property.ts, field-events.ts, …) + index.ts
 │   ├── types/          # entities.ts, api.ts, auth.ts, events.ts, rental-tenant-portal.ts
-│   ├── constants/      # status-transitions.ts (VALID_TRANSITIONS), notification-templates.ts, inspector-workload.ts, phone.ts, timezone.ts
+│   ├── constants/      # status-transitions.ts (VALID_TRANSITIONS), notification-templates.ts, inspector-workload.ts, phone.ts, timezone.ts, transition-sources.ts, inspector-notices.ts
 │   ├── permissions/    # role-matrix.ts (RBAC matrix shared by backend and frontends)
 │   ├── lib/            # appointment-transitions, marker-collision, plottable-point, rating
 │   ├── utils/          # date/timezone, currency, SMS length, idempotency key, api-error, overdue, …
@@ -174,6 +174,7 @@ export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 - **Error:** the `{ error: { code, message, details } }` envelope is parsed by `utils/api-error.ts` (no exported Zod schema)
 - **Status transition:** `statusTransitionSchema` with `targetStatus`, `reason`
 - **Geocoding (X02-1):** `branchAddressSchema` (`schemas/address.ts`) has **no** `latitude`/`longitude` — branch coordinates come only from permanent-mode geocoding on the backend, and it stays a plain `z.object` (no top-level `.transform/.refine/.superRefine` etc.) so F01 can `.extend(...)` it. `geocodeVerificationSchema` (`schemas/import.ts`) `found` variant carries an optional `mode: z.literal('permanent')`; a `found` without a mode is a pre-deploy preview and is re-geocoded on commit.
+- **Inspector field events (F03-2):** `enums/field-events.ts` adds `InspectorFieldEventType` (`CANT_DO`/`LATE_NOTICE`), `FieldIssueReason`/`LateNoticeReason` + label maps, `FIELD_ISSUE_NOTE_REQUIRED_REASONS`, `LATE_NOTICE_MINUTES_OPTIONS` (alongside the F03-1 `GeofenceMode`). `schemas/field-events.ts` holds `cantDoRequestSchema`/`cantDoResponseSchema`, `lateNoticeRequestSchema`/`lateNoticeResponseSchema` (response carries `referenceAt`/`referenceSource`/`estimatedArrivalAt`), `inspectorIssueSchema`, `inspectorLastFieldIssueSchema`, `fieldEventItemSchema`, `executionSummarySchema` (lat/lng declared **optional** so the backend can omit them for CL roles), `appointmentFieldActivityResponseSchema`. `appointmentResponseSchema.inspectorIssue` and `inspectorAppointmentDetailResponseSchema.lastFieldIssue` are declared (nullable/optional) in `schemas/responses.ts` (undeclared fields are stripped). `reason-codes.ts` adds `RejectionReasonCode.INSPECTOR_UNABLE` + `SYSTEM_ONLY_REJECTION_CODES`; `constants/transition-sources.ts` has `TRANSITION_SOURCE_INSPECTOR_CANT_DO`; `constants/inspector-notices.ts` has `COMPLETION_REMINDER_DEDUPE_PREFIX` + `buildCompletionReminderDedupeKey`. `notification-templates.ts` registers the `INSPECTOR_UNABLE_ALERT` platform code (8 places) and adds the `rejectedByInspector`/`fieldIssueReason`/`fieldIssueNote` variables.
 - **Inspector base address (F01-1):** `inspectorBaseAddressSchema` + `AU_STATES` (`schemas/address.ts`) is **derived** from `branchAddressSchema` with trim, an AU state enum, a 4-digit postcode and `country: 'AU'`; Zod strip drops any client `latitude/longitude`. `createInspectorSchema.address` is **required**; `updateInspectorSchema.address`/`inspectorSelfUpdateSchema.address` are `.optional()` and **not** `.nullable()` (so `address:null` is a 400 — the base is never removable). `inspectorAppStateSchema` is the app-state heartbeat body (`displayMode`/`pushPermission`/`appVersion`). `listInspectorsQuerySchema.missingBaseAddress` uses `booleanQueryParam()` (never `z.coerce.boolean`). `inspectorResponseSchema` carries optional `baseLat/baseLng/baseGeocodedAt/baseGeocodeFailed` and `appInstalledAt/appLastSeenAt/pushEnabled/appVersion`.
 
 ---

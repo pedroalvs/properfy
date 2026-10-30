@@ -201,6 +201,7 @@ describe('SYSTEM_TEMPLATE_CODES', () => {
         'REPORT_FAILED',
         'REGION_DEACTIVATED',
         'INSPECTION_STUCK_ALERT',
+        'INSPECTOR_UNABLE_ALERT',
       ]),
     );
   });
@@ -400,6 +401,7 @@ describe('isPlatformScopedEditableCode', () => {
     for (const code of [
       'PASSWORD_RESET',
       'INSPECTION_STUCK_ALERT',
+      'INSPECTOR_UNABLE_ALERT',
       'INSPECTOR_GROUP_ASSIGNED',
       'INSPECTOR_GROUP_UNASSIGNED',
       'INSPECTOR_GROUP_RESCHEDULED',
@@ -419,6 +421,7 @@ describe('isPlatformScopedEditableCode', () => {
     // editor safety, and is likewise never built by the appointment builder.)
     for (const code of [
       'INSPECTION_STUCK_ALERT',
+      'INSPECTOR_UNABLE_ALERT',
       'INSPECTOR_GROUP_ASSIGNED',
       'INSPECTOR_GROUP_UNASSIGNED',
       'INSPECTOR_GROUP_RESCHEDULED',
