@@ -12,7 +12,9 @@ const mutate = vi.fn();
 vi.mock('../../hooks/useMarkNoticeRead', () => ({ useMarkNoticeRead: () => ({ mutate }) }));
 vi.mock('@/hooks/useEffectiveTimezone', () => ({ useEffectiveTimezone: () => 'Australia/Sydney' }));
 
-function renderDetail(id = 'a1') {
+const NOTICE_ID = '1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed';
+
+function renderDetail(id = NOTICE_ID) {
   return renderWithProviders(
     <Routes>
       <Route path="/profile/announcements/:noticeId" element={<AnnouncementDetailPage />} />
@@ -22,7 +24,7 @@ function renderDetail(id = 'a1') {
 }
 
 const NOTICE = {
-  id: 'a1',
+  id: NOTICE_ID,
   title: 'Road closure',
   body: 'Line one\nLine two',
   critical: true,
@@ -51,7 +53,14 @@ describe('AnnouncementDetailPage', () => {
     useDetailQueryMock.mockReturnValue(query({ data: { data: { ...NOTICE, readAt: null } } }));
     renderDetail();
     expect(mutate).toHaveBeenCalledTimes(1);
-    expect(mutate).toHaveBeenCalledWith('a1');
+    expect(mutate).toHaveBeenCalledWith(NOTICE_ID);
+  });
+
+  it('shows not-found for a non-UUID id without querying or marking read (CSPT guard)', () => {
+    useDetailQueryMock.mockReturnValue(query({ data: { data: NOTICE } }));
+    renderDetail('..%2f..%2fadmin');
+    expect(screen.getByText('This announcement is no longer available.')).toBeInTheDocument();
+    expect(mutate).not.toHaveBeenCalled();
   });
 
   it('does not mark an already-read notice', () => {
