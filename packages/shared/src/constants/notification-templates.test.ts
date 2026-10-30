@@ -15,6 +15,7 @@ import {
   TEMPLATE_VARIABLES,
   buildProperfyLogoUrl,
   getDefaultClass,
+  getProtectedClass,
   getTemplateCodeLabel,
   getTemplateTarget,
   isEditableTemplateCode,
@@ -545,5 +546,37 @@ describe('TEMPLATE_VARIABLES integrity', () => {
         expect({ code, v, sample: v in SAMPLE_DATA }).toEqual({ code, v, sample: true });
       }
     }
+  });
+});
+
+describe('INSPECTOR_NOTICE_SMS registration (F02-1)', () => {
+  it('is a platform-only code, not a mandatory tenant-facing one', () => {
+    expect(PLATFORM_ONLY_TEMPLATE_CODES as readonly string[]).toContain('INSPECTOR_NOTICE_SMS');
+    expect(MANDATORY_TEMPLATE_CODES as readonly string[]).not.toContain('INSPECTOR_NOTICE_SMS');
+  });
+
+  it('targets the inspector', () => {
+    expect(getTemplateTarget('INSPECTOR_NOTICE_SMS')).toBe('INSPECTOR');
+  });
+
+  it('is protected TRANSACTIONAL (consent + budget bypass)', () => {
+    expect(getProtectedClass('INSPECTOR_NOTICE_SMS')).toBe('TRANSACTIONAL');
+  });
+
+  it('has the expected label', () => {
+    expect(getTemplateCodeLabel('INSPECTOR_NOTICE_SMS')).toBe('Inspector Notice (SMS)');
+  });
+
+  it('requires only the message variable', () => {
+    expect(TEMPLATE_VARIABLES.INSPECTOR_NOTICE_SMS).toEqual({ required: ['message'], optional: [] });
+  });
+
+  it('exposes a non-empty message sample', () => {
+    expect(ALLOWED_VARIABLES as readonly string[]).toContain('message');
+    expect(SAMPLE_DATA.message.length).toBeGreaterThan(0);
+  });
+
+  it('is not an email system-identity template', () => {
+    expect(isSystemTemplate('INSPECTOR_NOTICE_SMS')).toBe(false);
   });
 });

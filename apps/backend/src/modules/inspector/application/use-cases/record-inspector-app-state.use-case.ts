@@ -30,12 +30,13 @@ export class RecordInspectorAppStateUseCase {
       throw new ForbiddenError('INSP_ONLY', 'This endpoint is only accessible to inspectors');
     }
 
-    const pushEnabled = input.pushPermission === 'granted';
+    // F02-1 (D10/L-F01-02): the heartbeat no longer writes push_enabled. That column now
+    // means "has an active push subscription" and is maintained by the inspector-notice
+    // module. `input.pushPermission` is still accepted but no longer persisted here.
     const affected = await this.inspectorRepo.recordAppState({
       id: actor.inspectorId,
       now: this.clock.now(),
       displayMode: input.displayMode,
-      pushEnabled,
       appVersion: input.appVersion,
     });
 

@@ -8,6 +8,7 @@ import { registerPropertyRoutes } from '../modules/property/interfaces/property.
 import { registerServiceTypeRoutes } from '../modules/service-type/interfaces/service-type.routes';
 import { registerPricingRuleRoutes } from '../modules/pricing-rule/interfaces/pricing-rule.routes';
 import { registerInspectorRoutes } from '../modules/inspector/interfaces/inspector.routes';
+import { registerInspectorNoticeRoutes } from '../modules/inspector-notice/interfaces/inspector-notice.routes';
 import { registerAppointmentRoutes } from '../modules/appointment/interfaces/appointment.routes';
 import { registerServiceGroupRoutes } from '../modules/service-group/interfaces/service-group.routes';
 import { registerMarketplaceRoutes } from '../modules/service-group/interfaces/marketplace.routes';
@@ -96,6 +97,7 @@ export async function registerRoutes(
   await registerServiceTypeRoutes(app, container.serviceType);
   await registerPricingRuleRoutes(app, container.pricingRule);
   await registerInspectorRoutes(app, container.inspector);
+  await registerInspectorNoticeRoutes(app, container.inspectorNotice);
   await registerAppointmentRoutes(app, container.appointment);
   await registerServiceGroupRoutes(app, container.serviceGroup);
   await registerMarketplaceRoutes(app, container.marketplace);

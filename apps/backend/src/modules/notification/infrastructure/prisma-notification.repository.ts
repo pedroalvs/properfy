@@ -302,6 +302,25 @@ export class PrismaNotificationRepository implements INotificationRepository {
     });
   }
 
+  async countByTemplateChannelSince(
+    tenantId: string | null,
+    templateCode: string,
+    channel: NotificationChannel,
+    since: Date,
+  ): Promise<number> {
+    // Same skipped-row exclusion as countByTenantChannelSince, but scoped to one template
+    // code (the caller already filters to a single template, so no agency-forward exclusion).
+    return this.prisma.notification.count({
+      where: {
+        tenant_id: tenantId,
+        template_code: templateCode,
+        channel,
+        created_at: { gte: since },
+        status: { notIn: ['SKIPPED', 'SKIPPED_OPT_OUT'] },
+      },
+    });
+  }
+
   async update(notification: NotificationEntity): Promise<void> {
     await this.prisma.notification.update({
       where: { id: notification.id },

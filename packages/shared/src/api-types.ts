@@ -4997,6 +4997,618 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspector-notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: string;
+                    sortOrder?: "asc" | "desc";
+                    status?: "active" | "archived" | "all";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                id: string;
+                                title: string;
+                                body: string;
+                                critical: boolean;
+                                audience: {
+                                    /** @enum {string} */
+                                    type: "ALL";
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SELECTED";
+                                    inspectorIds: string[];
+                                } | {
+                                    /** @enum {string} */
+                                    type: "REGION";
+                                    regionId: string;
+                                    regionName: string;
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SYSTEM";
+                                    /** @enum {string} */
+                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE";
+                                };
+                                author: {
+                                    /** @enum {string} */
+                                    type: "USER" | "SYSTEM";
+                                    name: string | null;
+                                };
+                                publishedAt: string;
+                                archivedAt: string | null;
+                                recipientCount: number;
+                                readCount: number;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        title: string;
+                        body: string;
+                        /** @default false */
+                        critical?: boolean;
+                        audience: {
+                            /** @enum {string} */
+                            type: "ALL";
+                        } | {
+                            /** @enum {string} */
+                            type: "SELECTED";
+                            inspectorIds: string[];
+                        } | {
+                            /** @enum {string} */
+                            type: "REGION";
+                            /** Format: uuid */
+                            regionId: string;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                id: string;
+                                title: string;
+                                body: string;
+                                critical: boolean;
+                                audience: {
+                                    /** @enum {string} */
+                                    type: "ALL";
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SELECTED";
+                                    inspectorIds: string[];
+                                } | {
+                                    /** @enum {string} */
+                                    type: "REGION";
+                                    regionId: string;
+                                    regionName: string;
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SYSTEM";
+                                    /** @enum {string} */
+                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE";
+                                };
+                                author: {
+                                    /** @enum {string} */
+                                    type: "USER" | "SYSTEM";
+                                    name: string | null;
+                                };
+                                publishedAt: string;
+                                archivedAt: string | null;
+                                recipientCount: number;
+                                readCount: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-notices/{noticeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    noticeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                id: string;
+                                title: string;
+                                body: string;
+                                critical: boolean;
+                                audience: {
+                                    /** @enum {string} */
+                                    type: "ALL";
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SELECTED";
+                                    inspectorIds: string[];
+                                } | {
+                                    /** @enum {string} */
+                                    type: "REGION";
+                                    regionId: string;
+                                    regionName: string;
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SYSTEM";
+                                    /** @enum {string} */
+                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE";
+                                };
+                                author: {
+                                    /** @enum {string} */
+                                    type: "USER" | "SYSTEM";
+                                    name: string | null;
+                                };
+                                publishedAt: string;
+                                archivedAt: string | null;
+                                recipientCount: number;
+                                readCount: number;
+                                recipients: {
+                                    inspectorId: string;
+                                    inspectorName: string;
+                                    readAt: string | null;
+                                    /** @enum {string} */
+                                    inspectorStatus: "ACTIVE" | "INACTIVE";
+                                    hasAppAccess: boolean;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-notices/{noticeId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    noticeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                id: string;
+                                title: string;
+                                body: string;
+                                critical: boolean;
+                                audience: {
+                                    /** @enum {string} */
+                                    type: "ALL";
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SELECTED";
+                                    inspectorIds: string[];
+                                } | {
+                                    /** @enum {string} */
+                                    type: "REGION";
+                                    regionId: string;
+                                    regionName: string;
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SYSTEM";
+                                    /** @enum {string} */
+                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE";
+                                };
+                                author: {
+                                    /** @enum {string} */
+                                    type: "USER" | "SYSTEM";
+                                    name: string | null;
+                                };
+                                publishedAt: string;
+                                archivedAt: string | null;
+                                recipientCount: number;
+                                readCount: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: string;
+                    sortOrder?: "asc" | "desc";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                id: string;
+                                title: string;
+                                body: string;
+                                critical: boolean;
+                                publishedAt: string;
+                                readAt: string | null;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/notices/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                count: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/notices/{noticeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    noticeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                id: string;
+                                title: string;
+                                body: string;
+                                critical: boolean;
+                                publishedAt: string;
+                                readAt: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/notices/{noticeId}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    noticeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                noticeId: string;
+                                readAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/push-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                vapidPublicKey: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/push-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        endpoint: string;
+                        expirationTime?: number | null;
+                        keys: {
+                            p256dh: string;
+                            auth: string;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/push-subscriptions/unsubscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        endpoint: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/appointments": {
         parameters: {
             query?: never;

@@ -4,6 +4,7 @@ import type { AuthorizationService } from '../../../../shared/domain/authorizati
 import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IInspectorAppointmentChecker } from '../../domain/inspector-appointment-checker';
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
+import type { IPushSubscriptionRepository } from '../../../inspector-notice/domain/push-subscription.repository';
 import {
   InspectorNotFoundError,
   InspectorAlreadyInactiveError,
@@ -30,6 +31,7 @@ export class DeactivateInspectorUseCase {
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
     private readonly userManagementRepo?: IUserManagementRepository,
+    private readonly pushSubscriptionRepo?: IPushSubscriptionRepository,
   ) {}
 
   /**
@@ -77,6 +79,13 @@ export class DeactivateInspectorUseCase {
     if (inspector.userId) {
       await this.requireUserManagementRepo().update(inspector.userId, null, { status: 'INACTIVE' });
       await this.requireUserManagementRepo().revokeAllSessions(inspector.userId);
+    }
+
+    // F02-1 (L-F02-11): revoke active push subscriptions and recompute push_enabled, so a
+    // deactivated inspector stops receiving push. Reactivation restores nothing (the app
+    // re-subscribes on next login). Optional dep (guarded) to keep legacy wirings working.
+    if (this.pushSubscriptionRepo) {
+      await this.pushSubscriptionRepo.revokeAllForInspector(inspectorId, 'DEACTIVATED', now);
     }
 
     this.auditService.log({

@@ -292,6 +292,7 @@ model User {
   created_imports           AppointmentImport[]   @relation("importCreatedBy")
   created_service_regions   ServiceRegion[]       @relation("ServiceRegionCreatedBy")
   platform_settings_updated PlatformSetting[]     @relation("PlatformSettingUpdatedBy")
+  authored_inspector_notices InspectorNotice[]    @relation("InspectorNoticeAuthor")
 
   @@index([tenant_id])
   @@index([tenant_id, role])
@@ -525,12 +526,93 @@ model Inspector {
   invoices                InspectorInvoice[]
   inspector_regions       InspectorRegion[]
   satisfaction_surveys    SatisfactionSurvey[]
+  notice_recipients       InspectorNoticeRecipient[]
+  push_subscriptions      InspectorPushSubscription[]
 
   @@index([status])
   @@index([user_id])
   @@index([insurance_expires_at])
   @@index([police_check_expires_at])
   @@map("inspectors")
+}
+
+// -----------------------------------------------------------------------------
+// Inspector notices (F02-1) — platform-scoped (NO tenant_id). The subject is the
+// inspector, who is cross-tenant (precedent: Inspector, global ServiceRegion,
+// IntegrationSetting). Documented exception to root CLAUDE.md §7.1 / constitution §II;
+// scope is enforced by role (AM/OP) and by the JWT inspectorId (INSP).
+// -----------------------------------------------------------------------------
+
+model InspectorNotice {
+  id                    String                      @id @default(uuid())
+  title                 String                      @db.VarChar(120)
+  body                  String                      @db.Text
+  critical              Boolean                     @default(false)
+  // {type:'ALL'} | {type:'SELECTED',inspectorIds} | {type:'REGION',regionId,regionName} | {type:'SYSTEM',systemType}
+  audience_json         Json
+  // One of SYSTEM_INSPECTOR_NOTICE_TYPES; null = manual (AM/OP) notice.
+  system_type           String?                     @db.VarChar(40)
+  // Idempotency of system notices (§7.7). Null on manual notices.
+  dedupe_key            String?                     @db.VarChar(200)
+  // Allowlisted tap target (system notices only); null ⇒ /profile/announcements/<id>.
+  target_path           String?                     @db.VarChar(200)
+  // FK users.id; null = system-generated notice.
+  author_user_id        String?
+  published_at          DateTime                    @default(now())
+  archived_at           DateTime?
+  // First delivery-job run (null after 2 min ⇒ lost enqueue).
+  delivery_started_at   DateTime?
+  // Delivery-job end (all processed or archive stop); started >= 20 min ago & still null with pending ⇒ incomplete.
+  delivery_completed_at DateTime?
+  created_at            DateTime                    @default(now())
+  updated_at            DateTime                    @updatedAt
+
+  author     User?                      @relation("InspectorNoticeAuthor", fields: [author_user_id], references: [id], onDelete: Restrict)
+  recipients InspectorNoticeRecipient[]
+
+  @@unique([dedupe_key])
+  @@index([published_at])
+  @@index([archived_at])
+  @@map("inspector_notices")
+}
+
+model InspectorNoticeRecipient {
+  notice_id             String
+  inspector_id          String
+  // First open; never overwritten.
+  read_at               DateTime?
+  // Delivery checkpoint (push/SMS decided); makes retry idempotent. Not a delivery receipt.
+  delivery_processed_at DateTime?
+  created_at            DateTime  @default(now())
+
+  notice    InspectorNotice @relation(fields: [notice_id], references: [id], onDelete: Restrict)
+  inspector Inspector       @relation(fields: [inspector_id], references: [id], onDelete: Restrict)
+
+  @@id([notice_id, inspector_id])
+  @@index([inspector_id, read_at])
+  @@map("inspector_notice_recipients")
+}
+
+model InspectorPushSubscription {
+  id             String    @id @default(uuid())
+  inspector_id   String
+  // https push-service URL; identifies the device/browser.
+  endpoint       String    @db.VarChar(2048)
+  p256dh         String    @db.VarChar(255)
+  auth           String    @db.VarChar(255)
+  revoked_at     DateTime?
+  // GONE(404/410) | UNSUBSCRIBED | REJECTED(401/403) | FAILED(5 consecutive) | DEACTIVATED
+  revoked_reason String?   @db.VarChar(20)
+  // Consecutive FAILED sends; SENT and upsert reset it; >= 5 revokes.
+  failure_count  Int       @default(0)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  inspector Inspector @relation(fields: [inspector_id], references: [id], onDelete: Cascade)
+
+  @@unique([endpoint])
+  @@index([inspector_id, revoked_at])
+  @@map("inspector_push_subscriptions")
 }
 
 model InspectorAvailabilitySlot {

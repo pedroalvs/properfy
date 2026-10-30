@@ -587,4 +587,16 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     body: `Your inspection has been completed. Tell us how it went: {{surveyLink}}`,
     bodyHtml: SATISFACTION_SURVEY_HTML,
   },
+  // ── Inspector notice SMS fallback (F02-1) ────────────────────────────────
+  // Triple-stash: the body is free operator text and the renderer escapes HTML
+  // (`noEscape: false`), so `{{message}}` would send `&amp;`. notificationClass is declared
+  // explicitly because the seed only stores the declared/derived class and the catalogue
+  // test compares it against getProtectedClass('INSPECTOR_NOTICE_SMS') = TRANSACTIONAL.
+  {
+    code: 'INSPECTOR_NOTICE_SMS',
+    channel: 'SMS',
+    subject: null,
+    body: '{{{message}}}',
+    notificationClass: 'TRANSACTIONAL',
+  },
 ];

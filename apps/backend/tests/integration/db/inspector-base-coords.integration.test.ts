@@ -83,8 +83,8 @@ describe('F01-1 inspector base coords + heartbeat (real DB)', () => {
       const t1 = new Date('2026-10-30T01:00:00.000Z');
       const t2 = new Date('2026-10-30T02:00:00.000Z');
       await Promise.all([
-        repo.recordAppState({ id: row.id, now: t1, displayMode: 'standalone', pushEnabled: true, appVersion: 'a' }),
-        repo.recordAppState({ id: row.id, now: t2, displayMode: 'standalone', pushEnabled: false, appVersion: 'b' }),
+        repo.recordAppState({ id: row.id, now: t1, displayMode: 'standalone', appVersion: 'a' }),
+        repo.recordAppState({ id: row.id, now: t2, displayMode: 'standalone', appVersion: 'b' }),
       ]);
       const after = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
       const installed = after!.app_installed_at!.toISOString();
@@ -92,33 +92,36 @@ describe('F01-1 inspector base coords + heartbeat (real DB)', () => {
 
       // A later standalone never changes the install timestamp.
       const t3 = new Date('2026-10-30T03:00:00.000Z');
-      await repo.recordAppState({ id: row.id, now: t3, displayMode: 'standalone', pushEnabled: true, appVersion: 'c' });
+      await repo.recordAppState({ id: row.id, now: t3, displayMode: 'standalone', appVersion: 'c' });
       const after3 = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
       expect(after3!.app_installed_at!.toISOString()).toBe(installed);
       expect(after3!.app_last_seen_at!.toISOString()).toBe(t3.toISOString());
       expect(after3!.app_version).toBe('c');
 
-      // A browser heartbeat keeps the install and flips push off.
+      // F02-1 D10 / L-F01-02: the heartbeat no longer writes push_enabled (it now reflects
+      // active push subscriptions, set outside the heartbeat). A push_enabled=true set
+      // beforehand survives a browser heartbeat with permission denied.
+      await harness.prisma.inspector.update({ where: { id: row.id }, data: { push_enabled: true } });
       const t4 = new Date('2026-10-30T04:00:00.000Z');
-      await repo.recordAppState({ id: row.id, now: t4, displayMode: 'browser', pushEnabled: false, appVersion: 'd' });
+      await repo.recordAppState({ id: row.id, now: t4, displayMode: 'browser', appVersion: 'd' });
       const after4 = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
       expect(after4!.app_installed_at!.toISOString()).toBe(installed);
-      expect(after4!.push_enabled).toBe(false);
+      expect(after4!.push_enabled).toBe(true);
     });
 
     it('sequential standalone T1 then T2 keeps install = T1', async () => {
       const row = await createInspector({ address: VALID_ADDRESS });
       const t1 = new Date('2026-10-30T01:00:00.000Z');
       const t2 = new Date('2026-10-30T02:00:00.000Z');
-      await repo.recordAppState({ id: row.id, now: t1, displayMode: 'standalone', pushEnabled: true, appVersion: 'a' });
-      await repo.recordAppState({ id: row.id, now: t2, displayMode: 'standalone', pushEnabled: true, appVersion: 'b' });
+      await repo.recordAppState({ id: row.id, now: t1, displayMode: 'standalone', appVersion: 'a' });
+      await repo.recordAppState({ id: row.id, now: t2, displayMode: 'standalone', appVersion: 'b' });
       const after = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
       expect(after!.app_installed_at!.toISOString()).toBe(t1.toISOString());
     });
 
     it('returns 0 affected for a soft-deleted inspector', async () => {
       const row = await createInspector({ address: VALID_ADDRESS, deleted_at: new Date() });
-      const affected = await repo.recordAppState({ id: row.id, now: new Date(), displayMode: 'standalone', pushEnabled: true, appVersion: 'x' });
+      const affected = await repo.recordAppState({ id: row.id, now: new Date(), displayMode: 'standalone', appVersion: 'x' });
       expect(affected).toBe(0);
     });
   });

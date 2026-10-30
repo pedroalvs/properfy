@@ -68,6 +68,7 @@ export const PLATFORM_ONLY_TEMPLATE_CODES = [
   'INSPECTOR_GROUP_RESCHEDULED',
   'INSPECTOR_GROUP_JOBS_ADDED',
   'TENANT_NOTICE_FORWARDED_AGENCY',
+  'INSPECTOR_NOTICE_SMS',
 ] as const;
 
 export type PlatformOnlyTemplateCode = (typeof PLATFORM_ONLY_TEMPLATE_CODES)[number];
@@ -178,6 +179,7 @@ export const PLATFORM_TEMPLATE_CODE_LABELS: Record<PlatformOnlyTemplateCode, str
   INSPECTOR_GROUP_RESCHEDULED: 'Inspector Group Rescheduled',
   INSPECTOR_GROUP_JOBS_ADDED: 'Inspector Group Jobs Added',
   TENANT_NOTICE_FORWARDED_AGENCY: 'Tenant Notice Forwarded to Agency',
+  INSPECTOR_NOTICE_SMS: 'Inspector Notice (SMS)',
 };
 
 /**
@@ -297,6 +299,9 @@ export const TEMPLATE_TARGETS: Record<
   // message is suppressed, so a RENTAL_TENANT target here would suppress the mirror
   // too and forward it again, forever.
   TENANT_NOTICE_FORWARDED_AGENCY: 'PROPERTY_MANAGER',
+  // INSPECTOR — the critical-notice SMS fallback, sent to the inspector's own phone by
+  // deliver-inspector-notice.use-case.ts (INSPECTOR_NOTICE_SMS, via inspector.phone).
+  INSPECTOR_NOTICE_SMS: 'INSPECTOR',
 };
 
 /** Target for any template code; `undefined` for custom codes outside both catalogs. */
@@ -345,6 +350,11 @@ export const PROTECTED_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClas
   INSPECTOR_GROUP_UNASSIGNED: 'TRANSACTIONAL',
   INSPECTOR_GROUP_RESCHEDULED: 'TRANSACTIONAL',
   INSPECTOR_GROUP_JOBS_ADDED: 'TRANSACTIONAL',
+  // Critical-notice SMS fallback. MUST be TRANSACTIONAL: it is sent with tenantId = null,
+  // so OPERATIONAL would make the consent lookup and daily budget resolve against a null
+  // tenant. Pinned here (and declared in platform-notification-templates.ts) so an upsert
+  // cannot silently reclassify it.
+  INSPECTOR_NOTICE_SMS: 'TRANSACTIONAL',
 };
 
 /** Protected code strings — used by UI to disable reclassification. */
@@ -576,6 +586,13 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
     required: [],
     optional: ['suppressedTemplateLabel', 'suppressedChannel', 'rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot', 'appointmentCode', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'confirmationLink', 'properfyLogoUrl', 'agencyLogoUrl'],
   },
+  // The whole body is a single operator-built blurb. `message` is REQUIRED so the editor
+  // blocks a save without `{{{message}}}` — the body would otherwise render empty and the
+  // send would fail EMPTY_SMS_BODY. Triple-stash in the seed because SMS text is unescaped.
+  INSPECTOR_NOTICE_SMS: {
+    required: ['message'],
+    optional: [],
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -618,6 +635,8 @@ export const ALLOWED_VARIABLES = [
   'inspectorId',
   'suppressedTemplateLabel',
   'suppressedChannel',
+  // Inspector notice SMS fallback — the whole operator-built blurb (F02-1).
+  'message',
 ] as const;
 
 export type AllowedVariable = (typeof ALLOWED_VARIABLES)[number];
@@ -675,4 +694,5 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   inspectorId: 'e7d6c5b4-4321-4a98-87cd-000000000000',
   suppressedTemplateLabel: 'Inspection Notice',
   suppressedChannel: 'EMAIL',
+  message: 'Properfy: Road closure on Pacific Hwy. Allow extra travel time today.',
 };

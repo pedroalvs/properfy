@@ -5,6 +5,9 @@ import { FY_WEBHOOK_JOB } from '../modules/fy/application/webhooks/fy-webhook-su
 import { getQueue, resolvePgBossSchema, assertQueueDbConsistency } from '../shared/infrastructure/queue';
 import { metrics } from '../shared/infrastructure/metrics';
 import { runWithRequestContext } from '../shared/infrastructure/request-context';
+import type { DeliverInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/deliver-inspector-notice.use-case';
+import type { SweepUndeliveredInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/sweep-undelivered-inspector-notices.use-case';
+import type { AutoArchiveInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/auto-archive-inspector-notices.use-case';
 import type { ProcessReportJobUseCase } from '../modules/report/application/use-cases/process-report-job.use-case';
 import type { SendNotificationUseCase } from '../modules/notification/application/use-cases/send-notification.use-case';
 import type { PollRetryableNotificationsUseCase } from '../modules/notification/application/use-cases/poll-retryable-notifications.use-case';
@@ -77,6 +80,9 @@ export async function registerWorkers(
   cancelOverdueWorker: CancelOverdueWorker,
   cancelEmptyGroupsWorker: CancelEmptyGroupsWorker,
   fyWebhookDispatcher: FyWebhookDispatcher,
+  deliverInspectorNoticeUseCase: DeliverInspectorNoticeUseCase,
+  sweepUndeliveredInspectorNoticesUseCase: SweepUndeliveredInspectorNoticesUseCase,
+  autoArchiveInspectorNoticesUseCase: AutoArchiveInspectorNoticesUseCase,
   logger: Logger,
 ): Promise<void> {
   // Guard against the misconfiguration where this process consumes jobs from one
@@ -351,6 +357,27 @@ export async function registerWorkers(
     );
   }));
 
+  // Inspector notices (F02-1): deliver (enqueued on publish + by the sweep), the 5-min
+  // safety sweep, and the daily retention/auto-archive job.
+  await boss.work('inspector-notice.deliver', withJobMetrics('inspector-notice.deliver', async (job) => {
+    const { noticeId } = job.data as { noticeId: string };
+    logger.info({ noticeId, jobId: job.id }, 'Processing inspector-notice.deliver job');
+    await deliverInspectorNoticeUseCase.execute({ noticeId });
+  }));
+
+  await boss.schedule('inspector-notice.delivery-sweep', '*/5 * * * *', {}, SYDNEY_TZ);
+  await boss.work('inspector-notice.delivery-sweep', withJobMetrics('inspector-notice.delivery-sweep', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing inspector-notice.delivery-sweep job');
+    await sweepUndeliveredInspectorNoticesUseCase.execute();
+  }));
+
+  // After audit.retention (03:30) to spread the nightly load.
+  await boss.schedule('inspector-notice.auto-archive', '45 3 * * *', {}, SYDNEY_TZ);
+  await boss.work('inspector-notice.auto-archive', withJobMetrics('inspector-notice.auto-archive', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing inspector-notice.auto-archive job');
+    await autoArchiveInspectorNoticesUseCase.execute();
+  }));
+
   // DLQ monitor — alert on accumulated failed jobs
   const dlqMonitor = new DlqMonitor(prisma, logger, { threshold: 10, schema: resolvePgBossSchema() });
   await boss.schedule('system.dlq-monitor', '*/5 * * * *', {}, SYDNEY_TZ);
@@ -360,7 +387,7 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, audit.retention, appointment.reject-unconfirmed, appointment.cancel-overdue, service-group.cancel-empty, system.dlq-monitor');
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, audit.retention, appointment.reject-unconfirmed, appointment.cancel-overdue, service-group.cancel-empty, inspector-notice.deliver, inspector-notice.delivery-sweep, inspector-notice.auto-archive, system.dlq-monitor');
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({

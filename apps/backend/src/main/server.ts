@@ -125,6 +125,9 @@ async function start() {
       container.cancelOverdueWorker,
       container.cancelEmptyGroupsWorker,
       container.fyWebhookDispatcher,
+      container.inspectorNotice.deliverInspectorNoticeUseCase,
+      container.inspectorNotice.sweepUndeliveredInspectorNoticesUseCase,
+      container.inspectorNotice.autoArchiveInspectorNoticesUseCase,
       app.log,
     );
   }
