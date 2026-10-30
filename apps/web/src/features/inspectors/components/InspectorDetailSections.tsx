@@ -216,10 +216,23 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
         <DetailRow
           label="Push notifications"
           value={
-            <span className="flex items-center gap-2">
-              {inspector.pushEnabled === null ? 'No data yet' : inspector.pushEnabled ? 'On' : 'Off'}
-              {LAST_DEVICE_CAPTION}
-            </span>
+            inspector.pushEnabled === null ? (
+              <Tooltip label="No data yet">
+                <span className="text-text-muted">No data yet</span>
+              </Tooltip>
+            ) : (
+              // D10: push_enabled means at least one of the inspector's devices has an active
+              // push subscription (not the last device's browser permission).
+              <Tooltip
+                label={
+                  inspector.pushEnabled
+                    ? "Push is on for at least one of the inspector's devices"
+                    : 'No device has push turned on'
+                }
+              >
+                <span>{inspector.pushEnabled ? 'On' : 'Off'}</span>
+              </Tooltip>
+            )
           }
         />
         <DetailRow

@@ -131,8 +131,20 @@ describe('Sidebar — Dashboard group', () => {
     openFlyout('Dashboard');
     const menu = screen.getByRole('menu');
     expect(within(menu).getByRole('menuitem', { name: 'Overview' })).toHaveAttribute('href', '/dashboard');
+    expect(within(menu).getByRole('menuitem', { name: 'Inspector notices' })).toHaveAttribute('href', '/inspector-notices');
     expect(within(menu).getByRole('menuitem', { name: 'Analytics' })).toHaveAttribute('href', '/analytics');
     expect(within(menu).getByRole('menuitem', { name: 'Workload' })).toHaveAttribute('href', '/inspector-workload');
+  });
+
+  // N — AM/OP: "Inspector notices" sits before Analytics in the canonical X01 order (F02, L-X01-03).
+  it.each(['AM', 'OP'])('%s: Inspector notices appears before Analytics in the Dashboard group', (role) => {
+    renderDesktop(role);
+    openFlyout('Dashboard');
+    const labels = within(screen.getByRole('menu'))
+      .getAllByRole('menuitem')
+      .map((el) => el.textContent?.trim() ?? '');
+    expect(labels.indexOf('Inspector notices')).toBeGreaterThan(labels.indexOf('Overview'));
+    expect(labels.indexOf('Inspector notices')).toBeLessThan(labels.indexOf('Analytics'));
   });
 
   // S2 — CL_ADMIN/CL_USER: Overview + Analytics, no Workload.
@@ -143,6 +155,7 @@ describe('Sidebar — Dashboard group', () => {
     expect(within(menu).getByRole('menuitem', { name: 'Overview' })).toBeInTheDocument();
     expect(within(menu).getByRole('menuitem', { name: 'Analytics' })).toBeInTheDocument();
     expect(within(menu).queryByRole('menuitem', { name: 'Workload' })).not.toBeInTheDocument();
+    expect(within(menu).queryByRole('menuitem', { name: 'Inspector notices' })).not.toBeInTheDocument();
   });
 
   // S3 — CL_USER with no flags still sees Analytics (the route requires no flag).
@@ -160,6 +173,7 @@ describe('Sidebar — Dashboard group', () => {
     expect(screen.queryByText('Overview')).not.toBeInTheDocument();
     expect(screen.queryByText('Analytics')).not.toBeInTheDocument();
     expect(screen.queryByText('Workload')).not.toBeInTheDocument();
+    expect(screen.queryByText('Inspector notices')).not.toBeInTheDocument();
   });
 
   // S5/S6 — the group shows its active indicator on the panel routes.

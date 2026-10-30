@@ -204,7 +204,7 @@ describe('InspectorTable', () => {
       expect(await screen.findByRole('tooltip')).toHaveTextContent('Address could not be located');
     });
 
-    it('App tooltip says "any device" and Push tooltip "last device seen"', async () => {
+    it('App tooltip says "any device" and the Push tooltip reflects the D10 subscription copy', async () => {
       const user = userEvent.setup();
       render(<InspectorTable data={[makeInspector()]} />);
 
@@ -212,7 +212,9 @@ describe('InspectorTable', () => {
       expect(await screen.findByRole('tooltip')).toHaveTextContent('any device');
 
       await user.hover(screen.getByText('On').closest('[tabindex]')!);
-      expect(await screen.findByRole('tooltip')).toHaveTextContent('last device seen');
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(
+        "Push is on for at least one of the inspector's devices",
+      );
     });
 
     it('Last seen tooltip reports the Sydney time and the 6 h throttle', async () => {
