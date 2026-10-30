@@ -19,6 +19,14 @@ function makeInspector(overrides: Partial<Inspector> = {}): Inspector {
     completedCount: 245,
     createdAt: '2026-01-10T10:00:00Z',
     updatedAt: '2026-01-10T10:00:00Z',
+    // F01-2 defaults: a located base (no badge) and a fully-adopted app.
+    address: { street: '1 George St', suburb: 'Sydney', city: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' },
+    baseLat: -33.8688,
+    baseGeocodedAt: '2026-01-10T10:00:00Z',
+    appInstalledAt: '2026-01-05T08:00:00Z',
+    appLastSeenAt: '2026-01-10T09:00:00Z',
+    pushEnabled: true,
+    appVersion: '0.1.0+ab12cd3',
     ...overrides,
   };
 }
@@ -130,5 +138,100 @@ describe('InspectorTable', () => {
     const insp = makeInspector();
     render(<InspectorTable data={[insp]} />);
     expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
+  });
+
+  describe('F01-2 app adoption columns + base-address badge', () => {
+    it('renders the App, Push and Last seen headers', () => {
+      render(<InspectorTable data={[]} />);
+      expect(screen.getByText('App')).toBeInTheDocument();
+      expect(screen.getByText('Push')).toBeInTheDocument();
+      expect(screen.getByText('Last seen')).toBeInTheDocument();
+    });
+
+    it('shows "Installed" when the app was installed and "—" otherwise', () => {
+      const { rerender } = render(<InspectorTable data={[makeInspector()]} />);
+      expect(screen.getByText('Installed')).toBeInTheDocument();
+
+      rerender(<InspectorTable data={[makeInspector({ appInstalledAt: null })]} />);
+      expect(screen.queryByText('Installed')).not.toBeInTheDocument();
+    });
+
+    it('shows Push On / Off / — for true / false / null', () => {
+      const { rerender } = render(<InspectorTable data={[makeInspector({ pushEnabled: true })]} />);
+      expect(screen.getByText('On')).toBeInTheDocument();
+
+      rerender(<InspectorTable data={[makeInspector({ pushEnabled: false })]} />);
+      expect(screen.getByText('Off')).toBeInTheDocument();
+
+      rerender(<InspectorTable data={[makeInspector({ pushEnabled: null })]} />);
+      expect(screen.queryByText('On')).not.toBeInTheDocument();
+      expect(screen.queryByText('Off')).not.toBeInTheDocument();
+    });
+
+    it('shows Push "Off" for a deactivated inspector with pushEnabled false (L-F02-11)', () => {
+      render(<InspectorTable data={[makeInspector({ status: InspectorStatus.INACTIVE, pushEnabled: false })]} />);
+      expect(screen.getByText('Off')).toBeInTheDocument();
+    });
+
+    it('shows "Never" for a null last seen and a relative value otherwise', () => {
+      const { rerender } = render(<InspectorTable data={[makeInspector({ appLastSeenAt: null })]} />);
+      expect(screen.getByText('Never')).toBeInTheDocument();
+
+      rerender(<InspectorTable data={[makeInspector({ appLastSeenAt: new Date().toISOString() })]} />);
+      expect(screen.getByText('Just now')).toBeInTheDocument();
+    });
+
+    it('shows a "No base address" badge only when baseLat is null', () => {
+      const { rerender } = render(<InspectorTable data={[makeInspector({ baseLat: -33.8 })]} />);
+      expect(screen.queryByText('No base address')).not.toBeInTheDocument();
+
+      rerender(<InspectorTable data={[makeInspector({ baseLat: null })]} />);
+      expect(screen.getByText('No base address')).toBeInTheDocument();
+    });
+
+    it('badge tooltip differs for a missing vs unlocatable address', async () => {
+      const user = userEvent.setup();
+      const { rerender } = render(
+        <InspectorTable data={[makeInspector({ baseLat: null, address: undefined })]} />,
+      );
+      await user.hover(screen.getByText('No base address').closest('[tabindex]')!);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent('Missing base address');
+
+      rerender(
+        <InspectorTable data={[makeInspector({ baseLat: null, address: { street: 'x' } })]} />,
+      );
+      await user.hover(screen.getByText('No base address').closest('[tabindex]')!);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent('Address could not be located');
+    });
+
+    it('App tooltip says "any device" and Push tooltip "last device seen"', async () => {
+      const user = userEvent.setup();
+      render(<InspectorTable data={[makeInspector()]} />);
+
+      await user.hover(screen.getByText('Installed').closest('[tabindex]')!);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent('any device');
+
+      await user.hover(screen.getByText('On').closest('[tabindex]')!);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent('last device seen');
+    });
+
+    it('Last seen tooltip reports the Sydney time and the 6 h throttle', async () => {
+      const user = userEvent.setup();
+      // TZ is pinned away from Sydney by the vitest config; the tooltip is still Sydney.
+      render(<InspectorTable data={[makeInspector({ appLastSeenAt: '2026-03-01T00:00:00Z' })]} />);
+      await user.hover(screen.getByText(/ago|Just now/).closest('[tabindex]')!);
+      const tip = await screen.findByRole('tooltip');
+      expect(tip).toHaveTextContent('(Sydney)');
+      expect(tip).toHaveTextContent('reported at most every 6 h');
+    });
+
+    it('exposes App, Push and Last seen as sortable columns', () => {
+      // Nulls-last ordering is enforced centrally by DataTable.compareValues; here
+      // we only assert these columns opt into sorting (sortable header button).
+      render(<InspectorTable data={[makeInspector()]} />);
+      for (const label of ['App', 'Push', 'Last seen']) {
+        expect(screen.getByRole('button', { name: new RegExp(label) })).toBeInTheDocument();
+      }
+    });
   });
 });

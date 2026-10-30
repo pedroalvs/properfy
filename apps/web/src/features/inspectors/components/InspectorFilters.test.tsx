@@ -55,4 +55,24 @@ describe('InspectorFilters', () => {
     const input = screen.getByLabelText('Search');
     expect(input.tagName).toBe('INPUT');
   });
+
+  it('enabling the "No base address" toggle sets missingBaseAddress true', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <InspectorFilters filters={DEFAULT_FILTERS} onFiltersChange={onChange} />,
+    );
+    await user.click(screen.getByLabelText('No base address'));
+    expect(onChange).toHaveBeenCalledWith({ ...DEFAULT_FILTERS, missingBaseAddress: true });
+  });
+
+  it('reflects the active state of the "No base address" toggle', () => {
+    render(
+      <InspectorFilters
+        filters={{ ...DEFAULT_FILTERS, missingBaseAddress: true }}
+        onFiltersChange={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText('No base address')).toBeChecked();
+  });
 });

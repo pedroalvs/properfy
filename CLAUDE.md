@@ -434,6 +434,7 @@ Skip worktrees only for: pure documentation edits, CLAUDE.md updates, or tasks t
 - F03-1 (`038-f03-1-platform-settings-geofence`): new table `platform_settings`; new nullable/defaulted columns on `inspection_executions` (expand-only), no `tenant_id` on either; `fastify-type-provider-zod`
 - X02-1 (`035-x02-permanent-geocoding`): Mapbox Geocoding v5 permanent mode; `properties.lat/lng` (`Decimal(10,7)`) mirrored to `coordinates GEOMETRY(Point,4326)`; branch coordinates in `branches.address_json`
 - F01-1 (`039-f01-1-inspector-base-heartbeat`): `inspectors` gains `base_lat`/`base_lng` (`Decimal(10,7)`), `base_geocoded_at`, `app_installed_at`/`app_last_seen_at`, `push_enabled`, `app_version` (all nullable, expand-only, no `tenant_id`); reuses the X02 geocoding port + `geocodeWithTimeout`/`formatGeocodingQuery`/`isSameGeocodingAddress`; `inspector.base_changed` event; per-user rate limit on `/me/app-state` + `PATCH /me`
+- F01-2 (`040-f01-2-inspector-base-web`): web-only consumer of the F01-1 contract — inspector list App/Push/Last-seen columns + "No base address" badge/filter (`missingBaseAddress`), and detail "Base Address"/"App Adoption" sections; Sydney-pinned last-seen formatting in `apps/web/src/features/inspectors/lib/adoption-format.ts`; no backend/schema/api-types change, drawer untouched (F01-1 owns it)
 
 ## Recent Changes
 - X03 (`036-x03-pwa-e2e-recovery`): PWA Playwright E2E suite recovered and wired into CI (`test-pwa-e2e`, Chromium + WebKit, hermetic); harness in `apps/pwa/tests/e2e/support/`

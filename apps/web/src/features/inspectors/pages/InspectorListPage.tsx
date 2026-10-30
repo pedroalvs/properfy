@@ -46,6 +46,9 @@ export function InspectorListPage() {
           error={isError ? (errorMessage ?? 'Failed to load inspectors') : undefined}
           onRetryError={refetch}
           pagination={pagination}
+          emptyMessage={
+            filters.missingBaseAddress ? 'No inspectors without a base address.' : undefined
+          }
           onView={(insp) => {
             setSelectedId(insp.id);
             setDrawerOpen(true);

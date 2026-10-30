@@ -24,6 +24,26 @@ export interface Inspector {
   completedCount: number;
   createdAt: string;
   updatedAt: string;
+  // F01-1: base address — AM/OP and the inspector only (CL_* never receive it).
+  // Typed unknown because a legacy row may hold a non-conforming shape. The list
+  // returns it to AM/OP (L-F01-07) so the "No base address" badge tooltip is
+  // decided without a per-row GET.
+  address?: unknown;
+  // F01-2 read-only fields (consumed, never written here). null = unknown/absent;
+  // the mapper normalizes a pre-deploy API's `undefined` to null so components
+  // handle exactly one empty case and DataTable's "nulls last" sort holds.
+  /** Latitude of the located base; null = no located base → "No base address". */
+  baseLat: number | null;
+  /** Instant of the last successful geocode, or null. */
+  baseGeocodedAt: string | null;
+  /** First app install on any device (D16), or null when never installed. */
+  appInstalledAt: string | null;
+  /** Last heartbeat from any device (up to 6 h stale), or null. */
+  appLastSeenAt: string | null;
+  /** Browser push permission on the last device seen; null = never reported. */
+  pushEnabled: boolean | null;
+  /** App version on the last device seen (e.g. `0.1.0+ab12cd3`), or null. */
+  appVersion: string | null;
 }
 
 export interface InspectorDetail extends Inspector {
@@ -39,9 +59,6 @@ export interface InspectorDetail extends Inspector {
   blockedClients?: string[];
   insuranceMetaJson?: { fileName?: string | null; uploadedAt?: string | null } | null;
   policeCheckMetaJson?: { fileName?: string | null; uploadedAt?: string | null } | null;
-  // F01-1: base address — AM/OP and the inspector only (CL_* never receive it).
-  // Typed unknown because a legacy row may hold a non-conforming shape.
-  address?: unknown;
 }
 
 export interface InspectorFormData {
@@ -105,11 +122,14 @@ export const EMPTY_INSPECTOR_FORM: InspectorFormData = {
 export interface InspectorFiltersState {
   search: string;
   status: string;
+  /** F01-2: when true, list only inspectors without a located base address. */
+  missingBaseAddress: boolean;
 }
 
 export const DEFAULT_FILTERS: InspectorFiltersState = {
   search: '',
   status: '',
+  missingBaseAddress: false,
 };
 
 /** One satisfaction response as shown in the admin drawer. */

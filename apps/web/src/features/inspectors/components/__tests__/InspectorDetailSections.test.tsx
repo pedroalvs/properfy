@@ -51,6 +51,14 @@ const BASE_INSPECTOR: InspectorDetail = {
   policeCheckMetaJson: null,
   createdAt: new Date('2026-01-01').toISOString(),
   updatedAt: new Date('2026-01-01').toISOString(),
+  // F01-2 read-only fields.
+  address: { street: '1 George St', suburb: 'Sydney', city: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' },
+  baseLat: -33.8688,
+  baseGeocodedAt: new Date('2026-01-01').toISOString(),
+  appInstalledAt: new Date('2026-01-01').toISOString(),
+  appLastSeenAt: new Date('2026-01-01').toISOString(),
+  pushEnabled: true,
+  appVersion: '0.1.0+ab12cd3',
 };
 
 function renderSections(inspector: InspectorDetail = BASE_INSPECTOR) {

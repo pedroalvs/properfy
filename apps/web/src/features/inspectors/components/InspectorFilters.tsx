@@ -1,6 +1,7 @@
 import { FilterBar } from '@/components/filters/FilterBar';
 import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterSelect, type FilterSelectOption } from '@/components/filters/FilterSelect';
+import { FilterBoolean } from '@/components/filters/FilterBoolean';
 import { INSPECTOR_STATUS_MAP } from '@/lib/status-colors';
 import type { InspectorFiltersState } from '../types';
 
@@ -34,6 +35,11 @@ export function InspectorFilters({
         value={filters.status}
         onChange={(status) => onFiltersChange({ ...filters, status })}
         options={STATUS_OPTIONS}
+      />
+      <FilterBoolean
+        label="No base address"
+        value={filters.missingBaseAddress}
+        onChange={(missingBaseAddress) => onFiltersChange({ ...filters, missingBaseAddress })}
       />
     </FilterBar>
   );
