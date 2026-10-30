@@ -13,7 +13,12 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice?: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
-function getIsStandalone(): boolean {
+/**
+ * True when the app is running as an installed/standalone PWA (display-mode
+ * standalone, or iOS `navigator.standalone`). Exported for the app-state heartbeat
+ * (F01-3), which reports `displayMode` on every beat.
+ */
+export function getIsStandalone(): boolean {
   if (typeof window === 'undefined') return false;
   const mediaMatch = window.matchMedia?.('(display-mode: standalone)').matches ?? false;
   const iosStandalone = typeof navigator !== 'undefined' && 'standalone' in navigator

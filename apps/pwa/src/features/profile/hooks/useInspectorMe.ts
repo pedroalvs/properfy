@@ -13,6 +13,17 @@ export interface InspectorMe {
   insuranceMetaJson: { fileName?: string | null } | null;
   policeCheckMetaJson: { fileName?: string | null } | null;
   /**
+   * Base address (F01-1). `/v1/inspectors/me` has no Fastify response schema, so
+   * these are typed from what the use case returns (visibility applied server-side).
+   * `address` is `unknown` because a legacy row may carry a non-conforming shape;
+   * the card parses it with `inspectorBaseAddressSchema` before pre-filling.
+   * `baseLat == null` ⇒ no coordinates ⇒ the base-address banner is shown.
+   */
+  address?: unknown | null;
+  baseLat?: number | null;
+  baseLng?: number | null;
+  baseGeocodedAt?: string | null;
+  /**
    * Aggregate reputation. Optional so an app deployed ahead of the API keeps
    * rendering; `average` is null — never 0 — when there are no responses.
    */

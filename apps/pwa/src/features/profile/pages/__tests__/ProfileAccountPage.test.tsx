@@ -1,7 +1,8 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test-utils';
 import { ProfileAccountPage } from '../ProfileAccountPage';
+import { UpdateInspectorSelfError } from '../../hooks/useUpdateInspectorSelf';
 
 const mockUseAuth = vi.fn();
 const mockMutateInspectorSelf = vi.fn();
@@ -21,13 +22,24 @@ vi.mock('@/services/api', () => ({
   api: { GET: vi.fn(), PATCH: vi.fn(), PUT: vi.fn() },
 }));
 
-vi.mock('../../hooks/useUpdateInspectorSelf', () => ({
-  useUpdateInspectorSelf: () => ({
-    mutateAsync: mockMutateInspectorSelf,
-    isPending: false,
-    isError: false,
-  }),
-}));
+vi.mock('../../hooks/useUpdateInspectorSelf', () => {
+  class UpdateInspectorSelfError extends Error {
+    readonly details?: { path: (string | number)[]; message: string }[];
+    constructor(message: string, details?: { path: (string | number)[]; message: string }[]) {
+      super(message);
+      this.name = 'UpdateInspectorSelfError';
+      this.details = details;
+    }
+  }
+  return {
+    useUpdateInspectorSelf: () => ({
+      mutateAsync: mockMutateInspectorSelf,
+      isPending: false,
+      isError: false,
+    }),
+    UpdateInspectorSelfError,
+  };
+});
 
 vi.mock('../../hooks/useUpdateMyTimezone', () => ({
   useUpdateMyTimezone: () => ({
@@ -37,8 +49,9 @@ vi.mock('../../hooks/useUpdateMyTimezone', () => ({
   }),
 }));
 
+const mockUseInspectorMe = vi.fn(() => ({ data: undefined, isLoading: false, isError: false }));
 vi.mock('../../hooks/useInspectorMe', () => ({
-  useInspectorMe: () => ({ data: undefined, isLoading: false, isError: false }),
+  useInspectorMe: () => mockUseInspectorMe(),
 }));
 
 vi.mock('@/lib/use-unsaved-changes-prompt', () => ({
@@ -249,5 +262,187 @@ describe('ProfileAccountPage — Timezone section', () => {
 
     expect(await screen.findByText('Invalid timezone')).toBeInTheDocument();
     expect(mockRefreshUser).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProfileAccountPage — Base address card', () => {
+  const VALID_BASE = {
+    street: '1 George St',
+    suburb: 'Sydney',
+    city: 'Sydney',
+    state: 'NSW',
+    postcode: '2000',
+    country: 'AU',
+  };
+
+  const meWith = (overrides: Record<string, unknown>) => ({
+    data: { data: { id: 'insp-1', ...overrides } },
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({ user: MOCK_USER, logout: vi.fn(), refreshUser: vi.fn() });
+    mockUsePrompt.mockImplementation(() => {});
+    mockUseInspectorMe.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+  });
+
+  it('pre-fills the fields from a valid saved base and shows no warning', () => {
+    mockUseInspectorMe.mockReturnValue(meWith({ address: VALID_BASE, baseLat: -33.86, baseLng: 151.2 }));
+    renderWithProviders(<ProfileAccountPage />);
+    expect(screen.getByLabelText('Street')).toHaveValue('1 George St');
+    expect(screen.getByLabelText('Suburb')).toHaveValue('Sydney');
+    expect(screen.getByLabelText('State')).toHaveValue('NSW');
+    expect(screen.getByLabelText('Postcode')).toHaveValue('2000');
+    expect(screen.queryByText(/incomplete/i)).not.toBeInTheDocument();
+  });
+
+  it('requires Street and does not call PATCH', async () => {
+    mockUseInspectorMe.mockReturnValue(meWith({ address: VALID_BASE, baseLat: -33.86, baseLng: 151.2 }));
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileAccountPage />);
+    await user.clear(screen.getByLabelText('Street'));
+    await user.click(screen.getByRole('button', { name: /save address/i }));
+    expect(await screen.findByText('Street is required')).toBeInTheDocument();
+    expect(mockMutateInspectorSelf).not.toHaveBeenCalled();
+  });
+
+  it('rejects a postcode that is not 4 digits', async () => {
+    mockUseInspectorMe.mockReturnValue(meWith({ address: VALID_BASE, baseLat: -33.86, baseLng: 151.2 }));
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileAccountPage />);
+    const postcode = screen.getByLabelText('Postcode');
+    await user.clear(postcode);
+    await user.type(postcode, '20');
+    await user.click(screen.getByRole('button', { name: /save address/i }));
+    expect(await screen.findByText('Postcode must be 4 digits')).toBeInTheDocument();
+    expect(mockMutateInspectorSelf).not.toHaveBeenCalled();
+  });
+
+  it('treats a whitespace-only Street as empty', async () => {
+    mockUseInspectorMe.mockReturnValue(meWith({ address: VALID_BASE, baseLat: -33.86, baseLng: 151.2 }));
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileAccountPage />);
+    const street = screen.getByLabelText('Street');
+    await user.clear(street);
+    await user.type(street, '   ');
+    await user.click(screen.getByRole('button', { name: /save address/i }));
+    expect(await screen.findByText('Street is required')).toBeInTheDocument();
+    expect(mockMutateInspectorSelf).not.toHaveBeenCalled();
+  });
+
+  it('shows the incomplete notice for a legacy state name and leaves fields empty', () => {
+    mockUseInspectorMe.mockReturnValue(
+      meWith({ address: { ...VALID_BASE, state: 'New South Wales' }, baseLat: null }),
+    );
+    renderWithProviders(<ProfileAccountPage />);
+    expect(screen.getByText('Your saved address is incomplete. Please enter it again.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Street')).toHaveValue('');
+  });
+
+  it('shows the incomplete notice for a non-conforming legacy shape', () => {
+    mockUseInspectorMe.mockReturnValue(meWith({ address: { foo: 1 }, baseLat: null }));
+    renderWithProviders(<ProfileAccountPage />);
+    expect(screen.getByText('Your saved address is incomplete. Please enter it again.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Street')).toHaveValue('');
+  });
+
+  it('maps a 400 details path to the State field', async () => {
+    mockUseInspectorMe.mockReturnValue(meWith({ address: VALID_BASE, baseLat: -33.86, baseLng: 151.2 }));
+    mockMutateInspectorSelf.mockRejectedValue(
+      new UpdateInspectorSelfError('Request payload is invalid', [
+        { path: ['address', 'state'], message: 'Select a state' },
+      ]),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileAccountPage />);
+    // Make the form dirty so Save shows, then submit.
+    await user.clear(screen.getByLabelText('Postcode'));
+    await user.type(screen.getByLabelText('Postcode'), '3000');
+    await user.click(screen.getByRole('button', { name: /save address/i }));
+    expect(await screen.findByText('Select a state')).toBeInTheDocument();
+  });
+
+  it('submits the expected payload with city derived from suburb and country AU', async () => {
+    mockUseInspectorMe.mockReturnValue(meWith({ address: VALID_BASE, baseLat: -33.86, baseLng: 151.2 }));
+    mockMutateInspectorSelf.mockResolvedValue({ baseGeocodeFailed: false });
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileAccountPage />);
+    const suburb = screen.getByLabelText('Suburb');
+    await user.clear(suburb);
+    await user.type(suburb, 'Carlton');
+    await user.click(screen.getByRole('button', { name: /save address/i }));
+    await waitFor(() =>
+      expect(mockMutateInspectorSelf).toHaveBeenCalledWith({
+        address: {
+          street: '1 George St',
+          suburb: 'Carlton',
+          city: 'Carlton',
+          state: 'NSW',
+          postcode: '2000',
+          country: 'AU',
+        },
+      }),
+    );
+  });
+
+  it('announces success with coordinates in a status region', async () => {
+    mockUseInspectorMe.mockReturnValue(meWith({ address: VALID_BASE, baseLat: -33.86, baseLng: 151.2 }));
+    mockMutateInspectorSelf.mockResolvedValue({ baseGeocodeFailed: false });
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileAccountPage />);
+    await user.clear(screen.getByLabelText('Suburb'));
+    await user.type(screen.getByLabelText('Suburb'), 'Carlton');
+    await user.click(screen.getByRole('button', { name: /save address/i }));
+    const status = await screen.findByText('Saved successfully');
+    expect(status).toBeInTheDocument();
+  });
+
+  it('shows the geocode-failed warning', async () => {
+    mockUseInspectorMe.mockReturnValue(meWith({ address: VALID_BASE, baseLat: null }));
+    mockMutateInspectorSelf.mockResolvedValue({ baseGeocodeFailed: true });
+    const user = userEvent.setup();
+    renderWithProviders(<ProfileAccountPage />);
+    await user.clear(screen.getByLabelText('Suburb'));
+    await user.type(screen.getByLabelText('Suburb'), 'Carlton');
+    await user.click(screen.getByRole('button', { name: /save address/i }));
+    expect(
+      await screen.findByText("Saved, but we couldn't locate this address. Please check it."),
+    ).toBeInTheDocument();
+  });
+
+  it('focuses the first empty field when opened at #base-address', async () => {
+    mockUseInspectorMe.mockReturnValue(meWith({ address: null, baseLat: null }));
+    renderWithProviders(<ProfileAccountPage />, { initialEntries: ['/profile/account#base-address'] });
+    await waitFor(() => expect(screen.getByLabelText('Street')).toHaveFocus());
+  });
+
+  it('still focuses after a cold load where the card starts as a loading skeleton', async () => {
+    // Deterministic loading→loaded: a mutable implementation (not mockReturnValueOnce,
+    // which an internal re-render would consume) so every read during the loading
+    // phase sees `isLoading`, then flips to data on rerender.
+    let state: ReturnType<typeof meWith> | { data: undefined; isLoading: boolean; isError: boolean; refetch: () => void } = {
+      data: undefined,
+      isLoading: true,
+      isError: false,
+      refetch: vi.fn(),
+    };
+    mockUseInspectorMe.mockImplementation(() => state);
+    const { rerender } = renderWithProviders(<ProfileAccountPage />, {
+      initialEntries: ['/profile/account#base-address'],
+    });
+    expect(screen.queryByLabelText('Street')).not.toBeInTheDocument(); // skeleton, no form yet
+    state = meWith({ address: null, baseLat: null });
+    rerender(<ProfileAccountPage />);
+    await waitFor(() => expect(screen.getByLabelText('Street')).toHaveFocus());
+  });
+
+  it('shows a retry affordance when the inspector query errors', () => {
+    mockUseInspectorMe.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch: vi.fn() });
+    renderWithProviders(<ProfileAccountPage />);
+    expect(screen.getByText("Couldn't load your address.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 });

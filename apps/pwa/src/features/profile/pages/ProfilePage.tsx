@@ -5,6 +5,7 @@ import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { MenuList, MenuRow } from '@/components/ui/MenuRow';
 import { Badge } from '@/components/ui/Badge';
 import { ProfileTile, type ProfileTileTone } from '../components/ProfileTile';
+import { BaseAddressBanner } from '@/components/feedback/BaseAddressBanner';
 import { useInspectorMe } from '../hooks/useInspectorMe';
 import { useInspectorAvailabilityTemplate } from '../hooks/useInspectorAvailabilityTemplate';
 import { getDocumentsStatus } from '../lib/documents-status';
@@ -69,6 +70,9 @@ export function ProfilePage() {
           </div>
           {isActive && <Badge tone="green">Active</Badge>}
         </section>
+
+        {/* Base-address prompt while the base has no coordinates (contract 00.4). */}
+        <BaseAddressBanner />
 
         {/* Big tiles — glanceable, large touch targets for the field. */}
         <div className="grid grid-cols-2 gap-3">

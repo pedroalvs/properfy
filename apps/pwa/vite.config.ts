@@ -2,8 +2,20 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
+import { readFileSync } from 'fs';
+import { buildAppVersion } from './src/lib/app-version';
+
+// Read the package version at config-eval time (Node). APP_BUILD_SHA is injected
+// by CI (github.sha); it is read here in Node, never exposed via import.meta.env,
+// so it must NOT carry a VITE_ prefix. The same `define` applies to the inline
+// Vitest config below, so __APP_VERSION__ resolves in unit tests too.
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')) as { version: string };
+const appVersion = buildAppVersion(pkg.version, process.env.APP_BUILD_SHA);
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [
     react(),
     VitePWA({
