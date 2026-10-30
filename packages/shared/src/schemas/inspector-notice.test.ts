@@ -142,6 +142,21 @@ describe('pushSubscriptionSchema', () => {
     ).toBe(false);
   });
 
+  it('rejects a non-push-service host and an IP literal (SSRF guard)', () => {
+    expect(
+      pushSubscriptionSchema.safeParse({
+        endpoint: 'https://internal.local/x',
+        keys: { p256dh: 'B', auth: 'x' },
+      }).success,
+    ).toBe(false);
+    expect(
+      pushSubscriptionSchema.safeParse({
+        endpoint: 'https://10.0.0.1/x',
+        keys: { p256dh: 'B', auth: 'x' },
+      }).success,
+    ).toBe(false);
+  });
+
   it('rejects an endpoint over 2048 chars', () => {
     expect(
       pushSubscriptionSchema.safeParse({

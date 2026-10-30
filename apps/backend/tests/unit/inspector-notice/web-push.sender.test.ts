@@ -6,7 +6,7 @@ vi.mock('web-push', () => ({ default: { sendNotification: (...args: unknown[]) =
 import { WebPushSender } from '../../../src/modules/inspector-notice/infrastructure/web-push.sender';
 
 const VAPID = { subject: 'mailto:ops@example.com', publicKey: 'PUB', privateKey: 'PRIV' };
-const target = { endpoint: 'https://push.example/abc', p256dh: 'P', auth: 'A' };
+const target = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc', p256dh: 'P', auth: 'A' };
 const payload = { v: 1 as const, noticeId: 'n1', title: 'T', body: 'B', critical: true, url: '/profile/announcements/n1' };
 const opts = { ttlSeconds: 86400, urgency: 'high' as const };
 
@@ -55,5 +55,11 @@ describe('WebPushSender', () => {
   it('maps a network error (no statusCode) to FAILED with null', async () => {
     sendNotification.mockRejectedValue(new Error('ECONNRESET'));
     expect(await sender().send(target, payload, opts)).toEqual({ outcome: 'FAILED', statusCode: null });
+  });
+
+  it('refuses a non-allowlisted endpoint without making a request (SSRF guard)', async () => {
+    const res = await sender().send({ endpoint: 'https://internal.local/x', p256dh: 'P', auth: 'A' }, payload, opts);
+    expect(res).toEqual({ outcome: 'FAILED', statusCode: null });
+    expect(sendNotification).not.toHaveBeenCalled();
   });
 });

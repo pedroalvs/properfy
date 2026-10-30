@@ -7,6 +7,7 @@ import {
   getInspectorNoticeDeliverExpireMinutes,
   inspectorNoticeDeepLink,
   isAllowedInspectorNoticeTargetPath,
+  isAllowedPushEndpoint,
   isCriticalSystemNoticeType,
   resolveInspectorNoticeTargetPath,
 } from './inspector-notices';
@@ -104,6 +105,25 @@ describe('resolveInspectorNoticeTargetPath', () => {
 describe('inspectorNoticeDeepLink', () => {
   it('builds the announcements path', () => {
     expect(inspectorNoticeDeepLink('abc')).toBe('/profile/announcements/abc');
+  });
+});
+
+describe('isAllowedPushEndpoint (SSRF guard)', () => {
+  it('accepts the major push service hosts over https', () => {
+    expect(isAllowedPushEndpoint('https://fcm.googleapis.com/fcm/send/abc')).toBe(true);
+    expect(isAllowedPushEndpoint('https://updates.push.services.mozilla.com/wpush/v2/x')).toBe(true);
+    expect(isAllowedPushEndpoint('https://web.push.apple.com/x')).toBe(true);
+    expect(isAllowedPushEndpoint('https://abc.notify.windows.com/x')).toBe(true);
+  });
+
+  it('rejects other hosts, IP literals, http, and non-strings', () => {
+    expect(isAllowedPushEndpoint('https://internal.local/x')).toBe(false);
+    expect(isAllowedPushEndpoint('https://evil-fcm.googleapis.com.attacker.com/x')).toBe(false);
+    expect(isAllowedPushEndpoint('https://10.0.0.1/x')).toBe(false);
+    expect(isAllowedPushEndpoint('https://[::1]/x')).toBe(false);
+    expect(isAllowedPushEndpoint('http://fcm.googleapis.com/x')).toBe(false);
+    expect(isAllowedPushEndpoint('not a url')).toBe(false);
+    expect(isAllowedPushEndpoint(null)).toBe(false);
   });
 });
 

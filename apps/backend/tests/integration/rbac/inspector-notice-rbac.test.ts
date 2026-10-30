@@ -52,7 +52,7 @@ function ctxFor(role: string) {
 }
 
 const validBody = { title: 'T', body: 'B', critical: false, audience: { type: 'ALL' } };
-const validSub = { endpoint: 'https://push.example/abc', keys: { p256dh: 'P', auth: 'A' } };
+const validSub = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc', keys: { p256dh: 'P', auth: 'A' } };
 
 interface RouteCase {
   name: string;

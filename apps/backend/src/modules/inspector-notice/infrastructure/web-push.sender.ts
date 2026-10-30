@@ -1,4 +1,5 @@
 import webpush from 'web-push';
+import { isAllowedPushEndpoint } from '@properfy/shared';
 import type {
   InspectorNoticePushPayload,
   IPushSender,
@@ -35,6 +36,11 @@ export class WebPushSender implements IPushSender {
     payload: InspectorNoticePushPayload,
     opts: PushSendOptions,
   ): Promise<PushSendOutcome> {
+    // Defense in depth against a non-allowlisted endpoint reaching a server-side request
+    // (the subscribe schema already blocks these; this guards a DB-planted row too).
+    if (!isAllowedPushEndpoint(target.endpoint)) {
+      return { outcome: 'FAILED', statusCode: null };
+    }
     try {
       await webpush.sendNotification(
         { endpoint: target.endpoint, keys: { p256dh: target.p256dh, auth: target.auth } },

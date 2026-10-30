@@ -185,7 +185,7 @@ describe('push subscription routes', () => {
 
   it('POST subscribe returns 204 and unsubscribe returns 204', async () => {
     authAs('INSP', { inspectorId: 'insp-1' });
-    const sub = { endpoint: 'https://push.example/abc', keys: { p256dh: 'P', auth: 'A' } };
+    const sub = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc', keys: { p256dh: 'P', auth: 'A' } };
     const r1 = await supertest(app.server).post('/v1/inspectors/me/push-subscriptions').set('Authorization', 'Bearer t').send(sub);
     expect(r1.status).toBe(204);
     const r2 = await supertest(app.server)

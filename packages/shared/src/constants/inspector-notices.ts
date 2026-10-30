@@ -111,6 +111,38 @@ export function resolveInspectorNoticeTargetPath(
 }
 
 /**
+ * Allowed Web Push service host suffixes. A subscription `endpoint` is a URL the delivery
+ * job makes a server-side request to, so restricting it to the real browser push services
+ * (plus rejecting IP literals) closes an SSRF vector where an inspector could point the
+ * server at an internal host. Covers Chrome/Edge (FCM), Firefox, Safari/WebKit and WNS.
+ * A leading '.' is an any-subdomain suffix; an entry without it is an exact host.
+ */
+export const PUSH_ENDPOINT_HOST_SUFFIXES = [
+  'fcm.googleapis.com',
+  '.push.services.mozilla.com',
+  '.push.apple.com',
+  '.notify.windows.com',
+] as const;
+
+/** True iff `raw` is an https URL whose host is an allowed push service (no IP literals). */
+export function isAllowedPushEndpoint(raw: unknown): boolean {
+  if (typeof raw !== 'string') return false;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:') return false;
+  const host = url.hostname.toLowerCase();
+  // Reject IPv4 / IPv6 literals (url.hostname drops the brackets, leaving the colons).
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':')) return false;
+  return PUSH_ENDPOINT_HOST_SUFFIXES.some((suffix) =>
+    suffix.startsWith('.') ? host === suffix.slice(1) || host.endsWith(suffix) : host === suffix,
+  );
+}
+
+/**
  * L-F02-03: delivery-job `expireInMinutes` sized by recipient count
  * (2 subscriptions × 10 s timeout ÷ 10 parallel + 5 min slack), floored at 15.
  * 500 recipients ⇒ 22.

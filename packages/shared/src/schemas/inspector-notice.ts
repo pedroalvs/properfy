@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SYSTEM_INSPECTOR_NOTICE_TYPES } from '../constants/inspector-notices';
+import { SYSTEM_INSPECTOR_NOTICE_TYPES, isAllowedPushEndpoint } from '../constants/inspector-notices';
 import { paginationSchema } from './pagination';
 
 export const INSPECTOR_NOTICE_TITLE_MAX = 120;
@@ -92,7 +92,9 @@ export const pushSubscriptionSchema = z.object({
     .string()
     .url()
     .max(PUSH_ENDPOINT_MAX)
-    .refine((u) => u.startsWith('https://'), 'Endpoint must use https'),
+    // SSRF guard: the delivery job makes a server-side request to this URL, so it must be
+    // a known push service over https (never an internal host or IP literal).
+    .refine(isAllowedPushEndpoint, 'Endpoint must be a supported push service URL'),
   expirationTime: z.number().nullable().optional(), // accepted and ignored
   keys: z.object({
     p256dh: z.string().min(1).max(PUSH_KEY_MAX),
