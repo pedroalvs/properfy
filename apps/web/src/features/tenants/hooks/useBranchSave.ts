@@ -64,8 +64,8 @@ export function useBranchSave(): UseBranchSaveReturn {
               state: data.address.state,
               postcode: data.address.postcode,
               country: data.address.country || 'AU',
-              latitude: data.address.latitude ?? undefined,
-              longitude: data.address.longitude ?? undefined,
+              // latitude/longitude are intentionally NOT sent: branch coordinates
+              // come only from permanent-mode geocoding on the backend (X02-1).
             }
           : undefined,
         contactEmail: data.contactEmail || undefined,

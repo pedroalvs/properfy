@@ -218,6 +218,9 @@ model Branch {
   address_json  Json?
   contact_email String?      @db.VarChar(254)
   status        BranchStatus @default(ACTIVE)
+  // Set when address_json.latitude/longitude were written from a PERMANENT
+  // geocode (Mapbox terms). NULL means no coordinate or legacy temporary.
+  geocoded_permanently_at DateTime?
   created_at    DateTime     @default(now())
   updated_at    DateTime     @updatedAt
   deleted_at    DateTime?
@@ -390,6 +393,13 @@ model Property {
   lat                    Decimal?        @db.Decimal(10, 7)
   lng                    Decimal?        @db.Decimal(10, 7)
   geocoding_status       GeocodingStatus @default(PENDING)
+  // Set when lat/lng were written from a PERMANENT geocode (Mapbox terms). NULL
+  // means: no coordinate, MANUAL, or legacy temporary. Feeds the X02-2 backfill
+  // idempotency and the F03 geofence-BLOCK audit.
+  geocoded_permanently_at DateTime?
+  // Reason a FAILED geocode is NOT auto-retried by the sweep. Values:
+  // MAPBOX_PERMANENT_GEOCODING_UNAVAILABLE (X02-1), LEGACY_PERMANENT_NO_RESULT (X02-2).
+  geocoding_failure_code  String?         @db.VarChar(64)
   private_area_m2        Decimal?        @db.Decimal(10, 2)
   total_area_m2          Decimal?        @db.Decimal(10, 2)
   furnished              Boolean?

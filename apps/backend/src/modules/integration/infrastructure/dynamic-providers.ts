@@ -11,7 +11,11 @@ import { ResendEmailProvider } from '../../notification/infrastructure/resend-em
 import { StubEmailProvider } from '../../notification/infrastructure/stub-email.provider';
 import { MobileMessageSmsProvider } from '../../notification/infrastructure/mobile-message-sms.provider';
 import { StubSmsProvider } from '../../notification/infrastructure/stub-sms.provider';
-import type { GeocodingResult, IGeocodingService } from '../../property/domain/geocoding.service';
+import type {
+  GeocodeOptions,
+  GeocodingResult,
+  IGeocodingService,
+} from '../../property/domain/geocoding.service';
 import { MapboxGeocodingService } from '../../property/infrastructure/mapbox-geocoding.service';
 import { StubGeocodingService } from '../../property/infrastructure/stub-geocoding.service';
 import type {
@@ -147,8 +151,17 @@ export class DynamicGeocodingService implements IGeocodingService {
     return this.current.service;
   }
 
-  async geocode(address: string): Promise<GeocodingResult | null> {
-    return (await this.service()).geocode(address);
+  async geocode(address: string, options?: GeocodeOptions): Promise<GeocodingResult | null> {
+    return (await this.service()).geocode(address, options);
+  }
+
+  /**
+   * Whether a Mapbox config is resolvable (database or env). Used by the X02-2
+   * legacy backfill script to abort before touching data when geocoding would
+   * silently fall back to the stub.
+   */
+  async isConfigured(): Promise<boolean> {
+    return (await this.resolver.getConfig('mapbox')) !== null;
   }
 }
 

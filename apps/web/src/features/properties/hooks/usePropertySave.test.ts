@@ -20,7 +20,7 @@ vi.mock('@/hooks/useAuth', () => ({
 }));
 
 import { api } from '@/services/api';
-import { usePropertySave } from './usePropertySave';
+import { usePropertySave, buildPayload } from './usePropertySave';
 import type { PropertyFormData } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
 import { createQueryWrapper } from '@/test-utils/test-wrappers';
@@ -221,6 +221,49 @@ describe('usePropertySave', () => {
     expect(saveResult?.success).toBe(false);
     expect(saveResult?.fieldErrors?.postcode).toBe('Postcode must have 4 digits');
     expect(saveResult?.error).toBeUndefined();
+  });
+
+  describe('buildPayload coordinate diff (X02-1)', () => {
+    const withCoords = (lat: string, lng: string): PropertyFormData => ({
+      ...VALID_CREATE_DATA,
+      latitude: lat,
+      longitude: lng,
+    });
+
+    it('1. sends no coordinates when the pair is unchanged', () => {
+      const initial = withCoords('-33.8', '151.2');
+      const payload = buildPayload(withCoords('-33.8', '151.2'), initial, 'SUCCESS');
+      expect('latitude' in payload).toBe(false);
+      expect('longitude' in payload).toBe(false);
+    });
+
+    it('2. sends the pair when a coordinate changed', () => {
+      const initial = withCoords('-33.8', '151.2');
+      const payload = buildPayload(withCoords('-34.0', '150.0'), initial, 'SUCCESS');
+      expect(payload.latitude).toBe(-34.0);
+      expect(payload.longitude).toBe(150.0);
+    });
+
+    it('3. sends null/null to unlock a MANUAL property when both fields are cleared', () => {
+      const initial = withCoords('-33.8', '151.2');
+      const payload = buildPayload(withCoords('', ''), initial, 'MANUAL');
+      expect(payload.latitude).toBeNull();
+      expect(payload.longitude).toBeNull();
+    });
+
+    it('4. omits coordinates when both fields are cleared on a non-MANUAL property', () => {
+      const initial = withCoords('-33.8', '151.2');
+      const payload = buildPayload(withCoords('', ''), initial, 'SUCCESS');
+      expect('latitude' in payload).toBe(false);
+      expect('longitude' in payload).toBe(false);
+    });
+
+    it('5. omits coordinates for an incomplete pair (one filled, one empty)', () => {
+      const initial = withCoords('-33.8', '151.2');
+      const payload = buildPayload(withCoords('-34.0', ''), initial, 'SUCCESS');
+      expect('latitude' in payload).toBe(false);
+      expect('longitude' in payload).toBe(false);
+    });
   });
 
   it('save falls back to the summary error when detail paths do not match form fields', async () => {

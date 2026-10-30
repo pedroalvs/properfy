@@ -75,7 +75,12 @@ export interface IPropertyRepository {
   countByType(
     filters: Pick<PropertyFilters, 'tenantId' | 'branchId' | 'search'>,
   ): Promise<Record<string, number>>;
-  /** Find properties with FAILED geocoding status that were last updated before the given date. */
+  /**
+   * Find properties with FAILED geocoding status that were last updated before
+   * the given date AND carry no `geocoding_failure_code` — i.e. retryable
+   * failures. Rows blocked by a failure code (e.g. the account lacks permanent
+   * geocoding) are excluded so the sweep never re-pays for them.
+   */
   findFailedGeocoding(updatedBefore: Date): Promise<Array<{ id: string; tenantId: string }>>;
   /**
    * Find properties stuck in PENDING geocoding with no coordinates, last updated before the
@@ -84,6 +89,11 @@ export interface IPropertyRepository {
   findStalePendingGeocoding(updatedBefore: Date): Promise<Array<{ id: string; tenantId: string }>>;
   /** Count properties currently in FAILED geocoding status. */
   countFailedGeocoding(): Promise<number>;
+  /**
+   * Count FAILED properties blocked by a non-null `geocoding_failure_code` —
+   * the ones the retry sweep deliberately skips. Used to log the skipped count.
+   */
+  countBlockedFailedGeocoding(): Promise<number>;
   /**
    * Next per-tenant sequential property number: MAX(property_number) + 1,
    * INCLUDING soft-deleted rows so a reused number can never collide with a
@@ -109,6 +119,8 @@ export interface IPropertyRepository {
       lat: number | null;
       lng: number | null;
       geocodingStatus: string;
+      geocodedPermanentlyAt: Date | null;
+      geocodingFailureCode: string | null;
       privateAreaM2: number | null;
       totalAreaM2: number | null;
       furnished: boolean | null;

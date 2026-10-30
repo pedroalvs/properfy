@@ -58,6 +58,8 @@ function mapToEntity(row: {
   lat: unknown;
   lng: unknown;
   geocoding_status: string;
+  geocoded_permanently_at?: Date | null;
+  geocoding_failure_code?: string | null;
   private_area_m2?: unknown;
   total_area_m2?: unknown;
   furnished?: boolean | null;
@@ -86,6 +88,8 @@ function mapToEntity(row: {
     lat: row.lat ? Number(row.lat) : null,
     lng: row.lng ? Number(row.lng) : null,
     geocodingStatus: row.geocoding_status as GeocodingStatus,
+    geocodedPermanentlyAt: row.geocoded_permanently_at ?? null,
+    geocodingFailureCode: row.geocoding_failure_code ?? null,
     privateAreaM2: row.private_area_m2 != null ? Number(row.private_area_m2) : null,
     totalAreaM2: row.total_area_m2 != null ? Number(row.total_area_m2) : null,
     furnished: row.furnished ?? null,
@@ -272,6 +276,8 @@ export class PrismaPropertyRepository implements IPropertyRepository {
           lat: property.lat,
           lng: property.lng,
           geocoding_status: property.geocodingStatus as PrismaGeocodingStatus,
+          geocoded_permanently_at: property.geocodedPermanentlyAt,
+          geocoding_failure_code: property.geocodingFailureCode,
           private_area_m2: property.privateAreaM2,
           total_area_m2: property.totalAreaM2,
           furnished: property.furnished,
@@ -305,6 +311,8 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       lat: number | null;
       lng: number | null;
       geocodingStatus: string;
+      geocodedPermanentlyAt: Date | null;
+      geocodingFailureCode: string | null;
       privateAreaM2: number | null;
       totalAreaM2: number | null;
       furnished: boolean | null;
@@ -333,6 +341,10 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     if (data.lng !== undefined) updateData['lng'] = data.lng;
     if (data.geocodingStatus !== undefined)
       updateData['geocoding_status'] = data.geocodingStatus;
+    if (data.geocodedPermanentlyAt !== undefined)
+      updateData['geocoded_permanently_at'] = data.geocodedPermanentlyAt;
+    if (data.geocodingFailureCode !== undefined)
+      updateData['geocoding_failure_code'] = data.geocodingFailureCode;
     if (data.privateAreaM2 !== undefined) updateData['private_area_m2'] = data.privateAreaM2;
     if (data.totalAreaM2 !== undefined) updateData['total_area_m2'] = data.totalAreaM2;
     if (data.furnished !== undefined) updateData['furnished'] = data.furnished;
@@ -372,6 +384,10 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     const rows = await this.prisma.property.findMany({
       where: {
         geocoding_status: 'FAILED',
+        // Never re-enqueue a FAILED that carries a failure code: those are
+        // blocked (e.g. the account lacks permanent geocoding), so retrying
+        // would re-pay a billable request per property per day forever.
+        geocoding_failure_code: null,
         updated_at: { lt: updatedBefore },
         deleted_at: null,
       },
@@ -397,6 +413,16 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     return this.prisma.property.count({
       where: {
         geocoding_status: 'FAILED',
+        deleted_at: null,
+      },
+    });
+  }
+
+  async countBlockedFailedGeocoding(): Promise<number> {
+    return this.prisma.property.count({
+      where: {
+        geocoding_status: 'FAILED',
+        geocoding_failure_code: { not: null },
         deleted_at: null,
       },
     });

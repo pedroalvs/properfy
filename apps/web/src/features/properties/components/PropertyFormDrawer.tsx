@@ -132,6 +132,12 @@ export function PropertyFormDrawer({
 
   const applyAddressSuggestion = useCallback(
     (suggestion: AddressLookupSuggestion) => {
+      // Suggestion coordinates are temporary (display-only) and are never posted.
+      // In edit mode, picking a new address on a MANUAL property clears the
+      // coordinate fields so the save unlocks it (null/null) and the backend
+      // re-geocodes in permanent mode; for any other status the fields keep their
+      // initial values (and so are not sent). In create mode the fields stay ''.
+      const clearCoords = isEditMode && property?.geocodingStatus === 'MANUAL';
       setForm((prev) => ({
         ...prev,
         street: suggestion.street,
@@ -139,6 +145,7 @@ export function PropertyFormDrawer({
         postcode: suggestion.postcode,
         state: suggestion.state,
         country: suggestion.country,
+        ...(clearCoords ? { latitude: '', longitude: '' } : {}),
       }));
       setErrors((prev) => {
         const next = { ...prev };
@@ -150,7 +157,7 @@ export function PropertyFormDrawer({
         return next;
       });
     },
-    [],
+    [isEditMode, property?.geocodingStatus],
   );
 
   const clearAddressSelection = useCallback(() => {
@@ -171,7 +178,10 @@ export function PropertyFormDrawer({
       setErrors(validationErrors);
       return;
     }
-    const result = await save(form, propertyId ?? undefined, tenantIdOverride);
+    const result = await save(form, propertyId ?? undefined, tenantIdOverride, {
+      initial: initialData,
+      geocodingStatus: property?.geocodingStatus,
+    });
     if (result.success) {
       showSuccess(isEditMode ? 'Property updated successfully' : 'Property created successfully');
       if (!isEditMode && result.id) {
@@ -186,7 +196,7 @@ export function PropertyFormDrawer({
         showError(result.error ?? 'Failed to save');
       }
     }
-  }, [isEditMode, form, validate, save, propertyId, tenantIdOverride, showSuccess, showError, onSaved, onCreated]);
+  }, [isEditMode, form, initialData, property?.geocodingStatus, validate, save, propertyId, tenantIdOverride, showSuccess, showError, onSaved, onCreated]);
 
   const handleClose = useCallback(() => {
     if (isDirty) {

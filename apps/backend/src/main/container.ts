@@ -616,10 +616,10 @@ export function createContainer(logger: Logger): AppContainer {
   const deleteTenantLogoUseCase = new DeleteTenantLogoUseCase(tenantRepo, brandingStorageService, auditService, logger);
   const activateTenantUseCase = new ActivateTenantUseCase(tenantRepo, auditService, authorizationService, domainEventBus);
   const deactivateTenantUseCase = new DeactivateTenantUseCase(tenantRepo, appointmentChecker, auditService, authorizationService, domainEventBus);
-  const createBranchUseCase = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus);
+  // createBranchUseCase and updateBranchUseCase are defined AFTER geocodingService
+  // (below) because they geocode the branch address in permanent mode.
   const getBranchUseCase = new GetBranchUseCase(tenantRepo, branchRepo);
   const listBranchesUseCase = new ListBranchesUseCase(tenantRepo, branchRepo);
-  const updateBranchUseCase = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus);
   const deactivateBranchUseCase = new DeactivateBranchUseCase(tenantRepo, branchRepo, appointmentChecker, auditService, authorizationService, domainEventBus);
   const activateBranchUseCase = new ActivateBranchUseCase(tenantRepo, branchRepo, auditService, authorizationService, domainEventBus);
 
@@ -666,13 +666,17 @@ export function createContainer(logger: Logger): AppContainer {
   // Property repositories and use cases
   const propertyRepo = new PrismaPropertyRepository(prisma);
   const geocodingService = new DynamicGeocodingService(integrationConfigResolver);
+  // Branch use cases geocode the branch address in permanent mode (X02-1), so
+  // they must be created after geocodingService.
+  const createBranchUseCase = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus, geocodingService, logger);
+  const updateBranchUseCase = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus, geocodingService, logger);
   // Geocode synchronously at creation time so a new property has coordinates the
   // instant the request returns (the async worker remains the fallback).
   const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo, authorizationService, logger, geocodingService);
   const getPropertyUseCase = new GetPropertyUseCase(propertyRepo);
   const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo);
   const getPropertySummaryUseCase = new GetPropertySummaryUseCase(propertyRepo);
-  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
+  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger);
   const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
   const geocodePropertyUseCase = new GeocodePropertyUseCase(propertyRepo, authorizationService);
   const rawAddressLookupService = new DynamicAddressLookupService(integrationConfigResolver);
@@ -1376,7 +1380,7 @@ export function createContainer(logger: Logger): AppContainer {
   const appointmentImportRowResolver = new AppointmentImportRowResolver(
     propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,
   );
-  const appointmentImportGeocodeVerifier = new ImportGeocodeVerifier(geocodingService);
+  const appointmentImportGeocodeVerifier = new ImportGeocodeVerifier(geocodingService, undefined, logger);
   const appointmentImportFileParser = new AppointmentImportFileParser();
   const previewAppointmentImportUseCase = new PreviewAppointmentImportUseCase(
     appointmentImportRepo, reportStorageService, branchRepo, appointmentImportRowResolver,

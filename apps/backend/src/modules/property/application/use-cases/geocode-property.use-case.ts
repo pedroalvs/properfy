@@ -40,8 +40,11 @@ export class GeocodePropertyUseCase {
       throw new PropertyGeocodingManualOverrideError();
     }
 
+    // Clear any failure code so the re-queued property is retryable again
+    // (e.g. after the account's permanent-geocoding entitlement is fixed).
     await this.propertyRepo.update(propertyId, property.tenantId, {
       geocodingStatus: 'PENDING',
+      geocodingFailureCode: null,
     });
     await sendJob('property.geocode', { propertyId }, { retryLimit: 6, retryBackoff: true });
 

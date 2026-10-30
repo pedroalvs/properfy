@@ -149,3 +149,30 @@ describe('importFileIssueSchema', () => {
     expect(new Set(IMPORT_FILE_ISSUE_CODES).size).toBe(IMPORT_FILE_ISSUE_CODES.length);
   });
 });
+
+describe('geocodeVerificationSchema permanent mode', () => {
+  it('accepts found with mode: permanent', () => {
+    const result = geocodeVerificationSchema.safeParse({
+      status: 'found',
+      lat: -33.8,
+      lng: 151.2,
+      mode: 'permanent',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts found without a mode (pre-deploy preview)', () => {
+    const result = geocodeVerificationSchema.safeParse({ status: 'found', lat: -33.8, lng: 151.2 });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects found with mode: temporary', () => {
+    const result = geocodeVerificationSchema.safeParse({
+      status: 'found',
+      lat: -33.8,
+      lng: 151.2,
+      mode: 'temporary',
+    });
+    expect(result.success).toBe(false);
+  });
+});

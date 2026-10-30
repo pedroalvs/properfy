@@ -1,9 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ImportGeocodeVerifier } from './import-geocode-verifier';
-import type { IGeocodingService, GeocodingResult } from '../../domain/geocoding.service';
+import {
+  type IGeocodingService,
+  type GeocodingResult,
+  MapboxPermanentGeocodingUnavailableError,
+} from '../../domain/geocoding.service';
 
 function service(impl: (address: string) => Promise<GeocodingResult | null>) {
   return { geocode: vi.fn(impl) } satisfies IGeocodingService;
+}
+
+function makeLogger() {
+  return { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), fatal: vi.fn(), trace: vi.fn(), child: vi.fn() };
 }
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -28,8 +36,10 @@ describe('ImportGeocodeVerifier', () => {
         ['key-b', '9 Nowhere Rd, Atlantis'],
       ]),
     );
-    expect(result.get('key-a')).toEqual({ status: 'found', lat: -33.86, lng: 151.2 });
+    expect(result.get('key-a')).toEqual({ status: 'found', lat: -33.86, lng: 151.2, mode: 'permanent' });
     expect(result.get('key-b')).toEqual({ status: 'not_found', lat: null, lng: null });
+    // Every lookup whose result is stored must request permanent mode.
+    expect(geocoding.geocode).toHaveBeenCalledWith(expect.any(String), { mode: 'permanent' });
   });
 
   it('marks a thrown geocode error as unverified without failing the batch', async () => {
@@ -45,7 +55,7 @@ describe('ImportGeocodeVerifier', () => {
       ]),
     );
     expect(result.get('key-err')).toEqual({ status: 'unverified', lat: null, lng: null });
-    expect(result.get('key-ok')).toEqual({ status: 'found', lat: 1, lng: 2 });
+    expect(result.get('key-ok')).toEqual({ status: 'found', lat: 1, lng: 2, mode: 'permanent' });
   });
 
   it('marks addresses exceeding the per-address timeout as unverified', async () => {
@@ -64,7 +74,7 @@ describe('ImportGeocodeVerifier', () => {
       ]),
     );
     expect(result.get('key-slow')).toEqual({ status: 'unverified', lat: null, lng: null });
-    expect(result.get('key-fast')).toEqual({ status: 'found', lat: 3, lng: 4 });
+    expect(result.get('key-fast')).toEqual({ status: 'found', lat: 3, lng: 4, mode: 'permanent' });
   });
 
   it('marks addresses beyond maxAddresses as unverified without calling the service for them', async () => {
@@ -78,8 +88,8 @@ describe('ImportGeocodeVerifier', () => {
       ]),
     );
     expect(geocoding.geocode).toHaveBeenCalledTimes(2);
-    expect(result.get('key-1')).toEqual({ status: 'found', lat: 1, lng: 2 });
-    expect(result.get('key-2')).toEqual({ status: 'found', lat: 1, lng: 2 });
+    expect(result.get('key-1')).toEqual({ status: 'found', lat: 1, lng: 2, mode: 'permanent' });
+    expect(result.get('key-2')).toEqual({ status: 'found', lat: 1, lng: 2, mode: 'permanent' });
     expect(result.get('key-3')).toEqual({ status: 'unverified', lat: null, lng: null });
   });
 
@@ -101,11 +111,61 @@ describe('ImportGeocodeVerifier', () => {
         ['key-4', 'd'],
       ]),
     );
-    expect(result.get('key-1')).toEqual({ status: 'found', lat: 1, lng: 2 });
+    expect(result.get('key-1')).toEqual({ status: 'found', lat: 1, lng: 2, mode: 'permanent' });
     expect(result.get('key-4')).toEqual({ status: 'unverified', lat: null, lng: null });
     // Every address still gets an answer.
     expect(result.size).toBe(4);
     expect(geocoding.geocode.mock.calls.length).toBeLessThan(4);
+  });
+
+  it('short-circuits the batch on an account error: one call, all unverified, one error log', async () => {
+    const logger = makeLogger();
+    const geocoding = service(async () => {
+      throw new MapboxPermanentGeocodingUnavailableError();
+    });
+    const verifier = new ImportGeocodeVerifier(geocoding, { concurrency: 1 }, logger as never);
+    const result = await verifier.verifyMany(
+      new Map([
+        ['key-1', 'a'],
+        ['key-2', 'b'],
+        ['key-3', 'c'],
+      ]),
+    );
+
+    // Only the first address hit Mapbox; the rest were short-circuited.
+    expect(geocoding.geocode).toHaveBeenCalledTimes(1);
+    expect(result.get('key-1')).toEqual({ status: 'unverified', lat: null, lng: null });
+    expect(result.get('key-2')).toEqual({ status: 'unverified', lat: null, lng: null });
+    expect(result.get('key-3')).toEqual({ status: 'unverified', lat: null, lng: null });
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith(
+      { code: 'MAPBOX_PERMANENT_GEOCODING_UNAVAILABLE', remaining: 2 },
+      'import.geocode_verify_permanent_unavailable',
+    );
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('aggregates generic errors into a single warn per batch', async () => {
+    const logger = makeLogger();
+    const geocoding = service(async (address) => {
+      if (address.includes('boom')) throw new Error('circuit open');
+      return { lat: 1, lng: 2 };
+    });
+    const verifier = new ImportGeocodeVerifier(geocoding, { concurrency: 1 }, logger as never);
+    const result = await verifier.verifyMany(
+      new Map([
+        ['key-1', 'boom one'],
+        ['key-2', 'boom two'],
+        ['key-3', 'fine street'],
+      ]),
+    );
+
+    expect(result.get('key-1')).toEqual({ status: 'unverified', lat: null, lng: null });
+    expect(result.get('key-2')).toEqual({ status: 'unverified', lat: null, lng: null });
+    expect(result.get('key-3')).toEqual({ status: 'found', lat: 1, lng: 2, mode: 'permanent' });
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith({ failedCount: 2 }, 'import.geocode_verify_failed');
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('never runs more than `concurrency` lookups at once', async () => {
