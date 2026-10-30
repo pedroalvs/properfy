@@ -95,4 +95,53 @@ describe('FilterDateRange', () => {
     );
     expect(() => fireEvent.click(screen.getByLabelText('Period - start'))).not.toThrow();
   });
+
+  // F00 — min/max/helperText pass-through (C9–C11 support).
+  it('C9: applies min/max to both inputs', () => {
+    render(
+      <FilterDateRange
+        label="Period"
+        startDate=""
+        endDate=""
+        onStartChange={() => {}}
+        onEndChange={() => {}}
+        min="2026-10-28"
+        max="2026-11-11"
+      />,
+    );
+    expect(screen.getByLabelText('Period - start')).toHaveAttribute('data-min', '2026-10-28');
+    expect(screen.getByLabelText('Period - start')).toHaveAttribute('data-max', '2026-11-11');
+    expect(screen.getByLabelText('Period - end')).toHaveAttribute('data-min', '2026-10-28');
+    expect(screen.getByLabelText('Period - end')).toHaveAttribute('data-max', '2026-11-11');
+  });
+
+  it('C10: wires helperText to both inputs via aria-describedby', () => {
+    render(
+      <FilterDateRange
+        label="Period"
+        startDate=""
+        endDate=""
+        onStartChange={() => {}}
+        onEndChange={() => {}}
+        helperText="Dates are limited to today + 14 days."
+      />,
+    );
+    const help = screen.getByText('Dates are limited to today + 14 days.');
+    expect(screen.getByLabelText('Period - start').getAttribute('aria-describedby') ?? '').toContain(help.id);
+    expect(screen.getByLabelText('Period - end').getAttribute('aria-describedby') ?? '').toContain(help.id);
+  });
+
+  it('C11: no helper text or min/max by default', () => {
+    render(
+      <FilterDateRange
+        label="Period"
+        startDate=""
+        endDate=""
+        onStartChange={() => {}}
+        onEndChange={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText('Period - start')).not.toHaveAttribute('data-min');
+    expect(screen.queryByText(/limited to today/)).not.toBeInTheDocument();
+  });
 });

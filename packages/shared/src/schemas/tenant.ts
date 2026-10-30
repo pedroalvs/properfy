@@ -82,10 +82,18 @@ export const tenantSettingsSchema = z.object({
   notificationDailyCapEmail: z.number().int().min(0).default(500),
   notificationDailyCapSms: z.number().int().min(0).default(100),
 
+  // F00 — default period window on /map: today .. today+N (civil days, agency timezone).
+  // No `.default()`: 14 is the platform fallback (MAP_WINDOW_DAYS_DEFAULT), applied at read
+  // time, so parsing existing settings never injects the key.
+  mapWindowDays: z.number().int().min(1).max(90).optional(),
+
   // Freeform escape hatch
   customFields: z.record(z.unknown()).optional(),
 }).passthrough();
 export type TenantSettingsInput = z.infer<typeof tenantSettingsSchema>;
+
+/** Platform default for `mapWindowDays` when an agency has not set one (F00). */
+export const MAP_WINDOW_DAYS_DEFAULT = 14;
 
 /**
  * Cross-field validation for billing settings.

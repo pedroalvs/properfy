@@ -306,27 +306,10 @@ describe('UpdateTenantUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('should allow OP to update own tenant (name + settings only)', async () => {
-    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
-
-    const result = await useCase.execute({
-      tenantId: 'tenant-1',
-      data: { name: 'OP Updated', settings: { logoUrl: 'https://example.com/logo.png' } },
-      actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
-    });
-
-    expect(result.name).toBe('OP Updated');
-  });
-
-  it('should reject OP updating another tenant', async () => {
-    await expect(
-      useCase.execute({
-        tenantId: 'tenant-1',
-        data: { name: 'X' },
-        actor: makeActor({ role: 'OP', tenantId: 'tenant-other' }),
-      }),
-    ).rejects.toThrow(ForbiddenError);
-  });
+  // F00 removed the dead "should allow OP to update own tenant" and "should reject OP updating
+  // another tenant" tests: OP's JWT never carries a tenantId, so the old
+  // `(CL_ADMIN || OP) && actor.tenantId === tenantId` branch never fired. OP's real RBAC is
+  // covered by the "OP mapWindowDays (F00)" block below (B1–B10).
 
   it('should filter settings keys for CL_ADMIN — only allow-listed keys pass through', async () => {
     vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ settingsJson: {} }));
@@ -487,5 +470,171 @@ describe('UpdateTenantUseCase', () => {
     expect(mergedSettings).toHaveProperty('billingPeriod', 'WEEKLY');
     expect(mergedSettings).toHaveProperty('clUserPermissions');
     expect(mergedSettings).toHaveProperty('allowClientCancellation', false);
+  });
+
+  describe('OP mapWindowDays (F00)', () => {
+    const OP = (tenantId: string | null = null) => makeActor({ role: 'OP', userId: 'user-op-1', tenantId });
+
+    beforeEach(() => {
+      vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ settingsJson: { primaryColor: '#000000' } }));
+    });
+
+    it('B1: OP writes mapWindowDays on tenant-1 (JWT tenantId null) → update + audit', async () => {
+      await useCase.execute({ tenantId: 'tenant-1', data: { settings: { mapWindowDays: 30 } }, actor: OP(null) });
+      expect(tenantRepo.update).toHaveBeenCalledWith('tenant-1', {
+        settingsJson: { primaryColor: '#000000', mapWindowDays: 30 },
+      });
+      const audit = vi.mocked(auditService.log).mock.calls[0]![0];
+      expect(audit).toMatchObject({ action: 'tenant.updated', entityId: 'tenant-1' });
+      expect((audit.before as { settingsJson: Record<string, unknown> }).settingsJson.mapWindowDays).toBeUndefined();
+      expect((audit.after as { settingsJson: Record<string, unknown> }).settingsJson.mapWindowDays).toBe(30);
+    });
+
+    it('B2: OP with a JWT tenantId still writes any agency (field ignored)', async () => {
+      await useCase.execute({ tenantId: 'tenant-1', data: { settings: { mapWindowDays: 30 } }, actor: OP('tenant-other') });
+      expect(tenantRepo.update).toHaveBeenCalledWith('tenant-1', {
+        settingsJson: { primaryColor: '#000000', mapWindowDays: 30 },
+      });
+    });
+
+    it('B3: OP sending name → Forbidden, nothing written', async () => {
+      await expect(useCase.execute({ tenantId: 'tenant-1', data: { name: 'X' }, actor: OP() })).rejects.toThrow(ForbiddenError);
+      expect(tenantRepo.update).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+    });
+
+    it('B4: OP name + mapWindowDays → Forbidden', async () => {
+      await expect(useCase.execute({ tenantId: 'tenant-1', data: { name: 'X', settings: { mapWindowDays: 30 } }, actor: OP() })).rejects.toThrow(ForbiddenError);
+      expect(tenantRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('B5: OP mapWindowDays + another settings key → Forbidden', async () => {
+      await expect(useCase.execute({ tenantId: 'tenant-1', data: { settings: { mapWindowDays: 30, primaryColor: '#111111' } }, actor: OP() })).rejects.toThrow(ForbiddenError);
+      expect(tenantRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('B6: OP logoUrl → Forbidden (not ValidationError)', async () => {
+      await expect(useCase.execute({ tenantId: 'tenant-1', data: { settings: { logoUrl: 'https://x' } }, actor: OP() })).rejects.toThrow(ForbiddenError);
+    });
+
+    it('B7: OP empty settings and empty body → Forbidden', async () => {
+      await expect(useCase.execute({ tenantId: 'tenant-1', data: { settings: {} }, actor: OP() })).rejects.toThrow(ForbiddenError);
+      await expect(useCase.execute({ tenantId: 'tenant-1', data: {}, actor: OP() })).rejects.toThrow(ForbiddenError);
+    });
+
+    it('B8: OP any top-level field → Forbidden', async () => {
+      for (const data of [{ timezone: 'Australia/Perth' }, { appointmentCodePrefix: 'ABC' }, { legalName: 'Y' }, { currency: 'USD' }]) {
+        await expect(useCase.execute({ tenantId: 'tenant-1', data, actor: OP() })).rejects.toThrow(ForbiddenError);
+      }
+    });
+
+    it('B9: OP out-of-range mapWindowDays → ValidationError on settings.mapWindowDays', async () => {
+      await expect(
+        useCase.execute({ tenantId: 'tenant-1', data: { settings: { mapWindowDays: 0 } }, actor: OP() }),
+      ).rejects.toThrow(ValidationError);
+      const err = await useCase
+        .execute({ tenantId: 'tenant-1', data: { settings: { mapWindowDays: 0 } }, actor: OP() })
+        .catch((e) => e as ValidationError);
+      expect(err.details?.[0]?.field).toBe('settings.mapWindowDays');
+    });
+
+    it('B10: OP on a missing target → TenantNotFoundError', async () => {
+      vi.mocked(tenantRepo.findById).mockResolvedValue(null);
+      await expect(useCase.execute({ tenantId: 'gone', data: { settings: { mapWindowDays: 30 } }, actor: OP() })).rejects.toThrow(TenantNotFoundError);
+    });
+
+    it('B12: AM writes mapWindowDays → update + audit before/after', async () => {
+      await useCase.execute({ tenantId: 'tenant-1', data: { settings: { mapWindowDays: 30 } }, actor: makeActor() });
+      const audit = vi.mocked(auditService.log).mock.calls[0]![0];
+      expect((audit.after as { settingsJson: Record<string, unknown> }).settingsJson.mapWindowDays).toBe(30);
+    });
+
+    it('B13: CL_ADMIN own mapWindowDays → 200, silently discarded (no update/log)', async () => {
+      const result = await useCase.execute({ tenantId: 'tenant-1', data: { settings: { mapWindowDays: 30 } }, actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }) });
+      expect(tenantRepo.update).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+      expect(result.settingsJson.mapWindowDays).toBeUndefined();
+    });
+
+    it('B14: CL_ADMIN own mapWindowDays + allowed key → writes allowed key only', async () => {
+      await useCase.execute({ tenantId: 'tenant-1', data: { settings: { mapWindowDays: 30, primaryColor: '#111111' } }, actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }) });
+      const updateCall = vi.mocked(tenantRepo.update).mock.calls[0]![1]!;
+      const merged = updateCall.settingsJson as Record<string, unknown>;
+      expect(merged.primaryColor).toBe('#111111');
+      expect(merged.mapWindowDays).toBeUndefined();
+    });
+
+    it('B15: CL_ADMIN other agency / CL_USER with mapWindowDays → Forbidden', async () => {
+      await expect(useCase.execute({ tenantId: 'tenant-1', data: { settings: { mapWindowDays: 30 } }, actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-other' }) })).rejects.toThrow(ForbiddenError);
+      await expect(useCase.execute({ tenantId: 'tenant-1', data: { settings: { mapWindowDays: 30 } }, actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }) })).rejects.toThrow(ForbiddenError);
+    });
+  });
+
+  describe('empty-PATCH guard (F00)', () => {
+    let emit: ReturnType<typeof vi.fn>;
+    let guardedUseCase: UpdateTenantUseCase;
+
+    beforeEach(() => {
+      emit = vi.fn();
+      guardedUseCase = new UpdateTenantUseCase(tenantRepo, auditService, { emit } as never);
+      vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant({ settingsJson: { primaryColor: '#000000' } }));
+    });
+
+    const expectNoop = () => {
+      expect(tenantRepo.update).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+      expect(emit).not.toHaveBeenCalled();
+    };
+
+    it('N1: CL_ADMIN own, only a discarded key → no update/log/event, returns current', async () => {
+      const result = await guardedUseCase.execute({ tenantId: 'tenant-1', data: { settings: { mapWindowDays: 30 } }, actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }) });
+      expectNoop();
+      expect(result.settingsJson.mapWindowDays).toBeUndefined();
+    });
+
+    it('N2: CL_ADMIN own, a key outside the allow-list → no-op', async () => {
+      await guardedUseCase.execute({ tenantId: 'tenant-1', data: { settings: { billingPeriod: 'WEEKLY' } }, actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }) });
+      expectNoop();
+    });
+
+    it('N3: AM empty body → no-op', async () => {
+      await guardedUseCase.execute({ tenantId: 'tenant-1', data: {}, actor: makeActor() });
+      expectNoop();
+    });
+
+    it('N4: AM empty settings → no-op', async () => {
+      await guardedUseCase.execute({ tenantId: 'tenant-1', data: { settings: {} }, actor: makeActor() });
+      expectNoop();
+    });
+
+    it('N5: CL_ADMIN own primaryColor → update + audit + event', async () => {
+      await guardedUseCase.execute({ tenantId: 'tenant-1', data: { settings: { primaryColor: '#111111' } }, actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }) });
+      expect(tenantRepo.update).toHaveBeenCalled();
+      const audit = vi.mocked(auditService.log).mock.calls[0]![0];
+      expect((audit.before as { settingsJson: Record<string, unknown> }).settingsJson.primaryColor).toBe('#000000');
+      expect((audit.after as { settingsJson: Record<string, unknown> }).settingsJson.primaryColor).toBe('#111111');
+      expect(emit).toHaveBeenCalled();
+    });
+
+    it('N6: AM name → update + audit + event', async () => {
+      await guardedUseCase.execute({ tenantId: 'tenant-1', data: { name: 'Novo' }, actor: makeActor() });
+      expect(tenantRepo.update).toHaveBeenCalled();
+      expect(auditService.log).toHaveBeenCalled();
+      expect(emit).toHaveBeenCalled();
+    });
+
+    it('N7: CL_ADMIN own name + discarded mapWindowDays → updates name only, after has no mapWindowDays', async () => {
+      await guardedUseCase.execute({ tenantId: 'tenant-1', data: { name: 'Novo', settings: { mapWindowDays: 30 } }, actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }) });
+      const updateCall = vi.mocked(tenantRepo.update).mock.calls[0]![1]!;
+      expect(updateCall.name).toBe('Novo');
+      expect(updateCall.settingsJson).toBeUndefined();
+      const audit = vi.mocked(auditService.log).mock.calls[0]![0];
+      expect((audit.after as { settingsJson: Record<string, unknown> }).settingsJson.mapWindowDays).toBeUndefined();
+    });
+
+    it('N8: AM empty body on a missing target → TenantNotFoundError (guard runs after findById)', async () => {
+      vi.mocked(tenantRepo.findById).mockResolvedValue(null);
+      await expect(guardedUseCase.execute({ tenantId: 'gone', data: {}, actor: makeActor() })).rejects.toThrow(TenantNotFoundError);
+    });
   });
 });

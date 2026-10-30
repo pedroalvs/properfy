@@ -30,6 +30,43 @@ import { TenantFormDrawer } from './TenantFormDrawer';
 const mockUsePermissions = usePermissions as unknown as ReturnType<typeof vi.fn>;
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
 const mockPost = vi.mocked(api.POST);
+// Untyped like mockGet above: the F00 map-window tests resolve loose response
+// shapes and read `mock.calls[n][1].body`, which the strict openapi-fetch PATCH
+// signature narrows to `never`. The GET mock on line 31 uses the same cast.
+const mockPatch = api.PATCH as unknown as ReturnType<typeof vi.fn>;
+
+const OP_PERMISSIONS = {
+  role: 'OP',
+  hasRole: (...roles: string[]) => roles.includes('OP'),
+  canPerform: () => true,
+};
+const CL_ADMIN_PERMISSIONS = {
+  role: 'CL_ADMIN',
+  hasRole: (...roles: string[]) => roles.includes('CL_ADMIN'),
+  canPerform: () => true,
+};
+
+/** Resolve the tenant-detail GET with a row whose settingsJson is as given. */
+function mockTenantDetail(settingsJson?: Record<string, unknown>) {
+  mockGet.mockResolvedValueOnce({
+    data: {
+      data: {
+        id: 'ten-01',
+        name: 'Existing Agency',
+        legalName: 'Existing Agency Pty Ltd',
+        status: 'ACTIVE',
+        branchCount: 1,
+        timezone: 'Australia/Sydney',
+        currency: 'AUD',
+        createdAt: '2026-07-01T00:00:00.000Z',
+        updatedAt: '2026-07-31T00:00:00.000Z',
+        appointmentCodePrefix: 'EXA',
+        notes: null,
+        ...(settingsJson ? { settingsJson } : {}),
+      },
+    },
+  });
+}
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -403,5 +440,232 @@ describe('TenantFormDrawer – discard-confirm behavior', () => {
 
     expect(onClose).toHaveBeenCalledOnce();
     expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
+  });
+});
+
+describe('TenantFormDrawer – map window (F00)', () => {
+  const MAP_LABEL = 'Map window (days)';
+
+  beforeEach(() => {
+    mockPatch.mockResolvedValue({ data: { data: { id: 'ten-01' } }, error: undefined });
+  });
+
+  async function findMapInput() {
+    return (await screen.findByLabelText(MAP_LABEL)) as HTMLInputElement;
+  }
+
+  it('W1: AM edit shows the map window prefilled from settings alongside the normal sections', async () => {
+    mockTenantDetail({ mapWindowDays: 30 });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open tenantId="ten-01" onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    const input = await findMapInput();
+    expect(input.value).toBe('30');
+    // Normal AM sections remain present.
+    expect(screen.getByLabelText('Name')).toBeInTheDocument();
+    expect(screen.getByLabelText('Timezone')).toBeInTheDocument();
+  });
+
+  it('W2: AM edit defaults the map window to 14 when settings omit the key', async () => {
+    mockTenantDetail();
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open tenantId="ten-01" onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    const input = await findMapInput();
+    expect(input.value).toBe('14');
+  });
+
+  it('W3: OP edit shows ONLY the Map section (no general fields)', async () => {
+    mockUsePermissions.mockReturnValue(OP_PERMISSIONS);
+    mockTenantDetail({ mapWindowDays: 30 });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open tenantId="ten-01" onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    const input = await findMapInput();
+    expect(input.value).toBe('30');
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Legal Name')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Timezone')).not.toBeInTheDocument();
+  });
+
+  it('W4: CL_ADMIN edit does not show the Map section', async () => {
+    mockUsePermissions.mockReturnValue(CL_ADMIN_PERMISSIONS);
+    mockTenantDetail({ mapWindowDays: 30 });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open tenantId="ten-01" onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    // General fields load; the map window never appears.
+    expect(await screen.findByLabelText('Name')).toBeInTheDocument();
+    expect(screen.queryByLabelText(MAP_LABEL)).not.toBeInTheDocument();
+  });
+
+  it('W5: create mode (AM) omits the Map section entirely', () => {
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+    expect(screen.queryByLabelText(MAP_LABEL)).not.toBeInTheDocument();
+  });
+
+  it('W7: AM save sends settings.mapWindowDays as a number alongside the rest', async () => {
+    const user = userEvent.setup();
+    mockTenantDetail({ mapWindowDays: 30 });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open tenantId="ten-01" onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    await findMapInput();
+    // Make the form dirty via a general field while leaving the window at 30.
+    await user.type(screen.getByLabelText('Name'), ' Updated');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockPatch).toHaveBeenCalled());
+    const body = mockPatch.mock.calls[0]![1].body as {
+      settings: { mapWindowDays: number };
+      name: string;
+    };
+    expect(body.settings.mapWindowDays).toBe(30);
+    expect(body.name).toContain('Updated');
+  });
+
+  it('W8: OP save body is exactly { settings: { mapWindowDays } }', async () => {
+    const user = userEvent.setup();
+    mockUsePermissions.mockReturnValue(OP_PERMISSIONS);
+    mockTenantDetail(); // defaults the window to 14
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open tenantId="ten-01" onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    const input = await findMapInput();
+    await user.clear(input);
+    await user.type(input, '30');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(mockPatch).toHaveBeenCalled());
+    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/{tenantId}', {
+      params: { path: { tenantId: 'ten-01' } },
+      body: { settings: { mapWindowDays: 30 } },
+    });
+  });
+
+  it('W9: invalid map window values block the save and show an inline error', async () => {
+    for (const bad of ['', '0', '91', '7.5']) {
+      mockUsePermissions.mockReturnValue(OP_PERMISSIONS);
+      mockPatch.mockClear();
+      mockTenantDetail({ mapWindowDays: 30 });
+      const Wrapper = createWrapper();
+      const { unmount } = render(
+        <Wrapper>
+          <TenantFormDrawer open tenantId="ten-01" onClose={vi.fn()} onSaved={vi.fn()} />
+        </Wrapper>,
+      );
+      const user = userEvent.setup();
+      const input = await findMapInput();
+      await user.clear(input);
+      if (bad) await user.type(input, bad);
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(
+        await screen.findByText('Enter a whole number between 1 and 90.'),
+      ).toBeInTheDocument();
+      expect(mockPatch).not.toHaveBeenCalled();
+      unmount();
+    }
+  });
+
+  it('W10: a backend VALIDATION_ERROR on settings.mapWindowDays renders inline on the field', async () => {
+    const user = userEvent.setup();
+    mockUsePermissions.mockReturnValue(OP_PERMISSIONS);
+    mockTenantDetail({ mapWindowDays: 14 });
+    mockPatch.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'settings.mapWindowDays', message: 'Server rejected the window' }],
+        },
+      },
+    });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open tenantId="ten-01" onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    const input = await findMapInput();
+    await user.clear(input);
+    await user.type(input, '31');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('Server rejected the window')).toBeInTheDocument();
+  });
+
+  it('W11: Save is disabled until the map window changes and re-disabled when reverted', async () => {
+    const user = userEvent.setup();
+    mockUsePermissions.mockReturnValue(OP_PERMISSIONS);
+    mockTenantDetail({ mapWindowDays: 30 });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open tenantId="ten-01" onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    const input = await findMapInput();
+    const save = screen.getByRole('button', { name: 'Save' });
+    expect(save).toBeDisabled();
+
+    await user.clear(input);
+    await user.type(input, '31');
+    expect(save).toBeEnabled();
+
+    await user.clear(input);
+    await user.type(input, '30');
+    expect(save).toBeDisabled();
+  });
+
+  it('W12: the help text is present and wired via aria-describedby', async () => {
+    mockTenantDetail({ mapWindowDays: 14 });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open tenantId="ten-01" onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+
+    const input = await findMapInput();
+    const describedBy = input.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    const help = document.getElementById(describedBy!);
+    expect(help).not.toBeNull();
+    expect(help!.textContent).toContain(
+      'Days ahead of today the map shows by default (1–90). Default: 14 (today through 14 days ahead).',
+    );
   });
 });

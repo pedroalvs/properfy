@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { cn } from '@properfy/frontend-standards';
 import { FilterSelect } from '@/components/filters/FilterSelect';
 import { FilterSegmented } from '@/components/filters/FilterSegmented';
@@ -5,11 +6,13 @@ import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterDateRange } from '@/components/filters/FilterDateRange';
 import { FilterTimeRange } from '@/components/filters/FilterTimeRange';
 import { FilterBoolean } from '@/components/filters/FilterBoolean';
+import { MapWindowChip } from '@/components/map/MapWindowChip';
 import {
   APPOINTMENT_STATUS_MAP,
   SERVICE_GROUP_STATUS_MAP,
   RENTAL_TENANT_CONFIRMATION_STATUS_MAP,
 } from '@/lib/status-colors';
+import { computeWindowRange, formatWindowLabel, type WindowRange } from '../lib/map-period-window';
 
 export type FilterMode = 'appointments' | 'groups';
 
@@ -75,6 +78,18 @@ export const DEFAULT_GROUP_FILTERS: GroupModeFilters = {
   dateTo: '',
 };
 
+// F00 — default filters carrying the period window (today .. today+N). These replace the plain
+// DEFAULT_* constants as the initial state; the constants stay as the "no window" base shape.
+export function buildDefaultAppointmentFilters(windowDays: number, today: string): AppointmentModeFilters {
+  const { from, to } = computeWindowRange(windowDays, today);
+  return { ...DEFAULT_APPOINTMENT_FILTERS, dateFrom: from, dateTo: to };
+}
+
+export function buildDefaultGroupFilters(windowDays: number, today: string): GroupModeFilters {
+  const { from, to } = computeWindowRange(windowDays, today);
+  return { ...DEFAULT_GROUP_FILTERS, dateFrom: from, dateTo: to };
+}
+
 const MODE_OPTIONS = [
   { label: 'Appointments', value: 'appointments' },
   { label: 'Groups', value: 'groups' },
@@ -120,6 +135,13 @@ interface AppointmentMapFilterPanelProps {
    * this is how a searched pin gets brought into view.
    */
   onFilterSubmit?: () => void;
+  // F00 — map period window. When a mode's window is active the panel shows a chip
+  // above its Date Range; AM/OP can remove it, CL cannot (their inputs are clamped
+  // to the window via min/max + a helper caption).
+  windowActive?: Record<FilterMode, boolean>;
+  windowDays?: Record<FilterMode, number>;
+  windowRange?: Record<FilterMode, WindowRange>;
+  onRemoveWindow?: (mode: FilterMode) => void;
 }
 
 export function AppointmentMapFilterPanel({
@@ -135,7 +157,12 @@ export function AppointmentMapFilterPanel({
   inspectorOptions = [],
   actorRole,
   onFilterSubmit,
+  windowActive,
+  windowDays,
+  windowRange,
+  onRemoveWindow,
 }: AppointmentMapFilterPanelProps) {
+  const isGlobalRole = actorRole === 'AM' || actorRole === 'OP';
   const toggleStatus = (
     currentStatuses: string[],
     status: string,
@@ -176,6 +203,11 @@ export function AppointmentMapFilterPanel({
               inspectorOptions={inspectorOptions}
               actorRole={actorRole}
               onFilterSubmit={onFilterSubmit}
+              isGlobalRole={isGlobalRole}
+              windowActive={windowActive?.appointments ?? false}
+              windowDays={windowDays?.appointments}
+              windowRange={windowRange?.appointments}
+              onRemoveWindow={onRemoveWindow ? () => onRemoveWindow('appointments') : undefined}
             />
           ) : (
             <GroupModeFields
@@ -184,6 +216,9 @@ export function AppointmentMapFilterPanel({
               toggleStatus={toggleStatus}
               branchOptions={branchOptions}
               onFilterSubmit={onFilterSubmit}
+              windowActive={windowActive?.groups ?? false}
+              windowDays={windowDays?.groups}
+              onRemoveWindow={onRemoveWindow ? () => onRemoveWindow('groups') : undefined}
             />
           )}
         </div>
@@ -240,6 +275,11 @@ function AppointmentModeFields({
   inspectorOptions,
   actorRole,
   onFilterSubmit,
+  isGlobalRole,
+  windowActive,
+  windowDays,
+  windowRange,
+  onRemoveWindow,
 }: {
   filters: AppointmentModeFilters;
   onChange: (f: AppointmentModeFilters) => void;
@@ -250,7 +290,16 @@ function AppointmentModeFields({
   inspectorOptions: Array<{ label: string; value: string }>;
   actorRole?: string;
   onFilterSubmit?: () => void;
+  isGlobalRole: boolean;
+  windowActive: boolean;
+  windowDays?: number;
+  windowRange?: WindowRange;
+  onRemoveWindow?: () => void;
 }) {
+  // Return-focus target after the AM/OP chip ✕ removes the window (WCAG 2.4.3).
+  const dateFromRef = useRef<HTMLInputElement | null>(null);
+  // CL clamp affordance: the inputs are bounded to the window and captioned.
+  const clWindow = !isGlobalRole && windowActive && windowDays != null && windowRange != null;
   return (
     <>
       <FilterInput
@@ -305,12 +354,29 @@ function AppointmentModeFields({
         />
       )}
 
+      {windowActive && windowDays != null && (
+        <MapWindowChip
+          label={formatWindowLabel(windowDays)}
+          removable={isGlobalRole}
+          onRemove={isGlobalRole ? onRemoveWindow : undefined}
+          returnFocusRef={dateFromRef}
+        />
+      )}
+
       <FilterDateRange
         label="Date Range"
         startDate={filters.dateFrom}
         endDate={filters.dateTo}
         onStartChange={(v) => onChange({ ...filters, dateFrom: v })}
         onEndChange={(v) => onChange({ ...filters, dateTo: v })}
+        startInputRef={dateFromRef}
+        {...(clWindow
+          ? {
+              min: windowRange.from,
+              max: windowRange.to,
+              helperText: `Dates are limited to today + ${windowDays} days (your agency's map window).`,
+            }
+          : {})}
       />
 
       <FilterTimeRange
@@ -363,13 +429,21 @@ function GroupModeFields({
   toggleStatus,
   branchOptions,
   onFilterSubmit,
+  windowActive,
+  windowDays,
+  onRemoveWindow,
 }: {
   filters: GroupModeFilters;
   onChange: (f: GroupModeFilters) => void;
   toggleStatus: (current: string[], value: string) => string[];
   branchOptions: Array<{ label: string; value: string }>;
   onFilterSubmit?: () => void;
+  // Groups is an AM/OP-only surface, so the window chip is always removable here.
+  windowActive: boolean;
+  windowDays?: number;
+  onRemoveWindow?: () => void;
 }) {
+  const dateFromRef = useRef<HTMLInputElement | null>(null);
   return (
     <>
       <FilterInput
@@ -404,12 +478,22 @@ function GroupModeFields({
         />
       )}
 
+      {windowActive && windowDays != null && (
+        <MapWindowChip
+          label={formatWindowLabel(windowDays)}
+          removable
+          onRemove={onRemoveWindow}
+          returnFocusRef={dateFromRef}
+        />
+      )}
+
       <FilterDateRange
         label="Date Range"
         startDate={filters.dateFrom}
         endDate={filters.dateTo}
         onStartChange={(v) => onChange({ ...filters, dateFrom: v })}
         onEndChange={(v) => onChange({ ...filters, dateTo: v })}
+        startInputRef={dateFromRef}
       />
     </>
   );
