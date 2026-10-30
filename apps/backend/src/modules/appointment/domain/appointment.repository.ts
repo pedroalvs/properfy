@@ -253,6 +253,14 @@ export interface IAppointmentRepository {
       pricingRuleSnapshotJson: Record<string, unknown> | null;
     }>,
     tx?: Prisma.TransactionClient,
+    /**
+     * Compare-and-swap guard. When provided, the write only matches a row whose
+     * current `status` equals this value; if none matches, the repository throws
+     * `AppointmentStatusChangedError` (409). Used by finish and can't-do, which
+     * pass `'SCHEDULED'` so a concurrent writer that changed the status loses
+     * cleanly. Omitted elsewhere — behaviour unchanged.
+     */
+    expectedStatus?: string,
   ): Promise<void>;
   saveContact(contact: AppointmentContactEntity): Promise<void>;
   /** Update snapshot fields on a specific junction row. Used by portal contact edits and legacy single-contact updates. */

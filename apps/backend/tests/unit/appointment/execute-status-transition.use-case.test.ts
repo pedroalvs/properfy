@@ -2226,3 +2226,165 @@ describe('ExecuteStatusTransitionUseCase – domain event bus', () => {
     });
   });
 });
+
+// =============================================================================
+// F03-2: system-only rejection guard, auditMetadata and expectedStatus CAS
+// =============================================================================
+
+describe('ExecuteStatusTransitionUseCase – F03 system-only rejection guard', () => {
+  it('rejects INSPECTOR_UNABLE from a human actor and writes nothing', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase();
+
+    await expect(
+      uc.execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'REJECTED',
+        reason: 'Key failed',
+        rejectionReasonCode: 'INSPECTOR_UNABLE',
+        actor: makeActor('OP'),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('allows INSPECTOR_UNABLE for the system actor', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    const uc = makeUseCase();
+
+    const result = await uc.execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: "Key didn't work — Lockbox code wrong",
+      rejectionReasonCode: 'INSPECTOR_UNABLE',
+      actor: makeActor('SYS'),
+    });
+
+    expect(result.status).toBe('REJECTED');
+  });
+});
+
+describe('ExecuteStatusTransitionUseCase – F03 auditMetadata', () => {
+  it('merges auditMetadata into the status_transition audit and event, keeping SYSTEM actor', async () => {
+    const eventBus = new DomainEventBus();
+    const emitSpy = vi.spyOn(eventBus, 'emit');
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1', serviceGroupId: 'sg-live' }),
+    );
+
+    await makeUseCase({ domainEventBus: eventBus }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'No answer at the door',
+      rejectionReasonCode: 'INSPECTOR_UNABLE',
+      auditMetadata: {
+        initiatedByUserId: 'u1',
+        initiatedByInspectorId: 'i1',
+        source: 'INSPECTOR_CANT_DO',
+        fieldEventId: 'e1',
+      },
+      actor: makeActor('SYS'),
+    });
+
+    const transitionCall = (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.status_transition',
+    );
+    expect(transitionCall[0].actorType).toBe('SYSTEM');
+    expect(transitionCall[0].actorId).toBeUndefined();
+    expect(transitionCall[0].metadata).toMatchObject({
+      initiatedByUserId: 'u1',
+      initiatedByInspectorId: 'i1',
+      source: 'INSPECTOR_CANT_DO',
+      fieldEventId: 'e1',
+      unlinkedServiceGroupId: 'sg-live',
+      releasedInspectorId: 'insp-1',
+    });
+
+    const statusEvent = emitSpy.mock.calls.find((c) => c[0].type === APPOINTMENT_EVENTS.STATUS_TRANSITION);
+    expect((statusEvent![0].payload as { metadata?: Record<string, unknown> }).metadata).toMatchObject({
+      source: 'INSPECTOR_CANT_DO',
+      fieldEventId: 'e1',
+    });
+  });
+
+  it('without auditMetadata the status_transition audit carries no source (regression)', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    await makeUseCase().execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'Impossible to execute',
+      actor: makeActor('OP'),
+    });
+    const transitionCall = (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.status_transition',
+    );
+    const metadata = (transitionCall[0].metadata ?? {}) as Record<string, unknown>;
+    expect(metadata).not.toHaveProperty('source');
+    expect(metadata).not.toHaveProperty('fieldEventId');
+  });
+
+  it('accepts auditMetadata from a USER actor on DONE (generic field for the finish source)', async () => {
+    const eventBus = new DomainEventBus();
+    const emitSpy = vi.spyOn(eventBus, 'emit');
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    await makeUseCase({ withOnDoneHandler: true, domainEventBus: eventBus }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      auditMetadata: { source: 'INSPECTOR_FINISH' },
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+    });
+
+    const transitionCall = (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.status_transition',
+    );
+    expect(transitionCall[0].metadata).toMatchObject({ source: 'INSPECTOR_FINISH' });
+    const statusEvent = emitSpy.mock.calls.find((c) => c[0].type === APPOINTMENT_EVENTS.STATUS_TRANSITION);
+    expect((statusEvent![0].payload as { metadata?: Record<string, unknown> }).metadata).toMatchObject({
+      source: 'INSPECTOR_FINISH',
+    });
+  });
+});
+
+describe('ExecuteStatusTransitionUseCase – F03 expectedStatus CAS', () => {
+  it('forwards expectedStatus to the repository write', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'actor-1' }),
+    );
+    await makeUseCase({ withOnDoneHandler: true }).execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'DONE',
+      expectedStatus: 'SCHEDULED',
+      actor: makeActor('INSP', { userId: 'actor-1', tenantId: 'tenant-1', inspectorId: 'actor-1' }),
+    });
+    expect(appointmentRepo.update).toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.objectContaining({ status: 'DONE' }),
+      undefined,
+      'SCHEDULED',
+    );
+  });
+
+  it('omits the expectedStatus argument when not provided (behaviour unchanged)', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    await makeUseCase().execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'No longer needed',
+      actor: makeActor('OP'),
+    });
+    const call = appointmentRepo.update.mock.calls[0]!;
+    expect(call).toHaveLength(4);
+  });
+});

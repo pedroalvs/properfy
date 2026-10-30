@@ -28,6 +28,7 @@ import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { AppointmentTransitionEvent } from '@properfy/shared';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
 import { APPOINTMENT_EVENTS } from '../../../../shared/application/events/domain-event-bus';
+import { SYSTEM_ONLY_REJECTION_CODES } from '@properfy/shared';
 
 export interface ExecuteStatusTransitionInput {
   appointmentId: string;
@@ -51,6 +52,21 @@ export interface ExecuteStatusTransitionInput {
    * handler enforces that, so a direct API caller cannot bypass it.
    */
   notifyRentalTenant?: boolean;
+  /**
+   * Extra metadata merged into the `appointment.status_transition` audit record
+   * and the `STATUS_TRANSITION` domain event. Generic on purpose: it attributes
+   * a SYSTEM transition to the human who triggered it (the can't-do use case
+   * passes `{ initiatedByUserId, initiatedByInspectorId, source, fieldEventId }`)
+   * and F06-2's finish passes `{ source: 'INSPECTOR_FINISH' }`. Never changes
+   * actor identity — the transition stays SYSTEM.
+   */
+  auditMetadata?: Record<string, unknown>;
+  /**
+   * Compare-and-swap guard forwarded to the repository write: the status change
+   * only lands if the appointment is still in `expectedStatus`. Finish and
+   * can't-do pass `'SCHEDULED'`; everyone else omits it (behaviour unchanged).
+   */
+  expectedStatus?: AppointmentStatus;
   actor: AuthContext;
 }
 
@@ -137,7 +153,7 @@ export class ExecuteStatusTransitionUseCase {
     input: ExecuteStatusTransitionInput,
     tx?: Prisma.TransactionClient,
   ): Promise<TransactionalResult<ExecuteStatusTransitionOutput>> {
-    const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, crossCheckByUserId, inspectorId, idempotencyKey, notifyRentalTenant, actor } = input;
+    const { appointmentId, targetStatus, reason, cancellationReasonCode, rejectionReasonCode, doneCheckedByUserId, crossCheckByUserId, inspectorId, idempotencyKey, notifyRentalTenant, auditMetadata, expectedStatus, actor } = input;
 
     // Automated flows act as SYS. Attribute their audit trail and events to the
     // system rather than filing them under a synthetic user id.
@@ -197,6 +213,23 @@ export class ExecuteStatusTransitionUseCase {
       throw new ForbiddenError(
         'CANCELLATION_REASON_CODE_SYSTEM_ONLY',
         'The EXPIRED cancellation reason is assigned by the system only',
+      );
+    }
+
+    // 3a-bis-2. Same principle for system-only rejection codes (INSPECTOR_UNABLE):
+    // the public status-transition schema accepts the whole RejectionReasonCode
+    // enum, so a human actor could otherwise label a rejection as an inspector
+    // "Can't do this job" and bypass the SYS-only path (and the portal
+    // no-reoffer rule keyed on it). Every human rejection path funnels through
+    // this use case, so guarding here covers the direct route and bulk edit.
+    if (
+      rejectionReasonCode &&
+      SYSTEM_ONLY_REJECTION_CODES.includes(rejectionReasonCode) &&
+      !isSystemActor
+    ) {
+      throw new ForbiddenError(
+        'REJECTION_REASON_CODE_SYSTEM_ONLY',
+        'The INSPECTOR_UNABLE rejection reason is assigned by the system only',
       );
     }
 
@@ -391,12 +424,16 @@ export class ExecuteStatusTransitionUseCase {
     // DRAFT appointment with a live cycle.
     if (targetStatus === 'DRAFT' && this.cycleService) {
       const reopen = async (client?: Prisma.TransactionClient) => {
+        // Reopen targets DRAFT; finish/can't-do never reopen, so no CAS here.
         await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData, client);
         await this.cycleService!.invalidateOnReopen(appointmentId, appointment.tenantId, client);
       };
       if (tx) await reopen(tx);
       else if (this.prisma) await this.prisma.$transaction((t) => reopen(t));
       else await reopen();
+    } else if (expectedStatus !== undefined) {
+      // CAS path (finish / can't-do): only match a row still in expectedStatus.
+      await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData, tx, expectedStatus);
     } else {
       await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData, tx);
     }
@@ -483,6 +520,13 @@ export class ExecuteStatusTransitionUseCase {
           afterSnapshot.inspectorId = null;
           metadata.releasedInspectorId = appointment.inspectorId;
         }
+      }
+
+      // Caller-supplied attribution/context (e.g. the inspector behind a SYS
+      // can't-do, or the finish source). Merged into both the audit row and the
+      // STATUS_TRANSITION event below, which share this `metadata` object.
+      if (auditMetadata) {
+        Object.assign(metadata, auditMetadata);
       }
 
       this.auditService.log({

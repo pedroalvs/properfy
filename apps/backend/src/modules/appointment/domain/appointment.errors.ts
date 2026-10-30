@@ -36,6 +36,22 @@ export class AppointmentTransitionNotPermittedError extends ForbiddenError {
   }
 }
 
+/**
+ * Compare-and-swap guard: the transition write ran `updateMany` with an
+ * `expectedStatus` predicate and matched no row, meaning the appointment's
+ * status changed between the guard reads and the write (a concurrent finish /
+ * can't-do / operator action). Raised by the repository so the caller rolls back
+ * cleanly instead of silently no-op'ing.
+ */
+export class AppointmentStatusChangedError extends ConflictError {
+  constructor() {
+    super(
+      'APPOINTMENT_STATUS_CHANGED',
+      'This appointment was changed by someone else. Reload and try again.',
+    );
+  }
+}
+
 export class AppointmentReasonRequiredError extends DomainError {
   constructor() {
     super('APPOINTMENT_REASON_REQUIRED', 'Reason is required for this transition', 422);
