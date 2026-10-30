@@ -214,3 +214,28 @@ describe('validateEnv', () => {
     );
   });
 });
+
+describe('validateEnv — inspector notice settings (F02-1)', () => {
+  it('defaults INSPECTOR_NOTICE_SMS_DAILY_CAP to 500 when absent', () => {
+    expect(validateEnv(validEnv).INSPECTOR_NOTICE_SMS_DAILY_CAP).toBe(500);
+  });
+
+  it('parses a numeric cap', () => {
+    expect(validateEnv({ ...validEnv, INSPECTOR_NOTICE_SMS_DAILY_CAP: '120' }).INSPECTOR_NOTICE_SMS_DAILY_CAP).toBe(120);
+  });
+
+  it('treats "none" and "" as unlimited (null)', () => {
+    expect(validateEnv({ ...validEnv, INSPECTOR_NOTICE_SMS_DAILY_CAP: 'none' }).INSPECTOR_NOTICE_SMS_DAILY_CAP).toBeNull();
+    expect(validateEnv({ ...validEnv, INSPECTOR_NOTICE_SMS_DAILY_CAP: '' }).INSPECTOR_NOTICE_SMS_DAILY_CAP).toBeNull();
+  });
+
+  it('rejects a negative or non-numeric cap', () => {
+    expect(() => validateEnv({ ...validEnv, INSPECTOR_NOTICE_SMS_DAILY_CAP: '-1' })).toThrow('Environment validation failed');
+    expect(() => validateEnv({ ...validEnv, INSPECTOR_NOTICE_SMS_DAILY_CAP: 'abc' })).toThrow('Environment validation failed');
+  });
+
+  it('defaults INSPECTOR_NOTICE_SYSTEM_RETENTION_DAYS to 30 and rejects 0', () => {
+    expect(validateEnv(validEnv).INSPECTOR_NOTICE_SYSTEM_RETENTION_DAYS).toBe(30);
+    expect(() => validateEnv({ ...validEnv, INSPECTOR_NOTICE_SYSTEM_RETENTION_DAYS: '0' })).toThrow('Environment validation failed');
+  });
+});

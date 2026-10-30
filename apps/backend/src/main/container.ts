@@ -120,6 +120,30 @@ import { RegenerateInspectorAvailabilitySlotsUseCase } from '../modules/inspecto
 import { GetInspectorAvailabilityTemplateForOperatorUseCase } from '../modules/inspector/application/use-cases/get-inspector-availability-template-for-operator.use-case';
 import { PrismaInspectorAppointmentChecker } from '../modules/inspector/infrastructure/prisma-inspector-appointment-checker';
 import type { InspectorRouteContainer } from '../modules/inspector/interfaces/inspector.routes';
+import { SystemClock } from '../shared/domain/clock';
+import type { InspectorNoticeRouteContainer } from '../modules/inspector-notice/interfaces/inspector-notice.routes';
+import { PrismaInspectorNoticeRepository } from '../modules/inspector-notice/infrastructure/prisma-inspector-notice.repository';
+import { PrismaInspectorDirectoryRepository } from '../modules/inspector-notice/infrastructure/prisma-inspector-directory.repository';
+import { PrismaPushSubscriptionRepository } from '../modules/inspector-notice/infrastructure/prisma-push-subscription.repository';
+import { WebPushSender } from '../modules/inspector-notice/infrastructure/web-push.sender';
+import { DisabledPushSender } from '../modules/inspector-notice/infrastructure/disabled-push.sender';
+import { ResolveNoticeRecipientsService } from '../modules/inspector-notice/application/services/resolve-notice-recipients';
+import { PublishInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/publish-inspector-notice.use-case';
+import { ArchiveInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/archive-inspector-notice.use-case';
+import { ListInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/list-inspector-notices.use-case';
+import { GetInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/get-inspector-notice.use-case';
+import { ListMyInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/list-my-inspector-notices.use-case';
+import { GetMyInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/get-my-inspector-notice.use-case';
+import { MarkInspectorNoticeReadUseCase } from '../modules/inspector-notice/application/use-cases/mark-inspector-notice-read.use-case';
+import { CountMyUnreadInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/count-my-unread-inspector-notices.use-case';
+import { GetPushConfigUseCase } from '../modules/inspector-notice/application/use-cases/get-push-config.use-case';
+import { UpsertPushSubscriptionUseCase } from '../modules/inspector-notice/application/use-cases/upsert-push-subscription.use-case';
+import { UnsubscribePushSubscriptionUseCase } from '../modules/inspector-notice/application/use-cases/unsubscribe-push-subscription.use-case';
+import { PublishSystemInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/publish-system-inspector-notice.use-case';
+import { HasRecentSystemInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/has-recent-system-inspector-notice.use-case';
+import { DeliverInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/deliver-inspector-notice.use-case';
+import { SweepUndeliveredInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/sweep-undelivered-inspector-notices.use-case';
+import { AutoArchiveInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/auto-archive-inspector-notices.use-case';
 
 // Authorization service
 import { AuthorizationService } from '../shared/domain/authorization.service';
@@ -464,6 +488,13 @@ export interface AppContainer {
   serviceType: ServiceTypeRouteContainer;
   pricingRule: PricingRuleRouteContainer;
   inspector: InspectorRouteContainer;
+  inspectorNotice: InspectorNoticeRouteContainer & {
+    publishSystemInspectorNoticeUseCase: PublishSystemInspectorNoticeUseCase;
+    hasRecentSystemNoticeUseCase: HasRecentSystemInspectorNoticeUseCase;
+    deliverInspectorNoticeUseCase: DeliverInspectorNoticeUseCase;
+    sweepUndeliveredInspectorNoticesUseCase: SweepUndeliveredInspectorNoticesUseCase;
+    autoArchiveInspectorNoticesUseCase: AutoArchiveInspectorNoticesUseCase;
+  };
   appointment: AppointmentRouteContainer;
   audit: AuditRouteContainer;
   auditErasure: AuditErasureRouteContainer;
@@ -549,6 +580,8 @@ export function createContainer(logger: Logger): AppContainer {
 
   const appointmentChecker = new PrismaAppointmentChecker(prisma);
   const inspectorRepo = new PrismaInspectorRepository(prisma);
+  // Built early so DeactivateInspectorUseCase can revoke push subscriptions (F02-1 L-F02-11).
+  const pushSubscriptionRepo = new PrismaPushSubscriptionRepository(prisma);
 
   // Services
   const jwtService = new JwtService({
@@ -741,7 +774,7 @@ export function createContainer(logger: Logger): AppContainer {
   const updateAvailabilitySlotUseCase = new UpdateAvailabilitySlotUseCase(availabilitySlotRepo, auditService);
   const linkInspectorToUserUseCase = new LinkInspectorToUserUseCase(inspectorRepo, userManagementRepo, auditService, authorizationService);
   const inspectorAppointmentChecker = new PrismaInspectorAppointmentChecker(prisma);
-  const deactivateInspectorUseCase = new DeactivateInspectorUseCase(inspectorRepo, inspectorAppointmentChecker, auditService, authorizationService, userManagementRepo);
+  const deactivateInspectorUseCase = new DeactivateInspectorUseCase(inspectorRepo, inspectorAppointmentChecker, auditService, authorizationService, userManagementRepo, pushSubscriptionRepo);
   const resetInspectorPasswordUseCase = new ResetInspectorPasswordUseCase(inspectorRepo, resetUserPasswordUseCase, auditService, authorizationService);
   const generateInspectorPhotoUploadUrlUseCase = new GenerateInspectorPhotoUploadUrlUseCase(inspectorRepo, storageService, auditService);
   const confirmInspectorPhotoUploadUseCase = new ConfirmInspectorPhotoUploadUseCase(inspectorRepo, storageService, auditService);
@@ -779,6 +812,63 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Shared idempotency service (used across modules)
   const idempotencyService = new PrismaIdempotencyService(prisma);
+
+  // ── Inspector notices (F02-1) ──────────────────────────────────────────────
+  const inspectorNoticeClock = new SystemClock();
+  const inspectorNoticeRepo = new PrismaInspectorNoticeRepository(prisma);
+  const inspectorDirectoryRepo = new PrismaInspectorDirectoryRepository(prisma);
+  const pushConfigured = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_SUBJECT);
+  const pushSender = pushConfigured
+    ? new WebPushSender({
+        subject: env.VAPID_SUBJECT!,
+        publicKey: env.VAPID_PUBLIC_KEY!,
+        privateKey: env.VAPID_PRIVATE_KEY!,
+      })
+    : new DisabledPushSender();
+  const resolveNoticeRecipientsService = new ResolveNoticeRecipientsService(inspectorDirectoryRepo);
+  const publishInspectorNoticeUseCase = new PublishInspectorNoticeUseCase(
+    prisma,
+    inspectorNoticeRepo,
+    inspectorDirectoryRepo,
+    resolveNoticeRecipientsService,
+    idempotencyService,
+    notificationJobQueue,
+    auditService,
+    inspectorNoticeClock,
+    logger,
+  );
+  const archiveInspectorNoticeUseCase = new ArchiveInspectorNoticeUseCase(inspectorNoticeRepo, auditService, inspectorNoticeClock);
+  const listInspectorNoticesUseCase = new ListInspectorNoticesUseCase(inspectorNoticeRepo);
+  const getInspectorNoticeUseCase = new GetInspectorNoticeUseCase(inspectorNoticeRepo);
+  const listMyInspectorNoticesUseCase = new ListMyInspectorNoticesUseCase(inspectorNoticeRepo);
+  const getMyInspectorNoticeUseCase = new GetMyInspectorNoticeUseCase(inspectorNoticeRepo);
+  const markInspectorNoticeReadUseCase = new MarkInspectorNoticeReadUseCase(inspectorNoticeRepo, inspectorNoticeClock);
+  const countMyUnreadInspectorNoticesUseCase = new CountMyUnreadInspectorNoticesUseCase(inspectorNoticeRepo);
+  const getPushConfigUseCase = new GetPushConfigUseCase(pushConfigured ? env.VAPID_PUBLIC_KEY! : null);
+  const upsertPushSubscriptionUseCase = new UpsertPushSubscriptionUseCase(pushSubscriptionRepo, pushSender, inspectorNoticeClock);
+  const unsubscribePushSubscriptionUseCase = new UnsubscribePushSubscriptionUseCase(pushSubscriptionRepo, inspectorNoticeClock);
+  const publishSystemInspectorNoticeUseCase = new PublishSystemInspectorNoticeUseCase(
+    prisma,
+    inspectorNoticeRepo,
+    inspectorDirectoryRepo,
+    notificationJobQueue,
+    auditService,
+    inspectorNoticeClock,
+    logger,
+  );
+  const hasRecentSystemNoticeUseCase = new HasRecentSystemInspectorNoticeUseCase(inspectorNoticeRepo);
+  const deliverInspectorNoticeUseCase = new DeliverInspectorNoticeUseCase(
+    inspectorNoticeRepo,
+    pushSubscriptionRepo,
+    pushSender,
+    createNotificationUseCase,
+    notificationRepo,
+    inspectorNoticeClock,
+    env.INSPECTOR_NOTICE_SMS_DAILY_CAP,
+    logger,
+  );
+  const sweepUndeliveredInspectorNoticesUseCase = new SweepUndeliveredInspectorNoticesUseCase(inspectorNoticeRepo, notificationJobQueue, inspectorNoticeClock, logger);
+  const autoArchiveInspectorNoticesUseCase = new AutoArchiveInspectorNoticesUseCase(inspectorNoticeRepo, pushSubscriptionRepo, inspectorNoticeClock, env.INSPECTOR_NOTICE_SYSTEM_RETENTION_DAYS, logger);
 
   // Billing repositories (needed before appointments for onDoneHandler wiring)
   const financialEntryRepo = new PrismaFinancialEntryRepository(prisma);
@@ -1585,6 +1675,27 @@ export function createContainer(logger: Logger): AppContainer {
       jwtService,
       tenantRepo,
       slotRepo: availabilitySlotRepo,
+    },
+    inspectorNotice: {
+      publishInspectorNoticeUseCase,
+      archiveInspectorNoticeUseCase,
+      listInspectorNoticesUseCase,
+      getInspectorNoticeUseCase,
+      listMyInspectorNoticesUseCase,
+      getMyInspectorNoticeUseCase,
+      markInspectorNoticeReadUseCase,
+      countMyUnreadInspectorNoticesUseCase,
+      getPushConfigUseCase,
+      upsertPushSubscriptionUseCase,
+      unsubscribePushSubscriptionUseCase,
+      jwtService,
+      tenantRepo,
+      // Internal contracts (no HTTP route) + worker use cases.
+      publishSystemInspectorNoticeUseCase,
+      hasRecentSystemNoticeUseCase,
+      deliverInspectorNoticeUseCase,
+      sweepUndeliveredInspectorNoticesUseCase,
+      autoArchiveInspectorNoticesUseCase,
     },
     appointment: {
       createAppointmentUseCase,

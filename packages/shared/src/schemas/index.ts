@@ -30,6 +30,7 @@ export * from './totp';
 export * from './import';
 export * from './appointment-import';
 export * from './service-region';
+export * from './inspector-notice';
 export * from './inspector-availability';
 export * from './fy';
 export * from './phone';

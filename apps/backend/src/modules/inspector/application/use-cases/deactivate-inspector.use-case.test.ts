@@ -186,3 +186,44 @@ describe('DeactivateInspectorUseCase', () => {
     expect(result.status).toBe('INACTIVE');
   });
 });
+
+describe('DeactivateInspectorUseCase — push revocation (F02-1 L-F02-11)', () => {
+  function makeUseCase(pushRepo: { revokeAllForInspector: ReturnType<typeof vi.fn> }, open = 0) {
+    const auditService = { log: vi.fn() } as never;
+    const inspectorRepo = {
+      findById: vi.fn().mockResolvedValue(makeInspector()),
+      update: vi.fn().mockResolvedValue(undefined),
+    } as never;
+    const checker = {
+      countOpenAppointmentsForInspector: vi
+        .fn()
+        .mockResolvedValue({ total: open, byStatus: {} }),
+    } as never;
+    const useCase = new DeactivateInspectorUseCase(
+      inspectorRepo,
+      checker,
+      auditService,
+      new AuthorizationService(auditService),
+      undefined,
+      pushRepo as never,
+    );
+    return useCase;
+  }
+
+  it('revokes active subscriptions as DEACTIVATED on a successful deactivation', async () => {
+    const pushRepo = { revokeAllForInspector: vi.fn().mockResolvedValue(undefined) };
+    const useCase = makeUseCase(pushRepo);
+    await useCase.execute({ inspectorId: 'insp-1', reason: 'No longer available', actor: AM_ACTOR });
+    expect(pushRepo.revokeAllForInspector).toHaveBeenCalledTimes(1);
+    expect(pushRepo.revokeAllForInspector).toHaveBeenCalledWith('insp-1', 'DEACTIVATED', expect.any(Date));
+  });
+
+  it('does not revoke subscriptions when a precondition fails (open appointments)', async () => {
+    const pushRepo = { revokeAllForInspector: vi.fn().mockResolvedValue(undefined) };
+    const useCase = makeUseCase(pushRepo, 2);
+    await expect(
+      useCase.execute({ inspectorId: 'insp-1', reason: 'x', actor: AM_ACTOR }),
+    ).rejects.toMatchObject({ code: 'INSPECTOR_HAS_OPEN_APPOINTMENTS' });
+    expect(pushRepo.revokeAllForInspector).not.toHaveBeenCalled();
+  });
+});

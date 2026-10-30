@@ -114,6 +114,9 @@ describe('registerWorkers', () => {
       mockCancelOverdueWorker,
       mockCancelEmptyGroupsWorker,
       mockFyWebhookDispatcher,
+      { execute: vi.fn().mockResolvedValue(undefined) } as any, // deliverInspectorNoticeUseCase
+      { execute: vi.fn().mockResolvedValue(undefined) } as any, // sweepUndeliveredInspectorNoticesUseCase
+      { execute: vi.fn().mockResolvedValue(undefined) } as any, // autoArchiveInspectorNoticesUseCase
       mockLogger,
     );
   }
@@ -125,8 +128,9 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(22);
+    expect(mockWork).toHaveBeenCalledTimes(25);
     expect(mockWork).toHaveBeenCalledWith('fy.webhook.deliver', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('inspector-notice.deliver', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.send', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.retry-poll', expect.any(Function));
@@ -150,8 +154,10 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
     // All recurring jobs are anchored to the platform timezone (Sydney).
     const sydneyTz = { tz: 'Australia/Sydney' };
-    expect(mockSchedule).toHaveBeenCalledTimes(16);
+    expect(mockSchedule).toHaveBeenCalledTimes(18);
     expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('inspector-notice.delivery-sweep', '*/5 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('inspector-notice.auto-archive', '45 3 * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('notification.sms-delivery-poll', '*/10 * * * *', {}, sydneyTz);
     // Per-agency civil-day jobs run as hourly ticks; the agency-local target
     // hour lives in the handler (TenantCronTick), not in the cron expression.

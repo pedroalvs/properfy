@@ -392,3 +392,26 @@ describe('legacy INSPECTION_NOTICE assertions', () => {
     expect(entry.subject).toContain('{{propertyAddress}}');
   });
 });
+
+describe('INSPECTOR_NOTICE_SMS platform template (F02-1)', () => {
+  const entry = PLATFORM_TEMPLATES.find(
+    (t) => t.code === 'INSPECTOR_NOTICE_SMS' && t.channel === 'SMS',
+  );
+
+  it('is seeded as an SMS template with the triple-stash message body', () => {
+    expect(entry).toBeDefined();
+    expect(entry!.subject).toBeNull();
+    expect(entry!.body).toBe('{{{message}}}');
+    expect(entry!.notificationClass).toBe('TRANSACTIONAL');
+  });
+
+  it('resolves to the protected TRANSACTIONAL class', () => {
+    expect(resolvePlatformTemplateClass(entry!)).toBe(getProtectedClass('INSPECTOR_NOTICE_SMS'));
+    expect(resolvePlatformTemplateClass(entry!)).toBe('TRANSACTIONAL');
+  });
+
+  it('renders the free operator text unescaped (no &amp;)', () => {
+    const renderer = new TemplateRendererService();
+    expect(renderer.render(entry!.body, { message: 'Tom & Jerry <test>' })).toBe('Tom & Jerry <test>');
+  });
+});

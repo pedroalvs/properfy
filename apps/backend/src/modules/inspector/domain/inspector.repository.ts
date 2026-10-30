@@ -22,7 +22,6 @@ export interface RecordAppStateParams {
   id: string;
   now: Date;
   displayMode: 'standalone' | 'browser';
-  pushEnabled: boolean;
   appVersion: string;
 }
 

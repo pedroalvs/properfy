@@ -103,6 +103,7 @@ apps/backend/
 │   │   ├── dashboard/
 │   │   ├── fy/                     # Fy agent integration (API keys, webhooks)
 │   │   ├── inspector/
+│   │   ├── inspector-notice/        # F02-1: notices + Web Push + SMS fallback (platform-scoped)
 │   │   ├── inspector-execution/
 │   │   ├── integration/            # Integrations Hub (provider config, dynamic providers)
 │   │   ├── notification/
@@ -295,6 +296,16 @@ See `prisma/schema.prisma` for complete entity definitions.
 - `notification_channel`: `EMAIL`, `SMS`
 - `notification_status`: `PENDING`, `SENT`, `DELIVERED`, `FAILED`, `SKIPPED`, `SKIPPED_OPT_OUT`
 - `financial_entry_type`: `TENANT_DEBIT`, `INSPECTOR_PAYOUT`, `REFUND`, `MANUAL_ADJUSTMENT`
+
+### Inspector notices (F02-1, module `inspector-notice/`)
+
+`InspectorNotice`, `InspectorNoticeRecipient`, `InspectorPushSubscription` are **platform-scoped — no `tenant_id`** (the subject is the cross-tenant inspector; documented exception to §5.6 / root `CLAUDE.md` §7.1, with the scoping test in `tests/integration/db/inspector-notice.integration.test.ts`). Scope is by role (AM/OP publish/read across inspectors) and by JWT `inspectorId` (INSP box queries filter `inspector_id`).
+
+- **Routes:** AM/OP `POST|GET /v1/inspector-notices`, `GET /v1/inspector-notices/:id`, `POST /v1/inspector-notices/:id/archive`; INSP `GET /v1/inspectors/me/notices(+/unread-count,/:id,/:id/read)`, `GET /v1/inspectors/me/push-config`, `POST /v1/inspectors/me/push-subscriptions(+/unsubscribe)` (10/min rate-limited). No edit/delete of a published notice (archive only).
+- **Publish idempotency:** manual publish requires an `Idempotency-Key`, serialized with `pg_advisory_xact_lock` inside the tx (`repo.acquirePublishLock`) + `getWithHash`/`set(..., tx)`; audit + delivery enqueue run post-commit via `defer`.
+- **Delivery (`inspector-notice.deliver`):** Web Push via `IPushSender` (`WebPushSender` when VAPID set, else `DisabledPushSender`); critical-only SMS fallback through `CreateNotificationUseCase` with platform template `INSPECTOR_NOTICE_SMS` (TRANSACTIONAL, `tenantId=null`, deterministic id so retries don't duplicate). `inspectors.push_enabled` = "has an active subscription" (recomputed on every subscription write; the F01 heartbeat no longer writes it). Deactivating an inspector revokes its subscriptions.
+- **Internal contracts (no HTTP route):** `container.inspectorNotice.publishSystemInspectorNoticeUseCase` (F03/F04/F08; `critical` from the type, idempotent by `dedupeKey`, `targetPath` allowlisted by `INSPECTOR_NOTICE_TARGET_PATTERNS`) and `hasRecentSystemNoticeUseCase` (F08 7-day guard).
+- **Jobs & env:** `inspector-notice.deliver`; cron `inspector-notice.delivery-sweep` (`*/5 * * * *`, pauses 22:00–06:00 Sydney); cron `inspector-notice.auto-archive` (`45 3 * * *`). Env: `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` (optional; absent ⇒ SMS fallback only), `INSPECTOR_NOTICE_SMS_DAILY_CAP` (default 500, `none`=unlimited), `INSPECTOR_NOTICE_SYSTEM_RETENTION_DAYS` (default 30).
 
 ### Configuration: platform vs. agency
 

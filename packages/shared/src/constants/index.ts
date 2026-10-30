@@ -1,4 +1,5 @@
 export * from './status-transitions';
+export * from './inspector-notices';
 export * from './inspector-workload';
 export * from './timezone';
 export * from './notification-templates';
