@@ -249,6 +249,8 @@ import { ReportLateNoticeUseCase } from '../modules/inspector-execution/applicat
 import { NotifyInspectorUnableService } from '../modules/inspector-execution/application/services/notify-inspector-unable.service';
 import { NullPublishedStopStartReader } from '../modules/inspector-execution/domain/late-notice';
 import { GetAppointmentFieldActivityUseCase } from '../modules/appointment/application/use-cases/get-appointment-field-activity.use-case';
+import { SendCompletionRemindersUseCase } from '../modules/inspector-execution/application/use-cases/send-completion-reminders.use-case';
+import { PrismaCompletionReminderReader } from '../modules/inspector-execution/infrastructure/prisma-completion-reminder.reader';
 import type { InspectorExecutionRouteContainer } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
 
 // Billing module
@@ -531,6 +533,7 @@ export interface AppContainer {
   generateInvoiceFileWorker: GenerateInvoiceFileWorker;
   expireTokensWorker: ExpireTokensWorker;
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
+  sendCompletionRemindersUseCase: SendCompletionRemindersUseCase;
   auditRetentionWorker: AuditRetentionWorker;
   rejectUnconfirmedWorker: RejectUnconfirmedWorker;
   cancelOverdueWorker: CancelOverdueWorker;
@@ -1119,6 +1122,12 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const getAppointmentFieldActivityUseCase = new GetAppointmentFieldActivityUseCase(
     appointmentRepo, inspectionExecutionRepo, inspectorFieldEventRepo, inspectorRepo, authorizationService,
+  );
+  // Completion reminder (F03, 03.16): reuses F02's PublishSystemInspectorNoticeUseCase.
+  const completionReminderReader = new PrismaCompletionReminderReader(prisma);
+  const sendCompletionRemindersUseCase = new SendCompletionRemindersUseCase(
+    completionReminderReader, platformSettingsService, tenantTimezoneLookup,
+    publishSystemInspectorNoticeUseCase, auditService, logger,
   );
 
   // Audit use cases
@@ -2009,6 +2018,7 @@ export function createContainer(logger: Logger): AppContainer {
     generateInvoiceFileWorker,
     expireTokensWorker,
     notifyStuckInspectionsWorker,
+    sendCompletionRemindersUseCase,
     auditRetentionWorker,
     rejectUnconfirmedWorker,
     cancelOverdueWorker,

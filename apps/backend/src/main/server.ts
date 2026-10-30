@@ -128,6 +128,7 @@ async function start() {
       container.inspectorNotice.deliverInspectorNoticeUseCase,
       container.inspectorNotice.sweepUndeliveredInspectorNoticesUseCase,
       container.inspectorNotice.autoArchiveInspectorNoticesUseCase,
+      container.sendCompletionRemindersUseCase,
       app.log,
     );
   }

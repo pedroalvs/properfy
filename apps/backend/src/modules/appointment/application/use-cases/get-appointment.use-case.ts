@@ -289,9 +289,14 @@ export class GetAppointmentUseCase {
         ).map(toAppointmentApp)
       : [];
 
-    const latestCantDo = this.fieldEventRepo
-      ? await this.fieldEventRepo.findLatestCantDoByAppointmentId(found.appointment.id)
-      : null;
+    // `inspectorIssue` carries another person's name/id, so it is for the
+    // operation and the agency only. An inspector must never learn a peer
+    // inspector's identity through their own appointment view — they see only
+    // their OWN last report, via `lastFieldIssue` on the inspector detail (D28).
+    const latestCantDo =
+      this.fieldEventRepo && actor.role !== 'INSP'
+        ? await this.fieldEventRepo.findLatestCantDoByAppointmentId(found.appointment.id)
+        : null;
 
     return mapToOutput(found, apps, toInspectorIssue(latestCantDo));
   }

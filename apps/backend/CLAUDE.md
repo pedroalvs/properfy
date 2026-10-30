@@ -280,7 +280,7 @@ Field activity is read back through the appointment module:
 GET /v1/appointments/:appointmentId/field-activity  → 200  execution + field events
 ```
 
-Same tenant scope as `GET /v1/appointments/:appointmentId`, but **INSP has no access (403)**. Agency roles (`CL_ADMIN`/`CL_USER`) never receive the inspector's raw lat/lng — `GetAppointmentFieldActivityUseCase` omits the coordinate keys for them (only distances/accuracy/flags remain). The appointment list/detail also flatten the latest `CANT_DO` onto `inspectorIssue` (one batched `DISTINCT ON` query per page, no N+1); the inspector's own appointment detail (PWA) carries `lastFieldIssue` only when the latest `CANT_DO` is the actor's own (D28). The rental-tenant portal refuses "change time" for a `REJECTED` + `INSPECTOR_UNABLE` appointment (`isPortalChangeTimeBlocked`, `rental-tenant-portal/domain/portal-statuses.ts`) — only operations re-offer it.
+Same tenant scope as `GET /v1/appointments/:appointmentId`, but **INSP has no access (403)**. Agency roles (`CL_ADMIN`/`CL_USER`) never receive the inspector's raw lat/lng — `GetAppointmentFieldActivityUseCase` omits the coordinate keys for them (only distances/accuracy/flags remain). The appointment list/detail flatten the latest `CANT_DO` onto `inspectorIssue` (one batched `DISTINCT ON` query per page, no N+1) for AM/OP/CL only — `GetAppointmentUseCase` returns it as `null` for an INSP actor, since it carries another inspector's name/id (the list use case already excludes INSP from its roles). The inspector's own appointment detail (PWA) carries `lastFieldIssue` only when the latest `CANT_DO` is the actor's own (D28). The rental-tenant portal refuses "change time" for a `REJECTED` + `INSPECTOR_UNABLE` appointment (`isPortalChangeTimeBlocked`, `rental-tenant-portal/domain/portal-statuses.ts`) — only operations re-offer it.
 
 ---
 
@@ -397,7 +397,8 @@ because `tests/` is outside the backend `tsconfig` include.
 - Uses the same PostgreSQL database (Supabase). pg-boss manages its own `pgboss.*` schema tables.
 - Job naming convention: `domain.action` (e.g., `notification.send`, `import.process`, `finance.close`)
 - Internal events: versioned (e.g., `appointment.created.v1`)
-- Workers: all `boss.work(...)` registrations live in `src/main/workers.ts` (one worker process per app instance), wrapped with `withJobMetrics`. Recurring jobs that run per agency use `shared/application/tenant-cron-tick.ts`.
+- Workers: all `boss.work(...)` registrations live in `src/main/workers.ts` (one worker process per app instance), wrapped with `withJobMetrics`. Recurring jobs that run per agency use `shared/application/tenant-cron-tick.ts`. Adding a worker means a new positional arg to `registerWorkers` — update its call site in `server.ts` AND the mock list in `src/main/__tests__/workers.test.ts` (plus its `EXPECTED_SCHEDULES`).
+- F03 03.16 completion reminder: cron `inspection-execution.completion-reminder` (`*/15 * * * *`, Sydney) → `SendCompletionRemindersUseCase`. For each SCHEDULED job whose window closed today (agency tz) more than `fieldEvents.completionReminderMinutesAfterWindowEnd` ago without a check-out, it publishes a critical `COMPLETION_REMINDER` inspector notice through F02's `PublishSystemInspectorNoticeUseCase` (idempotent by `buildCompletionReminderDedupeKey`). Suppressed when the inspector is mid-job elsewhere; audited (`inspection.completion_reminder_sent`) only when F02 reports `created`. Body is locked-screen-safe (service code + address only).
 
 **pg-boss usage pattern:**
 ```typescript
