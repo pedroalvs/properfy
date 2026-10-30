@@ -21,7 +21,7 @@ The PWA is a **mobile-first Progressive Web App** for property inspectors in the
 - **Forms:** React Hook Form + Zod, with schemas from `@properfy/shared`
 - **Shared standards:** `@properfy/frontend-standards` (`cn()`, CVA, timing/z-index/touch constants)
 - **Offline:** Service Worker with Workbox (cache-first for static, network-first for API)
-- **Tests:** Vitest (unit/component). Playwright E2E (`tests/e2e`, 4 mobile/tablet projects) exists but is **broken (56/56 failing) and not in CI** until X03 restores it.
+- **Tests:** Vitest (unit/component). Playwright E2E (`tests/e2e`, 4 mobile/tablet projects) is a CI gate (`test-pwa-e2e`) — hermetic (every API call mocked), Chromium + WebKit. See §10.
 
 Do **not** change the stack unless explicitly instructed.
 
@@ -53,6 +53,11 @@ pnpm --filter pwa typecheck
 
 # Design-system guard (no retired tokens/classes/*Screen/template classNames)
 pnpm --filter pwa check:ds
+
+# E2E (Playwright, 4 mobile/tablet projects, hermetic). Requires both workspace
+# dist/ built first (globalSetup guards this). Override the strict port per worktree
+# with PWA_E2E_PORT if 5175 is taken.
+pnpm --filter pwa test:e2e
 ```
 
 ---
@@ -243,10 +248,22 @@ Every screen must handle:
 
 ## 10. Testing
 
-- **Unit/component tests** (Vitest): hooks, helpers, business logic, components
-- **E2E** (Playwright, `tests/e2e`, mobile/tablet projects, API mocked with `page.route`): **currently broken — every spec fails on a clean `develop` (56/56) and the suite is not run by CI.** Do not cite it as verification. X03 (`fase2-etapa1/X03-e2e-pwa.md`) restores it before F04-3b; until then prove PWA behaviour with Vitest component tests and a manual browser check.
-- Mock geolocation and camera APIs in tests
-- Test offline scenarios
+- **Unit/component tests** (Vitest): hooks, helpers, business logic, components. Mock geolocation/camera APIs; test offline scenarios.
+
+### E2E (Playwright, `tests/e2e`) — restored by X03, a CI gate
+
+- **Projects:** 4 — `Mobile Safari` (iPhone 13, WebKit), `Mobile Chrome` (Pixel 5), `Tablet (iPad portrait)` (iPad gen 7, WebKit, wide 2-column layout), `Foldable open` (Pixel 5 @ 840×1080, wide). 14 specs × 4 = 56.
+- **Prerequisite — build both workspace packages first:** `pnpm --filter @properfy/shared build && pnpm --filter @properfy/frontend-standards build`. `vite dev` resolves both only through `dist/`; without them `App.tsx`'s top-level import 500s and the shell never mounts (this was the original 56/56 failure). The Playwright `globalSetup` fails fast with a build message if a `dist/` is missing (rebuild both after a pull).
+- **Server:** the suite starts its own `vite` on strict port **5175** (`PWA_E2E_PORT` to override per worktree), `reuseExistingServer: false` — it never reuses another worktree's / the web dev server. Context is pinned: `timezoneId: 'Australia/Sydney'`, `locale: 'en-AU'`, `serviceWorkers: 'block'`, and `webServer.env` fixes `VITE_API_BASE_URL=http://localhost:3000` + empty `VITE_MAPBOX_TOKEN` (map never initializes → no external request).
+- **All API mocked via `tests/e2e/support/api.ts`.** Rules: `blockUnmockedApi(page)` registered **first** (last `page.route` wins); any unstubbed `/v1/**` returns `501 E2E_UNMOCKED` with a `console.warn` (a 501 never fails a test by itself — only a dependent assertion does); the catch-all is scoped to the API origin, **never** the `**/v1/**` glob (it would also catch Mapbox tiles); `/v1/me` is **plain** (no `data` envelope); no `window.fetch` monkey-patch (openapi-fetch captures `fetch` at client creation).
+- **Baseline-stub rule:** `loginAsInspector` (tokens via `addInitScript`, never `goto+evaluate`) registers `BASELINE_STUBS` (`tests/e2e/support/auth.ts`). Today that is `GET /v1/me` only (the sole authenticated-boot call). **Every feature that adds a new authenticated-boot API call adds its default stub to `BASELINE_STUBS` in the same PR.**
+- **Per-project restriction only via `tests/e2e/support/projects.ts`** (`skipOnWide`/`skipOnPhone` with a mandatory reason, `isWideProject`, `isWebKitProject`). All 4 projects set `isMobile: true`, so never branch on `isMobile`/`viewport.width`/`project.name` in a spec. Project names are a contract.
+- **IndexedDB** is seeded only via `seedExecutionState` (`tests/e2e/support/idb.ts`, awaited `openDB` on a public route), **never** in `addInitScript` (races the app's `openDB`). Call it before `loginAsInspector` so the seeding `/login` load stays unauthenticated.
+- **Fixtures** (`tests/e2e/support/fixtures.ts`, pure) mirror the `@properfy/shared` response schemas and are strict-parse-validated in `src/__tests__/e2e-fixtures.test.ts`.
+- **Trace:** `pnpm --filter pwa exec playwright test <spec> --project="Mobile Chrome" --trace on` then `playwright show-trace test-results/<folder>/trace.zip` (Console + Network tabs).
+- **CI gate (`test-pwa-e2e`):** runs all 4 projects (Chromium + WebKit) on every PR/push. It is a **deploy gate**, not a merge check — no branch has required status checks, but the deploy workflows require the whole CI run green, so a red `test-pwa-e2e` blocks DEV/STAGING/PROD deploys from the first merge. In CI `retries: 2`, `workers: 1`, and `failOnFlakyTests` is on (a test that only passes on retry turns the run red; evidence in the `test-results/e2e.json` artifact).
+  - **Kill switch runbook:** systematic WebKit flake on `develop` → an admin sets repository variable `PWA_E2E_ADVISORY=true` (Variables, no PR) → the job shows green and only the step is red → open an issue, fix the cause, remove the variable. No acceptance criterion may be verified with the variable set.
+- **WebKit-only residual rule:** a failure that remains only on WebKit → `test.fixme(isWebKitProject(testInfo), '<issue>')` with an open, deadline-bound issue; the fix is its own task. Never a silent `test.skip`, never `waitForTimeout`, never remove the WebKit project from CI. (Currently the `execution-finish` specs are `test.fixme` on WebKit — a cold deep-link-to-`/execution` session-restore race, tracked; fully covered on Chromium.)
 
 ---
 

@@ -244,6 +244,61 @@ jobs:
           path: apps/web/playwright-report/
           retention-days: 7
 
+  test-pwa-e2e:
+    name: E2E pwa (Playwright mobile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Kill switch (L-X03-01). There is no required merge check on any branch; the
+    # deploy workflows require the whole CI run to be green, so this job blocks
+    # deploys from day one. If WebKit flakes systematically on develop, an admin
+    # sets the repository variable PWA_E2E_ADVISORY=true (no PR), opens an issue and
+    # removes it after the fix. With the variable set the job shows green and only
+    # the step goes red (runbook: apps/pwa/CLAUDE.md §10).
+    continue-on-error: ${{ vars.PWA_E2E_ADVISORY == 'true' }}
+    # The PWA suite stubs every API call (tests/e2e/support/api.ts), so it needs no
+    # backend or database. It was broken 56/56 for weeks with nobody noticing
+    # because it was never wired into CI (X03). Both workspace packages resolve only
+    # to their compiled dist/, so both builds are mandatory here.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+        with:
+          build-shared: "true"
+          build-frontend-standards: "true"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          # Distinct key from the web job: this one also holds WebKit.
+          key: playwright-pwa-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Chromium + WebKit
+        # Dev decision 2026-10-28: all 4 projects run in CI. Chromium: Mobile Chrome
+        # + Foldable. WebKit: Mobile Safari + iPad. --with-deps always runs (system
+        # libs are not cached, only the browser binaries).
+        run: pnpm --filter pwa exec playwright install --with-deps chromium webkit
+
+      - name: E2E
+        # CI=true (set by Actions) turns on retries: 2, workers: 1, the
+        # on-first-retry trace, failOnFlakyTests and the JSON reporter
+        # (test-results/e2e.json) in playwright.config.ts.
+        run: pnpm --filter pwa test:e2e
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pwa-playwright-report
+          path: |
+            apps/pwa/playwright-report/
+            apps/pwa/test-results/
+          retention-days: 7
+
   build:
     name: Build
     runs-on: ubuntu-latest

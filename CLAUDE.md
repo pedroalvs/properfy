@@ -247,7 +247,7 @@ Templates are configurable per agency (logo, custom text, signature, dynamic var
 - **TDD mandatory per PR** (red-green-refactor)
 - Unit tests: `Vitest`
 - API integration: `Supertest`
-- Frontend E2E: `Playwright`. The web suite (`apps/web/tests/e2e`, all API calls stubbed) is a CI gate (`test-web-e2e`). The PWA suite (`apps/pwa/tests/e2e`) is **currently broken (56/56 failing on a clean `develop`) and is not run by CI**; do not treat it as evidence until X03 (`fase2-etapa1/X03-e2e-pwa.md`) restores it.
+- Frontend E2E: `Playwright`. The web suite (`apps/web/tests/e2e`, all API calls stubbed) is a CI gate (`test-web-e2e`). The PWA suite (`apps/pwa/tests/e2e`, all API calls stubbed, Chromium + WebKit) is a CI gate (`test-pwa-e2e`) — hermetic, with a `globalSetup` that requires both workspace `dist/` built; see `apps/pwa/CLAUDE.md` §10.
 - Coverage target (not enforced by CI today): `70%` global, `80%+` for critical modules (auth, appointments, finance)
 - CI gate (`.github/workflows/ci.yml`, on every PR and push to `develop`, `staging`, `main`): lint + typecheck (all four workspaces), OpenAPI ↔ api-types freshness, unit/integration tests (shared, backend, web, pwa), web E2E, Prisma schema validation, `prisma migrate deploy` twice against a fresh PostGIS database, real-database integration tests (testcontainers), and build. Node 24 only.
 
@@ -435,4 +435,5 @@ Skip worktrees only for: pure documentation edits, CLAUDE.md updates, or tasks t
 - PostgreSQL (Supabase) via Prisma. New table `platform_settings`; new nullable/defaulted columns on `inspection_executions` (expand-only). No `tenant_id` on either. (038-f03-1-platform-settings-geofence)
 
 ## Recent Changes
+- X03 (`036-x03-pwa-e2e-recovery`): PWA Playwright E2E suite recovered and wired into CI (`test-pwa-e2e`, Chromium + WebKit, hermetic); harness in `apps/pwa/tests/e2e/support/`
 - Phase 2 Stage 1 planning (`fase2-etapa1/`): CLAUDE.md refreshed (X00); every feature PR updates the CLAUDE.md of the workspace it changes
