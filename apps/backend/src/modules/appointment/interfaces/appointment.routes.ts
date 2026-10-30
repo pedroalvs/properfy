@@ -26,12 +26,14 @@ import {
   appointmentImportPreviewResponseSchema,
   appointmentSuburbsResponseSchema,
   appointmentExportResponseSchema,
+  appointmentFieldActivityResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { CreateAppointmentUseCase } from '../application/use-cases/create-appointment.use-case';
 import type { GetAppointmentUseCase } from '../application/use-cases/get-appointment.use-case';
+import type { GetAppointmentFieldActivityUseCase } from '../application/use-cases/get-appointment-field-activity.use-case';
 import type { ListAppointmentsUseCase } from '../application/use-cases/list-appointments.use-case';
 import type { ListAppointmentSuburbsUseCase } from '../application/use-cases/list-appointment-suburbs.use-case';
 import type { ExportAppointmentsUseCase } from '../application/use-cases/export-appointments.use-case';
@@ -70,6 +72,7 @@ const commitAppointmentImportSchema = z.object({
 export interface AppointmentRouteContainer {
   createAppointmentUseCase: CreateAppointmentUseCase;
   getAppointmentUseCase: GetAppointmentUseCase;
+  getAppointmentFieldActivityUseCase: GetAppointmentFieldActivityUseCase;
   listAppointmentsUseCase: ListAppointmentsUseCase;
   listAppointmentSuburbsUseCase: ListAppointmentSuburbsUseCase;
   exportAppointmentsUseCase: ExportAppointmentsUseCase;
@@ -246,6 +249,29 @@ export async function registerAppointmentRoutes(
         throw new ValidationError('Invalid appointment ID', params.error.errors);
       }
       const result = await container.getAppointmentUseCase.execute({
+        appointmentId: params.data.appointmentId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // GET /v1/appointments/:appointmentId/field-activity — 200 (AM/OP/CL_*: execution + field events)
+  app.get(
+    '/v1/appointments/:appointmentId/field-activity',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ appointmentId: z.string().uuid() }),
+        response: { 200: successResponseSchema(appointmentFieldActivityResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = appointmentIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid appointment ID', params.error.errors);
+      }
+      const result = await container.getAppointmentFieldActivityUseCase.execute({
         appointmentId: params.data.appointmentId,
         actor: request.authContext!,
       });

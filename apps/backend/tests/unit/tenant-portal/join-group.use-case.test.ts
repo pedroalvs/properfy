@@ -426,6 +426,31 @@ describe('JoinGroupUseCase', () => {
     });
   });
 
+  describe('inspector-driven rejection (INSPECTOR_UNABLE, L-F03-01, D20)', () => {
+    it('refuses to rejoin and runs no transition or reservation', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ status: 'REJECTED', rejectionReasonCode: 'INSPECTOR_UNABLE' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      await expect(useCase.execute(makeInput())).rejects.toThrow(PortalAppointmentInactiveError);
+      expect(statusTransition.executeInTransaction).not.toHaveBeenCalled();
+      expect(serviceGroupRepo.reservePortalWindow).not.toHaveBeenCalled();
+    });
+
+    it('still rejoins after a tenant decline (TENANT_DECLINED)', async () => {
+      appointmentRepo.findById.mockResolvedValue({
+        appointment: makeAppointment({ status: 'REJECTED', rejectionReasonCode: 'TENANT_DECLINED' }),
+        contact: null,
+        restrictions: [],
+      });
+
+      const result = await useCase.execute(makeInput());
+      expect(result.appointmentStatus).toBe('SCHEDULED');
+    });
+  });
+
   describe('atomicity', () => {
     it('runs the reservation, the counters and the hops in one transaction', async () => {
       // `order` is the shared recorder from beforeEach — the fake $transaction

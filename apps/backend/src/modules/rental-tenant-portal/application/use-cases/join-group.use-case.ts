@@ -10,7 +10,7 @@ import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-por
 import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
 import type { ServiceGroupEntity } from '../../../service-group/domain/service-group.entity';
 import { computeWindowAvailability } from '../../../service-group/domain/portal-slot-capacity';
-import { isPortalDeadStatus } from '../../domain/portal-statuses';
+import { isPortalChangeTimeBlocked } from '../../domain/portal-statuses';
 import { runInTransaction, type TransactionalResult } from '../../../../shared/application/unit-of-work';
 import { ConfirmationCycleNotFoundError } from '../../../appointment/domain/confirmation-cycle.errors';
 import type { Logger } from '../../../../shared/infrastructure/logger';
@@ -117,7 +117,10 @@ export class JoinGroupUseCase {
     if (!apptResult) throw new PortalGroupNotFoundError();
     const { appointment } = apptResult;
 
-    if (isPortalDeadStatus(appointment.status)) {
+    if (isPortalChangeTimeBlocked(appointment)) {
+      // Change-time is blocked not only for dead statuses but also for an
+      // inspector-driven rejection (INSPECTOR_UNABLE): re-offering that job is the
+      // operation's call, not the tenant's (L-F03-01, D20).
       throw new PortalAppointmentInactiveError();
     }
 
@@ -225,7 +228,7 @@ export class JoinGroupUseCase {
     // Both gates that used to make this race fail closed were opened on purpose
     // by the auto-reject work, so this read is what replaces them.
     const freshResult = await this.appointmentRepo.findById(input.appointmentId, null);
-    if (!freshResult || isPortalDeadStatus(freshResult.appointment.status)) {
+    if (!freshResult || isPortalChangeTimeBlocked(freshResult.appointment)) {
       // No silent fallback to the pre-claim entity: a vanished appointment means
       // the read this whole flow validated against is gone, and proceeding on it
       // would reserve a window for a row that may no longer exist. The DB gate in
@@ -283,7 +286,7 @@ export class JoinGroupUseCase {
 
     try {
       const fresh = await this.appointmentRepo.findById(input.appointmentId, null);
-      if (!fresh || isPortalDeadStatus(fresh.appointment.status)) {
+      if (!fresh || isPortalChangeTimeBlocked(fresh.appointment)) {
         throw new PortalAppointmentInactiveError();
       }
       // Re-checked against the fresh row: an operator may have moved it out of

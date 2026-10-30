@@ -1,6 +1,7 @@
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IServiceGroupRepository } from '../../../service-group/domain/service-group.repository';
 import { buildPortalEligibleSlots } from '../../../service-group/domain/portal-slot-capacity';
+import { isPortalChangeTimeBlocked } from '../../domain/portal-statuses';
 
 export interface GetAvailableGroupsInput {
   appointmentId: string;
@@ -35,6 +36,13 @@ export class GetAvailableGroupsUseCase {
     }
 
     const { appointment } = result;
+
+    // An inspector-driven rejection (INSPECTOR_UNABLE) is re-offered by operations,
+    // not from the tenant portal — never surface groups to join (L-F03-01, D20).
+    if (isPortalChangeTimeBlocked(appointment)) {
+      return { groups: [] };
+    }
+
     const today = new Date();
 
     const members = await this.serviceGroupRepo.findPortalEligibleSlots({

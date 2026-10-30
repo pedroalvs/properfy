@@ -7,6 +7,7 @@ import type { IServiceTypeRepository } from '../../../service-type/domain/servic
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-portal-activity.entity';
 import { PortalAppointmentInactiveError } from '../../domain/rental-tenant-portal.errors';
+import { isPortalChangeTimeBlocked } from '../../domain/portal-statuses';
 import type { ISatisfactionSurveyRepository } from '../../../satisfaction-survey/domain/satisfaction-survey.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 
@@ -95,6 +96,10 @@ export class GetPortalDataUseCase {
       appointment: {
         id: appointment.id,
         status: appointment.status,
+        // Whether the tenant may pick another time. False for an inspector-driven
+        // rejection (INSPECTOR_UNABLE), which only operations can re-offer
+        // (L-F03-01, D20). The confirmation status itself is left untouched.
+        canChangeTime: !isPortalChangeTimeBlocked(appointment),
         scheduledDate: appointment.scheduledDate.toISOString().slice(0, 10),
         timeSlotStart: appointment.timeSlotStart,
         timeSlotEnd: appointment.timeSlotEnd,

@@ -7,6 +7,7 @@ import type { MintPortalTokenService } from '../../../rental-tenant-portal/domai
 import type { BuildNotificationPayloadService } from '../../domain/build-notification-payload.service';
 import type { AppointmentCodeFormatter } from '../../../appointment/domain/appointment-code.formatter';
 import type { CreateNotificationUseCase } from '../use-cases/create-notification.use-case';
+import type { IInspectorFieldEventRepository } from '../../../inspector-execution/domain/inspector-field-event.repository';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { MetricsCollector } from '../../../../shared/infrastructure/metrics';
 import type { NotificationChannel } from '@properfy/shared';
@@ -154,6 +155,12 @@ export class NotifyOnStatusTransitionHandler {
     private readonly rentalTenantPortalBaseUrl: string,
     private readonly logger?: Logger,
     private readonly metrics?: MetricsCollector,
+    /**
+     * Field-event reader (F03, D26). Resolves the inspector who reported
+     * "Can't do this job" for the agency rejection email, because the
+     * appointment's own `inspectorId` is already null by the time this runs.
+     */
+    private readonly fieldEventRepo?: IInspectorFieldEventRepository,
   ) {}
 
   async execute(input: {
@@ -248,6 +255,15 @@ export class NotifyOnStatusTransitionHandler {
     // either: minting revokes the link the tenant is still holding, and after a
     // portal decline they need it to change time.
     if (isRejection) {
+      // When the inspector reported "Can't do this job", name them in the agency
+      // email (F03, D26). The appointment's own inspectorId is already null (it
+      // was released on rejection), so read the last CANT_DO. No raw coordinates
+      // are read or sent — only the inspector's name.
+      const inspectorName =
+        appointment.rejectionReasonCode === 'INSPECTOR_UNABLE' && this.fieldEventRepo
+          ? (await this.fieldEventRepo.findLatestCantDoByAppointmentId(appointment.id))
+              ?.inspectorName ?? null
+          : null;
       await this.announceToAgency({
         templateCode: AGENCY_REJECTED_TEMPLATE_CODE,
         appointment,
@@ -255,6 +271,7 @@ export class NotifyOnStatusTransitionHandler {
         tenant,
         propertyAddress: property?.fullAddress ?? '',
         serviceTypeName: result.serviceTypeName ?? null,
+        inspectorName,
       });
       return;
     }
@@ -417,6 +434,7 @@ export class NotifyOnStatusTransitionHandler {
     tenant: TenantEntity;
     propertyAddress: string;
     serviceTypeName: string | null;
+    inspectorName?: string | null;
   }): Promise<void> {
     try {
       const branch = await this.branchRepo.findById(
@@ -453,6 +471,7 @@ export class NotifyOnStatusTransitionHandler {
           branchName: branch.name,
           propertyAddress: ctx.propertyAddress,
           serviceTypeName: ctx.serviceTypeName,
+          inspectorName: ctx.inspectorName ?? null,
           rawPortalToken: null,
           portalBaseUrl: this.rentalTenantPortalBaseUrl,
           appointmentCodeFormatter: this.appointmentCodeFormatter,
