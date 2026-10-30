@@ -54,6 +54,14 @@ function makeInspector(overrides: Partial<InspectorDetail> = {}): InspectorDetai
     blockedClients: [],
     createdAt: '2026-01-10T10:00:00Z',
     updatedAt: '2026-01-10T10:00:00Z',
+    // F01-2 defaults: a located base and a fully-adopted app.
+    address: { street: '1 George St', suburb: 'Sydney', city: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' },
+    baseLat: -33.8688,
+    baseGeocodedAt: '2026-01-10T10:00:00Z',
+    appInstalledAt: '2026-01-05T08:00:00Z',
+    appLastSeenAt: '2026-01-10T09:00:00Z',
+    pushEnabled: true,
+    appVersion: '0.1.0+ab12cd3',
     ...overrides,
   };
 }
@@ -245,5 +253,76 @@ describe('InspectorDetailSections', () => {
 
     expect(await screen.findByText('Unknown')).toBeInTheDocument();
     expect(screen.queryByText(missingId)).not.toBeInTheDocument();
+  });
+
+  describe('F01-2 Base Address & App Adoption sections', () => {
+    it('renders the two section headings', () => {
+      render(<InspectorDetailSections inspector={makeInspector()} />, { wrapper });
+      expect(screen.getByText('Base Address')).toBeInTheDocument();
+      expect(screen.getByText('App Adoption')).toBeInTheDocument();
+    });
+
+    it('shows "Located · Updated …" when the base has coordinates', () => {
+      render(<InspectorDetailSections inspector={makeInspector()} />, { wrapper });
+      expect(screen.getByText(/Located · Updated/)).toBeInTheDocument();
+    });
+
+    it('shows "Could not be located" when address is present but baseLat is null', () => {
+      render(
+        <InspectorDetailSections inspector={makeInspector({ baseLat: null })} />,
+        { wrapper },
+      );
+      expect(screen.getByText('Could not be located')).toBeInTheDocument();
+    });
+
+    it('shows "Not set" when there is no address', () => {
+      render(
+        <InspectorDetailSections inspector={makeInspector({ address: undefined, baseLat: null })} />,
+        { wrapper },
+      );
+      expect(screen.getByText('Not set')).toBeInTheDocument();
+    });
+
+    it('renders every app-adoption fallback for an inspector who never opened the app', () => {
+      render(
+        <InspectorDetailSections
+          inspector={makeInspector({
+            appInstalledAt: null,
+            appLastSeenAt: null,
+            pushEnabled: null,
+            appVersion: null,
+          })}
+        />,
+        { wrapper },
+      );
+      expect(screen.getByText('Not installed')).toBeInTheDocument();
+      expect(screen.getByText('No data yet')).toBeInTheDocument();
+      expect(screen.getByText('Never')).toBeInTheDocument();
+    });
+
+    it('shows the app version verbatim and the "Last device seen" caption', () => {
+      render(<InspectorDetailSections inspector={makeInspector()} />, { wrapper });
+      expect(screen.getByText('0.1.0+ab12cd3')).toBeInTheDocument();
+      // Caption appears next to Push and App version.
+      expect(screen.getAllByText('Last device seen').length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('shows Push "Off" for a deactivated inspector with pushEnabled false', () => {
+      render(
+        <InspectorDetailSections
+          inspector={makeInspector({ status: InspectorStatus.INACTIVE, pushEnabled: false })}
+        />,
+        { wrapper },
+      );
+      expect(screen.getByText('Off')).toBeInTheDocument();
+    });
+
+    it('never renders a raw coordinate in the DOM', () => {
+      const { container } = render(
+        <InspectorDetailSections inspector={makeInspector()} />,
+        { wrapper },
+      );
+      expect(container.textContent).not.toContain('-33.8688');
+    });
   });
 });

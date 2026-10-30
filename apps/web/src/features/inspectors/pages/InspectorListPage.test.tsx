@@ -121,4 +121,34 @@ describe('InspectorListPage', () => {
     expect(screen.getAllByRole('status').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Carlos Silva')).not.toBeInTheDocument();
   });
+
+  it('shows the filter-specific empty state when the "No base address" filter returns nothing', async () => {
+    mockGet.mockImplementation(() =>
+      Promise.resolve({
+        data: { data: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 0 } },
+      }),
+    );
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    });
+    render(
+      <MemoryRouter
+        initialEntries={['/inspectors?missingBaseAddress=true']}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <SnackbarProvider>
+              <InspectorListPage />
+            </SnackbarProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('No inspectors without a base address.')).toBeInTheDocument();
+    });
+  });
 });

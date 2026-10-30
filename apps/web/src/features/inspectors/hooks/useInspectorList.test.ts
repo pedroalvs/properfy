@@ -129,6 +129,35 @@ describe('useInspectorList', () => {
     });
   });
 
+  it('adds missingBaseAddress=true to the query when the filter is enabled', async () => {
+    const wrapper = createRouterQueryWrapper();
+    const { result } = renderHook(() => useInspectorList(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    mockGet.mockClear();
+    act(() => {
+      result.current.setFilters({ ...result.current.filters, missingBaseAddress: true });
+    });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith('/v1/inspectors', {
+        params: { query: expect.objectContaining({ missingBaseAddress: 'true' }) },
+      });
+    });
+  });
+
+  it('omits missingBaseAddress from the query when the filter is off', async () => {
+    const wrapper = createRouterQueryWrapper();
+    const { result } = renderHook(() => useInspectorList(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const lastCall = mockGet.mock.calls.at(-1);
+    expect(lastCall?.[1]?.params?.query).not.toHaveProperty('missingBaseAddress');
+    expect(result.current.filters.missingBaseAddress).toBe(false);
+  });
+
   it('keeps a stable data array reference across re-renders with unchanged data', async () => {
     // Regression guard for the PR #961 bug class: an unstable reference here
     // can feed a consumer effect (e.g. deps [isEditMode, entity]) whose
