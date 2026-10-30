@@ -190,6 +190,7 @@ model Tenant {
   app_credentials        AppCredential[]
   satisfaction_surveys   SatisfactionSurvey[]
   cron_job_runs          CronJobRun[]
+  inspector_field_events InspectorFieldEvent[]
 
   @@index([status])
   @@map("tenants")
@@ -212,18 +213,18 @@ model CronJobRun {
 }
 
 model Branch {
-  id            String       @id @default(uuid())
-  tenant_id     String
-  name          String       @db.VarChar(200)
-  address_json  Json?
-  contact_email String?      @db.VarChar(254)
-  status        BranchStatus @default(ACTIVE)
+  id                      String       @id @default(uuid())
+  tenant_id               String
+  name                    String       @db.VarChar(200)
+  address_json            Json?
+  contact_email           String?      @db.VarChar(254)
+  status                  BranchStatus @default(ACTIVE)
   // Set when address_json.latitude/longitude were written from a PERMANENT
   // geocode (Mapbox terms). NULL means no coordinate or legacy temporary.
   geocoded_permanently_at DateTime?
-  created_at    DateTime     @default(now())
-  updated_at    DateTime     @updatedAt
-  deleted_at    DateTime?
+  created_at              DateTime     @default(now())
+  updated_at              DateTime     @updatedAt
+  deleted_at              DateTime?
 
   tenant              Tenant              @relation(fields: [tenant_id], references: [id])
   users               User[]
@@ -354,23 +355,23 @@ model PasswordHistory {
 }
 
 model Property {
-  id                     String          @id @default(uuid())
-  tenant_id              String
-  branch_id              String?
-  property_code          String          @db.VarChar(50)
+  id                      String          @id @default(uuid())
+  tenant_id               String
+  branch_id               String?
+  property_code           String          @db.VarChar(50)
   // Per-tenant sequential number backing the generated property_code
   // (PREFIX-PROP-0001). Nullable: rows created by the import worker (which
   // still carries client-supplied codes) don't receive one.
-  property_number        Int?
-  type                   PropertyType
+  property_number         Int?
+  type                    PropertyType
   // Free-text unit identifier, only meaningful for APARTMENT properties.
-  apartment_number       String?         @db.VarChar(50)
-  street                 String          @db.VarChar(300)
-  address_line_2         String?         @db.VarChar(200)
-  suburb                 String          @db.VarChar(100)
-  postcode               String          @db.VarChar(20)
-  state                  String          @db.VarChar(100)
-  country                String          @default("AU") @db.VarChar(100)
+  apartment_number        String?         @db.VarChar(50)
+  street                  String          @db.VarChar(300)
+  address_line_2          String?         @db.VarChar(200)
+  suburb                  String          @db.VarChar(100)
+  postcode                String          @db.VarChar(20)
+  state                   String          @db.VarChar(100)
+  country                 String          @default("AU") @db.VarChar(100)
   // Deterministic normalized-address key — trim + collapse-whitespace +
   // lowercase join of street|address_line_2(''-coalesced)|suburb|state|postcode.
   // ALWAYS recomputed by a BEFORE INSERT/UPDATE trigger (see migration
@@ -386,13 +387,13 @@ model Property {
   // `properties_normalized_address_active_unique` partial unique index
   // (WHERE deleted_at IS NULL), the DB-level guarantee behind the "perfect
   // address match" property-reuse rule.
-  normalized_address_key String          @default("") @db.VarChar(750)
+  normalized_address_key  String          @default("") @db.VarChar(750)
   // lat/lng are the display/transport coordinate; `coordinates` (PostGIS, below)
   // is the spatial source used for ST_Intersects/ST_DWithin. Both are kept in
   // sync app-side by prisma-property.repository.ts (syncCoordinates).
-  lat                    Decimal?        @db.Decimal(10, 7)
-  lng                    Decimal?        @db.Decimal(10, 7)
-  geocoding_status       GeocodingStatus @default(PENDING)
+  lat                     Decimal?        @db.Decimal(10, 7)
+  lng                     Decimal?        @db.Decimal(10, 7)
+  geocoding_status        GeocodingStatus @default(PENDING)
   // Set when lat/lng were written from a PERMANENT geocode (Mapbox terms). NULL
   // means: no coordinate, MANUAL, or legacy temporary. Feeds the X02-2 backfill
   // idempotency and the F03 geofence-BLOCK audit.
@@ -400,16 +401,16 @@ model Property {
   // Reason a FAILED geocode is NOT auto-retried by the sweep. Values:
   // MAPBOX_PERMANENT_GEOCODING_UNAVAILABLE (X02-1), LEGACY_PERMANENT_NO_RESULT (X02-2).
   geocoding_failure_code  String?         @db.VarChar(64)
-  private_area_m2        Decimal?        @db.Decimal(10, 2)
-  total_area_m2          Decimal?        @db.Decimal(10, 2)
-  furnished              Boolean?
-  linen_provided         Boolean?
-  rent_amount            Decimal?        @db.Decimal(12, 2)
-  notes                  String?         @db.Text
-  rules_json             Json            @default("{}")
-  created_at             DateTime        @default(now())
-  updated_at             DateTime        @updatedAt
-  deleted_at             DateTime?
+  private_area_m2         Decimal?        @db.Decimal(10, 2)
+  total_area_m2           Decimal?        @db.Decimal(10, 2)
+  furnished               Boolean?
+  linen_provided          Boolean?
+  rent_amount             Decimal?        @db.Decimal(12, 2)
+  notes                   String?         @db.Text
+  rules_json              Json            @default("{}")
+  created_at              DateTime        @default(now())
+  updated_at              DateTime        @updatedAt
+  deleted_at              DateTime?
 
   coordinates  Unsupported("GEOMETRY(Point, 4326)")?
   tenant       Tenant                                @relation(fields: [tenant_id], references: [id])
@@ -521,6 +522,7 @@ model Inspector {
   appointments            Appointment[]
   assigned_service_groups ServiceGroup[]
   executions              InspectionExecution[]
+  field_events            InspectorFieldEvent[]
   financial_entries       FinancialEntry[]
   invoices                InspectorInvoice[]
   inspector_regions       InspectorRegion[]
@@ -613,14 +615,15 @@ model Appointment {
   active_confirmation_cycle AppointmentConfirmationCycle?  @relation("ActiveCycle", fields: [active_confirmation_cycle_id], references: [id], onDelete: SetNull)
   confirmation_cycles       AppointmentConfirmationCycle[]
 
-  contacts          AppointmentContact[]
-  app_credentials   AppointmentAppCredential[]
-  restrictions      AppointmentRestriction[]
-  portal_tokens     RentalTenantPortalToken[]
-  portal_activities RentalTenantPortalActivity[]
-  execution         InspectionExecution?
-  financial_entries FinancialEntry[]
-  notifications     Notification[]
+  contacts            AppointmentContact[]
+  app_credentials     AppointmentAppCredential[]
+  restrictions        AppointmentRestriction[]
+  portal_tokens       RentalTenantPortalToken[]
+  portal_activities   RentalTenantPortalActivity[]
+  execution           InspectionExecution?
+  field_events        InspectorFieldEvent[]
+  financial_entries   FinancialEntry[]
+  notifications       Notification[]
   satisfaction_survey SatisfactionSurvey?
 
   @@index([tenant_id, status])
@@ -1200,31 +1203,35 @@ model SatisfactionSurvey {
 }
 
 model InspectionExecution {
-  id                          String    @id @default(uuid())
-  appointment_id              String    @unique
-  inspector_id                String
-  started_at                  DateTime
-  finished_at                 DateTime?
-  resumed_at                  DateTime?
-  start_latitude              Decimal   @db.Decimal(10, 7)
-  start_longitude             Decimal   @db.Decimal(10, 7)
-  finish_latitude             Decimal?  @db.Decimal(10, 7)
-  finish_longitude            Decimal?  @db.Decimal(10, 7)
-  geolocation_distance_meters Decimal?  @db.Decimal(10, 2)
+  id                                 String    @id @default(uuid())
+  appointment_id                     String    @unique
+  inspector_id                       String
+  started_at                         DateTime
+  finished_at                        DateTime?
+  resumed_at                         DateTime?
+  start_latitude                     Decimal   @db.Decimal(10, 7)
+  start_longitude                    Decimal   @db.Decimal(10, 7)
+  finish_latitude                    Decimal?  @db.Decimal(10, 7)
+  finish_longitude                   Decimal?  @db.Decimal(10, 7)
+  geolocation_distance_meters        Decimal?  @db.Decimal(10, 2)
   // F03 capture + geofence fields (expand-only; nullable/defaulted).
-  start_accuracy_m                    Decimal? @db.Decimal(10, 2)
-  finish_accuracy_m                   Decimal? @db.Decimal(10, 2)
-  start_client_at                     DateTime?
-  finish_client_at                    DateTime?
-  finish_geolocation_distance_meters  Decimal? @db.Decimal(10, 2)
-  out_of_radius                       Boolean  @default(false)
-  out_of_window                       Boolean  @default(false)
-  finish_out_of_radius                Boolean  @default(false)
+  start_accuracy_m                   Decimal?  @db.Decimal(10, 2)
+  finish_accuracy_m                  Decimal?  @db.Decimal(10, 2)
+  start_client_at                    DateTime?
+  finish_client_at                   DateTime?
+  finish_geolocation_distance_meters Decimal?  @db.Decimal(10, 2)
+  out_of_radius                      Boolean   @default(false)
+  out_of_window                      Boolean   @default(false)
+  finish_out_of_radius               Boolean   @default(false)
   // Snapshot of the radius applied at check-in; written on every post-F03 start.
   // NULL means exclusively "execution created before F03".
-  geofence_radius_m                   Int?
-  created_at                  DateTime  @default(now())
-  updated_at                  DateTime  @updatedAt
+  geofence_radius_m                  Int?
+  // Set when the inspector reports "Can't do this job" after checking in (F03).
+  // A non-null value means the check-in was abandoned: every execution reader
+  // treats the row as "not started", and a later start restarts the same row.
+  abandoned_at                       DateTime?
+  created_at                         DateTime  @default(now())
+  updated_at                         DateTime  @updatedAt
 
   appointment Appointment @relation(fields: [appointment_id], references: [id])
   inspector   Inspector   @relation(fields: [inspector_id], references: [id])
@@ -1234,6 +1241,40 @@ model InspectionExecution {
   @@index([out_of_radius, started_at])
   @@index([out_of_window, started_at])
   @@map("inspection_executions")
+}
+
+enum InspectorFieldEventType {
+  CANT_DO
+  LATE_NOTICE
+}
+
+// Immutable record that an inspector reported something from the field (F03):
+// "Can't do this job" (CANT_DO) or "Running late" (LATE_NOTICE). Carries the
+// appointment's tenant_id (agency-scoped — NOT a platform-scoped exception).
+model InspectorFieldEvent {
+  id                 String                  @id @default(uuid())
+  appointment_id     String
+  inspector_id       String
+  tenant_id          String // appointment's tenant — scope + reports
+  type               InspectorFieldEventType
+  reason_code        String                  @db.VarChar(50) // FieldIssueReason | LateNoticeReason (validated in shared Zod)
+  note               String?                 @db.Text // CANT_DO only, <= 500 chars (Zod); LATE_NOTICE has no note
+  minutes            Int? // LATE_NOTICE only (5..240)
+  latitude           Decimal?                @db.Decimal(10, 7)
+  longitude          Decimal?                @db.Decimal(10, 7)
+  accuracy_m         Decimal?                @db.Decimal(10, 2)
+  client_occurred_at DateTime?
+  created_at         DateTime                @default(now())
+
+  appointment Appointment @relation(fields: [appointment_id], references: [id])
+  inspector   Inspector   @relation(fields: [inspector_id], references: [id])
+  tenant      Tenant      @relation(fields: [tenant_id], references: [id])
+
+  @@index([appointment_id, type, created_at(sort: Desc)])
+  @@index([inspector_id, created_at])
+  @@index([tenant_id, created_at])
+  @@index([type, created_at])
+  @@map("inspector_field_events")
 }
 
 model IdempotencyKey {
@@ -1370,23 +1411,23 @@ model Notification {
 }
 
 model NotificationTemplate {
-  id                 String              @id @default(uuid())
-  tenant_id          String?
-  template_code      String              @db.VarChar(100)
-  channel            NotificationChannel
-  subject            String?             @db.VarChar(255)
-  body_html          String?             @db.Text
-  body_text          String              @db.Text
-  variables_json     Json
-  is_active          Boolean             @default(true)
-  notification_class NotificationClass   @default(OPERATIONAL)
+  id                  String              @id @default(uuid())
+  tenant_id           String?
+  template_code       String              @db.VarChar(100)
+  channel             NotificationChannel
+  subject             String?             @db.VarChar(255)
+  body_html           String?             @db.Text
+  body_text           String              @db.Text
+  variables_json      Json
+  is_active           Boolean             @default(true)
+  notification_class  NotificationClass   @default(OPERATIONAL)
   /// SHA-256 of the seed content this row was last written with (platform rows
   /// only). Startup sync refreshes a row from the code catalog only while its
   /// current content still matches this hash — a human edit breaks the match
   /// and protects the row. NULL = unknown provenance, never auto-refreshed.
-  seeded_content_hash String?            @db.VarChar(64)
-  created_at         DateTime            @default(now())
-  updated_at         DateTime            @updatedAt
+  seeded_content_hash String?             @db.VarChar(64)
+  created_at          DateTime            @default(now())
+  updated_at          DateTime            @updatedAt
 
   tenant Tenant? @relation(fields: [tenant_id], references: [id])
 
