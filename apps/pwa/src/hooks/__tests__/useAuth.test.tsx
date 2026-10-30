@@ -229,6 +229,16 @@ describe('useAuth logout unsubscribes this device from push (F02-3)', () => {
     await waitFor(() => expect(result.current.isAuthenticated).toBe(false));
   });
 
+  it('still unsubscribes this device locally when there is no token (shared-device leak guard)', async () => {
+    mockGetAccessToken.mockReturnValue(null);
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    act(() => {
+      result.current.logout();
+    });
+    await waitFor(() => expect(unsubscribe).toHaveBeenCalled());
+    expect(fetchMock).not.toHaveBeenCalled(); // no token → no server POST
+  });
+
   it('does nothing push-related when there is no local subscription', async () => {
     getSubscription.mockResolvedValue(null);
     const { result } = renderHook(() => useAuth(), { wrapper });

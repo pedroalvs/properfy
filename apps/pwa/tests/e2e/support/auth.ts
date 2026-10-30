@@ -16,6 +16,14 @@ export { INSPECTOR_ME };
  *     (not only Profile), so this query now runs on every authenticated boot. Its
  *     default body is a LOCATED base, so the banner stays hidden by default; a spec
  *     that exercises the missing/legacy-base states overrides it (last-route-wins).
+ *   - `GET /v1/inspectors/me/notices/unread-count` — F02-3 Profile-tab + tile unread
+ *     badge, read from `BottomNavBar` (mounted on every authenticated screen).
+ *   - `GET /v1/inspectors/me/push-config` — F02-3 `usePushSubscriptionSync` /
+ *     `PushPreferenceCard`, fetched on every authenticated boot. `null` key = push
+ *     unavailable (no VAPID), so the resync stays a no-op in tests.
+ *   - `POST /v1/inspectors/me/push-subscriptions` — F02-3 resync POST; only fires
+ *     with a real local subscription (never in the hermetic suite), stubbed 204 for
+ *     safety so it can never hit the 501 catch-all.
  */
 export const BASELINE_STUBS: ReadonlyArray<{ path: string; body: unknown; status?: number }> = [
   { path: '/v1/me', body: INSPECTOR_ME },
@@ -33,6 +41,9 @@ export const BASELINE_STUBS: ReadonlyArray<{ path: string; body: unknown; status
       },
     },
   },
+  { path: '/v1/inspectors/me/notices/unread-count', body: { data: { count: 0 } } },
+  { path: '/v1/inspectors/me/push-config', body: { data: { vapidPublicKey: null } } },
+  { path: '/v1/inspectors/me/push-subscriptions', body: null, status: 204 },
 ];
 
 export interface LoginOptions {

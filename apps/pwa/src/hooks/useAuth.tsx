@@ -39,7 +39,6 @@ function clearInspectorCachedData(): void {
  * server also revokes the endpoint on the next 410.
  */
 function unsubscribeThisDevice(token: string | null): void {
-  if (!token) return;
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
   void (async () => {
     try {
@@ -47,11 +46,17 @@ function unsubscribeThisDevice(token: string | null): void {
       const subscription = await registration?.pushManager.getSubscription();
       if (!subscription) return;
       try {
-        await fetch(`${env.apiBaseUrl}/v1/inspectors/me/push-subscriptions/unsubscribe`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ endpoint: subscription.endpoint }),
-        });
+        // Only the server POST needs the token. Without one (tokens already
+        // cleared) we skip it but STILL drop the local subscription, so this
+        // device never keeps delivering push to the next inspector on a shared
+        // device — the server revokes the stale endpoint on its next 410.
+        if (token) {
+          await fetch(`${env.apiBaseUrl}/v1/inspectors/me/push-subscriptions/unsubscribe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ endpoint: subscription.endpoint }),
+          });
+        }
       } finally {
         await subscription.unsubscribe();
       }
