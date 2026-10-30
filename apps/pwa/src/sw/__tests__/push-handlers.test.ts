@@ -98,7 +98,7 @@ describe('resolveClickTarget', () => {
         matchAll: vi.fn().mockResolvedValue(clients),
         openWindow: vi.fn().mockResolvedValue(null),
       },
-    } as any;
+    } as unknown as ServiceWorkerGlobalScope;
   }
 
   it('focuses and navigates an existing same-origin client', async () => {
@@ -132,7 +132,7 @@ describe('handleSubscriptionChange', () => {
     return {
       registration: { pushManager: { subscribe } },
       clients: { matchAll: vi.fn().mockResolvedValue(windows) },
-    } as any;
+    } as unknown as ServiceWorkerGlobalScope;
   }
 
   it('messages windows without re-subscribing when newSubscription is present', async () => {

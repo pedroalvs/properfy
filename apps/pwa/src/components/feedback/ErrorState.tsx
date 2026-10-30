@@ -6,9 +6,11 @@ interface ErrorStateProps {
   message: string;
   onRetry: () => void;
   detail?: string;
+  /** Retry button label; defaults to "Try Again". */
+  retryLabel?: string;
 }
 
-export function ErrorState({ message, onRetry, detail }: ErrorStateProps) {
+export function ErrorState({ message, onRetry, detail, retryLabel = 'Try Again' }: ErrorStateProps) {
   return (
     <div className="px-page-x py-12">
       <Alert tone="destructive" className="flex-col items-center text-center">
@@ -17,7 +19,7 @@ export function ErrorState({ message, onRetry, detail }: ErrorStateProps) {
         {detail && <AlertDescription className="mt-1">{detail}</AlertDescription>}
         <div className="mt-4">
           <Button variant="outlined" onClick={onRetry}>
-            Try Again
+            {retryLabel}
           </Button>
         </div>
       </Alert>

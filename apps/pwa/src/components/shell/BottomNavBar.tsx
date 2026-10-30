@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import { NavLink } from 'react-router-dom';
 import { CreditCard, User } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
+import { useUnreadNoticeCount } from '@/features/announcements/hooks/useUnreadNoticeCount';
 
 type NavIconProps = {
   size?: number | string;
@@ -74,6 +75,8 @@ const navItems: NavItem[] = [
 ];
 
 export function BottomNavBar() {
+  const { count: unreadNotices } = useUnreadNoticeCount();
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card pb-safe-b"
@@ -82,10 +85,13 @@ export function BottomNavBar() {
       <div className="mx-auto grid w-full max-w-screen-sm grid-cols-4 gap-1 px-[6px] pt-[9px]">
         {navItems.map((item) => {
           const Icon = item.icon;
+          const showBadge = item.to === '/profile' && unreadNotices > 0;
+          const badgeLabel = unreadNotices > 9 ? '9+' : String(unreadNotices);
           return (
             <NavLink
               key={item.to}
               to={item.to}
+              aria-label={showBadge ? `${item.label}, ${unreadNotices} unread announcements` : undefined}
               className={({ isActive }) =>
                 cn(
                   'flex min-h-touch min-w-touch touch-manipulation flex-col items-center justify-center gap-0.5 px-2 text-[11px] font-semibold transition-colors',
@@ -94,7 +100,17 @@ export function BottomNavBar() {
               }
               data-testid={`nav-${item.label.toLowerCase()}`}
             >
-              <Icon size={24} aria-hidden="true" className="shrink-0" />
+              <span className="relative shrink-0">
+                <Icon size={24} aria-hidden="true" className="shrink-0" />
+                {showBadge && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground"
+                  >
+                    {badgeLabel}
+                  </span>
+                )}
+              </span>
               <span className="w-full truncate text-center">{item.label}</span>
             </NavLink>
           );

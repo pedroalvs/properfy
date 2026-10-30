@@ -1,8 +1,18 @@
 import { screen } from '@testing-library/react';
+import { beforeEach, vi } from 'vitest';
 import { BottomNavBar } from '../BottomNavBar';
 import { renderWithProviders } from '@/test-utils';
 
+const { countRef } = vi.hoisted(() => ({ countRef: { value: 0 } }));
+vi.mock('@/features/announcements/hooks/useUnreadNoticeCount', () => ({
+  useUnreadNoticeCount: () => ({ count: countRef.value }),
+}));
+
 describe('BottomNavBar', () => {
+  beforeEach(() => {
+    countRef.value = 0;
+  });
+
   it('renders 4 navigation tabs', () => {
     renderWithProviders(<BottomNavBar />);
     const nav = screen.getByTestId('bottom-nav');
@@ -127,5 +137,29 @@ describe('BottomNavBar', () => {
     const svg = screen.getByTestId('nav-profile').querySelector('svg')!;
     expect(svg).toBeTruthy();
     expect(svg.classList.contains('lucide-user')).toBe(true);
+  });
+
+  it('shows an unread badge with the count and an accessible name on the Profile tab', () => {
+    countRef.value = 3;
+    renderWithProviders(<BottomNavBar />);
+    const profileTab = screen.getByTestId('nav-profile');
+    expect(profileTab).toHaveAccessibleName('Profile, 3 unread announcements');
+    expect(profileTab.querySelector('span[aria-hidden="true"]')?.textContent).toBe('3');
+  });
+
+  it('caps the badge at "9+" above nine unread', () => {
+    countRef.value = 12;
+    renderWithProviders(<BottomNavBar />);
+    const profileTab = screen.getByTestId('nav-profile');
+    expect(profileTab).toHaveAccessibleName('Profile, 12 unread announcements');
+    expect(profileTab.textContent).toContain('9+');
+  });
+
+  it('shows no badge and no unread accessible name when the count is zero', () => {
+    countRef.value = 0;
+    renderWithProviders(<BottomNavBar />);
+    const profileTab = screen.getByTestId('nav-profile');
+    expect(profileTab.getAttribute('aria-label')).toBeNull();
+    expect(profileTab.textContent).not.toContain('9+');
   });
 });

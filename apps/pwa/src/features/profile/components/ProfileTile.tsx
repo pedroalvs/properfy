@@ -25,6 +25,8 @@ interface ProfileTileProps {
   value?: string;
   /** Drives the corner status dot and the value colour. */
   tone?: ProfileTileTone;
+  /** Extra classes on the tile (e.g. `col-span-2` for a full-width tile). */
+  className?: string;
   'data-testid'?: string;
 }
 
@@ -40,6 +42,7 @@ export function ProfileTile({
   to,
   value,
   tone = 'default',
+  className,
   'data-testid': testId,
 }: ProfileTileProps) {
   return (
@@ -52,6 +55,7 @@ export function ProfileTile({
       className={cn(
         'relative flex min-h-[112px] touch-manipulation flex-col justify-between gap-3 rounded-card border border-border bg-card p-4 shadow-sm',
         'transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+        className,
       )}
     >
       {tone !== 'default' && (

@@ -9,7 +9,9 @@ import { ProfilePage } from './ProfilePage';
  */
 export function ProfileLayout() {
   const navigate = useNavigate();
-  const hasSelection = useMatch('/profile/:section') !== null;
+  // Match one OR two segments so the announcement detail (/profile/announcements/:id)
+  // also opens the detail pane in the wide layout, not just single-segment sections.
+  const hasSelection = useMatch('/profile/:section/*') !== null;
 
   return (
     <TwoPaneLayout

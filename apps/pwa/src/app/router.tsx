@@ -79,6 +79,16 @@ const ProfileSettingsPage = lazyRetry(() =>
     default: module.ProfileSettingsPage,
   })),
 );
+const AnnouncementsPage = lazyRetry(() =>
+  import('@/features/announcements/pages/AnnouncementsPage').then((module) => ({
+    default: module.AnnouncementsPage,
+  })),
+);
+const AnnouncementDetailPage = lazyRetry(() =>
+  import('@/features/announcements/pages/AnnouncementDetailPage').then((module) => ({
+    default: module.AnnouncementDetailPage,
+  })),
+);
 const EarningsPage = lazyRetry(() =>
   import('@/features/earnings/pages/EarningsPage').then((module) => ({
     default: module.EarningsPage,
@@ -179,6 +189,8 @@ export const router = createBrowserRouter(
                     { path: 'documents', element: lazyElement(ProfileDocumentsPage) },
                     { path: 'account', element: lazyElement(ProfileAccountPage) },
                     { path: 'settings', element: lazyElement(ProfileSettingsPage) },
+                    { path: 'announcements', element: lazyElement(AnnouncementsPage) },
+                    { path: 'announcements/:noticeId', element: lazyElement(AnnouncementDetailPage) },
                     { path: 'edit', element: <Navigate to="/profile/account" replace /> },
                   ],
                 },
