@@ -127,9 +127,13 @@ test.describe('F01-2 inspector base address & app adoption (web)', () => {
     // Open the located inspector's detail.
     await page.getByRole('row', { name: /Alice Located/ }).getByLabel('View').click();
 
-    await expect(page.getByRole('heading', { name: 'Base Address' })).toBeVisible();
-    await expect(page.getByText(/Located · Updated/)).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'App Adoption' })).toBeVisible();
-    await expect(page.getByText('0.1.0+ab12cd3')).toBeVisible();
+    // Scope to the detail dialog: the (closed) create/edit form drawer also owns a
+    // "Base Address" FormSection heading, so a page-wide query is ambiguous. The
+    // detail drawer is the only dialog with an "App Adoption" section.
+    const detail = page.getByRole('dialog').filter({ hasText: 'App Adoption' });
+    await expect(detail.getByRole('heading', { name: 'Base Address' })).toBeVisible();
+    await expect(detail.getByText(/Located · Updated/)).toBeVisible();
+    await expect(detail.getByRole('heading', { name: 'App Adoption' })).toBeVisible();
+    await expect(detail.getByText('0.1.0+ab12cd3')).toBeVisible();
   });
 });
