@@ -146,28 +146,32 @@ export function useMapPeriodWindow(): UseMapPeriodWindowResult {
 
   const onAppointmentFiltersChange = useCallback(
     (next: AppointmentModeFilters) => {
-      setAppointmentFilters((prev) => {
-        // Manual date edit.
-        if (next.dateFrom !== prev.dateFrom || next.dateTo !== prev.dateTo) {
-          if (isGlobalRole) {
-            // AM/OP: the typed dates win and the window turns off.
-            setWindowActive((w) => ({ ...w, appointments: false }));
-            return next;
-          }
-          // CL: clamp into the window (state === request).
-          const today = todayInTzDateString(appointmentTimezone);
-          const clamped = clampRangeToWindow(
-            { dateFrom: next.dateFrom, dateTo: next.dateTo },
-            computeWindowRange(appointmentWindowDays, today),
-          );
-          return { ...next, dateFrom: clamped.dateFrom, dateTo: clamped.dateTo };
-        }
-        // Any other field (incl. the agency filter): pass through untouched. An agency switch
-        // changes `resolvedKey`, and the render-phase convergence above reapplies the window.
-        return next;
-      });
+      // The event handler reads the current committed `appointmentFilters` (a dep below, so the
+      // closure is fresh) rather than a `setAppointmentFilters` updater — both state writes stay
+      // top-level and pure (no `setWindowActive` inside an updater).
+      const dateEdited =
+        next.dateFrom !== appointmentFilters.dateFrom || next.dateTo !== appointmentFilters.dateTo;
+      if (dateEdited && isGlobalRole) {
+        // AM/OP: the typed dates win and the window turns off.
+        setWindowActive((w) => ({ ...w, appointments: false }));
+        setAppointmentFilters(next);
+        return;
+      }
+      if (dateEdited) {
+        // CL: clamp into the window (state === request).
+        const today = todayInTzDateString(appointmentTimezone);
+        const clamped = clampRangeToWindow(
+          { dateFrom: next.dateFrom, dateTo: next.dateTo },
+          computeWindowRange(appointmentWindowDays, today),
+        );
+        setAppointmentFilters({ ...next, dateFrom: clamped.dateFrom, dateTo: clamped.dateTo });
+        return;
+      }
+      // Any other field (incl. the agency filter): pass through untouched. An agency switch
+      // changes `resolvedKey`, and the render-phase convergence above reapplies the window.
+      setAppointmentFilters(next);
     },
-    [isGlobalRole, appointmentWindowDays, appointmentTimezone],
+    [appointmentFilters, isGlobalRole, appointmentWindowDays, appointmentTimezone],
   );
 
   const onGroupFiltersChange = useCallback(
