@@ -92,6 +92,14 @@ describe('usePushSubscription — enable/disable', () => {
     expect(deps.saveSubscription).not.toHaveBeenCalled();
   });
 
+  it('returns to off (not blocked) when the permission prompt is dismissed', async () => {
+    const deps = makeDeps({ requestPermission: vi.fn().mockResolvedValue('default') });
+    const r = await settle(deps);
+    await act(async () => { await r.current.enable(); });
+    expect(r.current.state).toBe('off');
+    expect(deps.saveSubscription).not.toHaveBeenCalled();
+  });
+
   it('rolls back and reports save-failed when the POST fails', async () => {
     const sub = fakeSub(new Uint8Array([1, 2, 3]).buffer);
     const deps = makeDeps({

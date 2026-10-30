@@ -141,7 +141,10 @@ export function usePushSubscription(deps: PushDeps): UsePushSubscriptionResult {
     setState('enabling');
     const permission = await d.requestPermission();
     if (permission !== 'granted') {
-      setState('blocked');
+      // Only an explicit 'denied' is blocked. A dismissed prompt stays 'default',
+      // which is still toggleable — showing 'blocked' there would be false and
+      // would not self-recover (the permission snapshot is unchanged).
+      setState(permission === 'denied' ? 'blocked' : 'off');
       return;
     }
     let sub: PushSubscription | null = null;
