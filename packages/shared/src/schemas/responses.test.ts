@@ -1371,3 +1371,101 @@ describe('finishInspectionResponseSchema — F03 fields', () => {
     ).toBe(true);
   });
 });
+
+describe('appointmentResponseSchema — inspectorIssue (F03)', () => {
+  const validBase = {
+    id: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee111',
+    tenantId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee112',
+    branchId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee113',
+    propertyId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee114',
+    serviceTypeId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee115',
+    inspectorId: null,
+    status: 'REJECTED',
+    scheduledDate: '2026-07-10',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '12:00',
+    rentalTenantConfirmationStatus: 'PENDING',
+    priceAmount: 100,
+    payoutAmount: 80,
+    notes: null,
+    createdByUserId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee116',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    updatedAt: '2026-07-01T00:00:00.000Z',
+  };
+
+  it('accepts without inspectorIssue (ungrouped / no field event)', () => {
+    expect(appointmentResponseSchema.safeParse(validBase).success).toBe(true);
+  });
+
+  it('accepts a null inspectorIssue', () => {
+    expect(appointmentResponseSchema.safeParse({ ...validBase, inspectorIssue: null }).success).toBe(true);
+  });
+
+  it('accepts a populated inspectorIssue with inspectorId', () => {
+    const result = appointmentResponseSchema.safeParse({
+      ...validBase,
+      inspectorIssue: {
+        reason: 'KEY_FAILED',
+        note: 'Lockbox code wrong',
+        inspectorId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee117',
+        inspectorName: 'Jane Doe',
+        occurredAt: '2026-07-10T09:41:12.000Z',
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('inspectorAppointmentDetailResponseSchema — lastFieldIssue (F03)', () => {
+  const validBase = {
+    id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    status: 'SCHEDULED',
+    scheduledDate: '2027-06-15',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '11:00',
+    serviceTypeId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22',
+    serviceTypeName: 'Routine Inspection',
+    flowType: 'ROUTINE',
+    propertyId: 'c2ddfe22-2b3c-4ef9-cc7e-7cc0ce491b33',
+    propertyAddress: '123 Main St',
+    suburb: 'Brunswick',
+    propertyLatitude: null,
+    propertyLongitude: null,
+    rentalTenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmation: 'PENDING',
+    keyRequired: false,
+    meetingLocation: null,
+    keyLocation: null,
+    rentalTenantName: 'John Tenant',
+    rentalTenantPhone: null,
+    rentalTenantEmail: null,
+    notes: null,
+    rentalTenantNote: null,
+    observation: null,
+    restrictionsSummary: null,
+    contact: null,
+    restrictions: [],
+    execution: null,
+    assets: [],
+    apps: [],
+  };
+
+  it('accepts without lastFieldIssue', () => {
+    expect(inspectorAppointmentDetailResponseSchema.safeParse(validBase).success).toBe(true);
+  });
+
+  it('accepts a null lastFieldIssue', () => {
+    expect(
+      inspectorAppointmentDetailResponseSchema.safeParse({ ...validBase, lastFieldIssue: null }).success,
+    ).toBe(true);
+  });
+
+  it('accepts a populated lastFieldIssue', () => {
+    expect(
+      inspectorAppointmentDetailResponseSchema.safeParse({
+        ...validBase,
+        lastFieldIssue: { reason: 'KEY_FAILED', note: 'Lockbox code wrong', occurredAt: '2027-06-15T09:41:12.000Z' },
+      }).success,
+    ).toBe(true);
+  });
+});

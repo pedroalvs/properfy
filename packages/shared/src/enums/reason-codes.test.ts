@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CancellationReasonCode, RejectionReasonCode } from './reason-codes';
+import { CancellationReasonCode, RejectionReasonCode, SYSTEM_ONLY_REJECTION_CODES } from './reason-codes';
 
 describe('CancellationReasonCode', () => {
   it('has expected codes', () => {
@@ -39,7 +39,20 @@ describe('RejectionReasonCode', () => {
     expect(RejectionReasonCode.TENANT_DECLINED).not.toBe(RejectionReasonCode.TENANT_NO_RESPONSE);
   });
 
-  it('has exactly 8 codes', () => {
-    expect(Object.keys(RejectionReasonCode)).toHaveLength(8);
+  it('has INSPECTOR_UNABLE, assigned by the system only', () => {
+    expect(RejectionReasonCode.INSPECTOR_UNABLE).toBe('INSPECTOR_UNABLE');
+  });
+
+  // TASK-F07-1 raises this to 11 (INSPECTOR_NO_SHOW, NOT_EXECUTED). Keep this
+  // assertion scoped to "exactly 9" here; do not depend on the list being
+  // closed beyond this count.
+  it('has exactly 9 codes', () => {
+    expect(Object.keys(RejectionReasonCode)).toHaveLength(9);
+  });
+});
+
+describe('SYSTEM_ONLY_REJECTION_CODES', () => {
+  it('contains only INSPECTOR_UNABLE', () => {
+    expect(SYSTEM_ONLY_REJECTION_CODES).toEqual([RejectionReasonCode.INSPECTOR_UNABLE]);
   });
 });
