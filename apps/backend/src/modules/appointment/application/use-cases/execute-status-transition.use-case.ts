@@ -424,8 +424,13 @@ export class ExecuteStatusTransitionUseCase {
     // DRAFT appointment with a live cycle.
     if (targetStatus === 'DRAFT' && this.cycleService) {
       const reopen = async (client?: Prisma.TransactionClient) => {
-        // Reopen targets DRAFT; finish/can't-do never reopen, so no CAS here.
-        await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData, client);
+        // Reopen targets DRAFT; finish/can't-do never reopen. Honour expectedStatus
+        // if a caller ever pairs it with a reopen, but keep the 4-arg call otherwise.
+        if (expectedStatus !== undefined) {
+          await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData, client, expectedStatus);
+        } else {
+          await this.appointmentRepo.update(appointmentId, appointment.tenantId, updateData, client);
+        }
         await this.cycleService!.invalidateOnReopen(appointmentId, appointment.tenantId, client);
       };
       if (tx) await reopen(tx);

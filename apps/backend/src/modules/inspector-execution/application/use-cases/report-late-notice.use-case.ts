@@ -169,7 +169,13 @@ export class ReportLateNoticeUseCase {
       estimatedArrivalAt: estimatedArrivalAt.toISOString(),
     };
 
+    let didWrite = false;
     await runInTransaction(this.prisma, async ({ tx }) => {
+      // Lock the appointment row first so late-notice serialises with finish /
+      // can't-do on the same row (consistent order), and a concurrent same-key
+      // request waits and then replays rather than racing a second insert.
+      await this.fieldEventRepo.lockAppointmentForFieldEvent(appointmentId, tx!);
+
       // Re-read idempotency inside the transaction so a concurrent request with the
       // same key that committed first returns its result instead of writing twice.
       const inTx = await this.idempotencyService.getWithHash<ReportLateNoticeOutput>(
@@ -183,6 +189,18 @@ export class ReportLateNoticeUseCase {
         }
         Object.assign(output, inTx.response);
         return;
+      }
+
+      // Re-read under the lock: a can't-do/finish that committed between the checks
+      // above and the lock may have moved the job out of SCHEDULED or released the
+      // inspector — don't record a late notice against it.
+      const locked = await this.appointmentRepo.findById(appointmentId, null, tx);
+      if (
+        !locked ||
+        locked.appointment.inspectorId !== inspectorId ||
+        locked.appointment.status !== 'SCHEDULED'
+      ) {
+        throw new ExecutionAppointmentNotFoundError();
       }
 
       const event = new InspectorFieldEventEntity({
@@ -202,9 +220,16 @@ export class ReportLateNoticeUseCase {
       });
       await this.fieldEventRepo.create(event, tx);
       await this.idempotencyService.set(idempotencyKey, 'late-notice', output, 24, payloadHash, tx);
+      didWrite = true;
     });
 
-    // After-commit side effects — logged, never fail the response.
+    // After-commit side effects — only for a real write (never on an idempotent
+    // replay, which would audit + emit a phantom event id), logged, never fail the
+    // response.
+    if (!didWrite) {
+      return output;
+    }
+
     try {
       this.auditService.log({
         action: 'inspector_field_event.late_notice',

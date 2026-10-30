@@ -69,7 +69,7 @@ export class PrismaInspectorFieldEventRepository implements IInspectorFieldEvent
         JOIN inspectors i ON i.id = e.inspector_id
        WHERE e.appointment_id = ANY(${appointmentIds}::text[])
          AND e.type = 'CANT_DO'
-       ORDER BY e.appointment_id, e.created_at DESC
+       ORDER BY e.appointment_id, e.created_at DESC, e.id DESC
     `;
     return rows.map(toLatestCantDo);
   }
@@ -80,7 +80,8 @@ export class PrismaInspectorFieldEventRepository implements IInspectorFieldEvent
   ): Promise<LatestCantDo | null> {
     const row = await this.db(tx).inspectorFieldEvent.findFirst({
       where: { appointment_id: appointmentId, type: 'CANT_DO' },
-      orderBy: { created_at: 'desc' },
+      // id tiebreaker so two events in the same millisecond order deterministically.
+      orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
       include: { inspector: { select: { name: true } } },
     });
     if (!row) return null;
@@ -97,7 +98,7 @@ export class PrismaInspectorFieldEventRepository implements IInspectorFieldEvent
   async listByAppointmentId(appointmentId: string, limit: number): Promise<FieldEventRecord[]> {
     const rows = await this.prisma.inspectorFieldEvent.findMany({
       where: { appointment_id: appointmentId },
-      orderBy: { created_at: 'desc' },
+      orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
       take: limit,
       include: { inspector: { select: { name: true } } },
     });

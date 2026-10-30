@@ -239,4 +239,41 @@ describe('ReportLateNoticeUseCase', () => {
       code: 'FIELD_EVENT_IDEMPOTENCY_PAYLOAD_MISMATCH',
     });
   });
+
+  it('replay committed concurrently (outer miss, in-tx hit): returns the cache, no write, no phantom audit/event', async () => {
+    // The outer idempotency read misses, but a concurrent request with the same
+    // key commits before this one re-reads inside the transaction. The in-tx hit
+    // must return the cached response WITHOUT creating an event, auditing, or
+    // emitting a RECORDED event with an id that was never persisted.
+    const cachedResponse = {
+      eventId: 'committed-by-other',
+      appointmentId: 'apt-1',
+      occurredAt: 'x',
+      reason: 'TRAFFIC' as const,
+      minutesLate: 20,
+      referenceAt: 'x',
+      referenceSource: 'WINDOW_START' as const,
+      estimatedArrivalAt: 'x',
+    };
+    const emit = vi.fn().mockResolvedValue(undefined);
+    const eventBus = new DomainEventBus();
+    eventBus.emit = emit;
+    const ctx = build({
+      eventBus,
+      idempotency: {
+        getWithHash: vi
+          .fn()
+          .mockResolvedValueOnce(null) // outer read: miss
+          .mockResolvedValueOnce({ response: cachedResponse, payloadHash: null }), // in-tx: concurrent commit visible
+        set: vi.fn(),
+      },
+    });
+
+    const result = await ctx.useCase.execute(baseInput);
+
+    expect(result).toEqual(cachedResponse);
+    expect(ctx.fieldEventRepo.create).not.toHaveBeenCalled();
+    expect(ctx.auditService.log).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
+  });
 });
