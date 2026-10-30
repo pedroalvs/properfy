@@ -9,6 +9,13 @@ vi.mock('@/app/useInstallPrompt', () => ({
   InstallPromptProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+// The push control's effects are covered in its own suite; here we only verify
+// it fills the reserved slot above the install card.
+vi.mock('@/features/push/hooks/useBrowserPushDeps', () => ({ useBrowserPushDeps: () => ({}) }));
+vi.mock('@/features/push/hooks/usePushSubscription', () => ({
+  usePushSubscription: () => ({ state: 'off', error: null, enable: vi.fn(), disable: vi.fn() }),
+}));
+
 describe('ProfileSettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -29,10 +36,11 @@ describe('ProfileSettingsPage', () => {
     expect(screen.getByText(`Properfy Inspector v${__APP_VERSION__}`)).toBeInTheDocument();
   });
 
-  it('places an empty push-preference slot as the first content child', () => {
+  it('fills the push-preference slot with the push control as the first content child', () => {
     renderWithProviders(<ProfileSettingsPage />);
     const slot = screen.getByTestId('push-preference-slot');
-    expect(slot).toBeEmptyDOMElement();
+    expect(slot).not.toBeEmptyDOMElement();
+    expect(slot).toContainElement(screen.getByRole('switch', { name: 'Push notifications' }));
     expect(slot.parentElement?.firstElementChild).toBe(slot);
   });
 
