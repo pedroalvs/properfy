@@ -102,7 +102,13 @@ export function InspectorTable({
           );
         }
         return (
-          <Tooltip label="Browser notification permission on the last device seen">
+          <Tooltip
+            label={
+              row.pushEnabled
+                ? "Push is on for at least one of the inspector's devices"
+                : 'No device has push turned on'
+            }
+          >
             <span className={row.pushEnabled ? 'text-success' : 'text-text-muted'}>
               {row.pushEnabled ? 'On' : 'Off'}
             </span>

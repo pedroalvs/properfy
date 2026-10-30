@@ -303,8 +303,8 @@ describe('InspectorDetailSections', () => {
     it('shows the app version verbatim and the "Last device seen" caption', () => {
       render(<InspectorDetailSections inspector={makeInspector()} />, { wrapper });
       expect(screen.getByText('0.1.0+ab12cd3')).toBeInTheDocument();
-      // Caption appears next to Push and App version.
-      expect(screen.getAllByText('Last device seen').length).toBeGreaterThanOrEqual(2);
+      // The caption stays on App version; Push now carries the D10 subscription tooltip instead.
+      expect(screen.getAllByText('Last device seen').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows Push "Off" for a deactivated inspector with pushEnabled false', () => {

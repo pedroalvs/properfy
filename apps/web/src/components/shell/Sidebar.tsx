@@ -44,6 +44,7 @@ export const NAV_ITEMS: NavItem[] = [
     collapseIfSingle: true,
     submenu: [
       { icon: 'mdi-view-dashboard-outline', label: 'Overview', to: '/dashboard' },
+      { icon: 'mdi-bullhorn-outline', label: 'Inspector notices', to: '/inspector-notices', roles: [UserRole.AM, UserRole.OP] },
       { icon: 'mdi-chart-line', label: 'Analytics', to: '/analytics', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER] },
       { icon: 'mdi-account-clock-outline', label: 'Workload', to: '/inspector-workload', roles: [UserRole.AM, UserRole.OP] },
     ],

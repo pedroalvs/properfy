@@ -37,6 +37,8 @@ const ResetPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages
 const TwoFactorSetupPage = Loadable(lazyRetry(() => import('@/features/auth/pages/TwoFactorSetupPage').then(m => ({ default: m.TwoFactorSetupPage }))));
 const AnalyticsPage = Loadable(lazyRetry(() => import('@/features/analytics/pages/AnalyticsPage').then(m => ({ default: m.AnalyticsPage }))));
 const InspectorWorkloadPage = Loadable(lazyRetry(() => import('@/features/inspector-workload/pages/InspectorWorkloadPage').then(m => ({ default: m.InspectorWorkloadPage }))));
+const InspectorNoticeListPage = Loadable(lazyRetry(() => import('@/features/inspector-notices/pages/InspectorNoticeListPage').then(m => ({ default: m.InspectorNoticeListPage }))));
+const InspectorNoticeDetailPage = Loadable(lazyRetry(() => import('@/features/inspector-notices/pages/InspectorNoticeDetailPage').then(m => ({ default: m.InspectorNoticeDetailPage }))));
 const AppointmentListPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentListPage').then(m => ({ default: m.AppointmentListPage }))));
 const AppointmentDetailPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentDetailPage').then(m => ({ default: m.AppointmentDetailPage }))));
 const AppointmentBoardPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentBoardPage').then(m => ({ default: m.AppointmentBoardPage }))));
@@ -171,6 +173,24 @@ export const routes: RouteObject[] = [
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <InspectorWorkloadPage />
+              </AuthGuard>
+            ),
+          },
+          // Inspector notices (F02) — platform-scoped, AM/OP only (inspectors are
+          // cross-tenant); the Dashboard group lists it between Overview and Analytics.
+          {
+            path: 'inspector-notices',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+                <InspectorNoticeListPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'inspector-notices/:noticeId',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+                <InspectorNoticeDetailPage />
               </AuthGuard>
             ),
           },
