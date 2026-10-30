@@ -1268,8 +1268,6 @@ export interface paths {
                             postcode: string;
                             /** @default AU */
                             country?: string;
-                            latitude?: number;
-                            longitude?: number;
                         };
                         /** Format: email */
                         contactEmail?: string;
@@ -1441,8 +1439,6 @@ export interface paths {
                             postcode: string;
                             /** @default AU */
                             country?: string;
-                            latitude?: number;
-                            longitude?: number;
                         };
                         /** Format: email */
                         contactEmail?: string | null;
@@ -6385,6 +6381,8 @@ export interface paths {
                                             status: "found";
                                             lat: number;
                                             lng: number;
+                                            /** @enum {string} */
+                                            mode?: "permanent";
                                         } | {
                                             /** @enum {string} */
                                             status: "not_found";

@@ -72,6 +72,7 @@ const MOCK_PROPERTY = {
   id: 'prop-01', propertyCode: 'P-001', type: 'HOUSE', tenantId: 'tenant-9', branchId: 'branch-1',
   street: 'Rua das Flores, 123', addressLine2: 'Apt 4', suburb: 'Centro',
   postcode: '01000-000', state: 'SP', country: 'BR', notes: 'Some notes',
+  geocodingStatus: 'SUCCESS', latitude: -33.8, longitude: 151.2,
 };
 
 /** Lets a test hold the property detail in flight, as it is on the first
@@ -210,6 +211,21 @@ describe('PropertyFormDrawer', () => {
     expect(resolvedCall?.[3]).toMatchObject({ tenantId: 'tenant-9' });
     expect(resolvedCall?.[4]).toMatchObject({ enabled: true });
     expect(screen.getByLabelText('Branch')).toHaveTextContent('City Office');
+  });
+
+  it('passes the initial values and geocoding status to save on edit (coordinate diff wiring, X02-1)', () => {
+    renderDrawer({ propertyId: 'prop-01' });
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(mockSave).toHaveBeenCalledWith(
+      expect.objectContaining({ latitude: '-33.8', longitude: '151.2' }),
+      'prop-01',
+      undefined,
+      expect.objectContaining({
+        geocodingStatus: 'SUCCESS',
+        initial: expect.objectContaining({ latitude: '-33.8', longitude: '151.2' }),
+      }),
+    );
   });
 
   it('renders backend VALIDATION_ERROR details inline on the matching field', async () => {

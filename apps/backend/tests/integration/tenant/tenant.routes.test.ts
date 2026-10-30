@@ -346,6 +346,45 @@ describe('POST /v1/tenants/:tenantId/branches', () => {
 
     expect(res.status).toBe(400);
   });
+
+  it('strips client-supplied latitude/longitude from the branch address (X02-1)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockCreateBranchExecute.mockResolvedValueOnce({
+      id: BRANCH_ID,
+      tenantId: TENANT_ID,
+      name: 'Geo Branch',
+      addressJson: { street: '1 Main St', suburb: 'Parramatta', city: 'Parramatta', state: 'NSW', postcode: '2150', country: 'AU' },
+      contactEmail: null,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/branches`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        name: 'Geo Branch',
+        address: {
+          street: '1 Main St',
+          suburb: 'Parramatta',
+          city: 'Parramatta',
+          state: 'NSW',
+          postcode: '2150',
+          country: 'AU',
+          latitude: -33.8,
+          longitude: 151.2,
+        },
+      });
+
+    expect(res.status).toBe(201);
+    // Zod strips the coordinates before the use case runs.
+    const input = mockCreateBranchExecute.mock.calls[0]![0] as { address?: Record<string, unknown> };
+    expect(input.address && 'latitude' in input.address).toBe(false);
+    expect(input.address && 'longitude' in input.address).toBe(false);
+    // And the response never echoes a client coordinate.
+    expect(res.body.data.addressJson?.latitude).toBeUndefined();
+  });
 });
 
 describe('GET /v1/tenants/:tenantId/branches', () => {

@@ -431,8 +431,8 @@ Skip worktrees only for: pure documentation edits, CLAUDE.md updates, or tasks t
 - Backend: Fastify 4, Prisma 6 (PostgreSQL/Supabase, PostGIS in CI), Zod 3, pg-boss 9, jose (RS256 JWT), Resend, MobileMessage, Mapbox
 - Web/PWA: React 18, Vite 5, React Router 6, TanStack Query 5, Tailwind 3, mapbox-gl 3, openapi-fetch; PWA adds vite-plugin-pwa (Workbox), react-hook-form, lucide-react
 - Tests: Vitest 1, Supertest, testcontainers, Playwright
-- TypeScript 5.6 strict, ES2022 ESM, Node.js 24 + Fastify 4, Prisma 6, Zod 3, `fastify-type-provider-zod`; shared package (`@properfy/shared`) (038-f03-1-platform-settings-geofence)
-- PostgreSQL (Supabase) via Prisma. New table `platform_settings`; new nullable/defaulted columns on `inspection_executions` (expand-only). No `tenant_id` on either. (038-f03-1-platform-settings-geofence)
+- F03-1 (`038-f03-1-platform-settings-geofence`): new table `platform_settings`; new nullable/defaulted columns on `inspection_executions` (expand-only), no `tenant_id` on either; `fastify-type-provider-zod`
+- X02-1 (`035-x02-permanent-geocoding`): Mapbox Geocoding v5 permanent mode; `properties.lat/lng` (`Decimal(10,7)`) mirrored to `coordinates GEOMETRY(Point,4326)`; branch coordinates in `branches.address_json`
 
 ## Recent Changes
 - X03 (`036-x03-pwa-e2e-recovery`): PWA Playwright E2E suite recovered and wired into CI (`test-pwa-e2e`, Chromium + WebKit, hermetic); harness in `apps/pwa/tests/e2e/support/`

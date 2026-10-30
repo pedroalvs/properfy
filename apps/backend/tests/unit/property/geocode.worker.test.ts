@@ -4,6 +4,7 @@ import type { IPropertyRepository } from '../../../src/modules/property/domain/p
 import type { IGeocodingService } from '../../../src/modules/property/domain/geocoding.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
+import { MapboxPermanentGeocodingUnavailableError } from '../../../src/modules/property/domain/geocoding.service';
 
 function makeProperty(
   overrides: Partial<ConstructorParameters<typeof PropertyEntity>[0]> = {},
@@ -62,16 +63,63 @@ describe('GeocodeWorker', () => {
     );
   });
 
-  it('geocodes the property and writes SUCCESS with coordinates', async () => {
+  it('geocodes the property in permanent mode and writes SUCCESS with coordinates + marker', async () => {
     propertyRepo.findById.mockResolvedValue(makeProperty());
     geocodingService.geocode.mockResolvedValue({ lat: -26.74, lng: 152.82 });
 
     await worker.execute({ propertyId: 'prop-1' });
 
+    expect(geocodingService.geocode).toHaveBeenCalledWith('123 Main St, Sydney, NSW, 2000, AU', {
+      mode: 'permanent',
+    });
     expect(propertyRepo.update).toHaveBeenCalledWith('prop-1', 'tenant-1', {
       lat: -26.74,
       lng: 152.82,
       geocodingStatus: 'SUCCESS',
+      geocodedPermanentlyAt: expect.any(Date),
+      geocodingFailureCode: null,
+    });
+  });
+
+  it('skips MANUAL properties without calling the geocoder', async () => {
+    propertyRepo.findById.mockResolvedValue(makeProperty({ geocodingStatus: 'MANUAL', lat: 1, lng: 2 }));
+
+    await worker.execute({ propertyId: 'prop-1' });
+
+    expect(geocodingService.geocode).not.toHaveBeenCalled();
+    expect(propertyRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('marks FAILED with a failure code (no throw) when the account lacks permanent geocoding', async () => {
+    propertyRepo.findById.mockResolvedValue(makeProperty());
+    geocodingService.geocode.mockRejectedValue(new MapboxPermanentGeocodingUnavailableError());
+
+    await expect(worker.execute({ propertyId: 'prop-1' })).resolves.toBeUndefined();
+
+    expect(propertyRepo.update).toHaveBeenCalledWith('prop-1', 'tenant-1', {
+      geocodingStatus: 'FAILED',
+      geocodingFailureCode: 'MAPBOX_PERMANENT_GEOCODING_UNAVAILABLE',
+    });
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'property.geocoding_failed',
+        metadata: expect.objectContaining({ code: 'MAPBOX_PERMANENT_GEOCODING_UNAVAILABLE' }),
+      }),
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      { propertyId: 'prop-1', code: 'MAPBOX_PERMANENT_GEOCODING_UNAVAILABLE' },
+      'Mapbox permanent geocoding unavailable; property marked FAILED without retry',
+    );
+  });
+
+  it('marks FAILED without a failure code on a generic geocoder error', async () => {
+    propertyRepo.findById.mockResolvedValue(makeProperty());
+    geocodingService.geocode.mockRejectedValue(new Error('mapbox 500'));
+
+    await worker.execute({ propertyId: 'prop-1' });
+
+    expect(propertyRepo.update).toHaveBeenCalledWith('prop-1', 'tenant-1', {
+      geocodingStatus: 'FAILED',
     });
   });
 

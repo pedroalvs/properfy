@@ -55,6 +55,44 @@ Run this checklist before each production release. Items marked **(DEC)** refere
 
 ---
 
+## 5. Permanent geocoding smoke (X02-1)
+
+Mapbox terms only allow storing coordinates obtained in **permanent** mode. Every write path (property create, geocode worker, import-preview verifier, branch save) now requests `permanent=true`. This smoke proves the environment's server-side token can actually do permanent geocoding — a `200` with coordinates is **not** sufficient on its own, because it cannot distinguish "accepted as permanent" from "`permanent` silently ignored".
+
+### Spike record (dev, 2026-10-29)
+
+Run against the dev account with the dev `MAPBOX_ACCESS_TOKEN` (`sk.` server token), address `1 Martin Place, Sydney NSW`:
+
+| Probe | URL | Result |
+|---|---|---|
+| (a) v5 + permanent | `geocoding/v5/mapbox.places/{q}.json?...&limit=1&permanent=true` | **HTTP 200**, `center = [151.207639, -33.867753]` |
+| (b) v5 baseline | same without `permanent` | HTTP 200, identical |
+| (c) v5 permanent endpoint | `geocoding/v5/mapbox.places-permanent/{q}.json?...&limit=1` | **HTTP 200** (a non-entitled account 403/404s here → account is entitled) |
+| invalid token | (a) with a bad token | HTTP 401 `{"message":"Not Authorized - Invalid Token"}` |
+| no result | nonsense query | HTTP 200, `features: []` |
+
+**Decision:** stay on **v5** (`geocoding/v5/mapbox.places` + `permanent=true`); the v6 contingency is not triggered. Error envelope is `{"message": string}`; account-error detection keys on status ∈ {401,403,422} + "permanent" in the message, with a 403 fallback.
+
+### Per-environment check (staging and prod, before promoting)
+
+- [ ] Note the account's **"Permanent Geocoding API"** usage counter (Statistics/Billing) **before** the check.
+- [ ] Run the confirmed URL with the env's server-side token:
+  ```bash
+  curl -sS -w '\n[HTTP %{http_code}]\n' \
+    "https://api.mapbox.com/geocoding/v5/mapbox.places/1%20Martin%20Place%2C%20Sydney%20NSW.json?access_token=$MAPBOX_ACCESS_TOKEN&limit=1&permanent=true"
+  ```
+- [ ] Expect `200` with `features[0].center` **and** the Permanent Geocoding counter to rise (the positive proof — CA9). If the counter does not rise, the account is not entitled: open/confirm the Mapbox permanent-geocoding enablement request before deploying (it may have Sales lead time and blocks F01/F04/F09).
+- [ ] Create a property → confirm it reaches `SUCCESS`, has `geocoded_permanently_at` set and `coordinates` populated.
+- [ ] Edit the property without changing the coordinate fields → confirm it stays `SUCCESS` (no false `MANUAL`).
+- [ ] Save a branch with an address → confirm `addressJson.latitude/longitude` is populated.
+
+### Cost (confirmed 2026-10-28; reconfirm before rollout)
+
+- Permanent geocoding: **US$ 5.00 / 1,000 requests from the first** (US$ 0.005/request, no free tier). Every write path pays this; temporary (autocomplete, connection test) keeps the free tier.
+- Daily retry-sweep cost: `(countFailedGeocoding − countBlockedFailedGeocoding) × US$ 0.005`. Measure in prod at rollout and record the number; a value above the agreed threshold is the trigger to revisit the 24 h cool-off (a separate task).
+
+---
+
 ## Notes
 
 - Map smokes require `VITE_MAPBOX_TOKEN` configured with allowed URLs for the staging/prod domain.

@@ -2070,16 +2070,6 @@
                         "minLength": 2,
                         "maxLength": 2,
                         "default": "AU"
-                      },
-                      "latitude": {
-                        "type": "number",
-                        "minimum": -90,
-                        "maximum": 90
-                      },
-                      "longitude": {
-                        "type": "number",
-                        "minimum": -180,
-                        "maximum": 180
                       }
                     },
                     "required": [
@@ -2709,16 +2699,6 @@
                         "minLength": 2,
                         "maxLength": 2,
                         "default": "AU"
-                      },
-                      "latitude": {
-                        "type": "number",
-                        "minimum": -90,
-                        "maximum": 90
-                      },
-                      "longitude": {
-                        "type": "number",
-                        "minimum": -180,
-                        "maximum": 180
                       }
                     },
                     "required": [
@@ -15423,6 +15403,12 @@
                                           },
                                           "lng": {
                                             "type": "number"
+                                          },
+                                          "mode": {
+                                            "type": "string",
+                                            "enum": [
+                                              "permanent"
+                                            ]
                                           }
                                         },
                                         "required": [

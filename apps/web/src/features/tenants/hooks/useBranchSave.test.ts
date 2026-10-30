@@ -97,12 +97,14 @@ describe('useBranchSave', () => {
           state: VALID_DATA.address!.state,
           postcode: VALID_DATA.address!.postcode,
           country: VALID_DATA.address!.country,
-          latitude: VALID_DATA.address!.latitude || undefined,
-          longitude: VALID_DATA.address!.longitude || undefined,
         },
         contactEmail: VALID_DATA.contactEmail,
       },
     });
+    // Coordinates are never posted — the backend geocodes in permanent mode (X02-1).
+    const createBody = mockPost.mock.calls[0]![1].body as { address?: Record<string, unknown> };
+    expect(createBody.address && 'latitude' in createBody.address).toBe(false);
+    expect(createBody.address && 'longitude' in createBody.address).toBe(false);
   });
 
   it('save returns success on edit', async () => {
@@ -126,12 +128,13 @@ describe('useBranchSave', () => {
           state: VALID_DATA.address!.state,
           postcode: VALID_DATA.address!.postcode,
           country: VALID_DATA.address!.country,
-          latitude: VALID_DATA.address!.latitude || undefined,
-          longitude: VALID_DATA.address!.longitude || undefined,
         },
         contactEmail: VALID_DATA.contactEmail,
       },
     });
+    const editBody = mockPatch.mock.calls[0]![1].body as { address?: Record<string, unknown> };
+    expect(editBody.address && 'latitude' in editBody.address).toBe(false);
+    expect(editBody.address && 'longitude' in editBody.address).toBe(false);
   });
 
   it('save omits address when null', async () => {
@@ -149,44 +152,21 @@ describe('useBranchSave', () => {
     });
   });
 
-  it('save preserves zero coordinates on create', async () => {
+  it('never posts coordinates even when the form data carries them (X02-1)', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useBranchSave(), { wrapper });
-    const zeroCoordData: BranchFormData = {
+    const withCoordData: BranchFormData = {
       ...VALID_DATA,
-      address: { ...VALID_DATA.address!, latitude: 0, longitude: 0 },
+      address: { ...VALID_DATA.address!, latitude: -33.8, longitude: 151.2 },
     };
 
     await act(async () => {
-      await result.current.save(zeroCoordData, 'ten-01');
+      await result.current.save(withCoordData, 'ten-01');
     });
 
-    expect(mockPost).toHaveBeenCalledWith('/v1/tenants/{tenantId}/branches', {
-      params: { path: { tenantId: 'ten-01' } },
-      body: expect.objectContaining({
-        address: expect.objectContaining({ latitude: 0, longitude: 0 }),
-      }),
-    });
-  });
-
-  it('save preserves zero coordinates on edit', async () => {
-    const wrapper = createQueryWrapper();
-    const { result } = renderHook(() => useBranchSave(), { wrapper });
-    const zeroCoordData: BranchFormData = {
-      ...VALID_DATA,
-      address: { ...VALID_DATA.address!, latitude: 0, longitude: 0 },
-    };
-
-    await act(async () => {
-      await result.current.save(zeroCoordData, 'ten-01', 'br-01');
-    });
-
-    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/{tenantId}/branches/{branchId}', {
-      params: { path: { tenantId: 'ten-01', branchId: 'br-01' } },
-      body: expect.objectContaining({
-        address: expect.objectContaining({ latitude: 0, longitude: 0 }),
-      }),
-    });
+    const body = mockPost.mock.calls[0]![1].body as { address?: Record<string, unknown> };
+    expect(body.address && 'latitude' in body.address).toBe(false);
+    expect(body.address && 'longitude' in body.address).toBe(false);
   });
 
   it('save returns failure on API error', async () => {

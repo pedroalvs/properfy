@@ -12,7 +12,13 @@ export const addressSchema = z.object({
 });
 export type AddressInput = z.infer<typeof addressSchema>;
 
-// Branch address schema — structured replacement for freeform address_json
+// Branch address schema — structured replacement for freeform address_json.
+// latitude/longitude are intentionally absent: branch coordinates come only from
+// permanent-mode geocoding on the backend (Mapbox terms), never from the client.
+// A client that still posts them has the keys stripped by z.object (strip is the
+// default), so an old client does not 400. MUST stay a plain z.object with no
+// top-level .transform/.refine/.superRefine/.passthrough/.strict so F01 can
+// derive it with `.extend(...)` (a ZodEffects has no `.extend`).
 export const branchAddressSchema = z.object({
   street: z.string().min(1).max(200),
   number: z.string().max(20).optional(),
@@ -22,8 +28,6 @@ export const branchAddressSchema = z.object({
   state: z.string().min(1).max(100),
   postcode: z.string().min(1).max(20),
   country: z.string().length(2).default('AU'), // ISO 3166-1 alpha-2
-  latitude: z.number().min(-90).max(90).optional(),
-  longitude: z.number().min(-180).max(180).optional(),
 });
 export type BranchAddressInput = z.infer<typeof branchAddressSchema>;
 

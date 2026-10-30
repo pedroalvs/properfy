@@ -173,6 +173,7 @@ export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 - **Pagination:** `paginationSchema` (`page`, `pageSize`, `sortBy`, `sortOrder`); response meta: `paginationMetaSchema` (`schemas/responses.ts`)
 - **Error:** the `{ error: { code, message, details } }` envelope is parsed by `utils/api-error.ts` (no exported Zod schema)
 - **Status transition:** `statusTransitionSchema` with `targetStatus`, `reason`
+- **Geocoding (X02-1):** `branchAddressSchema` (`schemas/address.ts`) has **no** `latitude`/`longitude` — branch coordinates come only from permanent-mode geocoding on the backend, and it stays a plain `z.object` (no top-level `.transform/.refine/.superRefine` etc.) so F01 can `.extend(...)` it. `geocodeVerificationSchema` (`schemas/import.ts`) `found` variant carries an optional `mode: z.literal('permanent')`; a `found` without a mode is a pre-deploy preview and is re-geocoded on commit.
 
 ---
 

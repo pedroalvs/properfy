@@ -255,6 +255,15 @@ describe('createPropertySchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('should strip client-supplied latitude/longitude (autocomplete coords are never stored)', () => {
+    const result = createPropertySchema.safeParse({ ...validInput, latitude: -33.8, longitude: 151.2 });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect('latitude' in result.data).toBe(false);
+      expect('longitude' in result.data).toBe(false);
+    }
+  });
+
   it('should accept valid minimal input with defaults', () => {
     const result = createPropertySchema.safeParse(validInput);
     expect(result.success).toBe(true);

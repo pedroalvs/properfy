@@ -19,6 +19,7 @@ function mapToEntity(row: {
   address_json: unknown;
   contact_email: string | null;
   status: string;
+  geocoded_permanently_at?: Date | null;
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
@@ -30,6 +31,7 @@ function mapToEntity(row: {
     addressJson: (row.address_json as Record<string, unknown>) ?? null,
     contactEmail: row.contact_email,
     status: row.status as BranchStatus,
+    geocodedPermanentlyAt: row.geocoded_permanently_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -108,6 +110,7 @@ export class PrismaBranchRepository implements IBranchRepository {
         address_json: (branch.addressJson as Prisma.InputJsonValue) ?? undefined,
         contact_email: branch.contactEmail,
         status: branch.status as PrismaBranchStatus,
+        geocoded_permanently_at: branch.geocodedPermanentlyAt,
       },
     });
   }
@@ -120,6 +123,7 @@ export class PrismaBranchRepository implements IBranchRepository {
       addressJson: Record<string, unknown> | null;
       contactEmail: string | null;
       status: string;
+      geocodedPermanentlyAt: Date | null;
       deletedAt: Date | null;
     }>,
   ): Promise<void> {
@@ -130,6 +134,8 @@ export class PrismaBranchRepository implements IBranchRepository {
     if (data.contactEmail !== undefined)
       updateData['contact_email'] = data.contactEmail;
     if (data.status !== undefined) updateData['status'] = data.status;
+    if (data.geocodedPermanentlyAt !== undefined)
+      updateData['geocoded_permanently_at'] = data.geocodedPermanentlyAt;
     if (data.deletedAt !== undefined) updateData['deleted_at'] = data.deletedAt;
     await this.prisma.branch.updateMany({ where: { id, tenant_id: tenantId }, data: updateData });
   }

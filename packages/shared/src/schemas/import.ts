@@ -50,7 +50,16 @@ export type ImportRowIssue = z.infer<typeof importRowIssueSchema>;
  * the check was skipped or timed out (falls back to the async geocode job).
  */
 export const geocodeVerificationSchema = z.discriminatedUnion('status', [
-  z.object({ status: z.literal('found'), lat: z.number(), lng: z.number() }),
+  // `mode` marks how the coordinate was obtained. Only `'permanent'` results may
+  // be stored (Mapbox terms); a `found` without a mode is a pre-deploy preview and
+  // is treated as unverified at commit (re-geocoded in permanent mode). The field
+  // MUST be declared or Fastify response serialization strips it.
+  z.object({
+    status: z.literal('found'),
+    lat: z.number(),
+    lng: z.number(),
+    mode: z.literal('permanent').optional(),
+  }),
   z.object({ status: z.literal('not_found'), lat: z.null(), lng: z.null() }),
   z.object({ status: z.literal('unverified'), lat: z.null(), lng: z.null() }),
 ]);

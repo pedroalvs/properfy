@@ -356,6 +356,7 @@ All foundation phases (tokens → shell → primitives → filters → data → 
 4. **Snackbar:** No raw JSON in production.
 5. **Status map:** `DONE` and `REJECTED` are mandatory in the design system.
 6. **Existing dashboard screens are frozen (Phase 2 rule, 2026-10-27).** Do not change `DashboardPage` (`/dashboard`), `AnalyticsPage` (`/analytics`) or `InspectorWorkloadPage` (`/inspector-workload`): cards, charts, filters, `WeekSelector`, `IntegrationWarnings` and the "New Appointment" action stay as they are. If a task seems to need a change there, **stop and ask the developer explicitly**. A new requirement goes into a **new screen**. The only authorized change is X01's removal of the cross-navigation buttons from those three headers.
+7. **Geocoding coordinates are never posted from forms (X02-1).** The branch form (`useBranchSave`) never sends `latitude`/`longitude`; the property create form keeps the coordinate fields `''`. In the property **edit** form (`usePropertySave` / `PropertyFormDrawer`), coordinates are posted only when a parsed value differs from the loaded value; clearing both fields sends `latitude:null, longitude:null` **only** for a `MANUAL` property (unlock → re-geocode), and an incomplete pair is never sent. Selecting an autocomplete suggestion in edit mode clears the coordinate fields only when the property is `MANUAL`. The backend geocodes addresses in permanent mode; the geocoding status badge shows `FAILED` when the account rejects permanent geocoding.
 
 ---
 

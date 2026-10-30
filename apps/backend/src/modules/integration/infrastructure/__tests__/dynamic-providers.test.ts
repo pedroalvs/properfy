@@ -2,9 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ResolvedIntegrationConfig } from '../../domain/integration-setting';
 import type { IntegrationConfigResolver } from '../integration-config-resolver';
-import { DynamicEmailProvider, DynamicSmsProvider } from '../dynamic-providers';
+import {
+  DynamicEmailProvider,
+  DynamicGeocodingService,
+  DynamicSmsProvider,
+} from '../dynamic-providers';
 
 const sendSpy = vi.fn(async () => ({ messageId: 'real-id' }));
+const geocodeSpy = vi.fn(async () => ({ lat: -33.8, lng: 151.2 }));
 
 // Mock the concrete providers so no HTTP client is exercised.
 vi.mock('../../../notification/infrastructure/resend-email.provider', () => ({
@@ -17,7 +22,12 @@ vi.mock('../../../notification/infrastructure/mobile-message-sms.provider', () =
   })),
 }));
 
+vi.mock('../../../property/infrastructure/mapbox-geocoding.service', () => ({
+  MapboxGeocodingService: vi.fn().mockImplementation(() => ({ geocode: geocodeSpy })),
+}));
+
 import { ResendEmailProvider } from '../../../notification/infrastructure/resend-email.provider';
+import { MapboxGeocodingService } from '../../../property/infrastructure/mapbox-geocoding.service';
 
 function fakeResolver(sequence: Array<ResolvedIntegrationConfig | null>): IntegrationConfigResolver {
   const getConfig = vi.fn();
@@ -129,6 +139,58 @@ describe('DynamicEmailProvider', () => {
     await provider.send('a@b.c', 's', '<p/>', 't', { identity: 'system' });
 
     expect(sendSpy).toHaveBeenCalledWith('a@b.c', 's', '<p/>', 't', { identity: 'system' });
+  });
+});
+
+describe('DynamicGeocodingService', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('1. falls back to the stub (null) and reports not configured when unconfigured', async () => {
+    const svc = new DynamicGeocodingService(fakeResolver([null, null]));
+    await expect(svc.geocode('A')).resolves.toBeNull();
+    await expect(svc.isConfigured()).resolves.toBe(false);
+    expect(geocodeSpy).not.toHaveBeenCalled();
+  });
+
+  it('2. reports configured when a mapbox config resolves', async () => {
+    const svc = new DynamicGeocodingService(
+      fakeResolver([{ config: { accessToken: 'tok' }, source: 'database' }]),
+    );
+    await expect(svc.isConfigured()).resolves.toBe(true);
+  });
+
+  it('3. passes a temporary mode through to the inner service', async () => {
+    const svc = new DynamicGeocodingService(
+      fakeResolver([{ config: { accessToken: 'tok' }, source: 'database' }]),
+    );
+    await svc.geocode('A', { mode: 'temporary' });
+    expect(geocodeSpy).toHaveBeenCalledWith('A', { mode: 'temporary' });
+  });
+
+  it('4. forwards undefined options when none are given', async () => {
+    const svc = new DynamicGeocodingService(
+      fakeResolver([{ config: { accessToken: 'tok' }, source: 'database' }]),
+    );
+    await svc.geocode('A');
+    expect(geocodeSpy).toHaveBeenCalledWith('A', undefined);
+  });
+
+  it('5. recreates the adapter when the access token changes', async () => {
+    const svc = new DynamicGeocodingService(
+      fakeResolver([
+        { config: { accessToken: 'tok1' }, source: 'database' },
+        { config: { accessToken: 'tok1' }, source: 'database' },
+        { config: { accessToken: 'tok2' }, source: 'database' },
+      ]),
+    );
+    await svc.geocode('A');
+    await svc.geocode('A');
+    expect(MapboxGeocodingService).toHaveBeenCalledTimes(1);
+    await svc.geocode('A');
+    expect(MapboxGeocodingService).toHaveBeenCalledTimes(2);
+    expect(MapboxGeocodingService).toHaveBeenLastCalledWith('tok2');
   });
 });
 
