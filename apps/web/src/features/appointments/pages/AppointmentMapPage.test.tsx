@@ -587,6 +587,10 @@ describe('AppointmentMapPage — period window (F00)', () => {
     await waitFor(() =>
       expect(lastQuery('/v1/appointments')).toMatchObject({ fromDate: '2026-10-27', toDate: '2026-11-26' }),
     );
+    // E.A1-1: the FIRST appointments request must already carry the agency window
+    // (never the 14/Sydney seed) — CL must wait for the agency GET before fetching.
+    const firstApptCall = mockGet.mock.calls.find((c) => c[0] === '/v1/appointments');
+    expect(firstApptCall?.[1]?.params?.query).toMatchObject({ fromDate: '2026-10-27', toDate: '2026-11-26' });
   });
 
   // M3 — AM groups mode: the groups request carries the 14/Sydney window.

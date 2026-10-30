@@ -60,6 +60,9 @@ export function useMapPeriodWindow(): UseMapPeriodWindowResult {
     appointments: true,
     groups: true,
   });
+  // Identifies the resolved appointments window last applied (agency|N|timezone). Drives
+  // the render-phase convergence below so a re-render fires exactly once per resolved window.
+  const [appliedKey, setAppliedKey] = useState<string | null>(null);
 
   // The agency whose settings drive the appointments window: the AM/OP agency filter, or the CL
   // user's own agency. Groups never fetches an agency.
@@ -125,32 +128,25 @@ export function useMapPeriodWindow(): UseMapPeriodWindowResult {
     if (windowActive.groups) applyGroupWindow();
   }, [applyGroupWindow, windowActive.groups]);
 
-  // Appointments window: (re)apply whenever N/timezone resolves or changes, while active. Keyed on
-  // the resolved inputs so an agency switch or an N change in the cache reapplies; a removed window
-  // (active=false) is never reapplied.
-  useEffect(() => {
-    if (!appointmentWindowReady || !windowActive.appointments) return;
-    applyAppointmentWindow(appointmentWindowDays, appointmentTimezone);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appointmentWindowReady, appointmentWindowDays, appointmentTimezone, windowActive.appointments, appointmentAgencyId]);
+  // Appointments window: apply the resolved window DURING render (not in an effect) so the
+  // first gated /v1/appointments request already carries the agency's N/timezone — an effect
+  // runs one render too late, letting a CL request fire with the provisional seed first. Keyed
+  // on the resolved (agency, N, timezone); guarded by `appliedKey` so it converges and fires
+  // once per resolved window. A removed/edited window (active=false) is never reapplied; an
+  // agency switch or a cache-side N change flips the key and reapplies. This is React's
+  // documented "adjust state while rendering" pattern (same component, convergent).
+  const resolvedKey = `${appointmentAgencyId ?? ''}|${appointmentWindowDays}|${appointmentTimezone}`;
+  if (appointmentWindowReady && windowActive.appointments && appliedKey !== resolvedKey) {
+    const { from, to } = computeWindowRange(appointmentWindowDays, todayInTzDateString(appointmentTimezone));
+    setAppointmentFilters((prev) =>
+      prev.dateFrom === from && prev.dateTo === to ? prev : { ...prev, dateFrom: from, dateTo: to },
+    );
+    setAppliedKey(resolvedKey);
+  }
 
   const onAppointmentFiltersChange = useCallback(
     (next: AppointmentModeFilters) => {
       setAppointmentFilters((prev) => {
-        // Agency switch → recompute/reapply the window (never disables it).
-        if (next.tenantId !== prev.tenantId) {
-          if (windowActive.appointments) {
-            const agencyId = isGlobalRole ? next.tenantId || null : user?.tenantId ?? null;
-            const days = agencyId && agencyId === appointmentAgencyId ? appointmentWindowDays : MAP_WINDOW_DAYS_DEFAULT;
-            const tz = agencyId && agencyId === appointmentAgencyId ? appointmentTimezone : PLATFORM_TIMEZONE;
-            // If the agency actually changed, the GET refetches and the effect above reapplies with
-            // the real N/tz; apply the best-known window now so there is no gap.
-            const today = todayInTzDateString(tz);
-            const { from, to } = computeWindowRange(days, today);
-            return { ...next, dateFrom: from, dateTo: to };
-          }
-          return next;
-        }
         // Manual date edit.
         if (next.dateFrom !== prev.dateFrom || next.dateTo !== prev.dateTo) {
           if (isGlobalRole) {
@@ -166,11 +162,12 @@ export function useMapPeriodWindow(): UseMapPeriodWindowResult {
           );
           return { ...next, dateFrom: clamped.dateFrom, dateTo: clamped.dateTo };
         }
-        // Any other field: pass through untouched.
+        // Any other field (incl. the agency filter): pass through untouched. An agency switch
+        // changes `resolvedKey`, and the render-phase convergence above reapplies the window.
         return next;
       });
     },
-    [isGlobalRole, user?.tenantId, appointmentAgencyId, appointmentWindowDays, appointmentTimezone, windowActive.appointments],
+    [isGlobalRole, appointmentWindowDays, appointmentTimezone],
   );
 
   const onGroupFiltersChange = useCallback(
