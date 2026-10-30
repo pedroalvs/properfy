@@ -16,3 +16,4 @@ export * from './contact-type';
 export * from './contact-channel-type';
 export * from './appointment-contact-role';
 export * from './confirmation-cycle';
+export * from './field-events';

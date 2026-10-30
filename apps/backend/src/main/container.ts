@@ -210,6 +210,13 @@ import { GetInspectorScheduleUseCase } from '../modules/inspector-execution/appl
 import { GetAppointmentDetailUseCase } from '../modules/inspector-execution/application/use-cases/get-appointment-detail.use-case';
 import { StartInspectionUseCase } from '../modules/inspector-execution/application/use-cases/start-inspection.use-case';
 import { FinishInspectionUseCase } from '../modules/inspector-execution/application/use-cases/finish-inspection.use-case';
+import { PrismaPlatformSettingRepository } from '../modules/platform-settings/infrastructure/prisma-platform-setting.repository';
+import { PlatformSettingsService } from '../modules/platform-settings/application/platform-settings.service';
+import { ListPlatformSettingsUseCase } from '../modules/platform-settings/application/use-cases/list-platform-settings.use-case';
+import { GetPlatformSettingUseCase } from '../modules/platform-settings/application/use-cases/get-platform-setting.use-case';
+import { UpdatePlatformSettingUseCase } from '../modules/platform-settings/application/use-cases/update-platform-setting.use-case';
+import { PLATFORM_SETTING_SAVE_HOOKS } from '../modules/platform-settings/application/platform-setting-save-hooks';
+import type { PlatformSettingsRouteContainer } from '../modules/platform-settings/interfaces/platform-settings.routes';
 import { ReopenExecutionUseCase } from '../modules/inspector-execution/application/use-cases/reopen-execution.use-case';
 import type { InspectorExecutionRouteContainer } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
 
@@ -461,6 +468,7 @@ export interface AppContainer {
   marketplace: MarketplaceRouteContainer;
   rentalTenantPortal: RentalTenantPortalRouteContainer;
   inspectorExecution: InspectorExecutionRouteContainer;
+  platformSettings: PlatformSettingsRouteContainer;
   billing: BillingRouteContainer;
   report: ReportRouteContainer;
   notification: NotificationRouteContainer;
@@ -941,6 +949,16 @@ export function createContainer(logger: Logger): AppContainer {
     logger,
   );
 
+  // Platform settings (F03) — shared registry read through IPlatformSettingsReader.
+  const platformSettingRepo = new PrismaPlatformSettingRepository(prisma);
+  const platformSettingsService = new PlatformSettingsService(platformSettingRepo, logger);
+  const listPlatformSettingsUseCase = new ListPlatformSettingsUseCase(platformSettingRepo, authorizationService);
+  const getPlatformSettingUseCase = new GetPlatformSettingUseCase(platformSettingRepo, authorizationService);
+  const updatePlatformSettingUseCase = new UpdatePlatformSettingUseCase(
+    platformSettingRepo, authorizationService, auditService, platformSettingsService, domainEventBus, logger,
+    PLATFORM_SETTING_SAVE_HOOKS,
+  );
+
   // Inspector execution use cases
   const getInspectorScheduleUseCase = new GetInspectorScheduleUseCase(
     appointmentRepo, inspectionExecutionRepo, authorizationService,
@@ -949,15 +967,18 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, inspectionExecutionRepo, serviceTypeReaderForExec, authorizationService, tenantRepo, appCredentialRepo,
     contactReaderForExec, logger,
     tenantTimezoneLookup,
+    platformSettingsService,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
     appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, serviceTypeReaderForExec, authorizationService,
+    platformSettingsService,
     tenantTimezoneLookup,
   );
   const finishInspectionUseCase = new FinishInspectionUseCase(
     inspectionExecutionRepo, idempotencyService,
     executeStatusTransitionUseCase, appointmentRepo, auditService, authorizationService,
     prisma,
+    platformSettingsService,
   );
   const getAvailablePeriodsUseCase = new GetAvailablePeriodsUseCase(inspectorRepo);
   const getInspectorEarningsSummaryUseCase = new GetInspectorEarningsSummaryUseCase(financialEntryRepo);
@@ -1667,6 +1688,13 @@ export function createContainer(logger: Logger): AppContainer {
       getInspectorEarningsSummaryUseCase,
       previewInvoiceUseCase,
       requestInvoiceUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    platformSettings: {
+      listPlatformSettingsUseCase,
+      getPlatformSettingUseCase,
+      updatePlatformSettingUseCase,
       jwtService,
       tenantRepo,
     },

@@ -84,3 +84,21 @@ export const APPOINTMENT_EVENTS = {
   UPDATED: 'appointment.updated.v1',
   DELETED: 'appointment.deleted.v1',
 } as const;
+
+/**
+ * Emitted after a platform setting is written (F03, L-F03-10). Features that must
+ * react to a setting change (e.g. F07 recomputing a snapshot, F04 route weights)
+ * SUBSCRIBE to this instead of editing UpdatePlatformSettingUseCase. The payload's
+ * `before`/`after` are the effective values (defaults when there was no row).
+ */
+export const PLATFORM_SETTING_EVENTS = {
+  UPDATED: 'platform_setting.updated.v1',
+} as const;
+
+export interface PlatformSettingUpdatedPayload extends Record<string, unknown> {
+  key: string;
+  before: unknown;
+  after: unknown;
+  actorId: string;
+  occurredAt: string;
+}

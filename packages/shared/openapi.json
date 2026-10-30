@@ -21234,6 +21234,27 @@
                                 "IN_PROGRESS",
                                 "FINISHED"
                               ]
+                            },
+                            "startAccuracyMeters": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "finishAccuracyMeters": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "finishGeolocationDistanceMeters": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "outOfRadius": {
+                              "type": "boolean"
+                            },
+                            "outOfWindow": {
+                              "type": "boolean"
+                            },
+                            "finishOutOfRadius": {
+                              "type": "boolean"
                             }
                           },
                           "required": [
@@ -21249,6 +21270,26 @@
                           ],
                           "additionalProperties": false,
                           "nullable": true
+                        },
+                        "geofence": {
+                          "type": "object",
+                          "properties": {
+                            "radiusMeters": {
+                              "type": "number"
+                            },
+                            "mode": {
+                              "type": "string",
+                              "enum": [
+                                "FLAG",
+                                "BLOCK"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "radiusMeters",
+                            "mode"
+                          ],
+                          "additionalProperties": false
                         },
                         "apps": {
                           "type": "array",
@@ -21566,6 +21607,14 @@
                     "type": "number",
                     "minimum": -180,
                     "maximum": 180
+                  },
+                  "accuracy": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "clientOccurredAt": {
+                    "type": "string",
+                    "format": "date-time"
                   }
                 },
                 "required": [
@@ -21634,6 +21683,54 @@
                           "enum": [
                             "IN_PROGRESS"
                           ]
+                        },
+                        "startAccuracyMeters": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "outOfRadius": {
+                          "type": "boolean"
+                        },
+                        "outOfWindow": {
+                          "type": "boolean"
+                        },
+                        "geofence": {
+                          "type": "object",
+                          "properties": {
+                            "mode": {
+                              "type": "string",
+                              "enum": [
+                                "FLAG",
+                                "BLOCK"
+                              ]
+                            },
+                            "effectiveMode": {
+                              "type": "string",
+                              "enum": [
+                                "FLAG",
+                                "BLOCK"
+                              ]
+                            },
+                            "radiusMeters": {
+                              "type": "number"
+                            },
+                            "fallbackReason": {
+                              "type": "string",
+                              "enum": [
+                                "NO_PROPERTY_COORDINATES",
+                                "NO_ACCURACY",
+                                "POOR_ACCURACY"
+                              ],
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "mode",
+                            "effectiveMode",
+                            "radiusMeters",
+                            "fallbackReason"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -21676,6 +21773,14 @@
                     "type": "number",
                     "minimum": -180,
                     "maximum": 180
+                  },
+                  "accuracy": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "clientOccurredAt": {
+                    "type": "string",
+                    "format": "date-time"
                   }
                 },
                 "required": [
@@ -21750,6 +21855,17 @@
                             "CANCELLED",
                             "REJECTED"
                           ]
+                        },
+                        "finishAccuracyMeters": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "finishGeolocationDistanceMeters": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "finishOutOfRadius": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -22216,6 +22332,310 @@
                     "totalApproved",
                     "nextPayment",
                     "monthly"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/platform-settings": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "settings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "section": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "object",
+                                "additionalProperties": {}
+                              },
+                              "defaults": {
+                                "type": "object",
+                                "additionalProperties": {}
+                              },
+                              "isDefault": {
+                                "type": "boolean"
+                              },
+                              "updatedAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ],
+                                "nullable": true
+                              },
+                              "updatedBy": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name"
+                                ],
+                                "additionalProperties": false,
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "section",
+                              "value",
+                              "defaults",
+                              "isDefault",
+                              "updatedAt",
+                              "updatedBy"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "settings"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/platform-settings/{key}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "section": {
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        "defaults": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
+                        "updatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "updatedBy": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "section",
+                        "value",
+                        "defaults",
+                        "isDefault",
+                        "updatedAt",
+                        "updatedBy"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "in": "path",
+            "name": "key",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "section": {
+                          "type": "string"
+                        },
+                        "value": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        "defaults": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
+                        "updatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "updatedBy": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "section",
+                        "value",
+                        "defaults",
+                        "isDefault",
+                        "updatedAt",
+                        "updatedBy"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
                   ],
                   "additionalProperties": false
                 }

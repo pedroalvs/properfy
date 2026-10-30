@@ -1,6 +1,7 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import { assertTenantScope } from '../../../../shared/domain/require-tenant-scope';
+import { maskCoordinateKeys } from '../../domain/mask-coordinate-keys';
 import type { IAuditLogRepository, AuditLogFilters, PaginationParams } from '../../domain/audit-log.repository';
 import type { IPiiFieldMappingRepository } from '../../domain/pii-field-mapping.repository';
 import type { IAuditEntityLabelResolver } from '../../domain/audit-entity-label-resolver';
@@ -212,7 +213,15 @@ export class ListAuditLogsUseCase {
           afterJson,
           requestId: entry.requestId,
           ipAddress: entry.ipAddress,
-          metadataJson: entry.metadataJson,
+          // F03 (D10): agency roles never see the inspector's raw coordinates.
+          // Masked regardless of redactionStatus — FULL redaction only strips
+          // registered PII (name/email/phone), NOT coordinates, so they survive
+          // it; re-stamping `[MASKED]` over an already-redacted field is harmless
+          // and keeps the privacy invariant independent of PII-mapping config.
+          metadataJson:
+            role === 'CL_ADMIN'
+              ? (maskCoordinateKeys(entry.metadataJson) as Record<string, unknown> | null)
+              : entry.metadataJson,
           createdAt: entry.createdAt,
           isArchived: entry.isArchived || undefined,
         };

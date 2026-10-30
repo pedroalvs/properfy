@@ -12,6 +12,11 @@ export interface IInspectionExecutionRepository {
       resumedAt: Date | null;
       finishLatitude: number;
       finishLongitude: number;
+      // F03 finish capture.
+      finishAccuracyMeters: number | null;
+      finishClientAt: Date | null;
+      finishGeolocationDistanceMeters: number | null;
+      finishOutOfRadius: boolean;
     }>,
     tx?: Prisma.TransactionClient,
   ): Promise<void>;

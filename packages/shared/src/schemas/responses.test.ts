@@ -18,6 +18,7 @@ import {
   invoiceResponseSchema,
   inspectorResponseSchema,
   startInspectionResponseSchema,
+  finishInspectionResponseSchema,
   serviceGroupResponseSchema,
 } from './responses';
 
@@ -1326,5 +1327,47 @@ describe('startInspectionResponseSchema', () => {
 
   it('rejects an invalid status', () => {
     expect(startInspectionResponseSchema.safeParse({ ...validPayload, status: 'DONE' }).success).toBe(false);
+  });
+
+  // F03 — the new fields are optional so a response cached under idempotency
+  // before the deploy still validates on serialize.
+  it('accepts the new F03 start fields (geofence, flags, accuracy)', () => {
+    const result = startInspectionResponseSchema.safeParse({
+      ...validPayload,
+      startAccuracyMeters: 12.4,
+      outOfRadius: true,
+      outOfWindow: false,
+      geofence: { mode: 'BLOCK', effectiveMode: 'FLAG', radiusMeters: 300, fallbackReason: 'POOR_ACCURACY' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('still accepts the pre-F03 start shape (no new fields)', () => {
+    expect(startInspectionResponseSchema.safeParse(validPayload).success).toBe(true);
+  });
+});
+
+describe('finishInspectionResponseSchema — F03 fields', () => {
+  const validPayload = {
+    executionId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee111',
+    appointmentId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee112',
+    startedAt: '2026-03-16T10:00:00.000Z',
+    finishedAt: '2026-03-16T11:00:00.000Z',
+    appointmentStatus: 'DONE' as const,
+  };
+
+  it('accepts the pre-F03 shape (no distance/flag)', () => {
+    expect(finishInspectionResponseSchema.safeParse(validPayload).success).toBe(true);
+  });
+
+  it('accepts the new F03 finish fields', () => {
+    expect(
+      finishInspectionResponseSchema.safeParse({
+        ...validPayload,
+        finishAccuracyMeters: 8,
+        finishGeolocationDistanceMeters: 80,
+        finishOutOfRadius: false,
+      }).success,
+    ).toBe(true);
   });
 });

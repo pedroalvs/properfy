@@ -9293,7 +9293,18 @@ export interface paths {
                                     geolocationDistanceMeters: number | null;
                                     /** @enum {string} */
                                     status: "IN_PROGRESS" | "FINISHED";
+                                    startAccuracyMeters?: number | null;
+                                    finishAccuracyMeters?: number | null;
+                                    finishGeolocationDistanceMeters?: number | null;
+                                    outOfRadius?: boolean;
+                                    outOfWindow?: boolean;
+                                    finishOutOfRadius?: boolean;
                                 } | null;
+                                geofence?: {
+                                    radiusMeters: number;
+                                    /** @enum {string} */
+                                    mode: "FLAG" | "BLOCK";
+                                };
                                 /** @default [] */
                                 apps: {
                                     /** Format: uuid */
@@ -9390,6 +9401,9 @@ export interface paths {
                     "application/json": {
                         latitude: number;
                         longitude: number;
+                        accuracy?: number;
+                        /** Format: date-time */
+                        clientOccurredAt?: string;
                     };
                 };
             };
@@ -9412,6 +9426,18 @@ export interface paths {
                                 geolocationDistanceMeters: number | null;
                                 /** @enum {string} */
                                 status: "IN_PROGRESS";
+                                startAccuracyMeters?: number | null;
+                                outOfRadius?: boolean;
+                                outOfWindow?: boolean;
+                                geofence?: {
+                                    /** @enum {string} */
+                                    mode: "FLAG" | "BLOCK";
+                                    /** @enum {string} */
+                                    effectiveMode: "FLAG" | "BLOCK";
+                                    radiusMeters: number;
+                                    /** @enum {string|null} */
+                                    fallbackReason: "NO_PROPERTY_COORDINATES" | "NO_ACCURACY" | "POOR_ACCURACY" | null;
+                                };
                             };
                         };
                     };
@@ -9447,6 +9473,9 @@ export interface paths {
                     "application/json": {
                         latitude: number;
                         longitude: number;
+                        accuracy?: number;
+                        /** Format: date-time */
+                        clientOccurredAt?: string;
                     };
                 };
             };
@@ -9467,6 +9496,9 @@ export interface paths {
                                 finishedAt: string;
                                 /** @enum {string} */
                                 appointmentStatus: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
+                                finishAccuracyMeters?: number | null;
+                                finishGeolocationDistanceMeters?: number | null;
+                                finishOutOfRadius?: boolean;
                             };
                         };
                     };
@@ -9759,6 +9791,163 @@ export interface paths {
             };
         };
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                settings: {
+                                    key: string;
+                                    section: string;
+                                    value: {
+                                        [key: string]: unknown;
+                                    };
+                                    defaults: {
+                                        [key: string]: unknown;
+                                    };
+                                    isDefault: boolean;
+                                    updatedAt: (string) | null;
+                                    updatedBy: {
+                                        /** Format: uuid */
+                                        id: string;
+                                        name: string;
+                                    } | null;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform-settings/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                key: string;
+                                section: string;
+                                value: {
+                                    [key: string]: unknown;
+                                };
+                                defaults: {
+                                    [key: string]: unknown;
+                                };
+                                isDefault: boolean;
+                                updatedAt: (string) | null;
+                                updatedBy: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        value: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                key: string;
+                                section: string;
+                                value: {
+                                    [key: string]: unknown;
+                                };
+                                defaults: {
+                                    [key: string]: unknown;
+                                };
+                                isDefault: boolean;
+                                updatedAt: (string) | null;
+                                updatedBy: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         post?: never;
         delete?: never;
         options?: never;

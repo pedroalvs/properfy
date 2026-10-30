@@ -1,15 +1,15 @@
 import { randomUUID } from 'crypto';
 import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../../shared/domain/timezone-date';
-import type { AuthContext } from '@properfy/shared';
+import type { AuthContext, GeofenceMode } from '@properfy/shared';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import type { IIdempotencyService } from '../../domain/idempotency.service';
 import { InspectionExecutionEntity } from '../../domain/inspection-execution.entity';
 import { InspectionStartGateService } from '../../../../shared/domain/inspection-start-gate.service';
-import {
-  haversineDistanceMeters,
-  GEOLOCATION_MISMATCH_THRESHOLD_METERS,
-} from '../../domain/geolocation-distance.service';
+import { haversineDistanceMeters } from '../../domain/geolocation-distance.service';
+import { evaluateGeofence, type GeofenceFallbackReason } from '../../domain/geofence.service';
+import { isOutOfCheckInWindow } from '../../domain/check-in-window.service';
+import { resolveEffectiveEventTime } from '../../domain/client-occurred-at';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import {
@@ -17,17 +17,33 @@ import {
   ExecutionT1BlockedError,
   ExecutionAlreadyFinishedError,
   ExecutionTimeWindowError,
+  GeofenceOutOfRadiusError,
 } from '../../domain/inspection-execution.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IServiceTypeReader } from '../../domain/service-type-reader';
 import type { ITenantTimezoneLookup } from '../../../../shared/application/tenant-timezone';
+import type { IPlatformSettingsReader } from '../../../../shared/domain/platform-settings';
+
+/** `Decimal(10,2)` ceiling; clamp absurd accuracy rather than 400 (a 400 poisons an offline item). */
+const MAX_DECIMAL_10_2 = 99_999_999.99;
+const clampAccuracy = (accuracy: number | undefined): number | null =>
+  accuracy === undefined ? null : Math.min(accuracy, MAX_DECIMAL_10_2);
 
 export interface StartInspectionInput {
   appointmentId: string;
   latitude: number;
   longitude: number;
+  accuracy?: number;
+  clientOccurredAt?: string;
   idempotencyKey: string;
   actor: AuthContext;
+}
+
+export interface StartInspectionGeofence {
+  mode: GeofenceMode;
+  effectiveMode: GeofenceMode;
+  radiusMeters: number;
+  fallbackReason: GeofenceFallbackReason | null;
 }
 
 export interface StartInspectionOutput {
@@ -38,6 +54,10 @@ export interface StartInspectionOutput {
   startLongitude: number;
   geolocationDistanceMeters: number | null;
   status: 'IN_PROGRESS';
+  startAccuracyMeters: number | null;
+  outOfRadius: boolean;
+  outOfWindow: boolean;
+  geofence: StartInspectionGeofence;
 }
 
 export class StartInspectionUseCase {
@@ -50,70 +70,45 @@ export class StartInspectionUseCase {
     private readonly auditService: AuditService,
     private readonly serviceTypeReader: IServiceTypeReader,
     private readonly authorizationService: AuthorizationService,
+    private readonly platformSettings: IPlatformSettingsReader,
     /** Cached tenants.timezone lookup; absent → platform-timezone gates. */
     private readonly tenantTimezoneLookup?: ITenantTimezoneLookup,
   ) {}
 
   async execute(input: StartInspectionInput): Promise<StartInspectionOutput> {
     const { appointmentId, latitude, longitude, idempotencyKey, actor } = input;
+    const accuracy = clampAccuracy(input.accuracy);
 
     // 1. INSP only
     this.authorizationService.assertRoles(actor, ['INSP'], {
       action: 'appointment.mark_done',
       entityType: 'InspectionExecution',
     });
-
     if (!actor.inspectorId) {
       throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
     }
 
-    // 2. Check idempotency
-    const cached = await this.idempotencyService.get<StartInspectionOutput>(
-      idempotencyKey,
-      'start',
-    );
+    // 2. Idempotency
+    const cached = await this.idempotencyService.get<StartInspectionOutput>(idempotencyKey, 'start');
     if (cached) return cached;
 
-    // 3. Load appointment
+    // 3. Load appointment + assignment/status checks
     const result = await this.appointmentRepo.findById(appointmentId, null);
     if (!result) throw new ExecutionAppointmentNotFoundError();
-
     const { appointment } = result;
+    if (appointment.inspectorId !== actor.inspectorId) throw new ExecutionAppointmentNotFoundError();
+    if (appointment.status !== 'SCHEDULED') throw new ExecutionAppointmentNotFoundError();
 
-    // Check inspector assignment and status
-    if (appointment.inspectorId !== actor.inspectorId) {
-      throw new ExecutionAppointmentNotFoundError();
-    }
-    if (appointment.status !== 'SCHEDULED') {
-      throw new ExecutionAppointmentNotFoundError();
-    }
-
-    // 4. Apply T-1 rule (centralized in repository). "Today" is the civil date
-    // in the appointment's AGENCY timezone — the T-1 window and the start gate
-    // are properties of the appointment, not of the viewing inspector.
+    const now = new Date();
     const agencyTz =
-      (await this.tenantTimezoneLookup?.getTenantTimezone(appointment.tenantId)) ??
-      PLATFORM_TIMEZONE;
-    const todayCivil = civilDateInTimezone(new Date(), agencyTz);
-    const isVisible = await this.appointmentRepo.isAppointmentVisibleForInspector(
-      appointmentId,
-      todayCivil,
-    );
+      (await this.tenantTimezoneLookup?.getTenantTimezone(appointment.tenantId)) ?? PLATFORM_TIMEZONE;
+
+    // 4. T-1 visibility (agency civil date).
+    const todayCivil = civilDateInTimezone(now, agencyTz);
+    const isVisible = await this.appointmentRepo.isAppointmentVisibleForInspector(appointmentId, todayCivil);
     if (!isVisible) throw new ExecutionT1BlockedError();
 
-    // 4b. Tenant confirmation, re-checked for dates that already passed.
-    //
-    // `isAppointmentVisibleForInspector` only withholds an unconfirmed routine
-    // inspection on the day itself and the day before (T1VisibilityService's
-    // `diffDays === 0 || diffDays === 1`); a past date yields a negative diff and
-    // is reported visible. That branch used to be unreachable for a start because
-    // the time window rejected anything past `timeSlotEnd`. Now that the gate
-    // stays open indefinitely, guard it explicitly — otherwise a routine job the
-    // rental tenant never confirmed becomes executable the day after its date,
-    // bypassing the rule that forcing confirmation is an AM/OP-only action.
-    //
-    // The exemptions mirror the T-1 rule exactly: non-routine flows never need
-    // confirmation, and a key on hand replaces it.
+    // 4b. Tenant confirmation, re-checked for past dates (see original rationale).
     const serviceType = await this.serviceTypeReader.findById(appointment.serviceTypeId);
     const flowType = serviceType?.flowType ?? 'ROUTINE';
     const requiresConfirmationFlag = serviceType?.requiresRentalTenantConfirmation ?? true;
@@ -122,50 +117,88 @@ export class StartInspectionUseCase {
       throw new ExecutionT1BlockedError();
     }
 
-    // 4c. Apply the start gate: open from the scheduled day onwards, no upper
-    // bound, at the agency's local midnight.
-    const gateCheck = this.startGateService.isStartAllowed(
-      appointment.scheduledDate,
-      new Date(),
-      agencyTz,
-    );
+    // 4c. Start gate (agency local midnight onwards).
+    const gateCheck = this.startGateService.isStartAllowed(appointment.scheduledDate, now, agencyTz);
     if (!gateCheck.allowed) {
       throw new ExecutionTimeWindowError(gateCheck.reason ?? 'Inspection day has not started yet');
     }
 
-    // 5. Compute geolocation distance to property
-    const propertyLat = result.propertyLatitude;
-    const propertyLng = result.propertyLongitude;
-    let geolocationDistanceMeters: number | null = null;
+    // 5. Field-events settings (geofence radius/mode, window tolerance).
+    const settings = await this.platformSettings.get('fieldEvents');
+    const radiusMeters = settings.geofenceRadiusMeters;
 
-    if (propertyLat != null && propertyLng != null) {
-      geolocationDistanceMeters = Math.round(
-        haversineDistanceMeters(latitude, longitude, propertyLat, propertyLng),
-      );
-    }
-
-    // 6. Check existing execution
-    const existingExecution = await this.executionRepo.findByAppointmentId(appointmentId);
-    if (existingExecution) {
-      if (existingExecution.isFinished()) {
-        throw new ExecutionAlreadyFinishedError();
-      }
-      // Already in progress — return existing (idempotent start)
-      const existingResult: StartInspectionOutput = {
-        executionId: existingExecution.id,
-        appointmentId: existingExecution.appointmentId,
-        startedAt: existingExecution.startedAt.toISOString(),
-        startLatitude: existingExecution.startLatitude,
-        startLongitude: existingExecution.startLongitude,
-        geolocationDistanceMeters: existingExecution.geolocationDistanceMeters,
+    // 6. Existing execution (BEFORE geofence, so an in-progress retry is never re-blocked).
+    const existing = await this.executionRepo.findByAppointmentId(appointmentId);
+    if (existing) {
+      if (existing.isFinished()) throw new ExecutionAlreadyFinishedError();
+      return {
+        executionId: existing.id,
+        appointmentId: existing.appointmentId,
+        startedAt: existing.startedAt.toISOString(),
+        startLatitude: existing.startLatitude,
+        startLongitude: existing.startLongitude,
+        geolocationDistanceMeters: existing.geolocationDistanceMeters,
         status: 'IN_PROGRESS',
+        startAccuracyMeters: existing.startAccuracyMeters,
+        outOfRadius: existing.outOfRadius,
+        outOfWindow: existing.outOfWindow,
+        geofence: {
+          mode: settings.geofenceMode,
+          effectiveMode: settings.geofenceMode,
+          radiusMeters: existing.geofenceRadiusMeters ?? radiusMeters,
+          fallbackReason: null,
+        },
       };
-      return existingResult;
     }
 
-    // 7. Create execution
-    const now = new Date();
+    // 7. Distance to the property (null when the property has no coordinates).
+    const propertyLat = result.propertyLatitude ?? null;
+    const propertyLng = result.propertyLongitude ?? null;
+    const geolocationDistanceMeters =
+      propertyLat != null && propertyLng != null
+        ? Math.round(haversineDistanceMeters(latitude, longitude, propertyLat, propertyLng))
+        : null;
+
+    // 8. Geofence. BLOCK falls back to FLAG when the measurement is unreliable.
+    const geofence = evaluateGeofence({
+      distanceMeters: geolocationDistanceMeters,
+      accuracyMeters: accuracy,
+      radiusMeters,
+      mode: settings.geofenceMode,
+    });
+    if (geofence.blocked && geolocationDistanceMeters != null) {
+      this.auditService.log({
+        action: 'inspection.check_in_blocked',
+        actorType: 'USER',
+        actorId: actor.userId,
+        entityType: 'Appointment',
+        entityId: appointmentId,
+        tenantId: appointment.tenantId,
+        metadata: { distanceMeters: geolocationDistanceMeters, radiusMeters, accuracyMeters: accuracy },
+      });
+      throw new GeofenceOutOfRadiusError(geolocationDistanceMeters, radiusMeters, accuracy);
+    }
+
+    // 9. Check-in window, using the plausible device time when available.
+    const { effectiveAt, clientTimePlausible } = resolveEffectiveEventTime(input.clientOccurredAt, now);
+    let outOfWindow = false;
+    let windowSkipped: 'IMPLAUSIBLE_CLIENT_TIME' | undefined;
+    if (clientTimePlausible === false) {
+      windowSkipped = 'IMPLAUSIBLE_CLIENT_TIME';
+    } else {
+      outOfWindow = isOutOfCheckInWindow({
+        effectiveAt,
+        scheduledDate: appointment.scheduledDate.toISOString().slice(0, 10),
+        timeSlotStart: appointment.timeSlotStart,
+        timeSlotEnd: appointment.timeSlotEnd,
+        toleranceMinutes: settings.checkInWindowToleranceMinutes,
+        timeZone: agencyTz,
+      });
+    }
+
+    // 10. Create execution (radius snapshot always written).
     const executionId = randomUUID();
+    const clientAt = input.clientOccurredAt ? new Date(input.clientOccurredAt) : null;
     const execution = new InspectionExecutionEntity({
       id: executionId,
       appointmentId,
@@ -178,13 +211,17 @@ export class StartInspectionUseCase {
       finishLatitude: null,
       finishLongitude: null,
       geolocationDistanceMeters,
+      startAccuracyMeters: accuracy,
+      startClientAt: clientAt && !Number.isNaN(clientAt.getTime()) ? clientAt : null,
+      outOfRadius: geofence.outOfRadius,
+      outOfWindow,
+      geofenceRadiusMeters: radiusMeters,
       createdAt: now,
       updatedAt: now,
     });
-
     await this.executionRepo.save(execution);
 
-    // 8. Audit log
+    // 11. Audits.
     this.auditService.log({
       action: 'inspection_execution.started',
       actorType: 'USER',
@@ -198,10 +235,12 @@ export class StartInspectionUseCase {
         startLatitude: latitude,
         startLongitude: longitude,
         geolocationDistanceMeters,
+        accuracyMeters: accuracy,
+        outOfRadius: geofence.outOfRadius,
+        outOfWindow,
       },
     });
 
-    // 8b. Audit log for appointment timeline
     this.auditService.log({
       action: 'inspection.started',
       actorType: 'USER',
@@ -209,14 +248,22 @@ export class StartInspectionUseCase {
       entityType: 'Appointment',
       entityId: appointmentId,
       tenantId: appointment.tenantId,
-      metadata: { latitude, longitude, geolocationDistanceMeters },
+      metadata: {
+        latitude,
+        longitude,
+        geolocationDistanceMeters,
+        accuracyMeters: accuracy,
+        clientOccurredAt: input.clientOccurredAt ?? null,
+        outOfRadius: geofence.outOfRadius,
+        outOfWindow,
+        geofenceMode: settings.geofenceMode,
+        geofenceEffectiveMode: geofence.effectiveMode,
+        radiusMeters,
+        ...(windowSkipped ? { windowSkipped } : {}),
+      },
     });
 
-    // 8c. Geolocation mismatch warning (non-blocking)
-    if (
-      geolocationDistanceMeters != null &&
-      geolocationDistanceMeters > GEOLOCATION_MISMATCH_THRESHOLD_METERS
-    ) {
+    if (geofence.outOfRadius) {
       this.auditService.log({
         action: 'inspection.geolocation_mismatch',
         actorType: 'USER',
@@ -225,17 +272,19 @@ export class StartInspectionUseCase {
         entityId: appointmentId,
         tenantId: appointment.tenantId,
         metadata: {
+          phase: 'START',
           inspectorLatitude: latitude,
           inspectorLongitude: longitude,
           propertyLatitude: propertyLat,
           propertyLongitude: propertyLng,
           distanceMeters: geolocationDistanceMeters,
-          thresholdMeters: GEOLOCATION_MISMATCH_THRESHOLD_METERS,
+          thresholdMeters: radiusMeters,
+          accuracyMeters: accuracy,
         },
       });
     }
 
-    // 9. Store idempotency
+    // 12. Idempotency.
     const output: StartInspectionOutput = {
       executionId,
       appointmentId,
@@ -244,10 +293,17 @@ export class StartInspectionUseCase {
       startLongitude: longitude,
       geolocationDistanceMeters,
       status: 'IN_PROGRESS',
+      startAccuracyMeters: accuracy,
+      outOfRadius: geofence.outOfRadius,
+      outOfWindow,
+      geofence: {
+        mode: settings.geofenceMode,
+        effectiveMode: geofence.effectiveMode,
+        radiusMeters,
+        fallbackReason: geofence.fallbackReason,
+      },
     };
-
     await this.idempotencyService.set(idempotencyKey, 'start', output, 24);
-
     return output;
   }
 }

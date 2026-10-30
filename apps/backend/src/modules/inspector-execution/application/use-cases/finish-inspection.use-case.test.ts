@@ -13,6 +13,16 @@ const INSP_ACTOR = {
 
 const TX = { __tx: true };
 
+const platformSettingsStub = {
+  get: vi.fn().mockResolvedValue({
+    geofenceRadiusMeters: 300,
+    geofenceMode: 'FLAG',
+    checkInWindowToleranceMinutes: 15,
+    completionReminderEnabled: true,
+    completionReminderMinutesAfterWindowEnd: 30,
+  }),
+} as never;
+
 /** Mirrors join-group.use-case.test.ts: a $transaction stub that runs the callback
  * against a sentinel tx and marks commit only if the callback resolves. */
 function buildPrismaStub() {
@@ -60,6 +70,7 @@ function buildUseCase(overrides: {
     auditService,
     new AuthorizationService(auditService),
     (overrides.prisma ?? buildPrismaStub()) as never,
+    platformSettingsStub,
   );
 }
 
@@ -83,6 +94,8 @@ describe('FinishInspectionUseCase', () => {
       { findById: vi.fn().mockResolvedValue({ appointment: { tenantId: 'tenant-1' } }) } as never,
       auditService,
       new AuthorizationService(auditService),
+      undefined,
+      platformSettingsStub,
     );
 
     await expect(
@@ -137,6 +150,10 @@ describe('FinishInspectionUseCase', () => {
       finishedAt: expect.any(Date),
       finishLatitude: -12.97,
       finishLongitude: -38.5,
+      finishAccuracyMeters: null,
+      finishClientAt: null,
+      finishGeolocationDistanceMeters: null,
+      finishOutOfRadius: false,
     }, TX);
   });
 
@@ -173,6 +190,7 @@ describe('FinishInspectionUseCase', () => {
       auditService,
       new AuthorizationService(auditService),
       prisma as never,
+      platformSettingsStub,
     );
 
     await expect(

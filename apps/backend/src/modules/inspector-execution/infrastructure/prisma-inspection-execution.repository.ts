@@ -18,6 +18,16 @@ function mapToEntity(row: any): InspectionExecutionEntity {
     finishLatitude: row.finish_latitude ? Number(row.finish_latitude) : null,
     finishLongitude: row.finish_longitude ? Number(row.finish_longitude) : null,
     geolocationDistanceMeters: row.geolocation_distance_meters != null ? Number(row.geolocation_distance_meters) : null,
+    startAccuracyMeters: row.start_accuracy_m != null ? Number(row.start_accuracy_m) : null,
+    finishAccuracyMeters: row.finish_accuracy_m != null ? Number(row.finish_accuracy_m) : null,
+    startClientAt: row.start_client_at ?? null,
+    finishClientAt: row.finish_client_at ?? null,
+    finishGeolocationDistanceMeters:
+      row.finish_geolocation_distance_meters != null ? Number(row.finish_geolocation_distance_meters) : null,
+    outOfRadius: row.out_of_radius ?? false,
+    outOfWindow: row.out_of_window ?? false,
+    finishOutOfRadius: row.finish_out_of_radius ?? false,
+    geofenceRadiusMeters: row.geofence_radius_m != null ? Number(row.geofence_radius_m) : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
@@ -59,6 +69,11 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
         finish_latitude: execution.finishLatitude,
         finish_longitude: execution.finishLongitude,
         geolocation_distance_meters: execution.geolocationDistanceMeters,
+        start_accuracy_m: execution.startAccuracyMeters,
+        start_client_at: execution.startClientAt,
+        out_of_radius: execution.outOfRadius,
+        out_of_window: execution.outOfWindow,
+        geofence_radius_m: execution.geofenceRadiusMeters,
       },
     });
   }
@@ -70,6 +85,10 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
       resumedAt: Date | null;
       finishLatitude: number;
       finishLongitude: number;
+      finishAccuracyMeters: number | null;
+      finishClientAt: Date | null;
+      finishGeolocationDistanceMeters: number | null;
+      finishOutOfRadius: boolean;
     }>,
     tx?: Prisma.TransactionClient,
   ): Promise<void> {
@@ -78,6 +97,11 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
     if (data.resumedAt !== undefined) updateData.resumed_at = data.resumedAt;
     if (data.finishLatitude !== undefined) updateData.finish_latitude = data.finishLatitude;
     if (data.finishLongitude !== undefined) updateData.finish_longitude = data.finishLongitude;
+    if (data.finishAccuracyMeters !== undefined) updateData.finish_accuracy_m = data.finishAccuracyMeters;
+    if (data.finishClientAt !== undefined) updateData.finish_client_at = data.finishClientAt;
+    if (data.finishGeolocationDistanceMeters !== undefined)
+      updateData.finish_geolocation_distance_meters = data.finishGeolocationDistanceMeters;
+    if (data.finishOutOfRadius !== undefined) updateData.finish_out_of_radius = data.finishOutOfRadius;
     await this.db(tx).inspectionExecution.update({ where: { id }, data: updateData });
   }
 

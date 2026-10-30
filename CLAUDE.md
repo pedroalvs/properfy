@@ -199,7 +199,7 @@ Official statuses:
 6. Audit for critical operations (status, financial, permissions).
 7. Idempotency on critical commands (acceptance, execution, notifications, financial entries).
 8. No business query without an explicit scope decision: tenant (pinned roles), `inspectorId` (`INSP`), portal token (`TNT`), or a documented platform-scoped entity (see rule 1).
-9. **Inspector GPS coordinates are never exposed to `CL_ADMIN` or `CL_USER`** — not in API responses, exports, the web UI, notifications, nor the audit log. Agency roles see only derived values (distance to the property, accuracy, flags). New audit entries never store the inspector's raw latitude/longitude; legacy entries are masked on read for `CL_*`. Raw inspector coordinates are visible only to `AM`/`OP` (and to the inspector). Known gap until F03 (TASK-F03-1) merges: `GET /v1/audit-logs` returns `inspection.started` metadata with raw coordinates to `CL_ADMIN` — do not add any new leak, and add a test that fails if a `CL_*` response carries a coordinate key.
+9. **Inspector GPS coordinates are never exposed to `CL_ADMIN` or `CL_USER`** — not in API responses, exports, the web UI, notifications, nor the audit log. Agency roles see only derived values (distance to the property, accuracy, flags). New audit entries never store the inspector's raw latitude/longitude; legacy entries are masked on read for `CL_*`. Raw inspector coordinates are visible only to `AM`/`OP` (and to the inspector). `GET /v1/audit-logs` masks coordinate keys for `CL_ADMIN` on read (`maskCoordinateKeys`, `apps/backend/src/modules/audit/domain/mask-coordinate-keys.ts`); do not add any new leak, and add a test that fails if a `CL_*` response carries a coordinate key.
 
 ---
 
@@ -431,6 +431,8 @@ Skip worktrees only for: pure documentation edits, CLAUDE.md updates, or tasks t
 - Backend: Fastify 4, Prisma 6 (PostgreSQL/Supabase, PostGIS in CI), Zod 3, pg-boss 9, jose (RS256 JWT), Resend, MobileMessage, Mapbox
 - Web/PWA: React 18, Vite 5, React Router 6, TanStack Query 5, Tailwind 3, mapbox-gl 3, openapi-fetch; PWA adds vite-plugin-pwa (Workbox), react-hook-form, lucide-react
 - Tests: Vitest 1, Supertest, testcontainers, Playwright
+- TypeScript 5.6 strict, ES2022 ESM, Node.js 24 + Fastify 4, Prisma 6, Zod 3, `fastify-type-provider-zod`; shared package (`@properfy/shared`) (038-f03-1-platform-settings-geofence)
+- PostgreSQL (Supabase) via Prisma. New table `platform_settings`; new nullable/defaulted columns on `inspection_executions` (expand-only). No `tenant_id` on either. (038-f03-1-platform-settings-geofence)
 
 ## Recent Changes
 - Phase 2 Stage 1 planning (`fase2-etapa1/`): CLAUDE.md refreshed (X00); every feature PR updates the CLAUDE.md of the workspace it changes

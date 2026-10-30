@@ -73,6 +73,15 @@ describe('FinishInspectionUseCase — transaction rollback (real DB, WI-4 / #119
 
     const auditService = { log: vi.fn() } as unknown as AuditService;
 
+    const platformSettingsReader = {
+      get: async () => ({
+        geofenceRadiusMeters: 300,
+        geofenceMode: 'FLAG' as const,
+        checkInWindowToleranceMinutes: 15,
+        completionReminderEnabled: true,
+        completionReminderMinutesAfterWindowEnd: 30,
+      }),
+    };
     const useCase = new FinishInspectionUseCase(
       executionRepo,
       idempotencyService,
@@ -81,6 +90,7 @@ describe('FinishInspectionUseCase — transaction rollback (real DB, WI-4 / #119
       auditService,
       new AuthorizationService(auditService),
       prisma,
+      platformSettingsReader as never,
     );
 
     const actor: AuthContext = {
