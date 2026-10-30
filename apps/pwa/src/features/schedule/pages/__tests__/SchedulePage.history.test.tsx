@@ -22,6 +22,12 @@ vi.mock('@/hooks/useEffectiveTimezone', () => ({
   useEffectiveTimezone: () => 'Australia/Sydney',
 }));
 
+// The base-address banner owns its own query/router deps and has its own suite; this
+// history suite renders SchedulePage without providers, so stub it out here.
+vi.mock('@/components/feedback/BaseAddressBanner', () => ({
+  BaseAddressBanner: () => null,
+}));
+
 vi.mock('../../components/ScheduleOfflineBanner', () => ({
   ScheduleOfflineBanner: () => null,
 }));

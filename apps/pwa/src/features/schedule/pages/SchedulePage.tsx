@@ -13,6 +13,7 @@ import { ScheduleTabs } from '../components/ScheduleTabs';
 import { ScheduleHistoryList } from '../components/ScheduleHistoryList';
 import { InstallBannerNative } from '../components/InstallBannerNative';
 import { InstallBannerIos } from '../components/InstallBannerIos';
+import { BaseAddressBanner } from '@/components/feedback/BaseAddressBanner';
 import { useInstallPrompt } from '@/app/useInstallPrompt';
 import { useScheduleMonth } from '../hooks/useScheduleMonth';
 import { useScheduleDay } from '../hooks/useScheduleDay';
@@ -122,6 +123,12 @@ export function SchedulePage() {
   return (
     <div className="w-full" data-testid="schedule-page">
       <TopBar title="Schedule" size="lg" />
+      {/* Base-address prompt (contract 00.4), below the TopBar and above the install banners.
+          Non-sticky; scrolls with content. The wrapper hides when the banner renders null
+          so it never adds a gap. */}
+      <div className="px-page-x pt-4 [&:empty]:hidden">
+        <BaseAddressBanner />
+      </div>
       <div className="px-page-x py-4">
         <Card>
           <div className="flex items-start justify-between gap-4">

@@ -64,6 +64,9 @@ jobs:
         env:
           VITE_API_BASE_URL: https://properfy-api-dev.fly.dev
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
+          # Stamps the PWA footer/heartbeat version (buildAppVersion); inert for web.
+          # Matches the deployed commit (same ref the checkout step uses).
+          APP_BUILD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Deploy to Vercel
         run: |
@@ -112,6 +115,9 @@ jobs:
         env:
           VITE_API_BASE_URL: https://api.properfy.me
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
+          # Stamps the PWA footer/heartbeat version (buildAppVersion); inert for web.
+          # Matches the deployed commit (same ref the checkout step uses).
+          APP_BUILD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Deploy to Vercel
         run: |
@@ -159,6 +165,9 @@ jobs:
         env:
           VITE_API_BASE_URL: https://api-properfy.autolabs.tech
           VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
+          # Stamps the PWA footer/heartbeat version (buildAppVersion); inert for web.
+          # Matches the deployed commit (same ref the checkout step uses).
+          APP_BUILD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Deploy to Vercel
         run: |

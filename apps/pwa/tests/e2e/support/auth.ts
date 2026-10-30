@@ -7,16 +7,32 @@ export { INSPECTOR_ME };
 /**
  * The authenticated-boot stub set registered by {@link loginAsInspector}.
  *
- * Verified against `origin/develop` @ea3886c9: the ONLY authenticated-boot API
- * call is `GET /v1/me` (via `AuthProvider.fetchFullUser`). This list is owned
- * collectively — every feature that adds an authenticated-boot API call adds its
- * default stub HERE in the same PR (L-X03-05). F01's
- * `POST /v1/inspectors/me/app-state` heartbeat is not in this snapshot; it joins
- * the baseline in the PR that lands it. `GET /v1/inspectors/me` is a profile-screen
- * query, not a boot call, so it is not in the baseline.
+ * Authenticated-boot API calls, owned collectively — every feature that adds one
+ * adds its default stub HERE in the same PR (L-X03-05):
+ *   - `GET /v1/me` (via `AuthProvider.fetchFullUser`).
+ *   - `POST /v1/inspectors/me/app-state` — the F01-3 app-state heartbeat, fired from
+ *     `PwaLayout` on every authenticated mount. Returns 204.
+ *   - `GET /v1/inspectors/me` — F01-3 mounts `BaseAddressBanner` on the Schedule home
+ *     (not only Profile), so this query now runs on every authenticated boot. Its
+ *     default body is a LOCATED base, so the banner stays hidden by default; a spec
+ *     that exercises the missing/legacy-base states overrides it (last-route-wins).
  */
 export const BASELINE_STUBS: ReadonlyArray<{ path: string; body: unknown; status?: number }> = [
   { path: '/v1/me', body: INSPECTOR_ME },
+  { path: '/v1/inspectors/me/app-state', body: null, status: 204 },
+  {
+    path: '/v1/inspectors/me',
+    body: {
+      data: {
+        id: INSPECTOR_ME.inspectorId,
+        fullName: INSPECTOR_ME.name,
+        address: { street: '1 George St', suburb: 'Sydney', city: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' },
+        baseLat: -33.8688197,
+        baseLng: 151.2092955,
+        baseGeocodedAt: '2026-01-01T00:00:00.000Z',
+      },
+    },
+  },
 ];
 
 export interface LoginOptions {

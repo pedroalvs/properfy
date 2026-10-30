@@ -1,4 +1,4 @@
-import { getIsIosSafariEligible } from '../useInstallPrompt';
+import { getIsIosSafariEligible, getIsStandalone } from '../useInstallPrompt';
 
 function withUA(ua: string, standalone: boolean, fn: () => void) {
   const originalUA = Object.getOwnPropertyDescriptor(navigator, 'userAgent');
@@ -74,6 +74,42 @@ describe('getIsIosSafariEligible', () => {
   it('returns false for Firefox desktop', () => {
     withUA(FIREFOX_DESKTOP_UA, false, () => {
       expect(getIsIosSafariEligible()).toBe(false);
+    });
+  });
+});
+
+describe('getIsStandalone', () => {
+  const originalMatchMedia = window.matchMedia;
+
+  function mockMatchMedia(matches: boolean) {
+    window.matchMedia = ((query: string) => ({
+      matches,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+  }
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it('is true when display-mode is standalone', () => {
+    mockMatchMedia(true);
+    expect(getIsStandalone()).toBe(true);
+  });
+
+  it('is true when iOS navigator.standalone is set', () => {
+    mockMatchMedia(false);
+    withUA(IOS_SAFARI_UA, true, () => {
+      expect(getIsStandalone()).toBe(true);
+    });
+  });
+
+  it('is false in a regular browser tab', () => {
+    mockMatchMedia(false);
+    withUA(ANDROID_CHROME_UA, false, () => {
+      expect(getIsStandalone()).toBe(false);
     });
   });
 });

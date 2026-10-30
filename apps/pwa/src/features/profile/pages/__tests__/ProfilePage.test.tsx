@@ -53,6 +53,26 @@ describe('ProfilePage (tiles)', () => {
     expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
+  it('shows the base-address banner when the base has no coordinates', () => {
+    mockUseInspectorMe.mockReturnValue({
+      data: { data: { id: 'insp-1', address: null, baseLat: null } },
+      isLoading: false,
+      isError: false,
+    });
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByText('Add your base address')).toBeInTheDocument();
+  });
+
+  it('hides the base-address banner once the base is located', () => {
+    mockUseInspectorMe.mockReturnValue({
+      data: { data: { id: 'insp-1', address: { street: 'x' }, baseLat: -33.8 } },
+      isLoading: false,
+      isError: false,
+    });
+    renderWithProviders(<ProfilePage />);
+    expect(screen.queryByText('Add your base address')).not.toBeInTheDocument();
+  });
+
   it('renders the four tiles pointing at the correct destinations', () => {
     renderWithProviders(<ProfilePage />);
     // The tile's accessible name folds in its status line ("Earnings, Payments & invoices"),

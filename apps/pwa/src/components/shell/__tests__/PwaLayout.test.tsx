@@ -1,10 +1,15 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { createTestQueryClient } from '@/test-utils';
 import { PwaLayout } from '../PwaLayout';
+
+const mockHeartbeat = vi.fn();
+vi.mock('@/app/useAppStateHeartbeat', () => ({
+  useAppStateHeartbeat: () => mockHeartbeat(),
+}));
 
 /**
  * PwaLayout reads `useMatches()`, which React Router only supports under a data router — it throws
@@ -26,6 +31,15 @@ function renderLayout(child: RouteObject = { index: true, element: <div>Child co
 }
 
 describe('PwaLayout', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('invokes the app-state heartbeat once per mount', () => {
+    renderLayout();
+    expect(mockHeartbeat).toHaveBeenCalledTimes(1);
+  });
+
   it('renders bottom nav bar', () => {
     renderLayout();
     expect(screen.getByTestId('bottom-nav')).toBeInTheDocument();
