@@ -7587,8 +7587,70 @@
                   },
                   "address": {
                     "type": "object",
-                    "additionalProperties": {},
-                    "nullable": true
+                    "properties": {
+                      "street": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "number": {
+                        "type": "string",
+                        "maxLength": 20
+                      },
+                      "complement": {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "suburb": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "city": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "state": {
+                        "allOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "NSW",
+                              "VIC",
+                              "QLD",
+                              "WA",
+                              "SA",
+                              "TAS",
+                              "ACT",
+                              "NT"
+                            ]
+                          }
+                        ]
+                      },
+                      "postcode": {
+                        "type": "string",
+                        "pattern": "^\\d{4}$"
+                      },
+                      "country": {
+                        "type": "string",
+                        "enum": [
+                          "AU"
+                        ],
+                        "default": "AU"
+                      }
+                    },
+                    "required": [
+                      "street",
+                      "suburb",
+                      "city",
+                      "state",
+                      "postcode"
+                    ],
+                    "additionalProperties": false
                   },
                   "abn": {
                     "type": "string",
@@ -7616,7 +7678,8 @@
                 "required": [
                   "name",
                   "email",
-                  "password"
+                  "password",
+                  "address"
                 ],
                 "additionalProperties": false
               }
@@ -7671,6 +7734,61 @@
                           "nullable": true
                         },
                         "address": {},
+                        "baseLat": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "baseLng": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "baseGeocodedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "baseGeocodeFailed": {
+                          "type": "boolean"
+                        },
+                        "appInstalledAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "appLastSeenAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "pushEnabled": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "appVersion": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "abn": {
                           "type": "string",
                           "nullable": true
@@ -7857,6 +7975,54 @@
             "in": "query",
             "name": "tenantId",
             "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "false"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "1"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "0"
+                  ]
+                },
+                {
+                  "type": "number",
+                  "enum": [
+                    1
+                  ]
+                },
+                {
+                  "type": "number",
+                  "enum": [
+                    0
+                  ]
+                }
+              ]
+            },
+            "in": "query",
+            "name": "missingBaseAddress",
+            "required": false
           }
         ],
         "responses": {
@@ -7908,6 +8074,61 @@
                             "nullable": true
                           },
                           "address": {},
+                          "baseLat": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "baseLng": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "baseGeocodedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "baseGeocodeFailed": {
+                            "type": "boolean"
+                          },
+                          "appInstalledAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "appLastSeenAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "pushEnabled": {
+                            "type": "boolean",
+                            "nullable": true
+                          },
+                          "appVersion": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "abn": {
                             "type": "string",
                             "nullable": true
@@ -8091,6 +8312,61 @@
                           "nullable": true
                         },
                         "address": {},
+                        "baseLat": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "baseLng": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "baseGeocodedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "baseGeocodeFailed": {
+                          "type": "boolean"
+                        },
+                        "appInstalledAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "appLastSeenAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "pushEnabled": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "appVersion": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "abn": {
                           "type": "string",
                           "nullable": true
@@ -8294,8 +8570,70 @@
                   },
                   "address": {
                     "type": "object",
-                    "additionalProperties": {},
-                    "nullable": true
+                    "properties": {
+                      "street": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "number": {
+                        "type": "string",
+                        "maxLength": 20
+                      },
+                      "complement": {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "suburb": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "city": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "state": {
+                        "allOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "NSW",
+                              "VIC",
+                              "QLD",
+                              "WA",
+                              "SA",
+                              "TAS",
+                              "ACT",
+                              "NT"
+                            ]
+                          }
+                        ]
+                      },
+                      "postcode": {
+                        "type": "string",
+                        "pattern": "^\\d{4}$"
+                      },
+                      "country": {
+                        "type": "string",
+                        "enum": [
+                          "AU"
+                        ],
+                        "default": "AU"
+                      }
+                    },
+                    "required": [
+                      "street",
+                      "suburb",
+                      "city",
+                      "state",
+                      "postcode"
+                    ],
+                    "additionalProperties": false
                   },
                   "abn": {
                     "type": "string",
@@ -8389,6 +8727,61 @@
                           "nullable": true
                         },
                         "address": {},
+                        "baseLat": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "baseLng": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "baseGeocodedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "baseGeocodeFailed": {
+                          "type": "boolean"
+                        },
+                        "appInstalledAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "appLastSeenAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "pushEnabled": {
+                          "type": "boolean",
+                          "nullable": true
+                        },
+                        "appVersion": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "abn": {
                           "type": "string",
                           "nullable": true
@@ -9871,12 +10264,127 @@
                       }
                     },
                     "additionalProperties": true
+                  },
+                  "address": {
+                    "type": "object",
+                    "properties": {
+                      "street": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "number": {
+                        "type": "string",
+                        "maxLength": 20
+                      },
+                      "complement": {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "suburb": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "city": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "state": {
+                        "allOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "NSW",
+                              "VIC",
+                              "QLD",
+                              "WA",
+                              "SA",
+                              "TAS",
+                              "ACT",
+                              "NT"
+                            ]
+                          }
+                        ]
+                      },
+                      "postcode": {
+                        "type": "string",
+                        "pattern": "^\\d{4}$"
+                      },
+                      "country": {
+                        "type": "string",
+                        "enum": [
+                          "AU"
+                        ],
+                        "default": "AU"
+                      }
+                    },
+                    "required": [
+                      "street",
+                      "suburb",
+                      "city",
+                      "state",
+                      "postcode"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "additionalProperties": false
               }
             }
           }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/inspectors/me/app-state": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "displayMode": {
+                    "type": "string",
+                    "enum": [
+                      "standalone",
+                      "browser"
+                    ]
+                  },
+                  "pushPermission": {
+                    "type": "string",
+                    "enum": [
+                      "granted",
+                      "denied",
+                      "default",
+                      "unsupported"
+                    ]
+                  },
+                  "appVersion": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "displayMode",
+                  "pushPermission",
+                  "appVersion"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
         },
         "responses": {
           "200": {

@@ -38,6 +38,16 @@ vi.mock('../../../src/main/container', () => ({
 
 const INSPECTOR_ID = 'f5eebc99-9c0b-4ef8-bb6d-6bb9bd380a66';
 
+// F01-1: a base address is now required on create.
+const VALID_ADDRESS = {
+  street: '1 George St',
+  suburb: 'Sydney',
+  city: 'Sydney',
+  state: 'NSW',
+  postcode: '2000',
+  country: 'AU',
+};
+
 const amContext = { userId: 'admin-1', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
 const clUserContext = { userId: 'cl-user-1', tenantId: 'tenant-1', role: 'CL_USER', branchId: null, inspectorId: null };
 
@@ -91,6 +101,7 @@ describe('POST /v1/inspectors — profile fields', () => {
         abn: '12345678901',
         dateOfBirth: '1990-05-15',
         blockedClients: ['b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'],
+        address: VALID_ADDRESS,
       });
 
     expect(res.status).toBe(201);
@@ -118,7 +129,7 @@ describe('POST /v1/inspectors — profile fields', () => {
     const res = await supertest(app.server)
       .post('/v1/inspectors')
       .set('Authorization', 'Bearer valid-token')
-      .send({ name: 'Min Inspector', email: 'min@inspect.com', password: 'Insp@2026x' });
+      .send({ name: 'Min Inspector', email: 'min@inspect.com', password: 'Insp@2026x', address: VALID_ADDRESS });
 
     expect(res.status).toBe(201);
     expect(res.body.data.name).toBe('Min Inspector');
@@ -133,9 +144,40 @@ describe('POST /v1/inspectors — profile fields', () => {
     const res = await supertest(app.server)
       .post('/v1/inspectors')
       .set('Authorization', 'Bearer valid-token')
-      .send({ name: 'Test Inspector', email: 'test@inspect.com', password: 'Insp@2026x' });
+      .send({ name: 'Test Inspector', email: 'test@inspect.com', password: 'Insp@2026x', address: VALID_ADDRESS });
 
     expect(res.status).toBe(403);
+  });
+
+  it('should return 400 when address is missing (F01-1: base is mandatory)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    const res = await supertest(app.server)
+      .post('/v1/inspectors')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ name: 'No Base', email: 'nobase@inspect.com', password: 'Insp@2026x' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockCreateInspectorExecute).not.toHaveBeenCalled();
+  });
+
+  it('should strip a client-sent latitude/longitude from the address (F01-1)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockCreateInspectorExecute.mockResolvedValueOnce(fullProfileInspector);
+    const res = await supertest(app.server)
+      .post('/v1/inspectors')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        name: 'With Coords',
+        email: 'coords@inspect.com',
+        password: 'Insp@2026x',
+        address: { ...VALID_ADDRESS, latitude: -33.8, longitude: 151.2 },
+      });
+
+    expect(res.status).toBe(201);
+    const passedAddress = mockCreateInspectorExecute.mock.calls[0][0].address;
+    expect(passedAddress).not.toHaveProperty('latitude');
+    expect(passedAddress).not.toHaveProperty('longitude');
   });
 });
 
@@ -163,5 +205,17 @@ describe('PATCH /v1/inspectors/:inspectorId — blockedClients update', () => {
 
     expect(res.status).toBe(200);
     expect(mockUpdateInspectorExecute).toHaveBeenCalledOnce();
+  });
+
+  it('should return 400 when address is null (F01-1: base cannot be removed)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    const res = await supertest(app.server)
+      .patch(`/v1/inspectors/${INSPECTOR_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ address: null });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(mockUpdateInspectorExecute).not.toHaveBeenCalled();
   });
 });

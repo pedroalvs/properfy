@@ -3375,6 +3375,7 @@ export interface paths {
                     region?: string;
                     serviceTypeId?: string;
                     tenantId?: string;
+                    missingBaseAddress?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
                 };
                 header?: never;
                 path?: never;
@@ -3402,6 +3403,14 @@ export interface paths {
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
+                                baseLat?: number | null;
+                                baseLng?: number | null;
+                                baseGeocodedAt?: (string) | null;
+                                baseGeocodeFailed?: boolean;
+                                appInstalledAt?: (string) | null;
+                                appLastSeenAt?: (string) | null;
+                                pushEnabled?: boolean | null;
+                                appVersion?: string | null;
                                 abn?: string | null;
                                 dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
@@ -3471,9 +3480,20 @@ export interface paths {
                         /** @default [] */
                         blockedClients?: string[];
                         fullName?: string;
-                        address?: {
-                            [key: string]: unknown;
-                        } | null;
+                        address: {
+                            street: string;
+                            number?: string;
+                            complement?: string;
+                            suburb: string;
+                            city: string;
+                            state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                            postcode: string;
+                            /**
+                             * @default AU
+                             * @enum {string}
+                             */
+                            country?: "AU";
+                        };
                         abn?: string;
                         /** Format: date */
                         dateOfBirth?: string;
@@ -3507,6 +3527,14 @@ export interface paths {
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
+                                baseLat?: number | null;
+                                baseLng?: number | null;
+                                baseGeocodedAt?: (string) | null;
+                                baseGeocodeFailed?: boolean;
+                                appInstalledAt?: (string) | null;
+                                appLastSeenAt?: (string) | null;
+                                pushEnabled?: boolean | null;
+                                appVersion?: string | null;
                                 abn?: string | null;
                                 dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
@@ -3573,6 +3601,14 @@ export interface paths {
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
+                                baseLat?: number | null;
+                                baseLng?: number | null;
+                                baseGeocodedAt?: (string) | null;
+                                baseGeocodeFailed?: boolean;
+                                appInstalledAt?: (string) | null;
+                                appLastSeenAt?: (string) | null;
+                                pushEnabled?: boolean | null;
+                                appVersion?: string | null;
                                 abn?: string | null;
                                 dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
@@ -3639,8 +3675,19 @@ export interface paths {
                         blockedClients?: string[];
                         fullName?: string | null;
                         address?: {
-                            [key: string]: unknown;
-                        } | null;
+                            street: string;
+                            number?: string;
+                            complement?: string;
+                            suburb: string;
+                            city: string;
+                            state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                            postcode: string;
+                            /**
+                             * @default AU
+                             * @enum {string}
+                             */
+                            country?: "AU";
+                        };
                         abn?: string | null;
                         /** Format: date */
                         dateOfBirth?: string | null;
@@ -3674,6 +3721,14 @@ export interface paths {
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
+                                baseLat?: number | null;
+                                baseLng?: number | null;
+                                baseGeocodedAt?: (string) | null;
+                                baseGeocodeFailed?: boolean;
+                                appInstalledAt?: (string) | null;
+                                appLastSeenAt?: (string) | null;
+                                pushEnabled?: boolean | null;
+                                appVersion?: string | null;
                                 abn?: string | null;
                                 dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
@@ -4327,6 +4382,20 @@ export interface paths {
                         } & {
                             [key: string]: unknown;
                         };
+                        address?: {
+                            street: string;
+                            number?: string;
+                            complement?: string;
+                            suburb: string;
+                            city: string;
+                            state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                            postcode: string;
+                            /**
+                             * @default AU
+                             * @enum {string}
+                             */
+                            country?: "AU";
+                        };
                     };
                 };
             };
@@ -4340,6 +4409,49 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/v1/inspectors/me/app-state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        displayMode: "standalone" | "browser";
+                        /** @enum {string} */
+                        pushPermission: "granted" | "denied" | "default" | "unsupported";
+                        appVersion: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/inspectors/{inspectorId}/photo/presign": {

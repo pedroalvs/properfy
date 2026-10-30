@@ -110,6 +110,7 @@ import { ResetInspectorPasswordUseCase } from '../modules/inspector/application/
 import { GenerateInspectorPhotoUploadUrlUseCase } from '../modules/inspector/application/use-cases/generate-inspector-photo-upload-url.use-case';
 import { ConfirmInspectorPhotoUploadUseCase } from '../modules/inspector/application/use-cases/confirm-inspector-photo-upload.use-case';
 import { UpdateInspectorSelfProfileUseCase } from '../modules/inspector/application/use-cases/update-inspector-self-profile.use-case';
+import { RecordInspectorAppStateUseCase } from '../modules/inspector/application/use-cases/record-inspector-app-state.use-case';
 import { GenerateInspectorDocumentUploadUrlUseCase } from '../modules/inspector/application/use-cases/generate-inspector-document-upload-url.use-case';
 import { ConfirmInspectorDocumentUploadUseCase } from '../modules/inspector/application/use-cases/confirm-inspector-document-upload.use-case';
 import { GetInspectorDocumentDownloadUrlUseCase } from '../modules/inspector/application/use-cases/get-inspector-document-download-url.use-case';
@@ -453,6 +454,9 @@ export interface AppContainer {
   prisma: typeof prisma;
   auditService: PersistentAuditService;
   domainEventBus: DomainEventBus;
+  // Exposed for the F01-1 inspector base-coords backfill script (needs
+  // isConfigured() + geocode()); also reused by the X02-2 legacy script.
+  geocodingService: DynamicGeocodingService;
   auth: AuthRouteContainer;
   tenant: TenantRouteContainer;
   user: UserRouteContainer;
@@ -727,11 +731,11 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Inspector use cases
   const availabilitySlotRepo = new PrismaAvailabilitySlotRepository(prisma);
-  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, authorizationService, serviceRegionRepo);
+  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, authorizationService, serviceRegionRepo, geocodingService, domainEventBus, logger);
   const inspectorRatingReader = new PrismaInspectorRatingReader(prisma);
   const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo, serviceRegionRepo, inspectorRatingReader);
   const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo, serviceRegionRepo, inspectorRatingReader);
-  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, authorizationService, serviceRegionRepo, userManagementRepo);
+  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, authorizationService, serviceRegionRepo, userManagementRepo, geocodingService, domainEventBus, logger);
   const createAvailabilitySlotUseCase = new CreateAvailabilitySlotUseCase(inspectorRepo, availabilitySlotRepo, auditService);
   const listAvailabilitySlotsUseCase = new ListAvailabilitySlotsUseCase(availabilitySlotRepo);
   const updateAvailabilitySlotUseCase = new UpdateAvailabilitySlotUseCase(availabilitySlotRepo, auditService);
@@ -741,7 +745,9 @@ export function createContainer(logger: Logger): AppContainer {
   const resetInspectorPasswordUseCase = new ResetInspectorPasswordUseCase(inspectorRepo, resetUserPasswordUseCase, auditService, authorizationService);
   const generateInspectorPhotoUploadUrlUseCase = new GenerateInspectorPhotoUploadUrlUseCase(inspectorRepo, storageService, auditService);
   const confirmInspectorPhotoUploadUseCase = new ConfirmInspectorPhotoUploadUseCase(inspectorRepo, storageService, auditService);
-  const updateInspectorSelfProfileUseCase = new UpdateInspectorSelfProfileUseCase(inspectorRepo, auditService);
+  const updateInspectorSelfProfileUseCase = new UpdateInspectorSelfProfileUseCase(inspectorRepo, auditService, geocodingService, domainEventBus, logger);
+  // undefined clock → the use case's SystemClock default (contract 00.10 heartbeat).
+  const recordInspectorAppStateUseCase = new RecordInspectorAppStateUseCase(inspectorRepo, undefined, logger);
   const generateInspectorDocumentUploadUrlUseCase = new GenerateInspectorDocumentUploadUrlUseCase(inspectorRepo, storageService, auditService);
   const confirmInspectorDocumentUploadUseCase = new ConfirmInspectorDocumentUploadUseCase(inspectorRepo, storageService, auditService);
   const getInspectorDocumentDownloadUrlUseCase = new GetInspectorDocumentDownloadUrlUseCase(inspectorRepo, storageService);
@@ -1478,6 +1484,7 @@ export function createContainer(logger: Logger): AppContainer {
     prisma,
     auditService,
     domainEventBus,
+    geocodingService,
     auth: {
       loginUseCase,
       refreshTokenUseCase,
@@ -1568,6 +1575,7 @@ export function createContainer(logger: Logger): AppContainer {
       generateInspectorPhotoUploadUrlUseCase,
       confirmInspectorPhotoUploadUseCase,
       updateInspectorSelfProfileUseCase,
+      recordInspectorAppStateUseCase,
       generateInspectorDocumentUploadUrlUseCase,
       confirmInspectorDocumentUploadUseCase,
       getInspectorDocumentDownloadUrlUseCase,

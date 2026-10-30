@@ -3,12 +3,21 @@ import type {
   PaymentSettings,
   ServiceTypeEntry,
   UserStatus,
+  InspectorBaseAddress,
 } from '@properfy/shared';
+import { inspectorBaseAddressSchema } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
+import type { IGeocodingService } from '../../../property/domain/geocoding.service';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import type { Logger } from '../../../../shared/infrastructure/logger';
+import { type Clock, SystemClock } from '../../../../shared/domain/clock';
+import { isSameGeocodingAddress, type GeocodableAddress } from '../../../../shared/domain/geocoding-address';
+import { geocodeInspectorBase } from '../services/geocode-inspector-base';
+import { INSPECTOR_EVENTS } from '../../domain/inspector-events';
 import {
   InspectorNotFoundError,
   InspectorEmailConflictError,
@@ -47,6 +56,8 @@ export interface UpdateInspectorOutput {
   paymentSettingsJson: PaymentSettings;
   regionIds: string[];
   serviceTypesJson: ServiceTypeEntry[];
+  /** Present only when `address` was supplied; true when geocoding did not locate it. */
+  baseGeocodeFailed?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,6 +69,12 @@ export class UpdateInspectorUseCase {
     private readonly authorizationService: AuthorizationService,
     private readonly serviceRegionRepo?: IServiceRegionRepository,
     private readonly userManagementRepo?: IUserManagementRepository,
+    // Optional and LAST so existing wirings and untyped test constructors keep
+    // compiling. A geocoding failure never fails the update.
+    private readonly geocodingService?: IGeocodingService,
+    private readonly eventBus?: DomainEventBus,
+    private readonly logger?: Logger,
+    private readonly clock: Clock = new SystemClock(),
   ) {}
 
   /**
@@ -127,6 +144,10 @@ export class UpdateInspectorUseCase {
       status: inspector.status,
       paymentSettingsJson: inspector.paymentSettingsJson,
       serviceTypesJson: inspector.serviceTypesJson,
+      // Base-address audit WITHOUT raw coordinates (L-F01-10 / root §7.9).
+      address: inspector.address,
+      baseLocated: inspector.baseLat !== null,
+      baseGeocodedAt: inspector.baseGeocodedAt,
     };
 
     // Build update payload
@@ -139,7 +160,53 @@ export class UpdateInspectorUseCase {
     if (data.serviceTypes !== undefined) updateData.serviceTypesJson = data.serviceTypes;
     if (data.blockedClients !== undefined) updateData.blockedClientsJson = data.blockedClients;
     if (data.fullName !== undefined) updateData.fullName = data.fullName;
-    if (data.address !== undefined) updateData.address = data.address;
+
+    // F01-1: base address — geocode BEFORE the write so one `update` carries the
+    // address and its coordinates together (L-F01-11). A failure clears the pair.
+    let baseGeocodeFailed = false;
+    let baseChanged = false;
+    const hadCoordinates = inspector.baseLat !== null;
+    let hasCoordinates = hadCoordinates;
+    if (data.address !== undefined) {
+      const next = data.address as unknown as InspectorBaseAddress;
+      updateData.address = data.address;
+      baseChanged = true;
+
+      // "Same address" (D18, L-F01-01): only when the CURRENT stored address parses
+      // under the AU schema (a legacy shape always re-geocodes), the two are equal
+      // for geocoding via the X02 helper, and coordinates already exist.
+      const currentParsed = inspectorBaseAddressSchema.safeParse(inspector.address);
+      const sameAsStored =
+        currentParsed.success &&
+        hadCoordinates &&
+        isSameGeocodingAddress(
+          currentParsed.data as unknown as GeocodableAddress,
+          next as unknown as GeocodableAddress,
+        );
+
+      if (sameAsStored) {
+        baseChanged = false; // keep the coordinates, call nothing, emit nothing
+      } else if (this.geocodingService) {
+        const geo = await geocodeInspectorBase(this.geocodingService, next, this.logger, this.clock);
+        if ('lat' in geo) {
+          updateData.baseLat = geo.lat;
+          updateData.baseLng = geo.lng;
+          updateData.baseGeocodedAt = geo.geocodedAt;
+          hasCoordinates = true;
+        } else {
+          updateData.baseLat = null;
+          updateData.baseLng = null;
+          updateData.baseGeocodedAt = null;
+          baseGeocodeFailed = true;
+          hasCoordinates = false;
+        }
+      } else {
+        updateData.baseLat = null;
+        updateData.baseLng = null;
+        updateData.baseGeocodedAt = null;
+        hasCoordinates = false;
+      }
+    }
     if (data.abn !== undefined) updateData.abn = data.abn;
     if (data.dateOfBirth !== undefined)
       updateData.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null;
@@ -216,6 +283,12 @@ export class UpdateInspectorUseCase {
         'serviceTypesJson' in updateData
           ? (updateData.serviceTypesJson as ServiceTypeEntry[])
           : inspector.serviceTypesJson,
+      address: 'address' in updateData ? (updateData.address as Record<string, unknown> | null) : inspector.address,
+      baseLocated: hasCoordinates,
+      baseGeocodedAt:
+        'baseGeocodedAt' in updateData
+          ? (updateData.baseGeocodedAt as Date | null)
+          : inspector.baseGeocodedAt,
     };
 
     this.auditService.log({
@@ -228,6 +301,23 @@ export class UpdateInspectorUseCase {
       after,
     });
 
+    // Emit after the write, only when the base was actually changed (not on a
+    // "same address" no-op). A throwing subscriber must not fail the response.
+    if (baseChanged && this.eventBus) {
+      try {
+        await this.eventBus.emit({
+          type: INSPECTOR_EVENTS.BASE_CHANGED,
+          payload: { inspectorId, hadCoordinates, hasCoordinates },
+          occurredAt: new Date(),
+        });
+      } catch (err) {
+        this.logger?.warn(
+          { inspectorId, err: err instanceof Error ? err.message : String(err) },
+          'inspector.base_changed_emit_failed',
+        );
+      }
+    }
+
     return {
       id: inspector.id,
       name: after.name,
@@ -237,6 +327,7 @@ export class UpdateInspectorUseCase {
       paymentSettingsJson: after.paymentSettingsJson,
       regionIds: after.regionIds,
       serviceTypesJson: after.serviceTypesJson,
+      ...(data.address !== undefined ? { baseGeocodeFailed } : {}),
       createdAt: inspector.createdAt,
       updatedAt: new Date(),
     };

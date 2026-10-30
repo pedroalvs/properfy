@@ -73,6 +73,7 @@ const createPayload = {
   name: 'New Inspector',
   email: 'new@inspector.com',
   phone: '+61400000002',
+  address: { street: '1 George St', suburb: 'Sydney', city: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' },
   // Body validation runs before the auth preHandler, so a payload missing the
   // required password would 400 ahead of the 401/403 these cases assert.
   password: 'Insp@2026x',

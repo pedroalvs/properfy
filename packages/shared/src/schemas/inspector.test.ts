@@ -9,7 +9,10 @@ import {
   updateAvailabilitySlotSchema,
   listAvailabilitySlotsQuerySchema,
   inspectorSelfUpdateSchema,
+  inspectorAppStateSchema,
 } from './inspector';
+import { AU_STATES, inspectorBaseAddressSchema } from './address';
+import { inspectorResponseSchema } from './responses';
 
 describe('paymentSettingsSchema', () => {
   it('should accept valid full payment settings', () => {
@@ -114,6 +117,17 @@ describe('serviceTypesSchema', () => {
 /** Satisfies the canonical password policy shared with createUserSchema. */
 const VALID_PASSWORD = 'Insp@2026x';
 
+// F01-1: a base address is mandatory on create. Shared across the create tests
+// so each one isolates the behaviour it actually asserts.
+const VALID_BASE_ADDRESS = {
+  street: '1 George St',
+  suburb: 'Sydney',
+  city: 'Sydney',
+  state: 'NSW',
+  postcode: '2000',
+  country: 'AU',
+} as const;
+
 describe('createInspectorSchema', () => {
   const validInput = {
     name: 'John Smith',
@@ -125,6 +139,7 @@ describe('createInspectorSchema', () => {
     serviceTypes: [
       { serviceTypeId: '550e8400-e29b-41d4-a716-446655440000', certified: true },
     ],
+    address: VALID_BASE_ADDRESS,
   };
 
   it('should accept valid full input', () => {
@@ -137,6 +152,7 @@ describe('createInspectorSchema', () => {
       name: 'John Smith',
       email: 'john@example.com',
       password: VALID_PASSWORD,
+      address: VALID_BASE_ADDRESS,
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -160,6 +176,7 @@ describe('createInspectorSchema', () => {
       name: 'John Smith',
       email: 'john@example.com',
       password: VALID_PASSWORD,
+      address: VALID_BASE_ADDRESS,
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -187,6 +204,7 @@ describe('createInspectorSchema', () => {
         bankName: 'Test Bank',
         swiftCode: 'TESTAU2S',
       },
+      address: VALID_BASE_ADDRESS,
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -228,6 +246,7 @@ describe('createInspectorSchema', () => {
       name: 'John Smith',
       email: 'John@Inspect.COM',
       password: VALID_PASSWORD,
+      address: VALID_BASE_ADDRESS,
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -409,6 +428,7 @@ describe('AU phone validation on inspector schemas', () => {
       email: 'insp@example.com',
       password: VALID_PASSWORD,
       phone: '0412 345 678',
+      address: VALID_BASE_ADDRESS,
     });
     expect(result.phone).toBe('+61412345678');
   });
@@ -434,5 +454,205 @@ describe('AU phone validation on inspector schemas', () => {
     expect(inspectorSelfUpdateSchema.safeParse({ phone: '+15551234567' }).success).toBe(false);
     expect(inspectorSelfUpdateSchema.parse({ phone: '0412 345 678' }).phone).toBe('+61412345678');
     expect(inspectorSelfUpdateSchema.safeParse({ phone: null }).success).toBe(true);
+  });
+});
+
+// ─── F01-1: inspector base address, app-state heartbeat, list filter ─────────
+
+describe('inspectorBaseAddressSchema (F01-1, derived AU address)', () => {
+  const base = {
+    street: '1 George St',
+    suburb: 'Sydney',
+    city: 'Sydney',
+    state: 'NSW',
+    postcode: '2000',
+    country: 'AU',
+  };
+
+  it('accepts a valid AU address', () => {
+    expect(inspectorBaseAddressSchema.safeParse(base).success).toBe(true);
+  });
+
+  it('exports the eight AU states', () => {
+    expect(AU_STATES).toEqual(['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT']);
+  });
+
+  it('rejects whitespace-only required fields (trim + min(1))', () => {
+    const result = inspectorBaseAddressSchema.safeParse({
+      ...base,
+      street: ' ',
+      suburb: ' ',
+      state: 'X',
+      postcode: '0',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const paths = result.error.issues.map((i) => i.path[0]);
+      expect(paths).toEqual(expect.arrayContaining(['street', 'suburb', 'state', 'postcode']));
+    }
+  });
+
+  it('trims and upper-cases the state and trims text fields', () => {
+    const result = inspectorBaseAddressSchema.safeParse({
+      ...base,
+      state: ' nsw ',
+      street: ' 1 George St ',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.state).toBe('NSW');
+      expect(result.data.street).toBe('1 George St');
+    }
+  });
+
+  it('rejects a spelled-out state name with "Select a state"', () => {
+    const result = inspectorBaseAddressSchema.safeParse({ ...base, state: 'New South Wales' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.message === 'Select a state')).toBe(true);
+    }
+  });
+
+  it.each(['200', '20000', '2O00'])('rejects postcode %s with the 4-digit message', (postcode) => {
+    const result = inspectorBaseAddressSchema.safeParse({ ...base, postcode });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.message === 'Postcode must be 4 digits')).toBe(true);
+    }
+  });
+
+  it('rejects a non-AU country and defaults country to AU when absent', () => {
+    expect(inspectorBaseAddressSchema.safeParse({ ...base, country: 'NZ' }).success).toBe(false);
+    const { country: _c, ...noCountry } = base;
+    const result = inspectorBaseAddressSchema.safeParse(noCountry);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.country).toBe('AU');
+  });
+
+  it('strips client-sent latitude/longitude without erroring', () => {
+    const result = inspectorBaseAddressSchema.safeParse({ ...base, latitude: -33.8, longitude: 151.2 });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).not.toHaveProperty('latitude');
+      expect(result.data).not.toHaveProperty('longitude');
+    }
+  });
+});
+
+describe('createInspectorSchema base address (F01-1)', () => {
+  it('requires a base address', () => {
+    const result = createInspectorSchema.safeParse({
+      name: 'John Smith',
+      email: 'john@example.com',
+      password: VALID_PASSWORD,
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.path[0] === 'address')).toBe(true);
+    }
+  });
+});
+
+describe('updateInspectorSchema base address (F01-1)', () => {
+  it('rejects address:null (the base cannot be removed)', () => {
+    expect(updateInspectorSchema.safeParse({ address: null }).success).toBe(false);
+  });
+
+  it('accepts an omitted address', () => {
+    const result = updateInspectorSchema.safeParse({ name: 'X' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.address).toBeUndefined();
+  });
+
+  it('accepts a valid base address', () => {
+    expect(updateInspectorSchema.safeParse({ address: VALID_BASE_ADDRESS }).success).toBe(true);
+  });
+});
+
+describe('inspectorSelfUpdateSchema base address (F01-1)', () => {
+  it('accepts a base address', () => {
+    expect(inspectorSelfUpdateSchema.safeParse({ address: VALID_BASE_ADDRESS }).success).toBe(true);
+  });
+
+  it('rejects address:null', () => {
+    expect(inspectorSelfUpdateSchema.safeParse({ address: null }).success).toBe(false);
+  });
+});
+
+describe('inspectorAppStateSchema (F01-1 heartbeat)', () => {
+  it('accepts a valid standalone/granted heartbeat', () => {
+    const result = inspectorAppStateSchema.safeParse({
+      displayMode: 'standalone',
+      pushPermission: 'granted',
+      appVersion: '0.1.0',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it.each([
+    ['bad displayMode', { displayMode: 'fullscreen', pushPermission: 'granted', appVersion: '0.1.0' }],
+    ['empty appVersion', { displayMode: 'browser', pushPermission: 'default', appVersion: '' }],
+    ['bad pushPermission', { displayMode: 'browser', pushPermission: 'maybe', appVersion: '0.1.0' }],
+  ])('rejects %s', (_label, input) => {
+    expect(inspectorAppStateSchema.safeParse(input).success).toBe(false);
+  });
+
+  it('strips unknown keys', () => {
+    const result = inspectorAppStateSchema.safeParse({
+      displayMode: 'browser',
+      pushPermission: 'denied',
+      appVersion: 'dev',
+      extra: 'nope',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).not.toHaveProperty('extra');
+  });
+});
+
+describe('listInspectorsQuerySchema.missingBaseAddress (F01-1)', () => {
+  it('coerces the string "true"/"false" to boolean', () => {
+    const t = listInspectorsQuerySchema.safeParse({ missingBaseAddress: 'true' });
+    const f = listInspectorsQuerySchema.safeParse({ missingBaseAddress: 'false' });
+    expect(t.success && t.data.missingBaseAddress).toBe(true);
+    expect(f.success && f.data.missingBaseAddress).toBe(false);
+  });
+});
+
+describe('inspectorResponseSchema base/adoption fields (F01-1)', () => {
+  const validBase = {
+    id: '550e8400-e29b-41d4-a716-446655440000',
+    name: 'John',
+    email: 'john@example.com',
+    phone: null,
+    status: 'ACTIVE',
+    paymentSettingsJson: {},
+    serviceTypesJson: [],
+    createdAt: '2026-10-30T00:00:00.000Z',
+    updatedAt: '2026-10-30T00:00:00.000Z',
+  };
+
+  it('tolerates a legacy address shape with null coordinates', () => {
+    const result = inspectorResponseSchema.safeParse({
+      ...validBase,
+      address: { foo: 1 },
+      baseLat: null,
+      baseLng: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts the new base and adoption fields', () => {
+    const result = inspectorResponseSchema.safeParse({
+      ...validBase,
+      baseLat: -33.8688197,
+      baseLng: 151.2092955,
+      baseGeocodedAt: '2026-10-30T00:00:00.000Z',
+      baseGeocodeFailed: false,
+      appInstalledAt: '2026-10-30T00:00:00.000Z',
+      appLastSeenAt: '2026-10-30T00:00:00.000Z',
+      pushEnabled: true,
+      appVersion: '0.1.0',
+    });
+    expect(result.success).toBe(true);
   });
 });

@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { auPhoneSchema } from './phone';
 import { paginationSchema } from './pagination';
 import { passwordFieldSchema } from './auth';
+import { inspectorBaseAddressSchema } from './address';
+import { booleanQueryParam } from './boolean-query';
 
 // --- Typed JSON field schemas ---
 
@@ -47,7 +49,9 @@ export const createInspectorSchema = z.object({
   blockedClients: z.array(z.string().uuid()).default([]),
   // Feedback Round item 6: profile extension
   fullName: z.string().max(300).optional(),
-  address: z.record(z.unknown()).optional().nullable(),
+  // F01-1: the base address is mandatory on create and geocoded in permanent
+  // mode on save. Client-sent latitude/longitude are stripped (never persisted).
+  address: inspectorBaseAddressSchema,
   abn: z.string().max(20).optional(),
   dateOfBirth: z.string().date().optional(),
   insuranceFileKey: z.string().optional(),
@@ -68,7 +72,9 @@ export const updateInspectorSchema = z.object({
   serviceTypes: serviceTypesSchema.optional(),
   blockedClients: z.array(z.string().uuid()).optional(),
   fullName: z.string().max(300).optional().nullable(),
-  address: z.record(z.unknown()).optional().nullable(),
+  // F01-1: changeable but NOT removable — optional (omit = keep) and NOT nullable
+  // (address:null is a 400), so the base can never be cleared.
+  address: inspectorBaseAddressSchema.optional(),
   abn: z.string().max(20).optional().nullable(),
   dateOfBirth: z.string().date().optional().nullable(),
   insuranceFileKey: z.string().optional().nullable(),
@@ -84,6 +90,9 @@ export const listInspectorsQuerySchema = paginationSchema.extend({
   region: z.string().optional(),
   serviceTypeId: z.string().uuid().optional(),
   tenantId: z.string().uuid().optional(),
+  // F01-1: AM/OP-only filter to inspectors without a located base address
+  // (base_lat IS NULL). Ignored for CL_* (they cannot see base state).
+  missingBaseAddress: booleanQueryParam().optional(),
 });
 export type ListInspectorsQueryInput = z.infer<typeof listInspectorsQuerySchema>;
 
@@ -127,8 +136,22 @@ export const inspectorSelfUpdateSchema = z.object({
   phone: auPhoneSchema.nullable().optional(),
   fullName: z.string().max(300).nullable().optional(),
   paymentSettings: paymentSettingsSchema.optional(),
+  // F01-1: the inspector may change its own base address (optional, non-nullable).
+  address: inspectorBaseAddressSchema.optional(),
 });
 export type InspectorSelfUpdateInput = z.infer<typeof inspectorSelfUpdateSchema>;
+
+// --- Inspector app-state heartbeat (INSP role, POST /v1/inspectors/me/app-state) ---
+
+// F01-1 / contract 00.10. Telemetry reported by the app on open. Strip mode:
+// unknown keys are dropped. pushPermission mirrors the browser Notification
+// permission before F02 (D9); push_enabled = (pushPermission === 'granted').
+export const inspectorAppStateSchema = z.object({
+  displayMode: z.enum(['standalone', 'browser']),
+  pushPermission: z.enum(['granted', 'denied', 'default', 'unsupported']),
+  appVersion: z.string().trim().min(1).max(40),
+});
+export type InspectorAppStateInput = z.infer<typeof inspectorAppStateSchema>;
 
 // --- Inspector document kind enum ---
 

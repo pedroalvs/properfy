@@ -25,6 +25,31 @@ import { INSPECTOR_STATUS_OPTIONS } from '../constants/form-options';
 import type { InspectorFormData, InspectorFormErrors } from '../types';
 import { EMPTY_INSPECTOR_FORM } from '../types';
 import { formatAuPhone } from '@/lib/phone-mask';
+import { AU_STATES } from '@properfy/shared';
+
+const AU_STATE_OPTIONS = AU_STATES.map((s) => ({ value: s, label: s }));
+
+/**
+ * Reads the stored base address (F01-1) into the flat form fields. `address` is
+ * typed `unknown` because a legacy row may hold another shape; non-string values
+ * fall back to '' so the form never throws on a legacy inspector.
+ */
+function readBaseAddress(address: unknown): Pick<
+  InspectorFormData,
+  'addressStreet' | 'addressNumber' | 'addressComplement' | 'addressSuburb' | 'addressCity' | 'addressState' | 'addressPostcode'
+> {
+  const a = (address && typeof address === 'object' ? address : {}) as Record<string, unknown>;
+  const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+  return {
+    addressStreet: str(a['street']),
+    addressNumber: str(a['number']),
+    addressComplement: str(a['complement']),
+    addressSuburb: str(a['suburb']),
+    addressCity: str(a['city']),
+    addressState: str(a['state']),
+    addressPostcode: str(a['postcode']),
+  };
+}
 
 interface InspectorFormDrawerProps {
   open: boolean;
@@ -82,6 +107,7 @@ export function InspectorFormDrawer({
         confirmPassword: '',
         phone: formatAuPhone(inspector.phone ?? ''),
         status: inspector.status,
+        ...readBaseAddress(inspector.address),
         regionIds: inspector.regionIds ?? [],
         serviceTypes: (inspector.serviceTypes ?? []).map((s) => s.serviceTypeId).join(','),
         fullName: inspector.fullName ?? '',
@@ -255,6 +281,64 @@ export function InspectorFormDrawer({
                         </FormField>
                       </>
                     )}
+                  </FormSection>
+
+                  <FormSection title="Base Address" columns={2}>
+                    <FormField label="Street" required={!isEditMode} error={errors.addressStreet}>
+                      <TextInput
+                        value={form.addressStreet}
+                        onChange={(v) => updateField('addressStreet', v)}
+                        error={!!errors.addressStreet}
+                        aria-label="Street"
+                      />
+                    </FormField>
+                    <FormField label="Unit / Number" error={errors.addressNumber}>
+                      <TextInput
+                        value={form.addressNumber}
+                        onChange={(v) => updateField('addressNumber', v)}
+                        aria-label="Unit / Number"
+                      />
+                    </FormField>
+                    <FormField label="Complement" error={errors.addressComplement}>
+                      <TextInput
+                        value={form.addressComplement}
+                        onChange={(v) => updateField('addressComplement', v)}
+                        aria-label="Complement"
+                      />
+                    </FormField>
+                    <FormField label="Suburb" required={!isEditMode} error={errors.addressSuburb}>
+                      <TextInput
+                        value={form.addressSuburb}
+                        onChange={(v) => updateField('addressSuburb', v)}
+                        error={!!errors.addressSuburb}
+                        aria-label="Suburb"
+                      />
+                    </FormField>
+                    <FormField label="City" required={!isEditMode} error={errors.addressCity}>
+                      <TextInput
+                        value={form.addressCity}
+                        onChange={(v) => updateField('addressCity', v)}
+                        error={!!errors.addressCity}
+                        aria-label="City"
+                      />
+                    </FormField>
+                    <FormField label="State" required={!isEditMode} error={errors.addressState}>
+                      <SelectInput
+                        value={form.addressState}
+                        onChange={(v) => updateField('addressState', v)}
+                        options={AU_STATE_OPTIONS}
+                        placeholder="Select a state"
+                        aria-label="State"
+                      />
+                    </FormField>
+                    <FormField label="Postcode" required={!isEditMode} error={errors.addressPostcode}>
+                      <TextInput
+                        value={form.addressPostcode}
+                        onChange={(v) => updateField('addressPostcode', v)}
+                        error={!!errors.addressPostcode}
+                        aria-label="Postcode"
+                      />
+                    </FormField>
                   </FormSection>
 
                   <FormSection title="Coverage" columns={2}>
