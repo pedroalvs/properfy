@@ -9,8 +9,10 @@ import { clearAllLocalData } from '@/features/execution/lib/indexeddb';
 import { resetQueueSnapshot } from '@/features/execution/hooks/useOfflineQueue';
 
 // The two NetworkFirst runtime caches that hold per-inspector API responses
-// (see vite.config.ts). Font/static caches are not inspector data and are left.
-const INSPECTOR_API_CACHES = ['api-schedule-cache', 'api-appointment-cache'];
+// (see src/sw/runtime-caching.ts). Font/static caches are not inspector data
+// and are left. Exported so the service worker's runtime-caching descriptor can
+// assert the names stay in sync (a new inspector cache must be added here).
+export const INSPECTOR_API_CACHES = ['api-schedule-cache', 'api-appointment-cache'];
 
 /**
  * Best-effort wipe of every trace of the inspector's data on logout so a shared
