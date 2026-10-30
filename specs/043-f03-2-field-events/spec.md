@@ -53,7 +53,7 @@ On the day of a `SCHEDULED` job assigned to them, before checking in, an inspect
 
 **Acceptance Scenarios**:
 
-1. **Given** today's `SCHEDULED` job with booked window 09:00–11:00 and no published plan, **When** the inspector reports `TRAFFIC` with `minutesLate: 20` at 09:30 (agency timezone), **Then** a `LATE_NOTICE` event is written and the response has `referenceSource: 'WINDOW_START'`, `referenceAt` = 09:00, `estimatedArrivalAt` = 09:20 (`max(windowStart, effectiveNoticeAt) + minutesLate`).
+1. **Given** today's `SCHEDULED` job with booked window 09:00–11:00 and no published plan, **When** the inspector reports `TRAFFIC` with `minutesLate: 20` at 09:30 (agency timezone), **Then** a `LATE_NOTICE` event is written and the response has `referenceSource: 'WINDOW_START'`, `referenceAt` = 09:00, `estimatedArrivalAt` = 09:50 (`max(windowStart, effectiveNoticeAt) + minutesLate` = `max(09:00, 09:30) + 20`).
 2. **Given** a published plan stop whose `published_service_start_at` is 10:15, **When** the inspector reports `minutesLate: 20` at 09:30, **Then** `referenceSource: 'PUBLISHED_PLAN'`, `referenceAt` = 10:15, `estimatedArrivalAt` = 10:35.
 3. **Given** the job is not today (yesterday or a future date) and still `SCHEDULED`, **When** a late notice is sent, **Then** `422 LATE_NOTICE_NOT_ALLOWED` "You can only send a running-late notice on the day of the job."
 4. **Given** the inspector already checked in (in-progress, not abandoned), **When** a late notice is sent, **Then** `422 LATE_NOTICE_NOT_ALLOWED` "You've already checked in to this job."; if the execution is finished → "This job is already finished."
