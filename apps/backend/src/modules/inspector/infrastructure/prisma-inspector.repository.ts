@@ -1,10 +1,12 @@
 import type { PrismaClient } from '@prisma/client';
-import type { InspectorStatus as PrismaInspectorStatus, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { InspectorStatus as PrismaInspectorStatus } from '@prisma/client';
 import { InspectorEntity } from '../domain/inspector.entity';
 import type {
   IInspectorRepository,
   InspectorFilters,
   PaginationParams,
+  RecordAppStateParams,
 } from '../domain/inspector.repository';
 import type {
   InspectorStatus,
@@ -31,6 +33,13 @@ function mapToEntity(row: {
   blocked_clients_json: unknown;
   full_name: string | null;
   address: unknown;
+  base_lat: Prisma.Decimal | null;
+  base_lng: Prisma.Decimal | null;
+  base_geocoded_at: Date | null;
+  app_installed_at: Date | null;
+  app_last_seen_at: Date | null;
+  push_enabled: boolean | null;
+  app_version: string | null;
   abn: string | null;
   date_of_birth: Date | null;
   insurance_file_key: string | null;
@@ -59,6 +68,15 @@ function mapToEntity(row: {
     blockedClientsJson: Array.isArray(row.blocked_clients_json) ? (row.blocked_clients_json as string[]) : [],
     fullName: row.full_name ?? null,
     address: row.address as Record<string, unknown> | null,
+    // Decimal(10,7) ↔ number, like the property repo. Explicit null check: a 0
+    // latitude is a legitimate value and must not be treated as "absent".
+    baseLat: row.base_lat == null ? null : row.base_lat.toNumber(),
+    baseLng: row.base_lng == null ? null : row.base_lng.toNumber(),
+    baseGeocodedAt: row.base_geocoded_at ?? null,
+    appInstalledAt: row.app_installed_at ?? null,
+    appLastSeenAt: row.app_last_seen_at ?? null,
+    pushEnabled: row.push_enabled ?? null,
+    appVersion: row.app_version ?? null,
     abn: row.abn ?? null,
     dateOfBirth: row.date_of_birth ?? null,
     insuranceFileKey: row.insurance_file_key ?? null,
@@ -145,7 +163,17 @@ export class PrismaInspectorRepository implements IInspectorRepository {
         service_types_json: inspector.serviceTypesJson,
         blocked_clients_json: inspector.blockedClientsJson,
         full_name: inspector.fullName,
-        address: inspector.address as Prisma.InputJsonValue,
+        // Write Prisma.DbNull (SQL NULL) rather than a raw JSON `null` so the
+        // backfill selection (address NOT in {DbNull, JsonNull}) stays correct
+        // (L-F01-05). The base address is required on create, so this is normally
+        // an object; the guard covers the entity's nullable type.
+        address:
+          inspector.address === null
+            ? Prisma.DbNull
+            : (inspector.address as Prisma.InputJsonValue),
+        base_lat: inspector.baseLat,
+        base_lng: inspector.baseLng,
+        base_geocoded_at: inspector.baseGeocodedAt,
         abn: inspector.abn,
         date_of_birth: inspector.dateOfBirth,
         insurance_file_key: inspector.insuranceFileKey,
@@ -169,6 +197,9 @@ export class PrismaInspectorRepository implements IInspectorRepository {
       blockedClientsJson: string[];
       fullName: string | null;
       address: Record<string, unknown> | null;
+      baseLat: number | null;
+      baseLng: number | null;
+      baseGeocodedAt: Date | null;
       abn: string | null;
       dateOfBirth: Date | null;
       insuranceFileKey: string | null;
@@ -195,7 +226,11 @@ export class PrismaInspectorRepository implements IInspectorRepository {
     if (data.fullName !== undefined)
       updateData['full_name'] = data.fullName;
     if (data.address !== undefined)
-      updateData['address'] = data.address;
+      updateData['address'] = data.address === null ? Prisma.DbNull : data.address;
+    // F01-1: base coordinates move as a set with the address (both or neither).
+    if (data.baseLat !== undefined) updateData['base_lat'] = data.baseLat;
+    if (data.baseLng !== undefined) updateData['base_lng'] = data.baseLng;
+    if (data.baseGeocodedAt !== undefined) updateData['base_geocoded_at'] = data.baseGeocodedAt;
     if (data.abn !== undefined)
       updateData['abn'] = data.abn;
     if (data.dateOfBirth !== undefined)
@@ -217,6 +252,25 @@ export class PrismaInspectorRepository implements IInspectorRepository {
     if (data.policeCheckMetaJson !== undefined)
       updateData['police_check_meta_json'] = data.policeCheckMetaJson;
     await this.prisma.inspector.update({ where: { id }, data: updateData });
+  }
+
+  // F01-1 heartbeat (contract 00.10). One statement so concurrent standalone
+  // heartbeats resolve `app_installed_at` atomically (COALESCE on the row), and
+  // a soft-deleted inspector affects 0 rows rather than resurrecting state.
+  // Explicit casts: `inspectors.id` is a text column (uuid default, no @db.Uuid).
+  async recordAppState(params: RecordAppStateParams): Promise<number> {
+    const { id, now, displayMode, pushEnabled, appVersion } = params;
+    const affected = await this.prisma.$executeRaw`
+      UPDATE "inspectors"
+         SET "app_last_seen_at" = ${now}::timestamp(3),
+             "app_version"      = ${appVersion}::text,
+             "push_enabled"     = ${pushEnabled}::boolean,
+             "app_installed_at" = CASE WHEN ${displayMode}::text = 'standalone'
+                                       THEN COALESCE("app_installed_at", ${now}::timestamp(3))
+                                       ELSE "app_installed_at" END
+       WHERE "id" = ${id}::text AND "deleted_at" IS NULL
+    `;
+    return affected;
   }
 
   async findByRegionId(regionId: string): Promise<InspectorEntity[]> {
@@ -254,6 +308,8 @@ export class PrismaInspectorRepository implements IInspectorRepository {
   private buildWhere(filters: InspectorFilters) {
     const where: Record<string, unknown> = { deleted_at: null };
     if (filters.status) where['status'] = filters.status;
+    // F01-1: "No base address" filter (AM/OP only; the use case gates the actor).
+    if (filters.missingBaseAddress) where['base_lat'] = null;
     if (filters.search) {
       where['OR'] = [
         { name: { contains: filters.search, mode: 'insensitive' } },

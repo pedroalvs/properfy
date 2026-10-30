@@ -15,6 +15,7 @@ import {
   successResponseSchema,
   paginatedResponseSchema,
   inspectorSelfUpdateSchema,
+  inspectorAppStateSchema,
   availabilityTemplateSchema,
   inspectorAvailabilityResponseSchema,
   inspectorSurveyItemSchema,
@@ -37,6 +38,7 @@ import type { ResetInspectorPasswordUseCase } from '../application/use-cases/res
 import type { GenerateInspectorPhotoUploadUrlUseCase } from '../application/use-cases/generate-inspector-photo-upload-url.use-case';
 import type { ConfirmInspectorPhotoUploadUseCase } from '../application/use-cases/confirm-inspector-photo-upload.use-case';
 import type { UpdateInspectorSelfProfileUseCase } from '../application/use-cases/update-inspector-self-profile.use-case';
+import type { RecordInspectorAppStateUseCase } from '../application/use-cases/record-inspector-app-state.use-case';
 import type { GenerateInspectorDocumentUploadUrlUseCase } from '../application/use-cases/generate-inspector-document-upload-url.use-case';
 import type { ConfirmInspectorDocumentUploadUseCase } from '../application/use-cases/confirm-inspector-document-upload.use-case';
 import type { GetInspectorDocumentDownloadUrlUseCase } from '../application/use-cases/get-inspector-document-download-url.use-case';
@@ -60,6 +62,7 @@ export interface InspectorRouteContainer {
   generateInspectorPhotoUploadUrlUseCase: GenerateInspectorPhotoUploadUrlUseCase;
   confirmInspectorPhotoUploadUseCase: ConfirmInspectorPhotoUploadUseCase;
   updateInspectorSelfProfileUseCase: UpdateInspectorSelfProfileUseCase;
+  recordInspectorAppStateUseCase: RecordInspectorAppStateUseCase;
   generateInspectorDocumentUploadUrlUseCase: GenerateInspectorDocumentUploadUrlUseCase;
   confirmInspectorDocumentUploadUseCase: ConfirmInspectorDocumentUploadUseCase;
   getInspectorDocumentDownloadUrlUseCase: GetInspectorDocumentDownloadUrlUseCase;
@@ -639,12 +642,25 @@ export async function registerInspectorRoutes(
     },
   );
 
+  // Per-user rate limit (L-F01-06). The global limiter is per IP, and several
+  // inspectors can share an office IP. `hook: 'preHandler'` appends the limiter
+  // after `authenticate` (also a preHandler), so the key sees `authContext`;
+  // without it the key silently falls back to the IP. 10/min per user.
+  const perUserRateLimit = {
+    max: 10,
+    timeWindow: '1 minute',
+    hook: 'preHandler' as const,
+    keyGenerator: (request: { authContext?: { userId?: string }; ip: string }) =>
+      request.authContext?.userId ?? request.ip,
+  };
+
   // PATCH /v1/inspectors/me — INSP self-update
   app.patch(
     '/v1/inspectors/me',
     {
       preHandler: authenticate,
       schema: { body: inspectorSelfUpdateSchema },
+      config: { rateLimit: perUserRateLimit },
     },
     async (request, reply) => {
       const actor = request.authContext!;
@@ -659,6 +675,27 @@ export async function registerInspectorRoutes(
         actor,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/inspectors/me/app-state — INSP app-state heartbeat (contract 00.10).
+  // Static path: find-my-way gives it precedence over `/:inspectorId/...`.
+  app.post(
+    '/v1/inspectors/me/app-state',
+    {
+      preHandler: authenticate,
+      schema: { body: inspectorAppStateSchema },
+      config: { rateLimit: perUserRateLimit },
+    },
+    async (request, reply) => {
+      const parsed = inspectorAppStateSchema.safeParse(request.body);
+      if (!parsed.success) throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      await container.recordInspectorAppStateUseCase.execute({
+        actor: request.authContext!,
+        input: parsed.data,
+        requestId: request.id,
+      });
+      return reply.status(204).send();
     },
   );
 

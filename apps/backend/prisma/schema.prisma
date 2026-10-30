@@ -492,6 +492,16 @@ model Inspector {
   // Feedback Round item 6: profile extension fields
   full_name                  String?            @db.VarChar(300)
   address                    Json?
+  // F01-1: base address geocoded in permanent mode. Coordinates and the geocode
+  // timestamp are written and cleared together (repository invariant); null = not located.
+  base_lat                   Decimal?           @db.Decimal(10, 7)
+  base_lng                   Decimal?           @db.Decimal(10, 7)
+  base_geocoded_at           DateTime?
+  // F01-1: app-state heartbeat (contract 00.10). installed = first standalone, never overwritten.
+  app_installed_at           DateTime?
+  app_last_seen_at           DateTime?
+  push_enabled               Boolean?
+  app_version                String?            @db.VarChar(40)
   abn                        String?            @db.VarChar(20)
   date_of_birth              DateTime?          @db.Date
   insurance_file_key         String?

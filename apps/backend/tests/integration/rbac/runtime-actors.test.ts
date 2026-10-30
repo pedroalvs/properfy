@@ -249,7 +249,7 @@ describe('INSP actor: denied — inspector management (cannot create peer)', () 
     const res = await supertest(app.server)
       .post('/v1/inspectors')
       .set('Authorization', 'Bearer t')
-      .send({ name: 'New Inspector', email: 'new@inspector.com', phone: '+61400000000', password: 'Insp@2026x' });
+      .send({ name: 'New Inspector', email: 'new@inspector.com', phone: '+61400000000', password: 'Insp@2026x', address: { street: '1 George St', suburb: 'Sydney', city: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' } });
     expect(res.status).toBe(403);
   });
 });

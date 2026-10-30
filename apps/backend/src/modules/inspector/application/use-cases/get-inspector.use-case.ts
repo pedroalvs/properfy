@@ -8,6 +8,7 @@ import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
 import type { IInspectorRatingReader } from '../../domain/inspector-rating.reader';
 import { InspectorNotFoundError } from '../../domain/inspector.errors';
+import { applyInspectorFieldVisibility } from '../inspector-field-visibility';
 
 export interface GetInspectorInput {
   inspectorId: string;
@@ -25,7 +26,16 @@ export interface GetInspectorOutput {
   serviceTypesJson: ServiceTypeEntry[];
   blockedClients: string[];
   fullName: string | null;
-  address: Record<string, unknown> | null;
+  address?: Record<string, unknown> | null;
+  // F01-1: base coordinates (AM/OP + inspector) and adoption (AM/OP only);
+  // stripped per role by applyInspectorFieldVisibility, hence optional.
+  baseLat?: number | null;
+  baseLng?: number | null;
+  baseGeocodedAt?: Date | null;
+  appInstalledAt?: Date | null;
+  appLastSeenAt?: Date | null;
+  pushEnabled?: boolean | null;
+  appVersion?: string | null;
   abn: string | null;
   dateOfBirth: Date | null;
   insuranceFileKey: string | null;
@@ -75,7 +85,7 @@ export class GetInspectorUseCase {
       ? (await this.ratingReader.getAggregatesByInspectorIds([inspector.id])).get(inspector.id)
       : undefined;
 
-    return {
+    const dto: GetInspectorOutput = {
       id: inspector.id,
       name: inspector.name,
       email: inspector.email,
@@ -87,6 +97,13 @@ export class GetInspectorUseCase {
       blockedClients: inspector.blockedClientsJson,
       fullName: inspector.fullName,
       address: inspector.address,
+      baseLat: inspector.baseLat,
+      baseLng: inspector.baseLng,
+      baseGeocodedAt: inspector.baseGeocodedAt,
+      appInstalledAt: inspector.appInstalledAt,
+      appLastSeenAt: inspector.appLastSeenAt,
+      pushEnabled: inspector.pushEnabled,
+      appVersion: inspector.appVersion,
       abn: inspector.abn,
       dateOfBirth: inspector.dateOfBirth,
       insuranceFileKey: inspector.insuranceFileKey,
@@ -102,5 +119,8 @@ export class GetInspectorUseCase {
       createdAt: inspector.createdAt,
       updatedAt: inspector.updatedAt,
     };
+
+    // F01-1 privacy: strip base/coords/adoption the actor may not see (D7).
+    return applyInspectorFieldVisibility(dto, actor.role);
   }
 }

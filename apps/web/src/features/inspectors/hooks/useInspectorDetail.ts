@@ -53,6 +53,8 @@ export function useInspectorDetail(id: string | null): UseInspectorDetailReturn 
       blockedClients: raw.blockedClients ?? [],
       insuranceMetaJson: raw.insuranceMetaJson as InspectorDetail['insuranceMetaJson'],
       policeCheckMetaJson: raw.policeCheckMetaJson as InspectorDetail['policeCheckMetaJson'],
+      // F01-1 base address (AM/OP + inspector only; CL_* never receive it).
+      address: raw.address,
     };
   }, [raw]);
 

@@ -272,7 +272,22 @@ export const inspectorResponseSchema = z.object({
   // Profile + denylist fields (Feedback Round item 1, item 6).
   blockedClients: z.array(z.string()).optional(),
   fullName: z.string().nullable().optional(),
+  // address stays z.unknown(): new writes are a validated AU base address, but a
+  // legacy row may hold another shape. Visible to AM/OP and the inspector only
+  // (F01-1 privacy); CL_* responses have it stripped by the field-visibility helper.
   address: z.unknown().optional(),
+  // F01-1 base-address geocoding (permanent mode). Null coordinates = not located.
+  baseLat: z.number().nullable().optional(),
+  baseLng: z.number().nullable().optional(),
+  baseGeocodedAt: instantStrNullable().optional(),
+  // Present only on write responses (create/update) to tell the client the save
+  // succeeded but geocoding did not.
+  baseGeocodeFailed: z.boolean().optional(),
+  // F01-1 app-state adoption (contract 00.10). AM/OP only.
+  appInstalledAt: instantStrNullable().optional(),
+  appLastSeenAt: instantStrNullable().optional(),
+  pushEnabled: z.boolean().nullable().optional(),
+  appVersion: z.string().nullable().optional(),
   abn: z.string().nullable().optional(),
   dateOfBirth: civilDateStrNullable().optional(),
   insuranceFileKey: z.string().nullable().optional(),

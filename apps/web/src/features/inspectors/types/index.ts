@@ -39,6 +39,9 @@ export interface InspectorDetail extends Inspector {
   blockedClients?: string[];
   insuranceMetaJson?: { fileName?: string | null; uploadedAt?: string | null } | null;
   policeCheckMetaJson?: { fileName?: string | null; uploadedAt?: string | null } | null;
+  // F01-1: base address — AM/OP and the inspector only (CL_* never receive it).
+  // Typed unknown because a legacy row may hold a non-conforming shape.
+  address?: unknown;
 }
 
 export interface InspectorFormData {
@@ -49,6 +52,16 @@ export interface InspectorFormData {
   confirmPassword: string;
   phone: string;
   status: string;
+  // F01-1: base address (geocoded in permanent mode on the backend). Required on
+  // create; country is always 'AU' and is not a form field. Street/suburb/city/
+  // state/postcode are mandatory; number/complement optional.
+  addressStreet: string;
+  addressNumber: string;
+  addressComplement: string;
+  addressSuburb: string;
+  addressCity: string;
+  addressState: string;
+  addressPostcode: string;
   regionIds: string[];
   serviceTypes: string;
   fullName: string;
@@ -70,6 +83,13 @@ export const EMPTY_INSPECTOR_FORM: InspectorFormData = {
   confirmPassword: '',
   phone: '',
   status: '',
+  addressStreet: '',
+  addressNumber: '',
+  addressComplement: '',
+  addressSuburb: '',
+  addressCity: '',
+  addressState: '',
+  addressPostcode: '',
   regionIds: [],
   serviceTypes: '',
   fullName: '',

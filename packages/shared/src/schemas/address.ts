@@ -31,6 +31,40 @@ export const branchAddressSchema = z.object({
 });
 export type BranchAddressInput = z.infer<typeof branchAddressSchema>;
 
+// Australian states/territories, used by the inspector base-address schema and
+// exported for the web/PWA state selects (F01).
+export const AU_STATES = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'] as const;
+export type AuState = (typeof AU_STATES)[number];
+
+// Inspector base address (F01) — the inspector's home base, geocoded in permanent
+// mode on save. Derived from branchAddressSchema with trim + Australian rules:
+// a 4-digit postcode, a state restricted to AU_STATES, and country locked to 'AU'.
+// branchAddressSchema has no latitude/longitude (X02 removed them), so there is
+// nothing to .omit; Zod strip drops any coordinate a client still posts (no 400).
+// A stored address that does not satisfy this schema is "legacy incompatible":
+// it is never normalised, it drives the "couldn't locate" banner downstream, and
+// any new save geocodes it.
+export const inspectorBaseAddressSchema = branchAddressSchema.extend({
+  street: z.string().trim().min(1).max(200),
+  number: z.string().trim().max(20).optional(),
+  complement: z.string().trim().max(200).optional(),
+  suburb: z.string().trim().min(1).max(100),
+  city: z.string().trim().min(1).max(100),
+  state: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .pipe(z.enum(AU_STATES, { errorMap: () => ({ message: 'Select a state' }) })),
+  postcode: z
+    .string()
+    .trim()
+    .regex(/^\d{4}$/, 'Postcode must be 4 digits'),
+  country: z
+    .literal('AU', { errorMap: () => ({ message: 'Only Australian addresses are supported' }) })
+    .default('AU'),
+});
+export type InspectorBaseAddress = z.infer<typeof inspectorBaseAddressSchema>;
+
 // Property address schema — flat address fields for property entities.
 // Aligned with branchAddressSchema validation constraints but keeps the
 // property-specific field set (addressLine2 instead of number/complement,
