@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { CalendarClock, FileText, LogOut, Star, User, Wallet } from 'lucide-react';
+import { CalendarClock, FileText, LogOut, Megaphone, Star, User, Wallet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useUnreadNoticeCount } from '@/features/announcements/hooks/useUnreadNoticeCount';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { MenuList, MenuRow } from '@/components/ui/MenuRow';
 import { Badge } from '@/components/ui/Badge';
@@ -16,6 +17,7 @@ export function ProfilePage() {
   const timeZone = useEffectiveTimezone();
   const { data: inspectorMe } = useInspectorMe();
   const { data: availability } = useInspectorAvailabilityTemplate();
+  const { count: unreadNotices } = useUnreadNoticeCount();
 
   // useInspectorMe resolves to the `{ data: InspectorMe }` envelope.
   const inspector = inspectorMe?.data;
@@ -102,6 +104,15 @@ export function ProfilePage() {
             value="Details & security"
             to="/profile/account"
           />
+          <ProfileTile
+            icon={<Megaphone className="h-6 w-6" aria-hidden="true" />}
+            label="Announcements"
+            value={unreadNotices > 0 ? `${unreadNotices} unread` : 'No new announcements'}
+            tone={unreadNotices > 0 ? 'warning' : 'default'}
+            to="/profile/announcements"
+            className="col-span-2"
+            data-testid="profile-tile-announcements"
+          />
         </div>
 
         {/* Log out */}
@@ -109,7 +120,7 @@ export function ProfilePage() {
           <MenuRow
             icon={<LogOut className="h-5 w-5" aria-hidden="true" />}
             label="Log out"
-            onClick={logout}
+            onClick={() => logout()}
             trailing={<></>}
           />
         </MenuList>

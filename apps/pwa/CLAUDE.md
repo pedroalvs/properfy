@@ -67,9 +67,11 @@ pnpm --filter pwa test:e2e
 ```text
 apps/pwa/
 ├── src/
-│   ├── app/                    # App shell wiring: router, providers, SW registration
+│   ├── app/                    # App shell wiring: router, providers, SW registration, useNoticeOpenedFromPush
+│   ├── sw.ts                   # injectManifest service-worker entry (F02-3)
+│   ├── sw/                     # SW pure helpers: runtime-caching.ts, push-handlers.ts (unit-tested, WebWorker lib)
 │   ├── components/
-│   │   ├── shell/              # PwaLayout (app frame), BottomNavBar, TopBar, TwoPaneLayout + WidePaneContext (wide master-detail)
+│   │   ├── shell/              # PwaLayout (app frame + push resync/SW-message wiring), BottomNavBar (unread badge), TopBar, TwoPaneLayout + WidePaneContext (wide master-detail)
 │   │   ├── ui/                 # Design-system primitives (see docs/design-system.md)
 │   │   └── feedback/           # OfflineBanner, EmptyState, LoadingState, ErrorState (snackbar: hooks/useSnackbar)
 │   ├── features/
@@ -159,19 +161,19 @@ offers map lives in `features/offers/` and appointment detail lives in `features
 
 ### Service Worker
 
-- Strategy: `generateSW` (Workbox auto-generated)
-- Register type: **`autoUpdate`** — new versions activate automatically on next load (no update prompt)
+- Strategy: **`injectManifest`** with a custom `src/sw.ts` (F02-3) — it precaches (`precacheAndRoute(self.__WB_MANIFEST)`), keeps the SPA navigation fallback (`NavigationRoute → index.html`), registers the runtime caches (`src/sw/runtime-caching.ts`, same 5 routes/cache names as before) and adds `push`, `notificationclick` and `pushsubscriptionchange` handlers (pure helpers in `src/sw/push-handlers.ts`, unit-tested). `src/sw.ts`/`src/sw/**` typecheck under `tsconfig.sw.json` (WebWorker lib) and are excluded from the main tsconfig. The push target allowlist is the shared `isAllowedInspectorNoticeTargetPath` (no local normalization). Output stays `dist/sw.js`, so a rollback to `generateSW` swaps the same file.
+- Register type: **`autoUpdate`** — new versions activate automatically on next load (`skipWaiting` + `clientsClaim`, no update prompt)
 
 ### Caching
 
 - **Static assets:** precached at build (JS, CSS, HTML, images, fonts); Google Fonts CacheFirst
 - **API requests** (`vite.config.ts` `runtimeCaching`):
-  - `/v1/inspector/schedule*` → NetworkFirst, `api-schedule-cache` (24 h, 50 entries, 10 s network timeout; no `cacheableResponse` today: Workbox default `0`/`200`)
-  - `/v1/inspector/appointments/*` → NetworkFirst, `api-appointment-cache` (5 min, 100 entries; no `cacheableResponse` today: Workbox default `0`/`200`)
+  - `/v1/inspector/schedule*` → NetworkFirst, `api-schedule-cache` (24 h, 50 entries, 10 s network timeout, `cacheableResponse: [200]`)
+  - `/v1/inspector/appointments/*` → NetworkFirst, `api-appointment-cache` (5 min, 100 entries, `cacheableResponse: [200]`)
   - `/v1/marketplace/offers` → NetworkOnly (offers are never served stale)
 - **In memory:** TanStack Query `networkMode: 'offlineFirst'`, `gcTime` 24 h (`QueryProvider.tsx`)
 - **Logout wipes inspector data:** every API cache name is listed in `INSPECTOR_API_CACHES` (`hooks/useAuth.tsx`) and deleted on logout together with the offline queue, so a shared device never shows the previous inspector's data. A new inspector cache MUST be added to that list.
-- **Today's work must stay readable offline.** Any inspector read endpoint that the day depends on (today's schedule, appointment detail and, from F04, the day plan `GET /v1/inspector/day-plans/:date` in `api-day-plan-cache`) uses NetworkFirst with a 10 s network timeout, like the existing caches. **Required for every new inspector cache** (the two existing caches do not set `cacheableResponse` today): `cacheableResponse: { statuses: [200] }` (an error such as "not published" is never cached as data), `maxAgeSeconds` ≤ 12 h and `maxEntries` ≤ 10 unless the task says otherwise, its cache name added to `INSPECTOR_API_CACHES`, and the fixed offline copy in the UI: "Offline · showing your last saved <thing>" with cache, "You're offline. Connect to load <thing>." + Retry without. Write actions keep using the offline queue; new write actions require a connection unless their task says otherwise. Downloads (e.g. the route sheet) and AM/OP routes are never cached.
+- **Today's work must stay readable offline.** Any inspector read endpoint that the day depends on (today's schedule, appointment detail and, from F04, the day plan `GET /v1/inspector/day-plans/:date` in `api-day-plan-cache`) uses NetworkFirst with a 10 s network timeout, like the existing caches. **Required for every new inspector cache** (the two existing caches now set `cacheableResponse: [200]` too, in `src/sw/runtime-caching.ts`): `cacheableResponse: { statuses: [200] }` (an error such as "not published" is never cached as data), `maxAgeSeconds` ≤ 12 h and `maxEntries` ≤ 10 unless the task says otherwise, its cache name added to `INSPECTOR_API_CACHES` (exported from `hooks/useAuth.tsx`), and the fixed offline copy in the UI: "Offline · showing your last saved <thing>" with cache, "You're offline. Connect to load <thing>." + Retry without. Write actions keep using the offline queue; new write actions require a connection unless their task says otherwise. Downloads (e.g. the route sheet) and AM/OP routes are never cached.
 
 ### Manifest
 

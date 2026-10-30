@@ -55,7 +55,7 @@ describe('ChangePasswordSection', () => {
 
       await vi.advanceTimersByTimeAsync(1600);
 
-      expect(logout).toHaveBeenCalled();
+      expect(logout).toHaveBeenCalledWith({ keepPushSubscription: true });
     } finally {
       vi.useRealTimers();
     }

@@ -24,11 +24,17 @@ vi.mock('../../hooks/useInspectorAvailabilityTemplate', () => ({
   useInspectorAvailabilityTemplate: () => mockUseAvailability(),
 }));
 
+const { unreadRef } = vi.hoisted(() => ({ unreadRef: { value: 0 } }));
+vi.mock('@/features/announcements/hooks/useUnreadNoticeCount', () => ({
+  useUnreadNoticeCount: () => ({ count: unreadRef.value }),
+}));
+
 describe('ProfilePage (tiles)', () => {
   const logout = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    unreadRef.value = 0;
     mockUseAuth.mockReturnValue({
       user: {
         id: 'insp-1',
@@ -173,5 +179,28 @@ describe('ProfilePage (tiles)', () => {
     mockUseAuth.mockReturnValue({ user: null, logout });
     const { container } = renderWithProviders(<ProfilePage />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it('shows the Announcements tile with the unread count and a warning dot', () => {
+    unreadRef.value = 3;
+    renderWithProviders(<ProfilePage />);
+    const tile = screen.getByRole('link', { name: 'Announcements, 3 unread' });
+    expect(tile).toHaveAttribute('href', '/profile/announcements');
+    expect(screen.getByTestId('profile-tile-announcements-dot')).toBeInTheDocument();
+  });
+
+  it('shows the Announcements tile with no new announcements and no dot at zero', () => {
+    unreadRef.value = 0;
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByRole('link', { name: 'Announcements, No new announcements' })).toBeInTheDocument();
+    expect(screen.queryByTestId('profile-tile-announcements-dot')).not.toBeInTheDocument();
+  });
+
+  it('places the Announcements tile after My account in the DOM (survives future tiles)', () => {
+    unreadRef.value = 1;
+    renderWithProviders(<ProfilePage />);
+    const account = screen.getByRole('link', { name: /^My account/ });
+    const announcements = screen.getByTestId('profile-tile-announcements');
+    expect(account.compareDocumentPosition(announcements) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

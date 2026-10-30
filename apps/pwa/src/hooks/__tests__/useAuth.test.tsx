@@ -15,11 +15,12 @@ vi.mock('@/services/api', () => ({
 
 const mockHasTokens = vi.fn();
 const mockClearTokens = vi.fn();
+const mockGetAccessToken = vi.fn<[], string | null>(() => null);
 
 vi.mock('@/lib/auth-storage', () => ({
   authStorage: {
     hasTokens: () => mockHasTokens(),
-    getAccessToken: () => null,
+    getAccessToken: () => mockGetAccessToken(),
     setTokens: vi.fn(),
     clearTokens: () => mockClearTokens(),
   },
@@ -167,5 +168,96 @@ describe('useAuth logout wipes per-inspector data (PWA-7)', () => {
     expect(mockClearAllLocalData).toHaveBeenCalled();
     expect(mockResetQueueSnapshot).toHaveBeenCalled();
     await waitFor(() => expect(result.current.isAuthenticated).toBe(false));
+  });
+});
+
+describe('useAuth logout unsubscribes this device from push (F02-3)', () => {
+  const unsubscribe = vi.fn().mockResolvedValue(true);
+  const getSubscription = vi.fn();
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockHasTokens.mockReturnValue(false);
+    mockGetAccessToken.mockReturnValue('access-123');
+    mockPost.mockResolvedValue({ data: {}, error: undefined, response: { status: 200 } });
+    queryClient = new QueryClient();
+    unsubscribe.mockClear();
+    getSubscription.mockReset();
+    getSubscription.mockResolvedValue({ endpoint: 'https://fcm.googleapis.com/fcm/send/x', unsubscribe });
+    vi.stubGlobal('caches', { delete: vi.fn().mockResolvedValue(true) });
+    vi.stubGlobal('fetch', fetchMock);
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { getRegistration: () => Promise.resolve({ pushManager: { getSubscription } }) },
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    Object.defineProperty(navigator, 'serviceWorker', { value: undefined, configurable: true });
+  });
+
+  it('is synchronous and POSTs unsubscribe with the captured token, then unsubscribes locally', async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    let ret: unknown;
+    act(() => {
+      ret = result.current.logout();
+    });
+    expect(ret).toBeUndefined(); // stays synchronous
+    expect(mockClearTokens).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/v1/inspectors/me/push-subscriptions/unsubscribe'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({ Authorization: 'Bearer access-123' }),
+          body: JSON.stringify({ endpoint: 'https://fcm.googleapis.com/fcm/send/x' }),
+        }),
+      ),
+    );
+    await waitFor(() => expect(unsubscribe).toHaveBeenCalled());
+  });
+
+  it('swallows a failing unsubscribe and still clears tokens', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('offline'));
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    act(() => {
+      result.current.logout();
+    });
+    expect(mockClearTokens).toHaveBeenCalled();
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(false));
+  });
+
+  it('still unsubscribes this device locally when there is no token (shared-device leak guard)', async () => {
+    mockGetAccessToken.mockReturnValue(null);
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    act(() => {
+      result.current.logout();
+    });
+    await waitFor(() => expect(unsubscribe).toHaveBeenCalled());
+    expect(fetchMock).not.toHaveBeenCalled(); // no token → no server POST
+  });
+
+  it('does nothing push-related when there is no local subscription', async () => {
+    getSubscription.mockResolvedValue(null);
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    act(() => {
+      result.current.logout();
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(unsubscribe).not.toHaveBeenCalled();
+  });
+
+  it('keeps the subscription when logout({ keepPushSubscription: true })', async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    act(() => {
+      result.current.logout({ keepPushSubscription: true });
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(unsubscribe).not.toHaveBeenCalled();
+    expect(mockClearTokens).toHaveBeenCalled();
   });
 });

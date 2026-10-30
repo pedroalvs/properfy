@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { env } from '@/config/env';
 import { authStorage } from '@/lib/auth-storage';
 import { ApiError } from '@/lib/api-error';
 import { UserRole } from '@properfy/shared';
@@ -9,8 +10,10 @@ import { clearAllLocalData } from '@/features/execution/lib/indexeddb';
 import { resetQueueSnapshot } from '@/features/execution/hooks/useOfflineQueue';
 
 // The two NetworkFirst runtime caches that hold per-inspector API responses
-// (see vite.config.ts). Font/static caches are not inspector data and are left.
-const INSPECTOR_API_CACHES = ['api-schedule-cache', 'api-appointment-cache'];
+// (see src/sw/runtime-caching.ts). Font/static caches are not inspector data
+// and are left. Exported so the service worker's runtime-caching descriptor can
+// assert the names stay in sync (a new inspector cache must be added here).
+export const INSPECTOR_API_CACHES = ['api-schedule-cache', 'api-appointment-cache'];
 
 /**
  * Best-effort wipe of every trace of the inspector's data on logout so a shared
@@ -25,6 +28,42 @@ function clearInspectorCachedData(): void {
   }
   void clearAllLocalData().catch(() => {});
   resetQueueSnapshot();
+}
+
+/**
+ * Fire-and-forget: unregister this device's push subscription on the server and
+ * locally, so the next inspector on a shared device does not keep receiving the
+ * previous one's push. The access token is passed explicitly because `logout`
+ * clears it synchronously right after calling this — the api client's middleware
+ * would otherwise read an already-cleared token. Every error is swallowed; the
+ * server also revokes the endpoint on the next 410.
+ */
+function unsubscribeThisDevice(token: string | null): void {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  void (async () => {
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      const subscription = await registration?.pushManager.getSubscription();
+      if (!subscription) return;
+      try {
+        // Only the server POST needs the token. Without one (tokens already
+        // cleared) we skip it but STILL drop the local subscription, so this
+        // device never keeps delivering push to the next inspector on a shared
+        // device — the server revokes the stale endpoint on its next 410.
+        if (token) {
+          await fetch(`${env.apiBaseUrl}/v1/inspectors/me/push-subscriptions/unsubscribe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ endpoint: subscription.endpoint }),
+          });
+        }
+      } finally {
+        await subscription.unsubscribe();
+      }
+    } catch {
+      // Best effort only.
+    }
+  })();
 }
 
 export interface AuthUser {
@@ -51,7 +90,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string, totpCode?: string) => Promise<void>;
-  logout: () => void;
+  logout: (options?: { keepPushSubscription?: boolean }) => void;
   refreshUser: () => Promise<void>;
 }
 
@@ -155,7 +194,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback((options?: { keepPushSubscription?: boolean }) => {
+    // Capture the access token BEFORE clearing it; the device unsubscribe runs
+    // fire-and-forget and needs an explicit Bearer. A password change keeps the
+    // subscription (same inspector re-logs in on the same device).
+    if (!options?.keepPushSubscription) {
+      unsubscribeThisDevice(authStorage.getAccessToken());
+    }
     api.POST('/v1/auth/logout').catch(() => {});
     clearPostLoginRedirect();
     authStorage.clearTokens();

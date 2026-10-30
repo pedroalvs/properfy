@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "WebWorker"],
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "types": [],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/sw.ts", "src/sw/**/*.ts"],
+  "exclude": ["src/**/__tests__/**", "src/**/*.test.*"]
+}
