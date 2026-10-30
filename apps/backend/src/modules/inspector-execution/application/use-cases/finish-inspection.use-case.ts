@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { AuthContext } from '@properfy/shared';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
+import type { IInspectorFieldEventRepository } from '../../domain/inspector-field-event.repository';
 import type { IIdempotencyService } from '../../domain/idempotency.service';
 import type { ExecuteStatusTransitionUseCase } from '../../../appointment/application/use-cases/execute-status-transition.use-case';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
@@ -51,6 +52,7 @@ export class FinishInspectionUseCase {
     private readonly authorizationService: AuthorizationService,
     private readonly prisma: PrismaClient | undefined,
     private readonly platformSettings: IPlatformSettingsReader,
+    private readonly fieldEventRepo: IInspectorFieldEventRepository,
   ) {}
 
   async execute(input: FinishInspectionInput): Promise<FinishInspectionOutput> {
@@ -69,7 +71,7 @@ export class FinishInspectionUseCase {
     if (cached) return cached;
 
     const execution = await this.executionRepo.findByAppointmentId(appointmentId);
-    if (!execution) throw new ExecutionNotStartedError();
+    if (!execution || execution.isAbandoned()) throw new ExecutionNotStartedError();
     if (execution.inspectorId !== actor.inspectorId) {
       throw new ForbiddenError('FORBIDDEN', 'Inspection execution is not assigned to this inspector');
     }
@@ -96,6 +98,16 @@ export class FinishInspectionUseCase {
     const now = new Date();
     let appointmentStatus = '';
     await runInTransaction(this.prisma, async ({ tx, defer }) => {
+      // First statement: lock the appointment row so finish and can't-do serialize
+      // on the same row in the same order (consistent order = deadlock-safe).
+      await this.fieldEventRepo.lockAppointmentForFieldEvent(appointmentId, tx!);
+
+      // Re-read under the lock: a can't-do that committed between the checks above
+      // and the lock may have abandoned (or a rare writer finished) the execution.
+      const locked = await this.executionRepo.findByAppointmentId(appointmentId);
+      if (!locked || locked.isAbandoned()) throw new ExecutionNotStartedError();
+      if (locked.isFinished()) throw new ExecutionAlreadyFinishedError();
+
       await this.executionRepo.update(
         execution.id,
         {
@@ -110,8 +122,10 @@ export class FinishInspectionUseCase {
         tx,
       );
 
+      // CAS: only finish a still-SCHEDULED appointment, so a concurrent transition
+      // that already moved it loses cleanly (409) instead of a mixed state.
       const transitionResult = await this.executeStatusTransition.executeInTransaction(
-        { appointmentId, targetStatus: 'DONE', actor },
+        { appointmentId, targetStatus: 'DONE', expectedStatus: 'SCHEDULED', actor },
         tx,
       );
       appointmentStatus = transitionResult.output.status;

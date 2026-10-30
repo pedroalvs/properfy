@@ -128,8 +128,11 @@ export class StartInspectionUseCase {
     const radiusMeters = settings.geofenceRadiusMeters;
 
     // 6. Existing execution (BEFORE geofence, so an in-progress retry is never re-blocked).
+    // An abandoned row (post-check-in can't-do, then re-offer) is treated as "not
+    // started": we fall through and restart the SAME row below (D13).
     const existing = await this.executionRepo.findByAppointmentId(appointmentId);
-    if (existing) {
+    const abandonedExisting = existing && existing.isAbandoned() ? existing : null;
+    if (existing && !abandonedExisting) {
       if (existing.isFinished()) throw new ExecutionAlreadyFinishedError();
       return {
         executionId: existing.id,
@@ -196,30 +199,79 @@ export class StartInspectionUseCase {
       });
     }
 
-    // 10. Create execution (radius snapshot always written).
-    const executionId = randomUUID();
+    // 10. Create execution (radius snapshot always written) — or restart an
+    // abandoned row in place, reusing its id and auditing the restart (no coords).
     const clientAt = input.clientOccurredAt ? new Date(input.clientOccurredAt) : null;
-    const execution = new InspectionExecutionEntity({
-      id: executionId,
-      appointmentId,
-      inspectorId: actor.inspectorId,
-      startedAt: now,
-      finishedAt: null,
-      resumedAt: null,
-      startLatitude: latitude,
-      startLongitude: longitude,
-      finishLatitude: null,
-      finishLongitude: null,
-      geolocationDistanceMeters,
-      startAccuracyMeters: accuracy,
-      startClientAt: clientAt && !Number.isNaN(clientAt.getTime()) ? clientAt : null,
-      outOfRadius: geofence.outOfRadius,
-      outOfWindow,
-      geofenceRadiusMeters: radiusMeters,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await this.executionRepo.save(execution);
+    const startClientAt = clientAt && !Number.isNaN(clientAt.getTime()) ? clientAt : null;
+    const executionId = abandonedExisting?.id ?? randomUUID();
+
+    if (abandonedExisting) {
+      await this.executionRepo.restart(abandonedExisting.id, {
+        inspectorId: actor.inspectorId,
+        startedAt: now,
+        startLatitude: latitude,
+        startLongitude: longitude,
+        geolocationDistanceMeters,
+        startAccuracyMeters: accuracy,
+        startClientAt,
+        outOfRadius: geofence.outOfRadius,
+        outOfWindow,
+        geofenceRadiusMeters: radiusMeters,
+      });
+      // Restart audit: before/after of non-coordinate fields only (privacy, D10).
+      this.auditService.log({
+        action: 'inspection_execution.restarted',
+        actorType: 'USER',
+        actorId: actor.userId,
+        entityType: 'InspectionExecution',
+        entityId: abandonedExisting.id,
+        tenantId: appointment.tenantId,
+        before: {
+          inspectorId: abandonedExisting.inspectorId,
+          startedAt: abandonedExisting.startedAt.toISOString(),
+          finishedAt: abandonedExisting.finishedAt?.toISOString() ?? null,
+          abandonedAt: abandonedExisting.abandonedAt?.toISOString() ?? null,
+          geolocationDistanceMeters: abandonedExisting.geolocationDistanceMeters,
+          startAccuracyMeters: abandonedExisting.startAccuracyMeters,
+          outOfRadius: abandonedExisting.outOfRadius,
+          outOfWindow: abandonedExisting.outOfWindow,
+          geofenceRadiusMeters: abandonedExisting.geofenceRadiusMeters,
+        },
+        after: {
+          inspectorId: actor.inspectorId,
+          startedAt: now.toISOString(),
+          finishedAt: null,
+          abandonedAt: null,
+          geolocationDistanceMeters,
+          startAccuracyMeters: accuracy,
+          outOfRadius: geofence.outOfRadius,
+          outOfWindow,
+          geofenceRadiusMeters: radiusMeters,
+        },
+      });
+    } else {
+      const execution = new InspectionExecutionEntity({
+        id: executionId,
+        appointmentId,
+        inspectorId: actor.inspectorId,
+        startedAt: now,
+        finishedAt: null,
+        resumedAt: null,
+        startLatitude: latitude,
+        startLongitude: longitude,
+        finishLatitude: null,
+        finishLongitude: null,
+        geolocationDistanceMeters,
+        startAccuracyMeters: accuracy,
+        startClientAt,
+        outOfRadius: geofence.outOfRadius,
+        outOfWindow,
+        geofenceRadiusMeters: radiusMeters,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await this.executionRepo.save(execution);
+    }
 
     // 11. Audits.
     this.auditService.log({

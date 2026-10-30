@@ -75,6 +75,37 @@ export class GeofenceOutOfRadiusError extends DomainError {
   }
 }
 
+/** A new can't-do (different Idempotency-Key) for a job this inspector already reported. */
+export class CantDoAlreadyReportedError extends ConflictError {
+  constructor() {
+    super('CANT_DO_ALREADY_REPORTED', 'You already reported this job. It is no longer on your route.');
+  }
+}
+
+/** The field-event target is assigned to the inspector but no longer SCHEDULED. */
+export class FieldEventAppointmentNotScheduledError extends ConflictError {
+  constructor() {
+    super('FIELD_EVENT_APPOINTMENT_NOT_SCHEDULED', 'This job is not scheduled for you any more.');
+  }
+}
+
+/** Running-late notice refused (not today, already checked in, or finished). */
+export class LateNoticeNotAllowedError extends DomainError {
+  constructor(message: string) {
+    super('LATE_NOTICE_NOT_ALLOWED', message, 422);
+  }
+}
+
+/** Same Idempotency-Key replayed with a different field-event payload. */
+export class FieldEventIdempotencyPayloadMismatchError extends ConflictError {
+  constructor() {
+    super(
+      'FIELD_EVENT_IDEMPOTENCY_PAYLOAD_MISMATCH',
+      'This Idempotency-Key was already used with a different request',
+    );
+  }
+}
+
 export class AssetUploadExpiredError extends DomainError {
   constructor() {
     super('ASSET_UPLOAD_EXPIRED', 'Presigned upload URL has expired', 410);

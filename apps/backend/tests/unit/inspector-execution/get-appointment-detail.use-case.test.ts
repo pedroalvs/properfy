@@ -238,6 +238,17 @@ describe('GetAppointmentDetailUseCase', () => {
     expect(result.execution!.startLatitude).toBe(-33.8688);
   });
 
+  it('returns a null execution when the check-in was abandoned', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(executionRepo.findByAppointmentId).mockResolvedValue(
+      makeExecution({ abandonedAt: new Date('2026-03-21T10:30:00Z') }),
+    );
+
+    const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+
+    expect(result.execution).toBeNull();
+  });
+
   it('serves the geofence radius/mode and the execution capture fields (F03)', async () => {
     const platformSettings = {
       get: vi.fn().mockResolvedValue({
