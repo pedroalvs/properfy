@@ -3,15 +3,16 @@ import { api } from '@/services/api';
 import { toApiError, type ApiError } from '@/lib/api-error';
 
 export interface UseArchiveInspectorNoticeReturn {
-  archive: () => void;
+  /** Archives the notice; the returned promise rejects on failure so the caller
+   * can surface an error (the ConfirmDialog must not hang silently). */
+  archive: () => Promise<void>;
   isArchiving: boolean;
-  error: ApiError | null;
 }
 
 /**
  * Archives a notice (idempotent — an already-archived notice returns 200). On
  * success both the list and this notice's detail are invalidated so the UI
- * reflects the archived state.
+ * reflects the archived state; on failure the promise rejects with an ApiError.
  */
 export function useArchiveInspectorNotice(
   id: string | null,
@@ -33,8 +34,7 @@ export function useArchiveInspectorNotice(
   });
 
   return {
-    archive: () => mutation.mutate(),
+    archive: () => mutation.mutateAsync(),
     isArchiving: mutation.isPending,
-    error: mutation.error,
   };
 }

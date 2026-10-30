@@ -7,8 +7,9 @@ vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } })
 vi.mock('@/services/api', () => ({ api: { GET: vi.fn(), POST: vi.fn() } }));
 
 const showSuccess = vi.fn();
+const showError = vi.fn();
 vi.mock('@/hooks/useSnackbar', () => ({
-  useSnackbar: () => ({ showSuccess, showError: vi.fn(), showInfo: vi.fn(), dismiss: vi.fn() }),
+  useSnackbar: () => ({ showSuccess, showError, showInfo: vi.fn(), dismiss: vi.fn() }),
   SnackbarProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -71,6 +72,7 @@ beforeEach(() => {
   mockGet.mockReset();
   mockPost.mockReset();
   showSuccess.mockClear();
+  showError.mockClear();
 });
 
 describe('InspectorNoticeDetailPage', () => {
@@ -154,6 +156,18 @@ describe('InspectorNoticeDetailPage', () => {
     expect(showSuccess).toHaveBeenCalledWith('Notice archived');
     expect(await screen.findByText('This notice is archived. Inspectors no longer see it.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Archive$/ })).not.toBeInTheDocument();
+  });
+
+  it('surfaces an error and closes the dialog when archive fails', async () => {
+    mockGet.mockResolvedValue(detail());
+    mockPost.mockResolvedValue({ error: { error: { code: 'BOOM', message: 'x' } }, response: { status: 500 } });
+    renderDetail();
+    fireEvent.click(await screen.findByRole('button', { name: /Archive/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Archive this notice?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Archive' }));
+    await waitFor(() => expect(showError).toHaveBeenCalledWith("Couldn't archive the notice. Try again."));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Archive this notice?' })).not.toBeInTheDocument());
+    expect(showSuccess).not.toHaveBeenCalled();
   });
 
   it('hides the Archive action for an already-archived notice', async () => {

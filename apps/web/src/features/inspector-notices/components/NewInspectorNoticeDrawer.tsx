@@ -326,6 +326,7 @@ export function NewInspectorNoticeDrawer({ open, onClose, onPublished }: NewInsp
         }
         confirmLabel="Publish"
         cancelLabel="Back to editing"
+        variant="warning"
         loading={isPending}
         onConfirm={handleConfirmPublish}
         onClose={() => setConfirm(null)}

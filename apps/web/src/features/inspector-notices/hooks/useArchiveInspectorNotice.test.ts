@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement, type ReactNode } from 'react';
 
@@ -30,22 +30,25 @@ describe('useArchiveInspectorNotice', () => {
     const { Wrapper, invalidate } = wrapperWithClient();
     const { result } = renderHook(() => useArchiveInspectorNotice('n1', onArchived), { wrapper: Wrapper });
 
-    act(() => result.current.archive());
-    await waitFor(() => expect(onArchived).toHaveBeenCalled());
+    await act(async () => {
+      await result.current.archive();
+    });
+    expect(onArchived).toHaveBeenCalled();
     expect(mockPost).toHaveBeenCalledWith('/v1/inspector-notices/{noticeId}/archive', {
       params: { path: { noticeId: 'n1' } },
     });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['inspector-notices'] });
   });
 
-  it('surfaces an error without calling onArchived', async () => {
+  it('rejects on error without calling onArchived', async () => {
     mockPost.mockResolvedValue({ error: { error: { code: 'BOOM', message: 'x' } }, response: { status: 500 } });
     const onArchived = vi.fn();
     const { Wrapper } = wrapperWithClient();
     const { result } = renderHook(() => useArchiveInspectorNotice('n1', onArchived), { wrapper: Wrapper });
 
-    act(() => result.current.archive());
-    await waitFor(() => expect(result.current.error?.status).toBe(500));
+    await act(async () => {
+      await expect(result.current.archive()).rejects.toMatchObject({ status: 500 });
+    });
     expect(onArchived).not.toHaveBeenCalled();
   });
 });

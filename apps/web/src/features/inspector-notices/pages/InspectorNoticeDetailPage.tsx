@@ -30,7 +30,7 @@ type Recipient = InspectorNoticeDetail['recipients'][number];
 export function InspectorNoticeDetailPage() {
   const { noticeId } = useParams<{ noticeId: string }>();
   const navigate = useNavigate();
-  const { showSuccess } = useSnackbar();
+  const { showSuccess, showError } = useSnackbar();
   const { notice, isLoading, isError, notFound, refetch } = useInspectorNoticeDetail(noticeId ?? null);
 
   const [tab, setTab] = useState<RecipientTab>('all');
@@ -41,6 +41,17 @@ export function InspectorNoticeDetailPage() {
     showSuccess('Notice archived');
     refetch();
   });
+
+  async function handleArchive() {
+    try {
+      await archive();
+    } catch {
+      // Surface the failure instead of leaving the ConfirmDialog hanging (CLAUDE.md §8);
+      // the operator can reopen Archive to retry.
+      setArchiveOpen(false);
+      showError("Couldn't archive the notice. Try again.");
+    }
+  }
 
   const recipients = useMemo(() => notice?.recipients ?? [], [notice?.recipients]);
   const readCount = notice?.readCount ?? 0;
@@ -180,7 +191,7 @@ export function InspectorNoticeDetailPage() {
         cancelLabel="Cancel"
         variant="danger"
         loading={isArchiving}
-        onConfirm={archive}
+        onConfirm={handleArchive}
         onClose={() => setArchiveOpen(false)}
       />
     </>
