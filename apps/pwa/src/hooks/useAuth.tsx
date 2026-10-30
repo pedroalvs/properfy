@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { env } from '@/config/env';
 import { authStorage } from '@/lib/auth-storage';
 import { ApiError } from '@/lib/api-error';
 import { UserRole } from '@properfy/shared';
@@ -29,6 +30,37 @@ function clearInspectorCachedData(): void {
   resetQueueSnapshot();
 }
 
+/**
+ * Fire-and-forget: unregister this device's push subscription on the server and
+ * locally, so the next inspector on a shared device does not keep receiving the
+ * previous one's push. The access token is passed explicitly because `logout`
+ * clears it synchronously right after calling this — the api client's middleware
+ * would otherwise read an already-cleared token. Every error is swallowed; the
+ * server also revokes the endpoint on the next 410.
+ */
+function unsubscribeThisDevice(token: string | null): void {
+  if (!token) return;
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  void (async () => {
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      const subscription = await registration?.pushManager.getSubscription();
+      if (!subscription) return;
+      try {
+        await fetch(`${env.apiBaseUrl}/v1/inspectors/me/push-subscriptions/unsubscribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        });
+      } finally {
+        await subscription.unsubscribe();
+      }
+    } catch {
+      // Best effort only.
+    }
+  })();
+}
+
 export interface AuthUser {
   id: string;
   name: string;
@@ -53,7 +85,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string, totpCode?: string) => Promise<void>;
-  logout: () => void;
+  logout: (options?: { keepPushSubscription?: boolean }) => void;
   refreshUser: () => Promise<void>;
 }
 
@@ -157,7 +189,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback((options?: { keepPushSubscription?: boolean }) => {
+    // Capture the access token BEFORE clearing it; the device unsubscribe runs
+    // fire-and-forget and needs an explicit Bearer. A password change keeps the
+    // subscription (same inspector re-logs in on the same device).
+    if (!options?.keepPushSubscription) {
+      unsubscribeThisDevice(authStorage.getAccessToken());
+    }
     api.POST('/v1/auth/logout').catch(() => {});
     clearPostLoginRedirect();
     authStorage.clearTokens();

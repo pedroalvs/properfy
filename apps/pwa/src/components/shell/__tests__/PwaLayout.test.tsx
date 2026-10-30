@@ -11,6 +11,16 @@ vi.mock('@/app/useAppStateHeartbeat', () => ({
   useAppStateHeartbeat: () => mockHeartbeat(),
 }));
 
+// PwaLayout now wires push resync and the from-push read; those hooks have their
+// own suites, so stub them here to keep this focused on the layout frame.
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
+vi.mock('@/features/push/hooks/useBrowserPushDeps', () => ({ useBrowserPushDeps: () => ({}) }));
+vi.mock('@/features/push/hooks/usePushSubscriptionSync', () => ({ usePushSubscriptionSync: vi.fn() }));
+vi.mock('@/app/useNoticeOpenedFromPush', () => ({ useNoticeOpenedFromPush: vi.fn() }));
+vi.mock('@/features/announcements/hooks/useUnreadNoticeCount', () => ({
+  useUnreadNoticeCount: () => ({ count: 0 }),
+}));
+
 /**
  * PwaLayout reads `useMatches()`, which React Router only supports under a data router — it throws
  * under <Routes>/MemoryRouter. So these render it via createMemoryRouter + RouterProvider (the same
