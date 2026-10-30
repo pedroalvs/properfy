@@ -7,6 +7,7 @@ import { availableSlotSchema, storedAvailableSlotSchema } from './available-slot
 // One-way edge: rental-tenant-portal.ts does not import this file (verified — a
 // cycle here typechecks fine and only explodes at runtime).
 import { portalSurveySchema } from './rental-tenant-portal';
+import { inspectorIssueSchema, inspectorLastFieldIssueSchema } from './field-events';
 import { AppointmentStatus, ServiceTypeFlowType, GeofenceMode } from '../enums';
 
 // Geofence fallback reasons surfaced to the PWA (F03). Shared by the start
@@ -371,6 +372,12 @@ export const appointmentResponseSchema = z.object({
   reason: z.string().nullable().optional(),
   cancellationReasonCode: z.string().nullable().optional(),
   rejectionReasonCode: z.string().nullable().optional(),
+  /**
+   * Latest "Can't do this job" of the appointment, flattened onto list and
+   * detail (F03). Null when there is none. Must stay declared here — this is the
+   * Fastify response schema and an undeclared field is stripped on serialization.
+   */
+  inspectorIssue: inspectorIssueSchema.nullable().optional(),
   createdByUserId: z.string().uuid(),
   doneCheckedByUserId: z.string().uuid().nullable().optional(),
   doneCheckedAt: instantStrNullable().optional(),
@@ -592,6 +599,13 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
       mode: z.nativeEnum(GeofenceMode),
     })
     .optional(),
+  /**
+   * The requesting inspector's own last "Can't do this job" on this appointment
+   * (F03, L-F03-09). Present only when the latest CANT_DO was made by this
+   * inspector (e.g. a job they reported and later re-accepted); null otherwise.
+   * Optional so older clients / cached responses stay valid.
+   */
+  lastFieldIssue: inspectorLastFieldIssueSchema.nullable().optional(),
   /** App credentials linked to this appointment (live reference). */
   apps: z.array(appointmentAppSchema).default([]),
   agencyName: z.string().nullable().optional(),

@@ -22,6 +22,7 @@ export * from './audit-log';
 export * from './available-slot';
 export * from './rental-tenant-portal';
 export * from './inspection-execution';
+export * from './field-events';
 export * from './billing';
 export * from './notification';
 export * from './report';
