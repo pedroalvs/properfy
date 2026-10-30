@@ -818,6 +818,7 @@ export interface paths {
                             notificationDailyCapEmail?: number;
                             /** @default 100 */
                             notificationDailyCapSms?: number;
+                            mapWindowDays?: number;
                             customFields?: {
                                 [key: string]: unknown;
                             };
@@ -1001,6 +1002,7 @@ export interface paths {
                             notificationDailyCapEmail?: number;
                             /** @default 100 */
                             notificationDailyCapSms?: number;
+                            mapWindowDays?: number;
                             customFields?: {
                                 [key: string]: unknown;
                             };

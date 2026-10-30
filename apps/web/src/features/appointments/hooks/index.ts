@@ -22,3 +22,5 @@ export { useForceConfirmation } from './useForceConfirmation';
 export type { UseForceConfirmationReturn } from './useForceConfirmation';
 export { usePortalActivities } from './usePortalActivities';
 export type { UsePortalActivitiesReturn, PortalActivity } from './usePortalActivities';
+export { useMapPeriodWindow } from './useMapPeriodWindow';
+export type { UseMapPeriodWindowResult } from './useMapPeriodWindow';

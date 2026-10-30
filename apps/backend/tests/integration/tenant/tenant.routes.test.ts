@@ -277,6 +277,43 @@ describe('PATCH /v1/tenants/:tenantId', () => {
 
     expect(res.status).toBe(400);
   });
+
+  // F00 — mapWindowDays route validation (R1–R3) + happy path (R4).
+  it.each([
+    ['R1 zero', 0],
+    ['R2 over max', 91],
+    ['R3 string', '14'],
+  ])('rejects settings.mapWindowDays %s with 400 VALIDATION_ERROR', async (_label, value) => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    const res = await supertest(app.server)
+      .patch(`/v1/tenants/${TENANT_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ settings: { mapWindowDays: value } });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('R4: accepts settings.mapWindowDays 30 → 200 with the stored value', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockUpdateTenantExecute.mockResolvedValueOnce({
+      id: TENANT_ID,
+      name: 'Acme Realty',
+      legalName: 'Acme Realty Pty Ltd',
+      status: 'ACTIVE',
+      timezone: 'Australia/Sydney',
+      currency: 'AUD',
+      appointmentCodePrefix: null,
+      settingsJson: { mapWindowDays: 30 },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    const res = await supertest(app.server)
+      .patch(`/v1/tenants/${TENANT_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ settings: { mapWindowDays: 30 } });
+    expect(res.status).toBe(200);
+    expect(res.body.data.settingsJson.mapWindowDays).toBe(30);
+  });
 });
 
 describe('POST /v1/tenants/:tenantId/deactivate', () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -529,5 +529,122 @@ describe('AppointmentMapPage — full pagination fetch', () => {
       '/v1/appointments',
       expect.objectContaining({ params: { query: expect.objectContaining({ page: '2', pageSize: '100' }) } }),
     );
+  });
+});
+
+describe('AppointmentMapPage — period window (F00)', () => {
+  // A UTC/Sydney-divergent instant so the window is provably in the agency tz:
+  // 15:00Z on 2026-10-27 is 02:00 on 2026-10-28 in Sydney (AEDT).
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-27T15:00:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Latest query object sent to GET `path` (exact match). */
+  function lastQuery(path: string): Record<string, unknown> | undefined {
+    const calls = mockGet.mock.calls.filter((c) => c[0] === path);
+    const last = calls[calls.length - 1];
+    return last?.[1]?.params?.query as Record<string, unknown> | undefined;
+  }
+
+  const page1 = { page: 1, pageSize: 200, total: 1, totalPages: 1 };
+  const empty = { page: 1, pageSize: 200, total: 0, totalPages: 0 };
+
+  // Branch the single GET mock by path so CL can fetch its agency settings and so
+  // /v1/service-groups returns real (empty) groups rather than appointment-shaped
+  // rows (which lack `.appointments` and crash the group-centroid memo).
+  function mockGetByPath(tenant?: { settingsJson?: unknown; timezone?: string | null }) {
+    mockGet.mockImplementation((path: string) => {
+      if (tenant && path.startsWith('/v1/tenants/') && !path.endsWith('/tenants')) {
+        return Promise.resolve({ data: { data: { id: 'tenant-1', ...tenant } } });
+      }
+      if (path === '/v1/appointments') {
+        return Promise.resolve({ data: { data: MOCK_MAP_DATA, pagination: page1 } });
+      }
+      return Promise.resolve({ data: { data: [], pagination: empty } });
+    });
+  }
+
+  // M1 — AM: the first /v1/appointments request carries today..today+14 (Sydney).
+  it('M1: AM first appointments request carries the 14/Sydney window', async () => {
+    authState.role = 'AM';
+    mockGetByPath();
+    renderPage();
+    await waitFor(() => expect(lastQuery('/v1/appointments')).toBeDefined());
+    expect(lastQuery('/v1/appointments')).toMatchObject({ fromDate: '2026-10-28', toDate: '2026-11-11' });
+  });
+
+  // M2 — CL: the appointments request carries the AGENCY window (30/Perth), proving
+  // it resolved the agency GET before firing (never the 14/Sydney default).
+  it('M2: CL appointments request carries the agency window (30/Perth)', async () => {
+    authState.role = 'CL_ADMIN';
+    mockGetByPath({ settingsJson: { mapWindowDays: 30 }, timezone: 'Australia/Perth' });
+    renderPage();
+    await waitFor(() => expect(lastQuery('/v1/appointments')).toBeDefined());
+    await waitFor(() =>
+      expect(lastQuery('/v1/appointments')).toMatchObject({ fromDate: '2026-10-27', toDate: '2026-11-26' }),
+    );
+    // E.A1-1: the FIRST appointments request must already carry the agency window
+    // (never the 14/Sydney seed) — CL must wait for the agency GET before fetching.
+    const firstApptCall = mockGet.mock.calls.find((c) => c[0] === '/v1/appointments');
+    expect(firstApptCall?.[1]?.params?.query).toMatchObject({ fromDate: '2026-10-27', toDate: '2026-11-26' });
+  });
+
+  // M3 — AM groups mode: the groups request carries the 14/Sydney window.
+  it('M3: groups request carries scheduledDateFrom/To from the window', async () => {
+    authState.role = 'AM';
+    mockGetByPath();
+    renderPageAt(['/map?mode=groups']);
+    await waitFor(() => expect(lastQuery('/v1/service-groups')).toBeDefined());
+    expect(lastQuery('/v1/service-groups')).toMatchObject({
+      scheduledDateFrom: '2026-10-28',
+      scheduledDateTo: '2026-11-11',
+    });
+  });
+
+  // M3b — launching in groups mode still seeds the appointments window, so the
+  // appointments request carries its dates (the window is not groups-only).
+  it('M3b: opening in groups mode still carries the appointments window', async () => {
+    authState.role = 'AM';
+    mockGetByPath();
+    renderPageAt(['/map?mode=groups']);
+    await waitFor(() => expect(lastQuery('/v1/appointments')).toBeDefined());
+    expect(lastQuery('/v1/appointments')).toMatchObject({ fromDate: '2026-10-28', toDate: '2026-11-11' });
+  });
+
+  // M5 — a non-date filter change (status) keeps the window dates on the request.
+  it('M5: toggling a status keeps the window dates on the request', async () => {
+    authState.role = 'AM';
+    mockGetByPath();
+    renderPage();
+    await waitFor(() => expect(lastQuery('/v1/appointments')).toBeDefined());
+    // Open the panel and toggle a status pill.
+    fireEvent.click(screen.getByTestId('map-filter-toggle'));
+    fireEvent.click(screen.getByRole('button', { name: 'Scheduled' }));
+    await waitFor(() =>
+      expect(lastQuery('/v1/appointments')).toMatchObject({
+        fromDate: '2026-10-28',
+        toDate: '2026-11-11',
+        status: expect.stringContaining('SCHEDULED'),
+      }),
+    );
+  });
+
+  // M4 — with the panel closed, AM sees a removable window chip beside the toggle;
+  // removing it clears the dates from the next request.
+  it('M4: panel-closed chip is removable and clears the window', async () => {
+    authState.role = 'AM';
+    mockGetByPath();
+    renderPage();
+    await waitFor(() => expect(lastQuery('/v1/appointments')).toBeDefined());
+    expect(screen.getByTestId('map-window-chip')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove date window' }));
+
+    await waitFor(() => expect(lastQuery('/v1/appointments')?.fromDate).toBeUndefined());
+    expect(screen.queryByTestId('map-window-chip')).not.toBeInTheDocument();
   });
 });

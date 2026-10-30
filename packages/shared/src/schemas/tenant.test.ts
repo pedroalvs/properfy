@@ -9,6 +9,7 @@ import {
   listTenantsQuerySchema,
   listBranchesQuerySchema,
   tenantSettingsSchema,
+  MAP_WINDOW_DAYS_DEFAULT,
 } from './tenant';
 import { branchAddressSchema } from './address';
 
@@ -563,6 +564,40 @@ describe('tenantSettingsSchema', () => {
       expect(data['inspectionWindowBeforeMinutes']).toBe(60);
       expect(data['inspectionWindowAfterMinutes']).toBe(15);
     }
+  });
+});
+
+describe('tenantSettingsSchema — mapWindowDays (F00)', () => {
+  // S1 — accepts the integer bounds.
+  it('S1: accepts 1, 14 and 90', () => {
+    for (const n of [1, 14, 90]) {
+      const parsed = tenantSettingsSchema.parse({ mapWindowDays: n });
+      expect(parsed.mapWindowDays).toBe(n);
+    }
+  });
+
+  // S2 — rejects out-of-range, non-integer, string and null.
+  it('S2: rejects 0, 91, 7.5, "14" and null', () => {
+    for (const v of [0, 91, 7.5, '14', null]) {
+      expect(tenantSettingsSchema.safeParse({ mapWindowDays: v }).success).toBe(false);
+    }
+  });
+
+  // S3 — no default is injected when the key is absent.
+  it('S3: leaves mapWindowDays absent when not provided (no injected default)', () => {
+    const parsed = tenantSettingsSchema.parse({});
+    expect('mapWindowDays' in parsed).toBe(false);
+  });
+
+  // S4 — updateTenantSchema accepts a partial settings carrying only mapWindowDays.
+  it('S4: updateTenantSchema accepts { settings: { mapWindowDays: 30 } }', () => {
+    const result = updateTenantSchema.safeParse({ settings: { mapWindowDays: 30 } });
+    expect(result.success).toBe(true);
+  });
+
+  // S5 — the exported platform default.
+  it('S5: MAP_WINDOW_DAYS_DEFAULT is 14', () => {
+    expect(MAP_WINDOW_DAYS_DEFAULT).toBe(14);
   });
 });
 

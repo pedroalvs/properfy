@@ -50,6 +50,8 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
     roles: ['AM', 'OP'],
   },
   'tenant.update': {
+    // OP: only settings.mapWindowDays, enforced in update-tenant.use-case.ts
+    // (OP_EXTRA_SETTINGS_KEYS); every other field is AM-only. No per-key scope here (F00).
     roles: ['AM', 'OP'],
   },
   'tenant.deactivate': {

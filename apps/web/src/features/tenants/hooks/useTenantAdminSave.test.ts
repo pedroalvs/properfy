@@ -32,6 +32,7 @@ const VALID_DATA: TenantAdminFormData = {
   appointmentCodePrefix: 'INS',
   notes: '',
   rentalTenantNotificationsEnabled: true,
+  mapWindowDays: '14',
 };
 
 beforeEach(() => {
@@ -336,6 +337,99 @@ describe('useTenantAdminSave', () => {
 
     expect(saveResult?.success).toBe(false);
     expect(saveResult?.fieldErrors?.rentalTenantNotificationsEnabled).toBe('Must be boolean');
+    expect(saveResult?.error).toBeUndefined();
+  });
+
+  // ─── F00: map window (days) ───────────────────────────────────────────────
+
+  it('validate rejects an empty / 0 / 91 / 7.5 map window when validateMapWindow is set', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+    const opts = { isCreate: false, validateMapWindow: true };
+    for (const bad of ['', '0', '91', '7.5']) {
+      const errors = result.current.validate({ ...VALID_DATA, mapWindowDays: bad }, opts);
+      expect(errors.mapWindowDays).toBe('Enter a whole number between 1 and 90.');
+    }
+  });
+
+  it('validate accepts a boundary map window (1 and 90) when validateMapWindow is set', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+    const opts = { isCreate: false, validateMapWindow: true };
+    expect(result.current.validate({ ...VALID_DATA, mapWindowDays: '1' }, opts).mapWindowDays).toBeUndefined();
+    expect(result.current.validate({ ...VALID_DATA, mapWindowDays: '90' }, opts).mapWindowDays).toBeUndefined();
+  });
+
+  it('validate does not touch the map window when the flag is absent (CL_ADMIN / create)', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+    const errors = result.current.validate({ ...VALID_DATA, mapWindowDays: '999' }, { isCreate: false });
+    expect(errors.mapWindowDays).toBeUndefined();
+  });
+
+  it('validate with mapWindowOnly skips the general required checks but still validates the window', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+    // Name/legalName/currency blank: a map-only (OP) save must not be blocked by them.
+    const base = { ...EMPTY_TENANT_ADMIN_FORM, mapWindowDays: '30' };
+    const ok = result.current.validate(base, { isCreate: false, mapWindowOnly: true });
+    expect(ok.name).toBeUndefined();
+    expect(ok.legalName).toBeUndefined();
+    expect(ok.currency).toBeUndefined();
+    expect(ok.mapWindowDays).toBeUndefined();
+    const bad = result.current.validate({ ...base, mapWindowDays: '0' }, { isCreate: false, mapWindowOnly: true });
+    expect(bad.mapWindowDays).toBe('Enter a whole number between 1 and 90.');
+  });
+
+  it('save with mapWindow "include" adds settings.mapWindowDays as a number alongside the rest', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_DATA, mapWindowDays: '30' }, 'ten-01', { mapWindow: 'include' });
+    });
+
+    const body = mockPatch.mock.calls[0]![1].body;
+    expect(body.settings.mapWindowDays).toBe(30);
+    expect(body.name).toBe('Imob Alpha');
+    expect(body).toHaveProperty('appointmentCodePrefix', 'INS');
+  });
+
+  it('save with mapWindow "only" sends exactly { settings: { mapWindowDays } } (OP)', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save({ ...VALID_DATA, mapWindowDays: '30' }, 'ten-01', { mapWindow: 'only' });
+    });
+
+    expect(mockPatch).toHaveBeenCalledWith('/v1/tenants/{tenantId}', {
+      params: { path: { tenantId: 'ten-01' } },
+      body: { settings: { mapWindowDays: 30 } },
+    });
+  });
+
+  it('save maps the nested settings.mapWindowDays VALIDATION_ERROR detail to the form field', async () => {
+    mockPatch.mockResolvedValueOnce({
+      data: undefined,
+      error: {
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: [{ field: 'settings.mapWindowDays', message: 'Must be between 1 and 90' }],
+        },
+      },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useTenantAdminSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save({ ...VALID_DATA, mapWindowDays: '30' }, 'ten-01', { mapWindow: 'only' });
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.fieldErrors?.mapWindowDays).toBe('Must be between 1 and 90');
     expect(saveResult?.error).toBeUndefined();
   });
 

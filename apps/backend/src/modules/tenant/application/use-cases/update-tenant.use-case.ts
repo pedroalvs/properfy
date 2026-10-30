@@ -4,6 +4,7 @@ import {
   appointmentCodePrefixSchema,
   ianaTimezoneSchema,
   normalizeRentalTenantNotificationSettings,
+  tenantSettingsSchema,
 } from '@properfy/shared';
 import { ForbiddenError, ValidationError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
@@ -29,6 +30,12 @@ const CL_ADMIN_SETTINGS_ALLOW_LIST = new Set([
   'emailTemplates',
   'contactPhone',
 ]);
+
+/**
+ * F00 — the only settings key OP may write. OP is cross-tenant (its JWT never carries a
+ * tenantId), so it writes this key on ANY agency; every other field/key stays AM-only for OP.
+ */
+const OP_EXTRA_SETTINGS_KEYS = new Set(['mapWindowDays']);
 
 // Legacy branding keys from the removed logo-upload flow. Kept blocked so the
 // generic settings endpoint can never resurrect them.
@@ -91,13 +98,31 @@ export class UpdateTenantUseCase {
     const { tenantId, actor } = input;
     let { data } = input;
 
-    // RBAC: AM can update all fields; OP/CL_ADMIN own tenant, limited to name and settings
+    // RBAC:
+    // - AM: full access, any agency, any field.
+    // - OP: cross-tenant, may write ONLY settings.mapWindowDays on any agency (F00). OP's JWT never
+    //   carries a tenantId, so it is NOT the old `(CL_ADMIN || OP) && actor.tenantId === tenantId`
+    //   branch (that branch was dead for OP); it gets its own path here.
+    // - CL_ADMIN (own tenant): name + appointmentCodePrefix + timezone + allow-listed settings.
     if (actor.role === 'AM') {
       // Full access
-    } else if (
-      (actor.role === 'CL_ADMIN' || actor.role === 'OP') &&
-      actor.tenantId === tenantId
-    ) {
+    } else if (actor.role === 'OP') {
+      const hasTopLevelField =
+        data.name !== undefined ||
+        data.legalName !== undefined ||
+        data.currency !== undefined ||
+        data.appointmentCodePrefix !== undefined ||
+        data.timezone !== undefined;
+      const settingsKeys = data.settings ? Object.keys(data.settings) : [];
+      const onlyExtraSettings =
+        settingsKeys.length > 0 && settingsKeys.every((key) => OP_EXTRA_SETTINGS_KEYS.has(key));
+      // Any top-level field, an absent/empty settings object, or any key outside the OP allow-list
+      // rejects the whole request — no silent discard.
+      if (hasTopLevelField || !onlyExtraSettings) {
+        throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
+      }
+      data = { settings: data.settings };
+    } else if (actor.role === 'CL_ADMIN' && actor.tenantId === tenantId) {
       // Strip top-level fields and filter settings keys
       const filteredSettings = data.settings ? filterClAdminSettings(data.settings) : undefined;
       if (filteredSettings) {
@@ -131,6 +156,17 @@ export class UpdateTenantUseCase {
             `settings.${key} is not supported.`,
           );
         }
+      }
+    }
+
+    // Revalidate mapWindowDays for non-route callers (the Fastify route already validates the
+    // body; a direct use-case caller could pass an out-of-range value). F00.
+    if (data.settings && 'mapWindowDays' in data.settings) {
+      const result = tenantSettingsSchema.shape.mapWindowDays.safeParse(data.settings.mapWindowDays);
+      if (!result.success) {
+        throw new ValidationError('Invalid map window days', [
+          { field: 'settings.mapWindowDays', message: 'Must be an integer between 1 and 90' },
+        ]);
       }
     }
 
@@ -199,11 +235,32 @@ export class UpdateTenantUseCase {
     if (data.currency !== undefined) updateData.currency = data.currency;
     if (normalizedAppointmentCodePrefix !== undefined)
       updateData.appointmentCodePrefix = normalizedAppointmentCodePrefix;
-    if (data.settings !== undefined) {
+    // Only merge settings when something survived the permission filter: a settings object
+    // reduced to {} (e.g. CL_ADMIN sending only mapWindowDays) must not count as a change.
+    if (data.settings !== undefined && Object.keys(data.settings).length > 0) {
       updateData.settingsJson = deepMerge(
         tenant.settingsJson,
         normalizeRentalTenantNotificationSettings(data.settings),
       );
+    }
+
+    // Empty-PATCH guard (F00, approved 2026-10-27): if nothing remains after permission
+    // filtering, skip the write, the audit and the event, and return the current tenant. Runs
+    // after findById so a missing target still 404s. Narrow by design — equal values on an
+    // allowed key still write and audit.
+    if (Object.keys(updateData).length === 0) {
+      return {
+        id: tenant.id,
+        name: tenant.name,
+        legalName: tenant.legalName,
+        status: tenant.status,
+        timezone: tenant.timezone,
+        currency: tenant.currency,
+        appointmentCodePrefix: tenant.appointmentCodePrefix,
+        settingsJson: tenant.settingsJson,
+        createdAt: tenant.createdAt,
+        updatedAt: tenant.updatedAt,
+      };
     }
 
     await this.tenantRepo.update(tenantId, updateData);

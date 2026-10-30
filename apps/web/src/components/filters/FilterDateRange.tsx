@@ -1,3 +1,4 @@
+import { useId, type MutableRefObject } from 'react';
 import { cn } from '@properfy/frontend-standards';
 import { filterContainer, filterLabel, filterIcon } from './filter-styles';
 import { DateInput } from '@/components/forms/DateInput';
@@ -8,6 +9,14 @@ interface FilterDateRangeProps {
   endDate: string;
   onStartChange: (value: string) => void;
   onEndChange: (value: string) => void;
+  /** Lower bound (`YYYY-MM-DD`) applied to BOTH inputs; marks out-of-range values invalid. */
+  min?: string;
+  /** Upper bound (`YYYY-MM-DD`) applied to BOTH inputs. */
+  max?: string;
+  /** Optional caption below the inputs, wired to both via `aria-describedby`. */
+  helperText?: string;
+  /** Optional external handle to the start input (e.g. return-focus after a chip ✕). */
+  startInputRef?: MutableRefObject<HTMLInputElement | null>;
 }
 
 export function FilterDateRange({
@@ -16,8 +25,14 @@ export function FilterDateRange({
   endDate,
   onStartChange,
   onEndChange,
+  min,
+  max,
+  helperText,
+  startInputRef,
 }: FilterDateRangeProps) {
   const hasValue = startDate !== '' || endDate !== '';
+  const helperId = useId();
+  const describedBy = helperText ? helperId : undefined;
 
   return (
     <div className={filterContainer}>
@@ -36,7 +51,11 @@ export function FilterDateRange({
               variant="bare"
               value={startDate}
               onChange={onStartChange}
+              min={min}
+              max={max}
+              inputRef={startInputRef}
               aria-label={`${label} - start`}
+              aria-describedby={describedBy}
             />
           </div>
           <span className="px-1 text-xs text-text-muted sm:px-0">to</span>
@@ -45,10 +64,18 @@ export function FilterDateRange({
               variant="bare"
               value={endDate}
               onChange={onEndChange}
+              min={min}
+              max={max}
               aria-label={`${label} - end`}
+              aria-describedby={describedBy}
             />
           </div>
         </div>
+        {helperText && (
+          <p id={helperId} className="mt-1.5 text-xs text-text-muted">
+            {helperText}
+          </p>
+        )}
       </div>
     </div>
   );

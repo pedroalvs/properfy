@@ -4,6 +4,8 @@ import {
   AppointmentMapFilterPanel,
   DEFAULT_APPOINTMENT_FILTERS,
   DEFAULT_GROUP_FILTERS,
+  buildDefaultAppointmentFilters,
+  buildDefaultGroupFilters,
 } from './AppointmentMapFilterPanel';
 
 vi.mock('@/lib/status-colors', () => ({
@@ -290,5 +292,128 @@ describe('AppointmentMapFilterPanel', () => {
 
       expect(onGroupFiltersChange).toHaveBeenCalledWith({ ...advanced, search: 'roof' });
     });
+  });
+});
+
+describe('AppointmentMapFilterPanel — default builders (F00)', () => {
+  // F1 — appointment builder preserves the default statuses and injects the window dates.
+  it('F1: buildDefaultAppointmentFilters keeps defaults and sets the window dates', () => {
+    const f = buildDefaultAppointmentFilters(14, '2026-10-28');
+    expect(f.statuses).toEqual(['DRAFT', 'REJECTED']);
+    expect(f.showGrouped).toBe(false);
+    expect(f.dateFrom).toBe('2026-10-28');
+    expect(f.dateTo).toBe('2026-11-11');
+  });
+
+  // F2 — group builder likewise.
+  it('F2: buildDefaultGroupFilters keeps defaults and sets the window dates', () => {
+    const f = buildDefaultGroupFilters(30, '2026-10-27');
+    expect(f.statuses).toEqual(['PUBLISHED', 'ACCEPTED']);
+    expect(f.dateFrom).toBe('2026-10-27');
+    expect(f.dateTo).toBe('2026-11-26');
+  });
+
+  // F3 — N=1 singular boundary still produces a valid 2-day window.
+  it('F3: builders handle N=1', () => {
+    expect(buildDefaultAppointmentFilters(1, '2026-10-28').dateTo).toBe('2026-10-29');
+  });
+});
+
+describe('AppointmentMapFilterPanel — window chip (F00)', () => {
+  const windowProps = {
+    windowActive: { appointments: true, groups: true },
+    windowDays: { appointments: 14, groups: 14 },
+    windowRange: {
+      appointments: { from: '2026-10-28', to: '2026-11-11' },
+      groups: { from: '2026-10-28', to: '2026-11-11' },
+    },
+  };
+
+  // C1/C2 — AM sees a removable chip labelled "Today + 14 days" above Date Range.
+  it('C1: AM shows a removable window chip with the day-count label', () => {
+    renderPanel({ actorRole: 'AM', onRemoveWindow: vi.fn(), ...windowProps });
+    expect(screen.getByTestId('map-window-chip')).toBeInTheDocument();
+    expect(screen.getByText('Today + 14 days')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove date window' })).toBeInTheDocument();
+  });
+
+  // C3 — singular label when N=1.
+  it('C3: the chip label is singular when N=1', () => {
+    renderPanel({
+      actorRole: 'AM',
+      onRemoveWindow: vi.fn(),
+      ...windowProps,
+      windowDays: { appointments: 1, groups: 14 },
+    });
+    expect(screen.getByText('Today + 1 day')).toBeInTheDocument();
+  });
+
+  // C4 — ✕ clears the appointments window.
+  it('C4: the chip remove button clears the appointments window', () => {
+    const onRemoveWindow = vi.fn();
+    renderPanel({ actorRole: 'OP', onRemoveWindow, ...windowProps });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove date window' }));
+    expect(onRemoveWindow).toHaveBeenCalledWith('appointments');
+  });
+
+  // C5 — ✕ clears the groups window in groups mode.
+  it('C5: the chip remove button clears the groups window in groups mode', () => {
+    const onRemoveWindow = vi.fn();
+    renderPanel({ mode: 'groups', actorRole: 'AM', onRemoveWindow, ...windowProps });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove date window' }));
+    expect(onRemoveWindow).toHaveBeenCalledWith('groups');
+  });
+
+  // C6 — CL sees a static chip, never a remove button.
+  it('C6: CL sees a static chip with no remove button', () => {
+    renderPanel({ actorRole: 'CL_ADMIN', onRemoveWindow: vi.fn(), ...windowProps });
+    expect(screen.getByTestId('map-window-chip')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove date window' })).not.toBeInTheDocument();
+  });
+
+  // C7 — no chip when the window is inactive.
+  it('C7: no chip when the window is inactive', () => {
+    renderPanel({
+      actorRole: 'AM',
+      onRemoveWindow: vi.fn(),
+      ...windowProps,
+      windowActive: { appointments: false, groups: false },
+    });
+    expect(screen.queryByTestId('map-window-chip')).not.toBeInTheDocument();
+  });
+
+  // C8 — the chip sits above the Date Range inputs.
+  it('C8: the chip precedes the Date Range inputs', () => {
+    renderPanel({ actorRole: 'AM', onRemoveWindow: vi.fn(), ...windowProps });
+    const chip = screen.getByTestId('map-window-chip');
+    const dateStart = screen.getByLabelText('Date Range - start');
+    expect(chip.compareDocumentPosition(dateStart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  // C9 — CL date inputs are bounded to the window (min/max surfaced on the inputs).
+  it('C9: CL date inputs carry the window min/max', () => {
+    renderPanel({ actorRole: 'CL_USER', onRemoveWindow: vi.fn(), ...windowProps });
+    const start = screen.getByLabelText('Date Range - start');
+    const end = screen.getByLabelText('Date Range - end');
+    expect(start).toHaveAttribute('data-min', '2026-10-28');
+    expect(start).toHaveAttribute('data-max', '2026-11-11');
+    expect(end).toHaveAttribute('data-min', '2026-10-28');
+    expect(end).toHaveAttribute('data-max', '2026-11-11');
+  });
+
+  // C10 — CL help text is wired to the inputs via aria-describedby.
+  it('C10: CL shows the limiting help text wired to the inputs', () => {
+    renderPanel({ actorRole: 'CL_USER', onRemoveWindow: vi.fn(), ...windowProps });
+    const help = screen.getByText(/Dates are limited to today \+ 14 days/);
+    const start = screen.getByLabelText('Date Range - start');
+    expect(start.getAttribute('aria-describedby') ?? '').toContain(help.id);
+  });
+
+  // C11 — AM/OP inputs are NOT bounded (free editing; the window just turns off).
+  it('C11: AM date inputs carry no min/max and no help text', () => {
+    renderPanel({ actorRole: 'AM', onRemoveWindow: vi.fn(), ...windowProps });
+    const start = screen.getByLabelText('Date Range - start');
+    expect(start).not.toHaveAttribute('data-min');
+    expect(screen.queryByText(/Dates are limited to today/)).not.toBeInTheDocument();
   });
 });

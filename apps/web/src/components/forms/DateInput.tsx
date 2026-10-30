@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type MutableRefObject } from 'react';
 import { createPortal } from 'react-dom';
 import {
   DATE_PLACEHOLDER,
@@ -28,6 +28,8 @@ interface DateInputProps {
   id?: string;
   /** Drops the container chrome so the field can sit inside a filter shell. */
   variant?: 'form' | 'bare';
+  /** Optional external handle to the text `<input>` (e.g. for return-focus flows). */
+  inputRef?: MutableRefObject<HTMLInputElement | null>;
   'aria-label'?: string;
   'aria-describedby'?: string;
 }
@@ -101,10 +103,21 @@ export function DateInput({
   error,
   id,
   variant = 'form',
+  inputRef: externalInputRef,
   'aria-label': ariaLabel,
   'aria-describedby': ariaDescribedBy,
 }: DateInputProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  // Mirror the input node to the optional external handle so callers (e.g. a
+  // return-focus flow) can focus the field without this component forwarding a
+  // ref. Internal focus management keeps using `inputRef` untouched.
+  const setInputNode = useCallback(
+    (node: HTMLInputElement | null) => {
+      inputRef.current = node;
+      if (externalInputRef) externalInputRef.current = node;
+    },
+    [externalInputRef],
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   // Set when the calendar is opened by keyboard, so focus is moved into the grid
@@ -365,7 +378,7 @@ export function DateInput({
   const input = (
     <>
       <input
-        ref={inputRef}
+        ref={setInputNode}
         type="text"
         inputMode="numeric"
         autoComplete="off"
