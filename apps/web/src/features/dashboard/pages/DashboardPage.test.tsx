@@ -311,78 +311,24 @@ describe('DashboardPage — New Appointment shortcut', () => {
   });
 });
 
-describe('DashboardPage — Analytics entry point', () => {
+// Dashboard is a top-level sidebar screen: no in-header cluster navigation (that moved to the
+// sidebar Dashboard group) and no Back button (X01).
+describe('DashboardPage — no header cluster navigation (X01)', () => {
   beforeEach(() => {
     mockRole = 'AM';
   });
 
-  it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('offers the Analytics action to %s', (role) => {
+  // D1 — no Analytics/Workload header buttons for any role.
+  it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP'])('shows no Analytics or Workload header button for %s', (role) => {
     mockRole = role;
     renderPage();
-    // PageHeader renders a CTA twice (desktop button + mobile FAB) for the
-    // primary action; secondary actions render once, but query defensively.
-    expect(screen.getAllByRole('button', { name: /analytics/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByRole('button', { name: 'Analytics' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Workload' })).not.toBeInTheDocument();
   });
 
-  it('hides the action from INSP, who lands on the unguarded dashboard', () => {
-    // /analytics is AuthGuard-gated; offering the button here would bounce an
-    // inspector straight back with a permission toast. The Sidebar already
-    // hides its equivalent entry for the same reason.
-    mockRole = 'INSP';
+  // D5 — top-level screen, no Back button.
+  it('has no Back button', () => {
     renderPage();
-    expect(screen.queryByRole('button', { name: /analytics/i })).not.toBeInTheDocument();
-  });
-
-  it('navigates to /analytics when the action is clicked', async () => {
-    const user = userEvent.setup();
-    const Wrapper = createWrapper();
-    render(
-      <Wrapper>
-        <DashboardPage />
-        <LocationDisplay />
-      </Wrapper>,
-    );
-
-    await user.click(screen.getAllByRole('button', { name: /analytics/i })[0]!);
-    await waitFor(() => {
-      expect(screen.getByTestId('location-display')).toHaveTextContent('/analytics');
-    });
-  });
-});
-
-describe('DashboardPage — Workload entry point', () => {
-  beforeEach(() => {
-    mockRole = 'AM';
-  });
-
-  it.each(['AM', 'OP'])('offers the Workload action to %s', (role) => {
-    mockRole = role;
-    renderPage();
-    expect(screen.getAllByRole('button', { name: /workload/i }).length).toBeGreaterThanOrEqual(1);
-  });
-
-  // /inspector-workload is guarded narrower than /analytics: inspectors are
-  // cross-tenant, so the capacity view is platform-only. Agency roles keep the
-  // Analytics action but must not see Workload.
-  it.each(['CL_ADMIN', 'CL_USER', 'INSP'])('hides the Workload action from %s', (role) => {
-    mockRole = role;
-    renderPage();
-    expect(screen.queryByRole('button', { name: /workload/i })).not.toBeInTheDocument();
-  });
-
-  it('navigates to /inspector-workload when the action is clicked', async () => {
-    const user = userEvent.setup();
-    const Wrapper = createWrapper();
-    render(
-      <Wrapper>
-        <DashboardPage />
-        <LocationDisplay />
-      </Wrapper>,
-    );
-
-    await user.click(screen.getAllByRole('button', { name: /workload/i })[0]!);
-    await waitFor(() => {
-      expect(screen.getByTestId('location-display')).toHaveTextContent('/inspector-workload');
-    });
+    expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
   });
 });

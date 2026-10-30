@@ -33,7 +33,7 @@ export function AccountSettingsPage() {
 
   return (
     <div>
-      <PageHeader title="Account Settings" />
+      <PageHeader title="Account Settings" backTo="/dashboard" />
 
       <div className="mb-6">
         <TabsNav tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />

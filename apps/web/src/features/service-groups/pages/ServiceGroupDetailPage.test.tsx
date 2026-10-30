@@ -539,15 +539,15 @@ describe('ServiceGroupDetailPage', () => {
     expect(screen.getByText('Failed to load service group details')).toBeInTheDocument();
   });
 
-  it('renders go back button', () => {
+  it('renders exactly one header Back button in the loaded state', () => {
     renderPage();
-    expect(screen.getByLabelText('Go back')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
   });
 
   it('falls back to the service-groups list when back is clicked with no in-app history', () => {
     // Opened in a new tab (window.open _blank) from the map → no history to pop.
     renderPage();
-    fireEvent.click(screen.getByLabelText('Go back'));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByText('list page')).toBeInTheDocument();
   });
 

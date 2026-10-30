@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@properfy/frontend-standards';
 import { Button } from '@/components/ui/Button';
+import { BackButton } from './BackButton';
 
 export interface PageHeaderAction {
   label: string;
@@ -20,14 +21,33 @@ interface PageHeaderProps {
    * Workload week picker), which are neither a primary nor a secondary action.
    */
   children?: ReactNode;
+  /**
+   * Parent screen for the header Back button. When set, a `BackButton` renders before the title.
+   * When absent, no Back button is rendered and no router hook is called, so the header still
+   * works outside a router. Sub-screens pass this; top-level screens omit it.
+   */
+  backTo?: string;
+  /** Back override, forwarded to the `BackButton`. Ignored when `backTo` is absent. */
+  onBack?: (goBack: () => void) => void;
 }
 
-export function PageHeader({ title, primaryAction, secondaryActions, children }: PageHeaderProps) {
+export function PageHeader({ title, primaryAction, secondaryActions, children, backTo, onBack }: PageHeaderProps) {
   return (
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-      <h1 className="text-page-title-mobile text-secondary md:text-page-title">
-        {title}
-      </h1>
+      {backTo ? (
+        // Only wrap the title when a Back button is present, so pages without backTo keep the
+        // exact prior DOM (the bare <h1> directly under the header row).
+        <div className="flex items-center gap-3">
+          <BackButton to={backTo} onClick={onBack} />
+          <h1 className="text-page-title-mobile text-secondary md:text-page-title">
+            {title}
+          </h1>
+        </div>
+      ) : (
+        <h1 className="text-page-title-mobile text-secondary md:text-page-title">
+          {title}
+        </h1>
+      )}
       <div className="flex w-full flex-wrap items-stretch gap-2 sm:w-auto sm:items-center">
         {children}
         {secondaryActions?.map((action) => (

@@ -26,9 +26,13 @@ import { TimeWindowPicker } from '../components/TimeWindowPicker';
 import { GroupSummaryCard } from '../components/GroupSummaryCard';
 import { useEligibleAppointments } from '../hooks/useEligibleAppointments';
 
+// Single source of truth for the Back fallback: the page's own useGoBack and the header's backTo
+// must agree (L-X01-08).
+const BACK_TO = '/service-groups';
+
 export function ServiceGroupCreatePage() {
   const navigate = useNavigate();
-  const goBack = useGoBack('/service-groups');
+  const goBack = useGoBack(BACK_TO);
   const { showSuccess, showError } = useSnackbar();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -146,16 +150,7 @@ export function ServiceGroupCreatePage() {
 
   return (
     <>
-      <PageHeader
-        title="New Service Group"
-        secondaryActions={[
-          {
-            label: 'Back',
-            icon: 'mdi-arrow-left',
-            onClick: handleNavigateBack,
-          },
-        ]}
-      />
+      <PageHeader title="New Service Group" backTo={BACK_TO} onBack={handleNavigateBack} />
 
       <div className="rounded bg-card-bg p-6 shadow-sm">
         {/* Step indicators */}
@@ -335,7 +330,7 @@ export function ServiceGroupCreatePage() {
             <div className="mt-4">
               <FormActions>
                 <Button variant="secondary" onClick={handleBack}>
-                  Back
+                  Previous step
                 </Button>
                 <Button variant="primary" loading={isSaving} disabled={!parsedCreatePayload.success} onClick={handleSubmit}>
                   Create Group

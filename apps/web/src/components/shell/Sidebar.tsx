@@ -23,13 +23,31 @@ interface NavItem {
   roles?: string[];
   /** 031 — additional CL_USER flag gate (only applies to CL_USER; others pass). */
   flag?: string;
+  /**
+   * When a group has exactly one visible child, collapse it to a plain item pointing at that
+   * child. Used only by the Dashboard group so the INSP (Overview only) sees a plain "Dashboard"
+   * link while other roles see the group.
+   */
+  collapseIfSingle?: boolean;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  // Dashboard is the cluster's single sidebar entry — Analytics and Inspector
-  // Workload are reached from the dashboard screens' own header actions, with
-  // the same role gating as their route guards.
-  { icon: 'mdi-view-dashboard-outline', label: 'Dashboard', to: '/dashboard' },
+export const NAV_ITEMS: NavItem[] = [
+  // Dashboard panel group. Canonical child order (operations first, then analysis):
+  // Overview · Live Day (F05) · Inspector notices (F02) · Analytics · Workload ·
+  // Inspector performance (F07) · Goals & rewards (F08). Later features insert their child at
+  // its position; X01 ships only Overview, Analytics and Workload. Each child's roles mirror
+  // its route AuthGuard exactly; collapseIfSingle gives a plain "Dashboard" link to a role that
+  // can see only one child (INSP).
+  {
+    icon: 'mdi-view-dashboard-outline',
+    label: 'Dashboard',
+    collapseIfSingle: true,
+    submenu: [
+      { icon: 'mdi-view-dashboard-outline', label: 'Overview', to: '/dashboard' },
+      { icon: 'mdi-chart-line', label: 'Analytics', to: '/analytics', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER] },
+      { icon: 'mdi-account-clock-outline', label: 'Workload', to: '/inspector-workload', roles: [UserRole.AM, UserRole.OP] },
+    ],
+  },
   // Map-first navigation: the map is the single entry point for appointments
   // and service groups. The lists are reached from the map's "List view"
   // toggle (appointments mode -> /appointments, groups mode -> /service-groups).
@@ -75,10 +93,10 @@ const NAV_ITEMS: NavItem[] = [
   { icon: 'mdi-history', label: 'Audit Logs', to: '/audit-logs', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN] },
 ];
 
-function filterNavItems(
+export function filterNavItems(
   items: NavItem[],
   role: string | undefined,
-  clUserPermissions: string[] | undefined,
+  clUserPermissions?: string[],
 ): NavItem[] {
   const flagOk = (item: NavItem): boolean => {
     if (!item.flag) return true;
@@ -93,7 +111,12 @@ function filterNavItems(
       const filteredSubmenu = item.submenu.filter(
         (sub) => !sub.roles || (role && sub.roles.includes(role)),
       );
-      if (filteredSubmenu.length === 0) return null;
+      const [firstChild] = filteredSubmenu;
+      if (!firstChild) return null;
+      // A collapseIfSingle group with one visible child becomes a plain item pointing at it.
+      if (filteredSubmenu.length === 1 && item.collapseIfSingle) {
+        return { icon: item.icon, label: item.label, to: firstChild.to };
+      }
       return { ...item, submenu: filteredSubmenu };
     })
     .filter(Boolean) as NavItem[];

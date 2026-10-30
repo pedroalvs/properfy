@@ -94,6 +94,7 @@ export function AppointmentListPage() {
     <>
       <ListFilterTableTemplate
         title="Appointments"
+        backTo="/map"
         primaryAction={canCreate ? { label: 'New Appointment', icon: 'mdi-plus', onClick: () => { setEditId(null); setFormOpen(true); } } : undefined}
         secondaryActions={[
           ...(canMapImport ? [{ label: 'Import', icon: 'mdi-upload', onClick: () => navigate('/appointments/import') }] : []),
