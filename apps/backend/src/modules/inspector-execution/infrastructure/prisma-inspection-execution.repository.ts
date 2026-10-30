@@ -28,6 +28,7 @@ function mapToEntity(row: any): InspectionExecutionEntity {
     outOfWindow: row.out_of_window ?? false,
     finishOutOfRadius: row.finish_out_of_radius ?? false,
     geofenceRadiusMeters: row.geofence_radius_m != null ? Number(row.geofence_radius_m) : null,
+    abandonedAt: row.abandoned_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
@@ -105,6 +106,53 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
     await this.db(tx).inspectionExecution.update({ where: { id }, data: updateData });
   }
 
+  async markAbandoned(id: string, abandonedAt: Date, tx?: Prisma.TransactionClient): Promise<void> {
+    await this.db(tx).inspectionExecution.update({ where: { id }, data: { abandoned_at: abandonedAt } });
+  }
+
+  async restart(
+    id: string,
+    data: {
+      inspectorId: string;
+      startedAt: Date;
+      startLatitude: number;
+      startLongitude: number;
+      geolocationDistanceMeters: number | null;
+      startAccuracyMeters: number | null;
+      startClientAt: Date | null;
+      outOfRadius: boolean;
+      outOfWindow: boolean;
+      geofenceRadiusMeters: number;
+    },
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    await this.db(tx).inspectionExecution.update({
+      where: { id },
+      data: {
+        inspector_id: data.inspectorId,
+        started_at: data.startedAt,
+        start_latitude: data.startLatitude,
+        start_longitude: data.startLongitude,
+        geolocation_distance_meters: data.geolocationDistanceMeters,
+        start_accuracy_m: data.startAccuracyMeters,
+        start_client_at: data.startClientAt,
+        out_of_radius: data.outOfRadius,
+        out_of_window: data.outOfWindow,
+        geofence_radius_m: data.geofenceRadiusMeters,
+        // Clear the previous attempt so the row reads as a fresh check-in.
+        abandoned_at: null,
+        finished_at: null,
+        resumed_at: null,
+        finish_latitude: null,
+        finish_longitude: null,
+        finish_accuracy_m: null,
+        finish_client_at: null,
+        finish_geolocation_distance_meters: null,
+        finish_out_of_radius: false,
+      },
+    });
+  }
+
   // Cross-tenant: background job processes all tenants to detect stuck inspections
   async findStuckExecutions(olderThanHours: number): Promise<InspectionExecutionEntity[]> {
     const cutoff = new Date(Date.now() - olderThanHours * 60 * 60 * 1000);
@@ -112,6 +160,8 @@ export class PrismaInspectionExecutionRepository implements IInspectionExecution
       where: {
         started_at: { lt: cutoff },
         finished_at: null,
+        // An abandoned check-in is not stuck — it is a closed record awaiting re-offer.
+        abandoned_at: null,
       },
     });
     return rows.map(mapToEntity);

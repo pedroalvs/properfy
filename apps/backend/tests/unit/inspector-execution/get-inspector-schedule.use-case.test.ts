@@ -247,6 +247,18 @@ describe('GetInspectorScheduleUseCase', () => {
     expect(result.appointments[0].executionStatus).toBe('FINISHED');
   });
 
+  it('reads an abandoned execution as NOT_STARTED', async () => {
+    const appt = makeAppointment();
+    vi.mocked(appointmentRepo.findVisibleForInspector).mockResolvedValue([appt]);
+    vi.mocked(executionRepo.findByAppointmentIds).mockResolvedValue([
+      makeExecution({ appointmentId: 'appt-1', abandonedAt: new Date('2026-03-21T10:30:00Z') }),
+    ]);
+
+    const result = await useCase.execute({ date: '2026-03-21', actor: inspActor });
+
+    expect(result.appointments[0].executionStatus).toBe('NOT_STARTED');
+  });
+
   it('should return enriched card fields in range mode (history)', async () => {
     const doneAppt = makeAppointment({
       id: 'appt-done',

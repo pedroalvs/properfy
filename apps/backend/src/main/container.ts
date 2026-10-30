@@ -222,6 +222,7 @@ import type { RentalTenantPortalRouteContainer } from '../modules/rental-tenant-
 
 // Inspector execution module
 import { PrismaInspectionExecutionRepository } from '../modules/inspector-execution/infrastructure/prisma-inspection-execution.repository';
+import { PrismaInspectorFieldEventRepository } from '../modules/inspector-execution/infrastructure/prisma-inspector-field-event.repository';
 import { PrismaIdempotencyService } from '../modules/inspector-execution/infrastructure/prisma-idempotency.service';
 import { UnconfiguredStorageService } from '../modules/inspector-execution/infrastructure/unconfigured-storage.service';
 import { SupabaseBrandingStorageService } from '../modules/tenant/infrastructure/supabase-branding-storage.service';
@@ -1019,6 +1020,7 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Inspector execution repositories and services
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
+  const inspectorFieldEventRepo = new PrismaInspectorFieldEventRepository(prisma);
   const serviceTypeReaderForExec = new PrismaServiceTypeReader(prisma);
   const contactReaderForExec = new PrismaContactReader(prisma);
   const performCrossCheckUseCase = new PerformCrossCheckUseCase(
@@ -1079,6 +1081,7 @@ export function createContainer(logger: Logger): AppContainer {
     executeStatusTransitionUseCase, appointmentRepo, auditService, authorizationService,
     prisma,
     platformSettingsService,
+    inspectorFieldEventRepo,
   );
   const getAvailablePeriodsUseCase = new GetAvailablePeriodsUseCase(inspectorRepo);
   const getInspectorEarningsSummaryUseCase = new GetInspectorEarningsSummaryUseCase(financialEntryRepo);

@@ -228,8 +228,10 @@ export class GetAppointmentDetailUseCase {
       }
     }
 
-    // Load execution
-    const execution = await this.executionRepo.findByAppointmentId(appointmentId);
+    // Load execution. An abandoned check-in (post-check-in can't-do) reads as "not
+    // started" for the inspector — the re-offered job shows Check in again.
+    const loadedExecution = await this.executionRepo.findByAppointmentId(appointmentId);
+    const execution = loadedExecution && !loadedExecution.isAbandoned() ? loadedExecution : null;
 
     const scheduledDate =
       appointment.scheduledDate instanceof Date

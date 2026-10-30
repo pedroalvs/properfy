@@ -95,6 +95,15 @@ export const PLATFORM_SETTING_EVENTS = {
   UPDATED: 'platform_setting.updated.v1',
 } as const;
 
+/**
+ * Emitted after an inspector field event (CANT_DO / LATE_NOTICE) is recorded
+ * (F03). F04 subscribes to mark the affected DayPlan STALE; F05/F07 consume it
+ * for the Live Day board and the reliability index.
+ */
+export const INSPECTOR_FIELD_EVENTS = {
+  RECORDED: 'inspector_field_event.recorded.v1',
+} as const;
+
 export interface PlatformSettingUpdatedPayload extends Record<string, unknown> {
   key: string;
   before: unknown;

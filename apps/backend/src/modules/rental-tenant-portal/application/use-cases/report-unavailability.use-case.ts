@@ -119,10 +119,12 @@ export class ReportUnavailabilityUseCase {
     }
 
     // 4. After inspection start, the portal becomes view-only for every action.
+    // An abandoned check-in (post-check-in can't-do, then re-offer) does NOT count
+    // as started: the job is live again and the portal must keep working (D13).
     const execution = this.executionRepo
       ? await this.executionRepo.findByAppointmentId(input.appointmentId)
       : null;
-    if (execution) {
+    if (execution && !execution.isAbandoned()) {
       throw new PortalInspectionAlreadyStartedError();
     }
 
