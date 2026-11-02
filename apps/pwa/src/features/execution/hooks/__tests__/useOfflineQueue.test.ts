@@ -1,4 +1,5 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
+import type * as ReactQuery from '@tanstack/react-query';
 import { ApiError } from '@properfy/shared';
 import {
   useOfflineQueue,
@@ -22,7 +23,7 @@ vi.mock('@/hooks/useApiQuery', () => ({
 }));
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@tanstack/react-query')>();
+  const actual = await importOriginal<typeof ReactQuery>();
   // One stable client instance: returning a fresh object each render would change
   // the hook's useCallback deps, re-fire its effect and trigger extra queue passes.
   const client = { invalidateQueries: (...args: unknown[]) => mockInvalidateQueries(...args) };

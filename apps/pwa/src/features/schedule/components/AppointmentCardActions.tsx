@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { MoreVertical } from 'lucide-react';
@@ -50,6 +50,24 @@ export function AppointmentCardActions({ appointment, isToday }: AppointmentCard
   const [menuOpen, setMenuOpen] = useState(false);
   const [cantDoOpen, setCantDoOpen] = useState(false);
   const [lateOpen, setLateOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close the actions menu on an outside tap or Escape (no full-screen overlay).
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [menuOpen]);
 
   const phase = actions.state.phase;
   const inProgress = actions.isRestored && IN_PROGRESS_PHASES.includes(phase);
@@ -166,7 +184,7 @@ export function AppointmentCardActions({ appointment, isToday }: AppointmentCard
         </div>
       )}
 
-      <div className="relative">
+      <div className="relative" ref={menuRef}>
         <Button
           variant="outlined"
           className="min-h-touch min-w-touch px-3"
@@ -180,42 +198,32 @@ export function AppointmentCardActions({ appointment, isToday }: AppointmentCard
         </Button>
 
         {menuOpen && (
-          <>
-            {/* Backdrop closes the menu on an outside tap. */}
-            <button
-              type="button"
-              aria-hidden="true"
-              tabIndex={-1}
-              className="fixed inset-0 z-40 cursor-default"
-              onClick={() => setMenuOpen(false)}
-            />
-            <div
-              role="menu"
-              aria-label={`Actions for ${code}`}
-              className="absolute right-0 z-50 mt-1 w-56 overflow-hidden rounded-card border border-border bg-card shadow-lg"
-            >
-              {showRunningLate && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="block w-full px-4 py-3 text-left text-sm text-foreground hover:bg-muted"
-                  onClick={() => openSheet('late')}
-                >
-                  Running late
-                </button>
-              )}
+          <div
+            role="menu"
+            aria-label={`Actions for ${code}`}
+            className="absolute right-0 z-50 mt-1 w-56 overflow-hidden rounded-card border border-border bg-card shadow-lg"
+          >
+            {showRunningLate && (
               <button
                 type="button"
                 role="menuitem"
-                className={cn(
-                  'block w-full px-4 py-3 text-left text-sm font-semibold text-destructive hover:bg-muted',
-                )}
-                onClick={() => openSheet('cant-do')}
+                className="block w-full px-4 py-3 text-left text-sm text-foreground hover:bg-muted"
+                onClick={() => openSheet('late')}
               >
-                Can&apos;t do this job
+                Running late
               </button>
-            </div>
-          </>
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              className={cn(
+                'block w-full px-4 py-3 text-left text-sm font-semibold text-destructive hover:bg-muted',
+              )}
+              onClick={() => openSheet('cant-do')}
+            >
+              Can&apos;t do this job
+            </button>
+          </div>
         )}
       </div>
 
