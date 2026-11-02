@@ -28,6 +28,14 @@ describe('BottomNavBar', () => {
     expect(order).toEqual(['nav-today', 'nav-schedule', 'nav-offers', 'nav-more']);
   });
 
+  // The app tour (F04-3b) anchors on these four tabs via `data-tour`.
+  it('exposes the data-tour anchors on the four tabs', () => {
+    renderWithProviders(<BottomNavBar />);
+    for (const key of ['nav-today', 'nav-schedule', 'nav-offers', 'nav-more']) {
+      expect(screen.getByTestId(key)).toHaveAttribute('data-tour', key);
+    }
+  });
+
   it('renders the labels Today / Schedule / Offers / More', () => {
     renderWithProviders(<BottomNavBar />);
     expect(screen.getByText('Today')).toBeInTheDocument();

@@ -3,6 +3,7 @@ import { Outlet, useMatches, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@properfy/frontend-standards';
 import { BottomNavBar } from './BottomNavBar';
+import { AppTourHost } from '@/features/tour/components/AppTourHost';
 import { OfflineBanner } from '@/components/feedback/OfflineBanner';
 import { useAppStateHeartbeat } from '@/app/useAppStateHeartbeat';
 import { useAuth } from '@/hooks/useAuth';
@@ -70,6 +71,7 @@ export function PwaLayout() {
         <Outlet />
       </main>
       <BottomNavBar />
+      <AppTourHost />
     </div>
   );
 }

@@ -32,6 +32,13 @@ export interface InspectorMe {
     responseCount: number;
     doneServicesCount: number;
   };
+  /**
+   * When the inspector completed the in-app tour (F04-3b, set server-side by the
+   * app-state heartbeat with `onboardingCompleted: true`, TASK-F04-2). `null` = not
+   * yet; drives whether the tour auto-opens. `/v1/inspectors/me` has no response
+   * schema, so it is typed here manually (never read from `/v1/me`, which strips it).
+   */
+  onboardingCompletedAt?: string | null;
 }
 
 /**

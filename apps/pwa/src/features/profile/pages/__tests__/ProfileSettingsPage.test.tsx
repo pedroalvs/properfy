@@ -1,6 +1,13 @@
-import { screen } from '@testing-library/react';
+import type * as ReactRouterDom from 'react-router-dom';
+import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders } from '@/test-utils';
 import { ProfileSettingsPage } from '../ProfileSettingsPage';
+
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async (orig) => {
+  const actual = await orig<typeof ReactRouterDom>();
+  return { ...actual, useNavigate: () => mockNavigate };
+});
 
 const mockUseInstallPrompt = vi.fn();
 
@@ -51,5 +58,11 @@ describe('ProfileSettingsPage', () => {
     const footer = screen.getByText(`Properfy Inspector v${__APP_VERSION__}`);
     expect(slot.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(card.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('replays the tour from "Show app tour" via /today without changing state', () => {
+    renderWithProviders(<ProfileSettingsPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Show app tour' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/today', { state: { replayTour: true } });
   });
 });

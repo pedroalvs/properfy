@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
-import { blockExternal, blockUnmockedApi, stubJson } from './api';
-import { INSPECTOR_ME } from './fixtures';
+import { blockExternal, blockUnmockedApi, stubJson, stubJsonPrefix } from './api';
+import { DAY_PLAN_TODAY, INSPECTOR_ME } from './fixtures';
 
 export { INSPECTOR_ME };
 
@@ -24,6 +24,12 @@ export { INSPECTOR_ME };
  *   - `POST /v1/inspectors/me/push-subscriptions` — F02-3 resync POST; only fires
  *     with a real local subscription (never in the hermetic suite), stubbed 204 for
  *     safety so it can never hit the 501 catch-all.
+ *   - `GET /v1/inspector/day-plans/{date}` — F04-3 Today-screen read. Added to the
+ *     baseline by F04-3b (the first feature with specs that navigate to `/today`,
+ *     which the Today screen reads on load). Registered below via a PREFIX route
+ *     (the civil date segment changes daily), not a flat entry. Default = a
+ *     published plan with one stop; a spec that needs another plan state overrides
+ *     it (last route wins).
  */
 export const BASELINE_STUBS: ReadonlyArray<{ path: string; body: unknown; status?: number }> = [
   { path: '/v1/me', body: INSPECTOR_ME },
@@ -79,5 +85,7 @@ export async function loginAsInspector(page: Page, opts: LoginOptions = {}): Pro
       const body = stub.path === '/v1/me' ? me : stub.body;
       await stubJson(page, stub.path, body, stub.status ?? 200);
     }
+    // Dated path → prefix route (see the BASELINE_STUBS doc for day-plans).
+    await stubJsonPrefix(page, '/v1/inspector/day-plans/', { data: DAY_PLAN_TODAY });
   }
 }

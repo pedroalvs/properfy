@@ -7,6 +7,8 @@ import {
   marketplaceOfferDetailResponseSchema,
   inspectorAppointmentDetailResponseSchema,
   finishInspectionResponseSchema,
+  inspectorResponseSchema,
+  dayPlanResponseSchema,
 } from '@properfy/shared';
 import {
   INSPECTOR_ME,
@@ -17,6 +19,9 @@ import {
   APPOINTMENT_DETAIL,
   FINISH_RESULT,
   LOGIN_401,
+  INSPECTOR_PROFILE_TOUR_PENDING,
+  INSPECTOR_PROFILE_TOUR_DONE,
+  DAY_PLAN_TODAY,
 } from '../../tests/e2e/support/fixtures';
 
 /**
@@ -76,6 +81,22 @@ describe('E2E fixtures match the shared response contracts', () => {
 
   it('FINISH_RESULT satisfies finishInspectionResponseSchema (strict)', () => {
     expect(() => finishInspectionResponseSchema.strict().parse(FINISH_RESULT)).not.toThrow();
+  });
+
+  it('INSPECTOR_PROFILE_TOUR_PENDING/DONE satisfy inspectorResponseSchema (strict)', () => {
+    expect(() => inspectorResponseSchema.strict().parse(INSPECTOR_PROFILE_TOUR_PENDING)).not.toThrow();
+    expect(() => inspectorResponseSchema.strict().parse(INSPECTOR_PROFILE_TOUR_DONE)).not.toThrow();
+    expect(INSPECTOR_PROFILE_TOUR_PENDING.onboardingCompletedAt).toBeNull();
+    expect(INSPECTOR_PROFILE_TOUR_DONE.onboardingCompletedAt).not.toBeNull();
+  });
+
+  it('DAY_PLAN_TODAY satisfies dayPlanResponseSchema (strict)', () => {
+    expect(() => dayPlanResponseSchema.strict().parse(DAY_PLAN_TODAY)).not.toThrow();
+  });
+
+  it('proves .strict() rejects a stray key on the day-plan fixture', () => {
+    const result = dayPlanResponseSchema.strict().safeParse({ ...DAY_PLAN_TODAY, legacyField: 1 });
+    expect(result.success).toBe(false);
   });
 
   it('LOGIN_401 matches the error envelope and carries AUTH_INVALID_CREDENTIALS', () => {
