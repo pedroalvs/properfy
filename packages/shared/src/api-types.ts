@@ -10958,6 +10958,203 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspector/day-plans/{date}/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                        basedOnVersion: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                inspectorName: string;
+                                date: string;
+                                timezone: string;
+                                /** @enum {string} */
+                                status: "DRAFT" | "PUBLISHED" | "STALE";
+                                version: number;
+                                publishedAt: (string) | null;
+                                computedAt: string;
+                                /** @enum {string} */
+                                lastTrigger: "SCHEDULED_PUBLISH" | "ON_OPEN" | "MANUAL_RECALC" | "REORDER" | "ORIGIN_CHANGE";
+                                approximate: boolean;
+                                /** @enum {string|null} */
+                                approximateReason: "NO_PROVIDER" | "RATE_LIMITED" | "PROVIDER_ERROR" | "DEADLINE" | "TOO_MANY_COORDINATES" | "NO_ROUTE" | null;
+                                /** @enum {string} */
+                                routingProvider: "MAPBOX" | "STUB";
+                                /** @enum {string|null} */
+                                matrixProfile: "driving-traffic" | "driving" | "haversine" | null;
+                                /** @enum {string} */
+                                optimizerMethod: "TRIVIAL" | "EXACT" | "HEURISTIC" | "INSERTION" | "FIXED";
+                                origin: {
+                                    /** @enum {string} */
+                                    source: "BASE" | "OVERRIDE" | "NONE" | "LAST_STOP";
+                                    label: string | null;
+                                    lat: number | null;
+                                    lng: number | null;
+                                };
+                                /** @enum {string|null} */
+                                originWarning: "NO_BASE" | "BASE_NOT_LOCATED" | null;
+                                originOverride: {
+                                    address: {
+                                        street: string;
+                                        number?: string;
+                                        complement?: string;
+                                        suburb: string;
+                                        city: string;
+                                        state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                                        postcode: string;
+                                        /**
+                                         * @default AU
+                                         * @enum {string}
+                                         */
+                                        country: "AU";
+                                    };
+                                    setAt: string;
+                                } | null;
+                                departureAt: (string) | null;
+                                finishEta: (string) | null;
+                                totals: {
+                                    driveS: number;
+                                    waitS: number;
+                                    serviceS: number;
+                                    lateS: number;
+                                    distanceM: number | null;
+                                };
+                                feasible: boolean;
+                                violations: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    lateS: number;
+                                }[];
+                                manualOrder: boolean;
+                                suggestedOrder: string[];
+                                stops: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    sequence: number;
+                                    appointmentCode: string;
+                                    agencyName: string;
+                                    /** @enum {string} */
+                                    appointmentStatus: "SCHEDULED" | "DONE";
+                                    /** @enum {string} */
+                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                    eta: (string) | null;
+                                    serviceStartAt: (string) | null;
+                                    serviceEndAt: (string) | null;
+                                    travelS: number;
+                                    distanceM: number | null;
+                                    waitS: number;
+                                    lateS: number;
+                                    windowStart: string;
+                                    windowEnd: string;
+                                    windowStartAt: string;
+                                    windowEndAt: string;
+                                    timezone: string;
+                                    durationMinutes: number;
+                                    manual: boolean;
+                                    executed: boolean;
+                                    approximate: boolean;
+                                    missingCoordinates: boolean;
+                                    lat: number | null;
+                                    lng: number | null;
+                                    propertyAddress: string;
+                                    suburb: string;
+                                    serviceTypeName: string;
+                                    keyRequired: boolean;
+                                    meetingLocation: string | null;
+                                    rentalTenantConfirmationStatus: string;
+                                    primaryContact: {
+                                        name: string;
+                                        phone: string | null;
+                                        /** @enum {string} */
+                                        role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                                    } | null;
+                                }[];
+                                geometry: {
+                                    /** @enum {string} */
+                                    type: "FeatureCollection";
+                                    features: {
+                                        /** @enum {string} */
+                                        type: "Feature";
+                                        geometry: {
+                                            /** @enum {string} */
+                                            type: "LineString";
+                                            coordinates: [
+                                                number,
+                                                number
+                                            ][];
+                                        };
+                                        properties: {
+                                            fromSequence: number;
+                                            toSequence: number;
+                                            approximate: boolean;
+                                        };
+                                    }[];
+                                } | null;
+                                routingInput: {
+                                    points: {
+                                        key: string;
+                                        lat: number;
+                                        lng: number;
+                                    }[];
+                                    travelS: number[][];
+                                    /** @enum {string|null} */
+                                    originKey: "origin" | null;
+                                    earliestDepartureAt: (string) | null;
+                                    weights: {
+                                        travel: number;
+                                        windowWait: number;
+                                        baseProximity: number;
+                                    };
+                                    legTravelS: {
+                                        fromKey: string;
+                                        toKey: string;
+                                        travelS: number;
+                                    }[];
+                                } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/day-plans/{inspectorId}/{date}": {
         parameters: {
             query?: never;

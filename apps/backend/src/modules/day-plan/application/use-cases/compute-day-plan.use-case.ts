@@ -34,6 +34,8 @@ export interface ComputeDayPlanInput {
   date: string;
   trigger: DayPlanComputeTrigger;
   actorUserId?: string | null;
+  /** Explicit reorderable order for a REORDER trigger (the inspector's saved order). */
+  fixedOrder?: string[];
   /** Job mode retry counter (1-based). Only SCHEDULED_PUBLISH uses it. */
   attempt?: number;
   now?: Date;
@@ -110,7 +112,7 @@ export class ComputeDayPlanUseCase {
     const fingerprint = fingerprintForCandidates(candidates, configured);
 
     // --- Routing of the reorderable tail ---
-    const mode = this.resolveMode(input.trigger, existing);
+    const mode = this.resolveMode(input, existing);
     const routeStops: PlanRouteStopInput[] = reorderable.map((s) => {
       const c = byId.get(s.appointmentId)!;
       return {
@@ -225,8 +227,11 @@ export class ComputeDayPlanUseCase {
     return saved;
   }
 
-  private resolveMode(trigger: DayPlanComputeTrigger, existing: DayPlanRecord | null): PlanRouteMode {
-    if (trigger === 'REORDER' && existing) return { kind: 'FIXED_ORDER', order: this.reorderableOrder(existing) };
+  private resolveMode(input: ComputeDayPlanInput, existing: DayPlanRecord | null): PlanRouteMode {
+    const trigger = input.trigger;
+    if (trigger === 'REORDER') {
+      return { kind: 'FIXED_ORDER', order: input.fixedOrder ?? (existing ? this.reorderableOrder(existing) : []) };
+    }
     if (trigger === 'MANUAL_RECALC' || trigger === 'SCHEDULED_PUBLISH') return { kind: 'OPTIMIZE' };
     // ON_OPEN / ORIGIN_CHANGE: preserve a manual order, else optimize.
     if (existing?.manualOrder) return { kind: 'PRESERVE_ORDER', order: this.reorderableOrder(existing) };

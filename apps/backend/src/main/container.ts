@@ -489,6 +489,7 @@ import { PrismaDayPlanInputReader } from '../modules/day-plan/infrastructure/pri
 import { ComputeDayPlanUseCase } from '../modules/day-plan/application/use-cases/compute-day-plan.use-case';
 import { GetMyDayPlanUseCase } from '../modules/day-plan/application/use-cases/get-my-day-plan.use-case';
 import { GetDayPlanForOperatorUseCase } from '../modules/day-plan/application/use-cases/get-day-plan-for-operator.use-case';
+import { SaveDayPlanOrderUseCase } from '../modules/day-plan/application/use-cases/save-day-plan-order.use-case';
 import type { DayPlanRouteContainer } from '../modules/day-plan/interfaces/day-plan.routes';
 import { AesTokenEncrypterAdapter } from '../modules/rental-tenant-portal/infrastructure/aes-token-encrypter.adapter';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
@@ -1110,6 +1111,9 @@ export function createContainer(logger: Logger): AppContainer {
   const getDayPlanForOperatorUseCase = new GetDayPlanForOperatorUseCase(
     dayPlanInputReader, dayPlanRepo, authorizationService, dayPlanClock,
   );
+  const saveDayPlanOrderUseCase = new SaveDayPlanOrderUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, auditService, dayPlanClock,
+  );
   const listPlatformSettingsUseCase = new ListPlatformSettingsUseCase(platformSettingRepo, authorizationService);
   const getPlatformSettingUseCase = new GetPlatformSettingUseCase(platformSettingRepo, authorizationService);
   const updatePlatformSettingUseCase = new UpdatePlatformSettingUseCase(
@@ -1663,7 +1667,7 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     domainEventBus,
     geocodingService,
-    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, jwtService, tenantRepo },
+    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, saveDayPlanOrderUseCase, jwtService, tenantRepo },
     auth: {
       loginUseCase,
       refreshTokenUseCase,

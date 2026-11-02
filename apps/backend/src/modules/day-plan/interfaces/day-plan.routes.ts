@@ -1,6 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { civilDateSchema, dayPlanResponseSchema, successResponseSchema } from '@properfy/shared';
+import {
+  civilDateSchema,
+  dayPlanResponseSchema,
+  saveDayPlanOrderRequestSchema,
+  successResponseSchema,
+} from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ForbiddenError } from '../../../shared/domain/errors';
 import { success } from '../../../shared/interfaces/response';
@@ -8,10 +13,12 @@ import type { JwtService } from '../../auth/application/services/jwt.service';
 import type { ITenantRepository } from '../../tenant/domain/tenant.repository';
 import type { GetMyDayPlanUseCase } from '../application/use-cases/get-my-day-plan.use-case';
 import type { GetDayPlanForOperatorUseCase } from '../application/use-cases/get-day-plan-for-operator.use-case';
+import type { SaveDayPlanOrderUseCase } from '../application/use-cases/save-day-plan-order.use-case';
 
 export interface DayPlanRouteContainer {
   getMyDayPlanUseCase: GetMyDayPlanUseCase;
   getDayPlanForOperatorUseCase: GetDayPlanForOperatorUseCase;
+  saveDayPlanOrderUseCase: SaveDayPlanOrderUseCase;
   jwtService: JwtService;
   tenantRepo: ITenantRepository;
 }
@@ -60,6 +67,33 @@ export async function registerDayPlanRoutes(
       );
       const { date } = dateParam.parse(request.params);
       const result = await container.getMyDayPlanUseCase.execute({ inspectorId, date });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // PUT /v1/inspector/day-plans/:date/order — the inspector saves a stop order (30/min).
+  app.put(
+    '/v1/inspector/day-plans/:date/order',
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: {
+        params: dateParam,
+        body: saveDayPlanOrderRequestSchema,
+        response: { 200: successResponseSchema(dayPlanResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const inspectorId = requireInspector(request.authContext!.role, request.authContext!.inspectorId);
+      const { date } = dateParam.parse(request.params);
+      const body = saveDayPlanOrderRequestSchema.parse(request.body);
+      const result = await container.saveDayPlanOrderUseCase.execute({
+        inspectorId,
+        actorUserId: request.authContext!.userId,
+        date,
+        appointmentIds: body.appointmentIds,
+        basedOnVersion: body.basedOnVersion,
+      });
       return reply.status(200).send(success(result));
     },
   );
