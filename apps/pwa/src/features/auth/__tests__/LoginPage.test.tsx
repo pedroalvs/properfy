@@ -177,7 +177,7 @@ describe('LoginPage', () => {
     });
   });
 
-  it('redirects to /schedule when already authenticated', () => {
+  it('redirects away from the login form when already authenticated (default /today)', () => {
     mockUseAuth.mockReturnValue({
       user: { id: '1', name: 'Test', email: 'test@test.com', role: 'INSP', tenantId: null },
       token: 'token',

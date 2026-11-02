@@ -78,6 +78,38 @@ export function formatCivilDateLong(value: string | null | undefined): string {
   return `${parts.weekday}, ${parts.day} ${parts.month}`;
 }
 
+const shortDateFormatters = new Map<string, Intl.DateTimeFormat>();
+function shortDateFormatter(): Intl.DateTimeFormat {
+  let formatter = shortDateFormatters.get('en-AU');
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-AU', {
+      timeZone: 'UTC',
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    });
+    shortDateFormatters.set('en-AU', formatter);
+  }
+  return formatter;
+}
+
+/**
+ * A civil date (`YYYY-MM-DD`) as `Thu 5 Nov`. Parsed at UTC midnight so it never
+ * shifts; assembled from parts so the single-space layout is ICU-stable. Used by
+ * the Route header and the origin sheet subtitle.
+ */
+export function formatCivilDateShort(value: string | null | undefined): string {
+  if (value == null || value === '') return '';
+  const match = CIVIL_DATE_RE.exec(value);
+  if (!match) return value;
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (Number.isNaN(date.getTime())) return value;
+  const parts: Record<string, string> = {};
+  for (const part of shortDateFormatter().formatToParts(date)) parts[part.type] = part.value;
+  return `${parts.weekday} ${parts.day} ${parts.month}`;
+}
+
 const hourFormatters = new Map<string, Intl.DateTimeFormat>();
 function hourFormatter(timeZone: string): Intl.DateTimeFormat {
   let formatter = hourFormatters.get(timeZone);

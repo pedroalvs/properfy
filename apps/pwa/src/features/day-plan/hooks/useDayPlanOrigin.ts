@@ -42,12 +42,14 @@ export function useDayPlanOrigin(date: string) {
     },
   });
 
-  const run = (variant: OriginVariant): Promise<void> => {
-    if (inFlight.current) return Promise.resolve();
+  /** Resolves `null` on success, or the `ApiError` so the caller can branch on
+   * its code (the error is also exposed reactively via `error`). Never rejects. */
+  const run = (variant: OriginVariant): Promise<ApiError | null> => {
+    if (inFlight.current) return Promise.resolve(null);
     inFlight.current = true;
     return mutation.mutateAsync(variant).then(
-      () => undefined,
-      () => undefined, // error is exposed via mutation.error; never unhandled-reject
+      () => null,
+      (err: ApiError) => err,
     );
   };
 
