@@ -282,6 +282,23 @@ GET /v1/appointments/:appointmentId/field-activity  → 200  execution + field e
 
 Same tenant scope as `GET /v1/appointments/:appointmentId`, but **INSP has no access (403)**. Agency roles (`CL_ADMIN`/`CL_USER`) never receive the inspector's raw lat/lng — `GetAppointmentFieldActivityUseCase` omits the coordinate keys for them (only distances/accuracy/flags remain). The appointment list/detail flatten the latest `CANT_DO` onto `inspectorIssue` (one batched `DISTINCT ON` query per page, no N+1) for AM/OP/CL only — `GetAppointmentUseCase` returns it as `null` for an INSP actor, since it carries another inspector's name/id (the list use case already excludes INSP from its roles). The inspector's own appointment detail (PWA) carries `lastFieldIssue` only when the latest `CANT_DO` is the actor's own (D28). The rental-tenant portal refuses "change time" for a `REJECTED` + `INSPECTOR_UNABLE` appointment (`isPortalChangeTimeBlocked`, `rental-tenant-portal/domain/portal-statuses.ts`) — only operations re-offer it.
 
+### Execution density map (F09-1)
+
+```text
+GET /v1/map/execution-density?fromDate&toDate[&tenantId][&inspectorId]  → 200  check-in density grid
+```
+
+Inspector **check-in** (`inspection_executions.start_latitude/longitude`) density aggregated into a fixed ~100 m grid (`EXECUTION_DENSITY_GRID_SCALE = 1000` cells/degree), in module `inspector-execution/` (route `execution-density.routes.ts`, container key `executionDensity`). **Tenant-scoped** — unlike the platform-scoped inspector entities — through the `appointments.tenant_id` join (`inspection_executions` has no `tenant_id`). AM/OP read platform-wide and may filter by `tenantId`/`inspectorId`; `CL_ADMIN`/`CL_USER` are pinned to their JWT tenant, have `tenantId` ignored and `inspectorId` rejected (403), and may only request the **7/30/90-day presets ending today-Sydney** (`isExecutionDensityPreset`; a non-preset is 400 `PERIOD_NOT_A_PRESET`). RBAC key `map.execution_density`; the role gate runs **before** `requireTenantScope` (which throws a 500-shaped error for INSP/TNT).
+
+Privacy rules (do not regress):
+
+- **Density never returns an individual coordinate.** Aggregation happens **in the SQL** (`PrismaExecutionDensityReader`); the port `ExecutionDensityReader` has no method returning raw rows/coordinates — do not add one or fetch-then-aggregate in memory. Each cell is the fixed **center** (`cellCenter`), never the mean. The response schema strips any undeclared cell key (second barrier).
+- **Cell index by integer scaling:** `FLOOR(start_latitude * ${scale}::int)::int` in `numeric`, never `/ 0.001` (a JS float binds `float8` and misplaces grid-line points). The TS mirror `toCellIndex` (decimal-string integer math) must stay exact against the SQL (tests G5a/D16).
+- **k-anonymity for CL:** cells with `< MIN_CELL_COUNT_CL (3)` check-ins are hidden (AM/OP use `MIN_CELL_COUNT_GLOBAL = 1`); the floor is chosen by **scope type** (pinned tenant → 3), applied in SQL `HAVING` and re-filtered in the use case. CL is restricted to the fixed presets because a per-query `HAVING` does not survive a window-difference attack; the residual risk (differencing the 7/30/90 presets reveals day-band aggregates, never a single day) is accepted and documented.
+- **The layer measures check-ins recorded, not services completed:** a `DONE → REJECTED` (`DONE_REJECTED`) appointment and a reopened one both **count** (a reopened one counts once, at the original `started_at` cell). Abandoned (`abandoned_at` set) and soft-deleted appointments are excluded; `(0,0)`/out-of-range coordinates count only in `excludedWithoutCoordinates`.
+
+No schema change, no migration (reads `abandoned_at` from F03-2). The web consumer is TASK-F09-2.
+
 ---
 
 ## 7. Data model
