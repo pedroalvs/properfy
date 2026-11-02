@@ -421,6 +421,12 @@ export class PlanRouteService {
     const travelS = matrixOutcome.travelS;
     const earliestDepartureS = input.earliestDepartureAt ? toEpochS(input.earliestDepartureAt) : null;
 
+    // With a single coordinate stop + origin, `resolveMatrix` seeds a haversine
+    // stub matrix (compute() would fix the lone leg with Directions). The preview
+    // makes 0 Directions, so that leg is straight-line and must be flagged
+    // approximate — otherwise a MATRIX-labelled ETA would be reported as exact.
+    const approximate = matrixOutcome.approximate || (originIndex !== null && coordinateStopCount === 1);
+
     const variantFor = (weights: RouteWeights): PreviewRouteVariant => {
       const optimizerInput: OptimizerInput = {
         stops: optimizerStops,
@@ -437,7 +443,7 @@ export class PlanRouteService {
         finishAt: ev.finishS === null ? null : new Date(ev.finishS * 1000),
         totals: { driveS: ev.totalTravelS, waitS: ev.totalWaitS, lateS: ev.totalLateS },
         feasible: ev.feasible,
-        approximate: matrixOutcome.approximate,
+        approximate,
         stops: ev.stops.map((es) => ({
           appointmentId: es.key,
           sequence: es.sequence,

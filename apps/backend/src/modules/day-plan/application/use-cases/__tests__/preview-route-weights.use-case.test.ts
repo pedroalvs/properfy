@@ -256,6 +256,23 @@ describe('PreviewRouteWeightsUseCase', () => {
     expect(fake.matrixCalls).toBe(1);
   });
 
+  it('marks a single-stop-plus-origin preview approximate (the lone leg is stubbed, no Directions)', async () => {
+    // < 2 coordinate stops: the matrix is the haversine stub and compute() would
+    // replace the origin->stop leg with Directions. The preview makes 0 Directions,
+    // so the lone leg is straight-line and MUST NOT be reported as exact.
+    const { useCase, fake } = build({ candidates: [candidate('A', A, W_A)] });
+    const result = await useCase.execute({
+      actor: amActor(),
+      inspectorId: 'insp-1',
+      date: '2026-11-06',
+      weights: { travel: 1, windowWait: 1, baseProximity: 1 },
+    });
+    expect(result.current.approximate).toBe(true);
+    expect(result.proposed.approximate).toBe(true);
+    expect(fake.directionsCalls).toBe(0);
+    expect(result.current.stops).toHaveLength(1);
+  });
+
   it('degrades to approximate when the provider matrix fails (no throw, 0 Directions)', async () => {
     const fake = new FakeRouting();
     fake.matrix = async () => { throw new Error('provider down'); };
