@@ -18,6 +18,8 @@ export { useAppointmentMapData } from './useAppointmentMapData';
 export type { UseAppointmentMapDataReturn, AppointmentMapItem } from './useAppointmentMapData';
 export { useDeleteAppointment } from './useDeleteAppointment';
 export type { UseDeleteAppointmentReturn } from './useDeleteAppointment';
+export { useExecutionDensity } from './useExecutionDensity';
+export type { UseExecutionDensityReturn } from './useExecutionDensity';
 export { useForceConfirmation } from './useForceConfirmation';
 export type { UseForceConfirmationReturn } from './useForceConfirmation';
 export { usePortalActivities } from './usePortalActivities';

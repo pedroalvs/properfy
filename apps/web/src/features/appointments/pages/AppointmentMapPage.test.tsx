@@ -54,6 +54,16 @@ vi.mock('@/hooks/useAuth', () => ({
   }),
 }));
 
+// F09-2 — stub the density control to capture the props the page wires to it,
+// without pulling in the real heatmap/query machinery (covered by its own tests).
+const densityCapture = vi.hoisted(() => ({ props: null as Record<string, unknown> | null }));
+vi.mock('../components/ExecutionDensityControl', () => ({
+  ExecutionDensityControl: (props: Record<string, unknown>) => {
+    densityCapture.props = props;
+    return <button type="button">Activity density</button>;
+  },
+}));
+
 import { api } from '@/services/api';
 import { AppointmentMapPage } from './AppointmentMapPage';
 
@@ -646,5 +656,42 @@ describe('AppointmentMapPage — period window (F00)', () => {
 
     await waitFor(() => expect(lastQuery('/v1/appointments')?.fromDate).toBeUndefined());
     expect(screen.queryByTestId('map-window-chip')).not.toBeInTheDocument();
+  });
+});
+
+describe('AppointmentMapPage — activity density layer (F09-2)', () => {
+  beforeEach(() => {
+    densityCapture.props = null;
+  });
+
+  it('E1: renders the Activity density control in Appointments mode', () => {
+    authState.role = 'AM';
+    renderPage();
+    expect(screen.getByRole('button', { name: 'Activity density' })).toBeInTheDocument();
+    expect(densityCapture.props).not.toBeNull();
+  });
+
+  it('E2: the control is never handed the pin date window (independent period)', () => {
+    authState.role = 'AM';
+    renderPage();
+    const keys = Object.keys(densityCapture.props ?? {});
+    // Only map + role + agency/inspector filters flow in — no dateFrom/dateTo/window,
+    // so changing the pin "Date Range" can never trigger a density request.
+    expect(keys.sort()).toEqual(['inspectorId', 'isGlobalRole', 'map', 'tenantId']);
+  });
+
+  it('E3: the control is wired to the appointment agency/inspector filters for AM', () => {
+    authState.role = 'AM';
+    renderPage();
+    expect(densityCapture.props).toMatchObject({ isGlobalRole: true });
+    expect(densityCapture.props).toHaveProperty('tenantId');
+    expect(densityCapture.props).toHaveProperty('inspectorId');
+  });
+
+  it('E4: the control is absent in Groups mode', () => {
+    authState.role = 'AM';
+    renderPageAt(['/map?mode=groups']);
+    expect(screen.queryByRole('button', { name: 'Activity density' })).toBeNull();
+    expect(densityCapture.props).toBeNull();
   });
 });

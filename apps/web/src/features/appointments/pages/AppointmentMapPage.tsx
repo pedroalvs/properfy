@@ -29,6 +29,7 @@ import { MapLassoSelect, type LassoPoint, type LassoState, type MapLassoSelectHa
 import { MapFilterToggleButton } from '@/components/map/MapFilterToggleButton';
 import { MapListViewToggleButton } from '@/components/map/MapListViewToggleButton';
 import { MapLassoToggleButton } from '@/components/map/MapLassoToggleButton';
+import { ExecutionDensityControl } from '../components/ExecutionDensityControl';
 import { MapBulkActionModal } from '../components/MapBulkActionModal';
 import { MapAddToGroupSubModal } from '../components/MapAddToGroupSubModal';
 import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPanel';
@@ -1404,6 +1405,16 @@ export function AppointmentMapPage() {
         {/* C10 — top-right toolbar: lasso + List view in a horizontal row,
             offset left of the Mapbox zoom controls. */}
         <div className="pointer-events-none absolute right-14 top-4 z-30 flex items-center gap-2">
+          {mode === 'appointments' && (
+            <div className="pointer-events-auto">
+              <ExecutionDensityControl
+                map={mapInstance}
+                isGlobalRole={isGlobalRole}
+                tenantId={appointmentFilters.tenantId}
+                inspectorId={appointmentFilters.inspectorId}
+              />
+            </div>
+          )}
           {lassoAvailable && (
             <div className="pointer-events-auto">
               <MapLassoToggleButton active={lassoState !== 'idle'} onClick={handleLassoToggle} />
