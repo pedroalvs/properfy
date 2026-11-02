@@ -1,6 +1,7 @@
 export * from './boolean-query';
 export * from './civil-date';
 export * from './dashboard-analytics';
+export * from './execution-density';
 export * from './inspector-workload';
 export * from './pagination';
 export * from './address';
