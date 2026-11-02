@@ -52,6 +52,7 @@ function record(fingerprint: string): DayPlanRecord {
 class FakeReader implements IDayPlanInputReader {
   candidate = candidate();
   async loadCandidates(): Promise<DayPlanCandidate[]> { return [{ ...this.candidate }]; }
+  async loadAppointmentPlanKey() { return null; }
   async loadInspectorContext(): Promise<InspectorDayPlanContext | null> { return { ...inspector }; }
 }
 

@@ -65,6 +65,7 @@ class FakeReader implements IDayPlanInputReader {
     baseGeocodeFailed: false,
   };
   async loadCandidates(): Promise<DayPlanCandidate[]> { return this.candidates.map((c) => ({ ...c })); }
+  async loadAppointmentPlanKey() { return null; }
   async loadInspectorContext(): Promise<InspectorDayPlanContext | null> { return { ...this.inspector }; }
 }
 

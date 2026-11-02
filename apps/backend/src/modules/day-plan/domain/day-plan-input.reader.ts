@@ -68,4 +68,11 @@ export interface IDayPlanInputReader {
 
   /** The inspector's identity + configured origin, or `null` when the inspector does not exist. */
   loadInspectorContext(inspectorId: string): Promise<InspectorDayPlanContext | null>;
+
+  /**
+   * The current inspector + civil date of a live (SCHEDULED/DONE, not deleted)
+   * appointment, for the F06 fresh-stop read. `null` when the appointment is
+   * absent, unassigned, deleted, or out of SCHEDULED/DONE.
+   */
+  loadAppointmentPlanKey(appointmentId: string): Promise<{ inspectorId: string; date: string } | null>;
 }

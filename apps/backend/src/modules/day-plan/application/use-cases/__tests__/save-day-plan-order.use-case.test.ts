@@ -31,6 +31,7 @@ function candidate(id: string, lng: number): DayPlanCandidate {
 class FakeReader implements IDayPlanInputReader {
   candidates: DayPlanCandidate[] = [candidate(A, 151.1), candidate(B, 151.2)];
   async loadCandidates(): Promise<DayPlanCandidate[]> { return this.candidates.map((c) => ({ ...c })); }
+  async loadAppointmentPlanKey() { return null; }
   async loadInspectorContext(): Promise<InspectorDayPlanContext | null> {
     return { inspectorId: INSPECTOR_ID, name: 'Jane', timezone: 'Australia/Sydney', active: true, baseLat: -33.87, baseLng: 151.2, baseAddress: null, baseGeocodeFailed: false };
   }

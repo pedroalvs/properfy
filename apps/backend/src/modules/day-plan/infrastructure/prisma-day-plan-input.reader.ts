@@ -107,6 +107,22 @@ export class PrismaDayPlanInputReader implements IDayPlanInputReader {
     return candidates;
   }
 
+  async loadAppointmentPlanKey(
+    appointmentId: string,
+  ): Promise<{ inspectorId: string; date: string } | null> {
+    const appt = await this.prisma.appointment.findFirst({
+      where: {
+        id: appointmentId,
+        deleted_at: null,
+        status: { in: ['SCHEDULED', 'DONE'] },
+        inspector_id: { not: null },
+      },
+      select: { inspector_id: true, scheduled_date: true },
+    });
+    if (!appt || !appt.inspector_id) return null;
+    return { inspectorId: appt.inspector_id, date: appt.scheduled_date.toISOString().slice(0, 10) };
+  }
+
   async loadInspectorContext(inspectorId: string): Promise<InspectorDayPlanContext | null> {
     // A soft-deleted inspector is treated as absent (defence in depth: a valid JWT
     // may outlive deactivation within its TTL).
