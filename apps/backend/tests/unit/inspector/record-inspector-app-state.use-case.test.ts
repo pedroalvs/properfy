@@ -45,11 +45,37 @@ describe('RecordInspectorAppStateUseCase', () => {
       now: FIXED,
       displayMode: 'standalone',
       appVersion: '0.1.0',
+      onboardingCompleted: false,
     });
     // push_enabled is no longer part of the heartbeat contract.
     expect(inspectorRepo.recordAppState.mock.calls[0][0]).not.toHaveProperty('pushEnabled');
     // Heartbeat never reads before writing.
     expect(inspectorRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('forwards onboardingCompleted: true in the single call, without findById (R-F01-02)', async () => {
+    await run({
+      displayMode: 'standalone',
+      pushPermission: 'granted',
+      appVersion: '0.1.0',
+      onboardingCompleted: true,
+    });
+    expect(inspectorRepo.recordAppState).toHaveBeenCalledTimes(1);
+    expect(inspectorRepo.recordAppState).toHaveBeenCalledWith({
+      id: 'inspector-1',
+      now: FIXED,
+      displayMode: 'standalone',
+      appVersion: '0.1.0',
+      onboardingCompleted: true,
+    });
+    expect(inspectorRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('defaults onboardingCompleted to false when the key is absent', async () => {
+    await run({ displayMode: 'browser', pushPermission: 'denied', appVersion: 'dev' });
+    expect(inspectorRepo.recordAppState).toHaveBeenCalledWith(
+      expect.objectContaining({ onboardingCompleted: false }),
+    );
   });
 
   it('forwards standalone for a second heartbeat (install COALESCE is the repo/db job)', async () => {

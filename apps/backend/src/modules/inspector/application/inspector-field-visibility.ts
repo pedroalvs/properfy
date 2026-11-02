@@ -9,6 +9,7 @@
  * | field group                                   | AM/OP | INSP | CL_* |
  * |-----------------------------------------------|:-----:|:----:|:----:|
  * | address, baseLat, baseLng, baseGeocodedAt     |  keep | keep | strip|
+ * | onboardingCompletedAt (F04-2)                 |  keep | keep | strip|
  * | appInstalledAt, appLastSeenAt, pushEnabled,   |  keep | strip| strip|
  * |   appVersion                                  |       |      |      |
  */
@@ -28,6 +29,12 @@ export const INSPECTOR_ADOPTION_FIELDS = [
 ] as const;
 
 /**
+ * F04-2 (00.2): tour-completion stamp. Same visibility as the base group —
+ * AM/OP and the inspector itself see it; agency roles do not.
+ */
+export const INSPECTOR_ONBOARDING_FIELDS = ['onboardingCompletedAt'] as const;
+
+/**
  * Returns a shallow copy of `dto` with the fields the actor may not see removed.
  * Never mutates the input. Unknown roles are treated like an agency role
  * (fail-closed: strip both groups).
@@ -40,9 +47,10 @@ export function applyInspectorFieldVisibility<T extends object>(
   const isOperational = role === 'AM' || role === 'OP';
   const isInspector = role === 'INSP';
 
-  // Base is visible to AM/OP and the inspector; stripped for everyone else.
+  // Base + onboarding are visible to AM/OP and the inspector; stripped for everyone else.
   if (!isOperational && !isInspector) {
     for (const key of INSPECTOR_BASE_FIELDS) delete out[key];
+    for (const key of INSPECTOR_ONBOARDING_FIELDS) delete out[key];
   }
   // Adoption is visible only to AM/OP.
   if (!isOperational) {

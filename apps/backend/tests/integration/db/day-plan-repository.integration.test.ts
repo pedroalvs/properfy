@@ -218,4 +218,46 @@ describe('PrismaDayPlanRepository (real DB)', () => {
     const future = await repo.findByInspectorAndDate(seed.inspectorId, '2026-11-05');
     expect(future!.routeGeometry).not.toBeNull();
   });
+
+  // Test 28 (L-F04-15 / FR-014): the metric query measures |check-in − frozen
+  // published start| and honours the status join + approximate/abandoned exclusion.
+  it('returns ETA-accuracy samples from the frozen published start', async () => {
+    const publishedStart = new Date('2026-11-10T21:00:00Z');
+    const predictedAt = new Date('2026-11-10T20:00:00Z'); // before the check-in
+    await repo.saveComputed(
+      planInput({
+        planDate: '2026-11-10',
+        suggestedOrder: [seed.apptA],
+        stops: [
+          stop(seed.apptA, 1, {
+            publishedServiceStartAt: publishedStart,
+            publishedPredictedAt: predictedAt,
+            publishedApproximate: false,
+          }),
+        ],
+      }),
+    );
+    // Check-in 5 minutes after the published start.
+    await harness.prisma.inspectionExecution.upsert({
+      where: { appointment_id: seed.apptA },
+      create: {
+        appointment_id: seed.apptA,
+        inspector_id: seed.inspectorId,
+        started_at: new Date('2026-11-10T21:05:00Z'),
+        start_latitude: '-33.8836',
+        start_longitude: '151.2108',
+      },
+      update: { started_at: new Date('2026-11-10T21:05:00Z'), abandoned_at: null },
+    });
+
+    const samples = await repo.getEtaAccuracySamples('2026-11-10', '2026-11-10');
+    expect(samples).toHaveLength(1);
+    expect(samples[0]!.errorMinutes).toBeCloseTo(5, 5);
+
+    // An approximate published prediction is excluded.
+    await harness.prisma.$executeRaw`
+      UPDATE "day_plan_stops" SET "published_approximate" = true
+      WHERE "appointment_id" = ${seed.apptA}::text AND "published_service_start_at" IS NOT NULL`;
+    expect(await repo.getEtaAccuracySamples('2026-11-10', '2026-11-10')).toHaveLength(0);
+  });
 });

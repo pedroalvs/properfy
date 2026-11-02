@@ -1,8 +1,11 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import {
   civilDateSchema,
   dayPlanResponseSchema,
+  dayPlanSheetQuerySchema,
+  routeEtaAccuracyQuerySchema,
+  routeEtaAccuracySchema,
   saveDayPlanOrderRequestSchema,
   setDayPlanOriginRequestSchema,
   successResponseSchema,
@@ -20,6 +23,8 @@ import type {
   SetDayPlanOriginUseCase,
   ClearDayPlanOriginUseCase,
 } from '../application/use-cases/day-plan-origin.use-case';
+import type { GetRouteEtaAccuracyUseCase } from '../application/use-cases/get-route-eta-accuracy.use-case';
+import type { GetDayPlanSheetUseCase } from '../application/use-cases/get-day-plan-sheet.use-case';
 
 export interface DayPlanRouteContainer {
   getMyDayPlanUseCase: GetMyDayPlanUseCase;
@@ -28,6 +33,8 @@ export interface DayPlanRouteContainer {
   recalculateDayPlanUseCase: RecalculateDayPlanUseCase;
   setDayPlanOriginUseCase: SetDayPlanOriginUseCase;
   clearDayPlanOriginUseCase: ClearDayPlanOriginUseCase;
+  getRouteEtaAccuracyUseCase: GetRouteEtaAccuracyUseCase;
+  getDayPlanSheetUseCase: GetDayPlanSheetUseCase;
   jwtService: JwtService;
   tenantRepo: ITenantRepository;
 }
@@ -45,6 +52,15 @@ function requireInspector(role: string, inspectorId: string | null | undefined):
   }
   return inspectorId;
 }
+
+/** AM/OP-only platform routes (operator read, sheet, metric). */
+function requireOperator(role: string): void {
+  if (role !== 'AM' && role !== 'OP') {
+    throw new ForbiddenError('FORBIDDEN', `Role ${role} is not permitted to perform day_plan.view`);
+  }
+}
+
+const sheetQuery = dayPlanSheetQuerySchema;
 
 export async function registerDayPlanRoutes(
   app: FastifyInstance,
@@ -209,4 +225,79 @@ export async function registerDayPlanRoutes(
       return reply.status(200).send(success(result));
     },
   );
+
+  // GET /v1/inspector/day-plans/:date/sheet — the inspector downloads their sheet (20/min, L-F04-10).
+  app.get(
+    '/v1/inspector/day-plans/:date/sheet',
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+      schema: { params: dateParam, querystring: sheetQuery },
+    },
+    async (request, reply) => {
+      requireInspector(request.authContext!.role, request.authContext!.inspectorId);
+      const { date } = dateParam.parse(request.params);
+      const { format } = sheetQuery.parse(request.query);
+      const result = await container.getDayPlanSheetUseCase.execute({
+        actor: request.authContext!,
+        date,
+        format,
+      });
+      return sendSheet(reply, result);
+    },
+  );
+
+  // GET /v1/day-plans/:inspectorId/:date/sheet — AM/OP download any inspector's sheet (20/min, no date limit).
+  app.get(
+    '/v1/day-plans/:inspectorId/:date/sheet',
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
+      schema: { params: operatorParams, querystring: sheetQuery },
+    },
+    async (request, reply) => {
+      requireOperator(request.authContext!.role);
+      const { inspectorId, date } = operatorParams.parse(request.params);
+      const { format } = sheetQuery.parse(request.query);
+      const result = await container.getDayPlanSheetUseCase.execute({
+        actor: request.authContext!,
+        inspectorId,
+        date,
+        format,
+      });
+      return sendSheet(reply, result);
+    },
+  );
+
+  // GET /v1/day-plans/eta-accuracy — AM/OP read the "Route ETA accuracy" metric (60/min).
+  // Static path; Fastify's radix router prefers it over `/:inspectorId/:date` (test 24).
+  app.get(
+    '/v1/day-plans/eta-accuracy',
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+      schema: {
+        querystring: routeEtaAccuracyQuerySchema,
+        response: { 200: successResponseSchema(routeEtaAccuracySchema) },
+      },
+    },
+    async (request, reply) => {
+      requireOperator(request.authContext!.role);
+      const { days } = routeEtaAccuracyQuerySchema.parse(request.query);
+      const result = await container.getRouteEtaAccuracyUseCase.execute({ days });
+      return reply.status(200).send(success(result));
+    },
+  );
+}
+
+/** Streams a rendered route sheet with its download headers (binary, no response schema). */
+function sendSheet(
+  reply: FastifyReply,
+  result: { buffer: Buffer; contentType: string; filename: string },
+) {
+  return reply
+    .header('Content-Type', result.contentType)
+    .header('Content-Disposition', `attachment; filename="${result.filename}"`)
+    .status(200)
+    .send(result.buffer);
 }

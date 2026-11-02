@@ -7816,6 +7816,18 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "onboardingCompletedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
                         "abn": {
                           "type": "string",
                           "nullable": true
@@ -8156,6 +8168,18 @@
                             "type": "string",
                             "nullable": true
                           },
+                          "onboardingCompletedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
                           "abn": {
                             "type": "string",
                             "nullable": true
@@ -8392,6 +8416,18 @@
                         },
                         "appVersion": {
                           "type": "string",
+                          "nullable": true
+                        },
+                        "onboardingCompletedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
                           "nullable": true
                         },
                         "abn": {
@@ -8807,6 +8843,18 @@
                         },
                         "appVersion": {
                           "type": "string",
+                          "nullable": true
+                        },
+                        "onboardingCompletedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
                           "nullable": true
                         },
                         "abn": {
@@ -10400,6 +10448,12 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 40
+                  },
+                  "onboardingCompleted": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
                   }
                 },
                 "required": [
@@ -30766,6 +30820,186 @@
                         "stops",
                         "geometry",
                         "routingInput"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspector/day-plans/{date}/sheet": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pdf",
+                "xlsx"
+              ]
+            },
+            "in": "query",
+            "name": "format",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "path",
+            "name": "date",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/day-plans/{inspectorId}/{date}/sheet": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pdf",
+                "xlsx"
+              ]
+            },
+            "in": "query",
+            "name": "format",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "inspectorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "path",
+            "name": "date",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/day-plans/eta-accuracy": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 7,
+              "maximum": 90,
+              "default": 30
+            },
+            "in": "query",
+            "name": "days",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "from": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "to": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "days": {
+                          "type": "integer"
+                        },
+                        "sampleSize": {
+                          "type": "integer"
+                        },
+                        "excludedOutliers": {
+                          "type": "integer"
+                        },
+                        "meanAbsoluteErrorMinutes": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "thresholdMinutes": {
+                          "type": "number",
+                          "enum": [
+                            10
+                          ]
+                        },
+                        "minSampleSize": {
+                          "type": "number",
+                          "enum": [
+                            30
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "INSUFFICIENT_DATA",
+                            "OK",
+                            "ABOVE_THRESHOLD"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "from",
+                        "to",
+                        "days",
+                        "sampleSize",
+                        "excludedOutliers",
+                        "meanAbsoluteErrorMinutes",
+                        "thresholdMinutes",
+                        "minSampleSize",
+                        "status"
                       ],
                       "additionalProperties": false
                     }

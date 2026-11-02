@@ -36,6 +36,8 @@ export interface GetInspectorOutput {
   appLastSeenAt?: Date | null;
   pushEnabled?: boolean | null;
   appVersion?: string | null;
+  // F04-2 (00.2): visible to AM/OP + the inspector; stripped for CL.
+  onboardingCompletedAt?: Date | null;
   abn: string | null;
   dateOfBirth: Date | null;
   insuranceFileKey: string | null;
@@ -104,6 +106,7 @@ export class GetInspectorUseCase {
       appLastSeenAt: inspector.appLastSeenAt,
       pushEnabled: inspector.pushEnabled,
       appVersion: inspector.appVersion,
+      onboardingCompletedAt: inspector.onboardingCompletedAt,
       abn: inspector.abn,
       dateOfBirth: inspector.dateOfBirth,
       insuranceFileKey: inspector.insuranceFileKey,

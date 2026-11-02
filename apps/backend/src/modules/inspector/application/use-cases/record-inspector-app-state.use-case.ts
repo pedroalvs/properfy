@@ -38,6 +38,10 @@ export class RecordInspectorAppStateUseCase {
       now: this.clock.now(),
       displayMode: input.displayMode,
       appVersion: input.appVersion,
+      // F04-2 (00.2, R-F01-02): write-once tour-complete stamp, folded into the
+      // same single statement. `onboardingCompleted` is `true` or absent on the
+      // wire; normalise to a boolean so the SQL CASE is unambiguous.
+      onboardingCompleted: input.onboardingCompleted === true,
     });
 
     if (affected === 0) {

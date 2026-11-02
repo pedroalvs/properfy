@@ -15,28 +15,31 @@ const FULL = {
   appLastSeenAt: new Date('2026-10-30T00:00:00Z'),
   pushEnabled: true,
   appVersion: '0.1.0',
+  // onboarding field (F04-2): visible to AM/OP + the inspector, stripped for CL.
+  onboardingCompletedAt: new Date('2026-10-30T00:00:00Z'),
 };
 
 const BASE_KEYS = ['address', 'baseLat', 'baseLng', 'baseGeocodedAt'];
 const ADOPTION_KEYS = ['appInstalledAt', 'appLastSeenAt', 'pushEnabled', 'appVersion'];
+const ONBOARDING_KEYS = ['onboardingCompletedAt'];
 
 describe('applyInspectorFieldVisibility', () => {
   it.each(['AM', 'OP'])('keeps every field for %s', (role) => {
     const out = applyInspectorFieldVisibility({ ...FULL }, role);
-    for (const k of [...BASE_KEYS, ...ADOPTION_KEYS]) {
+    for (const k of [...BASE_KEYS, ...ADOPTION_KEYS, ...ONBOARDING_KEYS]) {
       expect(out).toHaveProperty(k);
     }
   });
 
-  it('keeps base fields but strips adoption for INSP', () => {
+  it('keeps base + onboarding but strips adoption for INSP', () => {
     const out = applyInspectorFieldVisibility({ ...FULL }, 'INSP');
-    for (const k of BASE_KEYS) expect(out).toHaveProperty(k);
+    for (const k of [...BASE_KEYS, ...ONBOARDING_KEYS]) expect(out).toHaveProperty(k);
     for (const k of ADOPTION_KEYS) expect(out).not.toHaveProperty(k);
   });
 
-  it.each(['CL_ADMIN', 'CL_USER'])('strips base and adoption for %s', (role) => {
+  it.each(['CL_ADMIN', 'CL_USER'])('strips base, adoption and onboarding for %s', (role) => {
     const out = applyInspectorFieldVisibility({ ...FULL }, role);
-    for (const k of [...BASE_KEYS, ...ADOPTION_KEYS]) {
+    for (const k of [...BASE_KEYS, ...ADOPTION_KEYS, ...ONBOARDING_KEYS]) {
       expect(out).not.toHaveProperty(k);
     }
   });

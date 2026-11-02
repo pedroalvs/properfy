@@ -150,6 +150,10 @@ export const inspectorAppStateSchema = z.object({
   displayMode: z.enum(['standalone', 'browser']),
   pushPermission: z.enum(['granted', 'denied', 'default', 'unsupported']),
   appVersion: z.string().trim().min(1).max(40),
+  // F04-2 (00.2 onboarding slice): the app reports the in-app tour as complete
+  // once. Write-once `true` (`z.literal`) — the server never un-completes it, so
+  // `false` is meaningless and rejected (R-F01-02).
+  onboardingCompleted: z.literal(true).optional(),
 });
 export type InspectorAppStateInput = z.infer<typeof inspectorAppStateSchema>;
 

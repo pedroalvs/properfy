@@ -290,6 +290,10 @@ export const inspectorResponseSchema = z.object({
   appLastSeenAt: instantStrNullable().optional(),
   pushEnabled: z.boolean().nullable().optional(),
   appVersion: z.string().nullable().optional(),
+  // F04-2 (00.2): when the inspector finished the in-app tour (null = not yet).
+  // Visible to AM/OP and the inspector itself; stripped for CL by the
+  // field-visibility helper.
+  onboardingCompletedAt: instantStrNullable().optional(),
   abn: z.string().nullable().optional(),
   dateOfBirth: civilDateStrNullable().optional(),
   insuranceFileKey: z.string().nullable().optional(),

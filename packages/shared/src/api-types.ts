@@ -3418,6 +3418,7 @@ export interface paths {
                                 appLastSeenAt?: (string) | null;
                                 pushEnabled?: boolean | null;
                                 appVersion?: string | null;
+                                onboardingCompletedAt?: (string) | null;
                                 abn?: string | null;
                                 dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
@@ -3542,6 +3543,7 @@ export interface paths {
                                 appLastSeenAt?: (string) | null;
                                 pushEnabled?: boolean | null;
                                 appVersion?: string | null;
+                                onboardingCompletedAt?: (string) | null;
                                 abn?: string | null;
                                 dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
@@ -3616,6 +3618,7 @@ export interface paths {
                                 appLastSeenAt?: (string) | null;
                                 pushEnabled?: boolean | null;
                                 appVersion?: string | null;
+                                onboardingCompletedAt?: (string) | null;
                                 abn?: string | null;
                                 dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
@@ -3736,6 +3739,7 @@ export interface paths {
                                 appLastSeenAt?: (string) | null;
                                 pushEnabled?: boolean | null;
                                 appVersion?: string | null;
+                                onboardingCompletedAt?: (string) | null;
                                 abn?: string | null;
                                 dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
@@ -4442,6 +4446,8 @@ export interface paths {
                         /** @enum {string} */
                         pushPermission: "granted" | "denied" | "default" | "unsupported";
                         appVersion: string;
+                        /** @enum {boolean} */
+                        onboardingCompleted?: true;
                     };
                 };
             };
@@ -12096,6 +12102,133 @@ export interface paths {
                                         travelS: number;
                                     }[];
                                 } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector/day-plans/{date}/sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    format: "pdf" | "xlsx";
+                };
+                header?: never;
+                path: {
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/day-plans/{inspectorId}/{date}/sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    format: "pdf" | "xlsx";
+                };
+                header?: never;
+                path: {
+                    inspectorId: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/day-plans/eta-accuracy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    days?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                from: string;
+                                to: string;
+                                days: number;
+                                sampleSize: number;
+                                excludedOutliers: number;
+                                meanAbsoluteErrorMinutes: number | null;
+                                /** @enum {number} */
+                                thresholdMinutes: 10;
+                                /** @enum {number} */
+                                minSampleSize: 30;
+                                /** @enum {string} */
+                                status: "INSUFFICIENT_DATA" | "OK" | "ABOVE_THRESHOLD";
                             };
                         };
                     };
