@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ClockAlert, Info } from 'lucide-react';
 import { AppointmentStatus, FIELD_ISSUE_REASON_LABELS, type FieldIssueReason } from '@properfy/shared';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
@@ -29,6 +29,7 @@ import { formatScheduleDate, formatTimeWindow } from '../lib/time-slot';
 
 export function AppointmentDetailPage() {
   const { appointmentId } = useParams<{ appointmentId: string }>();
+  const navigate = useNavigate();
   const { data, isLoading, isError, error, refetch, jobDetails } = useInspectorAppointment(appointmentId!);
   const { state: localExecutionState, isRestored } = useLocalExecutionState(appointmentId!);
   const timeZone = useEffectiveTimezone();
@@ -288,6 +289,7 @@ export function AppointmentDetailPage() {
         appointmentId={apt.id}
         appointmentCode={apt.appointmentCode}
         propertyAddress={apt.propertyAddress}
+        onReported={() => navigate('/schedule', { replace: true })}
       />
       <LateNoticeSheet
         open={lateOpen}

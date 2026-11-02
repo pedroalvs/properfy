@@ -1,5 +1,6 @@
 import { openDB } from 'idb';
 import { purgeAppointmentFromOfflineQueue } from '../indexeddb';
+import { subscribeExecutionStateChange } from '../execution-state-events';
 
 // Own file so the module-level getDB() cache starts fresh (Vitest isolates
 // modules per file); the sibling indexeddb.test.ts resolves a put-only fake db.
@@ -23,6 +24,9 @@ describe('purgeAppointmentFromOfflineQueue', () => {
     const del = vi.fn().mockResolvedValue(undefined);
     mockOpenDB.mockResolvedValue({ getAll, delete: del } as never);
 
+    const listener = vi.fn();
+    const unsubscribe = subscribeExecutionStateChange('apt-1', listener);
+
     await purgeAppointmentFromOfflineQueue('apt-1');
 
     // Both apt-1 queued actions removed; apt-2's left alone.
@@ -31,5 +35,8 @@ describe('purgeAppointmentFromOfflineQueue', () => {
     expect(del).not.toHaveBeenCalledWith('queued-actions', 'c');
     // The local execution draft for apt-1 is cleared.
     expect(del).toHaveBeenCalledWith('execution-states', 'apt-1');
+    // Mounted hooks for apt-1 are notified so a stale IN_PROGRESS card reverts.
+    expect(listener).toHaveBeenCalled();
+    unsubscribe();
   });
 });

@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { ExecutionState } from '../types';
+import { emitExecutionStateChange } from './execution-state-events';
 
 type QueuedActionStatus = 'PENDING' | 'FAILED';
 
@@ -14,6 +15,14 @@ interface QueuedAction {
   lastError: string | null;
   /** Additive field — records written before it existed are treated as PENDING. */
   status?: QueuedActionStatus;
+  /**
+   * Additive (F03 / L-F03-02): a START that failed for good (4xx except
+   * 401/408/429, e.g. a geofence/assignment rejection). Such a row is terminal —
+   * it offers no "Retry" and `retryAction` refuses it — because re-sending the
+   * same out-of-radius/reassigned check-in cannot succeed and would wipe a newer
+   * legitimate check-in's local state.
+   */
+  permanent?: boolean;
 }
 
 interface ProperfyPwaDB extends DBSchema {
@@ -108,6 +117,9 @@ export async function purgeAppointmentFromOfflineQueue(appointmentId: string): P
       .map((action) => db.delete('queued-actions', action.id)),
   );
   await db.delete('execution-states', appointmentId);
+  // Tell any mounted hook for this appointment to re-read (its row is now gone),
+  // so a card/detail still showing IN_PROGRESS reverts without a remount.
+  emitExecutionStateChange(appointmentId);
 }
 
 export type { QueuedAction, QueuedActionStatus };

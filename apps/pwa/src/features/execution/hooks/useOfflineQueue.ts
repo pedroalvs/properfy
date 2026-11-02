@@ -178,6 +178,7 @@ export function useOfflineQueue() {
                         retryCount: (action.retryCount ?? 0) + 1,
                         lastError,
                         status: 'FAILED',
+                        permanent: true,
                       });
                       for (const other of group) {
                         if (other.id !== action.id && other.type === 'FINISH') {
@@ -230,6 +231,10 @@ export function useOfflineQueue() {
         const actions = await getAllQueuedActions();
         const action = actions.find((a) => a.id === id);
         if (!action) return;
+        // A permanent failure (geofence/assignment/T-1) can never succeed by
+        // retrying, and re-running its cleanup would wipe a newer legitimate
+        // check-in's local state — so it is terminal and not retryable.
+        if (action.permanent) return;
         await updateQueuedAction({ ...action, retryCount: 0, lastError: null, status: 'PENDING' });
         await refreshQueueSnapshot();
         await processQueue();

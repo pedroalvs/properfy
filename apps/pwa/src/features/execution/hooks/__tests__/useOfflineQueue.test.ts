@@ -598,7 +598,7 @@ describe('useOfflineQueue', () => {
 
       await waitFor(() =>
         expect(mockUpdateQueuedAction).toHaveBeenCalledWith(
-          expect.objectContaining({ id: 'a', status: 'FAILED' }),
+          expect.objectContaining({ id: 'a', status: 'FAILED', permanent: true }),
         ),
       );
       // No retry: apiPost hit once for the START and the FINISH was never sent.
@@ -682,6 +682,31 @@ describe('useOfflineQueue', () => {
         ),
       );
       expect(mockClearExecutionState).not.toHaveBeenCalled();
+    });
+
+    it('refuses to retry a permanently-failed item (no re-send, no reset)', async () => {
+      mockUseIsOnline.mockReturnValue(true);
+      const permanentlyFailed = {
+        ...startAction,
+        retryCount: 1,
+        lastError: 'Out of radius',
+        status: 'FAILED' as const,
+        permanent: true,
+      };
+      mockGetAllQueuedActions.mockResolvedValue([permanentlyFailed]);
+
+      const { result } = renderHook(() => useOfflineQueue());
+      await waitFor(() => expect(result.current.failedActions).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.retryAction('a');
+      });
+
+      // Not reset to PENDING, not re-sent — a permanent failure is terminal.
+      expect(mockUpdateQueuedAction).not.toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'a', status: 'PENDING' }),
+      );
+      expect(mockApiPost).not.toHaveBeenCalled();
     });
 
     it('leaves a FINISH for another appointment intact when a START fails permanently', async () => {
