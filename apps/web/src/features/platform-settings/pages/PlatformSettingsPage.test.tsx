@@ -13,6 +13,11 @@ vi.mock('../hooks/usePlatformSetting', () => ({
 vi.mock('@/hooks/useSnackbar', () => ({
   useSnackbar: () => ({ showSuccess: vi.fn(), showError: vi.fn(), showInfo: vi.fn(), dismiss: vi.fn(), messages: [] }),
 }));
+// The preview block (query/auth providers) has its own test; stub it here so the
+// page test stays about the sections and the discard-guard plumbing.
+vi.mock('../components/RouteWeightsPreview', () => ({
+  RouteWeightsPreview: () => <div data-testid="preview-stub" />,
+}));
 
 const VALUE = {
   geofenceRadiusMeters: 300,
@@ -70,10 +75,21 @@ describe('PlatformSettingsPage', () => {
     expect(screen.getByLabelText('Geofence radius')).toBeInTheDocument();
   });
 
+  it('renders Field events then Route planning (section order)', () => {
+    setHook();
+    renderPage();
+    const fieldEvents = screen.getByText('Field events');
+    const routePlanning = screen.getByText('Route planning');
+    expect(routePlanning).toBeInTheDocument();
+    // Field events comes before Route planning in document order.
+    expect(fieldEvents.compareDocumentPosition(routePlanning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('shows the access ErrorState when the setting read is forbidden', () => {
     setHook({ isError: true, error: new ApiError(403, 'Forbidden', 'FORBIDDEN'), setting: null });
     renderPage();
-    expect(screen.getByText("You don't have access to platform settings")).toBeInTheDocument();
+    // Both sections surface the forbidden state (each reads a key).
+    expect(screen.getAllByText("You don't have access to platform settings").length).toBeGreaterThanOrEqual(1);
   });
 
   it('navigates back immediately when there are no unsaved changes', () => {

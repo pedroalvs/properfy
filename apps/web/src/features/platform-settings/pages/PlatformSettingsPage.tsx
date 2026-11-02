@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FieldEventsSettingsSection } from '../components/FieldEventsSettingsSection';
+import { RouteWeightsSettingsSection } from '../components/RouteWeightsSettingsSection';
 
 /**
  * Platform settings (AM/OP). One section per `PLATFORM_SETTINGS_REGISTRY` key —
@@ -14,7 +15,9 @@ import { FieldEventsSettingsSection } from '../components/FieldEventsSettingsSec
  * edit-screen discard confirmation), driven by the section's dirty state.
  */
 export function PlatformSettingsPage() {
-  const [dirty, setDirty] = useState(false);
+  const [fieldEventsDirty, setFieldEventsDirty] = useState(false);
+  const [routeWeightsDirty, setRouteWeightsDirty] = useState(false);
+  const dirty = fieldEventsDirty || routeWeightsDirty;
   const [showDiscard, setShowDiscard] = useState(false);
   const pendingGoBack = useRef<(() => void) | null>(null);
 
@@ -41,7 +44,8 @@ export function PlatformSettingsPage() {
       <PageHeader title="Platform settings" backTo="/dashboard" onBack={handleBack} />
 
       <div className="flex flex-col gap-6">
-        <FieldEventsSettingsSection onDirtyChange={setDirty} />
+        <FieldEventsSettingsSection onDirtyChange={setFieldEventsDirty} />
+        <RouteWeightsSettingsSection onDirtyChange={setRouteWeightsDirty} />
       </div>
 
       <ConfirmDialog
