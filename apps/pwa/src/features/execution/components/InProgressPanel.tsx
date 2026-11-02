@@ -7,6 +7,8 @@ import { Card } from '@/components/ui/Card';
 interface InProgressPanelProps {
   startedAt: string | null;
   onFinish: () => void;
+  /** Opens the "Can't do this job" sheet (rejection after check-in). */
+  onCantComplete?: () => void;
 }
 
 function formatElapsed(ms: number): string {
@@ -22,7 +24,7 @@ function formatStartTime(startedAt: string): string {
   return new Date(startedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-export function InProgressPanel({ startedAt, onFinish }: InProgressPanelProps) {
+export function InProgressPanel({ startedAt, onFinish, onCantComplete }: InProgressPanelProps) {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -72,6 +74,16 @@ export function InProgressPanel({ startedAt, onFinish }: InProgressPanelProps) {
         >
           Check out &amp; finish
         </Button>
+        {onCantComplete && (
+          <button
+            type="button"
+            onClick={onCantComplete}
+            className="mt-3 block w-full text-center text-sm font-semibold text-destructive underline"
+            data-testid="cant-complete-link"
+          >
+            Can&apos;t complete this job
+          </button>
+        )}
       </div>
     </div>
   );

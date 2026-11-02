@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useId } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ClockAlert, KeyRound } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
@@ -6,6 +6,7 @@ import { AppointmentStatus, todayInTzDateString } from '@properfy/shared';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { Badge } from '@/components/ui/Badge';
 import { RentalTenantConfirmationBadge } from './RentalTenantConfirmationBadge';
+import { AppointmentCardActions } from './AppointmentCardActions';
 import { FLOW_TYPE_MAP, PILL_TONE_CLASS } from '@/lib/status-colors';
 import type { InspectorAppointment } from '../types';
 import { formatTimeWindow, isScheduleRisk } from '../lib/time-slot';
@@ -37,28 +38,39 @@ function getStatusAccent(status: AppointmentStatus): string {
 export const AppointmentCard = memo(function AppointmentCard({ appointment, today }: AppointmentCardProps) {
   const navigate = useNavigate();
   const timeZone = useEffectiveTimezone();
-  const showT1Warning = isT1Warning(appointment, today ?? todayInTzDateString(timeZone));
+  const effectiveToday = today ?? todayInTzDateString(timeZone);
+  const showT1Warning = isT1Warning(appointment, effectiveToday);
   const flowStyle = FLOW_TYPE_MAP[appointment.flowType];
   const accentClass = getStatusAccent(appointment.status);
   const isDone = appointment.status === AppointmentStatus.DONE;
   const isCancelled =
     appointment.status === AppointmentStatus.CANCELLED ||
     appointment.status === AppointmentStatus.REJECTED;
+  const isScheduled = appointment.status === AppointmentStatus.SCHEDULED;
+  const isToday = appointment.scheduledDate === effectiveToday;
+  const titleId = useId();
 
   const fullAddress = [appointment.propertyAddress, appointment.suburb]
     .filter(Boolean)
     .join(', ');
 
   return (
-    <button
-      onClick={() => navigate(`/schedule/${appointment.id}`)}
+    // An <article> wrapper (not a <button>) so the action bar's buttons are not
+    // nested inside a button. The main area stays a single navigation control.
+    <article
+      aria-labelledby={titleId}
       className={cn(
-        'w-full overflow-hidden rounded-card border border-l-4 border-border bg-card text-left shadow-sm transition-shadow hover:shadow-md',
+        'w-full overflow-hidden rounded-card border border-l-4 border-border bg-card shadow-sm transition-shadow hover:shadow-md',
         accentClass,
         (isDone || isCancelled) && 'opacity-60',
       )}
-      data-testid={`appointment-card-${appointment.id}`}
     >
+      <button
+        type="button"
+        onClick={() => navigate(`/schedule/${appointment.id}`)}
+        className="block w-full text-left"
+        data-testid={`appointment-card-${appointment.id}`}
+      >
       {/* Time + warnings header */}
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-border bg-muted px-4 py-2">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -104,7 +116,7 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
             type pushes the chip past the card's overflow-hidden edge and it is
             silently clipped on a narrow phone.
           */}
-          <span className="min-w-0 flex-1 truncate text-sm font-bold text-foreground">
+          <span id={titleId} className="min-w-0 flex-1 truncate text-sm font-bold text-foreground">
             {appointment.serviceTypeName}
           </span>
           <span
@@ -137,6 +149,9 @@ export const AppointmentCard = memo(function AppointmentCard({ appointment, toda
           </div>
         )}
       </div>
-    </button>
+      </button>
+
+      {isScheduled && <AppointmentCardActions appointment={appointment} isToday={isToday} />}
+    </article>
   );
 });

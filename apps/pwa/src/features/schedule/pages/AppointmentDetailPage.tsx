@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ClockAlert, Info } from 'lucide-react';
 import { AppointmentStatus, FIELD_ISSUE_REASON_LABELS, type FieldIssueReason } from '@properfy/shared';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
+import { Button } from '@/components/ui/Button';
+import { CantDoSheet } from '@/features/field-events/components/CantDoSheet';
+import { LateNoticeSheet } from '@/features/field-events/components/LateNoticeSheet';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -28,6 +32,8 @@ export function AppointmentDetailPage() {
   const { data, isLoading, isError, error, refetch, jobDetails } = useInspectorAppointment(appointmentId!);
   const { state: localExecutionState, isRestored } = useLocalExecutionState(appointmentId!);
   const timeZone = useEffectiveTimezone();
+  const [cantDoOpen, setCantDoOpen] = useState(false);
+  const [lateOpen, setLateOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -262,7 +268,36 @@ export function AppointmentDetailPage() {
             />
           </div>
         )}
+
+        {/* Secondary field-event actions — only while the job is still scheduled. */}
+        {apt.status === AppointmentStatus.SCHEDULED && (
+          <div className="flex flex-col gap-2" data-testid="detail-field-actions">
+            <Button variant="outlined" block onClick={() => setLateOpen(true)} data-testid="detail-running-late">
+              Running late
+            </Button>
+            <Button variant="outlined" block onClick={() => setCantDoOpen(true)} data-testid="detail-cant-do">
+              Can&apos;t do this job
+            </Button>
+          </div>
+        )}
       </div>
+
+      <CantDoSheet
+        open={cantDoOpen}
+        onOpenChange={setCantDoOpen}
+        appointmentId={apt.id}
+        appointmentCode={apt.appointmentCode}
+        propertyAddress={apt.propertyAddress}
+      />
+      <LateNoticeSheet
+        open={lateOpen}
+        onOpenChange={setLateOpen}
+        appointmentId={apt.id}
+        appointmentCode={apt.appointmentCode}
+        propertyAddress={apt.propertyAddress}
+        timeSlotStart={apt.timeSlotStart}
+        publishedServiceStartAt={apt.publishedServiceStartAt}
+      />
     </div>
   );
 }

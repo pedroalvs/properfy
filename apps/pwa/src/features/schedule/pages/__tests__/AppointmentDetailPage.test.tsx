@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AppointmentStatus, RentalTenantConfirmationStatus, ServiceTypeFlowType } from '@properfy/shared';
 import { render } from '@testing-library/react';
@@ -19,6 +20,14 @@ vi.mock('@/features/execution/hooks/useLocalExecutionState', () => ({
 // Sydney (useEffectiveTimezone reads useAuth, which has no provider in this test).
 vi.mock('@/hooks/useEffectiveTimezone', () => ({
   useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
+// The field-event sheets have their own tests and need a QueryClient; stub them.
+vi.mock('@/features/field-events/components/CantDoSheet', () => ({
+  CantDoSheet: ({ open }: { open: boolean }) => <div data-testid="cant-do-sheet" data-open={open} />,
+}));
+vi.mock('@/features/field-events/components/LateNoticeSheet', () => ({
+  LateNoticeSheet: ({ open }: { open: boolean }) => <div data-testid="late-sheet" data-open={open} />,
 }));
 
 vi.mock('@/components/shell/TopBar', () => ({
@@ -322,6 +331,28 @@ describe('AppointmentDetailPage', () => {
     expect(screen.getByTestId('restrictions-section')).toBeInTheDocument();
     expect(screen.getByText('Tenant will be home')).toBeInTheDocument();
     expect(screen.getByText(/Monday/)).toBeInTheDocument();
+  });
+
+  describe('field-event secondary actions', () => {
+    it('shows Running late and Can\'t do this job for a scheduled appointment', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      expect(screen.getByTestId('detail-field-actions')).toBeInTheDocument();
+      expect(screen.getByTestId('cant-do-sheet')).toHaveAttribute('data-open', 'false');
+      await user.click(screen.getByTestId('detail-cant-do'));
+      expect(screen.getByTestId('cant-do-sheet')).toHaveAttribute('data-open', 'true');
+    });
+
+    it('hides the field-event actions once the appointment is done', () => {
+      mockUseInspectorAppointment.mockReturnValue({
+        data: { data: { ...appointmentData.data, status: AppointmentStatus.DONE } },
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderPage();
+      expect(screen.queryByTestId('detail-field-actions')).not.toBeInTheDocument();
+    });
   });
 
   describe('last field issue alert (L-F03-09)', () => {

@@ -13,6 +13,7 @@ import { FailedSyncBanner } from '../components/FailedSyncBanner';
 import { LeaveWarningModal } from '../components/LeaveWarningModal';
 import { SyncConfirmModal } from '../components/SyncConfirmModal';
 import { PastTimeConfirmModal } from '../components/PastTimeConfirmModal';
+import { CantDoSheet } from '@/features/field-events/components/CantDoSheet';
 import { useExecutionActions } from '../hooks/useExecutionActions';
 import { useInspectorAppointment } from '@/features/schedule/hooks/useInspectorAppointment';
 import { useSnackbar } from '@/hooks/useSnackbar';
@@ -46,6 +47,11 @@ export function ExecutionPage() {
   const effectiveTimezone = useEffectiveTimezone();
   const resumeBannerShown = useRef(false);
   const [startError, setStartError] = useState<string | null>(null);
+  const [cantDoOpen, setCantDoOpen] = useState(false);
+  // Set after a confirmed "Can't do this job" so the navigation blocker releases
+  // before we leave (the local IN_PROGRESS draft is cleared, but the blocker is
+  // disabled synchronously here so the redirect to /schedule is not trapped).
+  const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
     if (isRestored && !resumeBannerShown.current && state.phase !== 'PRE_START' && state.phase !== 'DONE') {
@@ -56,7 +62,13 @@ export function ExecutionPage() {
 
   const isInProgress =
     state.phase === 'IN_PROGRESS' || state.phase === 'FINISHING' || state.phase === 'SUBMITTING';
-  const blocker = useBlocker(isInProgress);
+  const blocker = useBlocker(isInProgress && !exiting);
+
+  // Leave once the "Can't do" cleanup has released the blocker (runs after the
+  // re-render where `exiting` is true, so React Router does not block it).
+  useEffect(() => {
+    if (exiting) navigate('/schedule', { replace: true });
+  }, [exiting, navigate]);
 
   if (aptLoading || !isRestored) {
     return (
@@ -153,6 +165,7 @@ export function ExecutionPage() {
         <InProgressPanel
           startedAt={state.startedAt}
           onFinish={proceedToFinish}
+          onCantComplete={() => setCantDoOpen(true)}
         />
       )}
 
@@ -202,6 +215,18 @@ export function ExecutionPage() {
           onLeave={() => blocker.proceed()}
         />
       )}
+
+      <CantDoSheet
+        open={cantDoOpen}
+        onOpenChange={setCantDoOpen}
+        appointmentId={appointmentId}
+        appointmentCode={appointment.appointmentCode ?? ''}
+        propertyAddress={appointment.propertyAddress ?? ''}
+        onReported={() => {
+          clearState();
+          setExiting(true);
+        }}
+      />
     </div>
   );
 }
