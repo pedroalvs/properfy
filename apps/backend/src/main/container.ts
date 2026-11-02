@@ -495,6 +495,9 @@ import {
   SetDayPlanOriginUseCase,
   ClearDayPlanOriginUseCase,
 } from '../modules/day-plan/application/use-cases/day-plan-origin.use-case';
+import { GetFreshStopForAppointmentUseCase } from '../modules/day-plan/application/use-cases/get-fresh-stop-for-appointment.use-case';
+import { MarkDayPlansStaleSubscriber } from '../modules/day-plan/application/subscribers/mark-day-plans-stale.subscriber';
+import { PrismaGroupAppointmentReader } from '../modules/day-plan/infrastructure/prisma-group-appointment.reader';
 import type { DayPlanRouteContainer } from '../modules/day-plan/interfaces/day-plan.routes';
 import { AesTokenEncrypterAdapter } from '../modules/rental-tenant-portal/infrastructure/aes-token-encrypter.adapter';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
@@ -511,6 +514,7 @@ export interface AppContainer {
   dayPlan: DayPlanRouteContainer & {
     planRouteService: PlanRouteService;
     computeDayPlanUseCase: ComputeDayPlanUseCase;
+    getFreshStopForAppointmentUseCase: GetFreshStopForAppointmentUseCase;
   };
   auth: AuthRouteContainer;
   tenant: TenantRouteContainer;
@@ -1129,6 +1133,10 @@ export function createContainer(logger: Logger): AppContainer {
   const clearDayPlanOriginUseCase = new ClearDayPlanOriginUseCase(
     dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock, auditService,
   );
+  const getFreshStopForAppointmentUseCase = new GetFreshStopForAppointmentUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock,
+  );
+  new MarkDayPlansStaleSubscriber(dayPlanRepo, new PrismaGroupAppointmentReader(prisma), logger).register(domainEventBus);
   const listPlatformSettingsUseCase = new ListPlatformSettingsUseCase(platformSettingRepo, authorizationService);
   const getPlatformSettingUseCase = new GetPlatformSettingUseCase(platformSettingRepo, authorizationService);
   const updatePlatformSettingUseCase = new UpdatePlatformSettingUseCase(
@@ -1682,7 +1690,7 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     domainEventBus,
     geocodingService,
-    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, jwtService, tenantRepo },
+    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, getFreshStopForAppointmentUseCase, jwtService, tenantRepo },
     auth: {
       loginUseCase,
       refreshTokenUseCase,
