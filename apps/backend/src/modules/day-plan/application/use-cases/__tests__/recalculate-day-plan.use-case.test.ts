@@ -117,6 +117,14 @@ describe('RecalculateDayPlanUseCase', () => {
     expect(notices.execute).toHaveBeenCalledWith(expect.objectContaining({ type: 'ROUTE_CHANGED', inspectorIds: [I] }));
   });
 
+  it('forbids an inspector recalculating another inspector (IDOR guard)', async () => {
+    const { recalc } = wire(reader, repo);
+    const other = '99999999-9999-9999-9999-999999999999';
+    await expect(
+      recalc.execute({ actor: INSP, inspectorId: other, date: DATE }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
   it('inspector recalc never notifies', async () => {
     const { getMy, recalc, notices } = wire(reader, repo);
     await getMy.execute({ inspectorId: I, date: DATE });

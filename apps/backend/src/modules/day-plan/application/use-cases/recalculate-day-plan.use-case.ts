@@ -2,6 +2,7 @@ import type { AuthContext, DayPlanResponse } from '@properfy/shared';
 import type { Clock } from '../../../../shared/domain/clock';
 import type { AuditService } from '../../../../shared/domain/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import { ForbiddenError } from '../../../../shared/domain/errors';
 import { civilDateInTimezone } from '../../../../shared/domain/timezone-date';
 import type { PublishSystemInspectorNoticeUseCase } from '../../../inspector-notice/application/use-cases/publish-system-inspector-notice.use-case';
 import type { IDayPlanInputReader } from '../../domain/day-plan-input.reader';
@@ -64,6 +65,10 @@ export class RecalculateDayPlanUseCase {
         action: 'day_plan.recalculate',
         entityType: 'DayPlan',
       });
+    } else if (input.actor.inspectorId !== input.inspectorId) {
+      // An inspector may only recalculate their OWN plan — never another inspector's
+      // (the AM/OP route takes inspectorId from the URL; this closes cross-inspector IDOR).
+      throw new ForbiddenError('FORBIDDEN', 'You can only recalculate your own day plan');
     }
 
     const inspector = await this.reader.loadInspectorContext(input.inspectorId);
