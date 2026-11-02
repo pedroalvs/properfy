@@ -1,4 +1,4 @@
-import type { AuthContext, RouteWeights, RouteWeightsPreview, RouteWeightsPreviewResponse } from '@properfy/shared';
+import { addCivilDays, type AuthContext, type RouteWeights, type RouteWeightsPreview, type RouteWeightsPreviewResponse } from '@properfy/shared';
 import type { Clock } from '../../../../shared/domain/clock';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IPlatformSettingsReader } from '../../../../shared/domain/platform-settings';
@@ -53,17 +53,23 @@ export class PreviewRouteWeightsUseCase {
     });
 
     const now = input.now ?? this.clock.now();
-    const tz = input.actor.timezone ?? PLATFORM_TIMEZONE;
-    const todayCivil = civilDateInTimezone(now, tz);
-    const maxCivil = civilDateInTimezone(new Date(now.getTime() + PREVIEW_MAX_DAYS_AHEAD * 86_400_000), tz);
-    if (input.date < todayCivil || input.date > maxCivil) {
+    // Date range is validated in the ACTOR's effective timezone (L-F04-14).
+    // Civil-date arithmetic (not instant + ms) so the +14 bound is DST-safe.
+    const actorToday = civilDateInTimezone(now, input.actor.timezone ?? PLATFORM_TIMEZONE);
+    const maxCivil = addCivilDays(actorToday, PREVIEW_MAX_DAYS_AHEAD);
+    if (input.date < actorToday || input.date > maxCivil) {
       throw dayPlanPreviewDateOutOfRange();
     }
 
     const inspector = await this.reader.loadInspectorContext(input.inspectorId);
     if (!inspector) throw inspectorNotFound();
 
-    const candidates = await this.reader.loadCandidates(input.inspectorId, input.date, todayCivil);
+    // Candidate T-1 visibility is an inspector/agency concern, so it uses the
+    // INSPECTOR's today (the DayPlan tz exception, matching GetDayPlanForOperator),
+    // not the actor's. Earliest departure is clamped to `now` only when the plan
+    // date is the inspector's today, so a same-day preview never emits past ETAs.
+    const inspectorToday = civilDateInTimezone(now, inspector.timezone);
+    const candidates = await this.reader.loadCandidates(input.inspectorId, input.date, inspectorToday);
     const classifiable: ClassifiableStop[] = candidates.map((c) => ({
       appointmentId: c.appointmentId,
       appointmentStatus: c.appointmentStatus,
@@ -97,7 +103,7 @@ export class PreviewRouteWeightsUseCase {
     const preview = await this.planRoute.previewWeights({
       origin,
       stops,
-      earliestDepartureAt: null,
+      earliestDepartureAt: input.date === inspectorToday ? now : null,
       currentWeights,
       proposedWeights: input.weights,
       now,

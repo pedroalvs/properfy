@@ -133,7 +133,6 @@ export interface PreviewRouteVariant {
 export interface PreviewWeightsResult {
   current: PreviewRouteVariant;
   proposed: PreviewRouteVariant;
-  usage: { matrixElements: number; directionsCalls: number };
 }
 
 function toEpochS(d: Date): number {
@@ -451,7 +450,6 @@ export class PlanRouteService {
     return {
       current: variantFor(input.currentWeights),
       proposed: variantFor(input.proposedWeights),
-      usage: { matrixElements: matrixOutcome.elements, directionsCalls: 0 },
     };
   }
 

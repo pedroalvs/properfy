@@ -139,10 +139,12 @@ function build(opts: {
 describe('PreviewRouteWeightsUseCase', () => {
   it('Example 6: saved {1,1,1} -> current [A,C,B]; proposed {1,0,1} -> [A,B,C] waitS 2100; 1 Matrix, 0 Directions', async () => {
     const { useCase, fake } = build();
+    // A future day (not the inspector's today) so earliestDeparture stays null —
+    // the canonical Example 6 ordering with forward slack and no clamp.
     const result = await useCase.execute({
       actor: amActor(),
       inspectorId: 'insp-1',
-      date: '2026-11-05',
+      date: '2026-11-06',
       weights: { travel: 1, windowWait: 0, baseProximity: 1 },
     });
 
@@ -200,6 +202,74 @@ describe('PreviewRouteWeightsUseCase', () => {
       useCase.execute({ actor: amActor(), inspectorId: 'ghost', date: '2026-11-05', weights: { travel: 1, windowWait: 1, baseProximity: 1 } }),
     ).rejects.toBeInstanceOf(NotFoundError);
     expect(fake.matrixCalls).toBe(0);
+  });
+
+  it('clamps earliest departure to now for a today preview (ETAs never in the past)', async () => {
+    // now = 2026-11-05T03:00:00Z == 14:00 Sydney; the inspector's today is 2026-11-05.
+    // A's window opened at 08:00 Sydney (21:00Z previous day); without the clamp the
+    // optimizer would depart before now and emit past ETAs.
+    const fake = new FakeRouting();
+    const planRoute = new PlanRouteService(fake, new StubRoutingService(), logger(), new MetricsCollector());
+    const reader: any = {
+      loadInspectorContext: vi.fn().mockResolvedValue(INSPECTOR),
+      loadCandidates: vi.fn().mockResolvedValue([candidate('A', A, W_A), candidate('B', B, W_B), candidate('C', C, W_C)]),
+    };
+    const settings: any = { get: vi.fn().mockResolvedValue({ travel: 1, windowWait: 1, baseProximity: 1 }) };
+    const authorization = new AuthorizationService({ log: vi.fn() } as any);
+    const useCase = new PreviewRouteWeightsUseCase(reader, planRoute, settings, authorization, {
+      now: () => new Date('2026-11-05T03:00:00Z'),
+    } as any);
+    const result = await useCase.execute({
+      actor: amActor(),
+      inspectorId: 'insp-1',
+      date: '2026-11-05',
+      weights: { travel: 1, windowWait: 1, baseProximity: 1 },
+    });
+    const nowS = Date.parse('2026-11-05T03:00:00Z');
+    expect(result.current.departureAt && Date.parse(result.current.departureAt)).toBeGreaterThanOrEqual(nowS);
+    for (const s of result.current.stops) {
+      expect(Date.parse(s.eta)).toBeGreaterThanOrEqual(nowS);
+    }
+    // A future day keeps earliestDeparture null (departure can precede `now`).
+    const futureReader: any = {
+      loadInspectorContext: vi.fn().mockResolvedValue(INSPECTOR),
+      loadCandidates: vi.fn().mockResolvedValue([candidate('A', A, W_A), candidate('B', B, W_B), candidate('C', C, W_C)]),
+    };
+    const futureUseCase = new PreviewRouteWeightsUseCase(futureReader, new PlanRouteService(new FakeRouting(), new StubRoutingService(), logger(), new MetricsCollector()), settings, authorization, { now: () => new Date('2026-11-05T03:00:00Z') } as any);
+    const future = await futureUseCase.execute({ actor: amActor(), inspectorId: 'insp-1', date: '2026-11-06', weights: { travel: 1, windowWait: 1, baseProximity: 1 } });
+    expect(future.current.stops.length).toBe(3);
+  });
+
+  it('passes the INSPECTOR timezone (not the actor tz) to loadCandidates for T-1 visibility', async () => {
+    const { useCase, reader } = build();
+    await useCase.execute({ actor: amActor(), inspectorId: 'insp-1', date: '2026-11-05', weights: { travel: 1, windowWait: 1, baseProximity: 1 } });
+    // Inspector tz == Sydney; now 2026-11-04T23:00:00Z == 2026-11-05 Sydney.
+    expect(reader.loadCandidates).toHaveBeenCalledWith('insp-1', '2026-11-05', '2026-11-05');
+  });
+
+  it('uses no origin when the inspector has no geocoded base', async () => {
+    const { useCase, fake } = build({
+      inspector: { ...INSPECTOR, baseLat: null, baseLng: null },
+    });
+    const result = await useCase.execute({ actor: amActor(), inspectorId: 'insp-1', date: '2026-11-05', weights: { travel: 1, windowWait: 1, baseProximity: 1 } });
+    expect(result.current.stops.length).toBe(3);
+    expect(fake.matrixCalls).toBe(1);
+  });
+
+  it('degrades to approximate when the provider matrix fails (no throw, 0 Directions)', async () => {
+    const fake = new FakeRouting();
+    fake.matrix = async () => { throw new Error('provider down'); };
+    const planRoute = new PlanRouteService(fake, new StubRoutingService(), logger(), new MetricsCollector());
+    const reader: any = {
+      loadInspectorContext: vi.fn().mockResolvedValue(INSPECTOR),
+      loadCandidates: vi.fn().mockResolvedValue([candidate('A', A, W_A), candidate('B', B, W_B), candidate('C', C, W_C)]),
+    };
+    const settings: any = { get: vi.fn().mockResolvedValue({ travel: 1, windowWait: 1, baseProximity: 1 }) };
+    const useCase = new PreviewRouteWeightsUseCase(reader, planRoute, settings, new AuthorizationService({ log: vi.fn() } as any), { now: () => new Date('2026-11-04T23:00:00Z') } as any);
+    const result = await useCase.execute({ actor: amActor(), inspectorId: 'insp-1', date: '2026-11-05', weights: { travel: 1, windowWait: 0, baseProximity: 1 } });
+    expect(result.current.approximate).toBe(true);
+    expect(result.proposed.approximate).toBe(true);
+    expect(fake.directionsCalls).toBe(0);
   });
 
   // day_plan is platform-scoped (no tenant_id; root CLAUDE.md §7.1). Isolation is
