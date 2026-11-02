@@ -119,9 +119,10 @@ export function RoutePage() {
       {header}
       <div className="flex flex-col gap-4 p-4">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm text-muted-foreground">
-            {formatCivilDateLong(plan.date)} · {stopCount}
-            {eachDuration != null ? ` · ${eachDuration} min each` : ''}
+          <p className="text-sm text-muted-foreground" data-testid="route-subheader">
+            {`${formatCivilDateLong(plan.date)} · ${stopCount}${
+              eachDuration != null ? ` · ${eachDuration} min each` : ''
+            }`}
           </p>
           <RouteSheetMenu date={date} />
         </div>
@@ -134,11 +135,8 @@ export function RoutePage() {
           <p className="text-sm text-muted-foreground">Offline · showing your last saved route</p>
         )}
 
-        <RouteWarnings
-          originWarning={plan.originWarning}
-          approximate={plan.approximate}
-          stale={query.state === 'STALE'}
-        />
+        {/* OriginRow owns the origin warning on this screen; RouteWarnings covers the rest. */}
+        <RouteWarnings originWarning={null} approximate={plan.approximate} stale={query.state === 'STALE'} />
 
         <RouteStopList plan={plan} />
       </div>
