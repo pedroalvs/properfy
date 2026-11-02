@@ -484,6 +484,11 @@ import {
 import { PostgresRoutingRateLimiter } from '../modules/day-plan/infrastructure/routing/postgres-routing-rate-limiter';
 import { StubRoutingService } from '../modules/day-plan/infrastructure/routing/stub-routing.service';
 import { PlanRouteService } from '../modules/day-plan/application/services/plan-route.service';
+import { PrismaDayPlanRepository } from '../modules/day-plan/infrastructure/prisma-day-plan.repository';
+import { PrismaDayPlanInputReader } from '../modules/day-plan/infrastructure/prisma-day-plan-input.reader';
+import { ComputeDayPlanUseCase } from '../modules/day-plan/application/use-cases/compute-day-plan.use-case';
+import { GetMyDayPlanUseCase } from '../modules/day-plan/application/use-cases/get-my-day-plan.use-case';
+import type { DayPlanRouteContainer } from '../modules/day-plan/interfaces/day-plan.routes';
 import { AesTokenEncrypterAdapter } from '../modules/rental-tenant-portal/infrastructure/aes-token-encrypter.adapter';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
 
@@ -496,7 +501,10 @@ export interface AppContainer {
   // Exposed for the F01-1 inspector base-coords backfill script (needs
   // isConfigured() + geocode()); also reused by the X02-2 legacy script.
   geocodingService: DynamicGeocodingService;
-  dayPlan: { planRouteService: PlanRouteService };
+  dayPlan: DayPlanRouteContainer & {
+    planRouteService: PlanRouteService;
+    computeDayPlanUseCase: ComputeDayPlanUseCase;
+  };
   auth: AuthRouteContainer;
   tenant: TenantRouteContainer;
   user: UserRouteContainer;
@@ -1087,6 +1095,17 @@ export function createContainer(logger: Logger): AppContainer {
   // Platform settings (F03) — shared registry read through IPlatformSettingsReader.
   const platformSettingRepo = new PrismaPlatformSettingRepository(prisma);
   const platformSettingsService = new PlatformSettingsService(platformSettingRepo, logger);
+
+  // Day plan (F04-2): persistence + compute + the inspector's own read.
+  const dayPlanRepo = new PrismaDayPlanRepository(prisma);
+  const dayPlanInputReader = new PrismaDayPlanInputReader(prisma);
+  const dayPlanClock = new SystemClock();
+  const computeDayPlanUseCase = new ComputeDayPlanUseCase(
+    dayPlanInputReader, dayPlanRepo, planRouteService, platformSettingsService, logger, dayPlanClock,
+  );
+  const getMyDayPlanUseCase = new GetMyDayPlanUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock,
+  );
   const listPlatformSettingsUseCase = new ListPlatformSettingsUseCase(platformSettingRepo, authorizationService);
   const getPlatformSettingUseCase = new GetPlatformSettingUseCase(platformSettingRepo, authorizationService);
   const updatePlatformSettingUseCase = new UpdatePlatformSettingUseCase(
@@ -1640,7 +1659,7 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     domainEventBus,
     geocodingService,
-    dayPlan: { planRouteService },
+    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, jwtService, tenantRepo },
     auth: {
       loginUseCase,
       refreshTokenUseCase,

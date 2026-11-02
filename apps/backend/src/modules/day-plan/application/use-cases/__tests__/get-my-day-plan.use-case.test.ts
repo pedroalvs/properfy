@@ -83,7 +83,7 @@ class InMemoryRepo implements IDayPlanRepository {
     const current = this.store.get(key);
     if (input.expectedVersion === null) {
       if (current) return null;
-      const rec = this.toRecord(input, current?.id ?? crypto.randomUUID(), 1);
+      const rec = this.toRecord(input, crypto.randomUUID(), 1);
       this.store.set(key, rec);
       return rec;
     }

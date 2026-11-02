@@ -20,8 +20,9 @@ import type {
   SaveDayPlanInput,
   SaveDayPlanStop,
 } from '../../domain/day-plan.repository';
+import type {
+  PlanRouteService} from '../services/plan-route.service';
 import {
-  PlanRouteService,
   type PlanRouteMode,
   type PlanRouteStopInput,
   type StoredRoutingMatrix,
@@ -146,7 +147,7 @@ export class ComputeDayPlanUseCase {
     for (const ex of executed) {
       const c = byId.get(ex.appointmentId)!;
       const prev = prevById.get(ex.appointmentId);
-      stops.push(this.executedStop(c, prev, seq++, status, publishedAt !== null));
+      stops.push(this.executedStop(c, prev, seq++));
     }
     for (const r of result.stops) {
       const c = byId.get(r.appointmentId)!;
@@ -257,8 +258,6 @@ export class ComputeDayPlanUseCase {
     c: DayPlanCandidate,
     prev: DayPlanRecord['stops'][number] | undefined,
     sequence: number,
-    status: string,
-    published: boolean,
   ): SaveDayPlanStop {
     return {
       appointmentId: c.appointmentId,
