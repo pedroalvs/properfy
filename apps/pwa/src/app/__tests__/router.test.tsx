@@ -38,7 +38,6 @@ vi.mock('@/features/profile/pages/ProfileAccountPage', () => ({
   ProfileAccountPage: () => <div>ProfileAccountPage</div>,
 }));
 
-// eslint-disable-next-line import/first
 import { routes } from '../router';
 
 function LocationProbe() {

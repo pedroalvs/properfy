@@ -34,6 +34,9 @@ const CLOSE_AND_INVALIDATE = new Set([
   'DAY_PLAN_NOT_PUBLISHED',
 ]);
 
+/** How long the ALREADY_STARTED message stays before the sheet auto-closes (L-F04-07). */
+const ALREADY_STARTED_AUTO_CLOSE_MS = 2000;
+
 function prefill(address: InspectorBaseAddress | null | undefined): BaseAddressFieldsValues {
   if (!address) return EMPTY_BASE_ADDRESS_FIELDS;
   return {
@@ -95,7 +98,7 @@ export function OriginSheet({ open, onOpenChange, date, overrideAddress, onSaved
       setTimeout(() => {
         void invalidatePlan();
         onOpenChange(false);
-      }, 2000);
+      }, ALREADY_STARTED_AUTO_CLOSE_MS);
       return;
     }
     if (err.code && CLOSE_AND_INVALIDATE.has(err.code)) {

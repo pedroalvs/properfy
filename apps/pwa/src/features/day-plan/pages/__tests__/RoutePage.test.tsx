@@ -11,7 +11,6 @@ vi.mock('@/hooks/useAuth', () => ({
 }));
 vi.mock('@/hooks/useIsOnline', () => ({ useIsOnline: () => true }));
 
-const TODAY = '2026-11-05';
 const { B } = STOP_IDS;
 
 function ok(plan = buildDayPlan()) {
