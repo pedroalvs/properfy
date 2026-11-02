@@ -102,4 +102,34 @@ describe('PwaLayout', () => {
     expect(main.className).toContain('md:max-w-screen-lg');
     expect(main.getAttribute('data-wide')).toBe('true');
   });
+
+  it('invalidates the day plan on an inspector-notice:received SW message (F04-3)', () => {
+    const listeners = new Set<(e: MessageEvent) => void>();
+    const fakeSw = {
+      addEventListener: (_type: string, cb: (e: MessageEvent) => void) => listeners.add(cb),
+      removeEventListener: (_type: string, cb: (e: MessageEvent) => void) => listeners.delete(cb),
+    };
+    Object.defineProperty(navigator, 'serviceWorker', { value: fakeSw, configurable: true });
+    try {
+      const client = createTestQueryClient();
+      const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
+      const router = createMemoryRouter(
+        [{ element: <PwaLayout />, children: [{ index: true, element: <div /> }] }],
+        { future: { v7_relativeSplatPath: true } },
+      );
+      render(
+        <QueryClientProvider client={client}>
+          <SnackbarProvider>
+            <RouterProvider router={router} future={{ v7_startTransition: true }} />
+          </SnackbarProvider>
+        </QueryClientProvider>,
+      );
+      listeners.forEach((cb) =>
+        cb(new MessageEvent('message', { data: { type: 'inspector-notice:received' } })),
+      );
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['inspector', 'day-plan'] });
+    } finally {
+      delete (navigator as unknown as { serviceWorker?: unknown }).serviceWorker;
+    }
+  });
 });

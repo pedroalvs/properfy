@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { CalendarClock, FileText, LogOut, Megaphone, Star, User, Wallet } from 'lucide-react';
+import { CalendarClock, FileText, LogOut, Megaphone, Settings, Star, User, Wallet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUnreadNoticeCount } from '@/features/announcements/hooks/useUnreadNoticeCount';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
@@ -115,8 +115,13 @@ export function ProfilePage() {
           />
         </div>
 
-        {/* Log out */}
+        {/* App settings (design v3 places it in More; otherwise only reachable via My account) + Log out */}
         <MenuList className="mt-1">
+          <MenuRow
+            icon={<Settings className="h-5 w-5" aria-hidden="true" />}
+            label="App settings"
+            to="/profile/settings"
+          />
           <MenuRow
             icon={<LogOut className="h-5 w-5" aria-hidden="true" />}
             label="Log out"

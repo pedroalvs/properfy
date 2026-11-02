@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
-import { NavLink } from 'react-router-dom';
-import { CreditCard, User } from 'lucide-react';
+import { Link, useMatch } from 'react-router-dom';
+import { House, Ellipsis } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
 import { useUnreadNoticeCount } from '@/features/announcements/hooks/useUnreadNoticeCount';
 
@@ -17,8 +17,7 @@ type NavIcon = ComponentType<NavIconProps>;
  * Our installed lucide (0.468) has no equivalent — `Calendar1` draws a "1" digit rather
  * than a centred dot, and `Tag` was redesigned to a different shape — so both are inlined
  * with the artboard's own paths, sharing lucide's stroke geometry (24px, stroke-width 2,
- * round caps). Earnings and Profile use lucide `CreditCard`/`User`, which are byte-identical
- * to the artboard's Earnings and Account glyphs.
+ * round caps). Today uses lucide `House`; More uses lucide `Ellipsis`.
  */
 function ScheduleIcon({ size = 24, className, ...props }: NavIconProps) {
   return (
@@ -65,17 +64,30 @@ interface NavItem {
   to: string;
   icon: NavIcon;
   label: string;
+  active: boolean;
+  /** `true` for the More tab, which carries the unread-announcements badge. */
+  showsBadge?: boolean;
 }
-
-const navItems: NavItem[] = [
-  { to: '/schedule', icon: ScheduleIcon, label: 'Schedule' },
-  { to: '/marketplace', icon: OffersIcon, label: 'Offers' },
-  { to: '/earnings', icon: CreditCard, label: 'Earnings' },
-  { to: '/profile', icon: User, label: 'Profile' },
-];
 
 export function BottomNavBar() {
   const { count: unreadNotices } = useUnreadNoticeCount();
+
+  // More owns the whole profile + earnings hub, so it stays active across both
+  // (Earnings lives inside More). `/foo/*` matches the base and its descendants.
+  // Every useMatch runs unconditionally (rules of hooks); combine after.
+  const todayActive = useMatch('/today/*') !== null;
+  const scheduleActive = useMatch('/schedule/*') !== null;
+  const offersActive = useMatch('/marketplace/*') !== null;
+  const profileActive = useMatch('/profile/*') !== null;
+  const earningsActive = useMatch('/earnings/*') !== null;
+  const moreActive = profileActive || earningsActive;
+
+  const navItems: NavItem[] = [
+    { to: '/today', icon: House, label: 'Today', active: todayActive },
+    { to: '/schedule', icon: ScheduleIcon, label: 'Schedule', active: scheduleActive },
+    { to: '/marketplace', icon: OffersIcon, label: 'Offers', active: offersActive },
+    { to: '/profile', icon: Ellipsis, label: 'More', active: moreActive, showsBadge: true },
+  ];
 
   return (
     <nav
@@ -85,19 +97,18 @@ export function BottomNavBar() {
       <div className="mx-auto grid w-full max-w-screen-sm grid-cols-4 gap-1 px-[6px] pt-[9px]">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const showBadge = item.to === '/profile' && unreadNotices > 0;
+          const showBadge = Boolean(item.showsBadge) && unreadNotices > 0;
           const badgeLabel = unreadNotices > 9 ? '9+' : String(unreadNotices);
           return (
-            <NavLink
+            <Link
               key={item.to}
               to={item.to}
+              aria-current={item.active ? 'page' : undefined}
               aria-label={showBadge ? `${item.label}, ${unreadNotices} unread announcements` : undefined}
-              className={({ isActive }) =>
-                cn(
-                  'flex min-h-touch min-w-touch touch-manipulation flex-col items-center justify-center gap-0.5 px-2 text-[11px] font-semibold transition-colors',
-                  isActive ? 'text-primary' : 'text-faint',
-                )
-              }
+              className={cn(
+                'flex min-h-touch min-w-touch touch-manipulation flex-col items-center justify-center gap-0.5 px-2 text-[11px] font-semibold transition-colors',
+                item.active ? 'text-primary' : 'text-faint',
+              )}
               data-testid={`nav-${item.label.toLowerCase()}`}
             >
               <span className="relative shrink-0">
@@ -112,7 +123,7 @@ export function BottomNavBar() {
                 )}
               </span>
               <span className="w-full truncate text-center">{item.label}</span>
-            </NavLink>
+            </Link>
           );
         })}
       </div>

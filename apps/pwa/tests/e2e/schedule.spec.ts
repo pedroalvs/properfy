@@ -33,10 +33,10 @@ test.describe('Schedule', () => {
 
     await page.goto('/schedule');
     await expect(page.getByTestId('bottom-nav')).toBeVisible();
+    await expect(page.getByTestId('nav-today')).toBeVisible();
     await expect(page.getByTestId('nav-schedule')).toBeVisible();
     await expect(page.getByTestId('nav-offers')).toBeVisible();
-    await expect(page.getByTestId('nav-earnings')).toBeVisible();
-    await expect(page.getByTestId('nav-profile')).toBeVisible();
+    await expect(page.getByTestId('nav-more')).toBeVisible();
   });
 
   // The schedule card shows the appointment code but NOT the property (realty) code,

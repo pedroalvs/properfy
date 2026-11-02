@@ -11,9 +11,7 @@ import {
   maxPhoneDigits,
   stripNonDigits,
   toE164Au,
-  AU_STATES,
   inspectorBaseAddressSchema,
-  type AuState,
 } from '@properfy/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { TopBar } from '@/components/shell/TopBar';
@@ -21,10 +19,16 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { cn } from '@properfy/frontend-standards';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/Form';
 import { TimezonePicker } from '@/components/ui/TimezonePicker';
 import { MenuList, MenuRow } from '@/components/ui/MenuRow';
+import {
+  BaseAddressFields,
+  baseAddressFieldsSchema,
+  EMPTY_BASE_ADDRESS_FIELDS,
+  toInspectorBaseAddress,
+  type BaseAddressFieldsValues,
+} from '../components/BaseAddressFields';
 import { ProfileCard } from '../components/ProfileCard';
 import { AvatarUploader } from '../components/AvatarUploader';
 import { ChangePasswordSection } from '../components/ChangePasswordSection';
@@ -75,28 +79,10 @@ function maskPhoneInput(raw: string): string {
  * on submit — and `country` is fixed to 'AU'. The server re-validates with
  * `inspectorBaseAddressSchema`, so this is purely the client-side UX layer.
  */
-const baseAddressFormSchema = z.object({
-  street: z.string().trim().min(1, 'Street is required').max(200),
-  number: z.string().trim().max(20),
-  complement: z.string().trim().max(200),
-  suburb: z.string().trim().min(1, 'Suburb is required').max(100),
-  state: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .pipe(z.enum(AU_STATES, { errorMap: () => ({ message: 'Select a state' }) })),
-  postcode: z.string().trim().min(1, 'Postcode is required').regex(/^\d{4}$/, 'Postcode must be 4 digits'),
-});
-type BaseAddressFormValues = z.input<typeof baseAddressFormSchema>;
+const baseAddressFormSchema = baseAddressFieldsSchema;
+type BaseAddressFormValues = BaseAddressFieldsValues;
 
-const EMPTY_BASE_ADDRESS: BaseAddressFormValues = {
-  street: '',
-  number: '',
-  complement: '',
-  suburb: '',
-  state: '',
-  postcode: '',
-};
+const EMPTY_BASE_ADDRESS: BaseAddressFormValues = EMPTY_BASE_ADDRESS_FIELDS;
 
 type BaseSaveState = 'idle' | 'ok' | 'geocode-failed';
 
@@ -178,19 +164,9 @@ function BaseAddressCard() {
     async (values: BaseAddressFormValues) => {
       setSaveError(null);
       setSaveState('idle');
-      const suburb = values.suburb.trim();
       try {
         const result = await updateSelf({
-          address: {
-            street: values.street.trim(),
-            number: values.number.trim() || undefined,
-            complement: values.complement.trim() || undefined,
-            suburb,
-            city: suburb,
-            state: values.state as AuState,
-            postcode: values.postcode.trim(),
-            country: 'AU',
-          },
+          address: toInspectorBaseAddress(values),
         });
         setSaveState(result.baseGeocodeFailed ? 'geocode-failed' : 'ok');
         form.reset(values);
@@ -259,103 +235,7 @@ function BaseAddressCard() {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSave)} noValidate className="mt-4 flex flex-col gap-3">
-          <FormField
-            control={form.control}
-            name="street"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Street</FormLabel>
-                <FormControl>
-                  <Input autoComplete="address-line1" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <FormField
-              control={form.control}
-              name="number"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Number</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="complement"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Unit</FormLabel>
-                  <FormControl>
-                    <Input autoComplete="address-line2" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <FormField
-            control={form.control}
-            name="suburb"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Suburb</FormLabel>
-                <FormControl>
-                  <Input autoComplete="address-level2" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <FormField
-              control={form.control}
-              name="state"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>State</FormLabel>
-                  <FormControl>
-                    <select
-                      autoComplete="address-level1"
-                      className={cn(
-                        'flex min-h-touch w-full rounded-btn border border-input bg-card px-3 py-2 text-base text-foreground shadow-sm transition-colors',
-                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        'aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:ring-destructive',
-                      )}
-                      {...field}
-                    >
-                      <option value="">Select…</option>
-                      {AU_STATES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="postcode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Postcode</FormLabel>
-                  <FormControl>
-                    <Input inputMode="numeric" autoComplete="postal-code" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          <BaseAddressFields control={form.control} />
 
           {saveError && <p className="text-xs text-destructive">{saveError}</p>}
           {saveState === 'ok' && (

@@ -13,153 +13,133 @@ describe('BottomNavBar', () => {
     countRef.value = 0;
   });
 
-  it('renders 4 navigation tabs', () => {
+  it('renders the four tabs in order with their destinations', () => {
     renderWithProviders(<BottomNavBar />);
-    const nav = screen.getByTestId('bottom-nav');
-    expect(nav).toBeInTheDocument();
-    expect(screen.getByTestId('nav-schedule')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-offers')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-earnings')).toBeInTheDocument();
-    expect(screen.getByTestId('nav-profile')).toBeInTheDocument();
+    expect(screen.getByTestId('bottom-nav')).toBeInTheDocument();
+    expect(screen.getByTestId('nav-today')).toHaveAttribute('href', '/today');
+    expect(screen.getByTestId('nav-schedule')).toHaveAttribute('href', '/schedule');
+    expect(screen.getByTestId('nav-offers')).toHaveAttribute('href', '/marketplace');
+    // More opens the existing profile hub (no rename, no redirect).
+    expect(screen.getByTestId('nav-more')).toHaveAttribute('href', '/profile');
+    expect(screen.queryByTestId('nav-earnings')).toBeNull();
+    expect(screen.queryByTestId('nav-profile')).toBeNull();
+
+    const order = screen.getAllByRole('link').map((l) => l.getAttribute('data-testid'));
+    expect(order).toEqual(['nav-today', 'nav-schedule', 'nav-offers', 'nav-more']);
   });
 
-  it('highlights active tab', () => {
-    renderWithProviders(<BottomNavBar />, { initialEntries: ['/schedule'] });
-    const scheduleTab = screen.getByTestId('nav-schedule');
-    expect(scheduleTab.className).toContain('text-primary');
+  it('renders the labels Today / Schedule / Offers / More', () => {
+    renderWithProviders(<BottomNavBar />);
+    expect(screen.getByText('Today')).toBeInTheDocument();
+    expect(screen.getByText('Schedule')).toBeInTheDocument();
+    expect(screen.getByText('Offers')).toBeInTheDocument();
+    expect(screen.getByText('More')).toBeInTheDocument();
   });
 
-  it('renders the active tab flat — colour only, no pill or ring (v3 .pf-navb--on)', () => {
-    // The v3 footer tabs are borderless: the active tab is distinguished by the blue
-    // colour alone (`.pf-navb--on{color:var(--pf-blue)}`), with no filled background,
-    // inset ring, or rounded pill. An earlier impl wrapped it in `bg-primary/10` +
-    // `ring-primary/20` + `rounded-2xl`; this locks the flat artboard design instead.
-    renderWithProviders(<BottomNavBar />, { initialEntries: ['/schedule'] });
-    const scheduleTab = screen.getByTestId('nav-schedule');
-    expect(scheduleTab.className).toContain('text-primary');
-    expect(scheduleTab.className).not.toMatch(/bg-primary/);
-    expect(scheduleTab.className).not.toMatch(/ring-/);
-    expect(scheduleTab.className).not.toMatch(/rounded/);
+  it('marks Today active across /today/*', () => {
+    renderWithProviders(<BottomNavBar />, { initialEntries: ['/today/route'] });
+    const today = screen.getByTestId('nav-today');
+    expect(today).toHaveAttribute('aria-current', 'page');
+    expect(today.className).toContain('text-primary');
+    expect(screen.getByTestId('nav-more').getAttribute('aria-current')).toBeNull();
   });
 
-  it('shows the faint inactive colour for non-active tabs (v3 --pf-faint)', () => {
-    renderWithProviders(<BottomNavBar />, { initialEntries: ['/schedule'] });
-    const offersTab = screen.getByTestId('nav-offers');
-    expect(offersTab.className).toContain('text-faint');
-    expect(offersTab.className).not.toContain('text-primary');
+  it.each([
+    '/profile',
+    '/profile/settings',
+    '/profile/announcements/11111111-1111-4111-8111-111111111111',
+    '/earnings',
+    '/earnings/invoices/22222222-2222-4222-8222-222222222222',
+  ])('marks More active (and nothing else) on %s', (path) => {
+    renderWithProviders(<BottomNavBar />, { initialEntries: [path] });
+    expect(screen.getByTestId('nav-more')).toHaveAttribute('aria-current', 'page');
+    for (const other of ['nav-today', 'nav-schedule', 'nav-offers']) {
+      expect(screen.getByTestId(other).getAttribute('aria-current')).toBeNull();
+    }
+  });
+
+  it('keeps the flat active style — colour only, no pill or ring', () => {
+    renderWithProviders(<BottomNavBar />, { initialEntries: ['/today'] });
+    const today = screen.getByTestId('nav-today');
+    expect(today.className).toContain('text-primary');
+    expect(today.className).not.toMatch(/bg-primary/);
+    expect(today.className).not.toMatch(/ring-/);
+    expect(today.className).not.toMatch(/rounded/);
+  });
+
+  it('shows the faint inactive colour for non-active tabs', () => {
+    renderWithProviders(<BottomNavBar />, { initialEntries: ['/today'] });
+    const offers = screen.getByTestId('nav-offers');
+    expect(offers.className).toContain('text-faint');
+    expect(offers.className).not.toContain('text-primary');
   });
 
   it('has min 44px touch targets', () => {
     renderWithProviders(<BottomNavBar />);
-    const scheduleTab = screen.getByTestId('nav-schedule');
-    expect(scheduleTab.className).toContain('min-h-touch');
-    expect(scheduleTab.className).toContain('min-w-touch');
+    const today = screen.getByTestId('nav-today');
+    expect(today.className).toContain('min-h-touch');
+    expect(today.className).toContain('min-w-touch');
   });
 
-  it('renders correct labels', () => {
+  it('keeps the grid-cols-4 clearance layout (nav-clearance contract)', () => {
     renderWithProviders(<BottomNavBar />);
-    expect(screen.getByText('Schedule')).toBeInTheDocument();
-    expect(screen.getByText('Offers')).toBeInTheDocument();
-    expect(screen.getByText('Earnings')).toBeInTheDocument();
-    expect(screen.getByText('Profile')).toBeInTheDocument();
-  });
-
-  it('uses the .pf-nav inner padding (6px sides, 9px top; bottom from pb-safe-b)', () => {
-    renderWithProviders(<BottomNavBar />);
-    const row = screen.getByTestId('nav-schedule').parentElement!;
+    const row = screen.getByTestId('nav-today').parentElement!;
+    expect(row.className).toContain('grid-cols-4');
     expect(row.className).toContain('px-[6px]');
     expect(row.className).toContain('pt-[9px]');
-    // The 22px artboard bottom padding is replaced by the safe-area inset on the nav.
-    expect(row.className).not.toContain('py-2');
   });
 
   it('reserves the iOS home-indicator inset below the tabs', () => {
-    // Measured on a 393x852 iPhone viewport: without this padding the tab labels sit
-    // 8-32px from the screen edge, entirely inside the ~34px home-indicator strip, and
-    // most of each tap target overlaps the system swipe-up gesture area.
     renderWithProviders(<BottomNavBar />);
-    // classList, not a substring check: `pb-safe-b-6` would satisfy `toContain`.
     expect(screen.getByTestId('bottom-nav').classList.contains('pb-safe-b')).toBe(true);
   });
 
-  it('paints an opaque background instead of a backdrop filter', () => {
-    // `backdrop-filter` on a position:fixed element forces a separate composited layer,
-    // which WebKit can mispaint at a stale offset during momentum scrolling. That is the
-    // leading suspect for a field report of this bar rendering mid-screen on iOS, not a
-    // confirmed diagnosis — it does not reproduce in Chrome.
+  it('paints an opaque background with a top border', () => {
     renderWithProviders(<BottomNavBar />);
     const nav = screen.getByTestId('bottom-nav');
     expect(nav.className).not.toContain('backdrop-blur');
-    expect(nav.className).not.toMatch(/bg-white\/\d+/);
     expect(nav.className).toContain('bg-card');
+    expect(nav.className).toContain('border-t');
   });
 
-  it('does not reference spacing classes that Tailwind never defined', () => {
+  it('keeps the artboard Schedule and Offers glyphs', () => {
     renderWithProviders(<BottomNavBar />);
-    expect(screen.getByTestId('bottom-nav').innerHTML).not.toContain('h-18');
+    const schedule = screen.getByTestId('nav-schedule').querySelector('svg')!;
+    expect(schedule.querySelector('rect[x="3"][y="4"]')).toBeTruthy();
+    expect(schedule.querySelector('circle[cx="12"][cy="15"]')).toBeTruthy();
+    const offers = screen.getByTestId('nav-offers').querySelector('svg')!;
+    expect(offers.querySelector('path[d^="M20.6 13.4"]')).toBeTruthy();
   });
 
-  // The footer icons reproduce the validated v3 artboard footer exactly. Schedule and
-  // Offers have no lucide 0.468 equivalent (Calendar1 draws a "1", Tag was redesigned),
-  // so they are inlined with the artboard paths; Earnings/Profile use the lucide glyphs
-  // that are byte-identical to the artboard's Earnings/Account icons. These assertions
-  // lock that fidelity so a future icon swap can't silently drift from the design.
-  it('renders the Schedule tab with the artboard calendar-with-dot glyph', () => {
+  it('uses the lucide house and ellipsis glyphs for Today and More', () => {
     renderWithProviders(<BottomNavBar />);
-    const svg = screen.getByTestId('nav-schedule').querySelector('svg')!;
-    expect(svg).toBeTruthy();
-    // Calendar body + the centred dot that distinguishes it from a plain calendar.
-    expect(svg.querySelector('rect[x="3"][y="4"]')).toBeTruthy();
-    expect(svg.querySelector('circle[cx="12"][cy="15"]')).toBeTruthy();
-    // Not the lucide CalendarClock the footer used before.
-    expect(svg.classList.contains('lucide-calendar-clock')).toBe(false);
+    expect(screen.getByTestId('nav-today').querySelector('svg')!.classList.contains('lucide-house')).toBe(true);
+    expect(screen.getByTestId('nav-more').querySelector('svg')!.classList.contains('lucide-ellipsis')).toBe(true);
   });
 
-  it('renders the Offers tab with the artboard tag glyph', () => {
-    renderWithProviders(<BottomNavBar />);
-    const svg = screen.getByTestId('nav-offers').querySelector('svg')!;
-    expect(svg).toBeTruthy();
-    expect(svg.querySelector('path[d^="M20.6 13.4"]')).toBeTruthy();
-    expect(svg.querySelector('circle[cx="8"][cy="8"]')).toBeTruthy();
-  });
-
-  it('renders the Earnings tab with the lucide credit-card glyph (artboard Earnings icon)', () => {
-    renderWithProviders(<BottomNavBar />);
-    const svg = screen.getByTestId('nav-earnings').querySelector('svg')!;
-    expect(svg).toBeTruthy();
-    expect(svg.classList.contains('lucide-credit-card')).toBe(true);
-    // Not the lucide Wallet the footer used before.
-    expect(svg.classList.contains('lucide-wallet')).toBe(false);
-  });
-
-  it('renders the Profile tab with the lucide user glyph (artboard Account icon)', () => {
-    renderWithProviders(<BottomNavBar />);
-    const svg = screen.getByTestId('nav-profile').querySelector('svg')!;
-    expect(svg).toBeTruthy();
-    expect(svg.classList.contains('lucide-user')).toBe(true);
-  });
-
-  it('shows an unread badge with the count and an accessible name on the Profile tab', () => {
+  it('shows an unread badge with the count and an accessible name on the More tab', () => {
     countRef.value = 3;
     renderWithProviders(<BottomNavBar />);
-    const profileTab = screen.getByTestId('nav-profile');
-    expect(profileTab).toHaveAccessibleName('Profile, 3 unread announcements');
-    expect(profileTab.querySelector('span[aria-hidden="true"]')?.textContent).toBe('3');
+    const more = screen.getByTestId('nav-more');
+    expect(more).toHaveAccessibleName('More, 3 unread announcements');
+    expect(more.querySelector('span[aria-hidden="true"]')?.textContent).toBe('3');
+    // The badge is only on More.
+    expect(screen.getByTestId('nav-today').getAttribute('aria-label')).toBeNull();
   });
 
   it('caps the badge at "9+" above nine unread', () => {
     countRef.value = 12;
     renderWithProviders(<BottomNavBar />);
-    const profileTab = screen.getByTestId('nav-profile');
-    expect(profileTab).toHaveAccessibleName('Profile, 12 unread announcements');
-    expect(profileTab.textContent).toContain('9+');
+    const more = screen.getByTestId('nav-more');
+    expect(more).toHaveAccessibleName('More, 12 unread announcements');
+    expect(more.textContent).toContain('9+');
   });
 
   it('shows no badge and no unread accessible name when the count is zero', () => {
     countRef.value = 0;
     renderWithProviders(<BottomNavBar />);
-    const profileTab = screen.getByTestId('nav-profile');
-    expect(profileTab.getAttribute('aria-label')).toBeNull();
-    expect(profileTab.textContent).not.toContain('9+');
+    const more = screen.getByTestId('nav-more');
+    expect(more.getAttribute('aria-label')).toBeNull();
+    expect(more.textContent).not.toContain('9+');
   });
 });

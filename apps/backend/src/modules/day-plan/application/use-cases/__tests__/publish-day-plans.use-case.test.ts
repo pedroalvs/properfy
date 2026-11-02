@@ -196,6 +196,7 @@ describe('PublishDayPlansUseCase', () => {
       dedupeKey: 'route-published:insp-1:2026-11-05',
       title: 'Your route for tomorrow is ready',
       body: `3 inspections on ${DAY_LABEL}. First stop at 08:00 in Surry Hills; finish around 10:35. Open Properfy to see the order.`,
+      targetPath: '/today',
     });
     expect(h.repo.markNotified).toHaveBeenCalledWith('plan-insp-1');
     // R-F02: no contact name/phone, no lockbox code, no street number — only the suburb.

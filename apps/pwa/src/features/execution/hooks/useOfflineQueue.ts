@@ -160,6 +160,8 @@ export function useOfflineQueue() {
                     if (action.type === 'FINISH') {
                       await clearExecutionState(action.appointmentId);
                     }
+                    // A synced check-in/out changes the published plan — refresh it.
+                    queryClient.invalidateQueries({ queryKey: ['inspector', 'day-plan'] });
                   } catch (err) {
                     // Same guard on the failure path: a post-logout 401/network
                     // error must not resurrect the action in IndexedDB.
@@ -188,6 +190,7 @@ export function useOfflineQueue() {
                       await clearExecutionState(action.appointmentId);
                       emitExecutionStateChange(action.appointmentId);
                       queryClient.invalidateQueries({ queryKey: ['inspector', 'schedule'] });
+                      queryClient.invalidateQueries({ queryKey: ['inspector', 'day-plan'] });
                       const isGeofence =
                         (err as { code?: string } | null)?.code === 'GEOFENCE_OUT_OF_RADIUS';
                       showError(

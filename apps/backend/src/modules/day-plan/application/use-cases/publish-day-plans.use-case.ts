@@ -140,6 +140,7 @@ export class PublishDayPlansUseCase {
             title,
             body,
             dedupeKey: routePublishedDedupeKey(entry.inspectorId, entry.date),
+            targetPath: '/today',
           });
           await this.repo.markNotified(record.id);
           notified += 1;

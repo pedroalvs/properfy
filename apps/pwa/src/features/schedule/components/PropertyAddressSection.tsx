@@ -1,6 +1,7 @@
 import { Navigation } from 'lucide-react';
 import { PROPERTY_TYPE_LABELS, type PropertyType } from '@properfy/shared';
 import { Card } from '@/components/ui/Card';
+import { buildNavigationUrl } from '@/features/day-plan/lib/navigation-url';
 
 interface PropertyAddressSectionProps {
   address: string;
@@ -27,11 +28,10 @@ export function PropertyAddressSection({
   furnished,
   linenProvided,
 }: PropertyAddressSectionProps) {
-  const hasCoordinates = latitude !== null && longitude !== null;
   const fullAddress = [address, suburb].filter(Boolean).join(', ');
-  const mapsUrl = hasCoordinates
-    ? `https://maps.google.com/?q=${latitude},${longitude}`
-    : `https://maps.google.com/?q=${encodeURIComponent(fullAddress)}`;
+  // Apple Maps on iOS/iPadOS, Google Maps elsewhere (01.6); falls back to the
+  // encoded address when there are no plottable coordinates.
+  const mapsUrl = buildNavigationUrl({ lat: latitude, lng: longitude, address: fullAddress });
 
   const detailChips: string[] = [];
   if (propertyType) detailChips.push(PROPERTY_TYPE_LABELS[propertyType] ?? propertyType);

@@ -103,6 +103,8 @@ describe('useOfflineQueue', () => {
     expect(mockRemoveQueuedAction).toHaveBeenCalledWith('a');
     expect(mockRemoveQueuedAction).toHaveBeenCalledWith('b');
     expect(mockClearExecutionState).toHaveBeenCalledWith('apt-1');
+    // A synced check-in/out refreshes the day plan (F04-3).
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['inspector', 'day-plan'] });
   });
 
   it('increments retryCount and stops processing only for the failing appointment group', async () => {
@@ -609,6 +611,7 @@ describe('useOfflineQueue', () => {
       expect(mockClearExecutionState).toHaveBeenCalledWith('apt-1');
       expect(mockEmitExecutionStateChange).toHaveBeenCalledWith('apt-1');
       expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['inspector', 'schedule'] });
+      expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['inspector', 'day-plan'] });
       expect(mockShowError).toHaveBeenCalledWith(
         "A queued inspection sync failed: You are 640 m from the property. Check-in is only allowed within 300 m. If you are at the right address, contact operations. Check in again when you're at the property.",
       );

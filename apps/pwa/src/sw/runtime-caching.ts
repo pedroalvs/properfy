@@ -61,6 +61,18 @@ export const RUNTIME_CACHING_ROUTES: RuntimeCachingRoute[] = [
     cacheableStatuses: [200],
   },
   {
+    // Only the inspector's own day plan for a specific civil date; the trailing
+    // `$` keeps `…/sheet`, `…/order`, `…/origin`, `…/recalculate` and the AM/OP
+    // `/v1/day-plans/…` routes out (F04-3, L-F04 offline rules).
+    urlPattern: /\/v1\/inspector\/day-plans\/\d{4}-\d{2}-\d{2}$/i,
+    handler: 'NetworkFirst',
+    cacheName: 'api-day-plan-cache',
+    maxEntries: 3,
+    maxAgeSeconds: 12 * 60 * 60,
+    networkTimeoutSeconds: 10,
+    cacheableStatuses: [200],
+  },
+  {
     urlPattern: /\/v1\/marketplace\/offers/i,
     handler: 'NetworkOnly',
   },
@@ -91,7 +103,7 @@ function buildStrategy(route: RuntimeCachingRoute): Strategy {
   }
 }
 
-/** Registers the 5 runtime-caching routes with Workbox. Called once from `sw.ts`. */
+/** Registers the runtime-caching routes with Workbox. Called once from `sw.ts`. */
 export function registerRuntimeCaching(): void {
   for (const route of RUNTIME_CACHING_ROUTES) {
     registerRoute(route.urlPattern, buildStrategy(route));

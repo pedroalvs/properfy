@@ -61,6 +61,7 @@ describe('useReportCantDo', () => {
     expect(mockRefresh).toHaveBeenCalled();
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['inspector', 'schedule'] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['inspector', 'appointment', 'apt-1'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['inspector', 'day-plan'] });
   });
 
   it('treats a 409 CANT_DO_ALREADY_REPORTED as success and still cleans up', async () => {

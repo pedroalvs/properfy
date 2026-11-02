@@ -13,6 +13,7 @@
  *   formatInstantDate      the day an instant falls on (`effectiveAt`) —
  *                          resolved in the platform timezone
  *   formatInstantDateTime  an instant with its time of day
+ *   formatInstantTime      the time of day an instant falls on (day-plan ETAs)
  *
  * Passing an instant to `formatCivilDate` reads its UTC day, which in Sydney is
  * the PREVIOUS day for roughly ten hours out of every day.
@@ -24,4 +25,5 @@ export {
   formatWallTimeWindow,
   formatInstantDate,
   formatInstantDateTime,
+  formatInstantTime,
 } from '@properfy/shared';

@@ -113,9 +113,11 @@ describe('ProfilePage (tiles)', () => {
     expect(screen.queryByText('Not set')).not.toBeInTheDocument();
   });
 
-  it('no longer surfaces App settings or Account details on the main screen', () => {
+  it('surfaces the App settings row linking to /profile/settings (F04-3 More hub)', () => {
     renderWithProviders(<ProfilePage />);
-    expect(screen.queryByRole('link', { name: 'App settings' })).not.toBeInTheDocument();
+    const appSettings = screen.getByRole('link', { name: 'App settings' });
+    expect(appSettings).toHaveAttribute('href', '/profile/settings');
+    // Account details stays off the main screen (reached via My account).
     expect(screen.queryByRole('link', { name: 'Account details' })).not.toBeInTheDocument();
   });
 

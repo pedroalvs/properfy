@@ -72,9 +72,13 @@ describe('PublishSystemInspectorNoticeUseCase', () => {
     const b = build();
     await b.useCase.execute({ ...base, type: 'ROUTE_PUBLISHED', targetPath: `/schedule/${UUID}` });
     expect(b.created[0].targetPath).toBe(`/schedule/${UUID}`);
+
+    const c = build();
+    await c.useCase.execute({ ...base, type: 'ROUTE_PUBLISHED', targetPath: '/today' });
+    expect(c.created[0].targetPath).toBe('/today'); // F04 route notices
   });
 
-  it.each(['/today', 'https://x', '/schedule/abc'])('rejects a non-allowlisted targetPath %s', async (targetPath) => {
+  it.each(['/today/route/x', 'https://x', '/schedule/abc'])('rejects a non-allowlisted targetPath %s', async (targetPath) => {
     const { useCase, repo } = build();
     await expect(
       useCase.execute({ ...base, type: 'ROUTE_PUBLISHED', targetPath }),

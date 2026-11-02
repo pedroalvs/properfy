@@ -61,11 +61,12 @@ export function inspectorNoticeDeepLink(noticeId: string): string {
 /**
  * Allowlist of tap targets a system notice may deep-link to. `:id` is a lowercase UUID.
  * The backend validates `targetPath` against this list and the PWA service worker's
- * `resolveClickTarget` uses the same list. F04 appends `/today`.
+ * `resolveClickTarget` uses the same list. F04 added `/today` (route notices).
  */
 export const INSPECTOR_NOTICE_TARGET_PATTERNS = [
   '/profile/announcements/:id', // default (id = noticeId)
   '/schedule/:id', // service detail on the schedule (id = appointmentId)
+  '/today', // F04 route notices (ROUTE_PUBLISHED/ROUTE_CHANGED); exact static, no params
 ] as const;
 
 /** Lowercase UUID v1–5 matcher used for the `:id` segment of an allowlisted target path. */
