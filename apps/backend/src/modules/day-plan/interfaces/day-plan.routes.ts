@@ -4,6 +4,7 @@ import {
   civilDateSchema,
   dayPlanResponseSchema,
   saveDayPlanOrderRequestSchema,
+  setDayPlanOriginRequestSchema,
   successResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
@@ -15,12 +16,18 @@ import type { GetMyDayPlanUseCase } from '../application/use-cases/get-my-day-pl
 import type { GetDayPlanForOperatorUseCase } from '../application/use-cases/get-day-plan-for-operator.use-case';
 import type { SaveDayPlanOrderUseCase } from '../application/use-cases/save-day-plan-order.use-case';
 import type { RecalculateDayPlanUseCase } from '../application/use-cases/recalculate-day-plan.use-case';
+import type {
+  SetDayPlanOriginUseCase,
+  ClearDayPlanOriginUseCase,
+} from '../application/use-cases/day-plan-origin.use-case';
 
 export interface DayPlanRouteContainer {
   getMyDayPlanUseCase: GetMyDayPlanUseCase;
   getDayPlanForOperatorUseCase: GetDayPlanForOperatorUseCase;
   saveDayPlanOrderUseCase: SaveDayPlanOrderUseCase;
   recalculateDayPlanUseCase: RecalculateDayPlanUseCase;
+  setDayPlanOriginUseCase: SetDayPlanOriginUseCase;
+  clearDayPlanOriginUseCase: ClearDayPlanOriginUseCase;
   jwtService: JwtService;
   tenantRepo: ITenantRepository;
 }
@@ -95,6 +102,48 @@ export async function registerDayPlanRoutes(
         date,
         appointmentIds: body.appointmentIds,
         basedOnVersion: body.basedOnVersion,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // PUT /v1/inspector/day-plans/:date/origin — set a day-origin override (10/min).
+  app.put(
+    '/v1/inspector/day-plans/:date/origin',
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+      schema: { params: dateParam, body: setDayPlanOriginRequestSchema, response: { 200: successResponseSchema(dayPlanResponseSchema) } },
+    },
+    async (request, reply) => {
+      const inspectorId = requireInspector(request.authContext!.role, request.authContext!.inspectorId);
+      const { date } = dateParam.parse(request.params);
+      const { address } = setDayPlanOriginRequestSchema.parse(request.body);
+      const result = await container.setDayPlanOriginUseCase.execute({
+        inspectorId,
+        actorUserId: request.authContext!.userId,
+        date,
+        address,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // DELETE /v1/inspector/day-plans/:date/origin — clear the day-origin override (10/min).
+  app.delete(
+    '/v1/inspector/day-plans/:date/origin',
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+      schema: { params: dateParam, response: { 200: successResponseSchema(dayPlanResponseSchema) } },
+    },
+    async (request, reply) => {
+      const inspectorId = requireInspector(request.authContext!.role, request.authContext!.inspectorId);
+      const { date } = dateParam.parse(request.params);
+      const result = await container.clearDayPlanOriginUseCase.execute({
+        inspectorId,
+        actorUserId: request.authContext!.userId,
+        date,
       });
       return reply.status(200).send(success(result));
     },

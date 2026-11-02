@@ -1,6 +1,7 @@
 import {
   type DayPlanComputeTrigger,
   type DayPlanOriginSource,
+  type InspectorBaseAddress,
   type RouteWeights,
 } from '@properfy/shared';
 import type { Clock } from '../../../../shared/domain/clock';
@@ -12,7 +13,7 @@ import {
   type ClassifiableStop,
 } from '../../domain/classify-stops';
 import { isPublicationOpenForInspector } from '../../domain/publication-window';
-import { configuredOriginFor, fingerprintForCandidates } from '../day-plan-inputs';
+import { fingerprintForCandidates } from '../day-plan-inputs';
 import type { DayPlanCandidate, IDayPlanInputReader } from '../../domain/day-plan-input.reader';
 import type { DayPlanRecord } from '../../domain/day-plan.entity';
 import type {
@@ -36,6 +37,11 @@ export interface ComputeDayPlanInput {
   actorUserId?: string | null;
   /** Explicit reorderable order for a REORDER trigger (the inspector's saved order). */
   fixedOrder?: string[];
+  /**
+   * Day-origin override to apply (ORIGIN_CHANGE): an object sets it, `null` clears it,
+   * `undefined` keeps the plan's current override. Coordinates come from permanent geocoding.
+   */
+  applyOrigin?: { address: InspectorBaseAddress; lat: number; lng: number } | null;
   /** Job mode retry counter (1-based). Only SCHEDULED_PUBLISH uses it. */
   attempt?: number;
   now?: Date;
@@ -96,7 +102,31 @@ export class ComputeDayPlanUseCase {
     const isTodayOrPast = input.date <= todayCivil;
 
     // --- Origin (configured for fingerprint; effective LAST_STOP for routing) ---
-    const configured = configuredOriginFor(existing, inspector);
+    // Resolve the override to use: applyOrigin (set/clear) wins; otherwise keep the plan's.
+    const resolvedOverride =
+      input.applyOrigin === undefined
+        ? existing?.originOverride && existing.originOverrideLat !== null
+          ? {
+              address: existing.originOverride,
+              lat: existing.originOverrideLat,
+              lng: existing.originOverrideLng,
+              setAt: existing.originOverrideSetAt ?? now,
+            }
+          : null
+        : input.applyOrigin === null
+          ? null
+          : { address: input.applyOrigin.address, lat: input.applyOrigin.lat, lng: input.applyOrigin.lng, setAt: now };
+
+    const configured = resolvedOverride
+      ? {
+          source: 'OVERRIDE' as DayPlanOriginSource,
+          lat: resolvedOverride.lat,
+          lng: resolvedOverride.lng,
+          override: resolvedOverride.address,
+        }
+      : inspector.baseLat !== null
+        ? { source: 'BASE' as DayPlanOriginSource, lat: inspector.baseLat, lng: inspector.baseLng, override: null }
+        : { source: 'NONE' as DayPlanOriginSource, lat: null, lng: null, override: null };
     const hasExecutedToday = executed.length > 0 && isTodayOrPast;
     const lastExecuted = hasExecutedToday ? byId.get(executed[executed.length - 1]!.appointmentId) ?? null : null;
     const effectiveSource: DayPlanOriginSource =
@@ -177,10 +207,10 @@ export class ComputeDayPlanUseCase {
       originSource: effectiveSource,
       originLat: routingOrigin?.lat ?? (effectiveSource === 'NONE' ? null : configured.lat),
       originLng: routingOrigin?.lng ?? (effectiveSource === 'NONE' ? null : configured.lng),
-      originOverride: configured.override,
-      originOverrideLat: existing?.originOverrideLat ?? null,
-      originOverrideLng: existing?.originOverrideLng ?? null,
-      originOverrideSetAt: existing?.originOverrideSetAt ?? null,
+      originOverride: resolvedOverride?.address ?? null,
+      originOverrideLat: resolvedOverride?.lat ?? null,
+      originOverrideLng: resolvedOverride?.lng ?? null,
+      originOverrideSetAt: resolvedOverride?.setAt ?? null,
       departureAt: result.departureAt,
       finishEta: result.finishAt,
       totalDriveS: result.totals.driveS,
