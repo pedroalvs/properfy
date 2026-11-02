@@ -14,11 +14,13 @@ import type { ITenantRepository } from '../../tenant/domain/tenant.repository';
 import type { GetMyDayPlanUseCase } from '../application/use-cases/get-my-day-plan.use-case';
 import type { GetDayPlanForOperatorUseCase } from '../application/use-cases/get-day-plan-for-operator.use-case';
 import type { SaveDayPlanOrderUseCase } from '../application/use-cases/save-day-plan-order.use-case';
+import type { RecalculateDayPlanUseCase } from '../application/use-cases/recalculate-day-plan.use-case';
 
 export interface DayPlanRouteContainer {
   getMyDayPlanUseCase: GetMyDayPlanUseCase;
   getDayPlanForOperatorUseCase: GetDayPlanForOperatorUseCase;
   saveDayPlanOrderUseCase: SaveDayPlanOrderUseCase;
+  recalculateDayPlanUseCase: RecalculateDayPlanUseCase;
   jwtService: JwtService;
   tenantRepo: ITenantRepository;
 }
@@ -93,6 +95,45 @@ export async function registerDayPlanRoutes(
         date,
         appointmentIds: body.appointmentIds,
         basedOnVersion: body.basedOnVersion,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/inspector/day-plans/:date/recalculate — the inspector resets to the suggested order (6/min).
+  app.post(
+    '/v1/inspector/day-plans/:date/recalculate',
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 6, timeWindow: '1 minute' } },
+      schema: { params: dateParam, response: { 200: successResponseSchema(dayPlanResponseSchema) } },
+    },
+    async (request, reply) => {
+      requireInspector(request.authContext!.role, request.authContext!.inspectorId);
+      const { date } = dateParam.parse(request.params);
+      const result = await container.recalculateDayPlanUseCase.execute({
+        actor: request.authContext!,
+        inspectorId: request.authContext!.inspectorId!,
+        date,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/day-plans/:inspectorId/:date/recalculate — AM/OP recalc (ROUTE_CHANGED on change, 30/min).
+  app.post(
+    '/v1/day-plans/:inspectorId/:date/recalculate',
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: { params: operatorParams, response: { 200: successResponseSchema(dayPlanResponseSchema) } },
+    },
+    async (request, reply) => {
+      const { inspectorId, date } = operatorParams.parse(request.params);
+      const result = await container.recalculateDayPlanUseCase.execute({
+        actor: request.authContext!,
+        inspectorId,
+        date,
       });
       return reply.status(200).send(success(result));
     },
