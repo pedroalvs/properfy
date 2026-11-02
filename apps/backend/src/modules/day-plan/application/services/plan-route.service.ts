@@ -109,6 +109,33 @@ export interface PlanRouteResult {
   usage: { matrixElements: number; directionsCalls: number };
 }
 
+/** Input for the weights preview (contract 01.14): matrix-only, two weight sets, no persistence. */
+export interface PreviewWeightsInput {
+  origin: RoutePoint | null;
+  stops: PlanRouteStopInput[];
+  earliestDepartureAt: Date | null;
+  currentWeights: RouteWeights;
+  proposedWeights: RouteWeights;
+  now: Date;
+}
+
+/** One previewed route variant — matrix-sourced ETAs, forward slack, no Directions. */
+export interface PreviewRouteVariant {
+  order: string[];
+  departureAt: Date | null;
+  finishAt: Date | null;
+  totals: { driveS: number; waitS: number; lateS: number };
+  feasible: boolean;
+  approximate: boolean;
+  stops: Array<{ appointmentId: string; sequence: number; arrivalAt: Date; lateS: number }>;
+}
+
+export interface PreviewWeightsResult {
+  current: PreviewRouteVariant;
+  proposed: PreviewRouteVariant;
+  usage: { matrixElements: number; directionsCalls: number };
+}
+
 function toEpochS(d: Date): number {
   return Math.floor(d.getTime() / 1000);
 }
@@ -345,6 +372,87 @@ export class PlanRouteService {
       usage: { matrixElements: matrixOutcome.elements, directionsCalls },
       originIndex,
     });
+  }
+
+  /**
+   * Weights preview (contract 01.14, F04-2b): resolve the travel matrix **once**
+   * and evaluate two weight sets over it. Matrix-only — no Directions call, no
+   * geometry, nothing persisted — so ETAs are the matrix timeline with forward
+   * slack (`etaSource 'MATRIX'`). Always interactive/non-strict: a provider
+   * failure degrades to the stub with `approximate`, never defers.
+   */
+  async previewWeights(input: PreviewWeightsInput): Promise<PreviewWeightsResult> {
+    const maxWaitMs = INTERACTIVE_MAX_WAIT_MS;
+
+    // Build the matrix point list ([origin?] + coordinate stops), exactly like compute().
+    const points: RoutePoint[] = [];
+    let originIndex: number | null = null;
+    if (input.origin) {
+      points.push(input.origin);
+      originIndex = 0;
+    }
+    const optimizerStops: OptimizerStop[] = input.stops.map((s) => {
+      let matrixIndex: number | null = null;
+      if (s.location) {
+        matrixIndex = points.length;
+        points.push(s.location);
+      }
+      return {
+        key: s.appointmentId,
+        windowStartS: toEpochS(s.windowStartAt),
+        windowEndS: toEpochS(s.windowEndAt),
+        serviceS: s.serviceMinutes * 60,
+        matrixIndex,
+      };
+    });
+    const coordinateStopCount = points.length - (originIndex === null ? 0 : 1);
+
+    // One matrix resolution shared by both variants (the weights never affect the matrix).
+    const matrixInput: PlanRouteInput = {
+      origin: input.origin,
+      stops: input.stops,
+      earliestDepartureAt: input.earliestDepartureAt,
+      weights: input.currentWeights,
+      mode: { kind: 'OPTIMIZE' },
+      interactive: true,
+      strict: false,
+      now: input.now,
+    };
+    const matrixOutcome = await this.resolveMatrix(matrixInput, points, coordinateStopCount, maxWaitMs);
+    const travelS = matrixOutcome.travelS;
+    const earliestDepartureS = input.earliestDepartureAt ? toEpochS(input.earliestDepartureAt) : null;
+
+    const variantFor = (weights: RouteWeights): PreviewRouteVariant => {
+      const optimizerInput: OptimizerInput = {
+        stops: optimizerStops,
+        travelS,
+        originIndex,
+        earliestDepartureS,
+        weights,
+      };
+      const { order } = optimizeRoute(optimizerInput);
+      const ev = evaluateSequence(optimizerInput, order);
+      return {
+        order,
+        departureAt: ev.departureS === null ? null : new Date(ev.departureS * 1000),
+        finishAt: ev.finishS === null ? null : new Date(ev.finishS * 1000),
+        totals: { driveS: ev.totalTravelS, waitS: ev.totalWaitS, lateS: ev.totalLateS },
+        feasible: ev.feasible,
+        approximate: matrixOutcome.approximate,
+        stops: ev.stops.map((es) => ({
+          appointmentId: es.key,
+          sequence: es.sequence,
+          arrivalAt: new Date(es.arrivalS * 1000),
+          lateS: es.lateS,
+        })),
+      };
+    };
+
+    return {
+      current: variantFor(input.currentWeights),
+      proposed: variantFor(input.proposedWeights),
+      usage: { matrixElements: matrixOutcome.elements, directionsCalls: 0 },
+    };
   }
 
   // ---- helpers ----

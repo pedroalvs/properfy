@@ -4,8 +4,10 @@ import {
   civilDateSchema,
   dayPlanResponseSchema,
   dayPlanSheetQuerySchema,
+  previewRouteWeightsRequestSchema,
   routeEtaAccuracyQuerySchema,
   routeEtaAccuracySchema,
+  routeWeightsPreviewResponseSchema,
   saveDayPlanOrderRequestSchema,
   setDayPlanOriginRequestSchema,
   successResponseSchema,
@@ -25,6 +27,7 @@ import type {
 } from '../application/use-cases/day-plan-origin.use-case';
 import type { GetRouteEtaAccuracyUseCase } from '../application/use-cases/get-route-eta-accuracy.use-case';
 import type { GetDayPlanSheetUseCase } from '../application/use-cases/get-day-plan-sheet.use-case';
+import type { PreviewRouteWeightsUseCase } from '../application/use-cases/preview-route-weights.use-case';
 
 export interface DayPlanRouteContainer {
   getMyDayPlanUseCase: GetMyDayPlanUseCase;
@@ -35,6 +38,7 @@ export interface DayPlanRouteContainer {
   clearDayPlanOriginUseCase: ClearDayPlanOriginUseCase;
   getRouteEtaAccuracyUseCase: GetRouteEtaAccuracyUseCase;
   getDayPlanSheetUseCase: GetDayPlanSheetUseCase;
+  previewRouteWeightsUseCase: PreviewRouteWeightsUseCase;
   jwtService: JwtService;
   tenantRepo: ITenantRepository;
 }
@@ -180,6 +184,31 @@ export async function registerDayPlanRoutes(
         actor: request.authContext!,
         inspectorId: request.authContext!.inspectorId!,
         date,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/day-plans/preview — AM/OP what-if on the route weights (10/min, L-F04-14).
+  // Static path, registered before `/:inspectorId/:date*` so the radix router prefers it.
+  // RBAC is enforced in the use case (`assertRoles(['AM','OP'])`, action `day_plan.preview_weights`).
+  app.post(
+    '/v1/day-plans/preview',
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+      schema: {
+        body: previewRouteWeightsRequestSchema,
+        response: { 200: successResponseSchema(routeWeightsPreviewResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const body = previewRouteWeightsRequestSchema.parse(request.body);
+      const result = await container.previewRouteWeightsUseCase.execute({
+        actor: request.authContext!,
+        inspectorId: body.inspectorId,
+        date: body.date,
+        weights: body.weights,
       });
       return reply.status(200).send(success(result));
     },
