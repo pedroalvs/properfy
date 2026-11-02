@@ -7,3 +7,4 @@ export * from './notification-templates';
 export * from './phone';
 export * from './transition-sources';
 export * from './inspector-notices';
+export * from './day-plan';

@@ -23,6 +23,9 @@ export interface RecordAppStateParams {
   now: Date;
   displayMode: 'standalone' | 'browser';
   appVersion: string;
+  // F04-2 (00.2, R-F01-02): when true, stamp `onboarding_completed_at` once
+  // (COALESCE) within the same single statement; when false, leave it untouched.
+  onboardingCompleted: boolean;
 }
 
 export interface PaginationParams {

@@ -26,6 +26,7 @@ export {
   formatWallTimeWindow,
   formatInstantDate,
   formatInstantDateTime,
+  formatShortDayLabel,
 } from './format-display-date';
 export {
   DATE_PLACEHOLDER,

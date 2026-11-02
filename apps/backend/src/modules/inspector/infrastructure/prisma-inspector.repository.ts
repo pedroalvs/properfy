@@ -40,6 +40,7 @@ function mapToEntity(row: {
   app_last_seen_at: Date | null;
   push_enabled: boolean | null;
   app_version: string | null;
+  onboarding_completed_at: Date | null;
   abn: string | null;
   date_of_birth: Date | null;
   insurance_file_key: string | null;
@@ -77,6 +78,7 @@ function mapToEntity(row: {
     appLastSeenAt: row.app_last_seen_at ?? null,
     pushEnabled: row.push_enabled ?? null,
     appVersion: row.app_version ?? null,
+    onboardingCompletedAt: row.onboarding_completed_at ?? null,
     abn: row.abn ?? null,
     dateOfBirth: row.date_of_birth ?? null,
     insuranceFileKey: row.insurance_file_key ?? null,
@@ -259,16 +261,21 @@ export class PrismaInspectorRepository implements IInspectorRepository {
   // a soft-deleted inspector affects 0 rows rather than resurrecting state.
   // Explicit casts: `inspectors.id` is a text column (uuid default, no @db.Uuid).
   async recordAppState(params: RecordAppStateParams): Promise<number> {
-    const { id, now, displayMode, appVersion } = params;
+    const { id, now, displayMode, appVersion, onboardingCompleted } = params;
     // push_enabled is NOT written here (F02-1 D10/L-F01-02): it now reflects active push
     // subscriptions, maintained by the inspector-notice module. Kept as a single statement.
+    // F04-2 (R-F01-02): onboarding_completed_at is folded into the same statement — stamped
+    // once via COALESCE when the app reports the tour complete, otherwise left as-is.
     const affected = await this.prisma.$executeRaw`
       UPDATE "inspectors"
          SET "app_last_seen_at" = ${now}::timestamp(3),
              "app_version"      = ${appVersion}::text,
              "app_installed_at" = CASE WHEN ${displayMode}::text = 'standalone'
                                        THEN COALESCE("app_installed_at", ${now}::timestamp(3))
-                                       ELSE "app_installed_at" END
+                                       ELSE "app_installed_at" END,
+             "onboarding_completed_at" = CASE WHEN ${onboardingCompleted}::boolean
+                                       THEN COALESCE("onboarding_completed_at", ${now}::timestamp(3))
+                                       ELSE "onboarding_completed_at" END
        WHERE "id" = ${id}::text AND "deleted_at" IS NULL
     `;
     return affected;

@@ -83,8 +83,8 @@ describe('F01-1 inspector base coords + heartbeat (real DB)', () => {
       const t1 = new Date('2026-10-30T01:00:00.000Z');
       const t2 = new Date('2026-10-30T02:00:00.000Z');
       await Promise.all([
-        repo.recordAppState({ id: row.id, now: t1, displayMode: 'standalone', appVersion: 'a' }),
-        repo.recordAppState({ id: row.id, now: t2, displayMode: 'standalone', appVersion: 'b' }),
+        repo.recordAppState({ id: row.id, now: t1, displayMode: 'standalone', appVersion: 'a', onboardingCompleted: false }),
+        repo.recordAppState({ id: row.id, now: t2, displayMode: 'standalone', appVersion: 'b', onboardingCompleted: false }),
       ]);
       const after = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
       const installed = after!.app_installed_at!.toISOString();
@@ -92,7 +92,7 @@ describe('F01-1 inspector base coords + heartbeat (real DB)', () => {
 
       // A later standalone never changes the install timestamp.
       const t3 = new Date('2026-10-30T03:00:00.000Z');
-      await repo.recordAppState({ id: row.id, now: t3, displayMode: 'standalone', appVersion: 'c' });
+      await repo.recordAppState({ id: row.id, now: t3, displayMode: 'standalone', appVersion: 'c', onboardingCompleted: false });
       const after3 = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
       expect(after3!.app_installed_at!.toISOString()).toBe(installed);
       expect(after3!.app_last_seen_at!.toISOString()).toBe(t3.toISOString());
@@ -103,7 +103,7 @@ describe('F01-1 inspector base coords + heartbeat (real DB)', () => {
       // beforehand survives a browser heartbeat with permission denied.
       await harness.prisma.inspector.update({ where: { id: row.id }, data: { push_enabled: true } });
       const t4 = new Date('2026-10-30T04:00:00.000Z');
-      await repo.recordAppState({ id: row.id, now: t4, displayMode: 'browser', appVersion: 'd' });
+      await repo.recordAppState({ id: row.id, now: t4, displayMode: 'browser', appVersion: 'd', onboardingCompleted: false });
       const after4 = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
       expect(after4!.app_installed_at!.toISOString()).toBe(installed);
       expect(after4!.push_enabled).toBe(true);
@@ -113,16 +113,62 @@ describe('F01-1 inspector base coords + heartbeat (real DB)', () => {
       const row = await createInspector({ address: VALID_ADDRESS });
       const t1 = new Date('2026-10-30T01:00:00.000Z');
       const t2 = new Date('2026-10-30T02:00:00.000Z');
-      await repo.recordAppState({ id: row.id, now: t1, displayMode: 'standalone', appVersion: 'a' });
-      await repo.recordAppState({ id: row.id, now: t2, displayMode: 'standalone', appVersion: 'b' });
+      await repo.recordAppState({ id: row.id, now: t1, displayMode: 'standalone', appVersion: 'a', onboardingCompleted: false });
+      await repo.recordAppState({ id: row.id, now: t2, displayMode: 'standalone', appVersion: 'b', onboardingCompleted: false });
       const after = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
       expect(after!.app_installed_at!.toISOString()).toBe(t1.toISOString());
     });
 
     it('returns 0 affected for a soft-deleted inspector', async () => {
       const row = await createInspector({ address: VALID_ADDRESS, deleted_at: new Date() });
-      const affected = await repo.recordAppState({ id: row.id, now: new Date(), displayMode: 'standalone', appVersion: 'x' });
+      const affected = await repo.recordAppState({ id: row.id, now: new Date(), displayMode: 'standalone', appVersion: 'x', onboardingCompleted: false });
       expect(affected).toBe(0);
+    });
+
+    // F04-2 (00.2, R-F01-02): onboarding_completed_at is stamped once via COALESCE
+    // in the same single statement.
+    it('stamps onboarding_completed_at once and never overwrites it (COALESCE)', async () => {
+      const row = await createInspector({ address: VALID_ADDRESS });
+      const t1 = new Date('2026-10-30T01:00:00.000Z');
+      const t2 = new Date('2026-10-30T02:00:00.000Z');
+
+      // No flag → untouched (null).
+      await repo.recordAppState({ id: row.id, now: t1, displayMode: 'standalone', appVersion: 'a', onboardingCompleted: false });
+      const a = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
+      expect(a!.onboarding_completed_at).toBeNull();
+
+      // First completion → stamped at t1-equivalent "now".
+      await repo.recordAppState({ id: row.id, now: t1, displayMode: 'standalone', appVersion: 'a', onboardingCompleted: true });
+      const b = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
+      expect(b!.onboarding_completed_at!.toISOString()).toBe(t1.toISOString());
+
+      // A later completion keeps the first stamp (COALESCE).
+      await repo.recordAppState({ id: row.id, now: t2, displayMode: 'standalone', appVersion: 'b', onboardingCompleted: true });
+      const c = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
+      expect(c!.onboarding_completed_at!.toISOString()).toBe(t1.toISOString());
+
+      // A plain heartbeat (no flag) never clears it.
+      await repo.recordAppState({ id: row.id, now: t2, displayMode: 'browser', appVersion: 'c', onboardingCompleted: false });
+      const d = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
+      expect(d!.onboarding_completed_at!.toISOString()).toBe(t1.toISOString());
+    });
+
+    it('settles onboarding_completed_at under concurrent completions and does not move after', async () => {
+      const row = await createInspector({ address: VALID_ADDRESS });
+      const t1 = new Date('2026-10-30T01:00:00.000Z');
+      const t2 = new Date('2026-10-30T02:00:00.000Z');
+      await Promise.all([
+        repo.recordAppState({ id: row.id, now: t1, displayMode: 'standalone', appVersion: 'a', onboardingCompleted: true }),
+        repo.recordAppState({ id: row.id, now: t2, displayMode: 'standalone', appVersion: 'b', onboardingCompleted: true }),
+      ]);
+      const after = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
+      const stamped = after!.onboarding_completed_at!.toISOString();
+      expect([t1.toISOString(), t2.toISOString()]).toContain(stamped);
+
+      const t3 = new Date('2026-10-30T03:00:00.000Z');
+      await repo.recordAppState({ id: row.id, now: t3, displayMode: 'standalone', appVersion: 'c', onboardingCompleted: true });
+      const after3 = await harness.prisma.inspector.findUnique({ where: { id: row.id } });
+      expect(after3!.onboarding_completed_at!.toISOString()).toBe(stamped);
     });
   });
 

@@ -19,6 +19,12 @@ export interface ICronJobRunRepository {
    * release, the failed group would silently lose its civil day.
    */
   releaseClaims(jobName: string, tenantIds: string[], localDate: string): Promise<void>;
+  /**
+   * True when a claim row already exists for (jobName, tenantId, localDate).
+   * Read-only; the day-plan publish gate uses it to check that a tenant's T-1
+   * job (`appointment.reject-unconfirmed`) already ran before publishing (F04-2).
+   */
+  hasClaim(jobName: string, tenantId: string, localDate: string): Promise<boolean>;
 }
 
 export interface DueTenantGroup {

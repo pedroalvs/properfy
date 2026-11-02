@@ -26,4 +26,16 @@ export class PrismaCronJobRunRepository implements ICronJobRunRepository {
       },
     });
   }
+
+  async hasClaim(jobName: string, tenantId: string, localDate: string): Promise<boolean> {
+    const existing = await this.prisma.cronJobRun.findFirst({
+      where: {
+        job_name: jobName,
+        tenant_id: tenantId,
+        local_date: new Date(`${localDate}T00:00:00.000Z`),
+      },
+      select: { tenant_id: true },
+    });
+    return existing !== null;
+  }
 }

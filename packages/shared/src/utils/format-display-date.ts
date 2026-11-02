@@ -64,6 +64,7 @@ const WALL_TIME_RE = /^(\d{1,2}):(\d{2})(?::\d{2})?$/;
  */
 const civilPartsFormatters = new Map<string, Intl.DateTimeFormat>();
 const wallTimeFormatters = new Map<string, Intl.DateTimeFormat>();
+const shortDayLabelFormatters = new Map<string, Intl.DateTimeFormat>();
 
 /**
  * Builds a formatter, falling back to `PLATFORM_TIMEZONE` if the zone is not a
@@ -96,6 +97,19 @@ function civilPartsFormatter(timeZone: string): Intl.DateTimeFormat {
       'en-CA',
     );
     civilPartsFormatters.set(timeZone, formatter);
+  }
+  return formatter;
+}
+
+function shortDayLabelFormatter(timeZone: string): Intl.DateTimeFormat {
+  let formatter = shortDayLabelFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = buildFormatter(
+      timeZone,
+      { weekday: 'short', day: 'numeric', month: 'short' },
+      'en-AU',
+    );
+    shortDayLabelFormatters.set(timeZone, formatter);
   }
   return formatter;
 }
@@ -265,6 +279,30 @@ export function formatInstantDate(
 
   const parts = partsOf(civilPartsFormatter(timeZone), date);
   return `${parts.day}/${parts.month}/${parts.year}`;
+}
+
+/**
+ * Formats the calendar day an **instant** falls on, in `timeZone`, as a short
+ * day label `Thu 5 Nov` (weekday, day, month — single spaces, no comma).
+ *
+ * The label is assembled from `formatToParts`, so it is **stable across ICU /
+ * Node versions**: the default `Intl` short-date pattern inserts a locale
+ * separator that differs between builds (`'Thu, 5 Nov'` on one, `'Thu 5 Nov'`
+ * on another), which would make any hard-coded assertion — and any lock-screen
+ * notice body embedding the label — version-dependent. Used by the day-plan
+ * `ROUTE_PUBLISHED` / `ROUTE_CHANGED` notices.
+ */
+export function formatShortDayLabel(
+  value: string | Date | null | undefined,
+  timeZone: string = PLATFORM_TIMEZONE,
+): string {
+  if (value == null || value === '') return '';
+
+  const date = toInstant(value);
+  if (!date) return value instanceof Date ? '' : value;
+
+  const parts = partsOf(shortDayLabelFormatter(timeZone), date);
+  return `${parts.weekday} ${parts.day} ${parts.month}`;
 }
 
 /**

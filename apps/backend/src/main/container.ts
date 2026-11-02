@@ -484,6 +484,29 @@ import {
 import { PostgresRoutingRateLimiter } from '../modules/day-plan/infrastructure/routing/postgres-routing-rate-limiter';
 import { StubRoutingService } from '../modules/day-plan/infrastructure/routing/stub-routing.service';
 import { PlanRouteService } from '../modules/day-plan/application/services/plan-route.service';
+import { PrismaDayPlanRepository } from '../modules/day-plan/infrastructure/prisma-day-plan.repository';
+import { PrismaDayPlanInputReader } from '../modules/day-plan/infrastructure/prisma-day-plan-input.reader';
+import { ComputeDayPlanUseCase } from '../modules/day-plan/application/use-cases/compute-day-plan.use-case';
+import { GetMyDayPlanUseCase } from '../modules/day-plan/application/use-cases/get-my-day-plan.use-case';
+import { GetDayPlanForOperatorUseCase } from '../modules/day-plan/application/use-cases/get-day-plan-for-operator.use-case';
+import { SaveDayPlanOrderUseCase } from '../modules/day-plan/application/use-cases/save-day-plan-order.use-case';
+import { RecalculateDayPlanUseCase } from '../modules/day-plan/application/use-cases/recalculate-day-plan.use-case';
+import { PublishDayPlansUseCase } from '../modules/day-plan/application/use-cases/publish-day-plans.use-case';
+import { PurgeDayPlanRouteDataUseCase } from '../modules/day-plan/application/use-cases/purge-day-plan-route-data.use-case';
+import { GetRouteEtaAccuracyUseCase } from '../modules/day-plan/application/use-cases/get-route-eta-accuracy.use-case';
+import { GetDayPlanSheetUseCase } from '../modules/day-plan/application/use-cases/get-day-plan-sheet.use-case';
+import {
+  DayPlanSheetRenderer,
+  PdfKitDayPlanSheetGenerator,
+} from '../modules/day-plan/infrastructure/day-plan-sheet.renderer';
+import {
+  SetDayPlanOriginUseCase,
+  ClearDayPlanOriginUseCase,
+} from '../modules/day-plan/application/use-cases/day-plan-origin.use-case';
+import { GetFreshStopForAppointmentUseCase } from '../modules/day-plan/application/use-cases/get-fresh-stop-for-appointment.use-case';
+import { MarkDayPlansStaleSubscriber } from '../modules/day-plan/application/subscribers/mark-day-plans-stale.subscriber';
+import { PrismaGroupAppointmentReader } from '../modules/day-plan/infrastructure/prisma-group-appointment.reader';
+import type { DayPlanRouteContainer } from '../modules/day-plan/interfaces/day-plan.routes';
 import { AesTokenEncrypterAdapter } from '../modules/rental-tenant-portal/infrastructure/aes-token-encrypter.adapter';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
 
@@ -496,7 +519,11 @@ export interface AppContainer {
   // Exposed for the F01-1 inspector base-coords backfill script (needs
   // isConfigured() + geocode()); also reused by the X02-2 legacy script.
   geocodingService: DynamicGeocodingService;
-  dayPlan: { planRouteService: PlanRouteService };
+  dayPlan: DayPlanRouteContainer & {
+    planRouteService: PlanRouteService;
+    computeDayPlanUseCase: ComputeDayPlanUseCase;
+    getFreshStopForAppointmentUseCase: GetFreshStopForAppointmentUseCase;
+  };
   auth: AuthRouteContainer;
   tenant: TenantRouteContainer;
   user: UserRouteContainer;
@@ -543,6 +570,8 @@ export interface AppContainer {
   expireTokensWorker: ExpireTokensWorker;
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
   sendCompletionRemindersUseCase: SendCompletionRemindersUseCase;
+  publishDayPlansUseCase: PublishDayPlansUseCase;
+  purgeDayPlanRouteDataUseCase: PurgeDayPlanRouteDataUseCase;
   auditRetentionWorker: AuditRetentionWorker;
   rejectUnconfirmedWorker: RejectUnconfirmedWorker;
   cancelOverdueWorker: CancelOverdueWorker;
@@ -1087,6 +1116,50 @@ export function createContainer(logger: Logger): AppContainer {
   // Platform settings (F03) — shared registry read through IPlatformSettingsReader.
   const platformSettingRepo = new PrismaPlatformSettingRepository(prisma);
   const platformSettingsService = new PlatformSettingsService(platformSettingRepo, logger);
+
+  // Day plan (F04-2): persistence + compute + the inspector's own read.
+  const dayPlanRepo = new PrismaDayPlanRepository(prisma);
+  const dayPlanInputReader = new PrismaDayPlanInputReader(prisma);
+  const dayPlanClock = new SystemClock();
+  const computeDayPlanUseCase = new ComputeDayPlanUseCase(
+    dayPlanInputReader, dayPlanRepo, planRouteService, platformSettingsService, logger, dayPlanClock,
+  );
+  const getMyDayPlanUseCase = new GetMyDayPlanUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock,
+  );
+  const getDayPlanForOperatorUseCase = new GetDayPlanForOperatorUseCase(
+    dayPlanInputReader, dayPlanRepo, authorizationService, dayPlanClock,
+  );
+  const saveDayPlanOrderUseCase = new SaveDayPlanOrderUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, auditService, dayPlanClock,
+  );
+  const recalculateDayPlanUseCase = new RecalculateDayPlanUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, authorizationService,
+    publishSystemInspectorNoticeUseCase, auditService, dayPlanClock,
+  );
+  const setDayPlanOriginUseCase = new SetDayPlanOriginUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock, geocodingService, auditService, logger,
+  );
+  const clearDayPlanOriginUseCase = new ClearDayPlanOriginUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock, auditService,
+  );
+  const getFreshStopForAppointmentUseCase = new GetFreshStopForAppointmentUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock,
+  );
+  const publishDayPlansUseCase = new PublishDayPlansUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, publishSystemInspectorNoticeUseCase,
+    auditService, metrics, logger, dayPlanClock,
+  );
+  const purgeDayPlanRouteDataUseCase = new PurgeDayPlanRouteDataUseCase(dayPlanRepo, logger, dayPlanClock);
+  const getRouteEtaAccuracyUseCase = new GetRouteEtaAccuracyUseCase(dayPlanRepo, dayPlanClock);
+  const getDayPlanSheetUseCase = new GetDayPlanSheetUseCase(
+    getMyDayPlanUseCase,
+    getDayPlanForOperatorUseCase,
+    new DayPlanSheetRenderer(new ExcelJsXlsxGenerator(), new PdfKitDayPlanSheetGenerator()),
+    auditService,
+    dayPlanClock,
+  );
+  new MarkDayPlansStaleSubscriber(dayPlanRepo, new PrismaGroupAppointmentReader(prisma), logger).register(domainEventBus);
   const listPlatformSettingsUseCase = new ListPlatformSettingsUseCase(platformSettingRepo, authorizationService);
   const getPlatformSettingUseCase = new GetPlatformSettingUseCase(platformSettingRepo, authorizationService);
   const updatePlatformSettingUseCase = new UpdatePlatformSettingUseCase(
@@ -1640,7 +1713,7 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     domainEventBus,
     geocodingService,
-    dayPlan: { planRouteService },
+    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, getFreshStopForAppointmentUseCase, getRouteEtaAccuracyUseCase, getDayPlanSheetUseCase, jwtService, tenantRepo },
     auth: {
       loginUseCase,
       refreshTokenUseCase,
@@ -2048,6 +2121,8 @@ export function createContainer(logger: Logger): AppContainer {
     expireTokensWorker,
     notifyStuckInspectionsWorker,
     sendCompletionRemindersUseCase,
+    publishDayPlansUseCase,
+    purgeDayPlanRouteDataUseCase,
     auditRetentionWorker,
     rejectUnconfirmedWorker,
     cancelOverdueWorker,

@@ -3,8 +3,10 @@ import { fyWebhookEventSchema, PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { FyWebhookDispatcher } from '../modules/fy/infrastructure/fy-webhook-dispatcher';
 import { FY_WEBHOOK_JOB } from '../modules/fy/application/webhooks/fy-webhook-subscriber';
 import { getQueue, resolvePgBossSchema, assertQueueDbConsistency } from '../shared/infrastructure/queue';
-import { metrics } from '../shared/infrastructure/metrics';
-import { runWithRequestContext } from '../shared/infrastructure/request-context';
+import { withJobMetrics } from './with-job-metrics';
+import { registerDayPlanPublishWorker } from './day-plan-publish.worker';
+import type { PublishDayPlansUseCase } from '../modules/day-plan/application/use-cases/publish-day-plans.use-case';
+import type { PurgeDayPlanRouteDataUseCase } from '../modules/day-plan/application/use-cases/purge-day-plan-route-data.use-case';
 import type { DeliverInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/deliver-inspector-notice.use-case';
 import type { SweepUndeliveredInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/sweep-undelivered-inspector-notices.use-case';
 import type { AutoArchiveInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/auto-archive-inspector-notices.use-case';
@@ -34,25 +36,6 @@ import { DlqMonitor } from '../shared/infrastructure/dlq-monitor';
 import { prisma } from '../shared/infrastructure/prisma';
 import { TenantCronTick } from '../shared/application/tenant-cron-tick';
 import { PrismaCronJobRunRepository } from '../shared/infrastructure/prisma-cron-job-run.repository';
-
-function withJobMetrics<T extends { id: string; data: Record<string, unknown> }>(
-  queue: string,
-  handler: (job: T) => Promise<void>,
-): (job: T) => Promise<void> {
-  return async (job: T) => {
-    const requestId = (job.data?._requestId as string | undefined) ?? crypto.randomUUID();
-    const start = performance.now();
-    await runWithRequestContext({ requestId }, async () => {
-      try {
-        await handler(job);
-        metrics.jobExecuted(queue, 'success', performance.now() - start);
-      } catch (err) {
-        metrics.jobExecuted(queue, 'failure', performance.now() - start);
-        throw err;
-      }
-    });
-  };
-}
 
 // All cron schedules fire on Sydney wall-clock time (DST-aware). Note: auth.cleanup-sessions
 // at 02:00 lands on the skipped hour once a year on DST start; pg-boss fires at the next valid
@@ -85,6 +68,8 @@ export async function registerWorkers(
   sweepUndeliveredInspectorNoticesUseCase: SweepUndeliveredInspectorNoticesUseCase,
   autoArchiveInspectorNoticesUseCase: AutoArchiveInspectorNoticesUseCase,
   sendCompletionRemindersUseCase: SendCompletionRemindersUseCase,
+  publishDayPlansUseCase: PublishDayPlansUseCase,
+  purgeDayPlanRouteDataUseCase: PurgeDayPlanRouteDataUseCase,
   logger: Logger,
 ): Promise<void> {
   // Guard against the misconfiguration where this process consumes jobs from one
@@ -150,13 +135,14 @@ export async function registerWorkers(
   // catch-up after missed ticks and DST-skipped hours) and fans the use case
   // out per timezone group. `boss.schedule` upserts by name, so redeploys
   // replace the old daily Sydney cron under the same queue name.
+  const cronJobRunRepo = new PrismaCronJobRunRepository(prisma);
   const tenantCronTick = new TenantCronTick(
     () =>
       prisma.tenant.findMany({
         where: { status: 'ACTIVE', deleted_at: null },
         select: { id: true, timezone: true },
       }),
-    new PrismaCronJobRunRepository(prisma),
+    cronJobRunRepo,
   );
 
   await boss.schedule('notification.dispatch-reminders', '0 * * * *', {}, SYDNEY_TZ);
@@ -388,6 +374,24 @@ export async function registerWorkers(
     await autoArchiveInspectorNoticesUseCase.execute();
   }));
 
+  // Day-plan auto-publish at 19:30 local (contract 00.A2): singleton, T-1-gated,
+  // sequential within a budget, with continuation. Kill switch DAY_PLAN_PUBLISH_ENABLED.
+  await registerDayPlanPublishWorker(boss, {
+    tenantCronTick,
+    cronJobRunRepo,
+    publishDayPlans: publishDayPlansUseCase,
+    logger,
+  });
+
+  // Day-plan route-data purge (FR-016, L-F04-03 Plan-A retention): nulls stored
+  // geometry/matrix/leg durations of past plans. 03:45 Sydney, after audit.retention.
+  await boss.schedule('day-plan.purge-route-data', '45 3 * * *', {}, SYDNEY_TZ);
+  await boss.work('day-plan.purge-route-data', withJobMetrics('day-plan.purge-route-data', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing day-plan.purge-route-data job');
+    const result = await purgeDayPlanRouteDataUseCase.execute();
+    logger.info({ jobId: job.id, purged: result.purged }, 'day-plan.purge-route-data completed');
+  }));
+
   // DLQ monitor — alert on accumulated failed jobs
   const dlqMonitor = new DlqMonitor(prisma, logger, { threshold: 10, schema: resolvePgBossSchema() });
   await boss.schedule('system.dlq-monitor', '*/5 * * * *', {}, SYDNEY_TZ);
@@ -397,7 +401,7 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, inspection-execution.completion-reminder, audit.retention, appointment.reject-unconfirmed, appointment.cancel-overdue, service-group.cancel-empty, inspector-notice.deliver, inspector-notice.delivery-sweep, inspector-notice.auto-archive, system.dlq-monitor');
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, inspection-execution.completion-reminder, audit.retention, appointment.reject-unconfirmed, appointment.cancel-overdue, service-group.cancel-empty, inspector-notice.deliver, inspector-notice.delivery-sweep, inspector-notice.auto-archive, day-plan.publish, day-plan.purge-route-data, system.dlq-monitor');
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({

@@ -79,6 +79,8 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // sweepUndeliveredInspectorNoticesUseCase
     makeWorkerMock() as any,   // autoArchiveInspectorNoticesUseCase
     makeWorkerMock() as any,   // sendCompletionRemindersUseCase
+    makeWorkerMock() as any,   // publishDayPlansUseCase
+    { execute: vi.fn().mockResolvedValue({ purged: 0 }) } as any, // purgeDayPlanRouteDataUseCase
     logger as any,
   );
 }
@@ -110,6 +112,10 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
     ['service-group.cancel-empty', '20 0 * * *'],
     ['inspector-notice.delivery-sweep', '*/5 * * * *'],
     ['inspector-notice.auto-archive', '45 3 * * *'],
+    // day-plan.publish carries extra send options (singletonKey, expireInMinutes), so it
+    // is asserted with objectContaining below rather than an exact { tz } match.
+    ['day-plan.publish', '30 * * * *'],
+    ['day-plan.purge-route-data', '45 3 * * *'],
     ['system.dlq-monitor', '*/5 * * * *'],
   ];
 
@@ -118,7 +124,7 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
 
     expect(mockBoss.schedule).toHaveBeenCalledTimes(EXPECTED_SCHEDULES.length);
     for (const [name, cron] of EXPECTED_SCHEDULES) {
-      expect(mockBoss.schedule).toHaveBeenCalledWith(name, cron, {}, { tz: 'Australia/Sydney' });
+      expect(mockBoss.schedule).toHaveBeenCalledWith(name, cron, {}, expect.objectContaining({ tz: 'Australia/Sydney' }));
     }
   });
 });

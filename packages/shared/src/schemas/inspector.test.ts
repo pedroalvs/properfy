@@ -607,6 +607,41 @@ describe('inspectorAppStateSchema (F01-1 heartbeat)', () => {
     expect(result.success).toBe(true);
     if (result.success) expect(result.data).not.toHaveProperty('extra');
   });
+
+  // F04-2 (00.2 onboarding slice): the tour-complete flag is write-once true.
+  it('accepts onboardingCompleted: true', () => {
+    const result = inspectorAppStateSchema.safeParse({
+      displayMode: 'standalone',
+      pushPermission: 'granted',
+      appVersion: '0.1.0',
+      onboardingCompleted: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.onboardingCompleted).toBe(true);
+  });
+
+  it.each([
+    ['onboardingCompleted: false', false],
+    ["onboardingCompleted: 'yes'", 'yes'],
+  ])('rejects %s', (_label, onboardingCompleted) => {
+    const result = inspectorAppStateSchema.safeParse({
+      displayMode: 'standalone',
+      pushPermission: 'granted',
+      appVersion: '0.1.0',
+      onboardingCompleted,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('stays valid without the onboardingCompleted key', () => {
+    const result = inspectorAppStateSchema.safeParse({
+      displayMode: 'standalone',
+      pushPermission: 'granted',
+      appVersion: '0.1.0',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.onboardingCompleted).toBeUndefined();
+  });
 });
 
 describe('listInspectorsQuerySchema.missingBaseAddress (F01-1)', () => {
@@ -654,5 +689,21 @@ describe('inspectorResponseSchema base/adoption fields (F01-1)', () => {
       appVersion: '0.1.0',
     });
     expect(result.success).toBe(true);
+  });
+
+  // F04-2 (00.2 onboarding slice): instant, nullable, optional (legacy payloads).
+  it('accepts onboardingCompletedAt and tolerates its absence', () => {
+    const withIt = inspectorResponseSchema.safeParse({
+      ...validBase,
+      onboardingCompletedAt: '2026-10-30T00:00:00.000Z',
+    });
+    const withNull = inspectorResponseSchema.safeParse({
+      ...validBase,
+      onboardingCompletedAt: null,
+    });
+    const without = inspectorResponseSchema.safeParse({ ...validBase });
+    expect(withIt.success).toBe(true);
+    expect(withNull.success).toBe(true);
+    expect(without.success).toBe(true);
   });
 });

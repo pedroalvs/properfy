@@ -32,6 +32,10 @@ export interface InspectorProps {
   appLastSeenAt: Date | null;
   pushEnabled: boolean | null;
   appVersion: string | null;
+  // F04-2 (00.2): in-app tour completion stamp (null = not yet). Optional in
+  // props (defaults null) so the many existing entity fixtures stay valid; the
+  // repository always maps it.
+  onboardingCompletedAt?: Date | null;
   abn: string | null;
   dateOfBirth: Date | null;
   insuranceFileKey: string | null;
@@ -68,6 +72,7 @@ export class InspectorEntity extends BaseEntity {
   readonly appLastSeenAt: Date | null;
   readonly pushEnabled: boolean | null;
   readonly appVersion: string | null;
+  readonly onboardingCompletedAt: Date | null;
   readonly abn: string | null;
   readonly dateOfBirth: Date | null;
   readonly insuranceFileKey: string | null;
@@ -100,6 +105,7 @@ export class InspectorEntity extends BaseEntity {
     this.appLastSeenAt = props.appLastSeenAt;
     this.pushEnabled = props.pushEnabled;
     this.appVersion = props.appVersion;
+    this.onboardingCompletedAt = props.onboardingCompletedAt ?? null;
     this.abn = props.abn;
     this.dateOfBirth = props.dateOfBirth;
     this.insuranceFileKey = props.insuranceFileKey;
