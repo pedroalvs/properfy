@@ -112,7 +112,12 @@ export function useReorderDraft(plan: DayPlanResponse, stale: boolean): ReorderD
         setDraftOrder(null);
         setFrozen(false);
         setNotice('SET_DISCARDED');
-      } else if (versionChanged && isDirty) {
+      } else if (!isDirty) {
+        // The saved order caught up to the draft — it is no longer a draft, so
+        // drop it (and any freeze) rather than leaving Save/Review stuck.
+        setDraftOrder(null);
+        setFrozen(false);
+      } else if (versionChanged) {
         setFrozen(true);
         setNotice('VERSION_FROZEN');
       }

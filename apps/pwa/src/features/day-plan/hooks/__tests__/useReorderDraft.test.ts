@@ -128,6 +128,24 @@ describe('useReorderDraft', () => {
     expect(result.current.baseVersion).toBe(4);
   });
 
+  it('unfreezes when a refetch makes the saved order match the frozen draft', async () => {
+    const { result, rerender } = setup(plan({ version: 3 }));
+    await waitFor(() => expect(result.current.canReorder).toBe(true));
+    act(() => result.current.moveDown(A)); // draft [B, A, C]
+    rerender({ p: plan({ version: 4 }), s: false });
+    expect(result.current.frozen).toBe(true);
+    // A later refetch persists that very order as the saved order (B, A, C).
+    const reordered = [
+      buildStop({ appointmentId: B, sequence: 1, lat: -33.89, lng: 151.22, durationMinutes: 30, windowStartAt: ORIGIN, windowEndAt: WIDE_END }),
+      buildStop({ appointmentId: A, sequence: 2, lat: -33.88, lng: 151.2, durationMinutes: 30, windowStartAt: ORIGIN, windowEndAt: WIDE_END }),
+      buildStop({ appointmentId: C, sequence: 3, lat: -33.87, lng: 151.19, durationMinutes: 30, windowStartAt: ORIGIN, windowEndAt: WIDE_END }),
+    ];
+    rerender({ p: plan({ version: 5 }, reordered), s: false });
+    expect(result.current.frozen).toBe(false);
+    expect(result.current.isDirty).toBe(false);
+    expect(result.current.order).toEqual([B, A, C]);
+  });
+
   it('ignores moves while frozen', async () => {
     const { result, rerender } = setup(plan({ version: 3 }));
     await waitFor(() => expect(result.current.canReorder).toBe(true));
