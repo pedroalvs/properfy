@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { formatShortDayLabel } from '@properfy/shared';
 import { PublishDayPlansUseCase } from '../publish-day-plans.use-case';
 import { RoutingDeferredError } from '../../../domain/routing.service';
 import type { DayPlanRecord, DayPlanStopRecord } from '../../../domain/day-plan.entity';
@@ -9,6 +10,9 @@ const TZ = 'Australia/Sydney';
 const NOW = new Date('2026-11-04T08:30:00.000Z');
 const START_0800 = new Date('2026-11-04T21:00:00.000Z'); // 08:00 Sydney on 2026-11-05
 const FINISH_1035 = new Date('2026-11-04T23:35:00.000Z'); // 10:35 Sydney
+// Derived through the same helper the notice uses, so the assertion stays stable
+// across ICU/Node versions rather than pinning the raw "Thu 5 Nov" string.
+const DAY_LABEL = formatShortDayLabel(new Date('2026-11-05T00:00:00.000Z'), TZ);
 
 function makeLogger() {
   return { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), trace: vi.fn(), fatal: vi.fn(), child: vi.fn() };
@@ -191,7 +195,7 @@ describe('PublishDayPlansUseCase', () => {
       inspectorIds: ['insp-1'],
       dedupeKey: 'route-published:insp-1:2026-11-05',
       title: 'Your route for tomorrow is ready',
-      body: '3 inspections on Thu 5 Nov. First stop at 08:00 in Surry Hills; finish around 10:35. Open Properfy to see the order.',
+      body: `3 inspections on ${DAY_LABEL}. First stop at 08:00 in Surry Hills; finish around 10:35. Open Properfy to see the order.`,
     });
     expect(h.repo.markNotified).toHaveBeenCalledWith('plan-insp-1');
     // R-F02: no contact name/phone, no lockbox code, no street number — only the suburb.
@@ -368,7 +372,7 @@ describe('PublishDayPlansUseCase', () => {
     expect(warn).toBeTruthy();
     expect(warn![0]).toMatchObject({ inspectorId: 'insp-1', date: '2026-11-05', violations: [{ appointmentId: 'b-1', lateS: 1500 }] });
     expect(h.notices.execute.mock.calls[0]![0].body).toBe(
-      '2 inspections on Thu 5 Nov. First stop at 08:00 in Surry Hills; finish around 09:40, 1 stop may arrive after its window. Open Properfy to see the order.',
+      `2 inspections on ${DAY_LABEL}. First stop at 08:00 in Surry Hills; finish around 09:40, 1 stop may arrive after its window. Open Properfy to see the order.`,
     );
   });
 

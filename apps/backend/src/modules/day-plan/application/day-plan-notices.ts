@@ -3,6 +3,7 @@
  * Only date, count, time and suburb — never a contact name/phone, key/lockbox
  * code, meeting location or full address. Times are in the plan timezone.
  */
+import { formatShortDayLabel } from '@properfy/shared';
 
 export interface NoticeStop {
   /** First not-started stop's service start (null = all started/done). */
@@ -30,7 +31,11 @@ export interface RouteChangedNoticeInput {
 }
 
 function fmtDate(date: Date, tz: string): string {
-  return new Intl.DateTimeFormat('en-AU', { timeZone: tz, weekday: 'short', day: 'numeric', month: 'short' }).format(date);
+  // Assembled from parts (`formatShortDayLabel`) so the label is identical on
+  // every ICU/Node build — the default Intl short-date pattern varies the
+  // weekday/day separator ("Thu, 5 Nov" vs "Thu 5 Nov") between versions, which
+  // would make this lock-screen body non-deterministic.
+  return formatShortDayLabel(date, tz);
 }
 
 function fmtTime(date: Date, tz: string): string {
