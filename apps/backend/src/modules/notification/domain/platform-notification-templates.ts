@@ -216,9 +216,17 @@ const REJECTED_AGENCY_HTML = renderAppointmentEmailHtml({
     '{{#if rejectionReason}}' +
     `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Reason:</strong> {{rejectionReason}}</p>` +
     '{{/if}}' +
+    // When the inspector reported "Can't do this job" from the property, operations
+    // re-offer it — the agency need not act (F03, L-F03-07 / D26).
+    '{{#if rejectedByInspector}}' +
+    '<p>The inspector{{#if inspectorName}} ({{inspectorName}}){{/if}} reported from the ' +
+    "property that they couldn't complete this inspection. Operations have been notified " +
+    "and will offer the job again; you don't need to do anything unless we contact you.</p>" +
+    '{{else}}' +
     '<p>This inspection will not go ahead as scheduled and needs to be rearranged. ' +
     'Where the tenant told us when they are available, those times are recorded ' +
     'against the appointment.</p>' +
+    '{{/if}}' +
     CLOSING_PARAGRAPHS,
 });
 
@@ -317,6 +325,17 @@ const STUCK_ALERT_HTML = renderSystemEmailHtml({
     'started at <strong>{{startedAt}}</strong> and has been in progress for more than ' +
     '<strong>{{hoursStuck}} hours</strong> without being finished.</p>' +
     `<p style="${SYSTEM_NOTE_STYLE}"><strong>Action required:</strong> review the execution and follow up with the inspector.</p>`,
+});
+
+const INSPECTOR_UNABLE_ALERT_HTML = renderSystemEmailHtml({
+  heading: "An inspector couldn't complete a job",
+  contentHtml:
+    '<p>Inspector <strong>{{inspectorName}}</strong> reported from the property that they ' +
+    'cannot complete the inspection for appointment <strong>{{appointmentId}}</strong>.</p>' +
+    '<p>Reason: <strong>{{fieldIssueReason}}</strong>' +
+    '{{#if fieldIssueNote}}<br>Note: {{fieldIssueNote}}{{/if}}</p>' +
+    `<p style="${SYSTEM_NOTE_STYLE}"><strong>Action required:</strong> the job has been rejected and ` +
+    'released. Re-offer it to another inspector (directly or via a service group) when ready.</p>',
 });
 
 const GROUP_JOB_DETAILS_HTML =
@@ -479,6 +498,18 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     subject: 'Inspection stuck in progress for over {{hoursStuck}} hours',
     body: 'The inspection for appointment {{appointmentId}} (inspector {{inspectorId}}) started at {{startedAt}} and has been in progress for more than {{hoursStuck}} hours without being finished. Please review the execution and follow up with the inspector.',
     bodyHtml: STUCK_ALERT_HTML,
+    notificationClass: 'TRANSACTIONAL',
+  },
+  {
+    // Internal ops alert fanned out to every active OP/AM when an inspector taps "Can't do
+    // this job" (notify-inspector-unable.service). TRANSACTIONAL so it can never be
+    // consent-blocked; recipient is the ops team. The note is the inspector's free text and
+    // may be empty. Never carries the inspector's raw coordinates (F03 privacy).
+    code: 'INSPECTOR_UNABLE_ALERT',
+    channel: 'EMAIL',
+    subject: "Inspector couldn't complete appointment {{appointmentId}}",
+    body: 'Inspector {{inspectorName}} reported from the property that they cannot complete the inspection for appointment {{appointmentId}}. Reason: {{fieldIssueReason}}. {{#if fieldIssueNote}}Note: {{fieldIssueNote}}. {{/if}}The job has been rejected and released — re-offer it when ready.',
+    bodyHtml: INSPECTOR_UNABLE_ALERT_HTML,
     notificationClass: 'TRANSACTIONAL',
   },
   {

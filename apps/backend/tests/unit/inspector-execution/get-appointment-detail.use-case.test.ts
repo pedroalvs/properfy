@@ -238,6 +238,17 @@ describe('GetAppointmentDetailUseCase', () => {
     expect(result.execution!.startLatitude).toBe(-33.8688);
   });
 
+  it('returns a null execution when the check-in was abandoned', async () => {
+    vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+    vi.mocked(executionRepo.findByAppointmentId).mockResolvedValue(
+      makeExecution({ abandonedAt: new Date('2026-03-21T10:30:00Z') }),
+    );
+
+    const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+
+    expect(result.execution).toBeNull();
+  });
+
   it('serves the geofence radius/mode and the execution capture fields (F03)', async () => {
     const platformSettings = {
       get: vi.fn().mockResolvedValue({
@@ -705,5 +716,66 @@ describe('GetAppointmentDetailUseCase', () => {
         expect.objectContaining({ id: 'cred-1', name: 'Building App', username: 'insp', password: 'secret' }),
       ]);
     });
+  });
+});
+
+describe('GetAppointmentDetailUseCase lastFieldIssue (F03, D28)', () => {
+  function mkRepos() {
+    const appointmentRepo = {
+      findById: vi.fn().mockResolvedValue(makeAppointmentWithRelations()),
+      findAll: vi.fn(), count: vi.fn(), save: vi.fn(), update: vi.fn(),
+      saveContact: vi.fn(), updateContact: vi.fn(), saveRestriction: vi.fn(),
+      deleteRestrictionsByAppointmentId: vi.fn(), replaceRestrictions: vi.fn(),
+    } as unknown as IAppointmentRepository;
+    const executionRepo = {
+      findByAppointmentId: vi.fn().mockResolvedValue(null),
+      findByAppointmentIds: vi.fn(), save: vi.fn(), update: vi.fn(),
+    } as unknown as IInspectionExecutionRepository;
+    const serviceTypeReader = {
+      findById: vi.fn().mockResolvedValue({ id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE' }),
+      findByIds: vi.fn(),
+    } as unknown as IServiceTypeReader;
+    const tenantRepo = {
+      findById: vi.fn().mockResolvedValue(makeTenantEntity()),
+      findByLegalName: vi.fn(), findAll: vi.fn(), count: vi.fn(), save: vi.fn(), update: vi.fn(),
+    } as unknown as ITenantRepository;
+    return { appointmentRepo, executionRepo, serviceTypeReader, tenantRepo };
+  }
+
+  function sut(latestCantDo: unknown) {
+    const { appointmentRepo, executionRepo, serviceTypeReader, tenantRepo } = mkRepos();
+    const fieldEventRepo = { findLatestCantDoByAppointmentId: vi.fn().mockResolvedValue(latestCantDo) };
+    const useCase = new GetAppointmentDetailUseCase(
+      appointmentRepo, executionRepo, serviceTypeReader,
+      new AuthorizationService({ log: vi.fn() } as never), tenantRepo,
+      undefined, undefined, undefined, undefined, undefined, fieldEventRepo as never,
+    );
+    return useCase;
+  }
+
+  it("surfaces the inspector's own last CANT_DO", async () => {
+    const useCase = sut({
+      appointmentId: 'appt-1', reasonCode: 'KEY_FAILED', note: 'Lockbox code wrong',
+      inspectorId: 'insp-1', inspectorName: 'Jane Doe', occurredAt: new Date('2026-11-03T09:41:12.000Z'),
+    });
+    const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+    expect(result.lastFieldIssue).toEqual({
+      reason: 'KEY_FAILED', note: 'Lockbox code wrong', occurredAt: '2026-11-03T09:41:12.000Z',
+    });
+  });
+
+  it('hides a CANT_DO reported by another inspector', async () => {
+    const useCase = sut({
+      appointmentId: 'appt-1', reasonCode: 'KEY_FAILED', note: null,
+      inspectorId: 'insp-0', inspectorName: 'Someone Else', occurredAt: new Date(),
+    });
+    const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+    expect(result.lastFieldIssue).toBeNull();
+  });
+
+  it('is null when there is no CANT_DO', async () => {
+    const useCase = sut(null);
+    const result = await useCase.execute({ appointmentId: 'appt-1', actor: inspActor });
+    expect(result.lastFieldIssue).toBeNull();
   });
 });

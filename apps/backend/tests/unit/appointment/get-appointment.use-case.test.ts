@@ -302,4 +302,59 @@ describe('GetAppointmentUseCase', () => {
       expect.objectContaining({ id: 'cred-1', name: 'Building App', username: 'insp', password: 'secret' }),
     ]);
   });
+
+  describe('inspectorIssue (F03)', () => {
+    it('flattens the latest CANT_DO onto the detail', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+      const fieldEventRepo = {
+        findLatestCantDoByAppointmentId: vi.fn().mockResolvedValue({
+          appointmentId: 'appt-1',
+          reasonCode: 'KEY_FAILED',
+          note: 'Lockbox code wrong',
+          inspectorId: 'insp-1',
+          inspectorName: 'Jane Doe',
+          occurredAt: new Date('2026-11-03T09:41:12.000Z'),
+        }),
+      };
+      const uc = new GetAppointmentUseCase(appointmentRepo, new AuthorizationService(auditService), undefined, fieldEventRepo as never);
+      const result = await uc.execute({ appointmentId: 'appt-1', actor: makeActor({ role: 'AM' }) });
+      expect(result.inspectorIssue).toEqual({
+        reason: 'KEY_FAILED',
+        note: 'Lockbox code wrong',
+        inspectorId: 'insp-1',
+        inspectorName: 'Jane Doe',
+        occurredAt: '2026-11-03T09:41:12.000Z',
+      });
+    });
+
+    it('is null when there is no CANT_DO', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(makeAppointmentWithRelations());
+      const fieldEventRepo = { findLatestCantDoByAppointmentId: vi.fn().mockResolvedValue(null) };
+      const uc = new GetAppointmentUseCase(appointmentRepo, new AuthorizationService(auditService), undefined, fieldEventRepo as never);
+      const result = await uc.execute({ appointmentId: 'appt-1', actor: makeActor({ role: 'AM' }) });
+      expect(result.inspectorIssue).toBeNull();
+    });
+
+    it('never exposes a peer inspector identity to an INSP actor', async () => {
+      // Security: inspectorIssue carries another inspector's name/id, so an INSP
+      // viewing their own appointment must get null (they see only their own last
+      // report via the inspector-detail lastFieldIssue). No repo call is made.
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ inspectorId: 'inspector-user-1' }),
+      );
+      const fieldEventRepo = {
+        findLatestCantDoByAppointmentId: vi.fn().mockResolvedValue({
+          appointmentId: 'appt-1', reasonCode: 'KEY_FAILED', note: 'x',
+          inspectorId: 'other-insp', inspectorName: 'Someone Else', occurredAt: new Date(),
+        }),
+      };
+      const uc = new GetAppointmentUseCase(appointmentRepo, new AuthorizationService(auditService), undefined, fieldEventRepo as never);
+      const result = await uc.execute({
+        appointmentId: 'appt-1',
+        actor: makeActor({ role: 'INSP', userId: 'inspector-user-1', inspectorId: 'inspector-user-1' }),
+      });
+      expect(result.inspectorIssue).toBeNull();
+      expect(fieldEventRepo.findLatestCantDoByAppointmentId).not.toHaveBeenCalled();
+    });
+  });
 });

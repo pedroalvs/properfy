@@ -24,6 +24,7 @@ import type { SweepAbandonedAppointmentImportsWorker } from '../modules/appointm
 import type { GenerateInvoiceFileWorker } from '../modules/billing/infrastructure/workers/generate-invoice-file.worker';
 import type { ExpireTokensWorker } from '../modules/rental-tenant-portal/infrastructure/workers/expire-tokens.worker';
 import type { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
+import type { SendCompletionRemindersUseCase } from '../modules/inspector-execution/application/use-cases/send-completion-reminders.use-case';
 import type { AuditRetentionWorker } from '../modules/audit/infrastructure/workers/audit-retention.worker';
 import type { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
 import type { CancelOverdueWorker } from '../modules/appointment/infrastructure/workers/cancel-overdue.worker';
@@ -83,6 +84,7 @@ export async function registerWorkers(
   deliverInspectorNoticeUseCase: DeliverInspectorNoticeUseCase,
   sweepUndeliveredInspectorNoticesUseCase: SweepUndeliveredInspectorNoticesUseCase,
   autoArchiveInspectorNoticesUseCase: AutoArchiveInspectorNoticesUseCase,
+  sendCompletionRemindersUseCase: SendCompletionRemindersUseCase,
   logger: Logger,
 ): Promise<void> {
   // Guard against the misconfiguration where this process consumes jobs from one
@@ -270,6 +272,14 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, notifiedCount: result.notifiedCount }, 'Stuck inspection alerts completed');
   }));
 
+  // F03 03.16: nudge inspectors whose job window closed today without a check-out.
+  await boss.schedule('inspection-execution.completion-reminder', '*/15 * * * *', {}, SYDNEY_TZ);
+  await boss.work('inspection-execution.completion-reminder', withJobMetrics('inspection-execution.completion-reminder', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing inspection-execution.completion-reminder job');
+    const result = await sendCompletionRemindersUseCase.execute();
+    logger.info({ jobId: job.id, ...result }, 'Completion reminders completed');
+  }));
+
   // Audit log retention — daily at 03:30 Sydney (off-peak)
   await boss.schedule('audit.retention', '30 3 * * *', {}, SYDNEY_TZ);
   await boss.work('audit.retention', withJobMetrics('audit.retention', async (job) => {
@@ -387,7 +397,7 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, audit.retention, appointment.reject-unconfirmed, appointment.cancel-overdue, service-group.cancel-empty, inspector-notice.deliver, inspector-notice.delivery-sweep, inspector-notice.auto-archive, system.dlq-monitor');
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, inspection-execution.completion-reminder, audit.retention, appointment.reject-unconfirmed, appointment.cancel-overdue, service-group.cancel-empty, inspector-notice.deliver, inspector-notice.delivery-sweep, inspector-notice.auto-archive, system.dlq-monitor');
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({

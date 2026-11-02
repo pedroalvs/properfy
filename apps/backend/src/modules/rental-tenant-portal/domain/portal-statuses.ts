@@ -1,3 +1,5 @@
+import { SYSTEM_ONLY_REJECTION_CODES } from '@properfy/shared';
+
 /**
  * Statuses in which the rental tenant portal offers nothing to act on at all.
  *
@@ -29,4 +31,27 @@ export function isPortalDeadStatus(status: string): boolean {
 
 export function isPortalUnanswerableStatus(status: string): boolean {
   return (PORTAL_UNANSWERABLE_STATUSES as readonly string[]).includes(status);
+}
+
+/**
+ * Whether the rental tenant portal must NOT offer "change time" for this
+ * appointment (F03, L-F03-01 / D20).
+ *
+ * This is every dead status PLUS a `REJECTED` appointment whose rejection code is
+ * system-only (today just `INSPECTOR_UNABLE`): when the inspector reported "Can't
+ * do this job", re-offering is the operation's call, not the tenant's — the
+ * change-time picker would otherwise silently revive a job the inspector already
+ * refused. A tenant-driven decline (`TENANT_DECLINED`) still lets the tenant pick
+ * another time, so it is deliberately not blocked here.
+ */
+export function isPortalChangeTimeBlocked(input: {
+  status: string;
+  rejectionReasonCode: string | null;
+}): boolean {
+  if (isPortalDeadStatus(input.status)) return true;
+  return (
+    input.status === 'REJECTED' &&
+    input.rejectionReasonCode !== null &&
+    (SYSTEM_ONLY_REJECTION_CODES as readonly string[]).includes(input.rejectionReasonCode)
+  );
 }

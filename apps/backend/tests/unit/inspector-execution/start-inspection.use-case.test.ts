@@ -37,6 +37,9 @@ const executionRepo = {
   findByAppointmentIds: vi.fn(),
   save: vi.fn(),
   update: vi.fn(),
+  markAbandoned: vi.fn(),
+  restart: vi.fn(),
+  findStuckExecutions: vi.fn(),
 };
 
 const idempotencyService = {
@@ -166,6 +169,56 @@ describe('StartInspectionUseCase', () => {
     expect(savedExecution.startLatitude).toBe(-33.891);
     expect(savedExecution.startLongitude).toBe(151.277);
     expect(savedExecution.finishedAt).toBeNull();
+  });
+
+  it('restarts an abandoned execution in place (re-offer), reusing the same row and auditing without coordinates', async () => {
+    const sut = makeSut();
+    appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
+
+    const abandoned = new InspectionExecutionEntity({
+      id: 'exec-abandoned',
+      appointmentId: 'appt-1',
+      inspectorId: 'insp-0', // previous inspector
+      startedAt: new Date('2026-03-20T09:00:00Z'),
+      finishedAt: null,
+      resumedAt: null,
+      startLatitude: -33.5,
+      startLongitude: 151.0,
+      finishLatitude: null,
+      finishLongitude: null,
+      geolocationDistanceMeters: 120,
+      startAccuracyMeters: 10,
+      outOfRadius: false,
+      outOfWindow: false,
+      geofenceRadiusMeters: 300,
+      abandonedAt: new Date('2026-03-20T09:30:00Z'),
+      createdAt: new Date('2026-03-20T09:00:00Z'),
+      updatedAt: new Date('2026-03-20T09:30:00Z'),
+    });
+    executionRepo.findByAppointmentId.mockResolvedValue(abandoned);
+
+    const result = await sut.execute({
+      appointmentId: 'appt-1',
+      latitude: -33.891,
+      longitude: 151.277,
+      idempotencyKey: 'key-restart',
+      actor: inspActor,
+    });
+
+    expect(result.executionId).toBe('exec-abandoned');
+    expect(result.status).toBe('IN_PROGRESS');
+    expect(executionRepo.save).not.toHaveBeenCalled();
+    expect(executionRepo.restart).toHaveBeenCalledWith(
+      'exec-abandoned',
+      expect.objectContaining({ inspectorId: 'insp-1', geofenceRadiusMeters: 300 }),
+    );
+    const restartAudit = auditService.log.mock.calls
+      .map((c: unknown[]) => c[0] as { action: string; before?: unknown; after?: unknown })
+      .find((a) => a.action === 'inspection_execution.restarted');
+    expect(restartAudit).toBeDefined();
+    const serialized = JSON.stringify({ before: restartAudit!.before, after: restartAudit!.after });
+    expect(serialized).not.toContain('151.0');
+    expect(serialized).not.toContain('latitude');
   });
 
   it('should return existing execution if appointment already has one in progress (idempotent start)', async () => {

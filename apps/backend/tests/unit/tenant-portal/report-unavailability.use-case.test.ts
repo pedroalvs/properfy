@@ -296,6 +296,29 @@ describe('ReportUnavailabilityUseCase', () => {
     );
   });
 
+  it('does not treat an abandoned execution as started (re-offer keeps the portal working)', async () => {
+    executionRepo.findByAppointmentId.mockResolvedValue(
+      new InspectionExecutionEntity({
+        id: 'exec-1',
+        appointmentId: 'appt-1',
+        inspectorId: 'insp-1',
+        startedAt: new Date('2026-04-15T09:00:00Z'),
+        finishedAt: null,
+        resumedAt: null,
+        startLatitude: -1,
+        startLongitude: -1,
+        finishLatitude: null,
+        finishLongitude: null,
+        geolocationDistanceMeters: null,
+        abandonedAt: new Date('2026-04-15T09:30:00Z'),
+        createdAt: new Date('2026-04-15T09:00:00Z'),
+        updatedAt: new Date('2026-04-15T09:30:00Z'),
+      }),
+    );
+
+    await expect(useCase.execute(makeInput())).resolves.toBeDefined();
+  });
+
   it('should include availableSlotsJson in newValuesJson when restrictions contain slots (T021)', async () => {
     const slots = [
       { dayOfWeek: 'MON' as const, start: '09:00', end: '12:00' },

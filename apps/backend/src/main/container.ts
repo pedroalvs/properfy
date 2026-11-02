@@ -222,6 +222,7 @@ import type { RentalTenantPortalRouteContainer } from '../modules/rental-tenant-
 
 // Inspector execution module
 import { PrismaInspectionExecutionRepository } from '../modules/inspector-execution/infrastructure/prisma-inspection-execution.repository';
+import { PrismaInspectorFieldEventRepository } from '../modules/inspector-execution/infrastructure/prisma-inspector-field-event.repository';
 import { PrismaIdempotencyService } from '../modules/inspector-execution/infrastructure/prisma-idempotency.service';
 import { UnconfiguredStorageService } from '../modules/inspector-execution/infrastructure/unconfigured-storage.service';
 import { SupabaseBrandingStorageService } from '../modules/tenant/infrastructure/supabase-branding-storage.service';
@@ -243,6 +244,13 @@ import { UpdatePlatformSettingUseCase } from '../modules/platform-settings/appli
 import { PLATFORM_SETTING_SAVE_HOOKS } from '../modules/platform-settings/application/platform-setting-save-hooks';
 import type { PlatformSettingsRouteContainer } from '../modules/platform-settings/interfaces/platform-settings.routes';
 import { ReopenExecutionUseCase } from '../modules/inspector-execution/application/use-cases/reopen-execution.use-case';
+import { ReportCantDoUseCase } from '../modules/inspector-execution/application/use-cases/report-cant-do.use-case';
+import { ReportLateNoticeUseCase } from '../modules/inspector-execution/application/use-cases/report-late-notice.use-case';
+import { NotifyInspectorUnableService } from '../modules/inspector-execution/application/services/notify-inspector-unable.service';
+import { NullPublishedStopStartReader } from '../modules/inspector-execution/domain/late-notice';
+import { GetAppointmentFieldActivityUseCase } from '../modules/appointment/application/use-cases/get-appointment-field-activity.use-case';
+import { SendCompletionRemindersUseCase } from '../modules/inspector-execution/application/use-cases/send-completion-reminders.use-case';
+import { PrismaCompletionReminderReader } from '../modules/inspector-execution/infrastructure/prisma-completion-reminder.reader';
 import type { InspectorExecutionRouteContainer } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
 
 // Billing module
@@ -525,6 +533,7 @@ export interface AppContainer {
   generateInvoiceFileWorker: GenerateInvoiceFileWorker;
   expireTokensWorker: ExpireTokensWorker;
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
+  sendCompletionRemindersUseCase: SendCompletionRemindersUseCase;
   auditRetentionWorker: AuditRetentionWorker;
   rejectUnconfirmedWorker: RejectUnconfirmedWorker;
   cancelOverdueWorker: CancelOverdueWorker;
@@ -879,13 +888,17 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Appointment repositories and use cases
   const appointmentRepo = new PrismaAppointmentRepository(prisma);
+  // Constructed here (not with the inspector-execution repos further down) because
+  // the appointment list/detail use cases below read it to flatten `inspectorIssue`
+  // (F03). It only needs prisma, so its position is free.
+  const inspectorFieldEventRepo = new PrismaInspectorFieldEventRepository(prisma);
   const createFinancialEntriesOnDoneUseCase = new CreateFinancialEntriesOnDoneUseCase(
     appointmentRepo, financialEntryRepo, auditService, idempotencyService, tenantRepo,
   );
   // createAppointmentUseCase is constructed AFTER the service-group use cases below —
   // the INGOING/OUTGOING auto-group step needs create/publish, which need serviceGroupRepo.
-  const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService, appCredentialRepo);
-  const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService);
+  const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService, appCredentialRepo, inspectorFieldEventRepo);
+  const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService, inspectorFieldEventRepo);
   const listAppointmentSuburbsUseCase = new ListAppointmentSuburbsUseCase(appointmentRepo, authorizationService);
   // exportAppointmentsUseCase is constructed AFTER the report module below —
   // it reuses that module's XLSX generator.
@@ -933,6 +946,7 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, propertyRepo, tenantRepo, branchRepo, notificationRepo,
     mintPortalTokenService, buildNotificationPayload, appointmentCodeFormatter,
     createNotificationUseCase, env.TENANT_PORTAL_BASE_URL, logger, metrics,
+    inspectorFieldEventRepo,
   );
   const notifyOnRentalTenantPortalActionHandler = new NotifyOnRentalTenantPortalActionHandler(
     appointmentRepo, propertyRepo, tenantRepo, notificationRepo,
@@ -1019,6 +1033,8 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Inspector execution repositories and services
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
+  // `inspectorFieldEventRepo` is constructed earlier (near appointmentRepo) so the
+  // appointment list/detail use cases can read it for `inspectorIssue`.
   const serviceTypeReaderForExec = new PrismaServiceTypeReader(prisma);
   const contactReaderForExec = new PrismaContactReader(prisma);
   const performCrossCheckUseCase = new PerformCrossCheckUseCase(
@@ -1068,6 +1084,7 @@ export function createContainer(logger: Logger): AppContainer {
     contactReaderForExec, logger,
     tenantTimezoneLookup,
     platformSettingsService,
+    inspectorFieldEventRepo,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
     appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, serviceTypeReaderForExec, authorizationService,
@@ -1079,6 +1096,7 @@ export function createContainer(logger: Logger): AppContainer {
     executeStatusTransitionUseCase, appointmentRepo, auditService, authorizationService,
     prisma,
     platformSettingsService,
+    inspectorFieldEventRepo,
   );
   const getAvailablePeriodsUseCase = new GetAvailablePeriodsUseCase(inspectorRepo);
   const getInspectorEarningsSummaryUseCase = new GetInspectorEarningsSummaryUseCase(financialEntryRepo);
@@ -1086,6 +1104,30 @@ export function createContainer(logger: Logger): AppContainer {
   const requestInvoiceUseCase = new RequestInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, inspectorRepo, auditService);
   const reopenExecutionUseCase = new ReopenExecutionUseCase(
     inspectionExecutionRepo, appointmentRepo, auditService, authorizationService,
+  );
+
+  // Inspector field events (F03): "Can't do this job" and "Running late".
+  const notifyInspectorUnableService = new NotifyInspectorUnableService(
+    userManagementRepo, createNotificationUseCase, logger,
+  );
+  const reportCantDoUseCase = new ReportCantDoUseCase(
+    inspectorFieldEventRepo, inspectionExecutionRepo, appointmentRepo, executeStatusTransitionUseCase,
+    idempotencyService, auditService, authorizationService, notifyInspectorUnableService,
+    domainEventBus, logger, prisma,
+  );
+  const reportLateNoticeUseCase = new ReportLateNoticeUseCase(
+    inspectorFieldEventRepo, inspectionExecutionRepo, appointmentRepo, idempotencyService,
+    auditService, authorizationService, new NullPublishedStopStartReader(), tenantTimezoneLookup,
+    domainEventBus, logger, prisma,
+  );
+  const getAppointmentFieldActivityUseCase = new GetAppointmentFieldActivityUseCase(
+    appointmentRepo, inspectionExecutionRepo, inspectorFieldEventRepo, inspectorRepo, authorizationService,
+  );
+  // Completion reminder (F03, 03.16): reuses F02's PublishSystemInspectorNoticeUseCase.
+  const completionReminderReader = new PrismaCompletionReminderReader(prisma);
+  const sendCompletionRemindersUseCase = new SendCompletionRemindersUseCase(
+    completionReminderReader, platformSettingsService, tenantTimezoneLookup,
+    publishSystemInspectorNoticeUseCase, auditService, logger,
   );
 
   // Audit use cases
@@ -1700,6 +1742,7 @@ export function createContainer(logger: Logger): AppContainer {
     appointment: {
       createAppointmentUseCase,
       getAppointmentUseCase,
+      getAppointmentFieldActivityUseCase,
       listAppointmentsUseCase,
       listAppointmentSuburbsUseCase,
       exportAppointmentsUseCase,
@@ -1806,6 +1849,8 @@ export function createContainer(logger: Logger): AppContainer {
       startInspectionUseCase,
       finishInspectionUseCase,
       reopenExecutionUseCase,
+      reportCantDoUseCase,
+      reportLateNoticeUseCase,
       getMarketplaceOffersUseCase,
       getAvailablePeriodsUseCase,
       getInspectorEarningsSummaryUseCase,
@@ -1973,6 +2018,7 @@ export function createContainer(logger: Logger): AppContainer {
     generateInvoiceFileWorker,
     expireTokensWorker,
     notifyStuckInspectionsWorker,
+    sendCompletionRemindersUseCase,
     auditRetentionWorker,
     rejectUnconfirmedWorker,
     cancelOverdueWorker,

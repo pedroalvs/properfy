@@ -78,6 +78,7 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // deliverInspectorNoticeUseCase
     makeWorkerMock() as any,   // sweepUndeliveredInspectorNoticesUseCase
     makeWorkerMock() as any,   // autoArchiveInspectorNoticesUseCase
+    makeWorkerMock() as any,   // sendCompletionRemindersUseCase
     logger as any,
   );
 }
@@ -102,6 +103,7 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
     ['appointment.import.sweep-abandoned', '0 * * * *'],
     ['rental-tenant-portal.expire-tokens', '*/15 * * * *'],
     ['inspection-execution.notify-not-started', '0 * * * *'],
+    ['inspection-execution.completion-reminder', '*/15 * * * *'],
     ['audit.retention', '30 3 * * *'],
     ['appointment.reject-unconfirmed', '0 * * * *'],
     ['appointment.cancel-overdue', '10 * * * *'],

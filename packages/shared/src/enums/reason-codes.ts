@@ -28,6 +28,20 @@ export const RejectionReasonCode = {
    * submitted, so the appointment can be rescheduled against it.
    */
   TENANT_DECLINED: 'TENANT_DECLINED',
+  /**
+   * System-assigned only: the inspector reported "Can't do this job" from the
+   * app, which drives SCHEDULED → REJECTED as the SYSTEM actor. Never offered as
+   * a manual choice — rejecting with it as a human is refused
+   * (`REJECTION_REASON_CODE_SYSTEM_ONLY`). See `SYSTEM_ONLY_REJECTION_CODES`.
+   */
+  INSPECTOR_UNABLE: 'INSPECTOR_UNABLE',
   OTHER: 'OTHER',
 } as const;
 export type RejectionReasonCode = (typeof RejectionReasonCode)[keyof typeof RejectionReasonCode];
+
+/**
+ * Rejection reason codes that only the system may assign; a human actor using
+ * one is refused. Drives the portal no-reoffer rule too: a tenant cannot
+ * reschedule a job rejected with one of these codes.
+ */
+export const SYSTEM_ONLY_REJECTION_CODES: RejectionReasonCode[] = [RejectionReasonCode.INSPECTOR_UNABLE];

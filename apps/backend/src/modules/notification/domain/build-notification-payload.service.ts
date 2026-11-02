@@ -150,6 +150,12 @@ export class BuildNotificationPayloadService {
       // is the fresh one.
       cancellationReason: ctx.appointment.reason ?? '',
       rejectionReason: ctx.appointment.reason ?? '',
+      // Non-empty (truthy for Handlebars {{#if}}) only when the inspector reported
+      // "Can't do this job" — switches the agency rejection email to the "ops will
+      // re-offer, no action needed" copy (F03, L-F03-07 / D26). `inspectorName` is
+      // set by the handler from the last CANT_DO, since the appointment's own
+      // inspectorId is already null by the time this email is built.
+      rejectedByInspector: ctx.appointment.rejectionReasonCode === 'INSPECTOR_UNABLE' ? 'true' : '',
     };
 
     const spec = TEMPLATE_VARIABLES[ctx.templateCode as keyof typeof TEMPLATE_VARIABLES];

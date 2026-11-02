@@ -13,6 +13,7 @@ import {
   resolvePlatformTemplateClass,
 } from '../../../src/modules/notification/domain/platform-notification-templates';
 import { STUCK_ALERT_PAYLOAD_KEYS } from '../../../src/modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
+import { INSPECTOR_UNABLE_ALERT_PAYLOAD_KEYS } from '../../../src/modules/inspector-execution/application/services/notify-inspector-unable.service';
 import { SanitizeHtmlService } from '../../../src/modules/notification/infrastructure/sanitize-html.service';
 import { TemplateRendererService } from '../../../src/modules/notification/domain/template-renderer.service';
 
@@ -46,6 +47,36 @@ describe('PLATFORM_TEMPLATES seed data', () => {
   it('INSPECTION_STUCK_ALERT is TRANSACTIONAL so an internal ops alert can never be consent-blocked', () => {
     const entry = PLATFORM_TEMPLATES.find(
       (t) => t.code === 'INSPECTION_STUCK_ALERT' && t.channel === 'EMAIL',
+    )!;
+
+    expect(entry.notificationClass).toBe('TRANSACTIONAL');
+  });
+
+  it('includes an EMAIL template for INSPECTOR_UNABLE_ALERT', () => {
+    const entry = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'INSPECTOR_UNABLE_ALERT' && t.channel === 'EMAIL',
+    );
+
+    expect(entry).toBeDefined();
+    expect(entry!.subject).toBeTruthy();
+    expect(entry!.body).toBeTruthy();
+  });
+
+  it('INSPECTOR_UNABLE_ALERT only uses variables the alert service provides', () => {
+    const entry = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'INSPECTOR_UNABLE_ALERT' && t.channel === 'EMAIL',
+    )!;
+
+    const used = extractVariables(`${entry.subject ?? ''} ${entry.body}`);
+    expect(used.length).toBeGreaterThan(0);
+    for (const variable of used) {
+      expect(INSPECTOR_UNABLE_ALERT_PAYLOAD_KEYS).toContain(variable);
+    }
+  });
+
+  it('INSPECTOR_UNABLE_ALERT is TRANSACTIONAL so the ops alert can never be consent-blocked', () => {
+    const entry = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'INSPECTOR_UNABLE_ALERT' && t.channel === 'EMAIL',
     )!;
 
     expect(entry.notificationClass).toBe('TRANSACTIONAL');
@@ -116,6 +147,7 @@ describe('seeded notification class follows the shared catalogue', () => {
   // explicit seed entry now agrees with the catalogue rather than being the sole pin.
   it.each([
     'INSPECTION_STUCK_ALERT',
+    'INSPECTOR_UNABLE_ALERT',
     'PASSWORD_RESET',
     'INSPECTOR_GROUP_ASSIGNED',
     'INSPECTOR_GROUP_UNASSIGNED',
@@ -299,6 +331,7 @@ const SYSTEM_EMAIL_SAMPLES: Record<string, Record<string, string>> = {
   REPORT_READY: { userName: 'Admin User', reportType: 'Appointments', downloadLink: 'https://app.properfy.me/reports/1', properfyLogoUrl: PROPERFY_LOGO_URL },
   REPORT_FAILED: { userName: 'Admin User', reportType: 'Appointments', errorMessage: 'Server timeout', downloadLink: 'https://app.properfy.me/reports', properfyLogoUrl: PROPERFY_LOGO_URL },
   INSPECTION_STUCK_ALERT: { appointmentId: 'appt-1', inspectorId: 'insp-1', startedAt: '2026-07-23 09:00', hoursStuck: '5', properfyLogoUrl: PROPERFY_LOGO_URL },
+  INSPECTOR_UNABLE_ALERT: { appointmentId: 'appt-1', inspectorName: 'Jane Doe', fieldIssueReason: "Key didn't work", fieldIssueNote: 'Lockbox code wrong', properfyLogoUrl: PROPERFY_LOGO_URL },
 };
 
 describe('PLATFORM_TEMPLATES system email HTML bodies', () => {
@@ -353,6 +386,42 @@ describe('PLATFORM_TEMPLATES system email HTML bodies', () => {
     expect(failed.bodyHtml).toContain('{{errorMessage}}');
     expect(stuck.bodyHtml).toContain('{{appointmentId}}');
     expect(stuck.bodyHtml).toContain('{{hoursStuck}}');
+  });
+});
+
+describe('INSPECTION_REJECTED_AGENCY inspector-driven copy (F03, D26)', () => {
+  const renderer = new TemplateRendererService();
+  const entry = PLATFORM_TEMPLATES.find(
+    (t) => t.code === 'INSPECTION_REJECTED_AGENCY' && t.channel === 'EMAIL',
+  )!;
+
+  const baseVars = {
+    appointmentCode: 'INS-0042',
+    propertyAddress: '12 King St, Newtown',
+    scheduledDate: '03/11/2026',
+    properfyLogoUrl: PROPERFY_LOGO_URL,
+  };
+
+  it('renders the inspector message and omits the tenant-availability copy when rejectedByInspector', () => {
+    const rendered = renderer.render(entry.bodyHtml!, {
+      ...baseVars,
+      rejectedByInspector: 'true',
+      inspectorName: 'Jane Doe',
+      rejectionReason: "Key didn't work — Lockbox code wrong",
+    });
+    expect(rendered).toContain(
+      "The inspector (Jane Doe) reported from the property that they couldn't complete this inspection",
+    );
+    expect(rendered).toContain("you don't need to do anything unless we contact you");
+    expect(rendered).not.toContain('Where the tenant told us when they are available');
+    expect(rendered).not.toMatch(/\{\{/);
+  });
+
+  it('keeps the standard rearrange copy when it is not an inspector rejection', () => {
+    const rendered = renderer.render(entry.bodyHtml!, { ...baseVars, rejectedByInspector: '' });
+    expect(rendered).toContain('Where the tenant told us when they are available');
+    expect(rendered).not.toContain('reported from the property');
+    expect(rendered).not.toMatch(/\{\{/);
   });
 });
 

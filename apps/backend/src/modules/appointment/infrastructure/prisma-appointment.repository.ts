@@ -16,6 +16,7 @@ import { phoneColumnSearchClauses } from '../../../shared/infrastructure/phone-s
 import { AppointmentEntity } from '../domain/appointment.entity';
 import { AppointmentContactEntity } from '../domain/appointment-contact.entity';
 import { AppointmentRestrictionEntity } from '../domain/appointment-restriction.entity';
+import { AppointmentStatusChangedError } from '../domain/appointment.errors';
 import type {
   IAppointmentRepository,
   AppointmentFilters,
@@ -429,6 +430,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       pricingRuleSnapshotJson: Record<string, unknown> | null;
     }>,
     tx?: Prisma.TransactionClient,
+    expectedStatus?: string,
   ): Promise<void> {
     const updateData: Record<string, unknown> = {};
     if (data.status !== undefined) updateData['status'] = data.status;
@@ -467,10 +469,22 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (data.payoutAmount !== undefined) updateData['payout_amount'] = data.payoutAmount;
     if (data.pricingRuleSnapshotJson !== undefined) updateData['pricing_rule_snapshot_json'] = data.pricingRuleSnapshotJson;
 
-    await this.db(tx).appointment.updateMany({
-      where: { id, tenant_id: tenantId },
+    const result = await this.db(tx).appointment.updateMany({
+      where: {
+        id,
+        tenant_id: tenantId,
+        ...(expectedStatus !== undefined
+          ? { status: expectedStatus as Prisma.AppointmentWhereInput['status'] }
+          : {}),
+      },
       data: updateData,
     });
+
+    // CAS: with an expectedStatus predicate, zero matches means the status
+    // changed under us. Fail loudly so the transaction rolls back.
+    if (expectedStatus !== undefined && result.count === 0) {
+      throw new AppointmentStatusChangedError();
+    }
   }
 
   async saveContact(contact: AppointmentContactEntity): Promise<void> {

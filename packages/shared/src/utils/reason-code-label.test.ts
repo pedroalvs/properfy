@@ -11,6 +11,10 @@ describe('formatReasonCodeLabel', () => {
     expect(formatReasonCodeLabel('DUPLICATE')).toBe('Duplicate');
   });
 
+  it('humanizes INSPECTOR_UNABLE', () => {
+    expect(formatReasonCodeLabel('INSPECTOR_UNABLE')).toBe('Inspector Unable');
+  });
+
   it('returns an empty string for null/undefined/empty', () => {
     expect(formatReasonCodeLabel(null)).toBe('');
     expect(formatReasonCodeLabel(undefined)).toBe('');
