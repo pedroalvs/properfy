@@ -11,10 +11,10 @@ const onlineRef = { value: true };
 vi.mock('@/hooks/useIsOnline', () => ({ useIsOnline: () => onlineRef.value }));
 
 const showError = vi.fn();
-vi.mock('@/hooks/useSnackbar', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/hooks/useSnackbar')>()),
-  useSnackbar: () => ({ showError, showSuccess: vi.fn(), showInfo: vi.fn() }),
-}));
+vi.mock('@/hooks/useSnackbar', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, useSnackbar: () => ({ showError, showSuccess: vi.fn(), showInfo: vi.fn() }) };
+});
 
 function overridePlan() {
   return buildDayPlan({
