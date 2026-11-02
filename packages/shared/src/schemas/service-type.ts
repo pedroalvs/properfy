@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { paginationSchema } from './pagination';
 import {
-  SERVICE_TYPE_DURATION_DEFAULT_MINUTES,
   SERVICE_TYPE_DURATION_MAX_MINUTES,
   SERVICE_TYPE_DURATION_MIN_MINUTES,
 } from '../constants/service-type';
@@ -17,8 +16,8 @@ export const createServiceTypeSchema = z.object({
   name: z.string().min(1).max(200).trim(),
   flowType: z.enum(['ROUTINE', 'INGOING', 'OUTGOING']),
   requiresRentalTenantConfirmation: z.boolean(),
-  // Transitional default until TASK-F04-5 makes the web field required.
-  defaultDurationMinutes: durationMinutes.default(SERVICE_TYPE_DURATION_DEFAULT_MINUTES),
+  // Required: the day-route planner (F04) needs a per-stop service duration.
+  defaultDurationMinutes: durationMinutes,
 });
 export type CreateServiceTypeInput = z.infer<typeof createServiceTypeSchema>;
 

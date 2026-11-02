@@ -2978,8 +2978,7 @@ export interface paths {
                         /** @enum {string} */
                         flowType: "ROUTINE" | "INGOING" | "OUTGOING";
                         requiresRentalTenantConfirmation: boolean;
-                        /** @default 45 */
-                        defaultDurationMinutes?: number;
+                        defaultDurationMinutes: number;
                     };
                 };
             };

@@ -6252,15 +6252,15 @@
                   "defaultDurationMinutes": {
                     "type": "integer",
                     "minimum": 5,
-                    "maximum": 480,
-                    "default": 45
+                    "maximum": 480
                   }
                 },
                 "required": [
                   "code",
                   "name",
                   "flowType",
-                  "requiresRentalTenantConfirmation"
+                  "requiresRentalTenantConfirmation",
+                  "defaultDurationMinutes"
                 ],
                 "additionalProperties": false
               }
