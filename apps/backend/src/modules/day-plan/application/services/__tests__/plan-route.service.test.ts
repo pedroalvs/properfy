@@ -9,6 +9,7 @@ import {
   type RoutingLeg,
   type RoutingMatrix,
 } from '../../../domain/routing.service';
+import { StubRoutingService } from '../../../infrastructure/routing/stub-routing.service';
 import { PlanRouteService, type PlanRouteInput, type PlanRouteStopInput } from '../plan-route.service';
 
 function logger() {
@@ -87,7 +88,7 @@ function baseInput(over: Partial<PlanRouteInput> = {}): PlanRouteInput {
 }
 
 function make(fake: FakeRouting) {
-  return new PlanRouteService(fake, logger(), new MetricsCollector());
+  return new PlanRouteService(fake, new StubRoutingService(), logger(), new MetricsCollector());
 }
 
 describe('PlanRouteService', () => {

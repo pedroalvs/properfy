@@ -20,7 +20,6 @@ import {
   type RoutePoint,
   type RoutingProviderName,
 } from '../../domain/routing.service';
-import { StubRoutingService } from '../../infrastructure/routing/stub-routing.service';
 
 const IDENTICAL_POINT_METERS = 10;
 const INTERACTIVE_MAX_WAIT_MS = 3000;
@@ -128,10 +127,10 @@ function isDeferrable(code: RoutingProviderError['code']): boolean {
 }
 
 export class PlanRouteService {
-  private readonly stub = new StubRoutingService();
-
   constructor(
     private readonly routing: IRoutingService,
+    /** Straight-line fallback (haversine stub) injected so this layer imports no infrastructure. */
+    private readonly stub: IRoutingService,
     private readonly logger: Logger,
     private readonly metrics: MetricsCollector,
   ) {}
@@ -290,8 +289,9 @@ export class PlanRouteService {
           throw new RoutingDeferredError(code === 'RATE_LIMITED' || code === 'HTTP_429' ? 'RATE_LIMITED' : 'PROVIDER_ERROR', e);
         }
         // Interactive (or permanent error, or post-deadline): stub this leg.
+        // usage.directionsCalls counts only successful provider Directions calls,
+        // so a stubbed leg adds nothing here.
         const stubLeg = await this.stub.directions([fromPoint, toPoint]);
-        if (!deadlineHit) directionsCalls += 0; // no provider directions call succeeded
         legTravelS[i] = stubLeg.durationS;
         legDistanceM[i] = stubLeg.distanceM;
         legApprox[i] = true;

@@ -482,6 +482,7 @@ import {
   DynamicSmsProvider,
 } from '../modules/integration/infrastructure/dynamic-providers';
 import { PostgresRoutingRateLimiter } from '../modules/day-plan/infrastructure/routing/postgres-routing-rate-limiter';
+import { StubRoutingService } from '../modules/day-plan/infrastructure/routing/stub-routing.service';
 import { PlanRouteService } from '../modules/day-plan/application/services/plan-route.service';
 import { AesTokenEncrypterAdapter } from '../modules/rental-tenant-portal/infrastructure/aes-token-encrypter.adapter';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
@@ -729,7 +730,7 @@ export function createContainer(logger: Logger): AppContainer {
     metrics,
     providerMode: env.DAY_PLAN_ROUTING_PROVIDER,
   });
-  const planRouteService = new PlanRouteService(routingService, logger, metrics);
+  const planRouteService = new PlanRouteService(routingService, new StubRoutingService(), logger, metrics);
   // Branch use cases geocode the branch address in permanent mode (X02-1), so
   // they must be created after geocodingService.
   const createBranchUseCase = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus, geocodingService, logger);
