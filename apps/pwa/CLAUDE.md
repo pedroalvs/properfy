@@ -118,6 +118,7 @@ offers map lives in `features/offers/` and appointment detail lives in `features
   - `Routine Inspection`: only show if tenant confirmed (or exception applies)
   - `Ingoing/Outgoing`: show when `SCHEDULED`
   - Exceptions: `key_required = true`, manual OP confirmation
+- **Card actions (F03-3, contract 00.A3).** `AppointmentCard` is an `<article>` (not a `<button>` — never nest a button) with a nav target (`data-testid="appointment-card-{id}"`) plus, for `SCHEDULED` jobs, `AppointmentCardActions`: a primary "Check in"/"Check out" button (phase from `useLocalExecutionState`, **not** a server field — the day payload has none; "Check in" disabled off the inspection day with "Available on inspection day", using `useEffectiveTimezone`) and a "More actions" menu (`aria-haspopup="menu"`) opening "Running late" (today + not in progress) and "Can't do this job". Check-in uses `captureRequiredLocation` (`features/execution/lib/geolocation.ts`) then `useExecutionActions().checkIn`; an `outOfRadius` FLAG success shows a warning snackbar, a BLOCK 422 keeps the card on "Check in". Check-out `queryClient.fetchQuery`'s the detail (for `inspectionAppLink`), falling back to `/execution/:id` when offline-uncached, then renders the Sync/Past-time modals from the card.
 
 ### 4.3 Inspection execution (`features/execution`)
 
@@ -135,11 +136,16 @@ offers map lives in `features/offers/` and appointment detail lives in `features
 
 **Execution flow:** `SCHEDULED → start (capture geo) → finish (capture geo) → DONE`
 
+- **`useExecutionActions(appointmentId)` (F03-3)** is the single owner of the IndexedDB `ExecutionState` (check-in, check-out request with SYNC/PAST_TIME steps, submit, retry). `ExecutionPage` and `AppointmentCard` both drive it so they never write that state independently. `useStartInspection`/`useFinishInspection` bodies carry `accuracy` + `clientOccurredAt` (online and queued; old `{latitude,longitude}` items still sync).
+- **Geofence (F03-3, contract 03.A2).** `GeoLocationCapture` takes `radiusMeters` from the detail `geofence` (default `PLATFORM_SETTINGS_REGISTRY.fieldEvents.defaults.geofenceRadiusMeters` = 300); it only **warns** ("You are {d} m from the property (limit {r} m)…") and never disables Start/Check-in. BLOCK is server-enforced: the app shows the 422 message, no client pre-check.
+- **Permanent queued-START cleanup (F03-3, D21/L-F03-02).** `useOfflineQueue` classifies a START sync failure with `isPermanentQueueError` (4xx except 401/408/429; a `422 GEOFENCE_OUT_OF_RADIUS` is permanent on the first response, no retry): it marks the item FAILED, removes the chained FINISH, `clearExecutionState` + `emitExecutionStateChange` (so a mounted card reverts to "Check in"), `refreshQueueSnapshot`, invalidates `['inspector','schedule']` and `showError`s. A cross-instance notifier (`features/execution/lib/execution-state-events.ts`) lets `useLocalExecutionState` re-read after such external clears. 5xx/network stay PENDING+retry; 401 clears nothing.
+
 ### 4.4 Appointment detail (`features/schedule`, route `/schedule/:appointmentId`)
 
 - `GET /v1/inspector/appointments/:appointmentId`
 - Show: property info, contact details, restrictions, meeting location, key info
 - Contact tenant directly (phone/SMS link)
+- **Field-event actions (F03-3).** For `SCHEDULED` jobs the detail shows secondary "Running late" / "Can't do this job" buttons below the start CTA; `InProgressPanel` adds a "Can't complete this job" link (rejection after check-in) that clears the local draft and releases the navigation blocker before redirecting to `/schedule`. When the detail carries `lastFieldIssue` (the inspector's own last `CANT_DO` on a re-offered job, L-F03-09) an info alert shows "You reported '{label}' on {dd/MM/yyyy}. This job was offered again." The detail type (`features/schedule/types`) + `mapInspectorAppointmentDetail` adapter surface `geofence`, `lastFieldIssue` and (defensive, F04) `publishedServiceStartAt`.
 
 ### 4.5 Earnings (`features/earnings`, route `/earnings`)
 

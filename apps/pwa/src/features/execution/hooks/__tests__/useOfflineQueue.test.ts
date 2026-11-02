@@ -1,4 +1,6 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
+import type * as ReactQuery from '@tanstack/react-query';
+import { ApiError } from '@properfy/shared';
 import {
   useOfflineQueue,
   resetQueueSnapshot,
@@ -13,10 +15,20 @@ const mockUpdateQueuedAction = vi.fn();
 const mockClearExecutionState = vi.fn();
 const mockUseIsOnline = vi.fn();
 const mockShowError = vi.fn();
+const mockInvalidateQueries = vi.fn();
+const mockEmitExecutionStateChange = vi.fn();
 
 vi.mock('@/hooks/useApiQuery', () => ({
   apiPost: (...args: unknown[]) => mockApiPost(...args),
 }));
+
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof ReactQuery>();
+  // One stable client instance: returning a fresh object each render would change
+  // the hook's useCallback deps, re-fire its effect and trigger extra queue passes.
+  const client = { invalidateQueries: (...args: unknown[]) => mockInvalidateQueries(...args) };
+  return { ...actual, useQueryClient: () => client };
+});
 
 vi.mock('@/hooks/useSnackbar', () => ({
   useSnackbar: () => ({
@@ -39,6 +51,11 @@ vi.mock('../../lib/indexeddb', () => ({
   clearExecutionState: (...args: unknown[]) => mockClearExecutionState(...args),
 }));
 
+vi.mock('../../lib/execution-state-events', () => ({
+  emitExecutionStateChange: (...args: unknown[]) => mockEmitExecutionStateChange(...args),
+  subscribeExecutionStateChange: () => () => {},
+}));
+
 describe('useOfflineQueue', () => {
   beforeEach(() => {
     mockApiPost.mockReset();
@@ -48,6 +65,8 @@ describe('useOfflineQueue', () => {
     mockClearExecutionState.mockReset();
     mockUseIsOnline.mockReset();
     mockShowError.mockReset();
+    mockInvalidateQueries.mockReset();
+    mockEmitExecutionStateChange.mockReset();
   });
 
   it('processes queued actions in createdAt order and clears execution state after FINISH sync', async () => {
@@ -538,5 +557,185 @@ describe('useOfflineQueue', () => {
     });
 
     expect(mockShowError).toHaveBeenCalledWith('Unable to retry this sync right now.');
+  });
+
+  describe('permanent START failure (L-F03-02 / D21)', () => {
+    const startAction = {
+      id: 'a',
+      type: 'START' as const,
+      appointmentId: 'apt-1',
+      payload: { latitude: 1, longitude: 2 },
+      idempotencyKey: 'start-key',
+      createdAt: '2026-03-25T10:00:00.000Z',
+      retryCount: 0,
+      lastError: null,
+      status: 'PENDING' as const,
+    };
+    const finishAction = {
+      id: 'b',
+      type: 'FINISH' as const,
+      appointmentId: 'apt-1',
+      payload: { latitude: 3, longitude: 4 },
+      idempotencyKey: 'finish-key',
+      createdAt: '2026-03-25T10:05:00.000Z',
+      retryCount: 0,
+      lastError: null,
+      status: 'PENDING' as const,
+    };
+
+    it('fails a 422 GEOFENCE check-in on the first response, drops the chained FINISH and clears local state', async () => {
+      mockUseIsOnline.mockReturnValue(true);
+      mockGetAllQueuedActions.mockResolvedValue([startAction, finishAction]);
+      mockApiPost.mockRejectedValue(
+        new ApiError(
+          422,
+          'You are 640 m from the property. Check-in is only allowed within 300 m. If you are at the right address, contact operations.',
+          'GEOFENCE_OUT_OF_RADIUS',
+        ),
+      );
+
+      renderHook(() => useOfflineQueue());
+
+      await waitFor(() =>
+        expect(mockUpdateQueuedAction).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'a', status: 'FAILED', permanent: true }),
+        ),
+      );
+      // No retry: apiPost hit once for the START and the FINISH was never sent.
+      expect(mockApiPost).toHaveBeenCalledTimes(1);
+      expect(mockApiPost.mock.calls[0][0]).toBe('/v1/inspector/appointments/apt-1/start');
+      // The chained FINISH is removed so it can never be sent for a rejected job.
+      expect(mockRemoveQueuedAction).toHaveBeenCalledWith('b');
+      expect(mockClearExecutionState).toHaveBeenCalledWith('apt-1');
+      expect(mockEmitExecutionStateChange).toHaveBeenCalledWith('apt-1');
+      expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['inspector', 'schedule'] });
+      expect(mockShowError).toHaveBeenCalledWith(
+        "A queued inspection sync failed: You are 640 m from the property. Check-in is only allowed within 300 m. If you are at the right address, contact operations. Check in again when you're at the property.",
+      );
+    });
+
+    it('fails a 404 APPOINTMENT_NOT_FOUND check-in the same way, without the geofence hint', async () => {
+      mockUseIsOnline.mockReturnValue(true);
+      mockGetAllQueuedActions.mockResolvedValue([startAction, finishAction]);
+      mockApiPost.mockRejectedValue(
+        new ApiError(404, 'This appointment is no longer assigned to you.', 'APPOINTMENT_NOT_FOUND'),
+      );
+
+      renderHook(() => useOfflineQueue());
+
+      await waitFor(() =>
+        expect(mockUpdateQueuedAction).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'a', status: 'FAILED' }),
+        ),
+      );
+      expect(mockRemoveQueuedAction).toHaveBeenCalledWith('b');
+      expect(mockClearExecutionState).toHaveBeenCalledWith('apt-1');
+      expect(mockShowError).toHaveBeenCalledWith(
+        'A queued inspection sync failed: This appointment is no longer assigned to you.',
+      );
+    });
+
+    it('fails a 403 EXECUTION_T1_BLOCKED check-in the same way', async () => {
+      mockUseIsOnline.mockReturnValue(true);
+      mockGetAllQueuedActions.mockResolvedValue([startAction]);
+      mockApiPost.mockRejectedValue(
+        new ApiError(403, 'You can only start on the inspection day.', 'EXECUTION_T1_BLOCKED'),
+      );
+
+      renderHook(() => useOfflineQueue());
+
+      await waitFor(() =>
+        expect(mockUpdateQueuedAction).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'a', status: 'FAILED' }),
+        ),
+      );
+      expect(mockClearExecutionState).toHaveBeenCalledWith('apt-1');
+    });
+
+    it('keeps a 503 check-in PENDING with retryCount+1 and leaves local state + FINISH intact', async () => {
+      mockUseIsOnline.mockReturnValue(true);
+      mockGetAllQueuedActions.mockResolvedValue([startAction, finishAction]);
+      mockApiPost.mockRejectedValue(new ApiError(503, 'Service unavailable', 'SERVICE_UNAVAILABLE'));
+
+      renderHook(() => useOfflineQueue());
+
+      await waitFor(() =>
+        expect(mockUpdateQueuedAction).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'a', retryCount: 1, status: 'PENDING' }),
+        ),
+      );
+      expect(mockClearExecutionState).not.toHaveBeenCalled();
+      expect(mockEmitExecutionStateChange).not.toHaveBeenCalled();
+      expect(mockRemoveQueuedAction).not.toHaveBeenCalledWith('b');
+    });
+
+    it('does not clear anything on a 401 (logout flow handles it)', async () => {
+      mockUseIsOnline.mockReturnValue(true);
+      mockGetAllQueuedActions.mockResolvedValue([startAction]);
+      mockApiPost.mockRejectedValue(new ApiError(401, 'Unauthorized', 'UNAUTHORIZED'));
+
+      renderHook(() => useOfflineQueue());
+
+      await waitFor(() =>
+        expect(mockUpdateQueuedAction).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'a', retryCount: 1, status: 'PENDING' }),
+        ),
+      );
+      expect(mockClearExecutionState).not.toHaveBeenCalled();
+    });
+
+    it('refuses to retry a permanently-failed item (no re-send, no reset)', async () => {
+      mockUseIsOnline.mockReturnValue(true);
+      const permanentlyFailed = {
+        ...startAction,
+        retryCount: 1,
+        lastError: 'Out of radius',
+        status: 'FAILED' as const,
+        permanent: true,
+      };
+      mockGetAllQueuedActions.mockResolvedValue([permanentlyFailed]);
+
+      const { result } = renderHook(() => useOfflineQueue());
+      await waitFor(() => expect(result.current.failedActions).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.retryAction('a');
+      });
+
+      // Not reset to PENDING, not re-sent — a permanent failure is terminal.
+      expect(mockUpdateQueuedAction).not.toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'a', status: 'PENDING' }),
+      );
+      expect(mockApiPost).not.toHaveBeenCalled();
+    });
+
+    it('leaves a FINISH for another appointment intact when a START fails permanently', async () => {
+      mockUseIsOnline.mockReturnValue(true);
+      const otherFinish = {
+        ...finishAction,
+        id: 'c',
+        appointmentId: 'apt-2',
+        idempotencyKey: 'finish-key-2',
+        createdAt: '2026-03-25T10:01:00.000Z',
+      };
+      mockGetAllQueuedActions.mockResolvedValue([startAction, finishAction, otherFinish]);
+      mockApiPost.mockImplementation((path: string) => {
+        if (path === '/v1/inspector/appointments/apt-1/start') {
+          return Promise.reject(new ApiError(422, 'Out of radius', 'GEOFENCE_OUT_OF_RADIUS'));
+        }
+        return Promise.resolve({ data: { ok: true } });
+      });
+
+      renderHook(() => useOfflineQueue());
+
+      await waitFor(() => expect(mockRemoveQueuedAction).toHaveBeenCalledWith('c'));
+      // apt-1 FINISH removed (chained), apt-2 FINISH sent and removed on success.
+      expect(mockRemoveQueuedAction).toHaveBeenCalledWith('b');
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/v1/inspector/appointments/apt-2/finish',
+        { latitude: 3, longitude: 4 },
+        { 'Idempotency-Key': 'finish-key-2' },
+      );
+    });
   });
 });

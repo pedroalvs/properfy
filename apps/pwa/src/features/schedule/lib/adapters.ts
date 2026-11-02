@@ -79,6 +79,9 @@ export function mapInspectorAppointmentDetail(
     isOverdue: detail.isOverdue ?? false,
     agencyName: detail.agencyName,
     apps: detail.apps ?? [],
+    geofence: detail.geofence,
+    lastFieldIssue: detail.lastFieldIssue ?? null,
+    publishedServiceStartAt: detail.publishedServiceStartAt ?? null,
   };
 }
 

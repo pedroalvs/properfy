@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import {
   getAllQueuedActions,
@@ -7,10 +8,29 @@ import {
   clearExecutionState,
   type QueuedAction,
 } from '../lib/indexeddb';
+import { emitExecutionStateChange } from '../lib/execution-state-events';
 import { apiPost } from '@/hooks/useApiQuery';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 const MAX_RETRIES = 3;
+
+/** Appended to the toast when a queued check-in is rejected for being out of radius. */
+const GEOFENCE_RETRY_HINT = " Check in again when you're at the property.";
+
+/**
+ * A queued START that comes back with a definitive client error must not be
+ * retried: the address, assignment or T-1 window won't change by trying again.
+ * 4xx are permanent EXCEPT auth (401 — logout handles it), request-timeout (408)
+ * and rate-limit (429), which are worth another attempt. 5xx and network errors
+ * (status 0 / no status) stay transient. A 422 GEOFENCE_OUT_OF_RADIUS is covered
+ * here, so it fails on the first response with no retry (L-F03-02 / D21).
+ */
+function isPermanentQueueError(err: unknown): boolean {
+  const status = (err as { status?: number } | null)?.status;
+  if (typeof status !== 'number') return false;
+  if (status === 401 || status === 408 || status === 429) return false;
+  return status >= 400 && status < 500;
+}
 
 // Module-level store so every consumer (app shell sync, page banners, the TopBar
 // badge count) shares ONE snapshot of the queued actions and only one queue run
@@ -66,6 +86,7 @@ export function resetQueueSnapshot(): void {
 
 export function useOfflineQueue() {
   const isOnline = useIsOnline();
+  const queryClient = useQueryClient();
   const { showError } = useSnackbar();
   const queue = useSyncExternalStore(subscribeQueue, getQueueSnapshot);
   const failedActions = useMemo(
@@ -145,6 +166,36 @@ export function useOfflineQueue() {
                     if (runGeneration !== queueGeneration) break;
 
                     const lastError = err instanceof Error ? err.message : 'Unknown error';
+
+                    // Permanent START failure (L-F03-02 / D21): the check-in will
+                    // never succeed by retrying (out of radius, reassigned, T-1
+                    // passed). Fail it on the first response, drop the chained
+                    // FINISH so it is never sent, clear the local draft and tell
+                    // every mounted card to revert to "Check in".
+                    if (action.type === 'START' && isPermanentQueueError(err)) {
+                      await updateQueuedAction({
+                        ...action,
+                        retryCount: (action.retryCount ?? 0) + 1,
+                        lastError,
+                        status: 'FAILED',
+                        permanent: true,
+                      });
+                      for (const other of group) {
+                        if (other.id !== action.id && other.type === 'FINISH') {
+                          await removeQueuedAction(other.id);
+                        }
+                      }
+                      await clearExecutionState(action.appointmentId);
+                      emitExecutionStateChange(action.appointmentId);
+                      queryClient.invalidateQueries({ queryKey: ['inspector', 'schedule'] });
+                      const isGeofence =
+                        (err as { code?: string } | null)?.code === 'GEOFENCE_OUT_OF_RADIUS';
+                      showError(
+                        `A queued inspection sync failed: ${lastError}${isGeofence ? GEOFENCE_RETRY_HINT : ''}`,
+                      );
+                      break;
+                    }
+
                     const retryCount = (action.retryCount ?? 0) + 1;
                     const exhausted = retryCount > MAX_RETRIES;
                     await updateQueuedAction({
@@ -172,7 +223,7 @@ export function useOfflineQueue() {
       }
     })();
     return currentRun;
-  }, [showError]);
+  }, [showError, queryClient]);
 
   const retryAction = useCallback(
     async (id: string) => {
@@ -180,6 +231,10 @@ export function useOfflineQueue() {
         const actions = await getAllQueuedActions();
         const action = actions.find((a) => a.id === id);
         if (!action) return;
+        // A permanent failure (geofence/assignment/T-1) can never succeed by
+        // retrying, and re-running its cleanup would wipe a newer legitimate
+        // check-in's local state — so it is terminal and not retryable.
+        if (action.permanent) return;
         await updateQueuedAction({ ...action, retryCount: 0, lastError: null, status: 'PENDING' });
         await refreshQueueSnapshot();
         await processQueue();

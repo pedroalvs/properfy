@@ -9,6 +9,7 @@ interface FinishingPanelProps {
   isSubmitting: boolean;
   propertyLatitude?: number | null;
   propertyLongitude?: number | null;
+  radiusMeters?: number;
 }
 
 export function FinishingPanel({
@@ -16,6 +17,7 @@ export function FinishingPanel({
   isSubmitting,
   propertyLatitude,
   propertyLongitude,
+  radiusMeters,
 }: FinishingPanelProps) {
   const { location, status, error, requestLocation } = useGeolocation({ autoCapture: true });
 
@@ -34,6 +36,7 @@ export function FinishingPanel({
         onRequest={requestLocation}
         propertyLatitude={propertyLatitude}
         propertyLongitude={propertyLongitude}
+        radiusMeters={radiusMeters}
       />
 
       <Button
