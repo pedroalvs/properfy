@@ -29,6 +29,7 @@ import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
 import { getAvailableTransitions } from '../lib/transitions';
 import { isAppointmentScheduleEditable } from '../lib/editability';
 import { AppointmentDetailSections } from '../components/AppointmentDetailSections';
+import { AppointmentFieldActivitySection } from '../components/AppointmentFieldActivitySection';
 import { AppointmentContactTab } from '../components/AppointmentContactTab';
 import { AppointmentTimelineTab } from '../components/AppointmentTimelineTab';
 import { AppointmentNotificationsTab } from '../components/AppointmentNotificationsTab';
@@ -453,6 +454,9 @@ export function AppointmentDetailPage() {
           {activeTab === 'overview' && (
             <>
               <AppointmentDetailSections appointment={appointment} />
+              <div className="mt-6">
+                <AppointmentFieldActivitySection appointmentId={appointment.id} />
+              </div>
               <AppointmentSatisfactionSection
                 appointmentId={appointment.id}
                 isDone={appointment.status === 'DONE'}

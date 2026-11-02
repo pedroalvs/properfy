@@ -201,6 +201,65 @@ describe('PortalPage', () => {
     });
   });
 
+  // L-F03-01: an appointment the inspector rejected (canChangeTime: false) can
+  // only be re-offered by the agency, so the portal hides the change-time path.
+  describe('inspector-rejected appointment (canChangeTime: false)', () => {
+    const INSPECTOR_REJECTED = {
+      ...MOCK_PORTAL_DATA,
+      appointment: {
+        ...MOCK_PORTAL_DATA.appointment,
+        status: 'REJECTED',
+        rentalTenantConfirmationStatus: 'PENDING',
+        canChangeTime: false,
+      },
+    };
+
+    it('shows the agency-will-contact banner and no change-time path', async () => {
+      mockGet.mockResolvedValue({ data: INSPECTOR_REJECTED });
+      renderPortal();
+
+      expect(
+        await screen.findByText(/The agency will contact you to arrange a new time\./i),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/pick another available time/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /change time/i })).not.toBeInTheDocument();
+      // The available-groups endpoint is never queried.
+      expect(
+        mockGet.mock.calls.filter(([path]) => String(path).endsWith('/available-groups')).length,
+      ).toBe(0);
+    });
+
+    it('still offers change time for a REJECTED appointment that allows it (TENANT_DECLINED)', async () => {
+      mockGet.mockResolvedValue({
+        data: {
+          ...MOCK_PORTAL_DATA,
+          appointment: {
+            ...MOCK_PORTAL_DATA.appointment,
+            status: 'REJECTED',
+            rentalTenantConfirmationStatus: 'UNAVAILABLE',
+            canChangeTime: true,
+          },
+        },
+      });
+      renderPortal();
+
+      expect(await screen.findByRole('button', { name: /change time/i })).toBeInTheDocument();
+      expect(screen.getByText(/you can still pick another available time/i)).toBeInTheDocument();
+    });
+
+    it('treats an absent canChangeTime as true (older backend payload)', async () => {
+      mockGet.mockResolvedValue({
+        data: {
+          ...MOCK_PORTAL_DATA,
+          appointment: { ...MOCK_PORTAL_DATA.appointment, status: 'REJECTED' },
+        },
+      });
+      renderPortal();
+
+      expect(await screen.findByRole('button', { name: /change time/i })).toBeInTheDocument();
+    });
+  });
+
   it('shows invalid view when API returns PORTAL_TOKEN_NOT_FOUND', async () => {
     mockGet.mockResolvedValue({ data: undefined, error: new ApiError(404, 'Not found', 'PORTAL_TOKEN_NOT_FOUND') });
     renderPortal();
@@ -449,6 +508,54 @@ describe('PortalPage', () => {
       'We could not join this time slot. Please try again.',
     );
     expect(screen.getByRole('button', { name: 'Join this time slot' })).toBeInTheDocument();
+  });
+
+  // L-F03-01 race: the appointment was rejected by the inspector after the tenant
+  // opened the picker. join-group answers 409 PORTAL_APPOINTMENT_INACTIVE; the
+  // portal reloads, and the refreshed data (REJECTED + canChangeTime:false)
+  // replaces the picker with the "agency will contact you" banner.
+  it('reloads on a 409 PORTAL_APPOINTMENT_INACTIVE and shows the new banner', async () => {
+    const user = userEvent.setup();
+    // Portal data starts SCHEDULED (with a bookable group) and flips to the
+    // inspector-rejected state once the join fails.
+    let appointment: Record<string, unknown> = { ...MOCK_PORTAL_DATA.appointment };
+    mockGet.mockImplementation((path: string) => {
+      if (path.endsWith('/available-groups')) {
+        return Promise.resolve({
+          data: {
+            groups: [{
+              groupId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+              scheduledDate: '2026-06-10',
+              timeSlotStart: '09:00',
+              timeSlotEnd: '10:00',
+              suburb: 'Surry Hills',
+              inspectorName: 'John Smith',
+              bookedCount: 1,
+              capacityMax: 2,
+            }],
+          },
+        });
+      }
+      return Promise.resolve({ data: { ...MOCK_PORTAL_DATA, appointment } });
+    });
+    mockPost.mockImplementation(() => {
+      appointment = { ...appointment, status: 'REJECTED', canChangeTime: false };
+      return Promise.resolve({
+        data: undefined,
+        error: new ApiError(409, 'Appointment is no longer active', 'PORTAL_APPOINTMENT_INACTIVE'),
+      });
+    });
+    renderPortal();
+
+    await user.click(await screen.findByRole('button', { name: 'Change time' }));
+    await user.click(await screen.findByRole('button', { name: /Surry Hills/i }));
+    await user.click(screen.getByRole('button', { name: 'Join this time slot' }));
+
+    // The reload surfaces the new banner and removes the change-time path.
+    expect(
+      await screen.findByText(/The agency will contact you to arrange a new time\./i),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /change time/i })).not.toBeInTheDocument();
   });
 
   describe('past confirm cutoff regime (valid token)', () => {

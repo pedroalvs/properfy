@@ -94,6 +94,25 @@ describe('StatusTransitionDialog', () => {
     expect(labels).toHaveLength(6);
   });
 
+  // INSPECTOR_UNABLE is assigned only by the system when the inspector taps
+  // "Can't do this job"; a human rejecting by hand must never pick it (the
+  // backend refuses it with REJECTION_REASON_CODE_SYSTEM_ONLY). The filter is an
+  // isolated step over the option list so F07-3 can chain an origin filter.
+  it('does not offer INSPECTOR_UNABLE as a manual rejection reason', () => {
+    render(<StatusTransitionDialog {...defaultProps} targetStatus="REJECTED" />);
+
+    fireEvent.click(screen.getByLabelText('Reason Code'));
+    const labels = screen.getAllByRole('option').map((o) => o.textContent);
+
+    expect(labels).not.toContain('Inspector Unable');
+    // The eight remaining rejection reasons are still offered.
+    expect(labels).toContain('Invalid Address');
+    expect(labels).toContain('Tenant Declined');
+    expect(labels).toContain('Tenant No Response');
+    expect(labels).toContain('Other');
+    expect(labels).toHaveLength(8);
+  });
+
   it('hides free text when reason code dropdown is shown without OTHER selected', () => {
     render(<StatusTransitionDialog {...defaultProps} targetStatus="CANCELLED" />);
     // When a reason code dropdown is shown but no code is selected yet,

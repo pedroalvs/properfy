@@ -1,5 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { CancellationReasonCode, RejectionReasonCode, formatReasonCodeLabel } from '@properfy/shared';
+import {
+  CancellationReasonCode,
+  RejectionReasonCode,
+  SYSTEM_ONLY_REJECTION_CODES,
+  formatReasonCodeLabel,
+} from '@properfy/shared';
 import { cn } from '@properfy/frontend-standards';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -21,10 +26,14 @@ const CANCELLATION_OPTIONS = Object.values(CancellationReasonCode)
   .filter((code) => !SYSTEM_ONLY_CANCELLATION_CODES.includes(code))
   .map((code) => ({ value: code, label: formatReasonCodeLabel(code) }));
 
-const REJECTION_OPTIONS = Object.values(RejectionReasonCode).map((code) => ({
-  value: code,
-  label: formatReasonCodeLabel(code),
-}));
+// INSPECTOR_UNABLE (and any other SYSTEM_ONLY_REJECTION_CODES) is assigned only
+// by the system when the inspector reports "Can't do this job" — a human
+// rejecting by hand never chooses it, and the backend refuses it. Removed as an
+// isolated filter step over the enum-derived list so TASK-F07-3 can chain an
+// origin filter (`allowedRejectionCodesFrom`) ahead of it without rewriting this.
+const REJECTION_OPTIONS = Object.values(RejectionReasonCode)
+  .filter((code) => !SYSTEM_ONLY_REJECTION_CODES.includes(code))
+  .map((code) => ({ value: code, label: formatReasonCodeLabel(code) }));
 
 export interface StatusTransitionConfirmPayload {
   reason: string;

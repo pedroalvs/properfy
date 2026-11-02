@@ -37,6 +37,13 @@ export interface PortalAppointment {
   keyRequired: boolean;
   meetingLocation: string | null;
   notes: string | null;
+  /**
+   * Whether the tenant may still pick another time (F03 L-F03-01). False for an
+   * appointment the inspector rejected (`INSPECTOR_UNABLE` ∈
+   * SYSTEM_ONLY_REJECTION_CODES): only the agency can re-offer it. Absent on an
+   * older backend payload — treated as `true` (the prior behaviour).
+   */
+  canChangeTime?: boolean;
 }
 
 export interface PortalContact {
