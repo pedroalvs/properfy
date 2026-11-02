@@ -12,7 +12,7 @@ import type { SaveDayPlanInput, SaveDayPlanStop } from '../../../src/modules/day
 let harness: DbHarness;
 let repo: PrismaDayPlanRepository;
 
-const seed = { inspectorId: '', apptA: '', apptB: '', userId: '' };
+const seed = { inspectorId: '', apptA: '', apptB: '', userId: '', tenantId: '' };
 
 function todayCivilSydney(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Sydney' }).format(new Date());
@@ -97,6 +97,7 @@ beforeAll(async () => {
   repo = new PrismaDayPlanRepository(harness.prisma);
 
   const tenant = await harness.prisma.tenant.create({ data: { name: 'DP-T', legal_name: 'DP LLC', status: 'ACTIVE' } });
+  seed.tenantId = tenant.id;
   const branch = await harness.prisma.branch.create({ data: { tenant_id: tenant.id, name: 'DP-B', status: 'ACTIVE' } });
   const user = await harness.prisma.user.create({
     data: {
@@ -175,6 +176,33 @@ describe('PrismaDayPlanRepository (real DB)', () => {
     expect(second).toBe(0); // already STALE → no re-increment, first reason wins
     const after = await repo.findByInspectorAndDate(seed.inspectorId, today);
     expect(after!.staleReason).toBe('APPOINTMENT_STATUS_CHANGED');
+  });
+
+  it('derives the publish due set from day-plan.publish claims (§6)', async () => {
+    // Ensure a clean, PUBLISHED-but-not-notified plan exists for 2026-11-05.
+    const existing = await repo.findByInspectorAndDate(seed.inspectorId, '2026-11-05');
+    await repo.saveComputed(
+      planInput({ id: existing!.id, expectedVersion: existing!.version, notifiedAt: null, status: 'PUBLISHED' }),
+    );
+
+    // No claim yet → nothing due.
+    expect(await repo.loadPublishDue()).toEqual([]);
+
+    // Claim day-plan.publish for the agency's 2026-11-04 → plan_date 2026-11-05 becomes due.
+    await harness.prisma.cronJobRun.create({
+      data: { job_name: 'day-plan.publish', tenant_id: seed.tenantId, local_date: new Date('2026-11-04') },
+    });
+    const due = await repo.loadPublishDue();
+    expect(due).toContainEqual({ inspectorId: seed.inspectorId, date: '2026-11-05' });
+
+    // Once the plan is published AND notified, it drops out (condition c).
+    const toNotify = await repo.findByInspectorAndDate(seed.inspectorId, '2026-11-05');
+    await repo.markNotified(toNotify!.id);
+    const dueAfter = await repo.loadPublishDue();
+    expect(dueAfter.some((d) => d.inspectorId === seed.inspectorId && d.date === '2026-11-05')).toBe(false);
+
+    // Cleanup so later assertions about 2026-11-05 see a pristine plan state.
+    await harness.prisma.cronJobRun.deleteMany({ where: { job_name: 'day-plan.publish' } });
   });
 
   it('purges route data of past plans only', async () => {

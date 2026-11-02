@@ -87,6 +87,13 @@ export interface EtaAccuracySample {
   errorMinutes: number;
 }
 
+/** A `(inspector, plan date)` pair the 19:30 publish job must process (§6 due set). */
+export interface PublishDueEntry {
+  inspectorId: string;
+  /** Civil date `YYYY-MM-DD`. */
+  date: string;
+}
+
 export interface IDayPlanRepository {
   /** The plan with its stops, re-joined to live appointments (status IN SCHEDULED/DONE, L-F04-04). */
   findByInspectorAndDate(inspectorId: string, planDate: string): Promise<DayPlanRecord | null>;
@@ -114,6 +121,13 @@ export interface IDayPlanRepository {
 
   /** Record that the ROUTE_PUBLISHED notice was sent. */
   markNotified(id: string): Promise<void>;
+
+  /**
+   * The due set for the 19:30 publish job (§6): `(inspector, tomorrow)` pairs whose
+   * every active agency has a `day-plan.publish` claim for the day before, excluding
+   * plans already both published and notified. Ordered by `inspectorId`, then `date`.
+   */
+  loadPublishDue(): Promise<PublishDueEntry[]>;
 
   /** Null geometry/matrix/leg of plans before `todayCivilSydney`; returns rows touched. */
   purgePastRouteData(todayCivilSydney: string): Promise<number>;

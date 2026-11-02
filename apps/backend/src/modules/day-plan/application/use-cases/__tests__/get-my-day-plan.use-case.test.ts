@@ -109,6 +109,7 @@ class InMemoryRepo implements IDayPlanRepository {
   async markNotified(): Promise<void> {}
   async purgePastRouteData(): Promise<number> { return 0; }
   async getEtaAccuracySamples() { return []; }
+  async loadPublishDue() { return []; }
 
   private toRecord(input: SaveDayPlanInput, id: string, version: number): DayPlanRecord {
     const stops: DayPlanStopRecord[] = input.stops.map((s) => ({

@@ -118,6 +118,7 @@ describe('registerWorkers', () => {
       { execute: vi.fn().mockResolvedValue(undefined) } as any, // sweepUndeliveredInspectorNoticesUseCase
       { execute: vi.fn().mockResolvedValue(undefined) } as any, // autoArchiveInspectorNoticesUseCase
       { execute: vi.fn().mockResolvedValue(undefined) } as any, // sendCompletionRemindersUseCase
+      { execute: vi.fn().mockResolvedValue({ continuation: false }) } as any, // publishDayPlansUseCase
       mockLogger,
     );
   }
@@ -129,7 +130,8 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(26);
+    expect(mockWork).toHaveBeenCalledTimes(27);
+    expect(mockWork).toHaveBeenCalledWith('day-plan.publish', { teamSize: 1, teamConcurrency: 1 }, expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('fy.webhook.deliver', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('inspector-notice.deliver', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
@@ -155,7 +157,8 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
     // All recurring jobs are anchored to the platform timezone (Sydney).
     const sydneyTz = { tz: 'Australia/Sydney' };
-    expect(mockSchedule).toHaveBeenCalledTimes(19);
+    expect(mockSchedule).toHaveBeenCalledTimes(20);
+    expect(mockSchedule).toHaveBeenCalledWith('day-plan.publish', '30 * * * *', {}, expect.objectContaining(sydneyTz));
     expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('inspector-notice.delivery-sweep', '*/5 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('inspector-notice.auto-archive', '45 3 * * *', {}, sydneyTz);

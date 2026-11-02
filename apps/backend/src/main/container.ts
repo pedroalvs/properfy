@@ -491,6 +491,7 @@ import { GetMyDayPlanUseCase } from '../modules/day-plan/application/use-cases/g
 import { GetDayPlanForOperatorUseCase } from '../modules/day-plan/application/use-cases/get-day-plan-for-operator.use-case';
 import { SaveDayPlanOrderUseCase } from '../modules/day-plan/application/use-cases/save-day-plan-order.use-case';
 import { RecalculateDayPlanUseCase } from '../modules/day-plan/application/use-cases/recalculate-day-plan.use-case';
+import { PublishDayPlansUseCase } from '../modules/day-plan/application/use-cases/publish-day-plans.use-case';
 import {
   SetDayPlanOriginUseCase,
   ClearDayPlanOriginUseCase,
@@ -562,6 +563,7 @@ export interface AppContainer {
   expireTokensWorker: ExpireTokensWorker;
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
   sendCompletionRemindersUseCase: SendCompletionRemindersUseCase;
+  publishDayPlansUseCase: PublishDayPlansUseCase;
   auditRetentionWorker: AuditRetentionWorker;
   rejectUnconfirmedWorker: RejectUnconfirmedWorker;
   cancelOverdueWorker: CancelOverdueWorker;
@@ -1135,6 +1137,10 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const getFreshStopForAppointmentUseCase = new GetFreshStopForAppointmentUseCase(
     dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock,
+  );
+  const publishDayPlansUseCase = new PublishDayPlansUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, publishSystemInspectorNoticeUseCase,
+    auditService, metrics, logger, dayPlanClock,
   );
   new MarkDayPlansStaleSubscriber(dayPlanRepo, new PrismaGroupAppointmentReader(prisma), logger).register(domainEventBus);
   const listPlatformSettingsUseCase = new ListPlatformSettingsUseCase(platformSettingRepo, authorizationService);
@@ -2098,6 +2104,7 @@ export function createContainer(logger: Logger): AppContainer {
     expireTokensWorker,
     notifyStuckInspectionsWorker,
     sendCompletionRemindersUseCase,
+    publishDayPlansUseCase,
     auditRetentionWorker,
     rejectUnconfirmedWorker,
     cancelOverdueWorker,

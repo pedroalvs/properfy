@@ -129,6 +129,7 @@ async function start() {
       container.inspectorNotice.sweepUndeliveredInspectorNoticesUseCase,
       container.inspectorNotice.autoArchiveInspectorNoticesUseCase,
       container.sendCompletionRemindersUseCase,
+      container.publishDayPlansUseCase,
       app.log,
     );
   }

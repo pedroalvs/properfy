@@ -43,6 +43,7 @@ class Repo implements IDayPlanRepository {
   }
   async clearStale() { return null; } async markStaleByAppointmentIds() { return 0; } async markStaleByInspector() { return 0; }
   async markNotified() {} async purgePastRouteData() { return 0; } async getEtaAccuracySamples() { return []; }
+  async loadPublishDue() { return []; }
   private toRec(input: SaveDayPlanInput, id: string, version: number): DayPlanRecord {
     return { ...(input as unknown as DayPlanRecord), id, version, staleAt: null, staleReason: null, geometryPurgedAt: null,
       stops: input.stops.map((s, i) => ({ ...(s as unknown as DayPlanStopRecord), id: `s${i}` })) };

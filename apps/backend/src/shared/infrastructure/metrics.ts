@@ -60,6 +60,7 @@ export class MetricsCollector {
   private routingProviderCalls = new Map<string, number>();
   private routingMatrixElements = 0;
   private routingProviderFailuresByCode = new Map<string, number>();
+  private dayPlansApproximateTotal = new Map<string, number>();
 
   /** Register a function that returns the current JWT previous key days remaining. Called on each snapshot. */
   setJwtGaugeProvider(provider: () => number | null): void {
@@ -119,6 +120,15 @@ export class MetricsCollector {
     }
   }
 
+  /**
+   * Count one day plan published with approximate travel times, keyed by its
+   * `approximateReason` (L-F04-09). Feeds `/metrics` so persistent provider
+   * failures (anything other than NO_PROVIDER) are visible without log scraping.
+   */
+  incrementDayPlansApproximate(reason: string): void {
+    this.dayPlansApproximateTotal.set(reason, (this.dayPlansApproximateTotal.get(reason) ?? 0) + 1);
+  }
+
   httpRequestStart(): () => number {
     this.activeRequests += 1;
     const start = performance.now();
@@ -176,6 +186,7 @@ export class MetricsCollector {
     this.routingProviderCalls.clear();
     this.routingMatrixElements = 0;
     this.routingProviderFailuresByCode.clear();
+    this.dayPlansApproximateTotal.clear();
   }
 
   getSnapshot(): MetricsSnapshot {
@@ -264,6 +275,7 @@ export class MetricsCollector {
         }),
         matrixElements: this.routingMatrixElements,
         providerFailuresByCode: Object.fromEntries(this.routingProviderFailuresByCode),
+        dayPlansApproximateTotal: Object.fromEntries(this.dayPlansApproximateTotal),
       },
     };
   }
@@ -336,6 +348,8 @@ export interface MetricsSnapshot {
     matrixElements: number;
     /** Per-RoutingProviderError-code failure counts (L-F04-09). */
     providerFailuresByCode: Record<string, number>;
+    /** Day plans published approximate, keyed by approximateReason (L-F04-09, F04-2). */
+    dayPlansApproximateTotal: Record<string, number>;
   };
 }
 

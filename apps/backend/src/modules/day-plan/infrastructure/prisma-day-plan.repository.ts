@@ -1,16 +1,20 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
-import type { InspectorBaseAddress, RouteWeights } from '@properfy/shared';
+import { addCivilDays, type InspectorBaseAddress, type RouteWeights } from '@properfy/shared';
 import type {
   DayPlanGeometry,
   StoredRoutingMatrix,
 } from '../application/services/plan-route.service';
+import { deriveDueInspectors } from '../application/publish-due';
 import type { DayPlanRecord, DayPlanLegTravel, DayPlanStopRecord } from '../domain/day-plan.entity';
 import type {
   EtaAccuracySample,
   IDayPlanRepository,
+  PublishDueEntry,
   SaveDayPlanInput,
   SaveDayPlanStop,
 } from '../domain/day-plan.repository';
+
+const DAY_PLAN_PUBLISH_JOB = 'day-plan.publish';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -22,6 +26,11 @@ function toNum(value: Prisma.Decimal | null): number | null {
 
 function dateOnly(civil: string): Date {
   return new Date(`${civil}T00:00:00.000Z`);
+}
+
+/** A `@db.Date` column reads back as UTC midnight; take its civil `YYYY-MM-DD`. */
+function civilOf(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
 /** Store a JSON value or SQL NULL (Prisma needs the explicit sentinel for nullable Json). */
@@ -127,6 +136,55 @@ export class PrismaDayPlanRepository implements IDayPlanRepository {
 
   async markNotified(id: string): Promise<void> {
     await this.prisma.dayPlan.update({ where: { id }, data: { notified_at: new Date() } });
+  }
+
+  async loadPublishDue(): Promise<PublishDueEntry[]> {
+    // (§6) Derive the due set from the current `day-plan.publish` claims: each claim
+    // enables plan_date = local_date + 1. We load the claims, tomorrow's SCHEDULED
+    // appointments (ACTIVE inspector + ACTIVE agency only), and the plan state for
+    // those dates, then apply the pure coverage rules (every agency claimed; not yet
+    // published-and-notified).
+    const claims = await this.prisma.cronJobRun.findMany({
+      where: { job_name: DAY_PLAN_PUBLISH_JOB },
+      select: { tenant_id: true, local_date: true },
+    });
+    if (claims.length === 0) return [];
+
+    const claimRows = claims.map((c) => ({ tenantId: c.tenant_id, localDate: civilOf(c.local_date) }));
+    const planDateCivils = [...new Set(claimRows.map((c) => addCivilDays(c.localDate, 1)))];
+    const planDateObjs = planDateCivils.map(dateOnly);
+
+    const appts = await this.prisma.appointment.findMany({
+      where: {
+        status: 'SCHEDULED',
+        deleted_at: null,
+        inspector_id: { not: null },
+        scheduled_date: { in: planDateObjs },
+        tenant: { status: 'ACTIVE' },
+        inspector: { is: { status: 'ACTIVE', deleted_at: null } },
+      },
+      select: { inspector_id: true, tenant_id: true, scheduled_date: true },
+    });
+
+    const plans = await this.prisma.dayPlan.findMany({
+      where: { plan_date: { in: planDateObjs } },
+      select: { inspector_id: true, plan_date: true, published_at: true, notified_at: true },
+    });
+
+    return deriveDueInspectors({
+      claims: claimRows,
+      scheduledAppts: appts.map((a) => ({
+        inspectorId: a.inspector_id!,
+        tenantId: a.tenant_id,
+        scheduledDate: civilOf(a.scheduled_date),
+      })),
+      plans: plans.map((p) => ({
+        inspectorId: p.inspector_id,
+        planDate: civilOf(p.plan_date),
+        publishedAt: p.published_at,
+        notifiedAt: p.notified_at,
+      })),
+    });
   }
 
   async purgePastRouteData(todayCivilSydney: string): Promise<number> {
