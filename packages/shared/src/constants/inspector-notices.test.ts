@@ -39,26 +39,38 @@ describe('system notice types + criticality', () => {
 });
 
 describe('target patterns + allowlist', () => {
-  it('has exactly the two patterns', () => {
+  it('has exactly the three patterns (F04 appended /today)', () => {
     expect([...INSPECTOR_NOTICE_TARGET_PATTERNS]).toEqual([
       '/profile/announcements/:id',
       '/schedule/:id',
+      '/today',
     ]);
   });
 
-  it('accepts the two valid shapes', () => {
+  it('accepts the valid shapes', () => {
     expect(isAllowedInspectorNoticeTargetPath(`/profile/announcements/${UUID}`)).toBe(true);
     expect(isAllowedInspectorNoticeTargetPath(`/schedule/${UUID}`)).toBe(true);
+    expect(isAllowedInspectorNoticeTargetPath('/today')).toBe(true); // F04 route notices
   });
 
   it('rejects wrong shapes', () => {
     expect(isAllowedInspectorNoticeTargetPath('/schedule/abc')).toBe(false);
     expect(isAllowedInspectorNoticeTargetPath(`/schedule/${UUID}/x`)).toBe(false);
     expect(isAllowedInspectorNoticeTargetPath(`/schedule/${UUID}?a=1`)).toBe(false);
-    expect(isAllowedInspectorNoticeTargetPath('/today')).toBe(false); // only with F04
     expect(isAllowedInspectorNoticeTargetPath(`https://evil.example/schedule/${UUID}`)).toBe(false);
     expect(isAllowedInspectorNoticeTargetPath('//evil.example')).toBe(false);
     expect(isAllowedInspectorNoticeTargetPath('')).toBe(false);
+  });
+
+  it('matches /today only as the exact static pattern (F02 D24)', () => {
+    expect(isAllowedInspectorNoticeTargetPath('/today')).toBe(true);
+    expect(isAllowedInspectorNoticeTargetPath('/today/')).toBe(false); // trailing slash
+    expect(isAllowedInspectorNoticeTargetPath('/Today')).toBe(false); // case-sensitive
+    expect(isAllowedInspectorNoticeTargetPath('//today')).toBe(false); // double slash
+    expect(isAllowedInspectorNoticeTargetPath('/today#x')).toBe(false); // fragment
+    expect(isAllowedInspectorNoticeTargetPath('/today?x=1')).toBe(false); // query
+    expect(isAllowedInspectorNoticeTargetPath('/today/x')).toBe(false); // extra segment
+    expect(isAllowedInspectorNoticeTargetPath(`/today/route/2026-11-05`)).toBe(false); // route child
   });
 
   it('rejects the L-F02-08 negatives', () => {
@@ -97,10 +109,13 @@ describe('resolveInspectorNoticeTargetPath', () => {
 
   it('keeps a valid target path', () => {
     expect(resolveInspectorNoticeTargetPath('n1', `/schedule/${UUID}`)).toBe(`/schedule/${UUID}`);
+    expect(resolveInspectorNoticeTargetPath('n1', '/today')).toBe('/today'); // F04 route notices
   });
 
   it('falls back when the target is not allowed', () => {
-    expect(resolveInspectorNoticeTargetPath('n1', '/today')).toBe('/profile/announcements/n1');
+    expect(resolveInspectorNoticeTargetPath('n1', '/today/route/2026-11-05')).toBe(
+      '/profile/announcements/n1',
+    );
   });
 });
 

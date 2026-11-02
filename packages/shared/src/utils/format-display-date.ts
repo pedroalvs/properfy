@@ -328,3 +328,31 @@ export function formatInstantDateTime(
 
   return `${dateParts.day}/${dateParts.month}/${dateParts.year}, ${formatWallTime(wallTime)}`;
 }
+
+/**
+ * Formats the wall time an **instant** falls on, in `timeZone`, as `8:10 am`.
+ *
+ * Used by the PWA day plan to render a stop's `eta`/`serviceStartAt` (per-stop
+ * `stop.timezone`) and the plan's `finishEta` (`plan.timezone`). There is no
+ * civil-date variant of this: callers that need the day use `formatInstantDate`.
+ *
+ * @see formatInstantDate for the zoned-input requirement. A malformed string is
+ * returned intact (never a half-formatted time); `null`/`''` → `''`.
+ */
+export function formatInstantTime(
+  value: string | Date | null | undefined,
+  timeZone: string = PLATFORM_TIMEZONE,
+): string {
+  if (value == null || value === '') return '';
+
+  const date = toInstant(value);
+  if (!date) return value instanceof Date ? '' : value;
+
+  const timeParts = partsOf(wallTimeFormatter(timeZone), date);
+
+  // Belt-and-braces: h23 yields 00..23, but older ICU could emit '24' for midnight.
+  const hour = timeParts.hour === '24' ? '00' : (timeParts.hour ?? '00');
+  const wallTime = `${hour}:${timeParts.minute ?? '00'}`;
+
+  return formatWallTime(wallTime);
+}

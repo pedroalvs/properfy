@@ -116,7 +116,9 @@ describe('RecalculateDayPlanUseCase', () => {
     // Change a stop's coordinate so the recompute yields different times/order.
     reader.candidates[1] = candidate(B, 151.05);
     await recalc.execute({ actor: AM, inspectorId: I, date: DATE });
-    expect(notices.execute).toHaveBeenCalledWith(expect.objectContaining({ type: 'ROUTE_CHANGED', inspectorIds: [I] }));
+    expect(notices.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'ROUTE_CHANGED', inspectorIds: [I], targetPath: '/today' }),
+    );
   });
 
   it('forbids an inspector recalculating another inspector (IDOR guard)', async () => {

@@ -126,6 +126,7 @@ export class RecalculateDayPlanUseCase {
         title,
         body,
         dedupeKey: routeChangedDedupeKey(record.id, now),
+        targetPath: '/today',
       });
     }
 
