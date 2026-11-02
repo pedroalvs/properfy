@@ -325,6 +325,7 @@ export function TimeInput({
         id={panelId}
         role="dialog"
         aria-label="Choose time"
+        tabIndex={-1}
         onKeyDown={handlePanelKeyDown}
         className="w-[19rem] max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain rounded border border-black/10 bg-card-bg shadow-lg"
         style={{
