@@ -290,6 +290,15 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   'audit.view': {
     roles: ['AM', 'OP', 'CL_ADMIN'],
   },
+
+  // ── Map ──────────────────────────────────────────────────────────────
+  // Activity-density layer on /map (F09). CL_ADMIN/CL_USER see only their own
+  // agency's aggregated check-ins; the inspectorId filter is AM/OP-only,
+  // enforced in the use case (CL passing inspectorId gets 403). No condition:
+  // the /map requires no permission flag.
+  'map.execution_density': {
+    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
+  },
 } as const;
 
 /** All action keys in the matrix */

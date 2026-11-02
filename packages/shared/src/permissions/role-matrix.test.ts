@@ -268,3 +268,17 @@ describe('financial.view / approve (backoffice, unchanged)', () => {
     expect(can(role, 'financial.approve')).toBe(false);
   });
 });
+
+describe('map.execution_density (F09-1 §L-F09-09)', () => {
+  it('M1: lists AM/OP/CL_ADMIN/CL_USER with no condition (the /map requires no flag)', () => {
+    const entry = getMatrixEntry('map.execution_density');
+    expect(entry).toEqual({ roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'] });
+    expect(entry?.condition).toBeUndefined();
+  });
+
+  it('M2: denies INSP and TNT, allows CL_USER', () => {
+    expect(can('INSP', 'map.execution_density')).toBe(false);
+    expect(can('TNT', 'map.execution_density')).toBe(false);
+    expect(can('CL_USER', 'map.execution_density')).toBe(true);
+  });
+});
