@@ -157,9 +157,16 @@ offers map lives in `features/offers/` and appointment detail lives in `features
 
 - Tile grid with sub-routes: `/profile/account`, `/profile/availability`, `/profile/documents`, `/profile/settings` (security, 2FA, sessions, install app). `/profile/edit` redirects to `/profile/account`.
 - **Base address (F01-3, contract 00.4).** `/profile/account` has an inline "Base address" card (`id="base-address"`) that edits the inspector's base via `PATCH /v1/inspectors/me {address}` (geocoded server-side in permanent mode). It validates with the shared `inspectorBaseAddressSchema` + `AU_STATES` and sends `city = suburb`, `country = 'AU'`, no client coordinates; a saved address that does not parse is legacy-incompatible (fields stay empty with a re-entry prompt, never normalised). `BaseAddressBanner` (`components/feedback/` — shared so the schedule home can mount it without a cross-feature import) is a fixed, non-dismissable prompt shown on `/schedule` and `/profile` while `useInspectorMe().data.baseLat == null` (variant 1 "Add your base address" / variant 2 "We couldn't locate…"); it disappears once a save with coordinates invalidates `['inspector']`. `/v1/inspectors/me` has no response schema, so `useInspectorMe`/`useUpdateInspectorSelf` type the base fields manually; never read the base from `/v1/me` (its schema strips it).
-- **App settings (`/profile/settings`).** Content order is a reserved empty `[data-testid="push-preference-slot"]` (F02 fills it, D8) → `InstallAppCard` → a version footer `Properfy Inspector v{__APP_VERSION__}`.
+- **App settings (`/profile/settings`).** Content order is a reserved empty `[data-testid="push-preference-slot"]` (F02 fills it, D8) → `InstallAppCard` → a version footer `Properfy Inspector v{__APP_VERSION__}`. The `ProfilePage` menu has an "App settings" `MenuRow` → `/profile/settings` above "Log out" (F04-3, since the More tab is the design-v3 home for it).
 - **App version.** `__APP_VERSION__` is a Vite `define` (`vite.config.ts`, applies to Vitest too) = `buildAppVersion(pkg.version, process.env.APP_BUILD_SHA)` from `apps/pwa/src/lib/app-version.ts` → ``${version}+${sha7}`` (`+dev` locally). CI sets `APP_BUILD_SHA` on the three PWA build steps (`frontend-deploy.yml`); it is read in Node, never `VITE_`-prefixed.
 - **App-state heartbeat (F01-3, contract 00.10).** `useAppStateHeartbeat()` (`src/app/`) is called from `PwaLayout`; it POSTs `/v1/inspectors/me/app-state {displayMode, pushPermission, appVersion}` on mount and on `visibilitychange`→visible, throttled to once per 6 h per device via the `localStorage` key `properfy.pwa.appStateHeartbeat` (written only on 204/429). It takes injected `storage`/`send`/`now` for tests; errors are silent. `getIsStandalone()` is exported from `useInstallPrompt.tsx` for it. Logout clears the throttle key in `lib/auth-storage.ts` (`clearTokens`).
+
+### 4.7 Today & Route (`features/today` + `features/day-plan`, routes `/today`, `/today/route[/:date]`)
+
+- The app **home** (F04-3). `/today` (`TodayLayout` → `TwoPaneLayout fillHeight`, master `TodayPage`, detail `<Outlet/>`) shows the greeting, progress (`{done} of {total} done · finish ~hh:mm`), the **Next inspection** card, **Coming up** list, unread-announcements card and a **tomorrow** card. `/today/route[/:date]` (`RoutePage`, detail pane on tablet) is the list view: summary, `OriginRow` (per-day base), ordered stops with `RouteLegRow` legs, and a PDF/XLSX `RouteSheetMenu`. Consumes the F04-2 contract read-only (`GET/PUT/DELETE /v1/inspector/day-plans/:date[/origin]`, `…/sheet`); `:date` comes from `useCivilToday()` (inspector tz, never device). The map tab and reorder controls are **F04-4** (not here).
+- **Data layer:** `useDayPlan` (states `OK/STALE/NOT_PUBLISHED/NOT_FOUND/ERROR` + `isOffline`; one STALE refetch per version), `useDayPlanOrigin` (PUT/DELETE → `setQueryData`), `useRouteSheetDownload` (blob), `dayPlanKeys` (`['inspector','day-plan', date]`); pure libs `day-plan-view`, `format-route`, `navigation-url`. Check-in/out, cant-do, offline-queue sync and the SW `inspector-notice:received` message all invalidate `['inspector','day-plan']`.
+- **Reuse:** `AppointmentActionBar` is extracted from the schedule card (`features/execution/components/`, `ExecutionActionTarget` + `stopToActionTarget`) and drives both; `BaseAddressFields` is extracted from `ProfileAccountPage` (`features/profile/components/`, shared schema/`toInspectorBaseAddress`) and feeds both the profile card and the `OriginSheet`. `NavigateButton`/`buildNavigationUrl` (Apple on iOS/iPadOS, Google elsewhere) is reused by `PropertyAddressSection`.
+- **Contact privacy:** the plan carries tenant `primaryContact` name/phone, so `api-day-plan-cache` is in `INSPECTOR_API_CACHES` (logout-cleared) and caches 200s only.
 
 ---
 
@@ -167,7 +174,7 @@ offers map lives in `features/offers/` and appointment detail lives in `features
 
 ### Service Worker
 
-- Strategy: **`injectManifest`** with a custom `src/sw.ts` (F02-3) — it precaches (`precacheAndRoute(self.__WB_MANIFEST)`), keeps the SPA navigation fallback (`NavigationRoute → index.html`), registers the runtime caches (`src/sw/runtime-caching.ts`, same 5 routes/cache names as before) and adds `push`, `notificationclick` and `pushsubscriptionchange` handlers (pure helpers in `src/sw/push-handlers.ts`, unit-tested). `src/sw.ts`/`src/sw/**` typecheck under `tsconfig.sw.json` (WebWorker lib) and are excluded from the main tsconfig. The push target allowlist is the shared `isAllowedInspectorNoticeTargetPath` (no local normalization). Output stays `dist/sw.js`, so a rollback to `generateSW` swaps the same file.
+- Strategy: **`injectManifest`** with a custom `src/sw.ts` (F02-3) — it precaches (`precacheAndRoute(self.__WB_MANIFEST)`), keeps the SPA navigation fallback (`NavigationRoute → index.html`), registers the runtime caches (`src/sw/runtime-caching.ts`, 6 routes — F04-3 added `api-day-plan-cache`) and adds `push`, `notificationclick` and `pushsubscriptionchange` handlers (pure helpers in `src/sw/push-handlers.ts`, unit-tested). `src/sw.ts`/`src/sw/**` typecheck under `tsconfig.sw.json` (WebWorker lib) and are excluded from the main tsconfig. The push target allowlist is the shared `isAllowedInspectorNoticeTargetPath` (no local normalization). Output stays `dist/sw.js`, so a rollback to `generateSW` swaps the same file.
 - Register type: **`autoUpdate`** — new versions activate automatically on next load (`skipWaiting` + `clientsClaim`, no update prompt)
 
 ### Caching
@@ -176,10 +183,11 @@ offers map lives in `features/offers/` and appointment detail lives in `features
 - **API requests** (`vite.config.ts` `runtimeCaching`):
   - `/v1/inspector/schedule*` → NetworkFirst, `api-schedule-cache` (24 h, 50 entries, 10 s network timeout, `cacheableResponse: [200]`)
   - `/v1/inspector/appointments/*` → NetworkFirst, `api-appointment-cache` (5 min, 100 entries, `cacheableResponse: [200]`)
+  - `/v1/inspector/day-plans/{YYYY-MM-DD}` (dated GET only; **not** `/sheet`, writes, `…/origin`, `…/recalculate`, or AM/OP `/v1/day-plans/*`) → NetworkFirst, `api-day-plan-cache` (12 h, 3 entries, 10 s network timeout, `cacheableResponse: [200]`) — F04-3
   - `/v1/marketplace/offers` → NetworkOnly (offers are never served stale)
 - **In memory:** TanStack Query `networkMode: 'offlineFirst'`, `gcTime` 24 h (`QueryProvider.tsx`)
 - **Logout wipes inspector data:** every API cache name is listed in `INSPECTOR_API_CACHES` (`hooks/useAuth.tsx`) and deleted on logout together with the offline queue, so a shared device never shows the previous inspector's data. A new inspector cache MUST be added to that list.
-- **Today's work must stay readable offline.** Any inspector read endpoint that the day depends on (today's schedule, appointment detail and, from F04, the day plan `GET /v1/inspector/day-plans/:date` in `api-day-plan-cache`) uses NetworkFirst with a 10 s network timeout, like the existing caches. **Required for every new inspector cache** (the two existing caches now set `cacheableResponse: [200]` too, in `src/sw/runtime-caching.ts`): `cacheableResponse: { statuses: [200] }` (an error such as "not published" is never cached as data), `maxAgeSeconds` ≤ 12 h and `maxEntries` ≤ 10 unless the task says otherwise, its cache name added to `INSPECTOR_API_CACHES` (exported from `hooks/useAuth.tsx`), and the fixed offline copy in the UI: "Offline · showing your last saved <thing>" with cache, "You're offline. Connect to load <thing>." + Retry without. Write actions keep using the offline queue; new write actions require a connection unless their task says otherwise. Downloads (e.g. the route sheet) and AM/OP routes are never cached.
+- **Today's work must stay readable offline.** Any inspector read endpoint that the day depends on (today's schedule, appointment detail and the day plan `GET /v1/inspector/day-plans/:date` in `api-day-plan-cache`) uses NetworkFirst with a 10 s network timeout, like the existing caches. **Required for every new inspector cache** (the two existing caches now set `cacheableResponse: [200]` too, in `src/sw/runtime-caching.ts`): `cacheableResponse: { statuses: [200] }` (an error such as "not published" is never cached as data), `maxAgeSeconds` ≤ 12 h and `maxEntries` ≤ 10 unless the task says otherwise, its cache name added to `INSPECTOR_API_CACHES` (exported from `hooks/useAuth.tsx`), and the fixed offline copy in the UI: "Offline · showing your last saved <thing>" with cache, "You're offline. Connect to load <thing>." + Retry without. Write actions keep using the offline queue; new write actions require a connection unless their task says otherwise. Downloads (e.g. the route sheet) and AM/OP routes are never cached.
 
 ### Manifest
 
@@ -193,13 +201,14 @@ offers map lives in `features/offers/` and appointment detail lives in `features
 
 ### Navigation
 
-- **Bottom navigation bar** (`BottomNavBar`) with exactly four tabs:
+- **Bottom navigation bar** (`BottomNavBar`) with exactly four tabs (F04-3):
+  - **Today** → `/today` (the home; active across `/today/*`)
   - **Schedule** → `/schedule`
   - **Offers** → `/marketplace`
-  - **Earnings** → `/earnings`
-  - **Profile** → `/profile`
+  - **More** → `/profile` (the existing profile hub, URLs unchanged; active across `/profile/*` and `/earnings/*` — Earnings lives inside More). The unread-announcements badge is on More.
 - **Top bar** (`TopBar`) with contextual title/actions and connection status
 - No sidebar (mobile-first)
+- Login and the index/`*` fallback land on `/today`.
 
 ### Layout
 
