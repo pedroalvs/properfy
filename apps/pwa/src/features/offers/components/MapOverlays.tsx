@@ -1,5 +1,5 @@
-import { AlertCircle, X } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { X } from 'lucide-react';
+import { MapStatusOverlay } from '@/lib/map';
 import { formatWallTimeRange } from '@/lib/format-date';
 import type { ExpandedGroup, ExpandedGroupAppointment } from '../lib/offers-map/types';
 
@@ -27,34 +27,12 @@ export function MapOverlays({
 }: MapOverlaysProps) {
   return (
     <>
-      {/*
-        The error is an overlay, never a replacement: the init effect bails out
-        on a missing container before it reaches setError(null), so unmounting
-        the container to show this made Retry a dead button — the map could
-        never come back.
-      */}
-      {error && (
-        <div
-          data-testid="map-error"
-          className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl bg-muted px-6 text-center"
-        >
-          <AlertCircle className="h-10 w-10 text-muted-foreground" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">{error}</p>
-          <Button variant="outlined" onClick={onRetry}>
-            Retry
-          </Button>
-        </div>
-      )}
-      {!error && showNoPinsOverlay && (
-        <div
-          data-testid="map-no-pins"
-          className="absolute inset-0 flex items-center justify-center rounded-2xl bg-background/80 backdrop-blur-sm"
-        >
-          <p className="text-sm font-medium text-foreground">
-            {expandedGroup ? 'No location data for this group' : 'No offers with location data'}
-          </p>
-        </div>
-      )}
+      <MapStatusOverlay
+        error={error}
+        onRetry={onRetry}
+        showNoPins={showNoPinsOverlay}
+        noPinsMessage={expandedGroup ? 'No location data for this group' : 'No offers with location data'}
+      />
       {selectedAppointment && (
         <div
           data-testid="map-appointment-chip"

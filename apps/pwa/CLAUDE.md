@@ -14,7 +14,8 @@ The PWA is a **mobile-first Progressive Web App** for property inspectors in the
 - **Styling:** Tailwind CSS with a shadcn-style design system (see `docs/design-system.md`)
 - **Font:** Inter (self-hosted via `@fontsource-variable/inter`)
 - **Icons:** `lucide-react`
-- **Maps:** Mapbox (`mapbox-gl`) for the offers map
+- **Maps:** Mapbox (`mapbox-gl`) for the offers map and the day-plan route map, via the shared toolkit in `src/lib/map/`
+- **Drag & drop:** `@dnd-kit/*` (core/sortable/modifiers/utilities) — only the route reorder list (F04-4)
 - **Geolocation:** Browser Geolocation API
 - **HTTP client:** OpenAPI-generated client (same contracts as web)
 - **State:** React Query + local state
@@ -92,9 +93,12 @@ apps/pwa/
 └── ...
 ```
 
-There is **no** `components/map/` directory and **no** `features/appointments/` feature: the
-offers map lives in `features/offers/` and appointment detail lives in `features/schedule/`
-(`AppointmentDetailPage.tsx`). The app frame is `PwaLayout` (there is no `MobileShell`).
+The shared map toolkit lives in `src/lib/map/` (`useMapboxInstance`, `useMapCamera` — generic over
+`points: {id,lat,lng}[]`, `markers` with `makeNumberedMarkerEl({label,variant,ariaLabel})`, `colors`,
+`useGeoJsonLineLayer`, `MapStatusOverlay`, `bounds`); both the offers map (`features/offers/`) and the
+day-plan route map (`features/day-plan/components/RouteMapView.tsx`) consume it (F04-4 promoted it out of
+`features/offers/`). There is **no** `features/appointments/` feature: appointment detail lives in
+`features/schedule/` (`AppointmentDetailPage.tsx`). The app frame is `PwaLayout` (there is no `MobileShell`).
 
 ---
 
@@ -163,10 +167,11 @@ offers map lives in `features/offers/` and appointment detail lives in `features
 
 ### 4.7 Today & Route (`features/today` + `features/day-plan`, routes `/today`, `/today/route[/:date]`)
 
-- The app **home** (F04-3). `/today` (`TodayLayout` → `TwoPaneLayout fillHeight`, master `TodayPage`, detail `<Outlet/>`) shows the greeting, progress (`{done} of {total} done · finish ~hh:mm`), the **Next inspection** card, **Coming up** list, unread-announcements card and a **tomorrow** card. `/today/route[/:date]` (`RoutePage`, detail pane on tablet) is the list view: summary, `OriginRow` (per-day base), ordered stops with `RouteLegRow` legs, and a PDF/XLSX `RouteSheetMenu`. Consumes the F04-2 contract read-only (`GET/PUT/DELETE /v1/inspector/day-plans/:date[/origin]`, `…/sheet`); `:date` comes from `useCivilToday()` (inspector tz, never device). The map tab and reorder controls are **F04-4** (not here).
+- The app **home** (F04-3). `/today` (`TodayLayout` → `TwoPaneLayout fillHeight`, master `TodayPage`, detail `<Outlet/>`) shows the greeting, progress (`{done} of {total} done · finish ~hh:mm`), the **Next inspection** card, **Coming up** list, unread-announcements card and a **tomorrow** card. `/today/route[/:date]` (`RoutePage`, detail pane on tablet) is the list view: summary, `OriginRow` (per-day base), ordered stops with `RouteLegRow` legs, and a PDF/XLSX `RouteSheetMenu`. Consumes the F04-2 contract read-only (`GET/PUT/DELETE /v1/inspector/day-plans/:date[/origin]`, `…/sheet`); `:date` comes from `useCivilToday()` (inspector tz, never device). The map tab and reorder controls are added by **F04-4** (see §4.7 "Map & reorder").
 - **Data layer:** `useDayPlan` (states `OK/STALE/NOT_PUBLISHED/NOT_FOUND/ERROR` + `isOffline`; one STALE refetch per version), `useDayPlanOrigin` (PUT/DELETE → `setQueryData`), `useRouteSheetDownload` (blob), `dayPlanKeys` (`['inspector','day-plan', date]`); pure libs `day-plan-view`, `format-route`, `navigation-url`. Check-in/out, cant-do, offline-queue sync and the SW `inspector-notice:received` message all invalidate `['inspector','day-plan']`.
 - **Reuse:** `AppointmentActionBar` is extracted from the schedule card (`features/execution/components/`, `ExecutionActionTarget` + `stopToActionTarget`) and drives both; `BaseAddressFields` is extracted from `ProfileAccountPage` (`features/profile/components/`, shared schema/`toInspectorBaseAddress`) and feeds both the profile card and the `OriginSheet`. `NavigateButton`/`buildNavigationUrl` (Apple on iOS/iPadOS, Google elsewhere) is reused by `PropertyAddressSection`.
 - **Contact privacy:** the plan carries tenant `primaryContact` name/phone, so `api-day-plan-cache` is in `INSPECTOR_API_CACHES` (logout-cleared) and caches 200s only.
+- **Map & reorder (F04-4).** `/today/route` adds a `Segmented` List/Map tab (state in `?view=map`, replace; Map is `React.lazy`). `RouteMapView` (lazy) draws numbered pins in the current order, an origin marker (omitted for `NONE`/`LAST_STOP`, L-F04-07) and the real Directions line (solid + dashed-approximate, from `plan.geometry`), via `src/lib/map/`; a dirty reorder draft renumbers pins and hides the line ("Save to update the route line"). Reorder (`ReorderableStopList` with `@dnd-kit` drag + up/down arrows) recomputes **locally** with no API: `reorder-draft.ts` reuses `evaluateSequence`/`RouteOrderMismatchError` from `@properfy/shared/route-planning` (the **subpath** keeps the optimizer in the lazy route chunk, out of the eager bundle) plus `toOptimizerInput`/`buildLegOverrides` from the barrel; shows "+N min vs. suggested", local "~" ETAs, and per-stop window warnings that never block Save (DB3). The draft is owned by `RoutePage` (shared across both tabs); `useReorderDraft` derives the reorderable set live (only `executionStatus 'NOT_STARTED'`, incl. this-device check-ins via the F03 execution state), freezes a dirty draft on a newer version (Review to adopt), discards it when the reorderable set changes, and blocks Save while STALE/offline. `ReorderSaveBar` saves via `PUT …/order` (`{appointmentIds, basedOnVersion}`, no `Idempotency-Key`) and maps 409 `DAY_PLAN_VERSION_CONFLICT`/`DAY_PLAN_STALE`, 422 `DAY_PLAN_ORDER_MISMATCH`/`DAY_PLAN_DATE_IN_PAST`, 429 and network to reload/retry messages; "Reset to suggested order" is local when dirty, else confirms and calls `POST …/recalculate` (`useResetDayPlanOrder`). Consumes the F04-1/2/3 contracts only — no backend/schema/api-types change.
 
 ---
 

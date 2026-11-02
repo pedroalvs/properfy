@@ -2,12 +2,59 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   PRIMARY_COLOR,
   PIN_DIAMETER_PX,
+  makeNumberedMarkerEl,
   makeMarkerEl,
   makeAppointmentMarkerEl,
   isValidCoordinate,
   applyCollisionOffsets,
   type PlacedMarker,
 } from '../markers';
+
+describe('makeNumberedMarkerEl', () => {
+  it('builds a focusable <button> with the aria-label and no inline transform', () => {
+    const el = makeNumberedMarkerEl({ label: '3', variant: 'stop', ariaLabel: 'Stop 3, 12 King St, ETA 8:00 am' });
+    expect(el.tagName).toBe('BUTTON');
+    expect(el.getAttribute('aria-label')).toBe('Stop 3, 12 King St, ETA 8:00 am');
+    expect(el.textContent).toBe('3');
+    // mapbox-gl owns the marker's transform; our code must never set it.
+    expect(el.style.transform).toBe('');
+  });
+
+  it('colours the stop variant with the --primary token (CSS, not a paint property)', () => {
+    const css = makeNumberedMarkerEl({ label: '1', variant: 'stop', ariaLabel: 'Stop 1' }).style.cssText.replace(
+      /\s/g,
+      '',
+    );
+    expect(css).toContain(`border:2.5pxsolid${PRIMARY_COLOR}`);
+    expect(css).toContain(`color:${PRIMARY_COLOR}`);
+  });
+
+  it('fills the group variant with the primary token', () => {
+    const css = makeNumberedMarkerEl({ label: '2', variant: 'group', ariaLabel: 'Group' }).style.cssText.replace(
+      /\s/g,
+      '',
+    );
+    expect(css).toContain(`background-color:${PRIMARY_COLOR}`);
+  });
+
+  it('renders a check for the done variant regardless of label', () => {
+    const el = makeNumberedMarkerEl({ label: '4', variant: 'done', ariaLabel: 'Stop 4 (done)' });
+    expect(el.textContent).toBe('✓');
+    expect(el.style.transform).toBe('');
+  });
+
+  it('renders a home glyph (not the label) for the origin variant', () => {
+    const el = makeNumberedMarkerEl({ label: '', variant: 'origin', ariaLabel: 'Start: Redfern NSW 2016' });
+    expect(el.getAttribute('aria-label')).toBe('Start: Redfern NSW 2016');
+    expect(el.querySelector('svg')).not.toBeNull();
+    expect(el.style.transform).toBe('');
+  });
+
+  it('honours a custom data-testid', () => {
+    const el = makeNumberedMarkerEl({ label: '1', variant: 'stop', ariaLabel: 'Stop 1', testId: 'route-map-pin' });
+    expect(el.getAttribute('data-testid')).toBe('route-map-pin');
+  });
+});
 
 describe('offers-map markers', () => {
   describe('makeMarkerEl', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeBounds, isSinglePointBounds } from '../map-bounds';
+import { computeBounds, isSinglePointBounds } from '../bounds';
 
 describe('computeBounds', () => {
   it('returns null for an empty list', () => {

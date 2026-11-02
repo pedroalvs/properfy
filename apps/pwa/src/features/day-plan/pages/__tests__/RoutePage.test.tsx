@@ -10,8 +10,42 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ user: { name: 'Jane Doe', timezone: 'Australia/Sydney' } }),
 }));
 vi.mock('@/hooks/useIsOnline', () => ({ useIsOnline: () => true }));
+// `unstable_usePrompt` needs a data router; tests use MemoryRouter, so stub it (as the profile tests do).
+vi.mock('@/lib/use-unsaved-changes-prompt', () => ({ useUnsavedChangesPrompt: () => {} }));
+// Stub the lazy map so switching tabs never loads the mapbox-gl engine in jsdom.
+vi.mock('../../components/RouteMapView', () => ({ default: () => <div data-testid="route-map-view-stub" /> }));
 
-const { B } = STOP_IDS;
+const { A, B, C } = STOP_IDS;
+
+/** A plan whose routingInput covers all three stops, so reorder is enabled. */
+function reorderablePlan() {
+  const plan = buildDayPlan();
+  return buildDayPlan({
+    routingInput: {
+      points: [
+        { key: 'origin', lat: -33.87, lng: 151.2 },
+        { key: A, lat: -33.8836, lng: 151.2108 },
+        { key: B, lat: -33.89, lng: 151.22 },
+        { key: C, lat: -33.87, lng: 151.19 },
+      ],
+      travelS: [
+        [0, 300, 900, 600],
+        [300, 0, 600, 1200],
+        [900, 600, 0, 400],
+        [600, 1200, 400, 0],
+      ],
+      originKey: 'origin',
+      earliestDepartureAt: null,
+      weights: { travel: 1, windowWait: 1, baseProximity: 1 },
+      legTravelS: [
+        { fromKey: 'origin', toKey: A, travelS: 300 },
+        { fromKey: A, toKey: B, travelS: 600 },
+        { fromKey: B, toKey: C, travelS: 400 },
+      ],
+    },
+    ...{ stops: plan.stops },
+  });
+}
 
 function ok(plan = buildDayPlan()) {
   return { data: { data: plan }, error: undefined, response: { status: 200 } };
@@ -169,5 +203,39 @@ describe('RoutePage', () => {
     renderRoute('/today/route/2026-13-40');
     // The redirect renders today's route (valid), so the GET for today runs.
     expect(await screen.findByRole('heading', { name: "Today's route" })).toBeInTheDocument();
+  });
+
+  it('shows a List/Map segmented control defaulting to List', async () => {
+    mockGet.mockResolvedValue(ok(buildDayPlan()));
+    renderRoute();
+    const tabs = await screen.findByRole('tablist', { name: 'Route view' });
+    expect(within(tabs).getByRole('tab', { name: 'List' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(tabs).getByRole('tab', { name: 'Map' })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.queryByTestId('route-map-view-stub')).toBeNull();
+  });
+
+  it('switches to the Map tab when Map is chosen', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    mockGet.mockResolvedValue(ok(buildDayPlan()));
+    renderRoute();
+    await user.click(await screen.findByRole('tab', { name: 'Map' }));
+    expect(await screen.findByTestId('route-map-view-stub')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Map' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('offers reorder controls when the plan can be reordered', async () => {
+    mockGet.mockResolvedValue(ok(reorderablePlan()));
+    renderRoute();
+    expect(await screen.findByRole('button', { name: 'Drag to reorder stop 2' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Move stop 2 up' })).toBeInTheDocument();
+    // Save bar only appears once the order is dirty.
+    expect(screen.queryByTestId('reorder-save-bar')).toBeNull();
+  });
+
+  it('does not offer reorder controls for a past date', async () => {
+    mockGet.mockResolvedValue(ok(reorderablePlan()));
+    renderRoute('/today/route/2026-11-01');
+    expect(await screen.findByTestId('route-subheader')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Drag to reorder/ })).toBeNull();
   });
 });

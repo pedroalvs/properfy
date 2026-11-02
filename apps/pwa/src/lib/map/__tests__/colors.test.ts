@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hslTripletToMapboxColor } from '../useOfferRoute';
+import { hslTripletToMapboxColor } from '../colors';
 
 describe('hslTripletToMapboxColor', () => {
   // Regression: the shadcn `--primary` triplet is space-separated, and Mapbox's

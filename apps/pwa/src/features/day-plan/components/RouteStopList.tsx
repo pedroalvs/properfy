@@ -3,17 +3,22 @@ import { formatWallTimeRange, type DayPlanResponse } from '@properfy/shared';
 import { stopsInOrder } from '../lib/day-plan-view';
 import { StopCard } from './StopCard';
 import { RouteLegRow } from './RouteLegRow';
+import { ReorderableStopList } from './ReorderableStopList';
+import type { ReorderDraft } from '../hooks/useReorderDraft';
 
 interface RouteStopListProps {
   plan: DayPlanResponse;
+  /** When reorder is enabled, the draft that drives the reorderable list. */
+  draft?: ReorderDraft;
+  /** Reorder is offered only when the plan can be reordered and the date is ≥ today. */
+  reorderEnabled?: boolean;
 }
 
 /**
- * Ordered list of stops with the travel leg before each one (the leg arriving at
- * that stop; the first is labelled "From start" when the plan has an origin). A
- * window violation adds an "Arrives after its window (…)" note under the stop.
+ * The read-only, ordered stop list with travel legs and window-violation notes
+ * (the F04-3 view). Used as the static branch when reorder is not available.
  */
-export function RouteStopList({ plan }: RouteStopListProps) {
+function StaticStopList({ plan }: { plan: DayPlanResponse }) {
   const stops = stopsInOrder(plan);
   const hasOrigin = plan.origin.source !== 'NONE';
   const violated = new Set(plan.violations.map((v) => v.appointmentId));
@@ -25,12 +30,7 @@ export function RouteStopList({ plan }: RouteStopListProps) {
         return (
           <Fragment key={stop.appointmentId}>
             {showLeg && (
-              <RouteLegRow
-                travelS={stop.travelS}
-                distanceM={stop.distanceM}
-                waitS={stop.waitS}
-                fromStart={index === 0}
-              />
+              <RouteLegRow travelS={stop.travelS} distanceM={stop.distanceM} waitS={stop.waitS} fromStart={index === 0} />
             )}
             <div role="listitem">
               <StopCard variant="row" stop={stop} />
@@ -45,4 +45,16 @@ export function RouteStopList({ plan }: RouteStopListProps) {
       })}
     </div>
   );
+}
+
+/**
+ * Chooses the reorderable list (drag + arrows, local recompute) when reorder is
+ * available, otherwise the static F04-3 list. The reorder draft and its Save bar
+ * are owned by the Route page so they persist across the List/Map tabs.
+ */
+export function RouteStopList({ plan, draft, reorderEnabled }: RouteStopListProps) {
+  if (reorderEnabled && draft) {
+    return <ReorderableStopList plan={plan} draft={draft} />;
+  }
+  return <StaticStopList plan={plan} />;
 }
