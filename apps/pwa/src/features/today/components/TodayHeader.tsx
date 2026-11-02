@@ -32,7 +32,7 @@ export function TodayHeader({
   const greeting = greetingFor(new Date(), timezone);
   const connection = isOnline ? 'Online' : 'Offline';
   const sync = queueCount > 0 ? ` · ${queueCount} waiting to sync` : '';
-  const showFinish = !allDone && Boolean(finishEta);
+  const showFinish = total > 0 && !allDone && Boolean(finishEta);
 
   return (
     <header>
