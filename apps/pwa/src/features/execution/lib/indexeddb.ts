@@ -93,4 +93,21 @@ export async function updateQueuedAction(action: QueuedAction): Promise<void> {
   await db.put('queued-actions', action, action.id);
 }
 
+/**
+ * Remove every queued START/FINISH for one appointment and clear its local
+ * execution draft. Used after a confirmed "Can't do this job" (F03): the job has
+ * been rejected server-side, so any pending offline sync for it would fail
+ * forever and the local IN_PROGRESS draft is meaningless.
+ */
+export async function purgeAppointmentFromOfflineQueue(appointmentId: string): Promise<void> {
+  const db = await getDB();
+  const all = await db.getAll('queued-actions');
+  await Promise.all(
+    all
+      .filter((action) => action.appointmentId === appointmentId)
+      .map((action) => db.delete('queued-actions', action.id)),
+  );
+  await db.delete('execution-states', appointmentId);
+}
+
 export type { QueuedAction, QueuedActionStatus };

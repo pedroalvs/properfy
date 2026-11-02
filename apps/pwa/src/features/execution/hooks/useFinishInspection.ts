@@ -31,9 +31,13 @@ export function useFinishInspection() {
     mutationFn: async ({ appointmentId, location }) => {
       const idempotencyKey = getOrCreateIdempotencyKey(`finish-${appointmentId}`);
 
+      // F03: send device accuracy and the capture instant so the server records
+      // the finish distance/accuracy (and a late offline sync's client time).
       const body = {
         latitude: location.latitude,
         longitude: location.longitude,
+        accuracy: location.accuracy,
+        clientOccurredAt: location.capturedAt,
       };
 
       if (!isOnline) {

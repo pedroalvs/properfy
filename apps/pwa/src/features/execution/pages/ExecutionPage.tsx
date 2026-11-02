@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -13,18 +13,13 @@ import { FailedSyncBanner } from '../components/FailedSyncBanner';
 import { LeaveWarningModal } from '../components/LeaveWarningModal';
 import { SyncConfirmModal } from '../components/SyncConfirmModal';
 import { PastTimeConfirmModal } from '../components/PastTimeConfirmModal';
-import { useLocalExecutionState } from '../hooks/useLocalExecutionState';
-import { useStartInspection } from '../hooks/useStartInspection';
-import { useFinishInspection } from '../hooks/useFinishInspection';
+import { useExecutionActions } from '../hooks/useExecutionActions';
 import { useInspectorAppointment } from '@/features/schedule/hooks/useInspectorAppointment';
 import { useSnackbar } from '@/hooks/useSnackbar';
-import { canTransition } from '../lib/execution-state-machine';
 import { isPastScheduledEnd } from '../lib/isPastScheduledEnd';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { getErrorMessage } from '@/lib/api-error';
 import type { CapturedLocation } from '../types';
-
-type FinishConfirmStep = 'SYNC' | 'PAST_TIME' | null;
 
 export function ExecutionPage() {
   const { appointmentId: appointmentIdParam } = useParams<{ appointmentId: string }>();
@@ -32,14 +27,24 @@ export function ExecutionPage() {
   const appointmentId = appointmentIdParam!;
 
   const { data: aptData, isLoading: aptLoading, isError: aptError, error: aptLoadError, refetch: refetchAppointment, jobDetails } = useInspectorAppointment(appointmentId);
-  const { state, updateState, clearState, isRestored } = useLocalExecutionState(appointmentId);
-  const startMutation = useStartInspection();
-  const finishMutation = useFinishInspection();
+  const {
+    state,
+    clearState,
+    isRestored,
+    checkIn,
+    proceedToFinish,
+    requestCheckOut,
+    retry,
+    confirmStep,
+    confirmSync,
+    confirmPastTime,
+    cancelConfirm,
+    isStarting,
+    isSubmitting,
+  } = useExecutionActions(appointmentId);
   const { showInfo, showError } = useSnackbar();
   const effectiveTimezone = useEffectiveTimezone();
   const resumeBannerShown = useRef(false);
-  const [confirmStep, setConfirmStep] = useState<FinishConfirmStep>(null);
-  const [pendingLocation, setPendingLocation] = useState<CapturedLocation | null>(null);
 
   useEffect(() => {
     if (isRestored && !resumeBannerShown.current && state.phase !== 'PRE_START' && state.phase !== 'DONE') {
@@ -86,24 +91,10 @@ export function ExecutionPage() {
     ? [appointment.appointmentCode, appointment.propertyAddress, appointment.timeSlotStart].filter(Boolean).join(' · ')
     : undefined;
 
-  const handleStart = async (location: CapturedLocation) => {
-    if (!canTransition(state.phase, 'IN_PROGRESS')) return;
-
-    try {
-      await startMutation.mutateAsync({ appointmentId, location });
-      updateState({
-        phase: 'IN_PROGRESS',
-        startLocation: location,
-        startedAt: location.capturedAt,
-      });
-    } catch (err) {
+  const handleStart = (location: CapturedLocation) => {
+    checkIn(location).catch((err) => {
       showError(err instanceof Error ? err.message : 'Unable to start inspection');
-    }
-  };
-
-  const handleProceedToFinish = () => {
-    if (!canTransition(state.phase, 'FINISHING')) return;
-    updateState({ phase: 'FINISHING' });
+    });
   };
 
   const appointmentPastEnd = isPastScheduledEnd(
@@ -114,73 +105,12 @@ export function ExecutionPage() {
   const hasInspectionAppLink = Boolean(jobDetails?.inspectionAppLink);
 
   const handleSubmitRequest = (location: CapturedLocation) => {
-    if (hasInspectionAppLink) {
-      setPendingLocation(location);
-      setConfirmStep('SYNC');
-      return;
-    }
-    if (appointmentPastEnd) {
-      setPendingLocation(location);
-      setConfirmStep('PAST_TIME');
-      return;
-    }
-    handleSubmit(location);
-  };
-
-  const clearConfirmation = () => {
-    setConfirmStep(null);
-    setPendingLocation(null);
-  };
-
-  const handleSyncConfirmed = () => {
-    if (appointmentPastEnd) {
-      setConfirmStep('PAST_TIME');
-      return;
-    }
-    const location = pendingLocation;
-    clearConfirmation();
-    if (location) handleSubmit(location);
+    requestCheckOut(location, { hasInspectionAppLink, isPastScheduledEnd: appointmentPastEnd });
   };
 
   const handleSyncDeclined = () => {
-    clearConfirmation();
+    cancelConfirm();
     showInfo('Sync the inspection in the Inspection App before completing.');
-  };
-
-  const handlePastTimeConfirmed = () => {
-    const location = pendingLocation;
-    clearConfirmation();
-    if (location) handleSubmit(location);
-  };
-
-  const handleSubmit = async (location: CapturedLocation) => {
-    if (!canTransition(state.phase, 'SUBMITTING')) return;
-    updateState({ phase: 'SUBMITTING', finishLocation: location });
-
-    try {
-      const result = await finishMutation.mutateAsync({
-        appointmentId,
-        location,
-      });
-      const queuedOffline = result.queued;
-      updateState({
-        phase: 'DONE',
-        pendingSync: queuedOffline,
-        errorMessage: null,
-      });
-    } catch (err) {
-      updateState({
-        phase: 'ERROR',
-        pendingSync: false,
-        errorMessage: err instanceof Error ? err.message : 'Submission failed',
-      });
-    }
-  };
-
-  const handleRetry = () => {
-    if (state.finishLocation && canTransition(state.phase, 'SUBMITTING')) {
-      handleSubmit(state.finishLocation);
-    }
   };
 
   const handleSaveExit = () => {
@@ -207,21 +137,21 @@ export function ExecutionPage() {
           propertyLatitude={appointment?.propertyLatitude}
           propertyLongitude={appointment?.propertyLongitude}
           onStart={handleStart}
-          isStarting={startMutation.isPending}
+          isStarting={isStarting}
         />
       )}
 
       {state.phase === 'IN_PROGRESS' && (
         <InProgressPanel
           startedAt={state.startedAt}
-          onFinish={handleProceedToFinish}
+          onFinish={proceedToFinish}
         />
       )}
 
       {state.phase === 'FINISHING' && (
         <FinishingPanel
           onSubmit={handleSubmitRequest}
-          isSubmitting={finishMutation.isPending}
+          isSubmitting={isSubmitting}
           propertyLatitude={appointment?.propertyLatitude}
           propertyLongitude={appointment?.propertyLongitude}
         />
@@ -243,18 +173,18 @@ export function ExecutionPage() {
       {state.phase === 'ERROR' && (
         <ErrorPanel
           message={state.errorMessage ?? 'An error occurred'}
-          onRetry={handleRetry}
+          onRetry={retry}
           onSaveExit={handleSaveExit}
         />
       )}
       </div>
 
       {state.phase === 'FINISHING' && confirmStep === 'SYNC' && (
-        <SyncConfirmModal onConfirm={handleSyncConfirmed} onCancel={handleSyncDeclined} />
+        <SyncConfirmModal onConfirm={confirmSync} onCancel={handleSyncDeclined} />
       )}
 
       {state.phase === 'FINISHING' && confirmStep === 'PAST_TIME' && (
-        <PastTimeConfirmModal onConfirm={handlePastTimeConfirmed} onCancel={clearConfirmation} />
+        <PastTimeConfirmModal onConfirm={confirmPastTime} onCancel={cancelConfirm} />
       )}
 
       {blocker.state === 'blocked' && (

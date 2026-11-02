@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { saveExecutionState, getExecutionState, clearExecutionState } from '../lib/indexeddb';
+import { subscribeExecutionStateChange } from '../lib/execution-state-events';
 import type { ExecutionState } from '../types';
 
 const DEFAULT_STATE: Omit<ExecutionState, 'appointmentId'> = {
@@ -29,6 +30,20 @@ export function useLocalExecutionState(appointmentId: string) {
         setState(saved);
       }
       setIsRestored(true);
+    });
+  }, [appointmentId]);
+
+  // Re-read when an *external* mutator changes this appointment's row (e.g. the
+  // offline queue clearing a permanently-failed check-in, or a "Can't do" purge).
+  // Without this a mounted card keeps a stale IN_PROGRESS in memory and stays on
+  // "Check out". A re-read that finds no row resets to the default (→ "Check in").
+  // This never fights the hook's own writes: those don't emit.
+  useEffect(() => {
+    return subscribeExecutionStateChange(appointmentId, () => {
+      getExecutionState(appointmentId).then((saved) => {
+        shouldPersistRef.current = false;
+        setState(saved ?? { ...DEFAULT_STATE, appointmentId });
+      });
     });
   }, [appointmentId]);
 
