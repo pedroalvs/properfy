@@ -260,3 +260,50 @@ describe('TimeInput accessibility and states', () => {
     expect(screen.queryByRole('button', { name: 'AM' })).toBeNull();
   });
 });
+
+describe('TimeInput popover and picker integration', () => {
+  it('opens a time popover when input is clicked', async () => {
+    render(<ControlledTimeInput />);
+    expect(screen.queryByRole('dialog', { name: 'Choose time' })).not.toBeInTheDocument();
+
+    fireEvent.click(getInput());
+    expect(await screen.findByRole('dialog', { name: 'Choose time' })).toBeInTheDocument();
+  });
+
+  it('opens on ArrowDown and closes on Escape', async () => {
+    const user = userEvent.setup();
+    render(<ControlledTimeInput />);
+
+    await user.click(getInput());
+    expect(screen.getByRole('dialog', { name: 'Choose time' })).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Choose time' })).not.toBeInTheDocument();
+  });
+
+  it('updates value and closes when an option is selected from the picker', async () => {
+    const user = userEvent.setup();
+    const onValue = vi.fn();
+    render(<ControlledTimeInput onValue={onValue} initial="09:00" />);
+
+    await user.click(getInput());
+    const dialog = screen.getByRole('dialog', { name: 'Choose time' });
+    expect(dialog).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: ':30' }));
+    expect(onValue).toHaveBeenCalledWith('09:30');
+    expect(screen.queryByRole('dialog', { name: 'Choose time' })).not.toBeInTheDocument();
+  });
+
+  it('toggles popover when clock icon button is clicked in form variant', async () => {
+    const user = userEvent.setup();
+    render(<ControlledTimeInput variant="form" />);
+
+    const openBtn = screen.getByRole('button', { name: 'Open time picker' });
+    await user.click(openBtn);
+    expect(screen.getByRole('dialog', { name: 'Choose time' })).toBeInTheDocument();
+
+    await user.click(openBtn);
+    expect(screen.queryByRole('dialog', { name: 'Choose time' })).not.toBeInTheDocument();
+  });
+});

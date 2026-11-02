@@ -50,6 +50,7 @@ export function FilterTimeRange({
               variant="bare"
               value={endTime}
               onChange={onEndChange}
+              min={startTime || undefined}
               aria-label={`${label} - end`}
             />
           </div>
