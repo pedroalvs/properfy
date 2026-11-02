@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
-import { ClockAlert } from 'lucide-react';
-import { AppointmentStatus } from '@properfy/shared';
+import { ClockAlert, Info } from 'lucide-react';
+import { AppointmentStatus, FIELD_ISSUE_REASON_LABELS, type FieldIssueReason } from '@properfy/shared';
+import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -26,6 +27,7 @@ export function AppointmentDetailPage() {
   const { appointmentId } = useParams<{ appointmentId: string }>();
   const { data, isLoading, isError, error, refetch, jobDetails } = useInspectorAppointment(appointmentId!);
   const { state: localExecutionState, isRestored } = useLocalExecutionState(appointmentId!);
+  const timeZone = useEffectiveTimezone();
 
   if (isLoading) {
     return (
@@ -59,11 +61,44 @@ export function AppointmentDetailPage() {
   const showCTA = hasResumableExecution || apt.status === AppointmentStatus.SCHEDULED;
   const flowStyle = FLOW_TYPE_MAP[apt.flowType];
 
+  const lastFieldIssue = apt.lastFieldIssue;
+  const lastFieldIssueReasonLabel = lastFieldIssue
+    ? (FIELD_ISSUE_REASON_LABELS[lastFieldIssue.reason as FieldIssueReason] ?? lastFieldIssue.reason)
+    : null;
+  const lastFieldIssueDate = lastFieldIssue
+    ? new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone,
+      }).format(new Date(lastFieldIssue.occurredAt))
+    : null;
+
   return (
     <div className="w-full" data-testid="appointment-detail-page">
       <TopBar title={apt.serviceTypeName} showBack backHideOnWide />
 
       <div className="flex flex-col gap-3 px-page-x py-4">
+        {/* "You reported…" — the inspector's own last "Can't do this job" on a job
+            that was offered again (F03, L-F03-09). Informational, shown only when
+            the latest CANT_DO on this appointment was made by this inspector. */}
+        {lastFieldIssue && (
+          <Alert tone="info" data-testid="last-field-issue-alert">
+            <Info className="h-5 w-5" aria-hidden="true" />
+            <div className="flex flex-col gap-1">
+              <p className="text-sm">
+                You reported &lsquo;{lastFieldIssueReasonLabel}&rsquo; on {lastFieldIssueDate}. This job
+                was offered again.
+              </p>
+              {lastFieldIssue.note && (
+                <p className="whitespace-pre-line break-words text-sm text-muted-foreground">
+                  {lastFieldIssue.note}
+                </p>
+              )}
+            </div>
+          </Alert>
+        )}
+
         {/* Past-date banner — critical, shown first. Same flag as the schedule card:
             the inspection day has passed, NOT the platform's 45-day age rule. A past
             date no longer blocks the start by itself, though the backend still refuses

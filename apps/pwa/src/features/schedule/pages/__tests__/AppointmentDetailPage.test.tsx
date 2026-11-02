@@ -15,6 +15,12 @@ vi.mock('@/features/execution/hooks/useLocalExecutionState', () => ({
   useLocalExecutionState: (...args: unknown[]) => mockUseLocalExecutionState(...args),
 }));
 
+// The page formats the "You reported…" date in the effective timezone; pin it to
+// Sydney (useEffectiveTimezone reads useAuth, which has no provider in this test).
+vi.mock('@/hooks/useEffectiveTimezone', () => ({
+  useEffectiveTimezone: () => 'Australia/Sydney',
+}));
+
 vi.mock('@/components/shell/TopBar', () => ({
   TopBar: ({ title, backHideOnWide }: { title: string; backHideOnWide?: boolean }) => (
     <div data-testid="topbar" data-back-hide-on-wide={backHideOnWide ? 'true' : 'false'}>{title}</div>
@@ -316,5 +322,58 @@ describe('AppointmentDetailPage', () => {
     expect(screen.getByTestId('restrictions-section')).toBeInTheDocument();
     expect(screen.getByText('Tenant will be home')).toBeInTheDocument();
     expect(screen.getByText(/Monday/)).toBeInTheDocument();
+  });
+
+  describe('last field issue alert (L-F03-09)', () => {
+    it('shows the "You reported…" alert when the inspector has a lastFieldIssue', () => {
+      mockUseInspectorAppointment.mockReturnValue({
+        data: {
+          data: {
+            ...appointmentData.data,
+            lastFieldIssue: {
+              reason: 'KEY_FAILED',
+              note: 'The lockbox code did not work.',
+              occurredAt: '2026-11-03T09:41:00.000+11:00',
+            },
+          },
+        },
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+
+      renderPage();
+
+      const alert = screen.getByTestId('last-field-issue-alert');
+      expect(alert).toHaveTextContent(
+        "You reported ‘Key didn't work’ on 03/11/2026. This job was offered again.",
+      );
+      expect(alert).toHaveTextContent('The lockbox code did not work.');
+    });
+
+    it('omits the note line when the lastFieldIssue has no note', () => {
+      mockUseInspectorAppointment.mockReturnValue({
+        data: {
+          data: {
+            ...appointmentData.data,
+            lastFieldIssue: { reason: 'NO_ANSWER', note: null, occurredAt: '2026-11-03T09:41:00.000+11:00' },
+          },
+        },
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+
+      renderPage();
+
+      expect(screen.getByTestId('last-field-issue-alert')).toHaveTextContent(
+        'You reported ‘No answer at the door’ on 03/11/2026. This job was offered again.',
+      );
+    });
+
+    it('shows no alert when there is no lastFieldIssue', () => {
+      renderPage();
+      expect(screen.queryByTestId('last-field-issue-alert')).not.toBeInTheDocument();
+    });
   });
 });

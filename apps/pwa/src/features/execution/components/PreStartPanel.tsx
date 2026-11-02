@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { MapPin, Play } from 'lucide-react';
+import { AlertCircle, MapPin, Play } from 'lucide-react';
 import { cn } from '@properfy/frontend-standards';
+import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { GeoLocationCapture } from './GeoLocationCapture';
@@ -13,9 +14,12 @@ interface PreStartPanelProps {
   propertyLongitude?: number | null;
   onStart: (location: CapturedLocation) => void;
   isStarting: boolean;
+  radiusMeters?: number;
+  /** Server-rejected check-in message (e.g. BLOCK 422); shown as a destructive alert. */
+  errorMessage?: string | null;
 }
 
-export function PreStartPanel({ propertyAddress, propertyLatitude, propertyLongitude, onStart, isStarting }: PreStartPanelProps) {
+export function PreStartPanel({ propertyAddress, propertyLatitude, propertyLongitude, onStart, isStarting, radiusMeters, errorMessage }: PreStartPanelProps) {
   const { location, status, error, requestLocation } = useGeolocation({ autoCapture: true });
   const [addressConfirmed, setAddressConfirmed] = useState(false);
 
@@ -36,6 +40,13 @@ export function PreStartPanel({ propertyAddress, propertyLatitude, propertyLongi
         </div>
       </Card>
 
+      {errorMessage && (
+        <Alert tone="destructive" data-testid="start-error">
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
+          <span>{errorMessage}</span>
+        </Alert>
+      )}
+
       <GeoLocationCapture
         status={status}
         location={location}
@@ -43,6 +54,7 @@ export function PreStartPanel({ propertyAddress, propertyLatitude, propertyLongi
         onRequest={requestLocation}
         propertyLatitude={propertyLatitude}
         propertyLongitude={propertyLongitude}
+        radiusMeters={radiusMeters}
       />
 
       <label className="flex items-center gap-3 rounded-card border border-border bg-card p-4" data-testid="address-confirm-label">

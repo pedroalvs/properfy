@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -45,6 +45,7 @@ export function ExecutionPage() {
   const { showInfo, showError } = useSnackbar();
   const effectiveTimezone = useEffectiveTimezone();
   const resumeBannerShown = useRef(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isRestored && !resumeBannerShown.current && state.phase !== 'PRE_START' && state.phase !== 'DONE') {
@@ -92,8 +93,13 @@ export function ExecutionPage() {
     : undefined;
 
   const handleStart = (location: CapturedLocation) => {
+    setStartError(null);
     checkIn(location).catch((err) => {
-      showError(err instanceof Error ? err.message : 'Unable to start inspection');
+      const message = err instanceof Error ? err.message : 'Unable to start inspection';
+      // Keep the panel in PRE_START and surface the server message (e.g. a BLOCK
+      // 422) both inline and as a toast.
+      setStartError(message);
+      showError(message);
     });
   };
 
@@ -138,6 +144,8 @@ export function ExecutionPage() {
           propertyLongitude={appointment?.propertyLongitude}
           onStart={handleStart}
           isStarting={isStarting}
+          radiusMeters={appointment?.geofence?.radiusMeters}
+          errorMessage={startError}
         />
       )}
 
@@ -154,6 +162,7 @@ export function ExecutionPage() {
           isSubmitting={isSubmitting}
           propertyLatitude={appointment?.propertyLatitude}
           propertyLongitude={appointment?.propertyLongitude}
+          radiusMeters={appointment?.geofence?.radiusMeters}
         />
       )}
 

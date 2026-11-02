@@ -1,6 +1,7 @@
 import type { CapturedLocation } from '../types';
 import type { ReactNode } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, Loader2, MapPin } from 'lucide-react';
+import { PLATFORM_SETTINGS_REGISTRY } from '@properfy/shared';
 import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -9,7 +10,14 @@ import { distanceMeters } from '@/lib/geo';
 
 type GeoStatus = 'idle' | 'requesting' | 'success' | 'error' | 'denied';
 
-const DISTANCE_WARNING_THRESHOLD = 200;
+/**
+ * The warning radius comes from the server (the appointment detail's `geofence`);
+ * when it is not provided we fall back to the platform default rather than the
+ * old hard-coded 200 m, which disagreed with the backend. This component only
+ * *warns* — it never disables Start/Check-in, and BLOCK is enforced server-side.
+ */
+const DEFAULT_WARNING_RADIUS_METERS =
+  PLATFORM_SETTINGS_REGISTRY.fieldEvents.defaults.geofenceRadiusMeters;
 
 interface GeoLocationCaptureProps {
   status: GeoStatus;
@@ -18,15 +26,18 @@ interface GeoLocationCaptureProps {
   onRequest: () => void;
   propertyLatitude?: number | null;
   propertyLongitude?: number | null;
+  /** Geofence radius from the appointment detail; defaults to the platform default. */
+  radiusMeters?: number;
   children?: ReactNode;
 }
 
-export function GeoLocationCapture({ status, location, error, onRequest, propertyLatitude, propertyLongitude, children }: GeoLocationCaptureProps) {
+export function GeoLocationCapture({ status, location, error, onRequest, propertyLatitude, propertyLongitude, radiusMeters, children }: GeoLocationCaptureProps) {
+  const warningRadius = radiusMeters ?? DEFAULT_WARNING_RADIUS_METERS;
   const distance =
     location && propertyLatitude != null && propertyLongitude != null
       ? distanceMeters(location.latitude, location.longitude, propertyLatitude, propertyLongitude)
       : null;
-  const showDistanceWarning = distance !== null && distance > DISTANCE_WARNING_THRESHOLD;
+  const showDistanceWarning = distance !== null && distance > warningRadius;
   const accuracyTone = location
     ? location.accuracy < 10
       ? 'green'
@@ -66,7 +77,8 @@ export function GeoLocationCapture({ status, location, error, onRequest, propert
             <Alert tone="warning" data-testid="distance-warning">
               <AlertTriangle className="h-4 w-4" aria-hidden="true" />
               <span>
-                You are {Math.round(distance!)}m from the property. Are you at the correct location?
+                You are {Math.round(distance!)} m from the property (limit {warningRadius} m). Are
+                you at the correct location?
               </span>
             </Alert>
           )}
