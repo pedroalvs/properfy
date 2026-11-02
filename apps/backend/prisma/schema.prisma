@@ -288,27 +288,28 @@ model User {
   updated_at         DateTime   @updatedAt
   deleted_at         DateTime?
 
-  sessions                  Session[]
-  password_reset_tokens     PasswordResetToken[]
-  password_history          PasswordHistory[]
-  tenant                    Tenant?               @relation(fields: [tenant_id], references: [id])
-  branch                    Branch?               @relation(fields: [branch_id], references: [id])
-  inspector                 Inspector?
-  created_appointments      Appointment[]         @relation("AppointmentCreatedBy")
-  done_marked_appointments  Appointment[]         @relation("AppointmentDoneMarkedBy")
-  done_checked_appointments Appointment[]         @relation("AppointmentDoneCheckedBy")
-  created_service_groups    ServiceGroup[]        @relation("ServiceGroupCreatedBy")
-  initiated_entries         FinancialEntry[]      @relation("EntryInitiator")
-  approved_entries          FinancialEntry[]      @relation("EntryApprover")
-  voided_entries            FinancialEntry[]      @relation("EntryVoider")
-  generated_invoices        InspectorInvoice[]    @relation("InspectorInvoiceGeneratedBy")
-  paid_invoices             InspectorInvoice[]    @relation("InspectorInvoicePaidBy")
-  consent_changes           NotificationConsent[] @relation("NotificationConsentChangedBy")
-  requested_reports         Report[]
-  created_imports           AppointmentImport[]   @relation("importCreatedBy")
-  created_service_regions   ServiceRegion[]       @relation("ServiceRegionCreatedBy")
-  platform_settings_updated PlatformSetting[]     @relation("PlatformSettingUpdatedBy")
-  authored_inspector_notices InspectorNotice[]    @relation("InspectorNoticeAuthor")
+  sessions                   Session[]
+  password_reset_tokens      PasswordResetToken[]
+  password_history           PasswordHistory[]
+  tenant                     Tenant?               @relation(fields: [tenant_id], references: [id])
+  branch                     Branch?               @relation(fields: [branch_id], references: [id])
+  inspector                  Inspector?
+  created_appointments       Appointment[]         @relation("AppointmentCreatedBy")
+  done_marked_appointments   Appointment[]         @relation("AppointmentDoneMarkedBy")
+  done_checked_appointments  Appointment[]         @relation("AppointmentDoneCheckedBy")
+  created_service_groups     ServiceGroup[]        @relation("ServiceGroupCreatedBy")
+  initiated_entries          FinancialEntry[]      @relation("EntryInitiator")
+  approved_entries           FinancialEntry[]      @relation("EntryApprover")
+  voided_entries             FinancialEntry[]      @relation("EntryVoider")
+  generated_invoices         InspectorInvoice[]    @relation("InspectorInvoiceGeneratedBy")
+  paid_invoices              InspectorInvoice[]    @relation("InspectorInvoicePaidBy")
+  consent_changes            NotificationConsent[] @relation("NotificationConsentChangedBy")
+  requested_reports          Report[]
+  created_imports            AppointmentImport[]   @relation("importCreatedBy")
+  created_service_regions    ServiceRegion[]       @relation("ServiceRegionCreatedBy")
+  platform_settings_updated  PlatformSetting[]     @relation("PlatformSettingUpdatedBy")
+  authored_inspector_notices InspectorNotice[]     @relation("InspectorNoticeAuthor")
+  computed_day_plans         DayPlan[]             @relation("DayPlanComputedBy")
 
   @@index([tenant_id])
   @@index([tenant_id, role])
@@ -523,6 +524,8 @@ model Inspector {
   app_last_seen_at           DateTime?
   push_enabled               Boolean?
   app_version                String?            @db.VarChar(40)
+  // F04-2 (tour, 00.2): set once by the app-state heartbeat; null = not completed/skipped.
+  onboarding_completed_at    DateTime?
   abn                        String?            @db.VarChar(20)
   date_of_birth              DateTime?          @db.Date
   insurance_file_key         String?
@@ -549,6 +552,7 @@ model Inspector {
   satisfaction_surveys    SatisfactionSurvey[]
   notice_recipients       InspectorNoticeRecipient[]
   push_subscriptions      InspectorPushSubscription[]
+  day_plans               DayPlan[]
 
   @@index([status])
   @@index([user_id])
@@ -565,28 +569,28 @@ model Inspector {
 // -----------------------------------------------------------------------------
 
 model InspectorNotice {
-  id                    String                      @id @default(uuid())
-  title                 String                      @db.VarChar(120)
-  body                  String                      @db.Text
-  critical              Boolean                     @default(false)
+  id                    String    @id @default(uuid())
+  title                 String    @db.VarChar(120)
+  body                  String    @db.Text
+  critical              Boolean   @default(false)
   // {type:'ALL'} | {type:'SELECTED',inspectorIds} | {type:'REGION',regionId,regionName} | {type:'SYSTEM',systemType}
   audience_json         Json
   // One of SYSTEM_INSPECTOR_NOTICE_TYPES; null = manual (AM/OP) notice.
-  system_type           String?                     @db.VarChar(40)
+  system_type           String?   @db.VarChar(40)
   // Idempotency of system notices (§7.7). Null on manual notices.
-  dedupe_key            String?                     @db.VarChar(200)
+  dedupe_key            String?   @db.VarChar(200)
   // Allowlisted tap target (system notices only); null ⇒ /profile/announcements/<id>.
-  target_path           String?                     @db.VarChar(200)
+  target_path           String?   @db.VarChar(200)
   // FK users.id; null = system-generated notice.
   author_user_id        String?
-  published_at          DateTime                    @default(now())
+  published_at          DateTime  @default(now())
   archived_at           DateTime?
   // First delivery-job run (null after 2 min ⇒ lost enqueue).
   delivery_started_at   DateTime?
   // Delivery-job end (all processed or archive stop); started >= 20 min ago & still null with pending ⇒ incomplete.
   delivery_completed_at DateTime?
-  created_at            DateTime                    @default(now())
-  updated_at            DateTime                    @updatedAt
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
 
   author     User?                      @relation("InspectorNoticeAuthor", fields: [author_user_id], references: [id], onDelete: Restrict)
   recipients InspectorNoticeRecipient[]
@@ -726,6 +730,7 @@ model Appointment {
   financial_entries   FinancialEntry[]
   notifications       Notification[]
   satisfaction_survey SatisfactionSurvey?
+  day_plan_stops      DayPlanStop[]
 
   @@index([tenant_id, status])
   @@index([tenant_id, branch_id])
@@ -1764,4 +1769,139 @@ model ApiKey {
 
   @@index([revoked_at])
   @@map("api_keys")
+}
+
+// -----------------------------------------------------------------------------
+// Day plans (F04-2) — platform-scoped (NO tenant_id). A plan belongs to an
+// inspector (cross-tenant) and aggregates stops from several agencies, so a
+// single tenant_id cannot represent it. Documented exception to root CLAUDE.md
+// §7.1 / constitution §II (precedent: Inspector, global ServiceRegion,
+// IntegrationSetting, RoutingRateLimitBucket). Isolation is enforced by role
+// (AM/OP read any inspector), by the JWT inspectorId (INSP → own only), and by
+// re-joining stops to live appointments with status IN (SCHEDULED, DONE).
+// Scoping test: tests/integration/db/day-plan.integration.test.ts.
+// -----------------------------------------------------------------------------
+
+enum DayPlanStatus {
+  DRAFT
+  PUBLISHED
+  STALE
+}
+
+enum DayPlanComputeTrigger {
+  SCHEDULED_PUBLISH
+  ON_OPEN
+  MANUAL_RECALC
+  REORDER
+  ORIGIN_CHANGE
+}
+
+enum DayPlanOriginSource {
+  BASE
+  OVERRIDE
+  NONE
+  LAST_STOP
+}
+
+enum RoutingProvider {
+  MAPBOX
+  STUB
+}
+
+model DayPlan {
+  id                     String                @id @default(uuid())
+  inspector_id           String
+  plan_date              DateTime              @db.Date
+  // Inspector effective timezone used for labels, "today" and the publication window.
+  timezone               String                @db.VarChar(64)
+  status                 DayPlanStatus
+  // Optimistic CAS: +1 per compute and on the transition to STALE (repeat marks do not increment).
+  version                Int                   @default(1)
+  input_fingerprint      String                @db.VarChar(64)
+  published_at           DateTime?
+  notified_at            DateTime?
+  computed_at            DateTime
+  computed_by_user_id    String?
+  last_trigger           DayPlanComputeTrigger
+  stale_at               DateTime?
+  // First reason since the last compute (zeroed on recompute).
+  stale_reason           String?               @db.VarChar(50)
+  origin_source          DayPlanOriginSource
+  origin_lat             Decimal?              @db.Decimal(10, 7)
+  origin_lng             Decimal?              @db.Decimal(10, 7)
+  origin_override_json   Json?
+  origin_override_lat    Decimal?              @db.Decimal(10, 7)
+  origin_override_lng    Decimal?              @db.Decimal(10, 7)
+  origin_override_set_at DateTime?
+  departure_at           DateTime?
+  finish_eta             DateTime?
+  total_drive_s          Int                   @default(0)
+  total_wait_s           Int                   @default(0)
+  total_service_s        Int                   @default(0)
+  total_late_s           Int                   @default(0)
+  total_distance_m       Int?
+  feasible               Boolean               @default(true)
+  manual_order           Boolean               @default(false)
+  suggested_order_json   Json
+  weights_json           Json
+  optimizer_method       String                @db.VarChar(20)
+  routing_provider       RoutingProvider
+  matrix_profile         String?               @db.VarChar(30)
+  approximate            Boolean               @default(false)
+  approximate_reason     String?               @db.VarChar(30)
+  // Plan A (L-F04-03): stored for the plan's validity, purged the next day.
+  route_geometry         Json?
+  routing_matrix_json    Json?
+  leg_travel_json        Json?
+  geometry_purged_at     DateTime?
+  created_at             DateTime              @default(now())
+  updated_at             DateTime              @updatedAt
+
+  inspector   Inspector     @relation(fields: [inspector_id], references: [id])
+  computed_by User?         @relation("DayPlanComputedBy", fields: [computed_by_user_id], references: [id], onDelete: SetNull)
+  stops       DayPlanStop[]
+
+  @@unique([inspector_id, plan_date])
+  @@index([plan_date, status])
+  @@map("day_plans")
+}
+
+model DayPlanStop {
+  id                         String    @id @default(uuid())
+  day_plan_id                String
+  appointment_id             String
+  // 1-based within the plan; the executed prefix comes first.
+  sequence                   Int
+  eta                        DateTime?
+  service_start_at           DateTime?
+  service_end_at             DateTime?
+  // Frozen at publication; never overwritten by later recomputes (the metric reads these).
+  published_eta              DateTime?
+  published_service_start_at DateTime?
+  published_predicted_at     DateTime?
+  published_approximate      Boolean?
+  travel_s                   Int       @default(0)
+  distance_m                 Int?
+  wait_s                     Int       @default(0)
+  late_s                     Int       @default(0)
+  window_start_at            DateTime
+  window_end_at              DateTime
+  window_timezone            String    @db.VarChar(64)
+  duration_minutes           Int
+  lat                        Decimal?  @db.Decimal(10, 7)
+  lng                        Decimal?  @db.Decimal(10, 7)
+  manual                     Boolean   @default(false)
+  // Record of the execution state AT compute time; the API always derives `executed` from live state (D18).
+  executed                   Boolean   @default(false)
+  approximate                Boolean   @default(false)
+  missing_coordinates        Boolean   @default(false)
+  created_at                 DateTime  @default(now())
+
+  day_plan    DayPlan     @relation(fields: [day_plan_id], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+
+  @@unique([day_plan_id, sequence])
+  @@unique([day_plan_id, appointment_id])
+  @@index([appointment_id])
+  @@map("day_plan_stops")
 }
