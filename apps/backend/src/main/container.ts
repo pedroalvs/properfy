@@ -495,6 +495,7 @@ import { PublishDayPlansUseCase } from '../modules/day-plan/application/use-case
 import { PurgeDayPlanRouteDataUseCase } from '../modules/day-plan/application/use-cases/purge-day-plan-route-data.use-case';
 import { GetRouteEtaAccuracyUseCase } from '../modules/day-plan/application/use-cases/get-route-eta-accuracy.use-case';
 import { GetDayPlanSheetUseCase } from '../modules/day-plan/application/use-cases/get-day-plan-sheet.use-case';
+import { PreviewRouteWeightsUseCase } from '../modules/day-plan/application/use-cases/preview-route-weights.use-case';
 import {
   DayPlanSheetRenderer,
   PdfKitDayPlanSheetGenerator,
@@ -1152,6 +1153,9 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const purgeDayPlanRouteDataUseCase = new PurgeDayPlanRouteDataUseCase(dayPlanRepo, logger, dayPlanClock);
   const getRouteEtaAccuracyUseCase = new GetRouteEtaAccuracyUseCase(dayPlanRepo, dayPlanClock);
+  const previewRouteWeightsUseCase = new PreviewRouteWeightsUseCase(
+    dayPlanInputReader, planRouteService, platformSettingsService, authorizationService, dayPlanClock,
+  );
   const getDayPlanSheetUseCase = new GetDayPlanSheetUseCase(
     getMyDayPlanUseCase,
     getDayPlanForOperatorUseCase,
@@ -1713,7 +1717,7 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     domainEventBus,
     geocodingService,
-    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, getFreshStopForAppointmentUseCase, getRouteEtaAccuracyUseCase, getDayPlanSheetUseCase, jwtService, tenantRepo },
+    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, getFreshStopForAppointmentUseCase, getRouteEtaAccuracyUseCase, previewRouteWeightsUseCase, getDayPlanSheetUseCase, jwtService, tenantRepo },
     auth: {
       loginUseCase,
       refreshTokenUseCase,

@@ -11734,6 +11734,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/day-plans/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        inspectorId: string;
+                        date: string;
+                        weights: {
+                            travel: number;
+                            windowWait: number;
+                            baseProximity: number;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                current: {
+                                    weights: {
+                                        travel: number;
+                                        windowWait: number;
+                                        baseProximity: number;
+                                    };
+                                    /** @enum {string} */
+                                    etaSource: "MATRIX";
+                                    approximate: boolean;
+                                    departureAt: (string) | null;
+                                    finishEta: (string) | null;
+                                    totals: {
+                                        driveS: number;
+                                        waitS: number;
+                                        lateS: number;
+                                    };
+                                    feasible: boolean;
+                                    stops: {
+                                        /** Format: uuid */
+                                        appointmentId: string;
+                                        sequence: number;
+                                        appointmentCode: string;
+                                        suburb: string;
+                                        windowStart: string;
+                                        windowEnd: string;
+                                        timezone: string;
+                                        eta: string;
+                                        lateS: number;
+                                    }[];
+                                };
+                                proposed: {
+                                    weights: {
+                                        travel: number;
+                                        windowWait: number;
+                                        baseProximity: number;
+                                    };
+                                    /** @enum {string} */
+                                    etaSource: "MATRIX";
+                                    approximate: boolean;
+                                    departureAt: (string) | null;
+                                    finishEta: (string) | null;
+                                    totals: {
+                                        driveS: number;
+                                        waitS: number;
+                                        lateS: number;
+                                    };
+                                    feasible: boolean;
+                                    stops: {
+                                        /** Format: uuid */
+                                        appointmentId: string;
+                                        sequence: number;
+                                        appointmentCode: string;
+                                        suburb: string;
+                                        windowStart: string;
+                                        windowEnd: string;
+                                        timezone: string;
+                                        eta: string;
+                                        lateS: number;
+                                    }[];
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/day-plans/{inspectorId}/{date}/recalculate": {
         parameters: {
             query?: never;
