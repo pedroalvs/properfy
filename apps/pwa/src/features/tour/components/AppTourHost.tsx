@@ -85,15 +85,7 @@ export function AppTourHost() {
     if (replayRequested) navigate(location.pathname, { replace: true, state: null });
   }, [replayRequested, navigate, location.pathname]);
 
-  const steps = useMemo(
-    () =>
-      resolveTourSteps({
-        isStandalone: getIsStandalone(),
-        isIosSafariEligible: false,
-        canInstall: false,
-      }),
-    [],
-  );
+  const steps = useMemo(() => resolveTourSteps({ isStandalone: getIsStandalone() }), []);
 
   if (!open) return null;
   return <AppTour steps={steps} onFinish={onFinish} />;

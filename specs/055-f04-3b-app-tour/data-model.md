@@ -11,12 +11,11 @@ The unit the engine renders. Produced by `resolveTourSteps(...)`, filtered at ru
 | `kind` | `'target' \| 'install'` | `install` has no anchor and renders centered |
 | `anchor` | `string \| undefined` | `data-tour` selector key for `target` steps (e.g. `nav-today`) |
 | `title` | `string` | literal (FR-008/009) |
-| `body` | `string` | ≤ 140 chars, English |
-| `condition` | `'always' \| 'target-exists' \| 'not-standalone'` | inclusion rule |
+| `body` | `string` | ≤ 140 chars, English (empty for `install`; `InstallStepBody` renders its copy) |
 
 **Resolution rules**:
-- `resolveTourSteps` includes all 8 target steps always, and the install step iff `!isStandalone`.
-- The *component* additionally skips a `target-exists` step at runtime when its anchor is absent/zero-size, and recomputes the displayed total `n`.
+- `resolveTourSteps({ isStandalone })` includes all 8 target steps always, and the install step iff `!isStandalone`. (The install step's platform copy is decided by `InstallStepBody` via `useInstallPrompt`, not by `resolveTourSteps`.)
+- The *component* skips any `target` step at runtime when its anchor is absent/zero-size (uniformly — there is no per-step "always" exemption, since the test matrix requires even a nav step to be skipped if its anchor is missing), and recomputes the displayed total `n`.
 - Counts: 9 (browser) / 8 (standalone); if all target anchors are absent and standalone → engine finishes without rendering.
 
 **Ordered anchors** (target steps): `nav-today`, `today-next`, `today-next-actions`, `today-more-actions`, `today-route-link`, `nav-schedule`, `nav-offers`, `nav-more`.

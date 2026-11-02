@@ -45,10 +45,10 @@ function mountAnchors(keys: string[]) {
 }
 
 function browserSteps(): TourStep[] {
-  return resolveTourSteps({ isStandalone: false, isIosSafariEligible: false, canInstall: true });
+  return resolveTourSteps({ isStandalone: false });
 }
 function standaloneSteps(): TourStep[] {
-  return resolveTourSteps({ isStandalone: true, isIosSafariEligible: false, canInstall: false });
+  return resolveTourSteps({ isStandalone: true });
 }
 
 function Harness({ steps, onFinish }: { steps: TourStep[]; onFinish: (r: 'completed' | 'skipped') => void }) {

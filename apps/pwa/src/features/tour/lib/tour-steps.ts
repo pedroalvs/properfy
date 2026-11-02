@@ -5,8 +5,6 @@
  * without updating the contract.
  */
 
-export type TourStepCondition = 'always' | 'target-exists';
-
 export interface TourStep {
   /** Stable id for keys/tests. */
   id: string;
@@ -16,7 +14,6 @@ export interface TourStep {
   title: string;
   /** Body copy for target steps; the install step renders `InstallStepBody` instead. */
   body: string;
-  condition: TourStepCondition;
 }
 
 /** The 8 target steps, in order (L-F04-12). */
@@ -27,7 +24,6 @@ export const TARGET_STEPS: readonly TourStep[] = [
     anchor: 'nav-today',
     title: 'Today',
     body: "Your day at a glance: what's next, what's done and when you'll finish.",
-    condition: 'always',
   },
   {
     id: 'next',
@@ -35,7 +31,6 @@ export const TARGET_STEPS: readonly TourStep[] = [
     anchor: 'today-next',
     title: 'Next inspection',
     body: "The job you're heading to, with its window and ETA. Tap it for full details.",
-    condition: 'target-exists',
   },
   {
     id: 'next-actions',
@@ -43,7 +38,6 @@ export const TARGET_STEPS: readonly TourStep[] = [
     anchor: 'today-next-actions',
     title: 'Navigate and check in',
     body: 'Navigate opens your maps app. Check in when you arrive and check out when you finish.',
-    condition: 'target-exists',
   },
   {
     id: 'more-actions',
@@ -51,7 +45,6 @@ export const TARGET_STEPS: readonly TourStep[] = [
     anchor: 'today-more-actions',
     title: "Running late or can't do it?",
     body: 'Tell us here. The job is released and operations are alerted straight away.',
-    condition: 'target-exists',
   },
   {
     id: 'route',
@@ -59,7 +52,6 @@ export const TARGET_STEPS: readonly TourStep[] = [
     anchor: 'today-route-link',
     title: 'Your route',
     body: 'See every stop in order, on a list or a map, and change the order if you need to.',
-    condition: 'target-exists',
   },
   {
     id: 'schedule',
@@ -67,7 +59,6 @@ export const TARGET_STEPS: readonly TourStep[] = [
     anchor: 'nav-schedule',
     title: 'Schedule',
     body: 'All your upcoming jobs, day by day, and your history.',
-    condition: 'always',
   },
   {
     id: 'offers',
@@ -75,7 +66,6 @@ export const TARGET_STEPS: readonly TourStep[] = [
     anchor: 'nav-offers',
     title: 'Offers',
     body: 'Groups of jobs near you. Accept the ones that fit your week.',
-    condition: 'always',
   },
   {
     id: 'more',
@@ -83,7 +73,6 @@ export const TARGET_STEPS: readonly TourStep[] = [
     anchor: 'nav-more',
     title: 'More',
     body: 'Announcements, earnings, your profile and app settings.',
-    condition: 'always',
   },
 ];
 
@@ -92,14 +81,12 @@ const INSTALL_STEP: TourStep = {
   kind: 'install',
   title: 'Install Properfy',
   body: '',
-  condition: 'always',
 };
 
 export interface TourStepFlags {
+  /** Already installed → omit the install step. The install step's platform copy
+   * (iOS / Android / manual) is decided by `InstallStepBody` via `useInstallPrompt`. */
   isStandalone: boolean;
-  /** For `InstallStepBody` platform copy (not used for inclusion). */
-  isIosSafariEligible: boolean;
-  canInstall: boolean;
 }
 
 /**
