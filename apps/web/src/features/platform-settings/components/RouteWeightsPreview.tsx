@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   addCivilDays,
   formatInstantTime,
@@ -75,7 +75,7 @@ function PreviewColumn({ title, preview, effectiveTimezone, orderChanged }: Prev
             <span>{stopLine(stop)}</span>
             {stop.lateS > 0 && (
               <span className="shrink-0 rounded bg-error/10 px-2 py-0.5 text-xs font-semibold text-error">
-                Late by {Math.round(stop.lateS / 60)} min
+                Late by {Math.max(1, Math.round(stop.lateS / 60))} min
               </span>
             )}
           </li>
@@ -113,6 +113,15 @@ export function RouteWeightsPreview({ weights, weightsValid }: RouteWeightsPrevi
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const { preview, isLoading, error, reset } = useRouteWeightsPreview();
+
+  // Clear a shown result once the inputs that produced it change, so the
+  // "Weights in this form" column never shows a stale order under live inputs.
+  // Keyed on the weight VALUES (the prop is a fresh object each parent render,
+  // so keying on its identity would wipe the result on every render).
+  useEffect(() => {
+    setResult(null);
+    reset();
+  }, [weights.travel, weights.windowWait, weights.baseProximity, inspectorId, date, reset]);
 
   const dateOutOfRange = error?.code === 'DAY_PLAN_PREVIEW_DATE_OUT_OF_RANGE';
   const rateLimited = error?.status === 429;

@@ -139,6 +139,28 @@ describe('RouteWeightsPreview', () => {
     expect(screen.getAllByText('Late by 25 min').length).toBe(2);
   });
 
+  it('clears a shown result when the form weights change (no stale order)', async () => {
+    previewFn.mockResolvedValueOnce(response(makePreview(), makePreview()));
+    const { rerender } = render(<RouteWeightsPreview weights={WEIGHTS} weightsValid />);
+    fireEvent.click(screen.getByTestId('inspector-stub'));
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+    await waitFor(() => expect(screen.getByText('Saved weights')).toBeVisible());
+
+    // Operator tweaks a weight without re-previewing → the stale columns go away.
+    rerender(<RouteWeightsPreview weights={{ ...WEIGHTS, travel: 2 }} weightsValid />);
+    await waitFor(() => expect(screen.queryByText('Saved weights')).not.toBeInTheDocument());
+  });
+
+  it('floors the late chip to at least 1 min for sub-minute lateness', async () => {
+    // 20s rounds to 0 min without the Math.max(1, …) floor — this fixture fails on the unfixed code.
+    const late = makePreview({ stops: [{ ...makePreview().stops[0]!, lateS: 20 }] });
+    previewFn.mockResolvedValueOnce(response(late, late));
+    render(<RouteWeightsPreview weights={WEIGHTS} weightsValid />);
+    fireEvent.click(screen.getByTestId('inspector-stub'));
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+    await waitFor(() => expect(screen.getAllByText('Late by 1 min').length).toBe(2));
+  });
+
   it('shows the empty message when the inspector has no inspections', async () => {
     const empty = makePreview({ stops: [], totals: { driveS: 0, waitS: 0, lateS: 0 }, finishEta: null });
     previewFn.mockResolvedValueOnce(response(empty, empty));
