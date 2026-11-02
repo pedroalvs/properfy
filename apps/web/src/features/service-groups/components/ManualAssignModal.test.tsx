@@ -64,7 +64,7 @@ describe('ManualAssignModal', () => {
     expect(button).toBeDisabled();
   });
 
-  it('renders search input with placeholder', () => {
+  it('renders search input with its hint and persistent label', () => {
     render(
       <ManualAssignModal
         open={true}
@@ -75,9 +75,11 @@ describe('ManualAssignModal', () => {
       { wrapper: Wrapper },
     );
     // FilterInput is the app's only debounced search primitive (apps/web/CLAUDE.md).
-    // At rest it shows the label as placeholder; the hint text takes over once
-    // the floating label lifts.
-    expect(screen.getByPlaceholderText('Search inspectors')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Search inspectors' })).toHaveAttribute(
+      'placeholder',
+      'Name or email',
+    );
+    expect(screen.getByText('Search inspectors')).toBeInTheDocument();
   });
 
   it('calls onClose when Cancel is clicked', () => {
