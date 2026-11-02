@@ -15,6 +15,11 @@ describe('FilterMultiSelect', () => {
     expect(screen.getByLabelText('Type')).toBeInTheDocument();
   });
 
+  it('renders label always even when selection is empty and closed', () => {
+    render(<FilterMultiSelect label="Type" value={[]} onChange={() => {}} options={options} />);
+    expect(screen.getByText('Type')).toBeInTheDocument();
+  });
+
   it('opens the listbox on click and announces aria-multiselectable', async () => {
     const user = userEvent.setup();
     render(<FilterMultiSelect label="Type" value={[]} onChange={() => {}} options={options} />);

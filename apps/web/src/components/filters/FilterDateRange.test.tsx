@@ -53,6 +53,19 @@ describe('FilterDateRange', () => {
     expect(onEndChange).toHaveBeenCalledWith('2026-12-31');
   });
 
+  it('renders label always even when dates are empty', () => {
+    render(
+      <FilterDateRange
+        label="Period"
+        startDate=""
+        endDate=""
+        onStartChange={() => {}}
+        onEndChange={() => {}}
+      />,
+    );
+    expect(screen.getByText('Period')).toBeInTheDocument();
+  });
+
   it('shows floating label when dates have values', () => {
     render(
       <FilterDateRange

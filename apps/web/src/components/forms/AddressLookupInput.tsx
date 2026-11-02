@@ -56,7 +56,6 @@ export function AddressLookupInput({
     country,
   );
 
-  const showFloatingLabel = focused || open || search !== '' || valueLabel !== '';
   const renderedValue = open ? search : valueLabel;
 
   const statusMessage = useMemo(() => {
@@ -181,16 +180,14 @@ export function AddressLookupInput({
 
   return (
     <div ref={containerRef} className={filterContainer}>
-      {showFloatingLabel && (
-        <span className={focused || open ? filterLabelFocused : filterLabel}>{label}</span>
-      )}
+      <span className={focused || open ? filterLabelFocused : filterLabel}>{label}</span>
       <div className="flex items-center px-3">
         <i className={cn('mdi mdi-map-marker-search', filterIcon, 'mr-2')} />
         <input
           type="text"
           autoComplete="off"
           className="w-full bg-transparent py-[7px] text-sm text-text-primary outline-none placeholder:text-text-muted disabled:cursor-not-allowed"
-          placeholder={showFloatingLabel ? placeholder : label}
+          placeholder={placeholder}
           value={renderedValue}
           disabled={disabled}
           onChange={(event) => {

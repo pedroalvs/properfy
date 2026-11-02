@@ -74,8 +74,10 @@ describe('FilterInput', () => {
     expect(latest).toHaveBeenCalledWith('');
   });
 
-  it('shows floating label on focus', () => {
+  it('renders label always even without focus', () => {
     render(<FilterInput label="Buscar" value="" onChange={() => {}} />);
+
+    expect(screen.getByText('Buscar')).toBeInTheDocument();
 
     const input = screen.getByLabelText('Buscar');
     act(() => {

@@ -17,6 +17,19 @@ describe('FilterTimeRange', () => {
     expect(screen.getByLabelText('Time - end')).toBeInTheDocument();
   });
 
+  it('renders label always even when times are empty', () => {
+    render(
+      <FilterTimeRange
+        label="Time"
+        startTime=""
+        endTime=""
+        onStartChange={() => {}}
+        onEndChange={() => {}}
+      />,
+    );
+    expect(screen.getByText('Time')).toBeInTheDocument();
+  });
+
   it('calls onStartChange and onEndChange on time changes', () => {
     const onStartChange = vi.fn();
     const onEndChange = vi.fn();

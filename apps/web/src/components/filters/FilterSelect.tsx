@@ -45,7 +45,6 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
 
   const selectedIndex = options.findIndex((o) => o.value === value);
   const selectedLabel = selectedIndex >= 0 ? options[selectedIndex]!.label : undefined;
-  const showFloatingLabel = focused || open || value !== '';
 
   const openMenu = () => {
     // Navigation starts from the current selection, so arrowing into an
@@ -161,9 +160,7 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
 
   return (
     <div ref={containerRef} className={cn(filterContainer, 'cursor-pointer')}>
-      {showFloatingLabel && (
-        <span className={focused || open ? filterLabelFocused : filterLabel}>{label}</span>
-      )}
+      <span className={focused || open ? filterLabelFocused : filterLabel}>{label}</span>
       <button
         ref={triggerRef}
         type="button"
@@ -194,7 +191,7 @@ export function FilterSelect({ label, value, onChange, options, placeholder }: F
             showClear && 'pr-9',
           )}
         >
-          {selectedLabel ?? (showFloatingLabel ? placeholder || '' : label)}
+          {selectedLabel ?? placeholder ?? ''}
         </span>
         <i className={cn('mdi mdi-menu-down', filterIcon, 'transition-transform', open && 'rotate-180')} />
       </button>

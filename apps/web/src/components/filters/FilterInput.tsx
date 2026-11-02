@@ -83,20 +83,16 @@ export function FilterInput({
     return () => clearTimeout(timerRef.current);
   }, []);
 
-  const showFloatingLabel = focused || localValue.length > 0;
-
   return (
     <div className={filterContainer}>
-      {showFloatingLabel && (
-        <span className={focused ? filterLabelFocused : filterLabel}>{label}</span>
-      )}
+      <span className={focused ? filterLabelFocused : filterLabel}>{label}</span>
       <div className="flex items-center px-3">
         <i className={cn('mdi mdi-magnify', filterIcon, 'mr-2')} />
         <input
           type="text"
           className={filterInput}
           style={{ paddingLeft: 0 }}
-          placeholder={showFloatingLabel ? placeholder : label}
+          placeholder={placeholder}
           value={localValue}
           onChange={(e) => handleChange(e.target.value)}
           onKeyDown={handleKeyDown}
