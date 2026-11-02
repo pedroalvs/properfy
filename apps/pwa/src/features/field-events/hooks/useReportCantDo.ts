@@ -38,6 +38,7 @@ export function useReportCantDo(appointmentId: string) {
       await refreshQueueSnapshot();
       queryClient.invalidateQueries({ queryKey: ['inspector', 'schedule'] });
       queryClient.invalidateQueries({ queryKey: ['inspector', 'appointment', appointmentId] });
+      queryClient.invalidateQueries({ queryKey: ['inspector', 'day-plan'] });
     },
   });
 }

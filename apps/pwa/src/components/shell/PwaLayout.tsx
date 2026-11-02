@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useMatches, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@properfy/frontend-standards';
 import { BottomNavBar } from './BottomNavBar';
 import { OfflineBanner } from '@/components/feedback/OfflineBanner';
@@ -22,6 +23,7 @@ export function PwaLayout() {
   const matches = useMatches();
   const isWide = matches.some((match) => (match.handle as WideHandle | undefined)?.wide === true);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
 
   // Report installed-app adoption (throttled to once per 6h per device). PwaLayout
@@ -45,11 +47,15 @@ export function PwaLayout() {
       const data = event.data as { type?: string; url?: string } | undefined;
       if (data?.type === 'navigate' && typeof data.url === 'string') {
         navigate(data.url);
+      } else if (data?.type === 'inspector-notice:received') {
+        // A route notice (ROUTE_PUBLISHED/ROUTE_CHANGED) landing while the app is
+        // open should refresh the plan so the day/tomorrow card updates in place.
+        queryClient.invalidateQueries({ queryKey: ['inspector', 'day-plan'] });
       }
     };
     container.addEventListener('message', handler);
     return () => container.removeEventListener('message', handler);
-  }, [navigate]);
+  }, [navigate, queryClient]);
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background" data-testid="pwa-layout">

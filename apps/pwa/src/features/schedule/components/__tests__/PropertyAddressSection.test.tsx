@@ -27,7 +27,7 @@ describe('PropertyAddressSection', () => {
 
     expect(screen.getByRole('link', { name: /navigate to property/i })).toHaveAttribute(
       'href',
-      'https://maps.google.com/?q=0,0',
+      'https://www.google.com/maps/dir/?api=1&destination=0,0&travelmode=driving',
     );
   });
 
@@ -42,8 +42,26 @@ describe('PropertyAddressSection', () => {
 
     expect(screen.getByRole('link', { name: /navigate to property/i })).toHaveAttribute(
       'href',
-      'https://maps.google.com/?q=123%20Main%20St%2C%20Brisbane',
+      'https://www.google.com/maps/dir/?api=1&destination=123%20Main%20St%2C%20Brisbane&travelmode=driving',
     );
+  });
+
+  it('uses Apple Maps on iOS', () => {
+    const original = navigator.userAgent;
+    Object.defineProperty(navigator, 'userAgent', {
+      value:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+      configurable: true,
+    });
+    try {
+      render(<PropertyAddressSection address="12 King St" suburb="" latitude={-33.8836} longitude={151.2108} />);
+      expect(screen.getByRole('link', { name: /navigate to property/i })).toHaveAttribute(
+        'href',
+        'https://maps.apple.com/?daddr=-33.8836,151.2108&dirflg=d',
+      );
+    } finally {
+      Object.defineProperty(navigator, 'userAgent', { value: original, configurable: true });
+    }
   });
 
   it('shows property detail chips when attributes are provided', () => {

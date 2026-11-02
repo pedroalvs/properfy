@@ -165,6 +165,7 @@ describe('useAuth logout wipes per-inspector data (PWA-7)', () => {
     expect(clearSpy).toHaveBeenCalled();
     expect(cacheDelete).toHaveBeenCalledWith('api-schedule-cache');
     expect(cacheDelete).toHaveBeenCalledWith('api-appointment-cache');
+    expect(cacheDelete).toHaveBeenCalledWith('api-day-plan-cache');
     expect(mockClearAllLocalData).toHaveBeenCalled();
     expect(mockResetQueueSnapshot).toHaveBeenCalled();
     await waitFor(() => expect(result.current.isAuthenticated).toBe(false));

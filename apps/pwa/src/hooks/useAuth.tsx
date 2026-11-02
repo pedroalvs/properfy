@@ -13,7 +13,13 @@ import { resetQueueSnapshot } from '@/features/execution/hooks/useOfflineQueue';
 // (see src/sw/runtime-caching.ts). Font/static caches are not inspector data
 // and are left. Exported so the service worker's runtime-caching descriptor can
 // assert the names stay in sync (a new inspector cache must be added here).
-export const INSPECTOR_API_CACHES = ['api-schedule-cache', 'api-appointment-cache'];
+export const INSPECTOR_API_CACHES = [
+  'api-schedule-cache',
+  'api-appointment-cache',
+  // Holds the day plan, which carries tenant contact name/phone — must be wiped
+  // on logout so a shared device never leaks it to the next inspector (F04-3).
+  'api-day-plan-cache',
+];
 
 /**
  * Best-effort wipe of every trace of the inspector's data on logout so a shared

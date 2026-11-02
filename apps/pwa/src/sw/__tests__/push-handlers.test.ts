@@ -59,7 +59,7 @@ describe('buildNotification', () => {
   });
 
   it('drops a non-allowlisted url back to the inbox', () => {
-    for (const url of ['/schedule', '/today', '/earnings']) {
+    for (const url of ['/schedule', '/earnings', '/today/route/2026-11-05']) {
       const out = buildNotification(
         JSON.stringify({ v: 1, noticeId: 'n1', title: 'T', body: 'B', critical: true, url }),
       );
@@ -72,6 +72,13 @@ describe('buildNotification', () => {
       JSON.stringify({ v: 1, noticeId: 'n1', title: 'T', body: 'B', critical: true, url: `/schedule/${UUID}` }),
     );
     expect(out.options.data.url).toBe(`/schedule/${UUID}?fromNotice=n1`);
+  });
+
+  it('opens /today for a route notice (F04-3)', () => {
+    const out = buildNotification(
+      JSON.stringify({ v: 1, noticeId: 'n1', title: 'T', body: 'B', critical: true, url: '/today' }),
+    );
+    expect(out.options.data.url).toBe('/today?fromNotice=n1');
   });
 
   it('does not append fromNotice when the target is the notice page itself', () => {

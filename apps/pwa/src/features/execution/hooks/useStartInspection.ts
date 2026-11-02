@@ -66,6 +66,7 @@ export function useStartInspection() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inspector', 'schedule'] });
+      queryClient.invalidateQueries({ queryKey: ['inspector', 'day-plan'] });
     },
   });
 }

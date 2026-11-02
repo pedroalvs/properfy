@@ -69,6 +69,7 @@ export function useFinishInspection() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inspector', 'schedule'] });
       queryClient.invalidateQueries({ queryKey: ['inspector', 'appointment'] });
+      queryClient.invalidateQueries({ queryKey: ['inspector', 'day-plan'] });
     },
   });
 }
