@@ -218,6 +218,13 @@ describe('GetMyDayPlanUseCase', () => {
     expect(res.version).toBe(1);
   });
 
+  it('refuses to serve a plan to an inactive inspector', async () => {
+    reader.inspector = { ...reader.inspector, active: false };
+    await expect(makeUseCase(reader, repo).execute({ inspectorId: INSPECTOR_ID, date: DATE })).rejects.toMatchObject({
+      code: 'DAY_PLAN_NOT_FOUND',
+    });
+  });
+
   it('reports NO_BASE when the inspector has no base address', async () => {
     reader.inspector = { ...reader.inspector, baseLat: null, baseLng: null, baseAddress: null, baseGeocodeFailed: false };
     const res = await makeUseCase(reader, repo).execute({ inspectorId: INSPECTOR_ID, date: DATE });

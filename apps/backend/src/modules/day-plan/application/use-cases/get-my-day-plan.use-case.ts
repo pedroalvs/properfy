@@ -33,7 +33,9 @@ export class GetMyDayPlanUseCase {
   async execute(input: GetMyDayPlanInput): Promise<DayPlanResponse> {
     const now = input.now ?? this.clock.now();
     const inspector = await this.reader.loadInspectorContext(input.inspectorId);
-    if (!inspector) throw dayPlanNotFound();
+    // Deactivated or soft-deleted inspectors are not served their plan (defence in
+    // depth over auth; the publish job's due set likewise excludes non-ACTIVE inspectors).
+    if (!inspector || !inspector.active) throw dayPlanNotFound();
 
     const todayCivil = civilDateInTimezone(now, inspector.timezone);
     const isToday = input.date === todayCivil;
