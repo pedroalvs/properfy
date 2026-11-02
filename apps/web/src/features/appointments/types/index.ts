@@ -8,7 +8,10 @@ import type {
   AppointmentCustomField,
   AppointmentApp,
   AvailableSlot,
+  InspectorIssue,
 } from '@properfy/shared';
+
+export type { InspectorIssue } from '@properfy/shared';
 import { CUSTOM_FIELDS_MAX } from '@properfy/shared';
 
 export type { AppointmentStatus } from '@properfy/shared';
@@ -59,6 +62,12 @@ export interface Appointment {
   cancellationReasonCode?: string | null;
   /** Structured reason code; set when the appointment was REJECTED. */
   rejectionReasonCode?: string | null;
+  /**
+   * Latest "Can't do this job" (CANT_DO) field event flattened onto the
+   * appointment (F03-2). Null when the inspector never reported one; persists
+   * after the appointment is re-offered (history of the last impediment).
+   */
+  inspectorIssue?: InspectorIssue | null;
   doneCheckedByUserId?: string | null;
   doneCheckedAt?: string | null;
   serviceGroupId?: string | null;

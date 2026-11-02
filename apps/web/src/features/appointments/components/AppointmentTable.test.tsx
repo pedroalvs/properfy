@@ -133,6 +133,22 @@ describe('AppointmentTable', () => {
       expect(cellUnder('Cancellation Reason')).toHaveTextContent('—');
     });
 
+    // F03: the system-only INSPECTOR_UNABLE rejection code must read humanized in
+    // the table, same as any other rejection reason.
+    it('humanizes the INSPECTOR_UNABLE rejection reason code', () => {
+      render(
+        <AppointmentTable
+          data={[makeAppointment({
+            status: AppointmentStatus.REJECTED,
+            cancellationReasonCode: null,
+            rejectionReasonCode: 'INSPECTOR_UNABLE',
+          })]}
+          showExtraColumns
+        />,
+      );
+      expect(cellUnder('Cancellation Reason')).toHaveTextContent('Inspector Unable');
+    });
+
     it('exposes the free-text reason as a tooltip on the code', async () => {
       const user = userEvent.setup();
       render(

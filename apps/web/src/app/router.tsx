@@ -75,6 +75,7 @@ const NotificationTemplateListPage = Loadable(lazyRetry(() => import('@/features
 const ConsentLookupPage = Loadable(lazyRetry(() => import('@/features/notification-consents/pages/ConsentLookupPage').then(m => ({ default: m.ConsentLookupPage }))));
 const MarketplacePage = Loadable(lazyRetry(() => import('@/features/marketplace/pages/MarketplacePage').then(m => ({ default: m.MarketplacePage }))));
 const ServiceRegionListPage = Loadable(lazyRetry(() => import('@/features/service-regions/pages/ServiceRegionListPage').then(m => ({ default: m.ServiceRegionListPage }))));
+const PlatformSettingsPage = Loadable(lazyRetry(() => import('@/features/platform-settings/pages/PlatformSettingsPage').then(m => ({ default: m.PlatformSettingsPage }))));
 const AppointmentMapPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentMapPage').then(m => ({ default: m.AppointmentMapPage }))));
 
 import { ProtectedRoute } from './ProtectedRoute';
@@ -491,6 +492,14 @@ export const routes: RouteObject[] = [
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <NotificationTemplateListPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            path: 'platform-settings',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+                <PlatformSettingsPage />
               </AuthGuard>
             ),
           },

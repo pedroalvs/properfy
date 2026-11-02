@@ -79,6 +79,19 @@ describe('Sidebar role-based visibility — Service Types', () => {
   });
 });
 
+// Platform Settings (F03) lives in the Configuration group — AM/OP only.
+describe('Sidebar role-based visibility — Platform Settings', () => {
+  it.each(['AM', 'OP'])('shows Platform Settings to %s', (role) => {
+    renderMobile(role);
+    expect(screen.getByText('Platform Settings')).toBeInTheDocument();
+  });
+
+  it.each(['CL_ADMIN', 'CL_USER', 'INSP'])('hides Platform Settings from %s', (role) => {
+    renderMobile(role);
+    expect(screen.queryByText('Platform Settings')).not.toBeInTheDocument();
+  });
+});
+
 describe('Sidebar IA — unified Contacts registry (spec 023)', () => {
   it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('shows the unified "Contacts" entry to %s', (role) => {
     renderMobile(role);

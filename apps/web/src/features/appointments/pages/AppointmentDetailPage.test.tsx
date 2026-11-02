@@ -62,6 +62,21 @@ vi.mock('@/hooks/useAuth', () => ({
 
 const mockRefetch = vi.fn();
 
+// The overview tab mounts AppointmentFieldActivitySection, whose real hook would
+// fire an extra api.GET('/v1/appointments/:id/field-activity') on mount. Left
+// unmocked that call pollutes the `mockResolvedValueOnce` queue the Copy Portal
+// Link tests depend on (project_vitest_mockonce_queue_pollution). The section's
+// own behaviour is covered by AppointmentFieldActivitySection.test.tsx, so the
+// page test stubs the hook to a quiet empty state.
+vi.mock('../hooks/useAppointmentFieldActivity', () => ({
+  useAppointmentFieldActivity: () => ({
+    fieldActivity: null,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+}));
+
 vi.mock('../hooks/useAppointmentDetail', () => ({
   useAppointmentDetail: (id: string | null) => {
     if (!id) return { appointment: null, isLoading: false, isError: false, refetch: mockRefetch };

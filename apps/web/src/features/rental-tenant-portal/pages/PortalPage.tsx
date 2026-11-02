@@ -42,7 +42,10 @@ export function PortalPage() {
 
   const [changeTimeOpen, setChangeTimeOpen] = useState(false);
 
-  const availableGroupsQuery = useAvailableGroups(token ?? '', changeTimeOpen);
+  // L-F03-01: the inspector-rejected path sends `canChangeTime: false`; only the
+  // agency can re-offer it. Absent on an older payload = true (prior behaviour).
+  const canChangeTime = data?.appointment?.canChangeTime ?? true;
+  const availableGroupsQuery = useAvailableGroups(token ?? '', changeTimeOpen && canChangeTime);
   const { refetch: refetchAvailableGroups } = availableGroupsQuery;
   const handleJoinedSlot = useCallback(() => {
     setChangeTimeOpen(false);
@@ -50,9 +53,14 @@ export function PortalPage() {
   const handleSlotUnavailable = useCallback(() => {
     refetchAvailableGroups();
   }, [refetchAvailableGroups]);
+  const handleAppointmentInactive = useCallback(() => {
+    setChangeTimeOpen(false);
+    refetch();
+  }, [refetch]);
   const joinGroupFlow = useJoinGroupFlow(token ?? '', {
     onJoined: handleJoinedSlot,
     onSlotUnavailable: handleSlotUnavailable,
+    onAppointmentInactive: handleAppointmentInactive,
   });
 
   const handleDeadlineExpire = useCallback(() => { refetch(); }, [refetch]);
@@ -253,7 +261,7 @@ export function PortalPage() {
         <BookedSlotCard
           appointment={appointment}
           onChangeTime={
-            !isTerminal
+            !isTerminal && canChangeTime
               ? () => {
                   setChangeTimeOpen(true);
                   joinGroupFlow.clearError();
@@ -289,9 +297,18 @@ export function PortalPage() {
 
         {isRejected && (
           <InfoBanner>
-            This inspection <strong>will not go ahead</strong> as scheduled. You can
-            still pick another available time below, or the agency will contact you
-            to arrange a new one.
+            {canChangeTime ? (
+              <>
+                This inspection <strong>will not go ahead</strong> as scheduled. You can
+                still pick another available time below, or the agency will contact you
+                to arrange a new one.
+              </>
+            ) : (
+              <>
+                This inspection <strong>will not go ahead</strong> as scheduled. The
+                agency will contact you to arrange a new time.
+              </>
+            )}
           </InfoBanner>
         )}
 
@@ -375,8 +392,9 @@ export function PortalPage() {
         <ContactForm contact={contact} token={token} isReadOnly={isReadOnly || isTerminal} />
       </div>
 
-      {/* Change time picker (US2 / §3.5) — bottom sheet / dialog */}
-      {!isTerminal && (
+      {/* Change time picker (US2 / §3.5) — bottom sheet / dialog. Hidden when the
+          appointment can no longer be rescheduled by the tenant (L-F03-01). */}
+      {!isTerminal && canChangeTime && (
         <ChangeTimeSheet
           open={changeTimeOpen}
           onClose={() => {
