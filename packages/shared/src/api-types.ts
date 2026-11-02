@@ -10761,6 +10761,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/map/execution-density": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    fromDate: string;
+                    toDate: string;
+                    tenantId?: string;
+                    inspectorId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                fromDate: string;
+                                toDate: string;
+                                /** @enum {number} */
+                                gridSizeDegrees: 0.001;
+                                minCellCount: number;
+                                cells: {
+                                    lat: number;
+                                    lng: number;
+                                    count: number;
+                                }[];
+                                cellCount: number;
+                                totalExecutions: number;
+                                excludedWithoutCoordinates: number;
+                                truncated: boolean;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/platform-settings": {
         parameters: {
             query?: never;
