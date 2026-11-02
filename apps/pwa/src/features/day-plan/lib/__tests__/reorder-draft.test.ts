@@ -144,7 +144,6 @@ describe('evaluateDraft', () => {
     const input = toOptimizerInput(plan, NOW)!;
     const expected = evaluateSequence(input, [A, B, C], { legTravelS: buildLegOverrides([A, B, C], plan.routingInput) });
     const draft = evaluateDraft(plan, [A, B, C], NOW)!;
-    expect(draft.invalid).toBe(false);
     expect(draft.finishS).toBe(expected.finishS);
     expect(draft.deltaFinishMin).toBe(0); // same as suggested
   });
@@ -157,10 +156,27 @@ describe('evaluateDraft', () => {
     expect(draft.totalTravelS).toBeGreaterThan(0);
   });
 
-  it('flags an order that does not match the optimizer keys as invalid', () => {
+  it('evaluates only the stops still in the order (a stop checked in on this device is dropped)', () => {
     const plan = matrixPlan();
-    const draft = evaluateDraft(plan, [A, B], NOW)!;
-    expect(draft.invalid).toBe(true);
+    // A was checked in on this device → `order` no longer has it, but the server
+    // plan still lists A (executed=false). The draft must preview [B, C], not error.
+    const draft = evaluateDraft(plan, [B, C], NOW)!;
+    expect(draft.finishS).not.toBeNull();
+    expect(Object.keys(draft.serviceStartByKey).sort()).toEqual([B, C].sort());
+  });
+
+  it('drops a coordless stop from the evaluation but still previews the rest', () => {
+    const plan = matrixPlan({
+      stops: [
+        buildStop({ appointmentId: A, sequence: 1, lat: -33.88, lng: 151.2, durationMinutes: 30, windowStartAt: ORIGIN, windowEndAt: WIDE_END }),
+        buildStop({ appointmentId: B, sequence: 2, lat: -33.89, lng: 151.22, durationMinutes: 30, windowStartAt: ORIGIN, windowEndAt: WIDE_END }),
+        buildStop({ appointmentId: C, sequence: 3, lat: null, lng: null, missingCoordinates: true, durationMinutes: 30, windowStartAt: ORIGIN, windowEndAt: WIDE_END }),
+      ],
+    });
+    // C has no coordinates → not in the optimizer → dropped from the preview.
+    const draft = evaluateDraft(plan, [A, B, C], NOW)!;
+    expect(draft.finishS).not.toBeNull();
+    expect(draft.serviceStartByKey[C]).toBeUndefined();
   });
 
   it('passes `now` through so earliest departure maxes with the current time', () => {

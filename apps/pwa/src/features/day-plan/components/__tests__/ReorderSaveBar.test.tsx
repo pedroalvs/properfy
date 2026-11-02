@@ -94,6 +94,17 @@ describe('ReorderSaveBar', () => {
     );
   });
 
+  it('on already-started clears the draft and explains the route continues from the last stop', async () => {
+    mockSave.mockResolvedValue({ status: 'ALREADY_STARTED' });
+    const draft = makeDraft();
+    renderWithProviders(<ReorderSaveBar draft={draft} date="2026-11-05" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Save order' }));
+    await waitFor(() =>
+      expect(screen.getByText('Your day has started; the route continues from your last stop.')).toBeInTheDocument(),
+    );
+    expect(draft.clear).toHaveBeenCalled();
+  });
+
   it('keeps the draft on a network error', async () => {
     mockSave.mockResolvedValue({ status: 'NETWORK' });
     const draft = makeDraft();

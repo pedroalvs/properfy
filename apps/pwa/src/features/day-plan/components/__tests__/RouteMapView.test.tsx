@@ -130,6 +130,16 @@ describe('RouteMapView', () => {
     expect(link.getAttribute('href')).toBe(`/schedule/${A}`);
   });
 
+  it('drops the stale saved ETA from pins and chip while a reorder draft is dirty', async () => {
+    renderWithProviders(<RouteMapView plan={buildDayPlan()} displayOrder={order} isDirty />);
+    await waitFor(() => expect(screen.getAllByTestId('route-map-pin')).toHaveLength(3));
+    const pin1 = screen.getAllByTestId('route-map-pin')[0]!;
+    expect(pin1.getAttribute('aria-label')).toBe('Stop 1, 12 King St, Surry Hills NSW 2010');
+    fireEvent.click(pin1);
+    expect(screen.getByTestId('route-map-chip').textContent).toContain('Stop 1');
+    expect(screen.getByTestId('route-map-chip').textContent).not.toContain('ETA');
+  });
+
   it('shows the unavailable message when there is no Mapbox token', async () => {
     tokenValue = '';
     renderWithProviders(<RouteMapView plan={buildDayPlan()} displayOrder={order} isDirty={false} />);

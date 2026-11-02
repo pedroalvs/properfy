@@ -13,6 +13,8 @@ export type SaveOrderResult =
   | { status: 'CONFLICT' }
   /** 422 the reorderable set changed — reload and retry. */
   | { status: 'MISMATCH' }
+  /** 422 the day already started — the route continues from the last stop. */
+  | { status: 'ALREADY_STARTED' }
   /** 422 the date is in the past — the screen becomes read-only. */
   | { status: 'PAST' }
   /** 429 too many changes. */
@@ -29,6 +31,8 @@ function classify(error: ApiError): Exclude<SaveOrderResult, { status: 'SAVED' }
       return 'CONFLICT';
     case 'DAY_PLAN_ORDER_MISMATCH':
       return 'MISMATCH';
+    case 'DAY_PLAN_ALREADY_STARTED':
+      return 'ALREADY_STARTED';
     case 'DAY_PLAN_DATE_IN_PAST':
       return 'PAST';
     default:
@@ -84,7 +88,7 @@ export function useSaveDayPlanOrder(date: string) {
       return { status: 'SAVED' };
     } catch (error) {
       const status = classify(error as ApiError);
-      if (status === 'CONFLICT' || status === 'MISMATCH' || status === 'PAST') {
+      if (status === 'CONFLICT' || status === 'MISMATCH' || status === 'ALREADY_STARTED' || status === 'PAST') {
         void queryClient.invalidateQueries({ queryKey: dayPlanKeys.byDate(date) });
       }
       return { status };

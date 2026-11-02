@@ -93,32 +93,32 @@ export function useReorderDraft(plan: DayPlanResponse, stale: boolean): ReorderD
   const [draftOrder, setDraftOrder] = useState<string[] | null>(null);
   const [frozen, setFrozen] = useState(false);
   const [notice, setNotice] = useState<ReorderNotice>(null);
-  const baseVersionRef = useRef(plan.version);
+  /** Plan version captured when the draft first became dirty — sent as `basedOnVersion`. */
+  const dirtyBaseVersionRef = useRef(plan.version);
 
   const prevVersionRef = useRef(plan.version);
-  const prevReorderableRef = useRef(reorderableIds);
+
+  const order = draftOrder ?? reorderableIds;
+  const isDirty = draftOrder !== null && !sameOrder(draftOrder, reorderableIds);
 
   // Reconcile the draft with a changed plan (refetch / version bump / set change).
   useEffect(() => {
     const versionChanged = prevVersionRef.current !== plan.version;
-    const dirty = draftOrder !== null && !sameOrder(draftOrder, reorderableIds);
 
     if (draftOrder !== null) {
-      const setReallyChanged = !sameOrder([...(draftOrder ?? [])].sort(), [...reorderableIds].sort());
+      const setReallyChanged = !sameOrder([...draftOrder].sort(), [...reorderableIds].sort());
       if (setReallyChanged) {
         // A stop left (or joined) the reorderable set: the draft is meaningless now.
         setDraftOrder(null);
         setFrozen(false);
         setNotice('SET_DISCARDED');
-      } else if (versionChanged && dirty) {
+      } else if (versionChanged && isDirty) {
         setFrozen(true);
         setNotice('VERSION_FROZEN');
       }
     }
 
     prevVersionRef.current = plan.version;
-    prevReorderableRef.current = [...reorderableIds].sort();
-    if (draftOrder === null) baseVersionRef.current = plan.version;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan.version, reorderableIds]);
 
@@ -127,21 +127,28 @@ export function useReorderDraft(plan: DayPlanResponse, stale: boolean): ReorderD
     else setNotice((n) => (n === 'STALE' ? null : n));
   }, [stale]);
 
-  const order = draftOrder ?? reorderableIds;
-  const isDirty = draftOrder !== null && !sameOrder(draftOrder, reorderableIds);
   const displayOrder = useMemo(() => [...lockedIds, ...order], [lockedIds, order]);
 
   const evaluation = useMemo(() => evaluateDraft(plan, order, new Date()), [plan, order]);
   const canReorder = evaluation !== null && reorderableIds.length >= 2;
 
+  // A clean draft (equal to the saved order) is not a draft — keep `draftOrder`
+  // null so the base version re-bases on a refetch (otherwise a move-and-undo
+  // would pin `basedOnVersion` to a stale version and the next real Save 409s).
+  const baseVersion = isDirty ? dirtyBaseVersionRef.current : plan.version;
+
   const startDraft = useCallback(
     (next: string[]) => {
       if (frozen) return;
-      if (draftOrder === null) baseVersionRef.current = plan.version;
-      setDraftOrder(next);
+      if (sameOrder(next, reorderableIds)) {
+        setDraftOrder(null);
+      } else {
+        if (!isDirty) dirtyBaseVersionRef.current = plan.version; // capture at clean → dirty
+        setDraftOrder(next);
+      }
       setNotice(null);
     },
-    [draftOrder, frozen, plan.version],
+    [frozen, isDirty, reorderableIds, plan.version],
   );
 
   const moveTo = useCallback((from: number, to: number) => startDraft(moveItem(order, from, to)), [order, startDraft]);
@@ -156,8 +163,7 @@ export function useReorderDraft(plan: DayPlanResponse, stale: boolean): ReorderD
     setDraftOrder(null);
     setFrozen(false);
     setNotice(null);
-    baseVersionRef.current = plan.version;
-  }, [plan.version]);
+  }, []);
 
   const discard = clear;
   const review = clear;
@@ -171,7 +177,7 @@ export function useReorderDraft(plan: DayPlanResponse, stale: boolean): ReorderD
     isDirty,
     frozen,
     stale,
-    baseVersion: baseVersionRef.current,
+    baseVersion,
     evaluation,
     notice,
     moveTo,

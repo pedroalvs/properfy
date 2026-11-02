@@ -39,8 +39,12 @@ function plottable(stop: DayPlanStop): boolean {
  * the origin marker is omitted for `NONE` and `LAST_STOP` (the last done stop
  * already marks the continuation point, L-F04-07). Stops without a location get
  * no pin and are counted in `offMapCount`.
+ *
+ * `suppressEta` drops the ETA from the pin label and chip while a reorder draft
+ * is dirty: the saved `stop.eta` no longer matches the draft order, and the List
+ * tab is the source of truth for the local "~" ETAs.
  */
-export function useRoutePins(plan: DayPlanResponse, displayOrder: string[]): RoutePins {
+export function useRoutePins(plan: DayPlanResponse, displayOrder: string[], suppressEta = false): RoutePins {
   return useMemo(() => {
     const bySequence = [...plan.stops].sort((a, b) => a.sequence - b.sequence);
     const byId = new Map(plan.stops.map((s) => [s.appointmentId, s] as const));
@@ -66,7 +70,7 @@ export function useRoutePins(plan: DayPlanResponse, displayOrder: string[]): Rou
         offMapCount += 1;
         return;
       }
-      const eta = stop.eta ? formatInstantTime(stop.eta, stop.timezone) : '';
+      const eta = !suppressEta && stop.eta ? formatInstantTime(stop.eta, stop.timezone) : '';
       const etaSuffix = eta ? `, ETA ${eta}` : '';
       stopPins.push({
         appointmentId: stop.appointmentId,
@@ -100,5 +104,5 @@ export function useRoutePins(plan: DayPlanResponse, displayOrder: string[]): Rou
     if (origin) cameraPoints.unshift({ id: 'origin', lat: origin.lat, lng: origin.lng });
 
     return { origin, stopPins, cameraPoints, offMapCount };
-  }, [plan, displayOrder]);
+  }, [plan, displayOrder, suppressEta]);
 }

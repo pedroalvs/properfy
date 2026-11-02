@@ -16,6 +16,8 @@ interface SortableStopRowProps {
   onMoveUp: () => void;
   onMoveDown: () => void;
   reducedMotion: boolean;
+  /** When frozen (a newer version arrived), reordering is blocked until Review. */
+  disabled?: boolean;
 }
 
 /**
@@ -34,9 +36,11 @@ export function SortableStopRow({
   onMoveUp,
   onMoveDown,
   reducedMotion,
+  disabled = false,
 }: SortableStopRowProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: stop.appointmentId,
+    disabled,
   });
 
   const style = {
@@ -52,7 +56,8 @@ export function SortableStopRow({
           type="button"
           ref={setActivatorNodeRef}
           aria-label={`Drag to reorder stop ${position}`}
-          className="min-h-touch min-w-touch flex shrink-0 touch-none items-center justify-center rounded-lg text-muted-foreground active:bg-muted"
+          disabled={disabled}
+          className="min-h-touch min-w-touch flex shrink-0 touch-none items-center justify-center rounded-lg text-muted-foreground active:bg-muted disabled:opacity-30"
           {...attributes}
           {...listeners}
         >

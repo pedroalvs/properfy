@@ -77,6 +77,7 @@ export function ReorderableStopList({ plan, draft }: ReorderableStopListProps) {
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
+    if (draft.frozen) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const from = draft.order.indexOf(String(active.id));
@@ -124,10 +125,12 @@ export function ReorderableStopList({ plan, draft }: ReorderableStopListProps) {
               const position = prefixCount + index + 1;
               const etaOverride = formatLocalEta(draft.evaluation?.serviceStartByKey[id], stop.timezone);
               const onMoveUp = () => {
+                if (draft.frozen) return;
                 draft.moveUp(id);
                 announceMove(id, moveUpIds(draft.order, id));
               };
               const onMoveDown = () => {
+                if (draft.frozen) return;
                 draft.moveDown(id);
                 announceMove(id, moveDownIds(draft.order, id));
               };
@@ -138,11 +141,12 @@ export function ReorderableStopList({ plan, draft }: ReorderableStopListProps) {
                   position={position}
                   etaOverride={etaOverride || undefined}
                   violationMessage={violationByKey.get(id)}
-                  canMoveUp={index > 0}
-                  canMoveDown={index < draft.order.length - 1}
+                  canMoveUp={index > 0 && !draft.frozen}
+                  canMoveDown={index < draft.order.length - 1 && !draft.frozen}
                   onMoveUp={onMoveUp}
                   onMoveDown={onMoveDown}
                   reducedMotion={reducedMotion}
+                  disabled={draft.frozen}
                 />
               );
             })}

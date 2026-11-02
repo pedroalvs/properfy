@@ -35,7 +35,7 @@ export default function RouteMapView({ plan, displayOrder, isDirty }: RouteMapVi
   const markersRef = useRef<PlacedMarker[]>([]);
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
 
-  const pins = useRoutePins(plan, displayOrder);
+  const pins = useRoutePins(plan, displayOrder, isDirty);
   const camera = useMapCamera({ points: pins.cameraPoints, framingKey: null });
 
   const { mapRef, mapLoadedRef, mapReady, error, retry } = useMapboxInstance({

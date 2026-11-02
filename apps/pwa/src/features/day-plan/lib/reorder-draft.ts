@@ -101,38 +101,36 @@ export interface DraftEvaluation {
   violations: Array<{ key: string; lateS: number }>;
   /** Local service-start epoch-seconds per stop key (rendered with "~"). */
   serviceStartByKey: Record<string, number>;
-  /** The order did not match the optimizer keys — the UI must reload. */
-  invalid: boolean;
 }
-
-const EMPTY_EVAL: DraftEvaluation = {
-  finishS: null,
-  deltaFinishMin: 0,
-  totalTravelS: 0,
-  violations: [],
-  serviceStartByKey: {},
-  invalid: true,
-};
 
 /**
  * Evaluate the draft `order` locally against the plan's matrix, and the aligned
  * `suggestedOrder`, with the same criterion (`legTravelS` for unchanged adjacent
  * pairs, the matrix for the rest). Returns `null` when the plan cannot be
- * reordered; sets `invalid` when the order does not match the optimizer keys.
+ * reordered.
+ *
+ * The optimizer input is trimmed to exactly the stops still in `order`, so a
+ * stop checked in on this device (dropped from `order`) or one without
+ * coordinates (never in `toOptimizerInput`) is simply not evaluated — the
+ * preview matches what will actually be driven, instead of throwing a
+ * key-mismatch. Real id mismatches are impossible (the UI derives `order` from
+ * the live plan); a defensive `RouteOrderMismatchError` yields `null`.
  */
 export function evaluateDraft(plan: DayPlanResponse, order: readonly string[], now: Date): DraftEvaluation | null {
   const input = getOptimizerInput(plan, now);
   if (!input) return null;
-  const keys = input.stops.map((s) => s.key);
-  const keySet = new Set(keys);
+  const orderSet = new Set(order);
+  const stops = input.stops.filter((s) => orderSet.has(s.key));
+  const keySet = new Set(stops.map((s) => s.key));
   const evalOrder = order.filter((id) => keySet.has(id));
-  const suggested = alignOrder(plan.suggestedOrder, keys);
+  const suggested = alignOrder(plan.suggestedOrder, evalOrder);
+  const trimmed: OptimizerInput = { ...input, stops };
 
   try {
-    const draftEval = evaluateSequence(input, evalOrder, {
+    const draftEval = evaluateSequence(trimmed, evalOrder, {
       legTravelS: buildLegOverrides(evalOrder, plan.routingInput),
     });
-    const suggestedEval = evaluateSequence(input, suggested, {
+    const suggestedEval = evaluateSequence(trimmed, suggested, {
       legTravelS: buildLegOverrides(suggested, plan.routingInput),
     });
     const deltaFinishMin =
@@ -147,10 +145,9 @@ export function evaluateDraft(plan: DayPlanResponse, order: readonly string[], n
       totalTravelS: draftEval.totalTravelS,
       violations: draftEval.violations,
       serviceStartByKey,
-      invalid: false,
     };
   } catch (error) {
-    if (error instanceof RouteOrderMismatchError) return { ...EMPTY_EVAL };
+    if (error instanceof RouteOrderMismatchError) return null;
     throw error;
   }
 }

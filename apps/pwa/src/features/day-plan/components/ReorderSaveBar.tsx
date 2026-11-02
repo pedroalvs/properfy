@@ -14,6 +14,7 @@ interface ReorderSaveBarProps {
 
 const CONFLICT_MESSAGE = 'Your route was updated. Review it before saving your order.';
 const MISMATCH_MESSAGE = 'Your stops changed. Review the route and try again.';
+const ALREADY_STARTED_MESSAGE = 'Your day has started; the route continues from your last stop.';
 const PAST_MESSAGE = 'This day is in the past and can no longer be changed.';
 const NETWORK_MESSAGE = "Couldn't save. Check your connection and try again.";
 const RATE_LIMIT_MESSAGE = 'Too many changes in a short time. Try again in a minute.';
@@ -47,6 +48,10 @@ export function ReorderSaveBar({ draft, date }: ReorderSaveBarProps) {
       case 'MISMATCH':
         draft.clear();
         setAlert(MISMATCH_MESSAGE);
+        break;
+      case 'ALREADY_STARTED':
+        draft.clear();
+        setAlert(ALREADY_STARTED_MESSAGE);
         break;
       case 'PAST':
         draft.clear();

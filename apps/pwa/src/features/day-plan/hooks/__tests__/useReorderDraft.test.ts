@@ -110,6 +110,35 @@ describe('useReorderDraft', () => {
     expect(result.current.notice).toBe('STALE');
   });
 
+  it('re-bases basedOnVersion after a move-and-undo, so the next Save is not a stale-version 409', async () => {
+    const { result, rerender } = setup(plan({ version: 3 }));
+    await waitFor(() => expect(result.current.canReorder).toBe(true));
+    // Move A down then back up → clean again (not a real draft).
+    act(() => result.current.moveDown(A));
+    act(() => result.current.moveUp(A));
+    expect(result.current.isDirty).toBe(false);
+    expect(result.current.baseVersion).toBe(3);
+    // A refetch bumps the version (same order, e.g. an ETA recompute).
+    rerender({ p: plan({ version: 4 }), s: false });
+    expect(result.current.frozen).toBe(false);
+    expect(result.current.baseVersion).toBe(4);
+    // A real move now bases on the fresh version.
+    act(() => result.current.moveDown(A));
+    expect(result.current.isDirty).toBe(true);
+    expect(result.current.baseVersion).toBe(4);
+  });
+
+  it('ignores moves while frozen', async () => {
+    const { result, rerender } = setup(plan({ version: 3 }));
+    await waitFor(() => expect(result.current.canReorder).toBe(true));
+    act(() => result.current.moveDown(A));
+    rerender({ p: plan({ version: 4 }), s: false });
+    expect(result.current.frozen).toBe(true);
+    const frozenOrder = result.current.order;
+    act(() => result.current.moveDown(frozenOrder[0]!));
+    expect(result.current.order).toEqual(frozenOrder);
+  });
+
   it('resetToSuggested realigns the order locally with no API call', async () => {
     const { result } = setup(plan({ suggestedOrder: [C, A, B], manualOrder: true }));
     await waitFor(() => expect(result.current.canReorder).toBe(true));
