@@ -81,12 +81,34 @@ describe('POST /v1/service-types', () => {
         name: 'Routine Inspection',
         flowType: 'ROUTINE',
         requiresRentalTenantConfirmation: true,
+        defaultDurationMinutes: 45,
       });
 
     expect(res.status).toBe(201);
     expect(res.body.data).toHaveProperty('id');
     expect(res.body.data.code).toBe('ROUTINE');
     expect(res.body.data.updatedAt).toBeDefined();
+  });
+
+  it('should return 400 when defaultDurationMinutes is missing (TASK-F04-5: required)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/service-types')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        code: 'ROUTINE',
+        name: 'Routine Inspection',
+        flowType: 'ROUTINE',
+        requiresRentalTenantConfirmation: true,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    // The shared error-handler maps Zod issues to { field, message } (field is the
+    // dotted path string); this stack validates the body before the handler.
+    expect(res.body.error.details[0].field).toBe('defaultDurationMinutes');
+    expect(mockCreateServiceTypeExecute).not.toHaveBeenCalled();
   });
 
   it('should accept and echo defaultDurationMinutes 60 (test 26)', async () => {

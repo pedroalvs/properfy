@@ -29,6 +29,15 @@ const VALID_DATA: ServiceTypeFormData = {
   name: 'Routine Ingoing',
   flowType: 'INGOING',
   requiresRentalTenantConfirmation: true,
+  defaultDurationMinutes: '45',
+};
+
+const CREATE_BODY = {
+  code: 'ROUTINE_IN',
+  name: 'Routine Ingoing',
+  flowType: 'INGOING',
+  requiresRentalTenantConfirmation: true,
+  defaultDurationMinutes: 45,
 };
 
 beforeEach(() => {
@@ -46,6 +55,7 @@ describe('useServiceTypeSave', () => {
     expect(errors.code).toBeDefined();
     expect(errors.name).toBeDefined();
     expect(errors.flowType).toBeDefined();
+    expect(errors.defaultDurationMinutes).toBe('Enter the duration in minutes');
   });
 
   it('validate returns no errors for valid data', () => {
@@ -53,6 +63,20 @@ describe('useServiceTypeSave', () => {
     const { result } = renderHook(() => useServiceTypeSave(), { wrapper });
     const errors = result.current.validate(VALID_DATA);
     expect(Object.keys(errors)).toHaveLength(0);
+  });
+
+  it('validate covers the duration bounds (5..480, whole minutes)', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useServiceTypeSave(), { wrapper });
+    const v = (defaultDurationMinutes: string) =>
+      result.current.validate({ ...VALID_DATA, defaultDurationMinutes });
+    expect(v('').defaultDurationMinutes).toBe('Enter the duration in minutes');
+    expect(v('4').defaultDurationMinutes).toBe('Enter a duration between 5 and 480 minutes');
+    expect(v('481').defaultDurationMinutes).toBe('Enter a duration between 5 and 480 minutes');
+    expect(v('45.5').defaultDurationMinutes).toBe('Enter whole minutes');
+    expect(v('5').defaultDurationMinutes).toBeUndefined();
+    expect(v('480').defaultDurationMinutes).toBeUndefined();
+    expect(v('60').defaultDurationMinutes).toBeUndefined();
   });
 
   it('save returns success on create', async () => {
@@ -65,7 +89,7 @@ describe('useServiceTypeSave', () => {
     });
 
     expect(saveResult?.success).toBe(true);
-    expect(mockPost).toHaveBeenCalledWith('/v1/service-types', { body: VALID_DATA });
+    expect(mockPost).toHaveBeenCalledWith('/v1/service-types', { body: CREATE_BODY });
   });
 
   it('save returns success on edit', async () => {
@@ -74,7 +98,7 @@ describe('useServiceTypeSave', () => {
 
     let saveResult: { success: boolean } | undefined;
     await act(async () => {
-      saveResult = await result.current.save(VALID_DATA, 'st-01');
+      saveResult = await result.current.save({ ...VALID_DATA, defaultDurationMinutes: '50' }, 'st-01');
     });
 
     expect(saveResult?.success).toBe(true);
@@ -85,6 +109,7 @@ describe('useServiceTypeSave', () => {
         name: VALID_DATA.name,
         flowType: VALID_DATA.flowType,
         requiresRentalTenantConfirmation: VALID_DATA.requiresRentalTenantConfirmation,
+        defaultDurationMinutes: 50,
       },
     });
   });

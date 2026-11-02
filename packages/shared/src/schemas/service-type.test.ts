@@ -11,6 +11,7 @@ describe('createServiceTypeSchema', () => {
     name: 'Routine Inspection',
     flowType: 'ROUTINE' as const,
     requiresRentalTenantConfirmation: true,
+    defaultDurationMinutes: 45,
   };
 
   it('should accept valid input with requiresRentalTenantConfirmation=true', () => {
@@ -106,7 +107,7 @@ describe('listServiceTypesQuerySchema', () => {
   });
 });
 
-describe('defaultDurationMinutes (F04 TASK-F04-1, test 23)', () => {
+describe('defaultDurationMinutes (F04 TASK-F04-5 — required on create)', () => {
   const base = {
     code: 'ST1',
     name: 'Routine',
@@ -129,10 +130,12 @@ describe('defaultDurationMinutes (F04 TASK-F04-1, test 23)', () => {
     }
   });
 
-  it('createServiceTypeSchema defaults a missing value to 45 (transitional)', () => {
+  it('createServiceTypeSchema rejects a missing value (required, no transitional default — TASK-F04-5)', () => {
     const r = createServiceTypeSchema.safeParse(base);
-    expect(r.success).toBe(true);
-    if (r.success) expect(r.data.defaultDurationMinutes).toBe(45);
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.path[0] === 'defaultDurationMinutes')).toBe(true);
+    }
   });
 
   it('updateServiceTypeSchema treats it as optional with the same bounds', () => {
