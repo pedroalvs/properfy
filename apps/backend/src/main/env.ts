@@ -62,6 +62,14 @@ const envSchema = z.object({
   // Optional Mapbox
   MAPBOX_ACCESS_TOKEN: z.string().optional(),
 
+  // Day-plan routing provider kill switch (F04). 'stub' forces the haversine
+  // stub without stopping the publication job (L-F04-09).
+  DAY_PLAN_ROUTING_PROVIDER: z
+    .enum(['mapbox', 'stub'], {
+      errorMap: () => ({ message: "DAY_PLAN_ROUTING_PROVIDER must be 'mapbox' or 'stub'" }),
+    })
+    .default('mapbox'),
+
   // Optional TOTP encryption
   TOTP_ENCRYPTION_KEY: z.string().optional(),
 

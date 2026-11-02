@@ -105,3 +105,40 @@ describe('listServiceTypesQuerySchema', () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('defaultDurationMinutes (F04 TASK-F04-1, test 23)', () => {
+  const base = {
+    code: 'ST1',
+    name: 'Routine',
+    flowType: 'ROUTINE' as const,
+    requiresRentalTenantConfirmation: true,
+  };
+
+  it('createServiceTypeSchema accepts 5, 45, 480', () => {
+    for (const v of [5, 45, 480]) {
+      const r = createServiceTypeSchema.safeParse({ ...base, defaultDurationMinutes: v });
+      expect(r.success).toBe(true);
+      if (r.success) expect(r.data.defaultDurationMinutes).toBe(v);
+    }
+  });
+
+  it('createServiceTypeSchema rejects 4, 481, 45.5, "45", null', () => {
+    for (const v of [4, 481, 45.5, '45', null]) {
+      const r = createServiceTypeSchema.safeParse({ ...base, defaultDurationMinutes: v });
+      expect(r.success).toBe(false);
+    }
+  });
+
+  it('createServiceTypeSchema defaults a missing value to 45 (transitional)', () => {
+    const r = createServiceTypeSchema.safeParse(base);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.defaultDurationMinutes).toBe(45);
+  });
+
+  it('updateServiceTypeSchema treats it as optional with the same bounds', () => {
+    expect(updateServiceTypeSchema.safeParse({}).success).toBe(true);
+    expect(updateServiceTypeSchema.safeParse({ defaultDurationMinutes: 60 }).success).toBe(true);
+    expect(updateServiceTypeSchema.safeParse({ defaultDurationMinutes: 4 }).success).toBe(false);
+    expect(updateServiceTypeSchema.safeParse({ defaultDurationMinutes: 481 }).success).toBe(false);
+  });
+});

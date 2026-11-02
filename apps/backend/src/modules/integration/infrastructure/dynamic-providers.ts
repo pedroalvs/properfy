@@ -26,6 +26,18 @@ import { MapboxAddressLookupService } from '../../property/infrastructure/mapbox
 import { StubAddressLookupService } from '../../property/infrastructure/stub-address-lookup.service';
 import type { IntegrationConfig } from '../domain/integration-setting';
 import type { IntegrationConfigResolver } from './integration-config-resolver';
+import type {
+  IRoutingService,
+  RoutePoint,
+  RoutingCallOptions,
+  RoutingLeg,
+  RoutingMatrix,
+} from '../../day-plan/domain/routing.service';
+import type { IRoutingRateLimiter } from '../../day-plan/domain/routing-rate-limiter';
+import { MapboxRoutingService } from '../../day-plan/infrastructure/routing/mapbox-routing.service';
+import { StubRoutingService } from '../../day-plan/infrastructure/routing/stub-routing.service';
+import type { Logger } from '../../../shared/infrastructure/logger';
+import type { MetricsCollector } from '../../../shared/infrastructure/metrics';
 
 // Delegating providers that resolve credentials per call instead of at boot.
 // This is what lets AM manage Resend/MobileMessage/Mapbox from the Integrations
@@ -189,5 +201,63 @@ export class DynamicAddressLookupService implements IAddressLookupService {
     options?: { limit?: number; country?: string },
   ): Promise<AddressLookupSuggestion[]> {
     return (await this.service()).search(query, options);
+  }
+}
+
+export type RoutingProviderMode = 'mapbox' | 'stub';
+
+export interface DynamicRoutingDeps {
+  logger: Logger;
+  metrics: MetricsCollector;
+  /** Kill switch (DAY_PLAN_ROUTING_PROVIDER): 'stub' forces the stub without reading the mapbox config. */
+  providerMode: RoutingProviderMode;
+  now?: () => Date;
+}
+
+export class DynamicRoutingService implements IRoutingService {
+  private readonly stub = new StubRoutingService();
+  private current: { key: string; service: MapboxRoutingService } | null = null;
+
+  constructor(
+    private readonly resolver: IntegrationConfigResolver,
+    private readonly rateLimiter: IRoutingRateLimiter,
+    private readonly deps: DynamicRoutingDeps,
+  ) {}
+
+  private async service(): Promise<IRoutingService> {
+    // Kill switch: never even look at the mapbox config.
+    if (this.deps.providerMode === 'stub') {
+      this.current = null;
+      return this.stub;
+    }
+    const resolved = await this.resolver.getConfig('mapbox');
+    const key = resolved?.config['accessToken'] ?? '';
+    if (!key) {
+      this.current = null;
+      return this.stub;
+    }
+    if (!this.current || this.current.key !== key) {
+      this.current = {
+        key,
+        service: new MapboxRoutingService(key, {
+          rateLimiter: this.rateLimiter,
+          logger: this.deps.logger,
+          metrics: this.deps.metrics,
+          now: this.deps.now,
+        }),
+      };
+    }
+    return this.current.service;
+  }
+
+  async matrix(points: RoutePoint[], opts?: RoutingCallOptions): Promise<RoutingMatrix> {
+    return (await this.service()).matrix(points, opts);
+  }
+
+  async directions(
+    points: RoutePoint[],
+    opts?: RoutingCallOptions & { departAt?: Date },
+  ): Promise<RoutingLeg> {
+    return (await this.service()).directions(points, opts);
   }
 }

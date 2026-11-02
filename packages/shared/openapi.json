@@ -6248,6 +6248,12 @@
                   },
                   "requiresRentalTenantConfirmation": {
                     "type": "boolean"
+                  },
+                  "defaultDurationMinutes": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 480,
+                    "default": 45
                   }
                 },
                 "required": [
@@ -6292,6 +6298,9 @@
                         "status": {
                           "type": "string"
                         },
+                        "defaultDurationMinutes": {
+                          "type": "integer"
+                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -6322,6 +6331,7 @@
                         "flowType",
                         "requiresRentalTenantConfirmation",
                         "status",
+                        "defaultDurationMinutes",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -6436,6 +6446,9 @@
                           "status": {
                             "type": "string"
                           },
+                          "defaultDurationMinutes": {
+                            "type": "integer"
+                          },
                           "createdAt": {
                             "anyOf": [
                               {
@@ -6466,6 +6479,7 @@
                           "flowType",
                           "requiresRentalTenantConfirmation",
                           "status",
+                          "defaultDurationMinutes",
                           "createdAt",
                           "updatedAt"
                         ],
@@ -6552,6 +6566,9 @@
                         "status": {
                           "type": "string"
                         },
+                        "defaultDurationMinutes": {
+                          "type": "integer"
+                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -6582,6 +6599,7 @@
                         "flowType",
                         "requiresRentalTenantConfirmation",
                         "status",
+                        "defaultDurationMinutes",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -6627,6 +6645,11 @@
                       "ACTIVE",
                       "INACTIVE"
                     ]
+                  },
+                  "defaultDurationMinutes": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 480
                   }
                 },
                 "additionalProperties": false
@@ -6675,6 +6698,9 @@
                         "status": {
                           "type": "string"
                         },
+                        "defaultDurationMinutes": {
+                          "type": "integer"
+                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -6705,6 +6731,7 @@
                         "flowType",
                         "requiresRentalTenantConfirmation",
                         "status",
+                        "defaultDurationMinutes",
                         "createdAt",
                         "updatedAt"
                       ],

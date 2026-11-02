@@ -63,6 +63,7 @@ const fullServiceType = {
   flowType: 'ROUTINE',
   requiresRentalTenantConfirmation: true,
   status: 'ACTIVE',
+  defaultDurationMinutes: 45,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };
@@ -86,6 +87,47 @@ describe('POST /v1/service-types', () => {
     expect(res.body.data).toHaveProperty('id');
     expect(res.body.data.code).toBe('ROUTINE');
     expect(res.body.data.updatedAt).toBeDefined();
+  });
+
+  it('should accept and echo defaultDurationMinutes 60 (test 26)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockCreateServiceTypeExecute.mockResolvedValueOnce({ ...fullServiceType, defaultDurationMinutes: 60 });
+
+    const res = await supertest(app.server)
+      .post('/v1/service-types')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        code: 'ROUTINE',
+        name: 'Routine Inspection',
+        flowType: 'ROUTINE',
+        requiresRentalTenantConfirmation: true,
+        defaultDurationMinutes: 60,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.defaultDurationMinutes).toBe(60);
+    // The route parses the body with the shared schema; the use case saw 60.
+    expect(mockCreateServiceTypeExecute).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultDurationMinutes: 60 }),
+    );
+  });
+
+  it('should return 400 when defaultDurationMinutes is out of range (3) (test 26)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .post('/v1/service-types')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        code: 'ROUTINE',
+        name: 'Routine Inspection',
+        flowType: 'ROUTINE',
+        requiresRentalTenantConfirmation: true,
+        defaultDurationMinutes: 3,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('should return 400 with invalid payload (missing code)', async () => {
@@ -122,6 +164,7 @@ describe('GET /v1/service-types', () => {
     expect(res.body).toHaveProperty('data');
     expect(res.body).toHaveProperty('pagination');
     expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].defaultDurationMinutes).toBe(45);
   });
 });
 
@@ -136,6 +179,7 @@ describe('GET /v1/service-types/:serviceTypeId', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(SERVICE_TYPE_ID);
+    expect(res.body.data.defaultDurationMinutes).toBe(45);
   });
 });
 
@@ -154,5 +198,17 @@ describe('PATCH /v1/service-types/:serviceTypeId', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.name).toBe('Updated Routine Inspection');
+  });
+
+  it('should return 400 when PATCH defaultDurationMinutes is out of range (481) (test 26)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+
+    const res = await supertest(app.server)
+      .patch(`/v1/service-types/${SERVICE_TYPE_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ defaultDurationMinutes: 481 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 });

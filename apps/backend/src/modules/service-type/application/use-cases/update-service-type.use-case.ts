@@ -15,6 +15,7 @@ export interface UpdateServiceTypeInput {
     flowType?: ServiceTypeFlowType;
     requiresRentalTenantConfirmation?: boolean;
     status?: ServiceTypeStatus;
+    defaultDurationMinutes?: number;
   };
   actor: AuthContext;
 }
@@ -26,6 +27,7 @@ export interface UpdateServiceTypeOutput {
   flowType: string;
   requiresRentalTenantConfirmation: boolean;
   status: string;
+  defaultDurationMinutes: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -60,6 +62,7 @@ export class UpdateServiceTypeUseCase {
       flowType: serviceType.flowType,
       requiresRentalTenantConfirmation: serviceType.requiresRentalTenantConfirmation,
       status: serviceType.status,
+      defaultDurationMinutes: serviceType.defaultDurationMinutes,
     };
 
     const updateData: Record<string, unknown> = {};
@@ -68,6 +71,8 @@ export class UpdateServiceTypeUseCase {
     if (data.requiresRentalTenantConfirmation !== undefined)
       updateData.requiresRentalTenantConfirmation = data.requiresRentalTenantConfirmation;
     if (data.status !== undefined) updateData.status = data.status;
+    if (data.defaultDurationMinutes !== undefined)
+      updateData.defaultDurationMinutes = data.defaultDurationMinutes;
 
     const updated = await this.serviceTypeRepo.update(serviceTypeId, updateData);
 
@@ -78,6 +83,8 @@ export class UpdateServiceTypeUseCase {
         (updateData.requiresRentalTenantConfirmation as boolean) ??
         serviceType.requiresRentalTenantConfirmation,
       status: (updateData.status as string) ?? serviceType.status,
+      defaultDurationMinutes:
+        (updateData.defaultDurationMinutes as number) ?? serviceType.defaultDurationMinutes,
     };
 
     this.auditService.log({
@@ -97,6 +104,7 @@ export class UpdateServiceTypeUseCase {
       flowType: after.flowType,
       requiresRentalTenantConfirmation: after.requiresRentalTenantConfirmation,
       status: after.status,
+      defaultDurationMinutes: after.defaultDurationMinutes,
       createdAt: serviceType.createdAt,
       // Echo the persisted timestamp from the update, not a synthetic one (#618).
       updatedAt: updated.updatedAt,

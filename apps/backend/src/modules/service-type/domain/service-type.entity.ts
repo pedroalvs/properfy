@@ -8,6 +8,8 @@ export interface ServiceTypeProps {
   flowType: ServiceTypeFlowType;
   requiresRentalTenantConfirmation: boolean;
   status: ServiceTypeStatus;
+  /** Expected minutes at each stop of this type; the day-plan optimizer adds it to travel. */
+  defaultDurationMinutes: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,6 +20,7 @@ export class ServiceTypeEntity extends BaseEntity {
   readonly flowType: ServiceTypeFlowType;
   readonly requiresRentalTenantConfirmation: boolean;
   status: ServiceTypeStatus;
+  defaultDurationMinutes: number;
 
   constructor(props: ServiceTypeProps) {
     super(props.id, props.createdAt, props.updatedAt);
@@ -26,6 +29,7 @@ export class ServiceTypeEntity extends BaseEntity {
     this.flowType = props.flowType;
     this.requiresRentalTenantConfirmation = props.requiresRentalTenantConfirmation;
     this.status = props.status;
+    this.defaultDurationMinutes = props.defaultDurationMinutes;
   }
 
   isActive(): boolean {
