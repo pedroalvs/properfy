@@ -216,21 +216,26 @@ export function TimeInput({
     return () => document.removeEventListener('focusin', handleFocusIn);
   }, [open]);
 
-  const handlePanelKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key !== 'Tab') return;
-    const focusables = panelFocusables(panelRef.current);
-    const first = focusables[0];
-    const last = focusables[focusables.length - 1];
-    if (!first || !last) return;
-    const active = document.activeElement;
-    const leavingBackwards = event.shiftKey && active === first;
-    const leavingForwards = !event.shiftKey && active === last;
-    if (leavingBackwards || leavingForwards) {
-      event.preventDefault();
-      setOpen(false);
-      inputRef.current?.focus();
-    }
-  };
+  useEffect(() => {
+    if (!open) return;
+    const handlePanelKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || !panelRef.current?.contains(document.activeElement)) return;
+      const focusables = panelFocusables(panelRef.current);
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!first || !last) return;
+      const active = document.activeElement;
+      const leavingBackwards = event.shiftKey && active === first;
+      const leavingForwards = !event.shiftKey && active === last;
+      if (leavingBackwards || leavingForwards) {
+        event.preventDefault();
+        setOpen(false);
+        inputRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handlePanelKeyDown);
+    return () => document.removeEventListener('keydown', handlePanelKeyDown);
+  }, [open]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     const key = event.key.toLowerCase();
@@ -326,7 +331,6 @@ export function TimeInput({
         role="dialog"
         aria-label="Choose time"
         tabIndex={-1}
-        onKeyDown={handlePanelKeyDown}
         className="w-[19rem] max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain rounded border border-black/10 bg-card-bg shadow-lg"
         style={{
           position: 'fixed',
