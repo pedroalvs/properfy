@@ -238,4 +238,12 @@ describe('validateEnv — inspector notice settings (F02-1)', () => {
     expect(validateEnv(validEnv).INSPECTOR_NOTICE_SYSTEM_RETENTION_DAYS).toBe(30);
     expect(() => validateEnv({ ...validEnv, INSPECTOR_NOTICE_SYSTEM_RETENTION_DAYS: '0' })).toThrow('Environment validation failed');
   });
+
+  it("defaults DAY_PLAN_ROUTING_PROVIDER to 'mapbox', accepts 'stub', rejects others (F04 kill switch)", () => {
+    expect(validateEnv(validEnv).DAY_PLAN_ROUTING_PROVIDER).toBe('mapbox');
+    expect(validateEnv({ ...validEnv, DAY_PLAN_ROUTING_PROVIDER: 'stub' }).DAY_PLAN_ROUTING_PROVIDER).toBe('stub');
+    expect(() => validateEnv({ ...validEnv, DAY_PLAN_ROUTING_PROVIDER: 'google' })).toThrow(
+      "DAY_PLAN_ROUTING_PROVIDER must be 'mapbox' or 'stub'",
+    );
+  });
 });

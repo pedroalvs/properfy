@@ -212,6 +212,21 @@ model CronJobRun {
   @@map("cron_job_runs")
 }
 
+// Shared Mapbox call budget (F04, D16/D17). Platform infrastructure — one bucket
+// per profile, one Mapbox token per environment — so NO tenant_id (precedent:
+// cron_job_runs, IntegrationSetting). The token bucket is refilled with the
+// DATABASE clock in a single atomic UPDATE whose row lock serializes the Fly
+// machines; see PostgresRoutingRateLimiter.
+model RoutingRateLimitBucket {
+  bucket            String   @id @db.VarChar(50)
+  tokens            Decimal  @db.Decimal(10, 4)
+  capacity          Int
+  refill_per_minute Int
+  refilled_at       DateTime @default(now())
+
+  @@map("routing_rate_limit_buckets")
+}
+
 model Branch {
   id                      String       @id @default(uuid())
   tenant_id               String
@@ -438,6 +453,10 @@ model ServiceType {
   flow_type                           ServiceTypeFlowType
   requires_rental_tenant_confirmation Boolean             @default(true)
   status                              ServiceTypeStatus   @default(ACTIVE)
+  // Expected minutes at each stop of this type; the day-plan optimizer adds it to
+  // travel. NOT NULL with a constant default (pure-expand). SQL CHECK 5-480 lives
+  // only in the migration (Prisma does not model CHECK, so it does not drift).
+  default_duration_minutes            Int                 @default(45)
   created_at                          DateTime            @default(now())
   updated_at                          DateTime            @updatedAt
 

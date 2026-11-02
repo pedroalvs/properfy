@@ -225,6 +225,7 @@ export const serviceTypeResponseSchema = z.object({
   flowType: z.string(),
   requiresRentalTenantConfirmation: z.boolean(),
   status: z.string(),
+  defaultDurationMinutes: z.number().int(),
   createdAt: instantStr(),
   updatedAt: instantStr(),
 });

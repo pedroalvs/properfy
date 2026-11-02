@@ -2947,6 +2947,7 @@ export interface paths {
                                 flowType: string;
                                 requiresRentalTenantConfirmation: boolean;
                                 status: string;
+                                defaultDurationMinutes: number;
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -2977,6 +2978,8 @@ export interface paths {
                         /** @enum {string} */
                         flowType: "ROUTINE" | "INGOING" | "OUTGOING";
                         requiresRentalTenantConfirmation: boolean;
+                        /** @default 45 */
+                        defaultDurationMinutes?: number;
                     };
                 };
             };
@@ -2996,6 +2999,7 @@ export interface paths {
                                 flowType: string;
                                 requiresRentalTenantConfirmation: boolean;
                                 status: string;
+                                defaultDurationMinutes: number;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3043,6 +3047,7 @@ export interface paths {
                                 flowType: string;
                                 requiresRentalTenantConfirmation: boolean;
                                 status: string;
+                                defaultDurationMinutes: number;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3074,6 +3079,7 @@ export interface paths {
                         requiresRentalTenantConfirmation?: boolean;
                         /** @enum {string} */
                         status?: "ACTIVE" | "INACTIVE";
+                        defaultDurationMinutes?: number;
                     };
                 };
             };
@@ -3093,6 +3099,7 @@ export interface paths {
                                 flowType: string;
                                 requiresRentalTenantConfirmation: boolean;
                                 status: string;
+                                defaultDurationMinutes: number;
                                 createdAt: string;
                                 updatedAt: string;
                             };

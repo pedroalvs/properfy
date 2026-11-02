@@ -17,6 +17,7 @@ function makeServiceType(
     flowType: 'ROUTINE',
     requiresRentalTenantConfirmation: true,
     status: 'ACTIVE',
+    defaultDurationMinutes: 45,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -74,6 +75,27 @@ describe('CreateServiceTypeUseCase', () => {
     expect(serviceTypeRepo.save).toHaveBeenCalled();
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'service_type.created' }),
+    );
+  });
+
+  it('persists defaultDurationMinutes and audits it under after (test 24)', async () => {
+    const result = await useCase.execute({
+      code: 'INGOING',
+      name: 'Ingoing Inspection',
+      flowType: 'INGOING',
+      requiresRentalTenantConfirmation: false,
+      defaultDurationMinutes: 90,
+      actor: makeActor(),
+    });
+
+    expect(result.defaultDurationMinutes).toBe(90);
+    const savedEntity = vi.mocked(serviceTypeRepo.save).mock.calls[0]![0];
+    expect(savedEntity.defaultDurationMinutes).toBe(90);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'service_type.created',
+        after: expect.objectContaining({ defaultDurationMinutes: 90 }),
+      }),
     );
   });
 

@@ -17,6 +17,7 @@ function makeServiceType(
     flowType: 'ROUTINE',
     requiresRentalTenantConfirmation: true,
     status: 'ACTIVE',
+    defaultDurationMinutes: 45,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -53,6 +54,42 @@ describe('UpdateServiceTypeUseCase', () => {
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
     useCase = new UpdateServiceTypeUseCase(serviceTypeRepo, auditService);
+  });
+
+  it('updates defaultDurationMinutes 45 -> 60 and audits before/after (test 25)', async () => {
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType({ defaultDurationMinutes: 45 }));
+    vi.mocked(serviceTypeRepo.update).mockResolvedValue(makeServiceType({ defaultDurationMinutes: 60 }));
+
+    const result = await useCase.execute({
+      serviceTypeId: 'st-1',
+      data: { defaultDurationMinutes: 60 },
+      actor: makeActor(),
+    });
+
+    expect(result.defaultDurationMinutes).toBe(60);
+    expect(serviceTypeRepo.update).toHaveBeenCalledWith('st-1', { defaultDurationMinutes: 60 });
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'service_type.updated',
+        before: expect.objectContaining({ defaultDurationMinutes: 45 }),
+        after: expect.objectContaining({ defaultDurationMinutes: 60 }),
+      }),
+    );
+  });
+
+  it('leaves defaultDurationMinutes unchanged when the field is omitted (test 25)', async () => {
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType({ defaultDurationMinutes: 45 }));
+    vi.mocked(serviceTypeRepo.update).mockResolvedValue(makeServiceType({ defaultDurationMinutes: 45 }));
+
+    const result = await useCase.execute({
+      serviceTypeId: 'st-1',
+      data: { name: 'Renamed only' },
+      actor: makeActor(),
+    });
+
+    expect(result.defaultDurationMinutes).toBe(45);
+    const updateArg = vi.mocked(serviceTypeRepo.update).mock.calls[0]![1];
+    expect(updateArg).not.toHaveProperty('defaultDurationMinutes');
   });
 
   it('should update service type for AM', async () => {

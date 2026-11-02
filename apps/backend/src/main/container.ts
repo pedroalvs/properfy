@@ -478,8 +478,11 @@ import {
   DynamicAddressLookupService,
   DynamicEmailProvider,
   DynamicGeocodingService,
+  DynamicRoutingService,
   DynamicSmsProvider,
 } from '../modules/integration/infrastructure/dynamic-providers';
+import { PostgresRoutingRateLimiter } from '../modules/day-plan/infrastructure/routing/postgres-routing-rate-limiter';
+import { PlanRouteService } from '../modules/day-plan/application/services/plan-route.service';
 import { AesTokenEncrypterAdapter } from '../modules/rental-tenant-portal/infrastructure/aes-token-encrypter.adapter';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
 
@@ -492,6 +495,7 @@ export interface AppContainer {
   // Exposed for the F01-1 inspector base-coords backfill script (needs
   // isConfigured() + geocode()); also reused by the X02-2 legacy script.
   geocodingService: DynamicGeocodingService;
+  dayPlan: { planRouteService: PlanRouteService };
   auth: AuthRouteContainer;
   tenant: TenantRouteContainer;
   user: UserRouteContainer;
@@ -716,6 +720,16 @@ export function createContainer(logger: Logger): AppContainer {
   // Property repositories and use cases
   const propertyRepo = new PrismaPropertyRepository(prisma);
   const geocodingService = new DynamicGeocodingService(integrationConfigResolver);
+
+  // F04 routing: shared Postgres rate limiter + per-call provider resolution +
+  // kill switch, consumed by TASK-F04-2 through container.dayPlan.planRouteService.
+  const routingRateLimiter = new PostgresRoutingRateLimiter(prisma);
+  const routingService = new DynamicRoutingService(integrationConfigResolver, routingRateLimiter, {
+    logger,
+    metrics,
+    providerMode: env.DAY_PLAN_ROUTING_PROVIDER,
+  });
+  const planRouteService = new PlanRouteService(routingService, logger, metrics);
   // Branch use cases geocode the branch address in permanent mode (X02-1), so
   // they must be created after geocodingService.
   const createBranchUseCase = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus, geocodingService, logger);
@@ -1625,6 +1639,7 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     domainEventBus,
     geocodingService,
+    dayPlan: { planRouteService },
     auth: {
       loginUseCase,
       refreshTokenUseCase,
