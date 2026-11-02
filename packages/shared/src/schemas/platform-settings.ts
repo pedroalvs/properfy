@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { GeofenceMode } from '../enums/field-events';
+import { DEFAULT_ROUTE_WEIGHTS } from '../route-planning/types';
 
 /**
  * Platform-wide settings registry (F03 B6).
@@ -22,6 +23,24 @@ export const fieldEventsSettingSchema = z.object({
 });
 export type FieldEventsSetting = z.infer<typeof fieldEventsSettingSchema>;
 
+/** A single route-planning weight: 0–10 with at most one decimal place (F04-2). */
+const routeWeight = z
+  .number()
+  .min(0)
+  .max(10)
+  .refine((v) => Math.abs(Math.round(v * 10) - v * 10) < 1e-9, 'Use at most one decimal place');
+
+export const routeWeightsSettingSchema = z
+  .object({
+    travel: routeWeight,
+    windowWait: routeWeight,
+    baseProximity: routeWeight,
+  })
+  .refine((w) => w.travel + w.windowWait + w.baseProximity > 0, {
+    message: 'At least one weight must be greater than 0',
+  });
+export type RouteWeightsSetting = z.infer<typeof routeWeightsSettingSchema>;
+
 export const PLATFORM_SETTINGS_REGISTRY = {
   fieldEvents: {
     schema: fieldEventsSettingSchema,
@@ -33,6 +52,11 @@ export const PLATFORM_SETTINGS_REGISTRY = {
       completionReminderMinutesAfterWindowEnd: 30,
     },
     section: 'Field events',
+  },
+  routeWeights: {
+    schema: routeWeightsSettingSchema,
+    defaults: DEFAULT_ROUTE_WEIGHTS,
+    section: 'Route planning',
   },
 } as const satisfies Record<string, { schema: z.ZodTypeAny; defaults: unknown; section: string }>;
 
