@@ -9,7 +9,7 @@ import {
   makeAppointmentMarkerEl,
   makeMarkerEl,
   type PlacedMarker,
-} from '../lib/offers-map/markers';
+} from '@/lib/map';
 
 /** The mapbox-gl namespace (its default export), dynamically imported at runtime. */
 type MapboxModule = typeof MapboxGL;

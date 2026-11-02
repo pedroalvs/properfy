@@ -17,6 +17,16 @@
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
       }
+    },
+    "./route-planning": {
+      "import": {
+        "types": "./dist/route-planning/index.d.ts",
+        "default": "./dist/route-planning/index.js"
+      },
+      "require": {
+        "types": "./dist/route-planning/index.d.cts",
+        "default": "./dist/route-planning/index.cjs"
+      }
     }
   },
   "files": [

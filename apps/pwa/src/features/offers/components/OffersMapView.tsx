@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { computeCenter, isValidCoordinate, useMapCamera, useMapboxInstance, type MapCameraPoint } from '@/lib/map';
 import type { MarketplaceOffer } from '../types';
-import { isValidCoordinate } from '../lib/offers-map/markers';
 import type { ExpandedGroup } from '../lib/offers-map/types';
-import { computeCenter, useMapCamera } from '../hooks/useMapCamera';
-import { useMapboxInstance } from '../hooks/useMapboxInstance';
 import { useOfferPins } from '../hooks/useOfferPins';
 import { useOfferRoute } from '../hooks/useOfferRoute';
 import { MapOverlays } from './MapOverlays';
 
 export type { ExpandedGroup, ExpandedGroupAppointment } from '../lib/offers-map/types';
+
+/** One group on screen: zoom out enough to show the surrounding suburbs. */
+const SINGLE_OFFER_ZOOM = 12;
+/** One address on screen: street level, so the inspector can see the approach. */
+const SINGLE_APPOINTMENT_ZOOM = 15;
 
 interface OffersMapViewProps {
   offers: MarketplaceOffer[];
@@ -21,12 +24,31 @@ export function OffersMapView({ offers, onSelectOffer, expandedGroup = null }: O
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
 
-  const camera = useMapCamera({ offers, expandedGroup });
+  // Memoized so the camera hook's syncCamera keeps a stable identity across the
+  // periodic offers refetch (CLAUDE.md §11) — otherwise the pins effect would
+  // re-place every marker on every render.
+  const cameraPoints = useMemo<MapCameraPoint[]>(
+    () =>
+      expandedGroup
+        ? expandedGroup.appointments.map((a) => ({
+            id: a.id,
+            lat: a.coordinates?.lat ?? null,
+            lng: a.coordinates?.lng ?? null,
+          }))
+        : offers.map((o) => ({ id: o.groupId, lat: o.centroid?.lat ?? null, lng: o.centroid?.lng ?? null })),
+    [offers, expandedGroup],
+  );
+
+  const camera = useMapCamera({
+    points: cameraPoints,
+    singlePointZoom: expandedGroup ? SINGLE_APPOINTMENT_ZOOM : SINGLE_OFFER_ZOOM,
+    framingKey: expandedGroup?.groupId ?? null,
+  });
 
   const { mapRef, mapLoadedRef, mapReady, error, retry } = useMapboxInstance({
     containerRef,
     getInitialView: () => ({
-      center: computeCenter(offers),
+      center: computeCenter(cameraPoints),
       zoom: offers.some((o) => isValidCoordinate(o.centroid)) ? 11 : 4,
     }),
     onUserGesture: camera.markUserMoved,

@@ -13,6 +13,10 @@ interface StopCardProps {
   variant: 'next' | 'row';
   /** Extra actions (e.g. the check-in/out bar) rendered under the `next` card. */
   actions?: ReactNode;
+  /** Row variant only: show this position instead of `stop.sequence` (local reorder draft). */
+  displayNumber?: number;
+  /** Row variant only: replace the ETA/status text (e.g. a local "~9:12 am" during reorder). */
+  etaOverride?: string;
 }
 
 function statusText(stop: DayPlanStop): string {
@@ -62,14 +66,15 @@ function Chips({ stop }: { stop: DayPlanStop }) {
  * service detail; contact/navigate/actions are siblings, so no button or anchor
  * is ever nested inside another.
  */
-export function StopCard({ stop, variant, actions }: StopCardProps) {
+export function StopCard({ stop, variant, actions, displayNumber, etaOverride }: StopCardProps) {
   const labelId = useId();
   const detailHref = `/schedule/${stop.appointmentId}`;
-  const status = statusText(stop);
+  const status = etaOverride ?? statusText(stop);
   const executed = stop.executed || stop.appointmentStatus === 'DONE';
 
   if (variant === 'row') {
-    const name = `Stop ${stop.sequence}, ${stop.propertyAddress}${status ? `, ${status}` : ''}`;
+    const number = displayNumber ?? stop.sequence;
+    const name = `Stop ${number}, ${stop.propertyAddress}${status ? `, ${status}` : ''}`;
     return (
       <article
         aria-label={name}
@@ -84,7 +89,7 @@ export function StopCard({ stop, variant, actions }: StopCardProps) {
             aria-hidden="true"
             className="flex h-7 min-w-[28px] shrink-0 items-center justify-center rounded-full bg-primary/10 px-1 text-xs font-bold text-primary"
           >
-            {stop.sequence}
+            {number}
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-foreground">{stop.propertyAddress}</p>
