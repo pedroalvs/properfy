@@ -10,6 +10,29 @@ const DEFAULT_VALUE = {
   completionReminderMinutesAfterWindowEnd: 30,
 };
 
+const ROUTE_WEIGHTS = { travel: 1, windowWait: 1, baseProximity: 1 };
+
+async function mockRouteWeights(page: Page) {
+  // The page now also renders the Route planning section; keep it loading cleanly.
+  await page.route('**/v1/platform-settings/routeWeights', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          key: 'routeWeights',
+          section: 'Route planning',
+          value: ROUTE_WEIGHTS,
+          defaults: ROUTE_WEIGHTS,
+          isDefault: true,
+          updatedAt: null,
+          updatedBy: null,
+        },
+      }),
+    });
+  });
+}
+
 async function mockPlatformSetting(page: Page) {
   let value = { ...DEFAULT_VALUE };
   await page.route('**/v1/platform-settings/fieldEvents', async (route) => {
@@ -41,6 +64,7 @@ test.describe('Platform settings — Field events (03.A2 web)', () => {
     await setupAuth(page);
     await mockMeEndpoint(page, AM_USER);
     await mockPlatformSetting(page);
+    await mockRouteWeights(page);
   });
 
   test('AM edits the radius and mode, saves, and the values persist on reload', async ({ page }) => {
@@ -51,7 +75,11 @@ test.describe('Platform settings — Field events (03.A2 web)', () => {
 
     await radius.fill('250');
     await page.getByLabel('Block').check();
-    await page.getByRole('button', { name: 'Save changes' }).click();
+    // The page now has two settings sections; scope Save to the Field events card.
+    const fieldEventsCard = page
+      .locator('div.rounded.bg-card-bg')
+      .filter({ has: page.getByRole('heading', { name: 'Field events' }) });
+    await fieldEventsCard.getByRole('button', { name: 'Save changes' }).click();
 
     // Reload reads the persisted value from the (stateful) stub.
     await page.reload();
