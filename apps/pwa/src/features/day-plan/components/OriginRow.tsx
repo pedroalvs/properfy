@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { MapPin, Pencil } from 'lucide-react';
 import type { DayPlanResponse } from '@properfy/shared';
 import { Alert } from '@/components/ui/Alert';
+import { useIsOnline } from '@/hooks/useIsOnline';
+import { useSnackbar } from '@/hooks/useSnackbar';
 import { useDayPlanOrigin } from '../hooks/useDayPlanOrigin';
 import { OriginSheet } from './OriginSheet';
 
@@ -24,13 +26,21 @@ const BASE_ADDRESS_HREF = '/profile/account#base-address';
 export function OriginRow({ plan, readOnly = false }: OriginRowProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const { clearOrigin } = useDayPlanOrigin(plan.date);
+  const isOnline = useIsOnline();
+  const { showError } = useSnackbar();
+  const { clearOrigin, isPending } = useDayPlanOrigin(plan.date);
 
   const { source, label } = plan.origin;
   const overrideAddress = plan.originOverride?.address ?? null;
 
   const openSheet = () => setSheetOpen(true);
   const returnFocus = () => triggerRef.current?.focus();
+  // DELETE …/origin is a write: require a connection and surface a failure, mirroring
+  // the set path (OriginSheet). Without this the error is swallowed and the row is a dead end.
+  const handleClearOrigin = async () => {
+    const err = await clearOrigin();
+    if (err) showError(err.message);
+  };
 
   // After the first check-in: continuing from the last stop. Text only.
   if (source === 'LAST_STOP') {
@@ -99,13 +109,21 @@ export function OriginRow({ plan, readOnly = false }: OriginRowProps) {
         <Pencil className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
       </button>
       {isOverride && (
-        <button
-          type="button"
-          className="self-start text-sm font-semibold text-primary"
-          onClick={() => void clearOrigin()}
-        >
-          Use my base address
-        </button>
+        <>
+          <button
+            type="button"
+            className="self-start text-sm font-semibold text-primary disabled:opacity-50"
+            disabled={!isOnline || isPending}
+            onClick={() => void handleClearOrigin()}
+          >
+            Use my base address
+          </button>
+          {!isOnline && (
+            <span className="text-xs text-muted-foreground">
+              You&apos;re offline. Connect to change your starting point.
+            </span>
+          )}
+        </>
       )}
       <OriginSheet
         open={sheetOpen}
