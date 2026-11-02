@@ -89,7 +89,11 @@ export class ReportLateNoticeUseCase {
     }
     const inspectorId = actor.inspectorId;
 
+    // appointmentId + inspectorId scope the hash so a reused Idempotency-Key on a
+    // different job or inspector is a clean mismatch (409), not a stale response.
     const payloadHash = hashIdempotencyPayload({
+      appointmentId,
+      inspectorId,
       reason,
       minutesLate,
       latitude: input.latitude ?? null,

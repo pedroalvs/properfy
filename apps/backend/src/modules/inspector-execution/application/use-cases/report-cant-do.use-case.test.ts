@@ -253,4 +253,23 @@ describe('ReportCantDoUseCase', () => {
     const result = await ctx.useCase.execute(baseInput);
     expect(result.appointmentStatus).toBe('REJECTED');
   });
+
+  it('treats the same Idempotency-Key reused for a different appointment as a mismatch', async () => {
+    // The payload hash includes appointmentId + inspectorId, so replaying a key on
+    // another job cannot return the first job's cached result.
+    const storeMap = new Map<string, { response: unknown; payloadHash: string | null }>();
+    const statefulIdempotency = {
+      getWithHash: vi.fn(async (key: string, scope: string) => storeMap.get(`${scope}:${key}`) ?? null),
+      set: vi.fn(async (key: string, scope: string, response: unknown, _ttl: number, payloadHash: string) => {
+        storeMap.set(`${scope}:${key}`, { response, payloadHash });
+      }),
+    };
+    const ctx = build({ idempotency: statefulIdempotency });
+
+    await ctx.useCase.execute({ ...baseInput, appointmentId: 'apt-A', idempotencyKey: 'shared-key' });
+
+    await expect(
+      ctx.useCase.execute({ ...baseInput, appointmentId: 'apt-B', idempotencyKey: 'shared-key' }),
+    ).rejects.toMatchObject({ code: 'FIELD_EVENT_IDEMPOTENCY_PAYLOAD_MISMATCH' });
+  });
 });

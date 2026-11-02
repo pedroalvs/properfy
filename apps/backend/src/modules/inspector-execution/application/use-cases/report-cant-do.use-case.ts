@@ -79,7 +79,12 @@ export class ReportCantDoUseCase {
     }
     const inspectorId = actor.inspectorId;
 
+    // appointmentId + inspectorId are part of the hash so the same Idempotency-Key
+    // replayed for a different job or inspector is a clean mismatch (409), never a
+    // stale cross-appointment response.
     const payloadHash = hashIdempotencyPayload({
+      appointmentId,
+      inspectorId,
       reason,
       note,
       latitude: input.latitude ?? null,
