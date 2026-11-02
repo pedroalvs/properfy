@@ -231,6 +231,7 @@ export function AppointmentActionBar({ target, isToday }: AppointmentActionBarPr
           aria-label={`More actions for ${code}`}
           onClick={() => setMenuOpen((open) => !open)}
           data-testid="card-more-actions"
+          data-tour="today-more-actions"
         >
           <MoreVertical className="h-5 w-5" aria-hidden="true" />
         </Button>

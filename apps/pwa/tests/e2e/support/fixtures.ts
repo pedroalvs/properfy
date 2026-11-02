@@ -191,6 +191,103 @@ export const FINISH_RESULT = {
   appointmentStatus: 'DONE',
 } as const;
 
+/**
+ * `GET /v1/inspectors/me` inner body (the stub wraps it in `{ data }`).
+ * inspectorResponseSchema. `onboardingCompletedAt: null` = tour not yet done.
+ */
+export function makeInspectorProfile(onboardingCompletedAt: string | null) {
+  return {
+    id: INSPECTOR_ME.inspectorId,
+    name: INSPECTOR_ME.name,
+    email: INSPECTOR_ME.email,
+    phone: null,
+    status: 'ACTIVE',
+    paymentSettingsJson: null,
+    serviceTypesJson: null,
+    onboardingCompletedAt,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  } as const;
+}
+
+/** First-access: the tour must auto-open. */
+export const INSPECTOR_PROFILE_TOUR_PENDING = makeInspectorProfile(null);
+/** Already onboarded: the tour must not auto-open. */
+export const INSPECTOR_PROFILE_TOUR_DONE = makeInspectorProfile('2026-10-30T00:00:00.000Z');
+
+/**
+ * `GET /v1/inspector/day-plans/:date` inner body (the stub wraps it in `{ data }`).
+ * dayPlanResponseSchema. A published plan with one SCHEDULED stop so the Today
+ * screen renders the Next-inspection card, its action bar and the route link
+ * (the tour's phone-layout anchors).
+ */
+const TOUR_STOP_ID = '11111111-1111-4111-8111-111111111111';
+export const DAY_PLAN_TODAY = {
+  id: '44444444-4444-4444-8444-444444444444',
+  inspectorId: INSPECTOR_ME.inspectorId,
+  inspectorName: INSPECTOR_ME.name,
+  date: '2026-11-05',
+  timezone: 'Australia/Sydney',
+  status: 'PUBLISHED',
+  version: 1,
+  publishedAt: '2026-11-04T08:30:00.000Z',
+  computedAt: '2026-11-04T08:30:00.000Z',
+  lastTrigger: 'SCHEDULED_PUBLISH',
+  approximate: false,
+  approximateReason: null,
+  routingProvider: 'MAPBOX',
+  matrixProfile: 'driving-traffic',
+  optimizerMethod: 'EXACT',
+  origin: { source: 'BASE', label: 'Surry Hills NSW', lat: -33.88, lng: 151.21 },
+  originWarning: null,
+  originOverride: null,
+  departureAt: '2026-11-04T20:50:00.000Z',
+  finishEta: '2026-11-04T21:45:00.000Z',
+  totals: { driveS: 600, waitS: 0, serviceS: 2700, lateS: 0, distanceM: 4700 },
+  feasible: true,
+  violations: [],
+  manualOrder: false,
+  suggestedOrder: [TOUR_STOP_ID],
+  stops: [
+    {
+      appointmentId: TOUR_STOP_ID,
+      sequence: 1,
+      appointmentCode: 'INS-0042',
+      agencyName: 'Ray White Surry Hills',
+      appointmentStatus: 'SCHEDULED',
+      executionStatus: 'NOT_STARTED',
+      eta: '2026-11-04T21:00:00.000Z',
+      serviceStartAt: '2026-11-04T21:00:00.000Z',
+      serviceEndAt: '2026-11-04T21:45:00.000Z',
+      travelS: 600,
+      distanceM: 4700,
+      waitS: 0,
+      lateS: 0,
+      windowStart: '08:00',
+      windowEnd: '17:00',
+      windowStartAt: '2026-11-04T21:00:00.000Z',
+      windowEndAt: '2026-11-05T06:00:00.000Z',
+      timezone: 'Australia/Sydney',
+      durationMinutes: 45,
+      manual: false,
+      executed: false,
+      approximate: false,
+      missingCoordinates: false,
+      lat: -33.8836,
+      lng: 151.2108,
+      propertyAddress: '12 King St, Surry Hills NSW 2010',
+      suburb: 'Surry Hills',
+      serviceTypeName: 'Routine',
+      keyRequired: false,
+      meetingLocation: null,
+      rentalTenantConfirmationStatus: 'CONFIRMED',
+      primaryContact: { name: 'Sam Lee', phone: '+61412345678', role: 'RENTAL_TENANT' },
+    },
+  ],
+  geometry: null,
+  routingInput: null,
+} as const;
+
 /** `POST /v1/auth/login` → 401 error envelope (`{ error: { code, message, details? } }`). */
 export const LOGIN_401 = {
   error: {

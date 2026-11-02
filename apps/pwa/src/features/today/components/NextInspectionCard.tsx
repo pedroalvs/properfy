@@ -14,10 +14,16 @@ interface NextInspectionCardProps {
 /** The Today screen's hero: the next stop as a `next` StopCard with the F03 action bar. */
 export function NextInspectionCard({ stop, planDate, isToday }: NextInspectionCardProps) {
   return (
-    <StopCard
-      variant="next"
-      stop={stop}
-      actions={<AppointmentActionBar target={stopToActionTarget(stop, planDate)} isToday={isToday} />}
-    />
+    <div data-tour="today-next">
+      <StopCard
+        variant="next"
+        stop={stop}
+        actions={
+          <div data-tour="today-next-actions">
+            <AppointmentActionBar target={stopToActionTarget(stop, planDate)} isToday={isToday} />
+          </div>
+        }
+      />
+    </div>
   );
 }

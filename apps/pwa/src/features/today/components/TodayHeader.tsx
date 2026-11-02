@@ -48,7 +48,7 @@ export function TodayHeader({
           {done} of {total} done
           {showFinish ? ` · finish ~${formatInstantTime(finishEta, timezone)}` : ''}
         </p>
-        <Link to="/today/route" className="text-sm font-semibold text-primary" data-tour="route-link">
+        <Link to="/today/route" className="text-sm font-semibold text-primary" data-tour="today-route-link">
           Route
         </Link>
       </div>

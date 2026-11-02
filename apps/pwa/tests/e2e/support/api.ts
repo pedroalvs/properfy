@@ -28,6 +28,24 @@ export function stubJson(page: Page, path: string, body: unknown, status = 200):
 }
 
 /**
+ * Stub every API path under a PATHNAME PREFIX with one JSON body, for routes whose
+ * path carries a variable segment (e.g. `/v1/inspector/day-plans/{date}`, where the
+ * civil date changes daily). Like {@link stubJson}, register it AFTER
+ * `blockUnmockedApi` so it wins over the catch-all.
+ */
+export function stubJsonPrefix(page: Page, pathPrefix: string, body: unknown, status = 200): Promise<void> {
+  return page.route(
+    (url) => url.origin === API && url.pathname.startsWith(pathPrefix),
+    (route) =>
+      route.fulfill({
+        status,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      }),
+  );
+}
+
+/**
  * Origin-scoped catch-all: any unstubbed `${API}/v1/**` request is fulfilled with
  * 501 `E2E_UNMOCKED` and a readable `console.warn` (visible in the trace). A 501
  * never fails a test by itself — only an assertion that depends on the call does

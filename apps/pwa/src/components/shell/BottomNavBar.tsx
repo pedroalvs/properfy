@@ -110,6 +110,7 @@ export function BottomNavBar() {
                 item.active ? 'text-primary' : 'text-faint',
               )}
               data-testid={`nav-${item.label.toLowerCase()}`}
+              data-tour={`nav-${item.label.toLowerCase()}`}
             >
               <span className="relative shrink-0">
                 <Icon size={24} aria-hidden="true" className="shrink-0" />
