@@ -252,6 +252,9 @@ import { GetAppointmentFieldActivityUseCase } from '../modules/appointment/appli
 import { SendCompletionRemindersUseCase } from '../modules/inspector-execution/application/use-cases/send-completion-reminders.use-case';
 import { PrismaCompletionReminderReader } from '../modules/inspector-execution/infrastructure/prisma-completion-reminder.reader';
 import type { InspectorExecutionRouteContainer } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
+import { GetExecutionDensityUseCase } from '../modules/inspector-execution/application/use-cases/get-execution-density.use-case';
+import { PrismaExecutionDensityReader } from '../modules/inspector-execution/infrastructure/prisma-execution-density.reader';
+import type { ExecutionDensityRouteContainer } from '../modules/inspector-execution/interfaces/execution-density.routes';
 
 // Billing module
 import { PrismaFinancialEntryRepository } from '../modules/billing/infrastructure/prisma-financial-entry.repository';
@@ -511,6 +514,7 @@ export interface AppContainer {
   marketplace: MarketplaceRouteContainer;
   rentalTenantPortal: RentalTenantPortalRouteContainer;
   inspectorExecution: InspectorExecutionRouteContainer;
+  executionDensity: ExecutionDensityRouteContainer;
   platformSettings: PlatformSettingsRouteContainer;
   billing: BillingRouteContainer;
   report: ReportRouteContainer;
@@ -1123,6 +1127,10 @@ export function createContainer(logger: Logger): AppContainer {
   const getAppointmentFieldActivityUseCase = new GetAppointmentFieldActivityUseCase(
     appointmentRepo, inspectionExecutionRepo, inspectorFieldEventRepo, inspectorRepo, authorizationService,
   );
+  // Execution-density map read (F09-1): aggregation stays in Postgres; the reader
+  // has no method that returns a raw coordinate.
+  const executionDensityReader = new PrismaExecutionDensityReader(prisma);
+  const getExecutionDensityUseCase = new GetExecutionDensityUseCase(executionDensityReader);
   // Completion reminder (F03, 03.16): reuses F02's PublishSystemInspectorNoticeUseCase.
   const completionReminderReader = new PrismaCompletionReminderReader(prisma);
   const sendCompletionRemindersUseCase = new SendCompletionRemindersUseCase(
@@ -1856,6 +1864,11 @@ export function createContainer(logger: Logger): AppContainer {
       getInspectorEarningsSummaryUseCase,
       previewInvoiceUseCase,
       requestInvoiceUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    executionDensity: {
+      getExecutionDensityUseCase,
       jwtService,
       tenantRepo,
     },

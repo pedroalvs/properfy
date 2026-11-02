@@ -322,6 +322,11 @@ export function createMockContainer(
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['dashboard'],
+    executionDensity: {
+      getExecutionDensityUseCase: { execute: vi.fn() },
+      jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
+    } as AppContainer['executionDensity'],
     serviceRegion: {
       createServiceRegionUseCase: { execute: vi.fn() },
       updateServiceRegionUseCase: { execute: vi.fn() },
