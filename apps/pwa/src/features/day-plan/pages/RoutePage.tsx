@@ -8,9 +8,11 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { Segmented } from '@/components/ui/Segmented';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
+import { useIsOnline } from '@/hooks/useIsOnline';
 import { useCivilToday } from '@/features/today/hooks/useCivilToday';
 import { useDayPlan } from '../hooks/useDayPlan';
 import { useReorderDraft } from '../hooks/useReorderDraft';
+import { useReorderPreview } from '../hooks/useReorderPreview';
 import { useResetDayPlanOrder } from '../hooks/useResetDayPlanOrder';
 import { RouteSummary } from '../components/RouteSummary';
 import { RouteStopList } from '../components/RouteStopList';
@@ -58,10 +60,12 @@ function RouteContent({ plan, date, isPast, isOffline, stale }: RouteContentProp
     setSearchParams(params, { replace: true });
   };
 
+  const online = useIsOnline();
   const draft = useReorderDraft(plan, stale);
   const reset = useResetDayPlanOrder(date);
   const [confirmReset, setConfirmReset] = useState(false);
   const reorderEnabled = !isPast && draft.canReorder;
+  const preview = useReorderPreview(date, plan, draft, { online, reorderEnabled });
 
   const stops = stopsInOrder(plan);
   const durations = new Set(stops.map((s) => s.durationMinutes));
@@ -84,7 +88,7 @@ function RouteContent({ plan, date, isPast, isOffline, stale }: RouteContentProp
         <RouteSheetMenu date={date} />
       </div>
 
-      <RouteSummary plan={plan} draft={draft} onReset={onReset} />
+      <RouteSummary plan={plan} draft={draft} preview={preview} onReset={onReset} />
 
       <OriginRow plan={plan} readOnly={isPast} />
 
@@ -107,10 +111,10 @@ function RouteContent({ plan, date, isPast, isOffline, stale }: RouteContentProp
           <RouteMapView plan={plan} displayOrder={draft.displayOrder} isDirty={draft.isDirty} />
         </Suspense>
       ) : (
-        <RouteStopList plan={plan} draft={draft} reorderEnabled={reorderEnabled} />
+        <RouteStopList plan={plan} draft={draft} preview={preview} reorderEnabled={reorderEnabled} />
       )}
 
-      <ReorderSaveBar draft={draft} date={date} />
+      <ReorderSaveBar draft={draft} preview={preview} date={date} />
 
       <Dialog open={confirmReset} onOpenChange={setConfirmReset}>
         <DialogContent>

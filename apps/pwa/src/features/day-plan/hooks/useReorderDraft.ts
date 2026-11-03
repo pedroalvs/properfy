@@ -4,12 +4,11 @@ import { getExecutionState } from '@/features/execution/lib/indexeddb';
 import { subscribeExecutionStateChange } from '@/features/execution/lib/execution-state-events';
 import {
   alignOrder,
-  evaluateDraft,
+  canReorder as computeCanReorder,
   getReorderableSets,
   moveDown as moveDownIds,
   moveItem,
   moveUp as moveUpIds,
-  type DraftEvaluation,
 } from '../lib/reorder-draft';
 
 /** A stop started on THIS device (check-in in flight) counts as locked immediately. */
@@ -61,7 +60,6 @@ export interface ReorderDraft {
   stale: boolean;
   /** Version the draft is based on (sent as `basedOnVersion`). */
   baseVersion: number;
-  evaluation: DraftEvaluation | null;
   notice: ReorderNotice;
   moveTo: (from: number, to: number) => void;
   moveUp: (id: string) => void;
@@ -134,8 +132,7 @@ export function useReorderDraft(plan: DayPlanResponse, stale: boolean): ReorderD
 
   const displayOrder = useMemo(() => [...lockedIds, ...order], [lockedIds, order]);
 
-  const evaluation = useMemo(() => evaluateDraft(plan, order, new Date()), [plan, order]);
-  const canReorder = evaluation !== null && reorderableIds.length >= 2;
+  const canReorder = computeCanReorder(reorderableIds);
 
   // A clean draft (equal to the saved order) is not a draft — keep `draftOrder`
   // null so the base version re-bases on a refetch (otherwise a move-and-undo
@@ -183,7 +180,6 @@ export function useReorderDraft(plan: DayPlanResponse, stale: boolean): ReorderD
     frozen,
     stale,
     baseVersion,
-    evaluation,
     notice,
     moveTo,
     moveUp,

@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/Button';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import { useUnsavedChangesPrompt } from '@/lib/use-unsaved-changes-prompt';
 import { useSaveDayPlanOrder } from '../hooks/useSaveDayPlanOrder';
-import { formatDelta } from '../lib/reorder-draft';
+import { formatDelta, type ReorderPreviewView } from '../lib/reorder-preview';
 import type { ReorderDraft } from '../hooks/useReorderDraft';
 
 interface ReorderSaveBarProps {
   draft: ReorderDraft;
+  preview: ReorderPreviewView;
   date: string;
 }
 
@@ -27,7 +28,7 @@ const SET_DISCARDED_MESSAGE = 'A stop was removed from your route. Your changes 
  * version arrived) and while STALE. A removed stop shows a one-off notice even
  * after the draft is discarded.
  */
-export function ReorderSaveBar({ draft, date }: ReorderSaveBarProps) {
+export function ReorderSaveBar({ draft, preview, date }: ReorderSaveBarProps) {
   const online = useIsOnline();
   const { save, isPending } = useSaveDayPlanOrder(date);
   const [alert, setAlert] = useState<string | null>(null);
@@ -66,7 +67,8 @@ export function ReorderSaveBar({ draft, date }: ReorderSaveBarProps) {
     }
   };
 
-  const deltaText = draft.evaluation ? formatDelta(draft.evaluation.deltaFinishMin) : '';
+  const deltaText =
+    preview.status === 'READY' && preview.deltaMin !== null ? formatDelta(preview.deltaMin) : '';
 
   return (
     <>

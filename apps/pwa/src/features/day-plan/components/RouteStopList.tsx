@@ -5,11 +5,14 @@ import { StopCard } from './StopCard';
 import { RouteLegRow } from './RouteLegRow';
 import { ReorderableStopList } from './ReorderableStopList';
 import type { ReorderDraft } from '../hooks/useReorderDraft';
+import type { ReorderPreviewView } from '../lib/reorder-preview';
 
 interface RouteStopListProps {
   plan: DayPlanResponse;
   /** When reorder is enabled, the draft that drives the reorderable list. */
   draft?: ReorderDraft;
+  /** Server-computed evaluation of the draft order (F04 Plan B). */
+  preview?: ReorderPreviewView;
   /** Reorder is offered only when the plan can be reordered and the date is ≥ today. */
   reorderEnabled?: boolean;
 }
@@ -52,9 +55,9 @@ function StaticStopList({ plan }: { plan: DayPlanResponse }) {
  * available, otherwise the static F04-3 list. The reorder draft and its Save bar
  * are owned by the Route page so they persist across the List/Map tabs.
  */
-export function RouteStopList({ plan, draft, reorderEnabled }: RouteStopListProps) {
-  if (reorderEnabled && draft) {
-    return <ReorderableStopList plan={plan} draft={draft} />;
+export function RouteStopList({ plan, draft, preview, reorderEnabled }: RouteStopListProps) {
+  if (reorderEnabled && draft && preview) {
+    return <ReorderableStopList plan={plan} draft={draft} preview={preview} />;
   }
   return <StaticStopList plan={plan} />;
 }

@@ -1,23 +1,10 @@
-import {
-  buildLegOverrides,
-  formatInstantTime,
-  formatWallTimeRange,
-  toOptimizerInput,
-  type DayPlanResponse,
-  type DayPlanStop,
-} from '@properfy/shared';
-// Import the pure optimizer via the subpath so it stays out of the eager bundle
-// (the barrel is imported app-wide; the subpath keeps route-planning in the lazy
-// route chunk). `toOptimizerInput`/`buildLegOverrides` live in the zod-backed
-// day-plan schema module, which the app already loads eagerly, so they come from
-// the barrel.
-import { evaluateSequence, RouteOrderMismatchError, type OptimizerInput } from '@properfy/shared/route-planning';
+import type { DayPlanResponse, DayPlanStop } from '@properfy/shared';
 
 /**
- * Pure helpers for the local reorder draft — no React, no API. They reuse the
- * shared optimizer (`toOptimizerInput` + `buildLegOverrides` + `evaluateSequence`)
- * so the client's "+N min vs. suggested" preview is computed exactly as the
- * server would, and never reimplement that logic (L-F04-16 contract).
+ * Pure helpers for the local reorder draft — no React, no API, no routing math.
+ * They own the reorderable-set derivation and the order moves; the route
+ * evaluation (ETAs, delta, violations) is done by the server preview under Plan B
+ * (see `reorder-preview.ts` / `useReorderPreview`), never recomputed on the client.
  */
 
 /** A stop is reorderable only while not started — derived live (DB11). */
@@ -73,7 +60,8 @@ export function moveDown(order: readonly string[], id: string): string[] {
 /**
  * Order the reorderable ids by their position in `preferred` (usually
  * `suggestedOrder`); any reorderable id missing from `preferred` keeps its
- * current relative order and goes to the end. Used by "Reset to suggested order".
+ * current relative order and goes to the end. Used by "Reset to suggested order"
+ * and to build the suggested baseline the preview delta compares against.
  */
 export function alignOrder(preferred: readonly string[], reorderableIds: readonly string[]): string[] {
   const rank = new Map(preferred.map((id, i) => [id, i] as const));
@@ -82,110 +70,12 @@ export function alignOrder(preferred: readonly string[], reorderableIds: readonl
   return [...inPreferred, ...rest];
 }
 
-/** The shared optimizer input for the plan, or `null` when reorder is impossible. */
-export function getOptimizerInput(plan: DayPlanResponse, now: Date): OptimizerInput | null {
-  return toOptimizerInput(plan, now);
-}
-
-/** True when the plan can be reordered locally (≥ 2 not-started stops with a location). */
-export function canReorder(plan: DayPlanResponse, now: Date): boolean {
-  return getOptimizerInput(plan, now) !== null;
-}
-
-export interface DraftEvaluation {
-  /** Finish epoch-seconds of the draft order (null when nothing is evaluable). */
-  finishS: number | null;
-  /** `round((finish(new) − finish(suggested)) / 60)`; positive = later than suggested. */
-  deltaFinishMin: number;
-  totalTravelS: number;
-  violations: Array<{ key: string; lateS: number }>;
-  /** Local service-start epoch-seconds per stop key (rendered with "~"). */
-  serviceStartByKey: Record<string, number>;
-}
-
 /**
- * Evaluate the draft `order` locally against the plan's matrix, and the aligned
- * `suggestedOrder`, with the same criterion (`legTravelS` for unchanged adjacent
- * pairs, the matrix for the rest). Returns `null` when the plan cannot be
- * reordered.
- *
- * The optimizer input is trimmed to exactly the stops still in `order`, so a
- * stop checked in on this device (dropped from `order`) or one without
- * coordinates (never in `toOptimizerInput`) is simply not evaluated — the
- * preview matches what will actually be driven, instead of throwing a
- * key-mismatch. Real id mismatches are impossible (the UI derives `order` from
- * the live plan); a defensive `RouteOrderMismatchError` yields `null`.
+ * True when the plan can be reordered: at least two not-started stops. Under Plan
+ * B this no longer depends on `routingInput` — the server preview owns the matrix
+ * (FR-012). Stops without coordinates still count (they are reorderable; the
+ * preview simply omits their travel).
  */
-export function evaluateDraft(plan: DayPlanResponse, order: readonly string[], now: Date): DraftEvaluation | null {
-  const input = getOptimizerInput(plan, now);
-  if (!input) return null;
-  const orderSet = new Set(order);
-  const stops = input.stops.filter((s) => orderSet.has(s.key));
-  const keySet = new Set(stops.map((s) => s.key));
-  const evalOrder = order.filter((id) => keySet.has(id));
-  const suggested = alignOrder(plan.suggestedOrder, evalOrder);
-  const trimmed: OptimizerInput = { ...input, stops };
-
-  try {
-    const draftEval = evaluateSequence(trimmed, evalOrder, {
-      legTravelS: buildLegOverrides(evalOrder, plan.routingInput),
-    });
-    const suggestedEval = evaluateSequence(trimmed, suggested, {
-      legTravelS: buildLegOverrides(suggested, plan.routingInput),
-    });
-    const deltaFinishMin =
-      draftEval.finishS !== null && suggestedEval.finishS !== null
-        ? Math.round((draftEval.finishS - suggestedEval.finishS) / 60)
-        : 0;
-    const serviceStartByKey: Record<string, number> = {};
-    for (const stop of draftEval.stops) serviceStartByKey[stop.key] = stop.serviceStartS;
-    return {
-      finishS: draftEval.finishS,
-      deltaFinishMin,
-      totalTravelS: draftEval.totalTravelS,
-      violations: draftEval.violations,
-      serviceStartByKey,
-    };
-  } catch (error) {
-    if (error instanceof RouteOrderMismatchError) return null;
-    throw error;
-  }
-}
-
-/** "+12 min vs. suggested" / "−5 min vs. suggested" / "Same finish time as suggested". */
-export function formatDelta(deltaFinishMin: number): string {
-  if (deltaFinishMin > 0) return `+${deltaFinishMin} min vs. suggested`;
-  if (deltaFinishMin < 0) return `−${Math.abs(deltaFinishMin)} min vs. suggested`;
-  return 'Same finish time as suggested';
-}
-
-/** "55 min driving" from a travel total in seconds. */
-export function formatDrivingTotal(totalTravelS: number): string {
-  return `${Math.round(totalTravelS / 60)} min driving`;
-}
-
-/** A local ETA from an epoch-seconds service start, prefixed with "~" (e.g. "~9:12 am"). */
-export function formatLocalEta(serviceStartS: number | undefined, timezone: string): string {
-  if (serviceStartS === undefined) return '';
-  return `~${formatInstantTime(new Date(serviceStartS * 1000).toISOString(), timezone)}`;
-}
-
-/**
- * One message per window violation, numbered by the stop's position in the full
- * displayed order (locked prefix + reorderable draft), counting from 1:
- * "Stop 4 would arrive after its window 10:00 am – 12:00 pm".
- */
-export function toViolationMessages(
-  plan: DayPlanResponse,
-  displayOrder: readonly string[],
-  violations: ReadonlyArray<{ key: string; lateS: number }>,
-): Array<{ key: string; message: string }> {
-  const stopById = new Map(plan.stops.map((s) => [s.appointmentId, s] as const));
-  const positionById = new Map(displayOrder.map((id, i) => [id, i + 1] as const));
-  return violations.map((violation) => {
-    const stop = stopById.get(violation.key);
-    const position = positionById.get(violation.key) ?? 0;
-    const range = stop ? formatWallTimeRange(stop.windowStart, stop.windowEnd) : '';
-    return { key: violation.key, message: `Stop ${position} would arrive after its window ${range}` };
-  });
+export function canReorder(reorderableIds: readonly string[]): boolean {
+  return reorderableIds.length >= 2;
 }

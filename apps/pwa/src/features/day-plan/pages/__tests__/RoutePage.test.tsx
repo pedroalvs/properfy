@@ -86,11 +86,9 @@ describe('RoutePage', () => {
     expect(screen.getByText('25 min waiting')).toBeInTheDocument();
     expect(screen.getByText('14.2 km')).toBeInTheDocument();
 
-    const list = screen.getByRole('list');
-    const items = within(list).getAllByRole('listitem');
-    expect(items).toHaveLength(3);
-    // The first leg is labelled "From start".
-    expect(screen.getByText(/From start:/)).toBeInTheDocument();
+    // A multi-stop today plan is reorderable, so the draggable list renders (FR-012):
+    // the static leg list is the read-only fallback for past / non-reorderable days.
+    expect(screen.getByRole('button', { name: 'Drag to reorder stop 1' })).toBeInTheDocument();
   });
 
   it('non-today header shows the short date', async () => {
@@ -105,20 +103,22 @@ describe('RoutePage', () => {
     expect(await screen.findByText(/· 45 min each/)).toBeInTheDocument();
   });
 
+  // The static leg list (legs, "Same address", the read-only violation note) renders for
+  // past / non-reorderable days; a reorderable day shows the draggable list instead (FR-012).
   it('renders "Same address" for a zero-length leg (L-F04-13)', async () => {
     const stops = buildStops();
     stops[2] = buildStop({ ...stops[2]!, travelS: 0, distanceM: 0, lat: stops[1]!.lat, lng: stops[1]!.lng });
-    mockGet.mockResolvedValue(ok(buildDayPlan({ stops })));
-    renderRoute();
+    mockGet.mockResolvedValue(ok(buildDayPlan({ date: '2026-11-01', stops })));
+    renderRoute('/today/route/2026-11-01');
     expect(await screen.findByText('Same address')).toBeInTheDocument();
   });
 
   it('shows a window-violation note on the offending stop', async () => {
     const stops = buildStops();
     stops[1] = buildStop({ ...stops[1]!, lateS: 900, windowStart: '08:00', windowEnd: '09:00' });
-    const plan = buildDayPlan({ stops, violations: [{ appointmentId: B, lateS: 900 }] });
+    const plan = buildDayPlan({ date: '2026-11-01', stops, violations: [{ appointmentId: B, lateS: 900 }] });
     mockGet.mockResolvedValue(ok(plan));
-    renderRoute();
+    renderRoute('/today/route/2026-11-01');
     expect(await screen.findByText('Arrives after its window (8:00 am – 9:00 am)')).toBeInTheDocument();
   });
 
