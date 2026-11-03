@@ -10,7 +10,6 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../../../src/main/server';
 import { createMockContainer } from '../../helpers/mock-container';
 import {
-  dayPlanAlreadyStarted,
   dayPlanNotFound,
   dayPlanVersionConflict,
 } from '../../../src/modules/day-plan/domain/day-plan.errors';
@@ -101,16 +100,12 @@ describe('POST /v1/inspector/day-plans/:date/order/preview', () => {
     expect(mockPreviewExecute).not.toHaveBeenCalled();
   });
 
-  it('maps 404 / 409 / 422 domain errors', async () => {
+  it('maps 404 / 409 domain errors', async () => {
     mockJwtVerify.mockResolvedValue(inspContext);
     mockPreviewExecute.mockRejectedValueOnce(dayPlanNotFound());
     expect((await supertest(app.server).post(URL).set('Authorization', 'Bearer t').send(BODY)).status).toBe(404);
     mockPreviewExecute.mockRejectedValueOnce(dayPlanVersionConflict(3));
     expect((await supertest(app.server).post(URL).set('Authorization', 'Bearer t').send(BODY)).status).toBe(409);
-    mockPreviewExecute.mockRejectedValueOnce(dayPlanAlreadyStarted());
-    const started = await supertest(app.server).post(URL).set('Authorization', 'Bearer t').send(BODY);
-    expect(started.status).toBe(422);
-    expect(started.body.error.code).toBe('DAY_PLAN_ALREADY_STARTED');
   });
 });
 

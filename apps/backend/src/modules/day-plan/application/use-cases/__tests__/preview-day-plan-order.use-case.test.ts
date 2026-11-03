@@ -50,7 +50,7 @@ function plan(): DayPlanRecord {
     totalDriveS: 0, totalWaitS: 0, totalServiceS: 0, totalLateS: 0, totalDistanceM: null, feasible: true, manualOrder: false,
     suggestedOrder: [A, B, C], weights: { travel: 1, windowWait: 1, baseProximity: 1 }, optimizerMethod: 'EXACT',
     routingProvider: 'STUB', matrixProfile: 'haversine', approximate: false, approximateReason: null,
-    routeGeometry: null, routingMatrix: null, legTravel: null, stops: [],
+    stops: [],
   };
 }
 
@@ -65,7 +65,7 @@ function setup(rec: DayPlanRecord | null = plan()) {
   const matrixSpy = vi.spyOn(stub, 'matrix');
   const planRoute = new PlanRouteService(stub, stub, logger(), new MetricsCollector());
   const uc = new PreviewDayPlanOrderUseCase(reader, repo, planRoute, { now: () => NOW });
-  return { reader, repo, uc, matrixSpy };
+  return { reader, repo, uc, matrixSpy, planRoute };
 }
 
 const base = { inspectorId: INSPECTOR_ID, date: DATE, basedOnVersion: 4 };
@@ -98,7 +98,26 @@ describe('PreviewDayPlanOrderUseCase', () => {
     await expect(ctx.uc.execute({ ...base, appointmentIds: [A, B, C] })).rejects.toMatchObject({ code: 'DAY_PLAN_NOT_FOUND' });
   });
 
-  it('422 DAY_PLAN_ALREADY_STARTED once a stop was checked in today', async () => {
+  it('previews the not-started tail of a started day from the last executed stop (LAST_STOP origin), like PUT /order', async () => {
+    const today = '2026-11-04';
+    const s = setup({ ...plan(), planDate: today });
+    const finishedAt = new Date('2026-11-04T10:30:00Z'); // after NOW => earliest departure
+    s.reader.candidates = [
+      candidate(A, 151.1, { startedAt: new Date('2026-11-04T01:00:00Z'), finishedAt, appointmentStatus: 'DONE' }),
+      candidate(B, 151.2),
+      candidate(C, 151.3),
+    ];
+    const spy = vi.spyOn(s.planRoute, 'previewOrder');
+    const res = await s.uc.execute({ ...base, date: today, appointmentIds: [C, B] });
+    expect(res.stops.map((x) => x.appointmentId)).toEqual([C, B]);
+    expect(spy).toHaveBeenCalledTimes(1);
+    const arg = spy.mock.calls[0]![0];
+    expect(arg.origin).toEqual({ lat: -33.88, lng: 151.1 }); // last executed stop, not the base
+    expect(arg.earliestDepartureAt).toEqual(finishedAt);
+    expect(arg.stops.map((x) => x.appointmentId)).toEqual([B, C]); // executed stop excluded
+  });
+
+  it('400 DAY_PLAN_ORDER_MISMATCH on a started day when the candidate includes the executed stop', async () => {
     const today = '2026-11-04';
     const s = setup({ ...plan(), planDate: today });
     s.reader.candidates = [
@@ -106,7 +125,7 @@ describe('PreviewDayPlanOrderUseCase', () => {
       candidate(B, 151.2),
       candidate(C, 151.3),
     ];
-    await expect(s.uc.execute({ ...base, date: today, appointmentIds: [B, C] })).rejects.toMatchObject({ code: 'DAY_PLAN_ALREADY_STARTED' });
+    await expect(s.uc.execute({ ...base, date: today, appointmentIds: [A, B, C] })).rejects.toMatchObject({ code: 'DAY_PLAN_ORDER_MISMATCH' });
   });
 
   it('409 DAY_PLAN_VERSION_CONFLICT when basedOnVersion differs', async () => {

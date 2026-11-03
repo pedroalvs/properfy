@@ -17,7 +17,7 @@ export interface GetDayPlanForOperatorInput {
 
 /**
  * AM/OP read of any inspector's plan. The stored record is returned as-is and
- * never calls the routing provider (geometry/routingInput are null), with its status reported as STALE when the
+ * never calls the routing provider (geometry is null), with its status reported as STALE when the
  * current fingerprint diverges (L-F04-04 status join applies in the repository).
  * DRAFT plans are visible to AM/OP.
  */
@@ -52,7 +52,7 @@ export class GetDayPlanForOperatorUseCase {
       plan.status !== 'STALE' && plan.inputFingerprint !== currentFp ? { ...plan, status: 'STALE' as const } : plan;
 
     // No routing is recomputed here: the operator has no map consumer, so geometry and
-    // routingInput are null and the read never calls the routing provider.
+    // geometry is null and the read never calls the routing provider.
     return buildDayPlanResponse(reported, candidates, inspector, now, input.date === todayCivil);
   }
 }

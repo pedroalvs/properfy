@@ -285,7 +285,6 @@ export const DAY_PLAN_TODAY = {
     },
   ],
   geometry: null,
-  routingInput: null,
 } as const;
 
 /** `POST /v1/auth/login` → 401 error envelope (`{ error: { code, message, details? } }`). */

@@ -125,20 +125,6 @@ export function buildDayPlan(overrides: Partial<DayPlanResponse> = {}): DayPlanR
         },
       ],
     },
-    routingInput: {
-      points: [
-        { key: 'origin', lat: -33.87, lng: 151.2 },
-        { key: A, lat: -33.8836, lng: 151.2108 },
-      ],
-      travelS: [
-        [0, 600],
-        [600, 0],
-      ],
-      originKey: 'origin',
-      earliestDepartureAt: null,
-      weights: { travel: 1, windowWait: 1, baseProximity: 1 },
-      legTravelS: [{ fromKey: 'origin', toKey: A, travelS: 600 }],
-    },
     ...overrides,
   };
 }

@@ -1849,11 +1849,6 @@ model DayPlan {
   matrix_profile         String?               @db.VarChar(30)
   approximate            Boolean               @default(false)
   approximate_reason     String?               @db.VarChar(30)
-  // Plan A (L-F04-03): stored for the plan's validity, purged the next day.
-  route_geometry         Json?
-  routing_matrix_json    Json?
-  leg_travel_json        Json?
-  geometry_purged_at     DateTime?
   created_at             DateTime              @default(now())
   updated_at             DateTime              @updatedAt
 

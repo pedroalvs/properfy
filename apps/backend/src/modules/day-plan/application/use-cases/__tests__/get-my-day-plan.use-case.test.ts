@@ -112,7 +112,7 @@ class InMemoryRepo implements IDayPlanRepository {
   async markStaleByInspector(): Promise<number> { return 0; }
   async markNotified(): Promise<void> {}
  
-  async getEtaAccuracySamples() { return []; } async clearStoredRouteData() { return 0; }
+  async getEtaAccuracySamples() { return []; }
   async loadPublishDue() { return []; }
 
   private toRecord(input: SaveDayPlanInput, id: string, version: number): DayPlanRecord {
@@ -180,9 +180,6 @@ class InMemoryRepo implements IDayPlanRepository {
       matrixProfile: input.matrixProfile,
       approximate: input.approximate,
       approximateReason: input.approximateReason,
-      routeGeometry: null,
-      routingMatrix: null,
-      legTravel: null,
       stops,
     };
   }
@@ -237,20 +234,15 @@ describe('GetMyDayPlanUseCase', () => {
     expect(res.originWarning).toBe('NO_BASE');
   });
 
-  it('recomputes geometry and routingInput on demand while persisting no routing result (01.A1/01.A3, Plan B)', async () => {
+  it('recomputes geometry on demand while persisting no routing result (01.A1/01.A3, Plan B)', async () => {
     const uc = makeUseCase(reader, repo);
     await uc.execute({ inspectorId: INSPECTOR_ID, date: DATE });
-    expect(repo.lastSaved).not.toHaveProperty('routeGeometry');
-    expect(repo.lastSaved).not.toHaveProperty('routingMatrix');
-    expect(repo.lastSaved).not.toHaveProperty('legTravel');
 
     // Second open returns the stored (fresh) plan: geometry is still recomputed.
     const res = await uc.execute({ inspectorId: INSPECTOR_ID, date: DATE });
     expect(res.geometry).not.toBeNull();
     expect(res.geometry!.features.length).toBe(2); // origin->first, first->second
-    expect(res.routingInput).not.toBeNull();
-    expect(res.routingInput!.points.map((p) => p.key)).toContain('origin');
-    expect(res.routingInput!.legTravelS).toHaveLength(2);
+    expect(res).not.toHaveProperty('routingInput');
   });
 
   it('degrades to approximate geometry (never 5xx) when the provider is unavailable (D6)', async () => {
@@ -277,7 +269,7 @@ describe('GetMyDayPlanUseCase', () => {
     const stored = await repo.findByInspectorAndDate(INSPECTOR_ID, DATE);
     repo.forceRecord({ ...stored!, approximate: false, approximateReason: null });
     vi.spyOn(compute, 'routingFor').mockResolvedValue({
-      geometry: null, matrix: null, legs: [], approximate: true, approximateReason: 'RATE_LIMITED',
+      geometry: null, approximate: true, approximateReason: 'RATE_LIMITED',
     });
     const res = await uc.execute({ inspectorId: INSPECTOR_ID, date: DATE });
     expect(res.approximate).toBe(true);
@@ -295,7 +287,6 @@ describe('GetMyDayPlanUseCase', () => {
     const computeSpy = vi.spyOn(planRoute, 'compute');
     const res = await new GetMyDayPlanUseCase(reader, repo, compute, clock).execute({ inspectorId: INSPECTOR_ID, date: DATE, now: later });
     expect(res.geometry).toBeNull();
-    expect(res.routingInput).toBeNull();
     expect(spy).not.toHaveBeenCalled();
     expect(computeSpy).not.toHaveBeenCalled();
   });

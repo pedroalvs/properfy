@@ -10928,27 +10928,6 @@ export interface paths {
                                         };
                                     }[];
                                 } | null;
-                                routingInput: {
-                                    points: {
-                                        key: string;
-                                        lat: number;
-                                        lng: number;
-                                    }[];
-                                    travelS: number[][];
-                                    /** @enum {string|null} */
-                                    originKey: "origin" | null;
-                                    earliestDepartureAt: (string) | null;
-                                    weights: {
-                                        travel: number;
-                                        windowWait: number;
-                                        baseProximity: number;
-                                    };
-                                    legTravelS: {
-                                        fromKey: string;
-                                        toKey: string;
-                                        travelS: number;
-                                    }[];
-                                } | null;
                             };
                         };
                     };
@@ -11124,27 +11103,6 @@ export interface paths {
                                             toSequence: number;
                                             approximate: boolean;
                                         };
-                                    }[];
-                                } | null;
-                                routingInput: {
-                                    points: {
-                                        key: string;
-                                        lat: number;
-                                        lng: number;
-                                    }[];
-                                    travelS: number[][];
-                                    /** @enum {string|null} */
-                                    originKey: "origin" | null;
-                                    earliestDepartureAt: (string) | null;
-                                    weights: {
-                                        travel: number;
-                                        windowWait: number;
-                                        baseProximity: number;
-                                    };
-                                    legTravelS: {
-                                        fromKey: string;
-                                        toKey: string;
-                                        travelS: number;
                                     }[];
                                 } | null;
                             };
@@ -11411,27 +11369,6 @@ export interface paths {
                                         };
                                     }[];
                                 } | null;
-                                routingInput: {
-                                    points: {
-                                        key: string;
-                                        lat: number;
-                                        lng: number;
-                                    }[];
-                                    travelS: number[][];
-                                    /** @enum {string|null} */
-                                    originKey: "origin" | null;
-                                    earliestDepartureAt: (string) | null;
-                                    weights: {
-                                        travel: number;
-                                        windowWait: number;
-                                        baseProximity: number;
-                                    };
-                                    legTravelS: {
-                                        fromKey: string;
-                                        toKey: string;
-                                        travelS: number;
-                                    }[];
-                                } | null;
                             };
                         };
                     };
@@ -11585,27 +11522,6 @@ export interface paths {
                                             toSequence: number;
                                             approximate: boolean;
                                         };
-                                    }[];
-                                } | null;
-                                routingInput: {
-                                    points: {
-                                        key: string;
-                                        lat: number;
-                                        lng: number;
-                                    }[];
-                                    travelS: number[][];
-                                    /** @enum {string|null} */
-                                    originKey: "origin" | null;
-                                    earliestDepartureAt: (string) | null;
-                                    weights: {
-                                        travel: number;
-                                        windowWait: number;
-                                        baseProximity: number;
-                                    };
-                                    legTravelS: {
-                                        fromKey: string;
-                                        toKey: string;
-                                        travelS: number;
                                     }[];
                                 } | null;
                             };
@@ -11774,27 +11690,6 @@ export interface paths {
                                             toSequence: number;
                                             approximate: boolean;
                                         };
-                                    }[];
-                                } | null;
-                                routingInput: {
-                                    points: {
-                                        key: string;
-                                        lat: number;
-                                        lng: number;
-                                    }[];
-                                    travelS: number[][];
-                                    /** @enum {string|null} */
-                                    originKey: "origin" | null;
-                                    earliestDepartureAt: (string) | null;
-                                    weights: {
-                                        travel: number;
-                                        windowWait: number;
-                                        baseProximity: number;
-                                    };
-                                    legTravelS: {
-                                        fromKey: string;
-                                        toKey: string;
-                                        travelS: number;
                                     }[];
                                 } | null;
                             };
@@ -12078,27 +11973,6 @@ export interface paths {
                                         };
                                     }[];
                                 } | null;
-                                routingInput: {
-                                    points: {
-                                        key: string;
-                                        lat: number;
-                                        lng: number;
-                                    }[];
-                                    travelS: number[][];
-                                    /** @enum {string|null} */
-                                    originKey: "origin" | null;
-                                    earliestDepartureAt: (string) | null;
-                                    weights: {
-                                        travel: number;
-                                        windowWait: number;
-                                        baseProximity: number;
-                                    };
-                                    legTravelS: {
-                                        fromKey: string;
-                                        toKey: string;
-                                        travelS: number;
-                                    }[];
-                                } | null;
                             };
                         };
                     };
@@ -12265,27 +12139,6 @@ export interface paths {
                                             toSequence: number;
                                             approximate: boolean;
                                         };
-                                    }[];
-                                } | null;
-                                routingInput: {
-                                    points: {
-                                        key: string;
-                                        lat: number;
-                                        lng: number;
-                                    }[];
-                                    travelS: number[][];
-                                    /** @enum {string|null} */
-                                    originKey: "origin" | null;
-                                    earliestDepartureAt: (string) | null;
-                                    weights: {
-                                        travel: number;
-                                        windowWait: number;
-                                        baseProximity: number;
-                                    };
-                                    legTravelS: {
-                                        fromKey: string;
-                                        toKey: string;
-                                        travelS: number;
                                     }[];
                                 } | null;
                             };

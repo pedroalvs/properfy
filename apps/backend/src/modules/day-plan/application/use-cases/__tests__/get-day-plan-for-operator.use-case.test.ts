@@ -37,8 +37,7 @@ function record(fingerprint: string): DayPlanRecord {
     originOverrideSetAt: null, departureAt: NOW, finishEta: NOW, totalDriveS: 600, totalWaitS: 0, totalServiceS: 2700,
     totalLateS: 0, totalDistanceM: 4700, feasible: true, manualOrder: false, suggestedOrder: [A],
     weights: { travel: 1, windowWait: 1, baseProximity: 1 }, optimizerMethod: 'EXACT', routingProvider: 'STUB',
-    matrixProfile: 'haversine', approximate: true, approximateReason: 'NO_PROVIDER', routeGeometry: null,
-    routingMatrix: null, legTravel: null,
+    matrixProfile: 'haversine', approximate: true, approximateReason: 'NO_PROVIDER',
     stops: [{
       id: 's1', appointmentId: A, sequence: 1, eta: NOW, serviceStartAt: NOW, serviceEndAt: NOW, publishedEta: NOW,
       publishedServiceStartAt: NOW, publishedPredictedAt: NOW, publishedApproximate: true, travelS: 600, distanceM: 4700,
@@ -103,7 +102,7 @@ describe('GetDayPlanForOperatorUseCase', () => {
     ).rejects.toMatchObject({ code: 'DAY_PLAN_NOT_FOUND' });
   });
 
-  it('returns no geometry or routingInput to AM and writes nothing (operator read never calls the routing provider)', async () => {
+  it('returns no geometry to AM and writes nothing (operator read never calls the routing provider)', async () => {
     const reader = new FakeReader();
     reader.candidate = { ...reader.candidate };
     const { fingerprintForCandidates } = await import('../../day-plan-inputs');
@@ -111,7 +110,6 @@ describe('GetDayPlanForOperatorUseCase', () => {
     const repo = repoWith(record(fp));
     const res = await new GetDayPlanForOperatorUseCase(reader, repo, auth as never, clock).execute({ actor: AM, inspectorId: INSPECTOR_ID, date: DATE });
     expect(res.geometry).toBeNull();
-        expect(res.routingInput).toBeNull();
     expect(repo.saveComputed).not.toHaveBeenCalled();
   });
 });

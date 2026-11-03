@@ -25649,115 +25649,6 @@
                           ],
                           "additionalProperties": false,
                           "nullable": true
-                        },
-                        "routingInput": {
-                          "type": "object",
-                          "properties": {
-                            "points": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "key": {
-                                    "type": "string"
-                                  },
-                                  "lat": {
-                                    "type": "number"
-                                  },
-                                  "lng": {
-                                    "type": "number"
-                                  }
-                                },
-                                "required": [
-                                  "key",
-                                  "lat",
-                                  "lng"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "travelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "array",
-                                "items": {
-                                  "type": "integer"
-                                }
-                              }
-                            },
-                            "originKey": {
-                              "type": "string",
-                              "enum": [
-                                "origin"
-                              ],
-                              "nullable": true
-                            },
-                            "earliestDepartureAt": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "string",
-                                  "format": "date-time"
-                                }
-                              ],
-                              "nullable": true
-                            },
-                            "weights": {
-                              "type": "object",
-                              "properties": {
-                                "travel": {
-                                  "type": "number"
-                                },
-                                "windowWait": {
-                                  "type": "number"
-                                },
-                                "baseProximity": {
-                                  "type": "number"
-                                }
-                              },
-                              "required": [
-                                "travel",
-                                "windowWait",
-                                "baseProximity"
-                              ],
-                              "additionalProperties": false
-                            },
-                            "legTravelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "fromKey": {
-                                    "type": "string"
-                                  },
-                                  "toKey": {
-                                    "type": "string"
-                                  },
-                                  "travelS": {
-                                    "type": "integer"
-                                  }
-                                },
-                                "required": [
-                                  "fromKey",
-                                  "toKey",
-                                  "travelS"
-                                ],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "required": [
-                            "points",
-                            "travelS",
-                            "originKey",
-                            "earliestDepartureAt",
-                            "weights",
-                            "legTravelS"
-                          ],
-                          "additionalProperties": false,
-                          "nullable": true
                         }
                       },
                       "required": [
@@ -25787,8 +25678,7 @@
                         "manualOrder",
                         "suggestedOrder",
                         "stops",
-                        "geometry",
-                        "routingInput"
+                        "geometry"
                       ],
                       "additionalProperties": false
                     }
@@ -26496,115 +26386,6 @@
                           ],
                           "additionalProperties": false,
                           "nullable": true
-                        },
-                        "routingInput": {
-                          "type": "object",
-                          "properties": {
-                            "points": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "key": {
-                                    "type": "string"
-                                  },
-                                  "lat": {
-                                    "type": "number"
-                                  },
-                                  "lng": {
-                                    "type": "number"
-                                  }
-                                },
-                                "required": [
-                                  "key",
-                                  "lat",
-                                  "lng"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "travelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "array",
-                                "items": {
-                                  "type": "integer"
-                                }
-                              }
-                            },
-                            "originKey": {
-                              "type": "string",
-                              "enum": [
-                                "origin"
-                              ],
-                              "nullable": true
-                            },
-                            "earliestDepartureAt": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "string",
-                                  "format": "date-time"
-                                }
-                              ],
-                              "nullable": true
-                            },
-                            "weights": {
-                              "type": "object",
-                              "properties": {
-                                "travel": {
-                                  "type": "number"
-                                },
-                                "windowWait": {
-                                  "type": "number"
-                                },
-                                "baseProximity": {
-                                  "type": "number"
-                                }
-                              },
-                              "required": [
-                                "travel",
-                                "windowWait",
-                                "baseProximity"
-                              ],
-                              "additionalProperties": false
-                            },
-                            "legTravelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "fromKey": {
-                                    "type": "string"
-                                  },
-                                  "toKey": {
-                                    "type": "string"
-                                  },
-                                  "travelS": {
-                                    "type": "integer"
-                                  }
-                                },
-                                "required": [
-                                  "fromKey",
-                                  "toKey",
-                                  "travelS"
-                                ],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "required": [
-                            "points",
-                            "travelS",
-                            "originKey",
-                            "earliestDepartureAt",
-                            "weights",
-                            "legTravelS"
-                          ],
-                          "additionalProperties": false,
-                          "nullable": true
                         }
                       },
                       "required": [
@@ -26634,8 +26415,7 @@
                         "manualOrder",
                         "suggestedOrder",
                         "stops",
-                        "geometry",
-                        "routingInput"
+                        "geometry"
                       ],
                       "additionalProperties": false
                     }
@@ -27618,115 +27398,6 @@
                           ],
                           "additionalProperties": false,
                           "nullable": true
-                        },
-                        "routingInput": {
-                          "type": "object",
-                          "properties": {
-                            "points": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "key": {
-                                    "type": "string"
-                                  },
-                                  "lat": {
-                                    "type": "number"
-                                  },
-                                  "lng": {
-                                    "type": "number"
-                                  }
-                                },
-                                "required": [
-                                  "key",
-                                  "lat",
-                                  "lng"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "travelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "array",
-                                "items": {
-                                  "type": "integer"
-                                }
-                              }
-                            },
-                            "originKey": {
-                              "type": "string",
-                              "enum": [
-                                "origin"
-                              ],
-                              "nullable": true
-                            },
-                            "earliestDepartureAt": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "string",
-                                  "format": "date-time"
-                                }
-                              ],
-                              "nullable": true
-                            },
-                            "weights": {
-                              "type": "object",
-                              "properties": {
-                                "travel": {
-                                  "type": "number"
-                                },
-                                "windowWait": {
-                                  "type": "number"
-                                },
-                                "baseProximity": {
-                                  "type": "number"
-                                }
-                              },
-                              "required": [
-                                "travel",
-                                "windowWait",
-                                "baseProximity"
-                              ],
-                              "additionalProperties": false
-                            },
-                            "legTravelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "fromKey": {
-                                    "type": "string"
-                                  },
-                                  "toKey": {
-                                    "type": "string"
-                                  },
-                                  "travelS": {
-                                    "type": "integer"
-                                  }
-                                },
-                                "required": [
-                                  "fromKey",
-                                  "toKey",
-                                  "travelS"
-                                ],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "required": [
-                            "points",
-                            "travelS",
-                            "originKey",
-                            "earliestDepartureAt",
-                            "weights",
-                            "legTravelS"
-                          ],
-                          "additionalProperties": false,
-                          "nullable": true
                         }
                       },
                       "required": [
@@ -27756,8 +27427,7 @@
                         "manualOrder",
                         "suggestedOrder",
                         "stops",
-                        "geometry",
-                        "routingInput"
+                        "geometry"
                       ],
                       "additionalProperties": false
                     }
@@ -28433,115 +28103,6 @@
                           ],
                           "additionalProperties": false,
                           "nullable": true
-                        },
-                        "routingInput": {
-                          "type": "object",
-                          "properties": {
-                            "points": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "key": {
-                                    "type": "string"
-                                  },
-                                  "lat": {
-                                    "type": "number"
-                                  },
-                                  "lng": {
-                                    "type": "number"
-                                  }
-                                },
-                                "required": [
-                                  "key",
-                                  "lat",
-                                  "lng"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "travelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "array",
-                                "items": {
-                                  "type": "integer"
-                                }
-                              }
-                            },
-                            "originKey": {
-                              "type": "string",
-                              "enum": [
-                                "origin"
-                              ],
-                              "nullable": true
-                            },
-                            "earliestDepartureAt": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "string",
-                                  "format": "date-time"
-                                }
-                              ],
-                              "nullable": true
-                            },
-                            "weights": {
-                              "type": "object",
-                              "properties": {
-                                "travel": {
-                                  "type": "number"
-                                },
-                                "windowWait": {
-                                  "type": "number"
-                                },
-                                "baseProximity": {
-                                  "type": "number"
-                                }
-                              },
-                              "required": [
-                                "travel",
-                                "windowWait",
-                                "baseProximity"
-                              ],
-                              "additionalProperties": false
-                            },
-                            "legTravelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "fromKey": {
-                                    "type": "string"
-                                  },
-                                  "toKey": {
-                                    "type": "string"
-                                  },
-                                  "travelS": {
-                                    "type": "integer"
-                                  }
-                                },
-                                "required": [
-                                  "fromKey",
-                                  "toKey",
-                                  "travelS"
-                                ],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "required": [
-                            "points",
-                            "travelS",
-                            "originKey",
-                            "earliestDepartureAt",
-                            "weights",
-                            "legTravelS"
-                          ],
-                          "additionalProperties": false,
-                          "nullable": true
                         }
                       },
                       "required": [
@@ -28571,8 +28132,7 @@
                         "manualOrder",
                         "suggestedOrder",
                         "stops",
-                        "geometry",
-                        "routingInput"
+                        "geometry"
                       ],
                       "additionalProperties": false
                     }
@@ -29250,115 +28810,6 @@
                           ],
                           "additionalProperties": false,
                           "nullable": true
-                        },
-                        "routingInput": {
-                          "type": "object",
-                          "properties": {
-                            "points": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "key": {
-                                    "type": "string"
-                                  },
-                                  "lat": {
-                                    "type": "number"
-                                  },
-                                  "lng": {
-                                    "type": "number"
-                                  }
-                                },
-                                "required": [
-                                  "key",
-                                  "lat",
-                                  "lng"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "travelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "array",
-                                "items": {
-                                  "type": "integer"
-                                }
-                              }
-                            },
-                            "originKey": {
-                              "type": "string",
-                              "enum": [
-                                "origin"
-                              ],
-                              "nullable": true
-                            },
-                            "earliestDepartureAt": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "string",
-                                  "format": "date-time"
-                                }
-                              ],
-                              "nullable": true
-                            },
-                            "weights": {
-                              "type": "object",
-                              "properties": {
-                                "travel": {
-                                  "type": "number"
-                                },
-                                "windowWait": {
-                                  "type": "number"
-                                },
-                                "baseProximity": {
-                                  "type": "number"
-                                }
-                              },
-                              "required": [
-                                "travel",
-                                "windowWait",
-                                "baseProximity"
-                              ],
-                              "additionalProperties": false
-                            },
-                            "legTravelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "fromKey": {
-                                    "type": "string"
-                                  },
-                                  "toKey": {
-                                    "type": "string"
-                                  },
-                                  "travelS": {
-                                    "type": "integer"
-                                  }
-                                },
-                                "required": [
-                                  "fromKey",
-                                  "toKey",
-                                  "travelS"
-                                ],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "required": [
-                            "points",
-                            "travelS",
-                            "originKey",
-                            "earliestDepartureAt",
-                            "weights",
-                            "legTravelS"
-                          ],
-                          "additionalProperties": false,
-                          "nullable": true
                         }
                       },
                       "required": [
@@ -29388,8 +28839,7 @@
                         "manualOrder",
                         "suggestedOrder",
                         "stops",
-                        "geometry",
-                        "routingInput"
+                        "geometry"
                       ],
                       "additionalProperties": false
                     }
@@ -30456,115 +29906,6 @@
                           ],
                           "additionalProperties": false,
                           "nullable": true
-                        },
-                        "routingInput": {
-                          "type": "object",
-                          "properties": {
-                            "points": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "key": {
-                                    "type": "string"
-                                  },
-                                  "lat": {
-                                    "type": "number"
-                                  },
-                                  "lng": {
-                                    "type": "number"
-                                  }
-                                },
-                                "required": [
-                                  "key",
-                                  "lat",
-                                  "lng"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "travelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "array",
-                                "items": {
-                                  "type": "integer"
-                                }
-                              }
-                            },
-                            "originKey": {
-                              "type": "string",
-                              "enum": [
-                                "origin"
-                              ],
-                              "nullable": true
-                            },
-                            "earliestDepartureAt": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "string",
-                                  "format": "date-time"
-                                }
-                              ],
-                              "nullable": true
-                            },
-                            "weights": {
-                              "type": "object",
-                              "properties": {
-                                "travel": {
-                                  "type": "number"
-                                },
-                                "windowWait": {
-                                  "type": "number"
-                                },
-                                "baseProximity": {
-                                  "type": "number"
-                                }
-                              },
-                              "required": [
-                                "travel",
-                                "windowWait",
-                                "baseProximity"
-                              ],
-                              "additionalProperties": false
-                            },
-                            "legTravelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "fromKey": {
-                                    "type": "string"
-                                  },
-                                  "toKey": {
-                                    "type": "string"
-                                  },
-                                  "travelS": {
-                                    "type": "integer"
-                                  }
-                                },
-                                "required": [
-                                  "fromKey",
-                                  "toKey",
-                                  "travelS"
-                                ],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "required": [
-                            "points",
-                            "travelS",
-                            "originKey",
-                            "earliestDepartureAt",
-                            "weights",
-                            "legTravelS"
-                          ],
-                          "additionalProperties": false,
-                          "nullable": true
                         }
                       },
                       "required": [
@@ -30594,8 +29935,7 @@
                         "manualOrder",
                         "suggestedOrder",
                         "stops",
-                        "geometry",
-                        "routingInput"
+                        "geometry"
                       ],
                       "additionalProperties": false
                     }
@@ -31282,115 +30622,6 @@
                           ],
                           "additionalProperties": false,
                           "nullable": true
-                        },
-                        "routingInput": {
-                          "type": "object",
-                          "properties": {
-                            "points": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "key": {
-                                    "type": "string"
-                                  },
-                                  "lat": {
-                                    "type": "number"
-                                  },
-                                  "lng": {
-                                    "type": "number"
-                                  }
-                                },
-                                "required": [
-                                  "key",
-                                  "lat",
-                                  "lng"
-                                ],
-                                "additionalProperties": false
-                              }
-                            },
-                            "travelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "array",
-                                "items": {
-                                  "type": "integer"
-                                }
-                              }
-                            },
-                            "originKey": {
-                              "type": "string",
-                              "enum": [
-                                "origin"
-                              ],
-                              "nullable": true
-                            },
-                            "earliestDepartureAt": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "type": "string",
-                                  "format": "date-time"
-                                }
-                              ],
-                              "nullable": true
-                            },
-                            "weights": {
-                              "type": "object",
-                              "properties": {
-                                "travel": {
-                                  "type": "number"
-                                },
-                                "windowWait": {
-                                  "type": "number"
-                                },
-                                "baseProximity": {
-                                  "type": "number"
-                                }
-                              },
-                              "required": [
-                                "travel",
-                                "windowWait",
-                                "baseProximity"
-                              ],
-                              "additionalProperties": false
-                            },
-                            "legTravelS": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "fromKey": {
-                                    "type": "string"
-                                  },
-                                  "toKey": {
-                                    "type": "string"
-                                  },
-                                  "travelS": {
-                                    "type": "integer"
-                                  }
-                                },
-                                "required": [
-                                  "fromKey",
-                                  "toKey",
-                                  "travelS"
-                                ],
-                                "additionalProperties": false
-                              }
-                            }
-                          },
-                          "required": [
-                            "points",
-                            "travelS",
-                            "originKey",
-                            "earliestDepartureAt",
-                            "weights",
-                            "legTravelS"
-                          ],
-                          "additionalProperties": false,
-                          "nullable": true
                         }
                       },
                       "required": [
@@ -31420,8 +30651,7 @@
                         "manualOrder",
                         "suggestedOrder",
                         "stops",
-                        "geometry",
-                        "routingInput"
+                        "geometry"
                       ],
                       "additionalProperties": false
                     }

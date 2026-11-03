@@ -10,7 +10,6 @@ import {
   ROUTE_ETA_ACCURACY_THRESHOLD_MINUTES,
   ROUTE_ETA_ACCURACY_MIN_SAMPLE,
 } from '../constants/day-plan';
-import type { OptimizerInput, OptimizerStop } from '../route-planning/types';
 
 // Module-private instant/date helpers (same pattern as field-events.ts).
 const instantStr = () => z.union([z.string(), z.date().transform((d) => d.toISOString())]);
@@ -94,21 +93,6 @@ export const dayPlanStopSchema = z.object({
 export type DayPlanStop = z.infer<typeof dayPlanStopSchema>;
 
 // -----------------------------------------------------------------------------
-// routingInput (Plan A, L-F04-03): raw matrix forwarded to the client for local reorder.
-// -----------------------------------------------------------------------------
-export const dayPlanRoutingInputSchema = z.object({
-  points: z.array(z.object({ key: z.string(), lat: z.number(), lng: z.number() })),
-  travelS: z.array(z.array(z.number().int())),
-  originKey: z.literal('origin').nullable(),
-  earliestDepartureAt: instantStrNullable(),
-  weights: z.object({ travel: z.number(), windowWait: z.number(), baseProximity: z.number() }),
-  legTravelS: z.array(
-    z.object({ fromKey: z.string(), toKey: z.string(), travelS: z.number().int() }),
-  ),
-});
-export type DayPlanRoutingInput = z.infer<typeof dayPlanRoutingInputSchema>;
-
-// -----------------------------------------------------------------------------
 // Response
 // -----------------------------------------------------------------------------
 export const dayPlanResponseSchema = z.object({
@@ -154,7 +138,6 @@ export const dayPlanResponseSchema = z.object({
   suggestedOrder: z.array(z.string().uuid()),
   stops: z.array(dayPlanStopSchema),
   geometry: dayPlanGeometrySchema.nullable(),
-  routingInput: dayPlanRoutingInputSchema.nullable(),
 });
 export type DayPlanResponse = z.infer<typeof dayPlanResponseSchema>;
 
@@ -273,67 +256,3 @@ export const routeEtaAccuracyQuerySchema = z.object({
     .default(ROUTE_ETA_ACCURACY_DEFAULT_DAYS),
 });
 export type RouteEtaAccuracyQuery = z.infer<typeof routeEtaAccuracyQuerySchema>;
-
-// -----------------------------------------------------------------------------
-// Local reorder helpers (consumed by the PWA; L-F04-16 contract for Part B)
-// -----------------------------------------------------------------------------
-
-/**
- * Build an `OptimizerInput` from a plan response so the PWA can reorder stops
- * locally. Returns `null` when the plan has no `routingInput` (fewer than two
- * reorderable stops with coordinates, or after the next-day purge). `now` sets
- * `earliestDepartureS = max(now, routingInput.earliestDepartureAt)` for today.
- */
-export function toOptimizerInput(plan: DayPlanResponse, now: Date): OptimizerInput | null {
-  const ri = plan.routingInput;
-  if (!ri) return null;
-  const pointIndex = new Map(ri.points.map((p, i) => [p.key, i] as const));
-  const stops: OptimizerStop[] = [];
-  for (const stop of plan.stops) {
-    if (stop.executed || stop.lat === null || stop.lng === null) continue;
-    const matrixIndex = pointIndex.get(stop.appointmentId);
-    if (matrixIndex === undefined) continue;
-    stops.push({
-      key: stop.appointmentId,
-      windowStartS: Math.floor(Date.parse(toIso(stop.windowStartAt)) / 1000),
-      windowEndS: Math.floor(Date.parse(toIso(stop.windowEndAt)) / 1000),
-      serviceS: stop.durationMinutes * 60,
-      matrixIndex,
-    });
-  }
-  if (stops.length < 2) return null;
-  const originIndex = ri.originKey ? pointIndex.get(ri.originKey) ?? null : null;
-  const earliestFromPlan =
-    ri.earliestDepartureAt !== null ? Math.floor(Date.parse(toIso(ri.earliestDepartureAt)) / 1000) : null;
-  const earliestDepartureS =
-    earliestFromPlan !== null ? Math.max(Math.floor(now.getTime() / 1000), earliestFromPlan) : null;
-  return { stops, travelS: ri.travelS, originIndex, earliestDepartureS, weights: ri.weights };
-}
-
-/**
- * For each adjacent pair of the proposed `order` (origin → order[0], then
- * order[i-1] → order[i]), return the stored Directions leg duration when that
- * pair already existed in the saved order, else `null` so `evaluateSequence`
- * falls back to the Matrix. Position-indexed to match `evaluateSequence`'s
- * `legTravelS` (leg arriving at `order[i]`).
- */
-export function buildLegOverrides(
-  order: string[],
-  routingInput: DayPlanRoutingInput | null,
-): Array<number | null> {
-  if (!routingInput) return order.map(() => null);
-  const legMap = new Map(
-    routingInput.legTravelS.map((l) => [`${l.fromKey}\u0000${l.toKey}`, l.travelS] as const),
-  );
-  const overrides: Array<number | null> = [];
-  let prev: string | null = routingInput.originKey;
-  for (const key of order) {
-    overrides.push(prev !== null ? legMap.get(`${prev}\u0000${key}`) ?? null : null);
-    prev = key;
-  }
-  return overrides;
-}
-
-function toIso(value: string | Date): string {
-  return typeof value === 'string' ? value : value.toISOString();
-}

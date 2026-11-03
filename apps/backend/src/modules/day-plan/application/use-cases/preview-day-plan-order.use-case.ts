@@ -5,7 +5,6 @@ import { classifyStops, type ClassifiableStop } from '../../domain/classify-stop
 import type { IDayPlanInputReader } from '../../domain/day-plan-input.reader';
 import type { IDayPlanRepository } from '../../domain/day-plan.repository';
 import {
-  dayPlanAlreadyStarted,
   dayPlanNotFound,
   dayPlanNothingToReorder,
   dayPlanPreviewOrderMismatch,
@@ -62,8 +61,6 @@ export class PreviewDayPlanOrderUseCase {
     }));
     const { executed, reorderable } = classifyStops(classifiable);
 
-    // The day has started: the route continues from the last stop and cannot be reordered (L-F04-07).
-    if (executed.length > 0 && input.date <= todayCivil) throw dayPlanAlreadyStarted();
     if (input.basedOnVersion !== plan.version) throw dayPlanVersionConflict(plan.version);
 
     const reorderableIds = reorderable.map((s) => s.appointmentId);
@@ -81,16 +78,30 @@ export class PreviewDayPlanOrderUseCase {
         serviceMinutes: c.durationMinutes,
       };
     });
-    const origin =
-      plan.originSource !== 'NONE' && plan.originLat !== null && plan.originLng !== null
+    // A started day previews exactly what PUT /order would compute (F04-tarefas D18): the
+    // not-started tail is evaluated from the last executed stop (effective LAST_STOP origin),
+    // departing no earlier than that stop's end. Mirrors ComputeDayPlanUseCase.
+    const lastExecuted =
+      executed.length > 0 && input.date <= todayCivil ? byId.get(executed[executed.length - 1]!.appointmentId) ?? null : null;
+    const useLastStop = lastExecuted !== null && lastExecuted.lat !== null && lastExecuted.lng !== null;
+    const origin = useLastStop
+      ? { lat: lastExecuted.lat!, lng: lastExecuted.lng! }
+      : plan.originSource !== 'NONE' && plan.originLat !== null && plan.originLng !== null
         ? { lat: plan.originLat, lng: plan.originLng }
         : null;
+    let earliestDepartureAt: Date | null = null;
+    if (input.date === todayCivil) {
+      const endOfLast = lastExecuted
+        ? lastExecuted.finishedAt ??
+          (lastExecuted.startedAt ? new Date(lastExecuted.startedAt.getTime() + lastExecuted.durationMinutes * 60_000) : now)
+        : (plan.departureAt ?? now);
+      earliestDepartureAt = new Date(Math.max(now.getTime(), endOfLast.getTime()));
+    }
 
     const result = await this.planRoute.previewOrder({
       origin,
       stops,
-      earliestDepartureAt:
-        input.date === todayCivil ? new Date(Math.max(now.getTime(), (plan.departureAt ?? now).getTime())) : null,
+      earliestDepartureAt,
       weights: plan.weights as RouteWeights,
       order: input.appointmentIds,
       now,

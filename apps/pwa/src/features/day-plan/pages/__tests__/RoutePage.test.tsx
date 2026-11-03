@@ -17,32 +17,10 @@ vi.mock('../../components/RouteMapView', () => ({ default: () => <div data-testi
 
 const { A, B, C } = STOP_IDS;
 
-/** A plan whose routingInput covers all three stops, so reorder is enabled. */
+/** A plan with three not-started stops, so reorder is enabled. */
 function reorderablePlan() {
   const plan = buildDayPlan();
   return buildDayPlan({
-    routingInput: {
-      points: [
-        { key: 'origin', lat: -33.87, lng: 151.2 },
-        { key: A, lat: -33.8836, lng: 151.2108 },
-        { key: B, lat: -33.89, lng: 151.22 },
-        { key: C, lat: -33.87, lng: 151.19 },
-      ],
-      travelS: [
-        [0, 300, 900, 600],
-        [300, 0, 600, 1200],
-        [900, 600, 0, 400],
-        [600, 1200, 400, 0],
-      ],
-      originKey: 'origin',
-      earliestDepartureAt: null,
-      weights: { travel: 1, windowWait: 1, baseProximity: 1 },
-      legTravelS: [
-        { fromKey: 'origin', toKey: A, travelS: 300 },
-        { fromKey: A, toKey: B, travelS: 600 },
-        { fromKey: B, toKey: C, travelS: 400 },
-      ],
-    },
     ...{ stops: plan.stops },
   });
 }

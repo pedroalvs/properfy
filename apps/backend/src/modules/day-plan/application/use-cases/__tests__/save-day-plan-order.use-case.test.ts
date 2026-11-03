@@ -55,7 +55,7 @@ class InMemoryRepo implements IDayPlanRepository {
   async markStaleByInspector() { return 0; }
   async markNotified() {}
  
-  async getEtaAccuracySamples() { return []; } async clearStoredRouteData() { return 0; }
+  async getEtaAccuracySamples() { return []; }
   async loadPublishDue() { return []; }
   private rec(input: SaveDayPlanInput, id: string, version: number): DayPlanRecord {
     const stops: DayPlanStopRecord[] = input.stops.map((s) => ({
@@ -96,10 +96,8 @@ describe('SaveDayPlanOrderUseCase', () => {
     expect(res.stops.map((s) => s.appointmentId)).toEqual(order);
     expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'day_plan.reordered', entityType: 'DayPlan' }));
     // Plan B: reorder persists no routing result but the response still carries on-demand geometry.
-    expect(repo.lastSaved).not.toHaveProperty('routingMatrix');
-    expect(repo.lastSaved).not.toHaveProperty('routeGeometry');
     expect(res.geometry).not.toBeNull();
-    expect(res.routingInput).not.toBeNull();
+    expect(res).not.toHaveProperty('routingInput');
   });
 
   it('409s on a stale basedOnVersion', async () => {
