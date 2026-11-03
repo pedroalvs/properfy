@@ -35,6 +35,7 @@ function preview(overrides: Partial<ReorderPreviewView> = {}): ReorderPreviewVie
   return {
     status: 'READY',
     reason: null,
+    approximate: false,
     finishMs: Date.parse('2026-11-04T23:47:00.000Z'),
     deltaMin: 12,
     driveS: 3300,
@@ -61,6 +62,14 @@ describe('RouteSummary (F04 Plan B preview)', () => {
       />,
     );
     expect(screen.getByText(/would arrive after its window/)).toBeInTheDocument();
+  });
+
+  it('flags a degraded (approximate) preview as estimates while still showing the numbers', () => {
+    renderWithProviders(
+      <RouteSummary plan={buildDayPlan()} draft={draft()} preview={preview({ approximate: true })} />,
+    );
+    expect(screen.getByText(/Finish ~/)).toBeInTheDocument();
+    expect(screen.getByText('Approximate route: travel times are estimates')).toBeInTheDocument();
   });
 
   it('shows an updating state while the preview is loading', () => {

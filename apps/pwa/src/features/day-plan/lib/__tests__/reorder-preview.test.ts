@@ -128,6 +128,25 @@ describe('buildReorderPreviewView', () => {
     expect(view.etaByAppointmentId[A]).toBe(Date.parse('2026-11-04T22:00:00.000Z'));
   });
 
+  it('flags the view approximate when the draft preview degraded to the stub (200 approximate)', () => {
+    const approx = success(response({ approximate: true, approximateReason: 'RATE_LIMITED' }));
+    const view = buildReorderPreviewView({ online: true, draft: approx, suggested: null, sameAsSuggested: true });
+    expect(view.status).toBe('READY');
+    expect(view.approximate).toBe(true);
+  });
+
+  it('flags the view approximate when only the suggested baseline degraded', () => {
+    const approxSuggested = success(response({ approximate: true, approximateReason: 'PROVIDER_ERROR' }));
+    const view = buildReorderPreviewView({ online: true, draft, suggested: approxSuggested, sameAsSuggested: false });
+    expect(view.status).toBe('READY');
+    expect(view.approximate).toBe(true);
+  });
+
+  it('is not approximate when both previews are exact', () => {
+    const view = buildReorderPreviewView({ online: true, draft, suggested: null, sameAsSuggested: true });
+    expect(view.approximate).toBe(false);
+  });
+
   it('success with a suggested baseline → READY with a computed delta', () => {
     const suggested = success(response({ finishEta: '2026-11-04T23:18:00.000Z' })); // 12 min earlier
     const view = buildReorderPreviewView({ online: true, draft, suggested, sameAsSuggested: false });

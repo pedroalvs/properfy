@@ -18,6 +18,7 @@ function previewView(overrides: Partial<ReorderPreviewView> = {}): ReorderPrevie
   return {
     status: 'READY',
     reason: null,
+    approximate: false,
     finishMs: Date.parse('2026-11-04T23:35:00.000Z'),
     deltaMin: 0,
     driveS: 1800,

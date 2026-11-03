@@ -54,6 +54,13 @@ export function RouteSummary({ plan, draft, preview, onReset }: RouteSummaryProp
     <div className="flex flex-col gap-1">
       {primary && <p className="text-sm font-semibold text-foreground">{primary}</p>}
 
+      {/* The server degraded to the straight-line stub — the numbers are estimates (matches the GET banner). */}
+      {ready && preview!.approximate && (
+        <p className="text-xs text-muted-foreground" role="status">
+          Approximate route: travel times are estimates
+        </p>
+      )}
+
       {/* Manual order, preview pending or unavailable: say so, never show stale numbers as final. */}
       {manualContext && preview?.status === 'LOADING' && (
         <p className="text-xs text-muted-foreground" role="status">

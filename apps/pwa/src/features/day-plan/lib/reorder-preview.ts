@@ -30,6 +30,13 @@ export interface PreviewSlice {
 export interface ReorderPreviewView {
   status: PreviewStatus;
   reason: PreviewReason | null;
+  /**
+   * True when the server degraded to the straight-line stub for the draft or the
+   * suggested baseline (`approximate: true`, e.g. Mapbox rate-limit / provider
+   * error returned as 200). The numbers still render, flagged as estimates — the
+   * same contract the GET path honours — never as authoritative MATRIX times.
+   */
+  approximate: boolean;
   /** Finish epoch-ms of the draft order (null unless READY with a finish). */
   finishMs: number | null;
   /** `round((draftFinish − suggestedFinish) / 60000)`; null when not derivable. */
@@ -44,6 +51,7 @@ export interface ReorderPreviewView {
 const EMPTY_VIEW: ReorderPreviewView = {
   status: 'IDLE',
   reason: null,
+  approximate: false,
   finishMs: null,
   deltaMin: null,
   driveS: 0,
@@ -176,9 +184,13 @@ export function buildReorderPreviewView(args: {
       : null
     : computeDeltaMin(draftFinishMs, suggestedFinishMs);
 
+  const suggestedApproximate =
+    !sameAsSuggested && suggested?.phase === 'SUCCESS' ? (suggested.data?.approximate ?? false) : false;
+
   return {
     status: 'READY',
     reason: null,
+    approximate: draft.data.approximate || suggestedApproximate,
     finishMs: draftFinishMs,
     deltaMin,
     driveS: draft.data.totals.driveS,

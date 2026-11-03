@@ -42,6 +42,7 @@ function makeDraft(overrides: Partial<ReorderDraft> = {}): ReorderDraft {
 const preview: ReorderPreviewView = {
   status: 'READY',
   reason: null,
+  approximate: false,
   finishMs: Date.parse('2026-11-04T23:35:00.000Z'),
   deltaMin: 12,
   driveS: 3300,

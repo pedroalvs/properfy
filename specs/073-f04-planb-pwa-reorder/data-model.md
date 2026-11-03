@@ -19,6 +19,10 @@ contracts and introduces one client-only view model.
 - **ReorderPreviewView**:
   - `status: 'IDLE' | 'LOADING' | 'READY' | 'UNAVAILABLE'`
     - `UNAVAILABLE` carries a `reason: 'OFFLINE' | 'STARTED' | 'RATE_LIMIT' | 'ERROR'`.
+  - `approximate: boolean` — true when the server degraded to the straight-line stub
+    (`approximate: true` on a 200, e.g. Mapbox rate-limit/provider error, for the draft
+    or the suggested baseline). The numbers still render, flagged as estimates (matching
+    the GET path's `plan.approximate` banner), never as authoritative MATRIX times.
   - `finishMs: number | null` (from `finishEta`)
   - `deltaMin: number | null` (draft finish − suggested finish, both MATRIX; `null` when either
     is unavailable or the started-day/offline case hides it)
