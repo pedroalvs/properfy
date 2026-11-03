@@ -72,11 +72,14 @@ describe('RouteSummary (F04 Plan B preview)', () => {
     expect(screen.getByText('Approximate route: travel times are estimates')).toBeInTheDocument();
   });
 
-  it('shows an updating state while the preview is loading', () => {
+  it('shows an updating state while a dirty draft preview is loading, and does NOT show the saved finish as final', () => {
     renderWithProviders(
-      <RouteSummary plan={buildDayPlan()} draft={draft()} preview={preview({ status: 'LOADING' })} />,
+      <RouteSummary plan={buildDayPlan()} draft={draft({ isDirty: true })} preview={preview({ status: 'LOADING' })} />,
     );
     expect(screen.getByText('Updating route times…')).toBeInTheDocument();
+    // The saved order's finish (10:35 am, no "~") must not be presented as final for the edited order.
+    expect(screen.queryByText(/Finish 10:35 am/)).toBeNull();
+    expect(screen.queryByText(/driving/)).toBeNull();
   });
 
   it('degrades gracefully when the preview is unavailable offline', () => {

@@ -31,6 +31,11 @@ export function RouteSummary({ plan, draft, preview, onReset }: RouteSummaryProp
   const showReset = !!onReset && (!!draft?.isDirty || plan.manualOrder);
 
   const ready = manualContext && preview?.status === 'READY';
+  // A dirty draft whose preview has not resolved: the saved plan's finish belongs to a
+  // different order than the one on screen, so suppress it rather than show it as final
+  // (the "Updating…"/unavailable note carries the state). Non-dirty totals are the saved
+  // order's own and stay visible.
+  const dirtyPending = !!draft?.isDirty && !ready;
   const localMessages =
     ready && draft ? toViolationMessages(plan, draft.displayOrder, preview!.violations) : [];
   const serverLateCount = plan.violations.length;
@@ -43,12 +48,14 @@ export function RouteSummary({ plan, draft, preview, onReset }: RouteSummaryProp
       ]
         .filter(Boolean)
         .join(' · ')
-    : [
-        totals.driveS ? `${formatDriveDuration(totals.driveS)} driving` : '',
-        plan.finishEta ? `Finish ${formatInstantTime(plan.finishEta, plan.timezone)}` : '',
-      ]
-        .filter(Boolean)
-        .join(' · ');
+    : dirtyPending
+      ? ''
+      : [
+          totals.driveS ? `${formatDriveDuration(totals.driveS)} driving` : '',
+          plan.finishEta ? `Finish ${formatInstantTime(plan.finishEta, plan.timezone)}` : '',
+        ]
+          .filter(Boolean)
+          .join(' · ');
 
   return (
     <div className="flex flex-col gap-1">
