@@ -120,6 +120,7 @@ describe('registerWorkers', () => {
       { execute: vi.fn().mockResolvedValue(undefined) } as any, // autoArchiveInspectorNoticesUseCase
       { execute: vi.fn().mockResolvedValue(undefined) } as any, // sendCompletionRemindersUseCase
       { execute: vi.fn().mockResolvedValue({ continuation: false }) } as any, // publishDayPlansUseCase
+      { execute: vi.fn().mockResolvedValue({ cleared: 0 }) } as any, // clearStoredRouteDataUseCase
       mockLogger,
     );
   }
