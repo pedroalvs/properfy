@@ -72,14 +72,18 @@ class FakeReader implements IDayPlanInputReader {
 class InMemoryRepo implements IDayPlanRepository {
   private store = new Map<string, DayPlanRecord>();
   saveCalls = 0;
+  lastSaved: SaveDayPlanInput | null = null;
 
   private key(inspectorId: string, date: string) { return `${inspectorId}:${date}`; }
+
+  forceRecord(rec: DayPlanRecord): void { this.store.set(this.key(rec.inspectorId, rec.planDate), rec); }
 
   async findByInspectorAndDate(inspectorId: string, planDate: string): Promise<DayPlanRecord | null> {
     return this.store.get(this.key(inspectorId, planDate)) ?? null;
   }
   async saveComputed(input: SaveDayPlanInput): Promise<DayPlanRecord | null> {
     this.saveCalls++;
+    this.lastSaved = input;
     const key = this.key(input.inspectorId, input.planDate);
     const current = this.store.get(key);
     if (input.expectedVersion === null) {
@@ -107,7 +111,7 @@ class InMemoryRepo implements IDayPlanRepository {
   async markStaleByAppointmentIds(): Promise<number> { return 0; }
   async markStaleByInspector(): Promise<number> { return 0; }
   async markNotified(): Promise<void> {}
-  async purgePastRouteData(): Promise<number> { return 0; }
+ 
   async getEtaAccuracySamples() { return []; }
   async loadPublishDue() { return []; }
 
@@ -176,10 +180,9 @@ class InMemoryRepo implements IDayPlanRepository {
       matrixProfile: input.matrixProfile,
       approximate: input.approximate,
       approximateReason: input.approximateReason,
-      routeGeometry: input.routeGeometry,
-      routingMatrix: input.routingMatrix,
-      legTravel: input.legTravel,
-      geometryPurgedAt: null,
+      routeGeometry: null,
+      routingMatrix: null,
+      legTravel: null,
       stops,
     };
   }
@@ -232,5 +235,68 @@ describe('GetMyDayPlanUseCase', () => {
     const res = await makeUseCase(reader, repo).execute({ inspectorId: INSPECTOR_ID, date: DATE });
     expect(res.origin.source).toBe('NONE');
     expect(res.originWarning).toBe('NO_BASE');
+  });
+
+  it('recomputes geometry and routingInput on demand while persisting no routing result (01.A1/01.A3, Plan B)', async () => {
+    const uc = makeUseCase(reader, repo);
+    await uc.execute({ inspectorId: INSPECTOR_ID, date: DATE });
+    expect(repo.lastSaved).not.toHaveProperty('routeGeometry');
+    expect(repo.lastSaved).not.toHaveProperty('routingMatrix');
+    expect(repo.lastSaved).not.toHaveProperty('legTravel');
+
+    // Second open returns the stored (fresh) plan: geometry is still recomputed.
+    const res = await uc.execute({ inspectorId: INSPECTOR_ID, date: DATE });
+    expect(res.geometry).not.toBeNull();
+    expect(res.geometry!.features.length).toBe(2); // origin->first, first->second
+    expect(res.routingInput).not.toBeNull();
+    expect(res.routingInput!.points.map((p) => p.key)).toContain('origin');
+    expect(res.routingInput!.legTravelS).toHaveLength(2);
+  });
+
+  it('degrades to approximate geometry (never 5xx) when the provider is unavailable (D6)', async () => {
+    const stub = new StubRoutingService();
+    const failing = {
+      matrix: vi.fn().mockRejectedValue(new Error('boom')),
+      directions: vi.fn().mockRejectedValue(new Error('boom')),
+    };
+    const planRoute = new PlanRouteService(failing as never, stub, logger(), new MetricsCollector());
+    const compute = new ComputeDayPlanUseCase(reader, repo, planRoute, settings as never, logger(), clock);
+    const uc = new GetMyDayPlanUseCase(reader, repo, compute, clock);
+    await uc.execute({ inspectorId: INSPECTOR_ID, date: DATE });
+    const res = await uc.execute({ inspectorId: INSPECTOR_ID, date: DATE });
+    expect(res.geometry).not.toBeNull();
+    expect(res.geometry!.features.every((f) => f.properties.approximate)).toBe(true);
+  });
+
+  it('propagates approximate/approximateReason from the on-demand recompute (rate-limited stub fallback)', async () => {
+    const stub = new StubRoutingService();
+    const planRoute = new PlanRouteService(stub, stub, logger(), new MetricsCollector());
+    const compute = new ComputeDayPlanUseCase(reader, repo, planRoute, settings as never, logger(), clock);
+    const uc = new GetMyDayPlanUseCase(reader, repo, compute, clock);
+    await uc.execute({ inspectorId: INSPECTOR_ID, date: DATE }); // stored record: approximate=false after a real... stub run
+    const stored = await repo.findByInspectorAndDate(INSPECTOR_ID, DATE);
+    repo.forceRecord({ ...stored!, approximate: false, approximateReason: null });
+    vi.spyOn(compute, 'routingFor').mockResolvedValue({
+      geometry: null, matrix: null, legs: [], approximate: true, approximateReason: 'RATE_LIMITED',
+    });
+    const res = await uc.execute({ inspectorId: INSPECTOR_ID, date: DATE });
+    expect(res.approximate).toBe(true);
+    expect(res.approximateReason).toBe('RATE_LIMITED');
+  });
+
+  it('does not recompute routing for a past date (immutable history: geometry null)', async () => {
+    const uc = makeUseCase(reader, repo);
+    await uc.execute({ inspectorId: INSPECTOR_ID, date: DATE });
+    const later = new Date('2026-11-07T00:00:00.000Z'); // DATE is now in the past (Sydney)
+    const stub = new StubRoutingService();
+    const planRoute = new PlanRouteService(stub, stub, logger(), new MetricsCollector());
+    const compute = new ComputeDayPlanUseCase(reader, repo, planRoute, settings as never, logger(), clock);
+    const spy = vi.spyOn(compute, 'routingFor');
+    const computeSpy = vi.spyOn(planRoute, 'compute');
+    const res = await new GetMyDayPlanUseCase(reader, repo, compute, clock).execute({ inspectorId: INSPECTOR_ID, date: DATE, now: later });
+    expect(res.geometry).toBeNull();
+    expect(res.routingInput).toBeNull();
+    expect(spy).not.toHaveBeenCalled();
+    expect(computeSpy).not.toHaveBeenCalled();
   });
 });

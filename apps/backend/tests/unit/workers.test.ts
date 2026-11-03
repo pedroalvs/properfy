@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockWork, mockSchedule } = vi.hoisted(() => ({
+const { mockWork, mockSchedule, mockUnschedule } = vi.hoisted(() => ({
   mockWork: vi.fn(),
   mockSchedule: vi.fn(),
+  mockUnschedule: vi.fn(),
 }));
 
 vi.mock('../../src/shared/infrastructure/queue', () => ({
-  getQueue: vi.fn().mockResolvedValue({ work: mockWork, schedule: mockSchedule }),
+  getQueue: vi.fn().mockResolvedValue({ work: mockWork, schedule: mockSchedule, unschedule: mockUnschedule }),
   resolvePgBossSchema: vi.fn().mockReturnValue('pgboss'),
   assertQueueDbConsistency: vi.fn(),
 }));
@@ -119,7 +120,6 @@ describe('registerWorkers', () => {
       { execute: vi.fn().mockResolvedValue(undefined) } as any, // autoArchiveInspectorNoticesUseCase
       { execute: vi.fn().mockResolvedValue(undefined) } as any, // sendCompletionRemindersUseCase
       { execute: vi.fn().mockResolvedValue({ continuation: false }) } as any, // publishDayPlansUseCase
-      { execute: vi.fn().mockResolvedValue({ purged: 0 }) } as any, // purgeDayPlanRouteDataUseCase
       mockLogger,
     );
   }
@@ -131,9 +131,8 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(28);
+    expect(mockWork).toHaveBeenCalledTimes(27);
     expect(mockWork).toHaveBeenCalledWith('day-plan.publish', { teamSize: 1, teamConcurrency: 1 }, expect.any(Function));
-    expect(mockWork).toHaveBeenCalledWith('day-plan.purge-route-data', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('fy.webhook.deliver', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('inspector-notice.deliver', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
@@ -159,9 +158,8 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
     // All recurring jobs are anchored to the platform timezone (Sydney).
     const sydneyTz = { tz: 'Australia/Sydney' };
-    expect(mockSchedule).toHaveBeenCalledTimes(21);
+    expect(mockSchedule).toHaveBeenCalledTimes(20);
     expect(mockSchedule).toHaveBeenCalledWith('day-plan.publish', '30 * * * *', {}, expect.objectContaining(sydneyTz));
-    expect(mockSchedule).toHaveBeenCalledWith('day-plan.purge-route-data', '45 3 * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('inspector-notice.delivery-sweep', '*/5 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('inspector-notice.auto-archive', '45 3 * * *', {}, sydneyTz);

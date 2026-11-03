@@ -80,7 +80,7 @@ export class SaveDayPlanOrderUseCase {
     if (input.basedOnVersion !== plan.version) {
       // Idempotent replay: the saved manual order already equals the request.
       if (plan.manualOrder && sameOrder(storedOrder, input.appointmentIds)) {
-        return this.build(plan, candidates, inspector, now, input.date === todayCivil);
+        return await this.build(plan, candidates, inspector, now, input.date === todayCivil);
       }
       throw dayPlanVersionConflict(plan.version);
     }
@@ -110,16 +110,17 @@ export class SaveDayPlanOrderUseCase {
       metadata: { feasible: record.feasible, lateS: record.totalLateS, date: input.date },
     });
 
-    return this.build(record, candidates, inspector, now, input.date === todayCivil);
+    return await this.build(record, candidates, inspector, now, input.date === todayCivil);
   }
 
-  private build(
+  private async build(
     record: DayPlanRecord,
     candidates: Awaited<ReturnType<IDayPlanInputReader['loadCandidates']>>,
     inspector: NonNullable<Awaited<ReturnType<IDayPlanInputReader['loadInspectorContext']>>>,
     now: Date,
     isToday: boolean,
-  ): DayPlanResponse {
-    return buildDayPlanResponse(record, candidates, inspector, now, isToday);
+  ): Promise<DayPlanResponse> {
+    const routing = await this.compute.routingFor(record, now, isToday);
+    return buildDayPlanResponse(record, candidates, inspector, now, isToday, routing);
   }
 }

@@ -130,6 +130,8 @@ export class RecalculateDayPlanUseCase {
       });
     }
 
-    return buildDayPlanResponse(record, candidates, inspector, now, input.date === todayCivil);
+    const isToday = input.date === todayCivil;
+    const routing = await this.compute.routingFor(record, now, isToday);
+    return buildDayPlanResponse(record, candidates, inspector, now, isToday, routing);
   }
 }

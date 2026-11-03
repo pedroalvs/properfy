@@ -1,7 +1,7 @@
 /**
  * Real-Postgres test for the day-plan repository SQL surface a mock cannot
  * validate: optimistic CAS on `saveComputed`, the L-F04-04 status-join filter,
- * the timezone-correct STALE marking, and the route-data purge.
+ * the timezone-correct STALE marking, and the no-routing-result-persistence guarantee.
  */
 import { randomUUID } from 'node:crypto';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -84,9 +84,6 @@ function planInput(over: Partial<SaveDayPlanInput> = {}): SaveDayPlanInput {
     matrixProfile: 'haversine',
     approximate: true,
     approximateReason: 'NO_PROVIDER',
-    routeGeometry: { type: 'FeatureCollection', features: [] },
-    routingMatrix: { provider: 'STUB', profile: 'haversine', points: [], travelS: [] },
-    legTravel: [{ fromKey: 'origin', toKey: seed.apptA, travelS: 600 }],
     stops: [stop(seed.apptA, 1), stop(seed.apptB, 2)],
     ...over,
   };
@@ -205,18 +202,21 @@ describe('PrismaDayPlanRepository (real DB)', () => {
     await harness.prisma.cronJobRun.deleteMany({ where: { job_name: 'day-plan.publish' } });
   });
 
-  it('purges route data of past plans only', async () => {
-    // A genuinely past-dated plan with stored geometry/matrix.
+  it('never persists routing results (Plan B: route_geometry / routing_matrix_json / leg_travel_json stay NULL)', async () => {
     await repo.saveComputed(planInput({ planDate: '2020-01-01', suggestedOrder: [seed.apptA], stops: [stop(seed.apptA, 1)] }));
-    const touched = await repo.purgePastRouteData(todayCivilSydney());
-    expect(touched).toBeGreaterThanOrEqual(1);
-    const past = await repo.findByInspectorAndDate(seed.inspectorId, '2020-01-01');
-    expect(past!.routeGeometry).toBeNull();
-    expect(past!.routingMatrix).toBeNull();
-    expect(past!.geometryPurgedAt).not.toBeNull();
-    // A future plan keeps its geometry.
-    const future = await repo.findByInspectorAndDate(seed.inspectorId, '2026-11-05');
-    expect(future!.routeGeometry).not.toBeNull();
+    const rows = await harness.prisma.$queryRaw<
+      Array<{ g: unknown; m: unknown; l: unknown }>
+    >`SELECT route_geometry AS g, routing_matrix_json AS m, leg_travel_json AS l FROM day_plans WHERE plan_date = '2020-01-01'::date`;
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+    for (const r of rows) {
+      expect(r.g).toBeNull();
+      expect(r.m).toBeNull();
+      expect(r.l).toBeNull();
+    }
+    const read = await repo.findByInspectorAndDate(seed.inspectorId, '2020-01-01');
+    expect(read!.routeGeometry).toBeNull();
+    expect(read!.routingMatrix).toBeNull();
+    expect(read!.legTravel).toBeNull();
   });
 
   // Test 28 (L-F04-15 / FR-014): the metric query measures |check-in − frozen

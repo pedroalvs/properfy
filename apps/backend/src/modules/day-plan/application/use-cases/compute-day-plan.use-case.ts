@@ -8,6 +8,7 @@ import type { Clock } from '../../../../shared/domain/clock';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { IPlatformSettingsReader } from '../../../../shared/domain/platform-settings';
 import { civilDateInTimezone } from '../../../../shared/domain/timezone-date';
+import { recomputeRoutingForRecord, type OnDemandRouting } from '../recompute-routing';
 import {
   classifyStops,
   type ClassifiableStop,
@@ -26,7 +27,6 @@ import type {
 import {
   type PlanRouteMode,
   type PlanRouteStopInput,
-  type StoredRoutingMatrix,
 } from '../services/plan-route.service';
 
 export interface ComputeDayPlanInput {
@@ -75,6 +75,11 @@ export class ComputeDayPlanUseCase {
       if (!inspector) throw new Error('INSPECTOR_NOT_FOUND');
     }
     return latest as DayPlanRecord;
+  }
+
+  /** On-demand geometry/matrix/legs for a stored plan's response (Plan B: never persisted). */
+  routingFor(record: DayPlanRecord, now: Date, isToday: boolean): Promise<OnDemandRouting> {
+    return recomputeRoutingForRecord(this.planRoute, record, now, isToday);
   }
 
   private async computeAndSave(
@@ -160,7 +165,6 @@ export class ComputeDayPlanUseCase {
       earliestDepartureAt,
       weights: weights as RouteWeights,
       mode,
-      cachedMatrix: input.trigger === 'REORDER' ? (existing?.routingMatrix as StoredRoutingMatrix | undefined) : undefined,
       interactive: input.trigger !== 'SCHEDULED_PUBLISH',
       strict: input.trigger === 'SCHEDULED_PUBLISH' && (input.attempt ?? 1) < 3,
       now,
@@ -227,9 +231,6 @@ export class ComputeDayPlanUseCase {
       matrixProfile: result.matrixProfile,
       approximate: result.approximate,
       approximateReason: result.approximateReason,
-      routeGeometry: result.geometry,
-      routingMatrix: result.matrix,
-      legTravel: result.legs.map((l) => ({ fromKey: l.fromKey, toKey: l.toKey, travelS: l.travelS })),
       stops,
     };
 

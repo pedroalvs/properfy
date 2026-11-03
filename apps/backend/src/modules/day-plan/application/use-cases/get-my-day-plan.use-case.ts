@@ -48,7 +48,10 @@ export class GetMyDayPlanUseCase {
     const record = await this.resolveRecord(input, plan, inspector, now, { isToday, isPast, windowOpen }, candidates);
     const freshCandidates =
       record === plan ? candidates : await this.reader.loadCandidates(input.inspectorId, input.date, todayCivil);
-    return buildDayPlanResponse(record, freshCandidates, inspector, now, isToday);
+    // Plan B: geometry/matrix/legs are never stored; recompute them on demand for the response.
+    // Past days are immutable history: no recompute (no Mapbox call), geometry stays null.
+    const routing = isPast ? undefined : await this.compute.routingFor(record, now, isToday);
+    return buildDayPlanResponse(record, freshCandidates, inspector, now, isToday, routing);
   }
 
   private async resolveRecord(

@@ -191,6 +191,37 @@ export const routeWeightsPreviewResponseSchema = z.object({
 });
 export type RouteWeightsPreviewResponse = z.infer<typeof routeWeightsPreviewResponseSchema>;
 
+/** Response of `POST /v1/inspector/day-plans/:date/order/preview` — matrix ETAs of a candidate order, nothing persisted. */
+export const previewDayPlanOrderResponseSchema = z.object({
+  etaSource: z.literal('MATRIX'),
+  approximate: z.boolean(),
+  approximateReason: z
+    .enum(['NO_PROVIDER', 'RATE_LIMITED', 'PROVIDER_ERROR', 'DEADLINE', 'TOO_MANY_COORDINATES', 'NO_ROUTE'])
+    .nullable(),
+  departureAt: instantStrNullable(),
+  finishEta: instantStrNullable(),
+  totals: z.object({
+    driveS: z.number().int(),
+    waitS: z.number().int(),
+    serviceS: z.number().int(),
+    lateS: z.number().int(),
+    distanceM: z.number().int().nullable(),
+  }),
+  feasible: z.boolean(),
+  violations: z.array(z.object({ appointmentId: z.string().uuid(), lateS: z.number().int() })),
+  stops: z.array(
+    z.object({
+      appointmentId: z.string().uuid(),
+      sequence: z.number().int(),
+      eta: instantStrNullable(),
+      travelS: z.number().int(),
+      waitS: z.number().int(),
+      lateS: z.number().int(),
+    }),
+  ),
+});
+export type PreviewDayPlanOrderResponse = z.infer<typeof previewDayPlanOrderResponseSchema>;
+
 export const routeEtaAccuracySchema = z.object({
   from: civilDateStr(),
   to: civilDateStr(),
@@ -216,6 +247,9 @@ export const saveDayPlanOrderRequestSchema = z.object({
   basedOnVersion: z.number().int().min(1),
 });
 export type SaveDayPlanOrderRequest = z.infer<typeof saveDayPlanOrderRequestSchema>;
+
+export const previewDayPlanOrderRequestSchema = saveDayPlanOrderRequestSchema;
+export type PreviewDayPlanOrderRequest = z.infer<typeof previewDayPlanOrderRequestSchema>;
 
 export const setDayPlanOriginRequestSchema = z.object({ address: inspectorBaseAddressSchema });
 export type SetDayPlanOriginRequest = z.infer<typeof setDayPlanOriginRequestSchema>;

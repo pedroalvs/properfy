@@ -134,8 +134,9 @@ describe('day-plan publish E2E (real DB, stub router)', () => {
       expect(s.eta).not.toBeNull();
       expect(s.publishedEta).not.toBeNull();
     }
-    expect(plan!.routeGeometry?.type).toBe('FeatureCollection');
-    expect(plan!.routeGeometry!.features.length).toBeGreaterThan(0);
+    // Plan B: routing results are not persisted; the response path recomputes them on demand.
+    const stored = await harness.prisma.$queryRaw<Array<{ g: unknown }>>`SELECT route_geometry AS g FROM day_plans WHERE id = ${plan!.id}`;
+    expect(stored[0]!.g).toBeNull();
     expect(plan!.approximate).toBe(true);
     expect(plan!.approximateReason).toBe('NO_PROVIDER');
 

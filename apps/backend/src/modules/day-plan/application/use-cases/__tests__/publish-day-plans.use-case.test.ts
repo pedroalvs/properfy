@@ -90,7 +90,7 @@ function makeRecord(id: string, inspectorId: string, over: Partial<DayPlanRecord
     routeGeometry: null,
     routingMatrix: null,
     legTravel: null,
-    geometryPurgedAt: null,
+   
     stops: [stop('a-1', 1), stop('a-2', 2), stop('a-3', 3)],
   };
   return { ...defaults, ...over };

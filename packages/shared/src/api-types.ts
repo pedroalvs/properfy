@@ -11160,6 +11160,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspector/day-plans/{date}/order/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                        basedOnVersion: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** @enum {string} */
+                                etaSource: "MATRIX";
+                                approximate: boolean;
+                                /** @enum {string|null} */
+                                approximateReason: "NO_PROVIDER" | "RATE_LIMITED" | "PROVIDER_ERROR" | "DEADLINE" | "TOO_MANY_COORDINATES" | "NO_ROUTE" | null;
+                                departureAt: (string) | null;
+                                finishEta: (string) | null;
+                                totals: {
+                                    driveS: number;
+                                    waitS: number;
+                                    serviceS: number;
+                                    lateS: number;
+                                    distanceM: number | null;
+                                };
+                                feasible: boolean;
+                                violations: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    lateS: number;
+                                }[];
+                                stops: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    sequence: number;
+                                    eta: (string) | null;
+                                    travelS: number;
+                                    waitS: number;
+                                    lateS: number;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/inspector/day-plans/{date}/origin": {
         parameters: {
             query?: never;

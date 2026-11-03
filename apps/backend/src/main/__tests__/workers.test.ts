@@ -15,6 +15,7 @@ const mockBoss = {
   work: vi.fn().mockResolvedValue(undefined),
   schedule: vi.fn().mockResolvedValue(undefined),
   send: vi.fn().mockResolvedValue(undefined),
+  unschedule: vi.fn().mockResolvedValue(undefined),
 };
 
 vi.mock('../../shared/infrastructure/queue', () => ({
@@ -80,7 +81,6 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // autoArchiveInspectorNoticesUseCase
     makeWorkerMock() as any,   // sendCompletionRemindersUseCase
     makeWorkerMock() as any,   // publishDayPlansUseCase
-    { execute: vi.fn().mockResolvedValue({ purged: 0 }) } as any, // purgeDayPlanRouteDataUseCase
     logger as any,
   );
 }
@@ -115,9 +115,15 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
     // day-plan.publish carries extra send options (singletonKey, expireInMinutes), so it
     // is asserted with objectContaining below rather than an exact { tz } match.
     ['day-plan.publish', '30 * * * *'],
-    ['day-plan.purge-route-data', '45 3 * * *'],
     ['system.dlq-monitor', '*/5 * * * *'],
   ];
+
+  it('retires the removed day-plan purge cron (F04 Plan B)', async () => {
+    await callRegisterWorkers(makeLogger());
+
+    expect(mockBoss.unschedule).toHaveBeenCalledWith('day-plan.purge-route-data');
+    expect(mockBoss.work).not.toHaveBeenCalledWith('day-plan.purge-route-data', expect.anything());
+  });
 
   it('schedules every cron with the expected expression and tz Australia/Sydney', async () => {
     await callRegisterWorkers(makeLogger());

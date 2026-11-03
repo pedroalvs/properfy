@@ -3,7 +3,16 @@ import {
   DomainError,
   NotFoundError,
   UnprocessableEntityError,
+  ValidationError,
 } from '../../../shared/domain/errors';
+
+/** 400 — the candidate order does not match the plan's reorderable stops (preview). */
+export const dayPlanPreviewOrderMismatch = (expectedAppointmentIds: string[]): ValidationError =>
+  new ValidationError("The stops don't match this route", { expectedAppointmentIds }, 'DAY_PLAN_ORDER_MISMATCH');
+
+/** 409 — fewer than two reorderable stops: nothing to reorder/preview. */
+export const dayPlanNothingToReorder = (): ConflictError =>
+  new ConflictError('DAY_PLAN_NOTHING_TO_REORDER', 'There are not enough remaining stops to reorder');
 
 /** 404 — a plan exists for neither today nor a past day. */
 export const dayPlanNotFound = (): NotFoundError =>

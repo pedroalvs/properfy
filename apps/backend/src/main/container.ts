@@ -492,10 +492,10 @@ import { GetDayPlanForOperatorUseCase } from '../modules/day-plan/application/us
 import { SaveDayPlanOrderUseCase } from '../modules/day-plan/application/use-cases/save-day-plan-order.use-case';
 import { RecalculateDayPlanUseCase } from '../modules/day-plan/application/use-cases/recalculate-day-plan.use-case';
 import { PublishDayPlansUseCase } from '../modules/day-plan/application/use-cases/publish-day-plans.use-case';
-import { PurgeDayPlanRouteDataUseCase } from '../modules/day-plan/application/use-cases/purge-day-plan-route-data.use-case';
 import { GetRouteEtaAccuracyUseCase } from '../modules/day-plan/application/use-cases/get-route-eta-accuracy.use-case';
 import { GetDayPlanSheetUseCase } from '../modules/day-plan/application/use-cases/get-day-plan-sheet.use-case';
 import { PreviewRouteWeightsUseCase } from '../modules/day-plan/application/use-cases/preview-route-weights.use-case';
+import { PreviewDayPlanOrderUseCase } from '../modules/day-plan/application/use-cases/preview-day-plan-order.use-case';
 import {
   DayPlanSheetRenderer,
   PdfKitDayPlanSheetGenerator,
@@ -572,7 +572,6 @@ export interface AppContainer {
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
   sendCompletionRemindersUseCase: SendCompletionRemindersUseCase;
   publishDayPlansUseCase: PublishDayPlansUseCase;
-  purgeDayPlanRouteDataUseCase: PurgeDayPlanRouteDataUseCase;
   auditRetentionWorker: AuditRetentionWorker;
   rejectUnconfirmedWorker: RejectUnconfirmedWorker;
   cancelOverdueWorker: CancelOverdueWorker;
@@ -1151,10 +1150,12 @@ export function createContainer(logger: Logger): AppContainer {
     dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, publishSystemInspectorNoticeUseCase,
     auditService, metrics, logger, dayPlanClock,
   );
-  const purgeDayPlanRouteDataUseCase = new PurgeDayPlanRouteDataUseCase(dayPlanRepo, logger, dayPlanClock);
   const getRouteEtaAccuracyUseCase = new GetRouteEtaAccuracyUseCase(dayPlanRepo, dayPlanClock);
   const previewRouteWeightsUseCase = new PreviewRouteWeightsUseCase(
     dayPlanInputReader, planRouteService, platformSettingsService, authorizationService, dayPlanClock,
+  );
+  const previewDayPlanOrderUseCase = new PreviewDayPlanOrderUseCase(
+    dayPlanInputReader, dayPlanRepo, planRouteService, dayPlanClock,
   );
   const getDayPlanSheetUseCase = new GetDayPlanSheetUseCase(
     getMyDayPlanUseCase,
@@ -1717,7 +1718,7 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     domainEventBus,
     geocodingService,
-    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, getFreshStopForAppointmentUseCase, getRouteEtaAccuracyUseCase, previewRouteWeightsUseCase, getDayPlanSheetUseCase, jwtService, tenantRepo },
+    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, getFreshStopForAppointmentUseCase, getRouteEtaAccuracyUseCase, previewRouteWeightsUseCase, previewDayPlanOrderUseCase, getDayPlanSheetUseCase, jwtService, tenantRepo },
     auth: {
       loginUseCase,
       refreshTokenUseCase,
@@ -2126,7 +2127,6 @@ export function createContainer(logger: Logger): AppContainer {
     notifyStuckInspectionsWorker,
     sendCompletionRemindersUseCase,
     publishDayPlansUseCase,
-    purgeDayPlanRouteDataUseCase,
     auditRetentionWorker,
     rejectUnconfirmedWorker,
     cancelOverdueWorker,
