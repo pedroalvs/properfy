@@ -15,7 +15,7 @@ vi.mock('@/lib/use-unsaved-changes-prompt', () => ({ useUnsavedChangesPrompt: ()
 // Stub the lazy map so switching tabs never loads the mapbox-gl engine in jsdom.
 vi.mock('../../components/RouteMapView', () => ({ default: () => <div data-testid="route-map-view-stub" /> }));
 
-const { A, B, C } = STOP_IDS;
+const { B } = STOP_IDS;
 
 /** A plan with three not-started stops, so reorder is enabled. */
 function reorderablePlan() {
