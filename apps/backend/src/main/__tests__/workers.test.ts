@@ -11,6 +11,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * ../../ goes from __tests__/ up through main/ to src/.
  */
 
+const mockClearStoredRouteData = { execute: vi.fn().mockResolvedValue({ cleared: 0 }) };
+
 const mockBoss = {
   work: vi.fn().mockResolvedValue(undefined),
   schedule: vi.fn().mockResolvedValue(undefined),
@@ -81,6 +83,7 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // autoArchiveInspectorNoticesUseCase
     makeWorkerMock() as any,   // sendCompletionRemindersUseCase
     makeWorkerMock() as any,   // publishDayPlansUseCase
+    mockClearStoredRouteData as any, // clearStoredRouteDataUseCase
     logger as any,
   );
 }
@@ -119,8 +122,10 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
   ];
 
   it('retires the removed day-plan purge cron (F04 Plan B)', async () => {
+    mockClearStoredRouteData.execute.mockClear();
     await callRegisterWorkers(makeLogger());
 
+    expect(mockClearStoredRouteData.execute).toHaveBeenCalledTimes(1);
     expect(mockBoss.unschedule).toHaveBeenCalledWith('day-plan.purge-route-data');
     expect(mockBoss.work).not.toHaveBeenCalledWith('day-plan.purge-route-data', expect.anything());
   });

@@ -6,6 +6,7 @@ import { getQueue, resolvePgBossSchema, assertQueueDbConsistency } from '../shar
 import { withJobMetrics } from './with-job-metrics';
 import { registerDayPlanPublishWorker } from './day-plan-publish.worker';
 import type { PublishDayPlansUseCase } from '../modules/day-plan/application/use-cases/publish-day-plans.use-case';
+import type { ClearStoredRouteDataUseCase } from '../modules/day-plan/application/use-cases/clear-stored-route-data.use-case';
 import type { DeliverInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/deliver-inspector-notice.use-case';
 import type { SweepUndeliveredInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/sweep-undelivered-inspector-notices.use-case';
 import type { AutoArchiveInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/auto-archive-inspector-notices.use-case';
@@ -68,6 +69,7 @@ export async function registerWorkers(
   autoArchiveInspectorNoticesUseCase: AutoArchiveInspectorNoticesUseCase,
   sendCompletionRemindersUseCase: SendCompletionRemindersUseCase,
   publishDayPlansUseCase: PublishDayPlansUseCase,
+  clearStoredRouteDataUseCase: ClearStoredRouteDataUseCase,
   logger: Logger,
 ): Promise<void> {
   // Guard against the misconfiguration where this process consumes jobs from one
@@ -380,6 +382,10 @@ export async function registerWorkers(
     publishDayPlans: publishDayPlansUseCase,
     logger,
   });
+
+  // Transitional one-shot (F04 Plan B, 072): clear any routing results stored under Plan A so no
+  // Mapbox data lingers. Idempotent (no-op once cleared); the columns are dropped in PR-C.
+  await clearStoredRouteDataUseCase.execute();
 
   // One-time cleanup (F04 Plan B, 072): retire the removed purge cron so the already-deployed
   // schedule stops enqueuing jobs nothing consumes. No-op on fresh environments.

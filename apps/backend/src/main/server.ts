@@ -130,6 +130,7 @@ async function start() {
       container.inspectorNotice.autoArchiveInspectorNoticesUseCase,
       container.sendCompletionRemindersUseCase,
       container.publishDayPlansUseCase,
+      container.clearStoredRouteDataUseCase,
       app.log,
     );
   }

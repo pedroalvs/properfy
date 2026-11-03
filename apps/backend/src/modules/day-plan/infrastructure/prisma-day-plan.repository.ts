@@ -183,6 +183,15 @@ export class PrismaDayPlanRepository implements IDayPlanRepository {
     });
   }
 
+  async clearStoredRouteData(): Promise<number> {
+    return this.prisma.$executeRaw`
+      UPDATE "day_plans"
+      SET "route_geometry" = NULL, "routing_matrix_json" = NULL, "leg_travel_json" = NULL,
+          "geometry_purged_at" = now()
+      WHERE "route_geometry" IS NOT NULL OR "routing_matrix_json" IS NOT NULL OR "leg_travel_json" IS NOT NULL
+    `;
+  }
+
   async getEtaAccuracySamples(fromCivil: string, toCivil: string): Promise<EtaAccuracySample[]> {
     const rows = await this.prisma.$queryRaw<Array<{ err_min: number }>>`
       SELECT abs(extract(epoch FROM (e."started_at" - s."published_service_start_at"))) / 60.0 AS err_min
