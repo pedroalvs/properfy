@@ -135,6 +135,28 @@ export interface PreviewWeightsResult {
   proposed: PreviewRouteVariant;
 }
 
+/** Input for the order preview (Plan B): evaluate one candidate order over an on-demand matrix, no persistence. */
+export interface PreviewOrderInput {
+  origin: RoutePoint | null;
+  stops: PlanRouteStopInput[];
+  earliestDepartureAt: Date | null;
+  weights: RouteWeights;
+  /** The candidate order (appointment ids), evaluated as given. */
+  order: string[];
+  now: Date;
+}
+
+export interface PreviewOrderResult {
+  departureAt: Date | null;
+  finishAt: Date | null;
+  totals: { driveS: number; waitS: number; serviceS: number; lateS: number; distanceM: number | null };
+  feasible: boolean;
+  violations: Array<{ appointmentId: string; lateS: number }>;
+  approximate: boolean;
+  approximateReason: ApproximateReason;
+  stops: Array<{ appointmentId: string; sequence: number; arrivalAt: Date; travelS: number; waitS: number; lateS: number }>;
+}
+
 function toEpochS(d: Date): number {
   return Math.floor(d.getTime() / 1000);
 }
@@ -456,6 +478,95 @@ export class PlanRouteService {
     return {
       current: variantFor(input.currentWeights),
       proposed: variantFor(input.proposedWeights),
+    };
+  }
+
+  /**
+   * Order preview (Plan B): resolve the travel matrix on demand and evaluate the
+   * candidate `order` over it. Matrix-only (0 Directions), nothing persisted, always
+   * interactive/non-strict: a provider failure degrades to the stub with `approximate`.
+   */
+  async previewOrder(input: PreviewOrderInput): Promise<PreviewOrderResult> {
+    const points: RoutePoint[] = [];
+    let originIndex: number | null = null;
+    if (input.origin) {
+      points.push(input.origin);
+      originIndex = 0;
+    }
+    const optimizerStops: OptimizerStop[] = input.stops.map((s) => {
+      let matrixIndex: number | null = null;
+      if (s.location) {
+        matrixIndex = points.length;
+        points.push(s.location);
+      }
+      return {
+        key: s.appointmentId,
+        windowStartS: toEpochS(s.windowStartAt),
+        windowEndS: toEpochS(s.windowEndAt),
+        serviceS: s.serviceMinutes * 60,
+        matrixIndex,
+      };
+    });
+    const coordinateStopCount = points.length - (originIndex === null ? 0 : 1);
+
+    const matrixOutcome = await this.resolveMatrix(
+      {
+        origin: input.origin,
+        stops: input.stops,
+        earliestDepartureAt: input.earliestDepartureAt,
+        weights: input.weights,
+        mode: { kind: 'PRESERVE_ORDER', order: input.order },
+        interactive: true,
+        strict: false,
+        now: input.now,
+      },
+      points,
+      coordinateStopCount,
+      INTERACTIVE_MAX_WAIT_MS,
+    );
+
+    // A lone coordinate stop with an origin gets a haversine stub matrix (no provider call): flag it.
+    const loneStub = !matrixOutcome.approximate && originIndex !== null && coordinateStopCount === 1;
+    const approximate = matrixOutcome.approximate || loneStub;
+    const approximateReason: ApproximateReason = matrixOutcome.approximate
+      ? matrixOutcome.reason
+      : loneStub
+        ? 'NO_PROVIDER'
+        : null;
+
+    const ev = evaluateSequence(
+      {
+        stops: optimizerStops,
+        travelS: matrixOutcome.travelS,
+        originIndex,
+        earliestDepartureS: input.earliestDepartureAt ? toEpochS(input.earliestDepartureAt) : null,
+        weights: input.weights,
+      },
+      input.order,
+    );
+
+    return {
+      departureAt: ev.departureS === null ? null : new Date(ev.departureS * 1000),
+      finishAt: ev.finishS === null ? null : new Date(ev.finishS * 1000),
+      totals: {
+        driveS: ev.totalTravelS,
+        waitS: ev.totalWaitS,
+        serviceS: input.stops.reduce((acc, s) => acc + s.serviceMinutes * 60, 0),
+        lateS: ev.totalLateS,
+        distanceM: null,
+      },
+      feasible: ev.feasible,
+      violations: ev.violations.map((v) => ({ appointmentId: v.key, lateS: v.lateS })),
+      approximate,
+      approximateReason,
+      stops: ev.stops.map((es) => ({
+        appointmentId: es.key,
+        sequence: es.sequence,
+        arrivalAt: new Date(es.arrivalS * 1000),
+        travelS: es.travelS,
+        waitS: es.waitS,
+        lateS: es.lateS,
+      })),
     };
   }
 

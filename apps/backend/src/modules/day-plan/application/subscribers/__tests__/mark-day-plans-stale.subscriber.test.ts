@@ -16,7 +16,7 @@ function makeRepo() {
     markStaleByAppointmentIds: vi.fn(async () => 1),
     markStaleByInspector: vi.fn(async () => 1),
     findByInspectorAndDate: vi.fn(), saveComputed: vi.fn(), clearStale: vi.fn(),
-    markNotified: vi.fn(), purgePastRouteData: vi.fn(), getEtaAccuracySamples: vi.fn(),
+    markNotified: vi.fn(), getEtaAccuracySamples: vi.fn(),
   } as unknown as IDayPlanRepository & { markStaleByAppointmentIds: ReturnType<typeof vi.fn>; markStaleByInspector: ReturnType<typeof vi.fn> };
 }
 

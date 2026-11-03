@@ -77,8 +77,9 @@ abstract class DayPlanOriginBase {
     return { now, inspector, todayCivil, isToday, plan, candidates, hasExecutedToday, currentFp };
   }
 
-  protected build(ctx: OriginContext, record: DayPlanRecord): DayPlanResponse {
-    return buildDayPlanResponse(record, ctx.candidates, ctx.inspector, ctx.now, ctx.isToday);
+  protected async build(ctx: OriginContext, record: DayPlanRecord): Promise<DayPlanResponse> {
+    const routing = await this.compute.routingFor(record, ctx.now, ctx.isToday);
+    return buildDayPlanResponse(record, ctx.candidates, ctx.inspector, ctx.now, ctx.isToday, routing);
   }
 
   protected isFresh(ctx: OriginContext): boolean {
@@ -116,7 +117,7 @@ export class SetDayPlanOriginUseCase extends DayPlanOriginBase {
 
     // Idempotent: same address already applied on a fresh plan → no geocoding, no recompute.
     if (ctx.plan?.originOverride && this.isFresh(ctx) && isSameGeocodingAddress(input.address as unknown as GeocodableAddress, ctx.plan.originOverride as unknown as GeocodableAddress)) {
-      return this.build(ctx, ctx.plan);
+      return await this.build(ctx, ctx.plan);
     }
 
     let coords: { lat: number; lng: number } | null;
@@ -147,7 +148,7 @@ export class SetDayPlanOriginUseCase extends DayPlanOriginBase {
       after: { suburb: input.address.suburb, state: input.address.state, postcode: input.address.postcode },
     });
 
-    return this.build(ctx, record);
+    return await this.build(ctx, record);
   }
 }
 
@@ -175,7 +176,7 @@ export class ClearDayPlanOriginUseCase extends DayPlanOriginBase {
 
     // Idempotent: no override already, on a fresh plan → nothing to do.
     if (ctx.plan && !ctx.plan.originOverride && this.isFresh(ctx)) {
-      return this.build(ctx, ctx.plan);
+      return await this.build(ctx, ctx.plan);
     }
 
     const record = await this.compute.execute({
@@ -197,6 +198,6 @@ export class ClearDayPlanOriginUseCase extends DayPlanOriginBase {
       metadata: { date: input.date },
     });
 
-    return this.build(ctx, record);
+    return await this.build(ctx, record);
   }
 }

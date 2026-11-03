@@ -53,3 +53,9 @@
 | Horas de acesso antecipado | F08 | 12 h |
 | Formatos e tamanho máximo dos anexos; retenção (dias) | F10 | jpg/png/heic/pdf/docx; 20 MB; sem expurgo (null) |
 | Janela do mapa (dias) | F00 | 14 |
+
+## Lições F04 resolvidas
+
+| ID | Tema | Decisão | Status |
+|---|---|---|---|
+| L-F04-03 | Termos da Mapbox (guardar matriz/traçado/durações e repassar a matriz crua ao cliente) | **Plano B.** A Mapbox negou (b) guardar a matriz/durações e (c) repassar a matriz crua ao cliente. Portanto **nenhum resultado da Mapbox é persistido ou cacheado** (matriz, durações de trecho, geometria); tudo é recalculado **sob demanda**. A geometria e o `routingInput` voltam nos mesmos campos da resposta, populados on-demand; a reordenação passa a usar o servidor via `POST /v1/inspector/day-plans/:date/order/preview` (`etaSource 'MATRIX'`, 30/min). O job de expurgo 03:45 (`day-plan.purge-route-data`) é removido. Rollout estrito **A→B→C**: PR-A (backend, mantém `routingInput` vivo on-demand); PR-B (PWA troca a reordenação local pelo endpoint de preview e para de ler `routingInput`, feito pela Bússola); PR-C (remove `routingInput`/`dayPlanRoutingInputSchema`/`toOptimizerInput`/`buildLegOverrides` e dropa as colunas). | **DECIDIDA** (Pedro, 2026-11-02): Plano B (tarefa 072) |

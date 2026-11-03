@@ -2,6 +2,7 @@ import type { DayPlanResponse, DayPlanStop as DayPlanStopDto } from '@properfy/s
 import { selectPrimaryContact } from '../domain/primary-contact';
 import type { DayPlanCandidate, InspectorDayPlanContext } from '../domain/day-plan-input.reader';
 import type { DayPlanRecord, DayPlanStopRecord } from '../domain/day-plan.entity';
+import type { OnDemandRouting } from './recompute-routing';
 
 function iso(d: Date | null): string | null {
   return d === null ? null : d.toISOString();
@@ -41,6 +42,8 @@ export function buildDayPlanResponse(
   inspector: InspectorDayPlanContext,
   now: Date,
   isToday: boolean,
+  /** On-demand routing (Plan B). When absent, falls back to the record stored fields (always empty). */
+  routing?: OnDemandRouting,
 ): DayPlanResponse {
   const byId = new Map(candidates.map((c) => [c.appointmentId, c] as const));
   const executedCandidates = record.stops
@@ -89,15 +92,17 @@ export function buildDayPlanResponse(
   });
 
   const reorderableWithCoords = record.stops.filter((s) => !liveExecuted(byId.get(s.appointmentId)) && s.lat !== null);
+  const matrix = routing ? routing.matrix : record.routingMatrix;
+  const legs = routing ? routing.legs : (record.legTravel ?? []);
   const routingInput =
-    record.routingMatrix && reorderableWithCoords.length >= 2
+    matrix && reorderableWithCoords.length >= 2
       ? {
-          points: record.routingMatrix.points,
-          travelS: record.routingMatrix.travelS,
+          points: matrix.points,
+          travelS: matrix.travelS,
           originKey: (record.originSource === 'NONE' ? null : ('origin' as const)),
           earliestDepartureAt: isToday ? iso(new Date(Math.max(now.getTime(), (record.departureAt ?? now).getTime()))) : null,
           weights: record.weights,
-          legTravelS: record.legTravel ?? [],
+          legTravelS: legs,
         }
       : null;
 
@@ -112,8 +117,10 @@ export function buildDayPlanResponse(
     publishedAt: iso(record.publishedAt),
     computedAt: record.computedAt.toISOString(),
     lastTrigger: record.lastTrigger,
-    approximate: record.approximate,
-    approximateReason: record.approximateReason as DayPlanResponse['approximateReason'],
+    approximate: routing ? record.approximate || routing.approximate : record.approximate,
+    approximateReason: (routing && routing.approximate
+      ? routing.approximateReason
+      : record.approximateReason) as DayPlanResponse['approximateReason'],
     routingProvider: record.routingProvider,
     matrixProfile: record.matrixProfile as DayPlanResponse['matrixProfile'],
     optimizerMethod: record.optimizerMethod as DayPlanResponse['optimizerMethod'],
@@ -146,7 +153,7 @@ export function buildDayPlanResponse(
     manualOrder: record.manualOrder,
     suggestedOrder: record.suggestedOrder,
     stops,
-    geometry: record.routeGeometry,
+    geometry: routing ? routing.geometry : record.routeGeometry,
     routingInput,
   };
 }

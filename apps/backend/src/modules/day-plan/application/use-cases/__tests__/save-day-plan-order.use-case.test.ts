@@ -42,17 +42,19 @@ class InMemoryRepo implements IDayPlanRepository {
   private key(i: string, d: string) { return `${i}:${d}`; }
   async findByInspectorAndDate(i: string, d: string) { return this.store.get(this.key(i, d)) ?? null; }
   async saveComputed(input: SaveDayPlanInput) {
+    this.lastSaved = input;
     const key = this.key(input.inspectorId, input.planDate);
     const current = this.store.get(key);
     if (input.expectedVersion === null) { if (current) return null; const r = this.rec(input, crypto.randomUUID(), 1); this.store.set(key, r); return r; }
     if (!current || current.version !== input.expectedVersion) return null;
     const r = this.rec(input, current.id, current.version + 1); this.store.set(key, r); return r;
   }
+  lastSaved: SaveDayPlanInput | null = null;
   async clearStale() { return null; }
   async markStaleByAppointmentIds() { return 0; }
   async markStaleByInspector() { return 0; }
   async markNotified() {}
-  async purgePastRouteData() { return 0; }
+ 
   async getEtaAccuracySamples() { return []; }
   async loadPublishDue() { return []; }
   private rec(input: SaveDayPlanInput, id: string, version: number): DayPlanRecord {
@@ -64,7 +66,7 @@ class InMemoryRepo implements IDayPlanRepository {
       windowTimezone: s.windowTimezone, durationMinutes: s.durationMinutes, lat: s.lat, lng: s.lng, manual: s.manual,
       executed: s.executed, approximate: s.approximate, missingCoordinates: s.missingCoordinates,
     }));
-    return { ...(input as unknown as DayPlanRecord), id, version, staleAt: null, staleReason: null, geometryPurgedAt: null, stops };
+    return { ...(input as unknown as DayPlanRecord), id, version, staleAt: null, staleReason: null, stops };
   }
 }
 
@@ -93,6 +95,11 @@ describe('SaveDayPlanOrderUseCase', () => {
     expect(res.manualOrder).toBe(true);
     expect(res.stops.map((s) => s.appointmentId)).toEqual(order);
     expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'day_plan.reordered', entityType: 'DayPlan' }));
+    // Plan B: reorder persists no routing result but the response still carries on-demand geometry.
+    expect(repo.lastSaved).not.toHaveProperty('routingMatrix');
+    expect(repo.lastSaved).not.toHaveProperty('routeGeometry');
+    expect(res.geometry).not.toBeNull();
+    expect(res.routingInput).not.toBeNull();
   });
 
   it('409s on a stale basedOnVersion', async () => {

@@ -6,11 +6,7 @@ import type {
   RouteWeights,
   InspectorBaseAddress,
 } from '@properfy/shared';
-import type {
-  DayPlanGeometry,
-  StoredRoutingMatrix,
-} from '../application/services/plan-route.service';
-import type { DayPlanRecord, DayPlanLegTravel } from './day-plan.entity';
+import type { DayPlanRecord } from './day-plan.entity';
 
 /** A stop to persist within a computed plan (1-based `sequence`). */
 export interface SaveDayPlanStop {
@@ -76,9 +72,6 @@ export interface SaveDayPlanInput {
   matrixProfile: string | null;
   approximate: boolean;
   approximateReason: string | null;
-  routeGeometry: DayPlanGeometry | null;
-  routingMatrix: StoredRoutingMatrix | null;
-  legTravel: DayPlanLegTravel[] | null;
   stops: SaveDayPlanStop[];
 }
 
@@ -128,9 +121,6 @@ export interface IDayPlanRepository {
    * plans already both published and notified. Ordered by `inspectorId`, then `date`.
    */
   loadPublishDue(): Promise<PublishDueEntry[]>;
-
-  /** Null geometry/matrix/leg of plans before `todayCivilSydney`; returns rows touched. */
-  purgePastRouteData(todayCivilSydney: string): Promise<number>;
 
   /** Error-minute samples (|check-in − published start|) for the accuracy metric (L-F04-04 join, frozen published). */
   getEtaAccuracySamples(fromCivil: string, toCivil: string): Promise<EtaAccuracySample[]>;

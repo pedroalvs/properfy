@@ -1,11 +1,7 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { addCivilDays, type InspectorBaseAddress, type RouteWeights } from '@properfy/shared';
-import type {
-  DayPlanGeometry,
-  StoredRoutingMatrix,
-} from '../application/services/plan-route.service';
 import { deriveDueInspectors } from '../application/publish-due';
-import type { DayPlanRecord, DayPlanLegTravel, DayPlanStopRecord } from '../domain/day-plan.entity';
+import type { DayPlanRecord, DayPlanStopRecord } from '../domain/day-plan.entity';
 import type {
   EtaAccuracySample,
   IDayPlanRepository,
@@ -187,16 +183,6 @@ export class PrismaDayPlanRepository implements IDayPlanRepository {
     });
   }
 
-  async purgePastRouteData(todayCivilSydney: string): Promise<number> {
-    return this.prisma.$executeRaw`
-      UPDATE "day_plans"
-      SET "route_geometry" = NULL, "routing_matrix_json" = NULL, "leg_travel_json" = NULL,
-          "geometry_purged_at" = now()
-      WHERE "plan_date" < ${dateOnly(todayCivilSydney)}
-        AND ("route_geometry" IS NOT NULL OR "routing_matrix_json" IS NOT NULL OR "leg_travel_json" IS NOT NULL)
-    `;
-  }
-
   async getEtaAccuracySamples(fromCivil: string, toCivil: string): Promise<EtaAccuracySample[]> {
     const rows = await this.prisma.$queryRaw<Array<{ err_min: number }>>`
       SELECT abs(extract(epoch FROM (e."started_at" - s."published_service_start_at"))) / 60.0 AS err_min
@@ -303,9 +289,6 @@ export class PrismaDayPlanRepository implements IDayPlanRepository {
       matrix_profile: input.matrixProfile,
       approximate: input.approximate,
       approximate_reason: input.approximateReason,
-      route_geometry: jsonOrNull(input.routeGeometry),
-      routing_matrix_json: jsonOrNull(input.routingMatrix),
-      leg_travel_json: jsonOrNull(input.legTravel),
     };
   }
 
@@ -386,10 +369,10 @@ export class PrismaDayPlanRepository implements IDayPlanRepository {
       matrixProfile: row.matrix_profile,
       approximate: row.approximate,
       approximateReason: row.approximate_reason,
-      routeGeometry: (row.route_geometry as DayPlanGeometry | null) ?? null,
-      routingMatrix: (row.routing_matrix_json as StoredRoutingMatrix | null) ?? null,
-      legTravel: (row.leg_travel_json as DayPlanLegTravel[] | null) ?? null,
-      geometryPurgedAt: row.geometry_purged_at,
+      // Plan B: routing results are never stored; the response path recomputes them on demand.
+      routeGeometry: null,
+      routingMatrix: null,
+      legTravel: null,
       stops,
     };
   }

@@ -4,6 +4,8 @@ import {
   civilDateSchema,
   dayPlanResponseSchema,
   dayPlanSheetQuerySchema,
+  previewDayPlanOrderRequestSchema,
+  previewDayPlanOrderResponseSchema,
   previewRouteWeightsRequestSchema,
   routeEtaAccuracyQuerySchema,
   routeEtaAccuracySchema,
@@ -28,6 +30,7 @@ import type {
 import type { GetRouteEtaAccuracyUseCase } from '../application/use-cases/get-route-eta-accuracy.use-case';
 import type { GetDayPlanSheetUseCase } from '../application/use-cases/get-day-plan-sheet.use-case';
 import type { PreviewRouteWeightsUseCase } from '../application/use-cases/preview-route-weights.use-case';
+import type { PreviewDayPlanOrderUseCase } from '../application/use-cases/preview-day-plan-order.use-case';
 
 export interface DayPlanRouteContainer {
   getMyDayPlanUseCase: GetMyDayPlanUseCase;
@@ -39,6 +42,7 @@ export interface DayPlanRouteContainer {
   getRouteEtaAccuracyUseCase: GetRouteEtaAccuracyUseCase;
   getDayPlanSheetUseCase: GetDayPlanSheetUseCase;
   previewRouteWeightsUseCase: PreviewRouteWeightsUseCase;
+  previewDayPlanOrderUseCase: PreviewDayPlanOrderUseCase;
   jwtService: JwtService;
   tenantRepo: ITenantRepository;
 }
@@ -119,6 +123,32 @@ export async function registerDayPlanRoutes(
       const result = await container.saveDayPlanOrderUseCase.execute({
         inspectorId,
         actorUserId: request.authContext!.userId,
+        date,
+        appointmentIds: body.appointmentIds,
+        basedOnVersion: body.basedOnVersion,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/inspector/day-plans/:date/order/preview: evaluate a candidate order on an on-demand matrix; persists nothing (30/min).
+  app.post(
+    '/v1/inspector/day-plans/:date/order/preview',
+    {
+      preHandler: authenticate,
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: {
+        params: dateParam,
+        body: previewDayPlanOrderRequestSchema,
+        response: { 200: successResponseSchema(previewDayPlanOrderResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const inspectorId = requireInspector(request.authContext!.role, request.authContext!.inspectorId);
+      const { date } = dateParam.parse(request.params);
+      const body = previewDayPlanOrderRequestSchema.parse(request.body);
+      const result = await container.previewDayPlanOrderUseCase.execute({
+        inspectorId,
         date,
         appointmentIds: body.appointmentIds,
         basedOnVersion: body.basedOnVersion,

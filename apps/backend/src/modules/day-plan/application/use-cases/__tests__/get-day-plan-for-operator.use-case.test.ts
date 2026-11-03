@@ -38,7 +38,7 @@ function record(fingerprint: string): DayPlanRecord {
     totalLateS: 0, totalDistanceM: 4700, feasible: true, manualOrder: false, suggestedOrder: [A],
     weights: { travel: 1, windowWait: 1, baseProximity: 1 }, optimizerMethod: 'EXACT', routingProvider: 'STUB',
     matrixProfile: 'haversine', approximate: true, approximateReason: 'NO_PROVIDER', routeGeometry: null,
-    routingMatrix: null, legTravel: null, geometryPurgedAt: null,
+    routingMatrix: null, legTravel: null,
     stops: [{
       id: 's1', appointmentId: A, sequence: 1, eta: NOW, serviceStartAt: NOW, serviceEndAt: NOW, publishedEta: NOW,
       publishedServiceStartAt: NOW, publishedPredictedAt: NOW, publishedApproximate: true, travelS: 600, distanceM: 4700,
@@ -60,7 +60,7 @@ function repoWith(rec: DayPlanRecord | null) {
   return {
     findByInspectorAndDate: vi.fn(async () => rec),
     saveComputed: vi.fn(), clearStale: vi.fn(), markStaleByAppointmentIds: vi.fn(), markStaleByInspector: vi.fn(),
-    markNotified: vi.fn(), purgePastRouteData: vi.fn(), getEtaAccuracySamples: vi.fn(),
+    markNotified: vi.fn(), getEtaAccuracySamples: vi.fn(),
   } as unknown as IDayPlanRepository & { saveComputed: ReturnType<typeof vi.fn> };
 }
 
@@ -101,5 +101,17 @@ describe('GetDayPlanForOperatorUseCase', () => {
     await expect(
       new GetDayPlanForOperatorUseCase(reader, repoWith(null), auth as never, clock).execute({ actor: AM, inspectorId: INSPECTOR_ID, date: DATE }),
     ).rejects.toMatchObject({ code: 'DAY_PLAN_NOT_FOUND' });
+  });
+
+  it('returns no geometry or routingInput to AM and writes nothing (operator read never calls the routing provider)', async () => {
+    const reader = new FakeReader();
+    reader.candidate = { ...reader.candidate };
+    const { fingerprintForCandidates } = await import('../../day-plan-inputs');
+    const fp = fingerprintForCandidates([reader.candidate], { source: 'BASE', lat: -33.87, lng: 151.2, override: null });
+    const repo = repoWith(record(fp));
+    const res = await new GetDayPlanForOperatorUseCase(reader, repo, auth as never, clock).execute({ actor: AM, inspectorId: INSPECTOR_ID, date: DATE });
+    expect(res.geometry).toBeNull();
+        expect(res.routingInput).toBeNull();
+    expect(repo.saveComputed).not.toHaveBeenCalled();
   });
 });

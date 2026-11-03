@@ -35,7 +35,7 @@ function rec(stops: DayPlanStopRecord[]): DayPlanRecord {
     departureAt: NOW, finishEta: NOW, totalDriveS: 0, totalWaitS: 0, totalServiceS: 0, totalLateS: 0, totalDistanceM: null,
     feasible: true, manualOrder: false, suggestedOrder: stops.map((s) => s.appointmentId), weights: { travel: 1, windowWait: 1, baseProximity: 1 },
     optimizerMethod: 'EXACT', routingProvider: 'STUB', matrixProfile: 'haversine', approximate: false, approximateReason: null,
-    routeGeometry: null, routingMatrix: null, legTravel: null, geometryPurgedAt: null, stops };
+    routeGeometry: null, routingMatrix: null, legTravel: null, stops };
 }
 
 describe('hasEffectiveChange', () => {
@@ -82,10 +82,10 @@ class Repo implements IDayPlanRepository {
     if (!cur || cur.version !== input.expectedVersion) return null; const r = this.toRec(input, cur.id, cur.version + 1); this.m.set(key, r); return r;
   }
   async clearStale() { return null; } async markStaleByAppointmentIds() { return 0; } async markStaleByInspector() { return 0; }
-  async markNotified() {} async purgePastRouteData() { return 0; } async getEtaAccuracySamples() { return []; }
+  async markNotified() {} async getEtaAccuracySamples() { return []; }
   async loadPublishDue() { return []; }
   private toRec(input: SaveDayPlanInput, id: string, version: number): DayPlanRecord {
-    return { ...(input as unknown as DayPlanRecord), id, version, staleAt: null, staleReason: null, geometryPurgedAt: null,
+    return { ...(input as unknown as DayPlanRecord), id, version, staleAt: null, staleReason: null,
       stops: input.stops.map((s, i) => ({ ...(s as unknown as DayPlanStopRecord), id: `s${i}` })) };
   }
 }

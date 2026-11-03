@@ -89,6 +89,5 @@ export interface DayPlanRecord {
   routeGeometry: DayPlanGeometry | null;
   routingMatrix: StoredRoutingMatrix | null;
   legTravel: DayPlanLegTravel[] | null;
-  geometryPurgedAt: Date | null;
   stops: DayPlanStopRecord[];
 }
