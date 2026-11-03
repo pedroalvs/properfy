@@ -6,10 +6,6 @@ import type {
   RouteWeights,
   InspectorBaseAddress,
 } from '@properfy/shared';
-import type {
-  DayPlanGeometry,
-  StoredRoutingMatrix,
-} from '../application/services/plan-route.service';
 
 /** Persisted representation of a stored stop (Prisma Decimals already converted to number). */
 export interface DayPlanStopRecord {
@@ -37,13 +33,6 @@ export interface DayPlanStopRecord {
   executed: boolean;
   approximate: boolean;
   missingCoordinates: boolean;
-}
-
-/** Per-leg Directions duration snapshot (adjacent pairs of the stored order). */
-export interface DayPlanLegTravel {
-  fromKey: string;
-  toKey: string;
-  travelS: number;
 }
 
 /** Persisted representation of a day plan with its stops. */
@@ -86,8 +75,5 @@ export interface DayPlanRecord {
   matrixProfile: string | null;
   approximate: boolean;
   approximateReason: string | null;
-  routeGeometry: DayPlanGeometry | null;
-  routingMatrix: StoredRoutingMatrix | null;
-  legTravel: DayPlanLegTravel[] | null;
   stops: DayPlanStopRecord[];
 }

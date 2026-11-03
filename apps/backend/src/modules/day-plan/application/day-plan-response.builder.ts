@@ -42,7 +42,7 @@ export function buildDayPlanResponse(
   inspector: InspectorDayPlanContext,
   now: Date,
   isToday: boolean,
-  /** On-demand routing (Plan B). When absent, falls back to the record stored fields (always empty). */
+  /** On-demand routing (Plan B). When absent, geometry is null and the stored flags apply. */
   routing?: OnDemandRouting,
 ): DayPlanResponse {
   const byId = new Map(candidates.map((c) => [c.appointmentId, c] as const));
@@ -91,21 +91,6 @@ export function buildDayPlanResponse(
     };
   });
 
-  const reorderableWithCoords = record.stops.filter((s) => !liveExecuted(byId.get(s.appointmentId)) && s.lat !== null);
-  const matrix = routing ? routing.matrix : record.routingMatrix;
-  const legs = routing ? routing.legs : (record.legTravel ?? []);
-  const routingInput =
-    matrix && reorderableWithCoords.length >= 2
-      ? {
-          points: matrix.points,
-          travelS: matrix.travelS,
-          originKey: (record.originSource === 'NONE' ? null : ('origin' as const)),
-          earliestDepartureAt: isToday ? iso(new Date(Math.max(now.getTime(), (record.departureAt ?? now).getTime()))) : null,
-          weights: record.weights,
-          legTravelS: legs,
-        }
-      : null;
-
   return {
     id: record.id,
     inspectorId: record.inspectorId,
@@ -153,7 +138,6 @@ export function buildDayPlanResponse(
     manualOrder: record.manualOrder,
     suggestedOrder: record.suggestedOrder,
     stops,
-    geometry: routing ? routing.geometry : record.routeGeometry,
-    routingInput,
+    geometry: routing?.geometry ?? null,
   };
 }

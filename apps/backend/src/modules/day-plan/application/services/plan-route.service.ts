@@ -523,6 +523,7 @@ export class PlanRouteService {
       points,
       coordinateStopCount,
       INTERACTIVE_MAX_WAIT_MS,
+      true,
     );
 
     // A lone coordinate stop with an origin gets a haversine stub matrix (no provider call): flag it.
@@ -599,6 +600,7 @@ export class PlanRouteService {
     points: RoutePoint[],
     coordinateStopCount: number,
     maxWaitMs: number,
+    forceProviderMatrix = false,
   ): Promise<{
     travelS: number[][];
     provider: RoutingProviderName;
@@ -608,8 +610,11 @@ export class PlanRouteService {
     elements: number;
     stored: StoredRoutingMatrix | null;
   }> {
+    // PR-C: only ordering (OPTIMIZE) needs the provider Matrix. A PRESERVE_ORDER GET
+    // recompute seeds the timeline from the stub matrix and the per-leg Directions
+    // pass overwrites it. `previewOrder` is Matrix-only (0 Directions), so it forces it.
     const needsProviderMatrix =
-      (input.mode.kind === 'OPTIMIZE' || input.mode.kind === 'PRESERVE_ORDER') && coordinateStopCount >= 2;
+      (input.mode.kind === 'OPTIMIZE' || forceProviderMatrix) && coordinateStopCount >= 2;
 
     // Reuse a cached matrix without any provider call.
     if (input.cachedMatrix) {

@@ -18,28 +18,6 @@ function plan(overrides: Partial<DayPlanResponse> = {}, stops?: DayPlanStop[]): 
   return buildDayPlan({
     stops: theStops,
     suggestedOrder: [A, B, C],
-    routingInput: {
-      points: [
-        { key: 'origin', lat: -33.87, lng: 151.2 },
-        { key: A, lat: -33.88, lng: 151.2 },
-        { key: B, lat: -33.89, lng: 151.22 },
-        { key: C, lat: -33.87, lng: 151.19 },
-      ],
-      travelS: [
-        [0, 300, 900, 600],
-        [300, 0, 600, 1200],
-        [900, 600, 0, 400],
-        [600, 1200, 400, 0],
-      ],
-      originKey: 'origin',
-      earliestDepartureAt: null,
-      weights: { travel: 1, windowWait: 1, baseProximity: 1 },
-      legTravelS: [
-        { fromKey: 'origin', toKey: A, travelS: 300 },
-        { fromKey: A, toKey: B, travelS: 600 },
-        { fromKey: B, toKey: C, travelS: 400 },
-      ],
-    },
     ...overrides,
   });
 }

@@ -87,9 +87,6 @@ function makeRecord(id: string, inspectorId: string, over: Partial<DayPlanRecord
     matrixProfile: 'driving-traffic',
     approximate: false,
     approximateReason: null,
-    routeGeometry: null,
-    routingMatrix: null,
-    legTravel: null,
    
     stops: [stop('a-1', 1), stop('a-2', 2), stop('a-3', 3)],
   };

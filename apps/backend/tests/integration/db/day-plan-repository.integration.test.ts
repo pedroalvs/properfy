@@ -202,44 +202,15 @@ describe('PrismaDayPlanRepository (real DB)', () => {
     await harness.prisma.cronJobRun.deleteMany({ where: { job_name: 'day-plan.publish' } });
   });
 
-  it('clearStoredRouteData nulls routing columns stored under Plan A, and is idempotent', async () => {
-    await repo.saveComputed(planInput({ planDate: '2020-02-02', suggestedOrder: [seed.apptA], stops: [stop(seed.apptA, 1)] }));
-    // Simulate a pre-existing Plan A row (the app no longer writes these columns).
-    await harness.prisma.$executeRaw`
-      UPDATE day_plans
-      SET route_geometry = '{"type":"FeatureCollection","features":[]}'::jsonb,
-          routing_matrix_json = '{"points":[],"travelS":[]}'::jsonb,
-          leg_travel_json = '[]'::jsonb
-      WHERE plan_date = '2020-02-02'::date`;
-    const dirty = await harness.prisma.$queryRaw<Array<{ n: bigint }>>`
-      SELECT count(*) AS n FROM day_plans
-      WHERE route_geometry IS NOT NULL OR routing_matrix_json IS NOT NULL OR leg_travel_json IS NOT NULL`;
-    expect(Number(dirty[0]!.n)).toBeGreaterThanOrEqual(1);
-
-    const cleared = await repo.clearStoredRouteData();
-    expect(cleared).toBe(Number(dirty[0]!.n));
-    const after = await harness.prisma.$queryRaw<Array<{ n: bigint }>>`
-      SELECT count(*) AS n FROM day_plans
-      WHERE route_geometry IS NOT NULL OR routing_matrix_json IS NOT NULL OR leg_travel_json IS NOT NULL`;
-    expect(Number(after[0]!.n)).toBe(0);
-    expect(await repo.clearStoredRouteData()).toBe(0); // idempotent
-  });
-
-  it('never persists routing results (Plan B: route_geometry / routing_matrix_json / leg_travel_json stay NULL)', async () => {
+  it('persists and reads a plan without the dropped routing columns (Plan B contract phase)', async () => {
     await repo.saveComputed(planInput({ planDate: '2020-01-01', suggestedOrder: [seed.apptA], stops: [stop(seed.apptA, 1)] }));
-    const rows = await harness.prisma.$queryRaw<
-      Array<{ g: unknown; m: unknown; l: unknown }>
-    >`SELECT route_geometry AS g, routing_matrix_json AS m, leg_travel_json AS l FROM day_plans WHERE plan_date = '2020-01-01'::date`;
-    expect(rows.length).toBeGreaterThanOrEqual(1);
-    for (const r of rows) {
-      expect(r.g).toBeNull();
-      expect(r.m).toBeNull();
-      expect(r.l).toBeNull();
-    }
+    const cols = await harness.prisma.$queryRaw<Array<{ column_name: string }>>`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'day_plans'
+        AND column_name IN ('route_geometry', 'routing_matrix_json', 'leg_travel_json', 'geometry_purged_at')`;
+    expect(cols).toEqual([]);
     const read = await repo.findByInspectorAndDate(seed.inspectorId, '2020-01-01');
-    expect(read!.routeGeometry).toBeNull();
-    expect(read!.routingMatrix).toBeNull();
-    expect(read!.legTravel).toBeNull();
+    expect(read!.stops).toHaveLength(1);
   });
 
   // Test 28 (L-F04-15 / FR-014): the metric query measures |check-in − frozen

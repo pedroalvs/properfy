@@ -492,7 +492,6 @@ import { GetDayPlanForOperatorUseCase } from '../modules/day-plan/application/us
 import { SaveDayPlanOrderUseCase } from '../modules/day-plan/application/use-cases/save-day-plan-order.use-case';
 import { RecalculateDayPlanUseCase } from '../modules/day-plan/application/use-cases/recalculate-day-plan.use-case';
 import { PublishDayPlansUseCase } from '../modules/day-plan/application/use-cases/publish-day-plans.use-case';
-import { ClearStoredRouteDataUseCase } from '../modules/day-plan/application/use-cases/clear-stored-route-data.use-case';
 import { GetRouteEtaAccuracyUseCase } from '../modules/day-plan/application/use-cases/get-route-eta-accuracy.use-case';
 import { GetDayPlanSheetUseCase } from '../modules/day-plan/application/use-cases/get-day-plan-sheet.use-case';
 import { PreviewRouteWeightsUseCase } from '../modules/day-plan/application/use-cases/preview-route-weights.use-case';
@@ -573,7 +572,6 @@ export interface AppContainer {
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
   sendCompletionRemindersUseCase: SendCompletionRemindersUseCase;
   publishDayPlansUseCase: PublishDayPlansUseCase;
-  clearStoredRouteDataUseCase: ClearStoredRouteDataUseCase;
   auditRetentionWorker: AuditRetentionWorker;
   rejectUnconfirmedWorker: RejectUnconfirmedWorker;
   cancelOverdueWorker: CancelOverdueWorker;
@@ -1152,7 +1150,6 @@ export function createContainer(logger: Logger): AppContainer {
     dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, publishSystemInspectorNoticeUseCase,
     auditService, metrics, logger, dayPlanClock,
   );
-  const clearStoredRouteDataUseCase = new ClearStoredRouteDataUseCase(dayPlanRepo, logger);
   const getRouteEtaAccuracyUseCase = new GetRouteEtaAccuracyUseCase(dayPlanRepo, dayPlanClock);
   const previewRouteWeightsUseCase = new PreviewRouteWeightsUseCase(
     dayPlanInputReader, planRouteService, platformSettingsService, authorizationService, dayPlanClock,
@@ -2130,7 +2127,6 @@ export function createContainer(logger: Logger): AppContainer {
     notifyStuckInspectionsWorker,
     sendCompletionRemindersUseCase,
     publishDayPlansUseCase,
-    clearStoredRouteDataUseCase,
     auditRetentionWorker,
     rejectUnconfirmedWorker,
     cancelOverdueWorker,

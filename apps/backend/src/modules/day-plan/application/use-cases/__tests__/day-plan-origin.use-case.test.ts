@@ -46,7 +46,7 @@ class Repo implements IDayPlanRepository {
     if (!cur || cur.version !== input.expectedVersion) return null; const r = this.toRec(input, cur.id, cur.version + 1); this.m.set(key, r); return r;
   }
   async clearStale() { return null; } async markStaleByAppointmentIds() { return 0; } async markStaleByInspector() { return 0; }
-  async markNotified() {} async getEtaAccuracySamples() { return []; } async clearStoredRouteData() { return 0; }
+  async markNotified() {} async getEtaAccuracySamples() { return []; }
   async loadPublishDue() { return []; }
   private toRec(input: SaveDayPlanInput, id: string, version: number): DayPlanRecord {
     return { ...(input as unknown as DayPlanRecord), id, version, staleAt: null, staleReason: null,

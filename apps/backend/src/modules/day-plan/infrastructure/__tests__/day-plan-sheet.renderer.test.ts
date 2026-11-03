@@ -77,7 +77,6 @@ function makePlan(overrides: Partial<DayPlanResponse> = {}): DayPlanResponse {
     suggestedOrder: ['11111111-1111-4111-8111-111111111111'],
     stops: [makeStop()],
     geometry: null,
-    routingInput: null,
     ...overrides,
   };
 }

@@ -122,13 +122,6 @@ export interface IDayPlanRepository {
    */
   loadPublishDue(): Promise<PublishDueEntry[]>;
 
-  /**
-   * One-shot cleanup of routing results stored under Plan A: nulls `route_geometry`,
-   * `routing_matrix_json` and `leg_travel_json` on every row that still has one.
-   * Returns the rows touched; idempotent (0 once cleared).
-   */
-  clearStoredRouteData(): Promise<number>;
-
   /** Error-minute samples (|check-in − published start|) for the accuracy metric (L-F04-04 join, frozen published). */
   getEtaAccuracySamples(fromCivil: string, toCivil: string): Promise<EtaAccuracySample[]>;
 }

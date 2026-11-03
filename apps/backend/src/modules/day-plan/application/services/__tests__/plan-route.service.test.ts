@@ -217,4 +217,30 @@ describe('PlanRouteService', () => {
     expect(result.approximate).toBe(true);
     expect(result.approximateReason).toBe('TOO_MANY_COORDINATES');
   });
+
+  it('PRESERVE_ORDER (GET recompute) makes no Matrix call but still runs per-leg Directions (PR-C, SC-002)', async () => {
+    const fake = new FakeRouting();
+    const result = await make(fake).compute(
+      baseInput({ mode: { kind: 'PRESERVE_ORDER', order: ['A', 'B', 'C'] } }),
+    );
+    expect(fake.matrixCalls).toBe(0);
+    expect(fake.directionsCalls).toHaveLength(3);
+    expect(result.order).toEqual(['A', 'B', 'C']);
+    expect(result.geometry?.features).toHaveLength(3);
+  });
+
+  it('previewOrder still resolves the provider Matrix (etaSource MATRIX, PR-C guard)', async () => {
+    const fake = new FakeRouting();
+    const result = await make(fake).previewOrder({
+      origin: O,
+      stops: [stop('A', A, SYD_WINDOW), stop('B', B, SYD_WINDOW), stop('C', C, SYD_WINDOW)],
+      earliestDepartureAt: null,
+      weights: DEFAULT_ROUTE_WEIGHTS,
+      order: ['C', 'B', 'A'],
+      now: new Date('2026-11-04T19:00:00Z'),
+    } as any);
+    expect(fake.matrixCalls).toBe(1);
+    expect(fake.directionsCalls).toHaveLength(0);
+    expect(result.approximate).toBe(false);
+  });
 });
