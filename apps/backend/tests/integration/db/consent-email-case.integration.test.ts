@@ -49,6 +49,18 @@ describe('consent email casing (real DB)', () => {
     expect(found).toBeNull();
   });
 
+  it('treats _ and % as literal characters, not wildcards (no ILIKE injection)', async () => {
+    // A `%` must not match the opted-out `ana@example.com` as a wildcard.
+    expect(await repo.findByScope({ tenantId, recipient: '%', channel: 'EMAIL', notificationClass: 'OPERATIONAL' })).toBeNull();
+    expect(await repo.findByScope({ tenantId, recipient: '%@example.com', channel: 'EMAIL', notificationClass: 'OPERATIONAL' })).toBeNull();
+    // `_` must not cross-match: a seeded `a_b@x.com` opt-out must not block `axb@x.com`.
+    await seedRawConsent('a_b@x.com', 'EMAIL');
+    expect(await repo.findByScope({ tenantId, recipient: 'axb@x.com', channel: 'EMAIL', notificationClass: 'OPERATIONAL' })).toBeNull();
+    expect((await repo.findByScope({ tenantId, recipient: 'A_B@X.com', channel: 'EMAIL', notificationClass: 'OPERATIONAL' }))?.isOptedOut()).toBe(true);
+    // `listByRecipient('%')` must not bulk-disclose other recipients.
+    expect(await repo.listByRecipient({ tenantId, recipient: '%' })).toHaveLength(0);
+  });
+
   it('matches the phone opt-out exactly', async () => {
     const found = await repo.findByScope({ tenantId, recipient: '+61412000001', channel: 'SMS', notificationClass: 'OPERATIONAL' });
     expect(found?.isOptedOut()).toBe(true);

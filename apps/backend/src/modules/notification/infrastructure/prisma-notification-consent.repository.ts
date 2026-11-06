@@ -1,4 +1,4 @@
-import type { PrismaClient, Prisma } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import type { NotificationChannel, NotificationClass, ConsentChangeSource } from '@properfy/shared';
 import { NotificationConsentEntity } from '../domain/notification-consent.entity';
 import type {
@@ -12,21 +12,25 @@ import type {
  * Email is case-insensitive by identity, but the send pipeline compares
  * `notification.recipient` verbatim and contacts are stored as entered, so an
  * opt-out recorded for `Ana@x.com` silently failed to block a send to
- * `ana@x.com` (F06-2 fix). We match EMAIL recipients **case-insensitively** at
- * this one repository choke point — `findByScope`, the `upsert` idempotency
- * lookup, and `listByRecipient` — which blocks regardless of casing AND keeps
- * any pre-F06-2 mixed-case row matching, with **no data migration**. Phones
- * (E.164) match exactly. `.includes('@')` covers `listByRecipient`, whose channel
- * is optional.
+ * `ana@x.com` (F06-2 fix). EMAIL recipients are therefore matched
+ * **case-insensitively** at this one repository choke point — `findByScope`, the
+ * `upsert` idempotency lookup and `listByRecipient` — which blocks regardless of
+ * casing AND keeps any pre-F06-2 mixed-case row matching, with **no data
+ * migration**. Phones (E.164) match exactly.
  *
- * Trade-off: `mode: 'insensitive'` compiles to `ILIKE`, so a `_`/`%` in an email
- * local part is a wildcard — a vanishingly rare over-match. For a consent opt-out
- * an over-match errs toward MORE suppression (the fail-safe direction), and
- * MARKETING collects no opt-in rows in Phase 1 so it cannot wrongly unblock one.
+ * The comparison is a **literal** `lower(trim())` equality done in memory over the
+ * tenant+channel+class rows — deliberately NOT Prisma `mode: 'insensitive'`,
+ * which compiles to `ILIKE` and would treat `_`/`%` in an email as wildcards
+ * (cross-recipient matches, bulk `%` disclosure via `listByRecipient`, and a
+ * wrong-row re-opt-in in `upsert`). Consent rows per tenant/channel/class are few
+ * (opt-outs are rare), so the in-memory filter stays cheap.
  */
-function recipientWhere(recipient: string, channel?: NotificationChannel): Prisma.StringFilter | string {
-  const isEmail = channel === 'EMAIL' || (channel === undefined && recipient.includes('@'));
-  return isEmail ? { equals: recipient.trim(), mode: 'insensitive' } : recipient;
+function isEmailChannel(channel: NotificationChannel | undefined, recipient: string): boolean {
+  return channel === 'EMAIL' || (channel === undefined && recipient.includes('@'));
+}
+
+function normalizeEmail(recipient: string): string {
+  return recipient.trim().toLowerCase();
 }
 
 function mapToEntity(row: any): NotificationConsentEntity {
@@ -75,25 +79,51 @@ export class PrismaNotificationConsentRepository implements INotificationConsent
     // is keyed on a NOT NULL tenant_id — so no consent record can exist for it.
     // Answer that directly instead of asking Prisma for an impossible row.
     if (scope.tenantId === null) return null;
+
+    if (scope.channel === 'EMAIL') {
+      // Fail closed: an opted-out row wins if a legacy casing variant and a
+      // canonical row both match the same address.
+      const rows = await this.prisma.notificationConsent.findMany({
+        where: {
+          channel: 'EMAIL',
+          tenant_id: scope.tenantId,
+          notification_class: scope.notificationClass,
+        },
+        orderBy: [{ opted_out: 'desc' }],
+      });
+      const target = normalizeEmail(scope.recipient);
+      const row = rows.find((r) => normalizeEmail(r.recipient) === target);
+      return row ? mapToEntity(row) : null;
+    }
+
     const row = await this.prisma.notificationConsent.findFirst({
       where: {
-        recipient: recipientWhere(scope.recipient, scope.channel),
+        recipient: scope.recipient,
         channel: scope.channel,
         tenant_id: scope.tenantId,
         notification_class: scope.notificationClass,
       },
-      // Fail closed: if a legacy casing variant and a canonical row both match,
-      // an opted-out row wins so the block is never missed.
-      orderBy: [{ opted_out: 'desc' }],
     });
     return row ? mapToEntity(row) : null;
   }
 
   async listByRecipient(params: ListConsentsByRecipientParams): Promise<NotificationConsentEntity[]> {
+    if (isEmailChannel(params.channel, params.recipient)) {
+      const rows = await this.prisma.notificationConsent.findMany({
+        where: {
+          tenant_id: params.tenantId,
+          channel: 'EMAIL',
+        },
+        orderBy: [{ channel: 'asc' }, { notification_class: 'asc' }],
+      });
+      const target = normalizeEmail(params.recipient);
+      return rows.filter((r) => normalizeEmail(r.recipient) === target).map(mapToEntity);
+    }
+
     const rows = await this.prisma.notificationConsent.findMany({
       where: {
         tenant_id: params.tenantId,
-        recipient: recipientWhere(params.recipient, params.channel),
+        recipient: params.recipient,
         ...(params.channel ? { channel: params.channel } : {}),
       },
       orderBy: [{ channel: 'asc' }, { notification_class: 'asc' }],
@@ -117,47 +147,69 @@ export class PrismaNotificationConsentRepository implements INotificationConsent
   }
 
   async upsert(consent: NotificationConsentEntity): Promise<void> {
-    // Use findFirst + create/update pattern because the composite unique key
-    // (recipient, channel, tenant_id, notification_class) may have a verbose name
-    // and we want to stay resilient to Prisma client naming changes.
+    const data = {
+      opted_out: consent.optedOut,
+      opted_out_at: consent.optedOutAt,
+      change_source: consent.changeSource,
+      changed_at: consent.changedAt,
+      changed_by_user_id: consent.changedByUserId,
+      reason: consent.reason,
+    };
+
+    // An entity whose row already exists (e.g. OverrideConsentUseCase loaded it by
+    // id) is updated by primary key — never re-matched by recipient, so a casing
+    // variant can never flip the wrong recipient's row.
+    const byId = await this.prisma.notificationConsent.findUnique({
+      where: { id: consent.id },
+      select: { id: true },
+    });
+    if (byId) {
+      await this.prisma.notificationConsent.update({ where: { id: byId.id }, data });
+      return;
+    }
+
+    const existingId = await this.findExistingId(consent);
+    if (existingId) {
+      await this.prisma.notificationConsent.update({ where: { id: existingId }, data });
+      return;
+    }
+
+    await this.prisma.notificationConsent.create({
+      data: {
+        id: consent.id,
+        recipient: consent.recipient,
+        channel: consent.channel,
+        tenant_id: consent.tenantId,
+        notification_class: consent.notificationClass,
+        ...data,
+      },
+    });
+  }
+
+  /** The id of the existing row for this scope, matching EMAIL case-insensitively. */
+  private async findExistingId(consent: NotificationConsentEntity): Promise<string | null> {
+    if (consent.channel === 'EMAIL') {
+      const rows = await this.prisma.notificationConsent.findMany({
+        where: {
+          channel: 'EMAIL',
+          tenant_id: consent.tenantId,
+          notification_class: consent.notificationClass,
+        },
+        select: { id: true, recipient: true },
+        orderBy: [{ opted_out: 'desc' }],
+      });
+      const target = normalizeEmail(consent.recipient);
+      return rows.find((r) => normalizeEmail(r.recipient) === target)?.id ?? null;
+    }
     const existing = await this.prisma.notificationConsent.findFirst({
       where: {
-        recipient: recipientWhere(consent.recipient, consent.channel),
+        recipient: consent.recipient,
         channel: consent.channel,
         tenant_id: consent.tenantId,
         notification_class: consent.notificationClass,
       },
       select: { id: true },
     });
-
-    if (existing) {
-      await this.prisma.notificationConsent.update({
-        where: { id: existing.id },
-        data: {
-          opted_out: consent.optedOut,
-          opted_out_at: consent.optedOutAt,
-          change_source: consent.changeSource,
-          changed_at: consent.changedAt,
-          changed_by_user_id: consent.changedByUserId,
-          reason: consent.reason,
-        },
-      });
-    } else {
-      await this.prisma.notificationConsent.create({
-        data: {
-          id: consent.id,
-          recipient: consent.recipient,
-          channel: consent.channel,
-          tenant_id: consent.tenantId,
-          notification_class: consent.notificationClass,
-          opted_out: consent.optedOut,
-          opted_out_at: consent.optedOutAt,
-          change_source: consent.changeSource,
-          changed_at: consent.changedAt,
-          changed_by_user_id: consent.changedByUserId,
-          reason: consent.reason,
-        },
-      });
-    }
+    return existing?.id ?? null;
   }
 }
