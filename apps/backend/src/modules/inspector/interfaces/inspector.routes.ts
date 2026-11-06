@@ -23,7 +23,6 @@ import {
   updateInspectorAlertThresholdsSchema,
   inspectorAlertThresholdsResponseSchema,
 } from '@properfy/shared';
-import { createHash } from 'node:crypto';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ForbiddenError, ValidationError } from '../../../shared/domain/errors';
 import { success, paginated } from '../../../shared/interfaces/response';
@@ -632,15 +631,24 @@ export async function registerInspectorRoutes(
     },
   );
 
-  // Per-user rate limit for the AM/OP alert-thresholds config (D-R4): key off the
-  // hashed Authorization header (never the raw token), IP fallback. Global limit still applies.
+  // Per-user rate limit for the AM/OP alert-thresholds config (D-R4). The key generator
+  // runs before auth, so it verifies the JWT signature and keys on the authenticated
+  // `userId` (IP fallback for a missing/invalid token) — keying on an unverified header
+  // would let an attacker vary it to mint fresh buckets. Global per-IP limit still applies.
   const alertThresholdsRateLimit = {
     max: 30,
     timeWindow: '1 minute',
-    keyGenerator: (request: { headers: Record<string, unknown>; ip: string }) => {
+    keyGenerator: async (request: { headers: Record<string, unknown>; ip: string }) => {
       const header = request.headers.authorization;
       const value = Array.isArray(header) ? (header[0] as string) : (header as string | undefined);
-      return value ? createHash('sha256').update(value).digest('hex') : request.ip;
+      const token = value?.startsWith('Bearer ') ? value.slice(7).trim() : undefined;
+      if (!token) return request.ip;
+      try {
+        const ctx = await container.jwtService.verify(token);
+        return `u:${ctx.userId}`;
+      } catch {
+        return request.ip;
+      }
     },
   };
 

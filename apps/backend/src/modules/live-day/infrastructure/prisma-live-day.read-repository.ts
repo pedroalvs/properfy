@@ -136,7 +136,7 @@ reminders AS (
   SELECT n.dedupe_key, to_char(n.created_at, ${ISO}) AS created_at
   FROM inspector_notices n
   WHERE n.dedupe_key = ANY (
-    SELECT $2::text || ':' || id || ':' || $1::text || ':' || inspector_id FROM appts
+    SELECT $2::text || ':' || appointment_id || ':' || $1::text || ':' || inspector_id FROM appts
   )
 ),
 roster AS (
@@ -176,7 +176,7 @@ SELECT
   coalesce(
     (SELECT json_agg(r) FROM reminders r
      WHERE r.dedupe_key IN (
-       SELECT $2::text || ':' || x.id || ':' || $1::text || ':' || i.id
+       SELECT $2::text || ':' || x.appointment_id || ':' || $1::text || ':' || i.id
        FROM appts x WHERE x.inspector_id = i.id
      )),
     '[]'::json
