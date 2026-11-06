@@ -731,6 +731,37 @@ describe('UpsertNotificationTemplateUseCase', () => {
       ).rejects.toMatchObject({ message: 'Missing required variables: scheduledDate' });
     });
 
+    it('pins TENANT_ETA_* to OPERATIONAL and rejects a TRANSACTIONAL reclassification (consent bypass guard)', async () => {
+      await expect(
+        useCase.execute(
+          makeInput({
+            templateCode: 'TENANT_ETA_DELAY',
+            channel: 'SMS',
+            subject: undefined,
+            bodyHtml: 'Running late. Between {{etaFrom}} and {{etaTo}}.',
+            notificationClass: 'TRANSACTIONAL',
+            actor: makeActor({ role: 'AM', tenantId: null }),
+          }),
+        ),
+      ).rejects.toMatchObject({ details: [{ field: 'notificationClass' }] });
+      expect(templateRepo.upsert).not.toHaveBeenCalled();
+    });
+
+    it('stamps TENANT_ETA_* as OPERATIONAL when no class is given', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+      const result = await useCase.execute(
+        makeInput({
+          templateCode: 'TENANT_ETA_MORNING',
+          channel: 'SMS',
+          subject: undefined,
+          bodyHtml: 'Between {{etaFrom}} and {{etaTo}}.',
+          notificationClass: undefined,
+          actor: makeActor({ role: 'AM', tenantId: null }),
+        }),
+      );
+      expect(result.notificationClass).toBe('OPERATIONAL');
+    });
+
     it('counts a {{#if}} guard as present (same extraction as the editor)', async () => {
       vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
       await useCase.execute(

@@ -55,6 +55,12 @@ export class RecordConsentOptOutUseCase {
     });
 
     const recipient = normalizeRecipient(input.recipient, input.channel);
+    // An SMS recipient that cannot be put in the pipeline's E.164 form would be
+    // stored as a value no send ever matches — a silent non-block. Reject it so
+    // the operator fixes the number instead of getting false protection.
+    if (input.channel === 'SMS' && toE164Au(input.recipient.trim()) === null) {
+      throw new ValidationError('recipient is not a valid Australian mobile number');
+    }
 
     const existing = await this.consentRepo.findByScope({
       tenantId: input.tenantId,
@@ -123,9 +129,18 @@ export class RecordConsentOptOutUseCase {
 function normalizeRecipient(recipient: string, channel: NotificationChannel): string {
   const trimmed = recipient.trim();
   if (channel === 'SMS') {
+    // Phones are stored canonical E.164, so match that (callers reject unparseable).
     return toE164Au(trimmed) ?? trimmed;
   }
-  return trimmed.toLowerCase();
+  // Email is NOT lowercased when a notification's recipient is set (it is the
+  // contact's snapshot email, as entered), and the send pipeline compares
+  // `notification.recipient` raw in `isBlockedByConsent`. So trim only — do NOT
+  // lowercase, or an opt-out for a contact whose email has any uppercase would
+  // store a value the send never matches (a silent non-block). Fully
+  // case-insensitive matching would require canonicalizing both the write here
+  // AND the pipeline read, which is out of F06-1 scope (it sends nothing) and is
+  // left to the F06-2 notifier / a pipeline-wide change.
+  return trimmed;
 }
 
 function toOutput(consent: NotificationConsentEntity): ConsentRecordOutput {

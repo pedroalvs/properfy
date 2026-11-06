@@ -120,15 +120,21 @@ describe('RecordConsentOptOutUseCase', () => {
     await expect(useCase.execute({ ...smsInput, reason: 'x'.repeat(1001) })).rejects.toThrow(ValidationError);
   });
 
-  it('normalizes a national phone to E.164 and a mixed-case email to lowercase', async () => {
+  it('normalizes a national phone to E.164 and leaves an email as entered (trimmed)', async () => {
     const phone = await useCase.execute({ ...smsInput, recipient: '0412 000 001' });
     expect(phone.recipient).toBe('+61412000001');
+    // Email is matched RAW by the send pipeline (contacts are not lowercased), so
+    // trim only — lowercasing would guarantee a mismatch for an upper-case email.
     const email = await useCase.execute({
       ...smsInput,
-      recipient: 'Ana@Example.com',
+      recipient: '  Ana@Example.com  ',
       channel: 'EMAIL',
     });
-    expect(email.recipient).toBe('ana@example.com');
+    expect(email.recipient).toBe('Ana@Example.com');
+  });
+
+  it('rejects an SMS recipient that is not a valid AU mobile (avoids a silent non-block)', async () => {
+    await expect(useCase.execute({ ...smsInput, recipient: 'not-a-phone' })).rejects.toThrow(ValidationError);
   });
 
   it('blocks the next OPERATIONAL send for that recipient (findByScope → opted out)', async () => {
@@ -137,6 +143,27 @@ describe('RecordConsentOptOutUseCase', () => {
       tenantId: TENANT,
       recipient: '+61412000001',
       channel: 'SMS',
+      notificationClass: 'OPERATIONAL',
+    });
+    expect(found?.isOptedOut()).toBe(true);
+  });
+
+  // Real-path check for the mixed-case email class the review flagged: the send
+  // pipeline looks up the RAW notification.recipient (the contact's verbatim,
+  // non-lowercased email), so the opt-out must store that exact value to block.
+  it('blocks a mixed-case email send using the exact raw recipient the pipeline looks up', async () => {
+    await useCase.execute({
+      tenantId: TENANT,
+      recipient: 'John.Doe@Gmail.com',
+      channel: 'EMAIL',
+      reason: 'Tenant asked to stop email',
+      actor: makeActor(),
+    });
+    // What a future OPERATIONAL notice would carry (contact snapshot email, verbatim).
+    const found = await store.repo.findByScope({
+      tenantId: TENANT,
+      recipient: 'John.Doe@Gmail.com',
+      channel: 'EMAIL',
       notificationClass: 'OPERATIONAL',
     });
     expect(found?.isOptedOut()).toBe(true);

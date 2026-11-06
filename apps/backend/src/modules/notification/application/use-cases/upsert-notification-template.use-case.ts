@@ -172,6 +172,24 @@ export class UpsertNotificationTemplateUseCase {
         throw new ProtectedTemplateClassificationError(input.templateCode, protectedClass);
       }
       resolvedClass = protectedClass;
+    } else if (input.templateCode.startsWith('TENANT_ETA_')) {
+      // F06 D2/Q21: the arrival-time notices MUST stay consent-checked. A protected
+      // (TRANSACTIONAL) class bypasses the tenant's opt-out (send-notification
+      // consent_bypass_transactional), so pin these codes to OPERATIONAL and reject
+      // any attempt to reclassify them (incl. a CL_ADMIN editing its own override).
+      if (input.notificationClass && input.notificationClass !== 'OPERATIONAL') {
+        throw new ValidationError(
+          'Tenant arrival-time notices must stay OPERATIONAL (consent-checked)',
+          [
+            {
+              code: 'custom',
+              message: 'This template must be OPERATIONAL so tenants can opt out',
+              field: 'notificationClass',
+            },
+          ],
+        );
+      }
+      resolvedClass = 'OPERATIONAL';
     } else {
       resolvedClass = input.notificationClass ?? getDefaultClass(input.templateCode);
     }
