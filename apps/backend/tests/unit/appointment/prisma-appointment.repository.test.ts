@@ -568,52 +568,6 @@ describe('PrismaAppointmentRepository overdueOnly + status composition', () => {
   });
 });
 
-describe('PrismaAppointmentRepository findOverdueForAutoCancel', () => {
-  const findMany = vi.fn();
-  const prisma = { appointment: { findMany } } as any;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    findMany.mockResolvedValue([]);
-  });
-
-  it('selects by created_at age and excludes DRAFT from cancellation', async () => {
-    const repo = new PrismaAppointmentRepository(prisma);
-    const cutoff = new Date('2026-06-13T14:00:00.000Z');
-
-    await repo.findOverdueForAutoCancel(cutoff, 500);
-
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          created_at: { lt: cutoff },
-          status: { in: ['AWAITING_INSPECTOR', 'SCHEDULED'] },
-          deleted_at: null,
-        },
-        take: 500,
-      }),
-    );
-    // DRAFT is badge-eligible but must never be auto-cancelled — it is the repair state.
-    expect(findMany.mock.calls[0][0].where.status.in).not.toContain('DRAFT');
-  });
-
-  it('drains the oldest records first so a backlog clears from the top', async () => {
-    const repo = new PrismaAppointmentRepository(prisma);
-
-    await repo.findOverdueForAutoCancel(new Date('2026-06-13T14:00:00.000Z'), 500);
-
-    expect(findMany.mock.calls[0][0].orderBy).toEqual({ created_at: 'asc' });
-  });
-
-  it('stays cross-tenant — it backs a background sweep, not a request', async () => {
-    const repo = new PrismaAppointmentRepository(prisma);
-
-    await repo.findOverdueForAutoCancel(new Date('2026-06-13T14:00:00.000Z'), 500);
-
-    expect(findMany.mock.calls[0][0].where.tenant_id).toBeUndefined();
-  });
-});
-
 describe('PrismaAppointmentRepository.replaceRestrictions', () => {
   const deleteMany = vi.fn();
   const create = vi.fn();

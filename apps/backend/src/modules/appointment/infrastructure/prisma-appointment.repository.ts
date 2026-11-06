@@ -6,7 +6,6 @@ import type {
   Prisma,
 } from '@prisma/client';
 import {
-  OVERDUE_AUTO_CANCEL_STATUSES,
   OVERDUE_ELIGIBLE_STATUSES,
   isRentalTenantNotificationsEnabled,
   phoneSearchVariants,
@@ -888,28 +887,6 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
           requires_rental_tenant_confirmation: true,
         },
       },
-    });
-
-    return rows.map(mapToEntity);
-  }
-
-  async findOverdueForAutoCancel(createdBefore: Date, limit: number, tenantIds?: string[]): Promise<AppointmentEntity[]> {
-    // Background job: without `tenantIds` it processes all tenants; the per-agency
-    // tick sweep passes the tenants whose local midnight claimed the run.
-    // `created_at` is a real instant, so callers must pass the actual Sydney-midnight
-    // instant of the cutoff civil date (startOfOverdueAgeCutoff), NOT UTC midnight.
-    const rows = await this.prisma.appointment.findMany({
-      where: {
-        created_at: { lt: createdBefore },
-        // Narrower than OVERDUE_ELIGIBLE_STATUSES on purpose: a stale DRAFT shows the
-        // overdue badge but must never be cancelled — it is the operator repair state.
-        status: { in: [...OVERDUE_AUTO_CANCEL_STATUSES] },
-        deleted_at: null,
-        ...(tenantIds ? { tenant_id: { in: tenantIds } } : {}),
-      },
-      // Oldest first: the longest-stalled appointments drain out of a backlog first.
-      orderBy: { created_at: 'asc' },
-      take: limit,
     });
 
     return rows.map(mapToEntity);
