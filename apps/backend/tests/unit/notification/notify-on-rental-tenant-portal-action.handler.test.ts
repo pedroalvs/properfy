@@ -135,7 +135,7 @@ const notificationRepo = {
 };
 
 const createNotification = {
-  execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+  execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }),
 };
 
 const logger = {
@@ -182,7 +182,7 @@ beforeEach(() => {
   propertyRepo.findById.mockResolvedValue(makeProperty());
   tenantRepo.findById.mockResolvedValue(makeTenant());
   notificationRepo.existsByAppointmentAndTemplate.mockResolvedValue(false);
-  createNotification.execute.mockResolvedValue({ notificationId: 'notif-1' });
+  createNotification.execute.mockResolvedValue({ notificationId: 'notif-1', created: true });
 });
 
 describe('NotifyOnRentalTenantPortalActionHandler', () => {

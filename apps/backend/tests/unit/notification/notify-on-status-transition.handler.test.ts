@@ -198,7 +198,7 @@ const mintPortalTokenService = {
 };
 
 const createNotification = {
-  execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+  execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }),
 };
 
 const logger = {
@@ -252,7 +252,7 @@ beforeEach(() => {
   notificationRepo.existsByAppointmentAndTemplates.mockResolvedValue(true);
   notificationRepo.findLatestByAppointmentAndTemplates.mockResolvedValue(null);
   mintPortalTokenService.mint.mockResolvedValue({ rawToken: 'test-portal-token', expiresAt: new Date('2026-05-01') });
-  createNotification.execute.mockResolvedValue({ notificationId: 'notif-1' });
+  createNotification.execute.mockResolvedValue({ notificationId: 'notif-1', created: true });
 });
 
 describe('NotifyOnStatusTransitionHandler', () => {

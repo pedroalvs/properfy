@@ -223,7 +223,7 @@ describe('GeneratePortalTokenUseCase — logger behavior on notification dispatc
     it('should not call logger.error when both channels succeed', async () => {
       const logger = makeLogger();
       const createNotificationUseCase = {
-        execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+        execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }),
       };
       const { uc } = makeUseCase({ logger, createNotificationUseCase });
 
@@ -254,7 +254,7 @@ describe('GeneratePortalTokenUseCase — logger behavior on notification dispatc
 describe('GeneratePortalTokenUseCase — generate-only (notify: false)', () => {
   it('should mint the token but skip dispatch entirely and return NOTIFY_DISABLED', async () => {
     const createNotificationUseCase = {
-      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }),
     };
     const { uc } = makeUseCase({ createNotificationUseCase });
 
@@ -281,7 +281,7 @@ describe('GeneratePortalTokenUseCase — generate-only (notify: false)', () => {
 
   it('should still dispatch when notify is omitted (default true)', async () => {
     const createNotificationUseCase = {
-      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }),
     };
     const { uc } = makeUseCase({ createNotificationUseCase });
 
@@ -314,7 +314,7 @@ describe('GeneratePortalTokenUseCase — WI-B3: truthful dispatched + no recipie
   });
 
   it('returns dispatched:false with NO_DISPATCH_CHANNEL when the primary contact has no email or phone', async () => {
-    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }) };
+    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }) };
     const { uc } = makeUseCase({
       createNotificationUseCase,
       contact: makeContact({ withEmail: false, withPhone: false }),
@@ -345,7 +345,7 @@ describe('GeneratePortalTokenUseCase — WI-B3: truthful dispatched + no recipie
 
 describe('GeneratePortalTokenUseCase — WI-B8: block dispatch for past-dated appointments (#33)', () => {
   it('rejects the dispatch path when the scheduled date is in the past, minting no token', async () => {
-    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }) };
+    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }) };
     const { uc, mintPortalTokenService } = makeUseCase({
       createNotificationUseCase,
       scheduledDate: civilDatePlus(-1), // yesterday (Sydney civil)
@@ -359,7 +359,7 @@ describe('GeneratePortalTokenUseCase — WI-B8: block dispatch for past-dated ap
   });
 
   it('allows the dispatch path when the scheduled date is today', async () => {
-    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }) };
+    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }) };
     const { uc } = makeUseCase({
       createNotificationUseCase,
       scheduledDate: civilDatePlus(0), // today (Sydney civil) — token stays valid to end of day
@@ -403,7 +403,7 @@ describe('GeneratePortalTokenUseCase — cycle P2002 replay (WI-B2 / #1056)', ()
       mint: vi.fn().mockResolvedValue({ rawToken: 'raw-token-abc', tokenId: 'token-1', expiresAt: new Date(Date.now() + 86400000) }),
     };
     const auditService = { log: vi.fn() };
-    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }) };
+    const createNotificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }) };
     const cycleService = {
       createInitial: vi.fn().mockRejectedValueOnce(cycleP2002).mockResolvedValueOnce(undefined),
     };

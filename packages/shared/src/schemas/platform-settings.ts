@@ -41,6 +41,26 @@ export const routeWeightsSettingSchema = z
   });
 export type RouteWeightsSetting = z.infer<typeof routeWeightsSettingSchema>;
 
+/**
+ * Tenant arrival-notice behaviour (F06). Born disabled — nothing is sent until
+ * AM/OP enable it, even after the TASK-F06-2 triggers ship. `smsBudgetSharePercent`
+ * reserves the rest of the agency's daily SMS cap for mandatory notices (D15).
+ */
+export const tenantEtaNoticesSettingSchema = z
+  .object({
+    enabled: z.boolean(),
+    channelMode: z.enum(['BOTH', 'SMS_ELSE_EMAIL']),
+    morningHour: z.number().int().min(5).max(11),
+    morningCutoffHour: z.number().int().min(6).max(12),
+    delayThresholdMinutes: z.number().int().min(5).max(120),
+    smsBudgetSharePercent: z.number().int().min(10).max(100),
+  })
+  .refine((v) => v.morningCutoffHour > v.morningHour, {
+    path: ['morningCutoffHour'],
+    message: 'Cutoff must be after the morning notice hour',
+  });
+export type TenantEtaNoticesSetting = z.infer<typeof tenantEtaNoticesSettingSchema>;
+
 export const PLATFORM_SETTINGS_REGISTRY = {
   fieldEvents: {
     schema: fieldEventsSettingSchema,
@@ -57,6 +77,18 @@ export const PLATFORM_SETTINGS_REGISTRY = {
     schema: routeWeightsSettingSchema,
     defaults: DEFAULT_ROUTE_WEIGHTS,
     section: 'Route planning',
+  },
+  tenantEtaNotices: {
+    schema: tenantEtaNoticesSettingSchema,
+    defaults: {
+      enabled: false,
+      channelMode: 'BOTH',
+      morningHour: 7,
+      morningCutoffHour: 9,
+      delayThresholdMinutes: 20,
+      smsBudgetSharePercent: 80,
+    },
+    section: 'Tenant arrival notices',
   },
 } as const satisfies Record<string, { schema: z.ZodTypeAny; defaults: unknown; section: string }>;
 

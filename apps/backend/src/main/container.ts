@@ -322,6 +322,9 @@ import { DispatchRemindersUseCase } from '../modules/notification/application/us
 import { DispatchEscalationsUseCase } from '../modules/notification/application/use-cases/dispatch-escalations.use-case';
 import { ListConsentsByRecipientUseCase } from '../modules/notification/application/use-cases/list-consents-by-recipient.use-case';
 import { OverrideConsentUseCase } from '../modules/notification/application/use-cases/override-consent.use-case';
+import { RecordConsentOptOutUseCase } from '../modules/notification/application/use-cases/record-consent-opt-out.use-case';
+import { PrismaTenantEtaPlanReader } from '../modules/tenant-eta/infrastructure/prisma-tenant-eta-plan.reader';
+import type { ITenantEtaPlanReader } from '../modules/tenant-eta/domain/tenant-eta-plan.reader';
 import { BuildNotificationPayloadService } from '../modules/notification/domain/build-notification-payload.service';
 import { AppointmentCodeFormatter } from '../modules/appointment/domain/appointment-code.formatter';
 import type { NotificationRouteContainer } from '../modules/notification/interfaces/notification.routes';
@@ -523,6 +526,8 @@ export interface AppContainer {
     computeDayPlanUseCase: ComputeDayPlanUseCase;
     getFreshStopForAppointmentUseCase: GetFreshStopForAppointmentUseCase;
   };
+  // F06 arrival-notice prediction read side (consumed by TASK-F06-2; no route here).
+  tenantEta: { planReader: ITenantEtaPlanReader };
   auth: AuthRouteContainer;
   tenant: TenantRouteContainer;
   user: UserRouteContainer;
@@ -1544,6 +1549,13 @@ export function createContainer(logger: Logger): AppContainer {
     authorizationService,
     auditService,
   );
+  const recordConsentOptOutUseCase = new RecordConsentOptOutUseCase(
+    consentRepo,
+    authorizationService,
+    auditService,
+  );
+  // F06 tenant-eta plan reader (consumed by TASK-F06-2; no HTTP route here).
+  const tenantEtaPlanReader = new PrismaTenantEtaPlanReader(prisma, inspectorFieldEventRepo);
 
   // Dashboard repositories and use cases
   const dashboardRepo = new PrismaDashboardRepository(prisma);
@@ -1710,6 +1722,7 @@ export function createContainer(logger: Logger): AppContainer {
     domainEventBus,
     geocodingService,
     dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, getFreshStopForAppointmentUseCase, getRouteEtaAccuracyUseCase, previewRouteWeightsUseCase, previewDayPlanOrderUseCase, getDayPlanSheetUseCase, jwtService, tenantRepo },
+    tenantEta: { planReader: tenantEtaPlanReader },
     auth: {
       loginUseCase,
       refreshTokenUseCase,
@@ -2018,6 +2031,7 @@ export function createContainer(logger: Logger): AppContainer {
       dispatchEscalationsUseCase,
       listConsentsByRecipientUseCase,
       overrideConsentUseCase,
+      recordConsentOptOutUseCase,
       jwtService,
       tenantRepo,
       webhookSignatureValidator,

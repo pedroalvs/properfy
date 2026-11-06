@@ -36,6 +36,9 @@ export const tenantSettingsSchema = z.object({
   // (escalation, cancellation copy, report-ready, password reset) is unaffected.
   // Default true (back-compat).
   rentalTenantNotificationsEnabled: z.boolean().default(true),
+  // Only the arrival-time notices (TENANT_ETA_*, F06). Ignored when
+  // rentalTenantNotificationsEnabled is false. Default true (absent = on).
+  tenantEtaNoticesEnabled: z.boolean().default(true),
 
   // Branding
   logoUrl: z.string().url().optional(),

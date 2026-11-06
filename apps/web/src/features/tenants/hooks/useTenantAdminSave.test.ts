@@ -32,6 +32,7 @@ const VALID_DATA: TenantAdminFormData = {
   appointmentCodePrefix: 'INS',
   notes: '',
   rentalTenantNotificationsEnabled: true,
+  tenantEtaNoticesEnabled: true,
   mapWindowDays: '14',
 };
 
@@ -190,6 +191,7 @@ describe('useTenantAdminSave', () => {
         settings: {
           rentalTenantNotificationsEnabled: true,
           emailSendingEnabled: true,
+          tenantEtaNoticesEnabled: true,
         },
       },
     });
@@ -224,6 +226,7 @@ describe('useTenantAdminSave', () => {
           settings: {
             rentalTenantNotificationsEnabled: false,
             emailSendingEnabled: false,
+            tenantEtaNoticesEnabled: true,
           },
         }),
       }),
@@ -248,6 +251,7 @@ describe('useTenantAdminSave', () => {
           settings: {
             rentalTenantNotificationsEnabled: true,
             emailSendingEnabled: true,
+            tenantEtaNoticesEnabled: true,
           },
         }),
       }),

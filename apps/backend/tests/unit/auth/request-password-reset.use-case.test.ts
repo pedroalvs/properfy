@@ -59,7 +59,7 @@ describe('RequestPasswordResetUseCase', () => {
       deleteExpired: vi.fn(),
     };
     createNotificationUseCase = {
-      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }),
     } as unknown as CreateNotificationUseCase;
     auditService = { log: vi.fn() } as unknown as AuditService;
     emailRateLimiter = new SlidingWindowRateLimiter({

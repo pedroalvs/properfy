@@ -669,3 +669,59 @@ describe('TenantFormDrawer – map window (F00)', () => {
     );
   });
 });
+
+describe('TenantFormDrawer – arrival-time notices flag (F06)', () => {
+  const LABEL = 'Send arrival-time notices to tenants (morning, on the way, running late)';
+
+  beforeEach(() => {
+    mockPatch.mockResolvedValue({ data: { data: { id: 'ten-01' } }, error: undefined });
+  });
+
+  it('is checked by default (absent key) for AM and sends settings.tenantEtaNoticesEnabled=false when unchecked', async () => {
+    const user = userEvent.setup();
+    mockTenantDetail();
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open tenantId="ten-01" onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+    const checkbox = await screen.findByRole('checkbox', { name: LABEL });
+    await waitFor(() => expect(checkbox).toBeChecked());
+    await user.click(checkbox);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(mockPatch).toHaveBeenCalled());
+    const body = mockPatch.mock.calls[0]![1].body as { settings: { tenantEtaNoticesEnabled: boolean } };
+    expect(body.settings.tenantEtaNoticesEnabled).toBe(false);
+  });
+
+  it('is disabled with a reason when the tenant notifications switch is off', async () => {
+    const user = userEvent.setup();
+    mockTenantDetail();
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open tenantId="ten-01" onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+    const etaCheckbox = await screen.findByRole('checkbox', { name: LABEL });
+    await user.click(screen.getByRole('checkbox', { name: 'Send notifications to tenants (email and SMS)' }));
+    expect(etaCheckbox).toBeDisabled();
+    expect(screen.getByText('Turned off because tenant notifications are off for this agency.')).toBeInTheDocument();
+  });
+
+  it('is absent for non-AM roles (OP)', () => {
+    mockUsePermissions.mockReturnValue({
+      role: 'OP',
+      hasRole: (...roles: string[]) => roles.includes('OP'),
+      canPerform: () => true,
+    });
+    const Wrapper = createWrapper();
+    render(
+      <Wrapper>
+        <TenantFormDrawer open onClose={vi.fn()} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+    expect(screen.queryByText(LABEL)).not.toBeInTheDocument();
+  });
+});

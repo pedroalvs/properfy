@@ -5,6 +5,14 @@ import type {
   FieldEventRecord,
 } from './inspector-field-event.entity';
 
+/** Latest LATE_NOTICE per appointment (F06 ETA floor, D18). */
+export interface LatestLateNotice {
+  appointmentId: string;
+  minutesLate: number;
+  createdAt: Date;
+  clientOccurredAt: Date | null;
+}
+
 export interface IInspectorFieldEventRepository {
   create(event: InspectorFieldEventEntity, tx?: Prisma.TransactionClient): Promise<void>;
   /**
@@ -13,6 +21,15 @@ export interface IInspectorFieldEventRepository {
    * `inspectorIssue` without an N+1. Empty input → no query.
    */
   findLatestCantDoByAppointmentIds(appointmentIds: string[]): Promise<LatestCantDo[]>;
+  /**
+   * Latest LATE_NOTICE per appointment created at/after `since`, in ONE query
+   * (DISTINCT ON). Used by the F06 ETA plan reader to apply the published-ETA
+   * floor (D18). Empty input → no query.
+   */
+  findLatestLateNoticeByAppointmentIds(
+    appointmentIds: string[],
+    since: Date,
+  ): Promise<LatestLateNotice[]>;
   /** Latest CANT_DO of a single appointment (detail + rejection-email context). */
   findLatestCantDoByAppointmentId(
     appointmentId: string,

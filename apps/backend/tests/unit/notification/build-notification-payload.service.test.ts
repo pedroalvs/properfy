@@ -322,9 +322,10 @@ describe('BuildNotificationPayloadService', () => {
 
   // Only appointment-related templates can be built via this service.
   // REPORT_READY / REPORT_FAILED require vars (userName, reportType) that allVars never produces,
-  // so they are intentionally excluded from this smoke-test.
+  // and the TENANT_ETA_* codes require etaFrom/etaTo (only produced when `eta` is supplied),
+  // so they are intentionally excluded from this smoke-test (covered by the F06 block above).
   const APPOINTMENT_TEMPLATES = (MANDATORY_TEMPLATE_CODES as readonly string[]).filter(
-    (c) => c !== 'REPORT_READY' && c !== 'REPORT_FAILED',
+    (c) => c !== 'REPORT_READY' && c !== 'REPORT_FAILED' && !c.startsWith('TENANT_ETA_'),
   );
 
   for (const templateCode of APPOINTMENT_TEMPLATES) {
@@ -376,6 +377,45 @@ describe('BuildNotificationPayloadService — normalized variables', () => {
     const result = svc.build(baseCtx({ templateCode: 'INSPECTION_NOTICE', rawPortalToken: 'tok-abc' }));
     expect(result.rescheduleLink).toBe(result.confirmationLink);
     expect(result.confirmationLink).toContain('/portal/tok-abc');
+  });
+});
+
+// ── F06 arrival-time (eta) context ────────────────────────────────────────
+
+describe('BuildNotificationPayloadService — tenant arrival-time (F06)', () => {
+  const svc = new BuildNotificationPayloadService();
+
+  it('emits etaFrom/etaTo for TENANT_ETA_MORNING when eta is supplied', () => {
+    const result = svc.build(
+      baseCtx({ templateCode: 'TENANT_ETA_MORNING', eta: { from: '8:00 am', to: '8:30 am' } }),
+    );
+    expect(result.etaFrom).toBe('8:00 am');
+    expect(result.etaTo).toBe('8:30 am');
+    expect(result.rentalTenantName).toBeDefined();
+    expect(result.scheduledDate).toBeDefined();
+  });
+
+  it('throws MissingRequiredVariableError when eta is absent (never a notice without a time)', () => {
+    try {
+      svc.build(baseCtx({ templateCode: 'TENANT_ETA_MORNING' }));
+      throw new Error('expected throw');
+    } catch (err) {
+      expect(err).toBeInstanceOf(MissingRequiredVariableError);
+      expect((err as MissingRequiredVariableError).variableName).toBe('etaFrom');
+    }
+  });
+
+  it('does not leak etaFrom/etaTo into a non-ETA template even when eta is passed', () => {
+    const result = svc.build(baseCtx({ templateCode: 'INSPECTION_NOTICE', eta: { from: '8:00 am', to: '8:30 am' } }));
+    expect('etaFrom' in result).toBe(false);
+    expect('etaTo' in result).toBe(false);
+  });
+
+  it('does not declare confirmationLink for a TENANT_ETA code (key absent, not empty)', () => {
+    const result = svc.build(
+      baseCtx({ templateCode: 'TENANT_ETA_DELAY', eta: { from: '10:55 am', to: '11:55 am' } }),
+    );
+    expect('confirmationLink' in result).toBe(false);
   });
 });
 

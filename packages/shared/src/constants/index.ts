@@ -4,6 +4,7 @@ export * from './inspector-workload';
 export * from './service-type';
 export * from './timezone';
 export * from './notification-templates';
+export * from './tenant-eta';
 export * from './phone';
 export * from './transition-sources';
 export * from './inspector-notices';

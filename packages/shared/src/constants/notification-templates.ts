@@ -1,5 +1,5 @@
 import type { NotificationClass } from '../enums';
-import { formatCivilDate, formatWallTimeRange } from '../utils/format-display-date';
+import { formatCivilDate, formatWallTime, formatWallTimeRange } from '../utils/format-display-date';
 
 /** Path (relative to a web app base URL) at which the Properfy logo is served. */
 export const PROPERFY_LOGO_PATH = '/images/properfy-logo-red.png';
@@ -51,6 +51,14 @@ export const MANDATORY_TEMPLATE_CODES = [
   'REPORT_FAILED',
   'TENANT_PORTAL_LINK',
   'INSPECTION_SATISFACTION_SURVEY',
+  // F06 arrival-time notices. One code, two channel rows (EMAIL + SMS) like
+  // TENANT_PORTAL_LINK; never add an _SMS twin — see templateFamily() in
+  // notify-on-status-transition.handler.ts, whose family folding would cause
+  // cross-channel suppression. They are also kept out of
+  // STATUS_TRANSITION_TEMPLATE_CODES / RENTAL_TENANT_NOTICE_CODES (F06 D11).
+  'TENANT_ETA_MORNING',
+  'TENANT_ETA_ON_THE_WAY',
+  'TENANT_ETA_DELAY',
 ] as const;
 
 export type MandatoryTemplateCode = (typeof MANDATORY_TEMPLATE_CODES)[number];
@@ -166,6 +174,9 @@ export const TEMPLATE_CODE_LABELS: Record<MandatoryTemplateCode, string> = {
   REPORT_FAILED: 'Report Failed',
   TENANT_PORTAL_LINK: 'Tenant Portal Link',
   INSPECTION_SATISFACTION_SURVEY: 'Satisfaction Survey',
+  TENANT_ETA_MORNING: 'Arrival Estimate – Morning',
+  TENANT_ETA_ON_THE_WAY: 'Inspector On The Way',
+  TENANT_ETA_DELAY: 'Inspector Running Late',
 };
 
 /**
@@ -292,6 +303,11 @@ export const TEMPLATE_TARGETS: Record<
   REPORT_FAILED: 'USER_ACCOUNT',
   TENANT_PORTAL_LINK: 'RENTAL_TENANT',
   INSPECTION_SATISFACTION_SURVEY: 'RENTAL_TENANT',
+  // Dispatched by modules/tenant-eta (morning job, evaluate worker, delay sweep;
+  // email + SMS) — TASK-F06-2.
+  TENANT_ETA_MORNING: 'RENTAL_TENANT',
+  TENANT_ETA_ON_THE_WAY: 'RENTAL_TENANT',
+  TENANT_ETA_DELAY: 'RENTAL_TENANT',
   PASSWORD_RESET: 'USER_ACCOUNT',
   INSPECTION_STUCK_ALERT: 'PLATFORM_OPS',
   INSPECTOR_UNABLE_ALERT: 'PLATFORM_OPS',
@@ -384,6 +400,11 @@ export const DEFAULT_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClass>
   // request is not an appointment action the recipient must receive regardless
   // of opt-out, so it stays consent-checked.
   INSPECTION_SATISFACTION_SURVEY: 'OPERATIONAL',
+  // Consent-checked per channel by decision Q21; never protected — a protected
+  // (TRANSACTIONAL) class would ignore the tenant's opt-out, against F06 D2.
+  TENANT_ETA_MORNING: 'OPERATIONAL',
+  TENANT_ETA_ON_THE_WAY: 'OPERATIONAL',
+  TENANT_ETA_DELAY: 'OPERATIONAL',
 };
 
 export function isProtectedTemplateCode(templateCode: string): boolean {
@@ -607,6 +628,23 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
     required: ['message'],
     optional: [],
   },
+  // F06 arrival-time notices. etaFrom/etaTo are REQUIRED so the editor (and the
+  // server upsert) block a save without them, and the payload builder throws
+  // MissingRequiredVariableError rather than ever sending a notice without a
+  // time — the triggers always pass `eta`. `rentalTenantName` is optional (same
+  // reason as TENANT_PORTAL_LINK: the spec is per code and serves both channels).
+  TENANT_ETA_MORNING: {
+    required: ['etaFrom', 'etaTo'],
+    optional: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl'],
+  },
+  TENANT_ETA_ON_THE_WAY: {
+    required: ['etaFrom', 'etaTo'],
+    optional: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl'],
+  },
+  TENANT_ETA_DELAY: {
+    required: ['etaFrom', 'etaTo'],
+    optional: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl'],
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -656,6 +694,9 @@ export const ALLOWED_VARIABLES = [
   'fieldIssueNote',
   // Agency rejection email: switches copy when the inspector reported can't-do (D26).
   'rejectedByInspector',
+  // F06 arrival-time notices: the ±30-min estimate as wall-clock strings.
+  'etaFrom',
+  'etaTo',
 ] as const;
 
 export type AllowedVariable = (typeof ALLOWED_VARIABLES)[number];
@@ -719,4 +760,8 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   fieldIssueNote: 'Lockbox code was wrong',
   // INSPECTION_REJECTED_AGENCY: non-empty => inspector-driven rejection copy (D26).
   rejectedByInspector: 'true',
+  // F06: derived by the same formatter the real send uses (formatWallTime), so
+  // the preview cannot drift from the dispatched text.
+  etaFrom: formatWallTime('10:15'),
+  etaTo: formatWallTime('11:15'),
 };

@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/Button';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
+import { useSnackbar } from '@/hooks/useSnackbar';
 import { useConsentLookup, type ConsentRecord } from '../hooks/useConsentLookup';
 import { ConsentOverrideModal } from './ConsentOverrideModal';
+import { ConsentOptOutModal } from './ConsentOptOutModal';
 
 /**
  * Feature 018 US3: operator consent inspection.
@@ -22,9 +24,11 @@ import { ConsentOverrideModal } from './ConsentOverrideModal';
  */
 export function ConsentLookup() {
   const { hasRole } = usePermissions();
+  const { showSuccess } = useSnackbar();
   const [searchInput, setSearchInput] = useState('');
   const [activeRecipient, setActiveRecipient] = useState<string | null>(null);
   const [selectedConsent, setSelectedConsent] = useState<ConsentRecord | null>(null);
+  const [showOptOut, setShowOptOut] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = useConsentLookup({
     recipient: activeRecipient,
@@ -85,7 +89,12 @@ export function ConsentLookup() {
 
   return (
     <div className="p-6">
-      <h1 className="mb-4 text-2xl font-bold text-secondary">Consent Lookup</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-secondary">Consent Lookup</h1>
+        <Button variant="outlined" onClick={() => setShowOptOut(true)}>
+          Record opt-out
+        </Button>
+      </div>
       <p className="mb-6 text-sm text-text-secondary">
         Look up a recipient&apos;s opt-out status across channels and classifications.
       </p>
@@ -140,6 +149,18 @@ export function ConsentLookup() {
           onClose={() => setSelectedConsent(null)}
           onSuccess={() => {
             setSelectedConsent(null);
+            refetch();
+          }}
+        />
+      )}
+
+      {showOptOut && (
+        <ConsentOptOutModal
+          initialRecipient={activeRecipient ?? searchInput.trim()}
+          onClose={() => setShowOptOut(false)}
+          onSuccess={() => {
+            setShowOptOut(false);
+            showSuccess('Opt-out recorded');
             refetch();
           }}
         />

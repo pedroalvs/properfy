@@ -31,6 +31,7 @@ const identityMapper = identityFieldMapper<keyof TenantAdminFormData>([
  */
 function serverFieldMapper(path: string): keyof TenantAdminFormData | undefined {
   if (path === 'settings.rentalTenantNotificationsEnabled') return 'rentalTenantNotificationsEnabled';
+  if (path === 'settings.tenantEtaNoticesEnabled') return 'tenantEtaNoticesEnabled';
   if (path === 'settings.mapWindowDays') return 'mapWindowDays';
   return identityMapper(path);
 }
@@ -124,17 +125,19 @@ export function useTenantAdminSave(): UseTenantAdminSaveReturn {
         // settings_json); scalar fields stay top-level. `notes` is not part of the
         // API contract and is excluded from the payload, as is the map window
         // unless `mapWindow === 'include'` (AM edit).
-        const { rentalTenantNotificationsEnabled, appointmentCodePrefix, notes: _notes, mapWindowDays: _mapWindowDays, ...rest } = data;
+        const { rentalTenantNotificationsEnabled, tenantEtaNoticesEnabled, appointmentCodePrefix, notes: _notes, mapWindowDays: _mapWindowDays, ...rest } = data;
         // Only send the prefix when present (uppercased to match the backend). On
         // edit, an empty value (legacy tenant) is omitted so the field is untouched.
         const trimmedPrefix = appointmentCodePrefix.trim().toUpperCase();
         const settings: {
           rentalTenantNotificationsEnabled: boolean;
           emailSendingEnabled: boolean;
+          tenantEtaNoticesEnabled: boolean;
           mapWindowDays?: number;
         } = {
           rentalTenantNotificationsEnabled,
           emailSendingEnabled: rentalTenantNotificationsEnabled,
+          tenantEtaNoticesEnabled,
         };
         if (opts?.mapWindow === 'include') {
           settings.mapWindowDays = Number(data.mapWindowDays);

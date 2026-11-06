@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FieldEventsSettingsSection } from '../components/FieldEventsSettingsSection';
 import { RouteWeightsSettingsSection } from '../components/RouteWeightsSettingsSection';
+import { TenantEtaNoticesSection } from '../components/TenantEtaNoticesSection';
 
 /**
  * Platform settings (AM/OP). One section per `PLATFORM_SETTINGS_REGISTRY` key —
@@ -17,7 +18,8 @@ import { RouteWeightsSettingsSection } from '../components/RouteWeightsSettingsS
 export function PlatformSettingsPage() {
   const [fieldEventsDirty, setFieldEventsDirty] = useState(false);
   const [routeWeightsDirty, setRouteWeightsDirty] = useState(false);
-  const dirty = fieldEventsDirty || routeWeightsDirty;
+  const [tenantEtaDirty, setTenantEtaDirty] = useState(false);
+  const dirty = fieldEventsDirty || routeWeightsDirty || tenantEtaDirty;
   const [showDiscard, setShowDiscard] = useState(false);
   const pendingGoBack = useRef<(() => void) | null>(null);
 
@@ -46,6 +48,7 @@ export function PlatformSettingsPage() {
       <div className="flex flex-col gap-6">
         <FieldEventsSettingsSection onDirtyChange={setFieldEventsDirty} />
         <RouteWeightsSettingsSection onDirtyChange={setRouteWeightsDirty} />
+        <TenantEtaNoticesSection onDirtyChange={setTenantEtaDirty} />
       </div>
 
       <ConfirmDialog

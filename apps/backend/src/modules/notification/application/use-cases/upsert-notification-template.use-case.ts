@@ -1,4 +1,5 @@
 import type { AuthContext, NotificationChannel, NotificationClass } from '@properfy/shared';
+import { findTemplateVariableIssues } from '@properfy/shared';
 import { ValidationError, UnprocessableEntityError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
@@ -13,6 +14,8 @@ import {
   getProtectedClass,
   getDefaultClass,
   SAMPLE_DATA,
+  TEMPLATE_VARIABLES,
+  ALLOWED_VARIABLES,
 } from '../../domain/notification.constants';
 import { measureSmsTemplate, describeSmsOverLimit } from '../../domain/sms-content';
 import { NotificationTemplateEntity } from '../../domain/notification-template.entity';
@@ -142,6 +145,25 @@ export class UpsertNotificationTemplateUseCase {
       }
     }
 
+    // 5c. Reject a template missing a required variable (F06, L-F06-09). The same
+    // extraction the web editor uses (`findTemplateVariableIssues` over
+    // subject + bodyHtml); only `missing` is applied here — `invalid` stays an
+    // editor-only concern so existing templates with extra placeholders still
+    // save. A code with no spec in TEMPLATE_VARIABLES is unaffected. This makes
+    // "never a notice without a time" hold for API-saved templates too, not only
+    // the web editor.
+    const varSpec = TEMPLATE_VARIABLES[input.templateCode as keyof typeof TEMPLATE_VARIABLES];
+    if (varSpec) {
+      const { missing } = findTemplateVariableIssues(`${input.subject ?? ''} ${input.bodyHtml}`, {
+        required: varSpec.required,
+        allowed: ALLOWED_VARIABLES,
+      });
+      if (missing.length > 0) {
+        const message = `Missing required variables: ${missing.join(', ')}`;
+        throw new ValidationError(message, [{ code: 'custom', message, field: 'bodyHtml' }]);
+      }
+    }
+
     // 6. Resolve notification classification (FR-004, FR-005)
     const protectedClass = getProtectedClass(input.templateCode);
     let resolvedClass: NotificationClass;
@@ -150,6 +172,24 @@ export class UpsertNotificationTemplateUseCase {
         throw new ProtectedTemplateClassificationError(input.templateCode, protectedClass);
       }
       resolvedClass = protectedClass;
+    } else if (input.templateCode.startsWith('TENANT_ETA_')) {
+      // F06 D2/Q21: the arrival-time notices MUST stay consent-checked. A protected
+      // (TRANSACTIONAL) class bypasses the tenant's opt-out (send-notification
+      // consent_bypass_transactional), so pin these codes to OPERATIONAL and reject
+      // any attempt to reclassify them (incl. a CL_ADMIN editing its own override).
+      if (input.notificationClass && input.notificationClass !== 'OPERATIONAL') {
+        throw new ValidationError(
+          'Tenant arrival-time notices must stay OPERATIONAL (consent-checked)',
+          [
+            {
+              code: 'custom',
+              message: 'This template must be OPERATIONAL so tenants can opt out',
+              field: 'notificationClass',
+            },
+          ],
+        );
+      }
+      resolvedClass = 'OPERATIONAL';
     } else {
       resolvedClass = input.notificationClass ?? getDefaultClass(input.templateCode);
     }

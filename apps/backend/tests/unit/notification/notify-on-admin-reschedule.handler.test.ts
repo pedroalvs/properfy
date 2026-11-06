@@ -80,7 +80,7 @@ const tenantRepo = { findById: vi.fn() };
 const mintPortalTokenService = {
   mint: vi.fn().mockResolvedValue({ rawToken: 'new-portal-token', expiresAt: new Date('2026-09-01') }),
 };
-const createNotification = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }) };
+const createNotification = { execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }) };
 const logger = {
   error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn(),
   trace: vi.fn(), fatal: vi.fn(), child: vi.fn().mockReturnThis(), silent: vi.fn(), level: 'info',
@@ -106,7 +106,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   propertyRepo.findById.mockResolvedValue(null);
   mintPortalTokenService.mint.mockResolvedValue({ rawToken: 'new-portal-token', expiresAt: new Date('2026-09-01') });
-  createNotification.execute.mockResolvedValue({ notificationId: 'notif-1' });
+  createNotification.execute.mockResolvedValue({ notificationId: 'notif-1', created: true });
 });
 
 describe('NotifyOnAdminRescheduleHandler', () => {

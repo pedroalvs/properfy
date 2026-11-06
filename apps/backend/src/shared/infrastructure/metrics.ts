@@ -61,6 +61,7 @@ export class MetricsCollector {
   private routingMatrixElements = 0;
   private routingProviderFailuresByCode = new Map<string, number>();
   private dayPlansApproximateTotal = new Map<string, number>();
+  private smsPartsByTemplate = new Map<string, number>();
 
   /** Register a function that returns the current JWT previous key days remaining. Called on each snapshot. */
   setJwtGaugeProvider(provider: () => number | null): void {
@@ -129,6 +130,15 @@ export class MetricsCollector {
     this.dayPlansApproximateTotal.set(reason, (this.dayPlansApproximateTotal.get(reason) ?? 0) + 1);
   }
 
+  /**
+   * Accumulate the SMS-segment cost of a dispatched message, keyed by template
+   * code (F06 L-F06-11). Per-machine, like the other counters. Feeds `/metrics`
+   * so the arrival-notice SMS cost is visible without log scraping.
+   */
+  addSmsParts(templateCode: string, parts: number): void {
+    this.smsPartsByTemplate.set(templateCode, (this.smsPartsByTemplate.get(templateCode) ?? 0) + parts);
+  }
+
   httpRequestStart(): () => number {
     this.activeRequests += 1;
     const start = performance.now();
@@ -187,6 +197,7 @@ export class MetricsCollector {
     this.routingMatrixElements = 0;
     this.routingProviderFailuresByCode.clear();
     this.dayPlansApproximateTotal.clear();
+    this.smsPartsByTemplate.clear();
   }
 
   getSnapshot(): MetricsSnapshot {
@@ -267,6 +278,7 @@ export class MetricsCollector {
         handlerErrorCount: this.notificationHandlerErrorCount,
         agencyForwardFailedCount: this.agencyForwardFailedCount,
         missingVariableCount: this.notificationMissingVariableCount,
+        smsPartsByTemplate: Object.fromEntries(this.smsPartsByTemplate),
       },
       routing: {
         providerCalls: Array.from(this.routingProviderCalls, ([key, count]) => {
@@ -342,6 +354,8 @@ export interface MetricsSnapshot {
     /** Withheld from the tenant AND not mirrored to the agency — nobody was told. */
     agencyForwardFailedCount: number;
     missingVariableCount: number;
+    /** Dispatched SMS segments, keyed by template code (F06 L-F06-11). */
+    smsPartsByTemplate: Record<string, number>;
   };
   routing?: {
     providerCalls: Array<{ api: string; outcome: string; count: number }>;

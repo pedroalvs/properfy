@@ -559,7 +559,7 @@ describe('GeneratePortalTokenUseCase', () => {
 
   it('returns dispatched: true when the notification is created successfully', async () => {
     const notificationUseCase = {
-      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }),
     };
     const contact = {
       isPrimary: true,
@@ -595,7 +595,7 @@ describe('GeneratePortalTokenUseCase', () => {
   // token instead of building a full portal URL like the automated path does.
   it('dispatches a full portal URL (not the bare token) as confirmationLink/rescheduleLink', async () => {
     const notificationUseCase = {
-      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }),
     };
     const contact = {
       isPrimary: true,
@@ -634,7 +634,7 @@ describe('GeneratePortalTokenUseCase', () => {
   });
 
   it('builds the payload through the canonical builder (formatted date/time, full variable set)', async () => {
-    const notificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'n-1' }) };
+    const notificationUseCase = { execute: vi.fn().mockResolvedValue({ notificationId: 'n-1', created: true }) };
     const contact = {
       isPrimary: true,
       effectiveName: 'Jane Doe',
@@ -672,7 +672,7 @@ describe('GeneratePortalTokenUseCase', () => {
     const notificationUseCase = {
       execute: vi
         .fn()
-        .mockResolvedValueOnce({ notificationId: 'notif-email' })
+        .mockResolvedValueOnce({ notificationId: 'notif-email', created: true })
         .mockRejectedValueOnce(new Error('sms provider down')),
     };
     const contact = {

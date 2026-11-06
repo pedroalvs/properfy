@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { isRentalTenantNotificationsEnabled } from '@properfy/shared';
+import { isRentalTenantNotificationsEnabled, isTenantEtaNoticesEnabled } from '@properfy/shared';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
@@ -78,6 +78,8 @@ export function TenantFormDrawer({
         // Read uses settingsJson (the GET response key). The shared predicate keeps
         // mixed-version conflicts fail-closed while missing/absent stays enabled.
         rentalTenantNotificationsEnabled: isRentalTenantNotificationsEnabled(tenant.settingsJson),
+        // Absent/true = on (F06 L-F06-06), same fail-open read as the switch above.
+        tenantEtaNoticesEnabled: isTenantEtaNoticesEnabled(tenant.settingsJson),
         // Tolerant read: absent/invalid falls back to the platform default (14).
         mapWindowDays: String(resolveMapWindowDays(tenant.settingsJson)),
       };
@@ -256,6 +258,19 @@ export function TenantFormDrawer({
                         channel. Each withheld message is emailed to the branch contact instead,
                         and &quot;Send Portal Link&quot; is disabled.
                       </p>
+                      <div className="mt-4">
+                        <Checkbox
+                          checked={form.tenantEtaNoticesEnabled}
+                          onChange={(v) => updateField('tenantEtaNoticesEnabled', v)}
+                          disabled={!form.rentalTenantNotificationsEnabled}
+                          label="Send arrival-time notices to tenants (morning, on the way, running late)"
+                        />
+                        <p className="mt-1 text-sm text-text-secondary">
+                          {form.rentalTenantNotificationsEnabled
+                            ? 'Turn off if this agency tells its tenants the arrival time itself. Other tenant notifications keep going.'
+                            : 'Turned off because tenant notifications are off for this agency.'}
+                        </p>
+                      </div>
                     </FormSection>
                   )}
                   </>

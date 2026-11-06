@@ -183,7 +183,7 @@ describe('DispatchEscalationsUseCase', () => {
       existsByAppointmentAndTemplate: vi.fn().mockResolvedValue(false),
     };
     mockCreateNotification = {
-      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }),
     };
     useCase = new DispatchEscalationsUseCase(
       mockAppointmentRepo as unknown as IAppointmentRepository,

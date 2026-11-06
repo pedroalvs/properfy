@@ -6,10 +6,16 @@ import { ApiError } from '@/lib/api-error';
 import { PlatformSettingsPage } from './PlatformSettingsPage';
 import type { UsePlatformSettingReturn } from '../hooks/usePlatformSetting';
 
-const mockHook = vi.fn<[], UsePlatformSettingReturn>();
+const mockHook = vi.fn<[string], UsePlatformSettingReturn>();
 vi.mock('../hooks/usePlatformSetting', () => ({
-  usePlatformSetting: () => mockHook(),
+  usePlatformSetting: (key: string) => mockHook(key),
 }));
+
+const SECTION_BY_KEY: Record<string, string> = {
+  fieldEvents: 'Field events',
+  routeWeights: 'Route planning',
+  tenantEtaNotices: 'Tenant arrival notices',
+};
 vi.mock('@/hooks/useSnackbar', () => ({
   useSnackbar: () => ({ showSuccess: vi.fn(), showError: vi.fn(), showInfo: vi.fn(), dismiss: vi.fn(), messages: [] }),
 }));
@@ -38,15 +44,30 @@ const setting: PlatformSettingResponse = {
 };
 
 function setHook(partial: Partial<UsePlatformSettingReturn> = {}) {
-  mockHook.mockReturnValue({
-    setting,
-    isLoading: false,
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
-    save: vi.fn().mockResolvedValue(setting),
-    isSaving: false,
-    ...partial,
+  // Key-aware: each section reads its own key, so give each its own section label
+  // (the TenantEtaNoticesSection header comes from the response `section`).
+  //
+  // CRITICAL: cache one STABLE return object per key. The sections memoize
+  // `loaded` on `setting` identity and run a `useEffect([loaded])` that calls
+  // setState; returning a fresh object per call would churn that identity every
+  // render → infinite re-render loop → heap blowout ("Worker exited unexpectedly").
+  const cache = new Map<string, UsePlatformSettingReturn>();
+  mockHook.mockImplementation((key: string) => {
+    let value = cache.get(key);
+    if (!value) {
+      value = {
+        setting: { ...setting, key, section: SECTION_BY_KEY[key] ?? setting.section },
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+        save: vi.fn().mockResolvedValue(setting),
+        isSaving: false,
+        ...partial,
+      };
+      cache.set(key, value);
+    }
+    return value;
   });
 }
 
@@ -64,7 +85,9 @@ function renderPage() {
   );
 }
 
-beforeEach(() => mockHook.mockReset());
+beforeEach(() => {
+  mockHook.mockReset();
+});
 
 describe('PlatformSettingsPage', () => {
   it('renders the page header and the Field events section', () => {
@@ -75,14 +98,17 @@ describe('PlatformSettingsPage', () => {
     expect(screen.getByLabelText('Geofence radius')).toBeInTheDocument();
   });
 
-  it('renders Field events then Route planning (section order)', () => {
+  it('renders Field events, Route planning then Tenant arrival notices (section order)', () => {
     setHook();
     renderPage();
     const fieldEvents = screen.getByText('Field events');
     const routePlanning = screen.getByText('Route planning');
+    const tenantEta = screen.getByText('Tenant arrival notices');
     expect(routePlanning).toBeInTheDocument();
-    // Field events comes before Route planning in document order.
+    expect(tenantEta).toBeInTheDocument();
+    // Field events → Route planning → Tenant arrival notices in document order.
     expect(fieldEvents.compareDocumentPosition(routePlanning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(routePlanning.compareDocumentPosition(tenantEta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('shows the access ErrorState when the setting read is forbidden', () => {

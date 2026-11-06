@@ -379,6 +379,35 @@ const INSPECTOR_GROUP_JOBS_ADDED_HTML = renderSystemEmailHtml({
     `<p style="${SYSTEM_NOTE_STYLE}"><strong>Action required:</strong> open the Properfy app to see the new addresses and re-plan your route.</p>`,
 });
 
+// ── Tenant arrival-time notices (F06) ────────────────────────────────────────
+const TENANT_ETA_MORNING_HTML = tenantEmailHtml(
+  `<p>Your <strong>${SERVICE_LABEL}</strong>` +
+    '{{#if appointmentCode}} <strong>#{{appointmentCode}}</strong>{{/if}}' +
+    '{{#if propertyAddress}} of <strong>{{propertyAddress}}</strong>{{/if}} is <strong>today, {{scheduledDate}}</strong>.</p>' +
+    '<p>We expect the inspector to arrive between <strong>{{etaFrom}}</strong> and <strong>{{etaTo}}</strong>.</p>' +
+    `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Please note:</strong> this is an estimate based on the inspector's route for the day. ` +
+    'If the inspector is running late, we will let you know.</p>' +
+    CLOSING_PARAGRAPHS,
+);
+
+// Neutral copy: never claims the previous visit finished (false in the CANT_DO
+// path, F06 D16 / L-F06-08) — only that the inspector "is on the way".
+const TENANT_ETA_ON_THE_WAY_HTML = tenantEmailHtml(
+  '<p>The inspector{{#if inspectorName}}, <strong>{{inspectorName}}</strong>,{{/if}} ' +
+    `is on the way to your <strong>${SERVICE_LABEL}</strong>` +
+    '{{#if propertyAddress}} at <strong>{{propertyAddress}}</strong>{{/if}}.</p>' +
+    '<p>Expected arrival: between <strong>{{etaFrom}}</strong> and <strong>{{etaTo}}</strong>.</p>' +
+    CLOSING_PARAGRAPHS,
+);
+
+const TENANT_ETA_DELAY_HTML = tenantEmailHtml(
+  `<p>We are sorry: the inspector is running late for your <strong>${SERVICE_LABEL}</strong>` +
+    '{{#if propertyAddress}} at <strong>{{propertyAddress}}</strong>{{/if}} today.</p>' +
+    '<p>New expected arrival: between <strong>{{etaFrom}}</strong> and <strong>{{etaTo}}</strong>.</p>' +
+    `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Please note:</strong> if this time no longer suits you, ${CONTACT_TEAM_SENTENCE}</p>` +
+    CLOSING_PARAGRAPHS,
+);
+
 export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
   // ── EMAIL templates ────────────────────────────────────────────────────────
   {
@@ -629,5 +658,47 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     subject: null,
     body: '{{{message}}}',
     notificationClass: 'TRANSACTIONAL',
+  },
+  // ── Tenant arrival-time notices (F06) ──────────────────────────────────────
+  // One code, two channel rows each; class derived to OPERATIONAL (consent-checked);
+  // SMS bodies are GSM-7 only (no apostrophe / en dash).
+  {
+    code: 'TENANT_ETA_MORNING',
+    channel: 'EMAIL',
+    subject: 'Your inspection today: arrival between {{etaFrom}} and {{etaTo}}',
+    body: `Dear {{rentalTenantName}}, your inspection at {{propertyAddress}} is today, {{scheduledDate}}. We expect the inspector to arrive between {{etaFrom}} and {{etaTo}}. This is an estimate based on the inspector's route for the day. If the inspector is running late, we will let you know.`,
+    bodyHtml: TENANT_ETA_MORNING_HTML,
+  },
+  {
+    code: 'TENANT_ETA_MORNING',
+    channel: 'SMS',
+    subject: null,
+    body: 'Properfy: Hi {{rentalTenantName}}, your inspection is today. The inspector is expected to arrive between {{etaFrom}} and {{etaTo}}.',
+  },
+  {
+    code: 'TENANT_ETA_ON_THE_WAY',
+    channel: 'EMAIL',
+    subject: 'Your inspector is on the way',
+    body: `Dear {{rentalTenantName}}, the inspector is on the way to your inspection at {{propertyAddress}}. Expected arrival: between {{etaFrom}} and {{etaTo}}.`,
+    bodyHtml: TENANT_ETA_ON_THE_WAY_HTML,
+  },
+  {
+    code: 'TENANT_ETA_ON_THE_WAY',
+    channel: 'SMS',
+    subject: null,
+    body: 'Properfy: Hi {{rentalTenantName}}, your inspector is on the way and is expected to arrive between {{etaFrom}} and {{etaTo}}.',
+  },
+  {
+    code: 'TENANT_ETA_DELAY',
+    channel: 'EMAIL',
+    subject: 'Your inspector is running late',
+    body: `Dear {{rentalTenantName}}, we are sorry: the inspector is running late for your inspection at {{propertyAddress}} today. New expected arrival: between {{etaFrom}} and {{etaTo}}. If this time no longer suits you, please contact our bookings team by replying to this email.`,
+    bodyHtml: TENANT_ETA_DELAY_HTML,
+  },
+  {
+    code: 'TENANT_ETA_DELAY',
+    channel: 'SMS',
+    subject: null,
+    body: 'Properfy: Hi {{rentalTenantName}}, your inspector is running late. New expected arrival: between {{etaFrom}} and {{etaTo}}. Sorry for the delay.',
   },
 ];
