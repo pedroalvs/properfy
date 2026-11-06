@@ -46,16 +46,29 @@ const setting: PlatformSettingResponse = {
 function setHook(partial: Partial<UsePlatformSettingReturn> = {}) {
   // Key-aware: each section reads its own key, so give each its own section label
   // (the TenantEtaNoticesSection header comes from the response `section`).
-  mockHook.mockImplementation((key: string) => ({
-    setting: { ...setting, key, section: SECTION_BY_KEY[key] ?? setting.section },
-    isLoading: false,
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
-    save: vi.fn().mockResolvedValue(setting),
-    isSaving: false,
-    ...partial,
-  }));
+  //
+  // CRITICAL: cache one STABLE return object per key. The sections memoize
+  // `loaded` on `setting` identity and run a `useEffect([loaded])` that calls
+  // setState; returning a fresh object per call would churn that identity every
+  // render → infinite re-render loop → heap blowout ("Worker exited unexpectedly").
+  const cache = new Map<string, UsePlatformSettingReturn>();
+  mockHook.mockImplementation((key: string) => {
+    let value = cache.get(key);
+    if (!value) {
+      value = {
+        setting: { ...setting, key, section: SECTION_BY_KEY[key] ?? setting.section },
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+        save: vi.fn().mockResolvedValue(setting),
+        isSaving: false,
+        ...partial,
+      };
+      cache.set(key, value);
+    }
+    return value;
+  });
 }
 
 function renderPage() {
