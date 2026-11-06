@@ -23,7 +23,6 @@ import type { ExpireTokensWorker } from '../modules/rental-tenant-portal/infrast
 import type { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
 import type { AuditRetentionWorker } from '../modules/audit/infrastructure/workers/audit-retention.worker';
 import type { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
-import type { CancelOverdueWorker } from '../modules/appointment/infrastructure/workers/cancel-overdue.worker';
 import type { CancelEmptyGroupsWorker } from '../modules/service-group/infrastructure/workers/cancel-empty-groups.worker';
 import type { Logger } from '../shared/infrastructure/logger';
 import { DlqMonitor } from '../shared/infrastructure/dlq-monitor';
@@ -74,7 +73,6 @@ export async function registerWorkers(
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker,
   auditRetentionWorker: AuditRetentionWorker,
   rejectUnconfirmedWorker: RejectUnconfirmedWorker,
-  cancelOverdueWorker: CancelOverdueWorker,
   cancelEmptyGroupsWorker: CancelEmptyGroupsWorker,
   fyWebhookDispatcher: FyWebhookDispatcher,
   logger: Logger,
@@ -84,6 +82,12 @@ export async function registerWorkers(
   assertQueueDbConsistency(logger);
 
   const boss = await getQueue();
+
+  // One-time cleanup: the 45-day overdue auto-cancel feature was removed. Its pg-boss
+  // schedule row is upserted by name and persists per-environment, so removing the
+  // schedule() call alone would leave the stale cron queuing a worker-less job.
+  // Unschedule it on boot — a no-op once the row is gone.
+  await boss.unschedule('appointment.cancel-overdue');
 
   await boss.work(FY_WEBHOOK_JOB, withJobMetrics(FY_WEBHOOK_JOB, async (job) => {
     const event = fyWebhookEventSchema.parse(job.data);
@@ -310,29 +314,6 @@ export async function registerWorkers(
     }
   }));
 
-  // Auto-cancel appointments stalled past the overdue age — runs when each
-  // agency's local midnight arrives (hour 0 via the hourly tick). The 45-day
-  // age cutoff itself stays platform-anchored; only the run moment and the
-  // tenant scoping are agency-local.
-  await boss.schedule('appointment.cancel-overdue', '10 * * * *', {}, SYDNEY_TZ);
-  await boss.work('appointment.cancel-overdue', withJobMetrics('appointment.cancel-overdue', async (job) => {
-    let cancelledCount = 0;
-    let failedCount = 0;
-    let batchCapped = false;
-    const groups = await tenantCronTick.runDue('appointment.cancel-overdue', 0, async (group) => {
-      const result = await cancelOverdueWorker.execute({ tenantIds: group.tenantIds });
-      cancelledCount += result.cancelledCount;
-      failedCount += result.failedCount;
-      batchCapped = batchCapped || result.batchCapped;
-    });
-    if (groups.length > 0) {
-      logger.info(
-        { jobId: job.id, groups: groups.length, cancelledCount, failedCount, batchCapped },
-        'Overdue appointment cancellation completed',
-      );
-    }
-  }));
-
   // Backstop sweep for released groups left with nothing to execute. Runs after the
   // overdue sweep, though order is not load-bearing: cancellations made above already
   // reach the empty-group subscriber synchronously.
@@ -360,7 +341,7 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, audit.retention, appointment.reject-unconfirmed, appointment.cancel-overdue, service-group.cancel-empty, system.dlq-monitor');
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, audit.retention, appointment.reject-unconfirmed, service-group.cancel-empty, system.dlq-monitor');
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({

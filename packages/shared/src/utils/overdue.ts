@@ -26,20 +26,6 @@ export const OVERDUE_ELIGIBLE_STATUSES: readonly AppointmentStatus[] = [
 ];
 
 /**
- * The subset the daily auto-cancel sweep is allowed to cancel — a strict subset of
- * `OVERDUE_ELIGIBLE_STATUSES`.
- *
- * `DRAFT` is excluded on purpose: it is the operator's repair state, so a stale
- * `DRAFT` must be *shown* as overdue without being cancelled out from under them.
- * Callers in the sweep path must check this list; `isAppointmentOverdue` alone
- * returns true for a stale `DRAFT`.
- */
-export const OVERDUE_AUTO_CANCEL_STATUSES: readonly AppointmentStatus[] = [
-  AppointmentStatus.AWAITING_INSPECTOR,
-  AppointmentStatus.SCHEDULED,
-];
-
-/**
  * The Sydney civil date a record must have been created *before* to count as overdue,
  * i.e. today minus `OVERDUE_AGE_DAYS`.
  *
@@ -79,9 +65,8 @@ function createdAtCivilDate(createdAt: string | Date): string {
  * Whether an appointment is overdue: still in an active status, and created more than
  * `OVERDUE_AGE_DAYS` days ago (Sydney civil-date comparison).
  *
- * This is the single definition shared by the `isOverdue` response flag, the
- * repository's `overdueOnly` list filter, and the daily auto-cancel sweep. The sweep
- * additionally narrows to `OVERDUE_AUTO_CANCEL_STATUSES`.
+ * This is the single definition shared by the `isOverdue` response flag and the
+ * repository's `overdueOnly` list filter.
  *
  * Takes an object rather than positional arguments deliberately: the previous rule
  * keyed on `scheduled_date`, which has the same `string | Date` type as `createdAt`,

@@ -2,7 +2,6 @@ export {
   isAppointmentOverdue,
   overdueCreatedBeforeCivilDate,
   OVERDUE_AGE_DAYS,
-  OVERDUE_AUTO_CANCEL_STATUSES,
   OVERDUE_ELIGIBLE_STATUSES,
   type AppointmentOverdueInput,
 } from './overdue';
