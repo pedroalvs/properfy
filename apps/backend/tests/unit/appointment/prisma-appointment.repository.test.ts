@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
 import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
+import { startOfOverdueAgeCutoff } from '../../../src/shared/domain/timezone-date';
 
 describe('PrismaAppointmentRepository date filters', () => {
   const findMany = vi.fn();
@@ -492,11 +493,13 @@ describe('PrismaAppointmentRepository overdueOnly + status composition', () => {
     await repo.findAll({ overdueOnly: true }, { page: 1, pageSize: 10, sortOrder: 'asc' });
 
     const cutoff: Date = whereOf().created_at.lt;
-    const ageDays = (Date.now() - cutoff.getTime()) / 86_400_000;
-    // Between 45 and 46 days back: exactly 45 civil days, plus however far into the
-    // current Sydney day we are.
-    expect(ageDays).toBeGreaterThanOrEqual(45);
-    expect(ageDays).toBeLessThan(47);
+    // The repo delegates to the shared Sydney-midnight-45-days-back helper, so compare to
+    // it directly instead of deriving an age-in-days from Date.now(): across a Sydney DST
+    // boundary the 45-civil-day span is not 45×24h, so an age-in-days assertion flakes
+    // (seen at ~44.99 when "now" is just past Sydney midnight and the window crosses the
+    // spring-forward). The helper's own "45 civil days back at Sydney midnight" contract
+    // is covered by timezone-date.test.ts.
+    expect(cutoff.getTime()).toBe(startOfOverdueAgeCutoff().getTime());
   });
 
   it('honours a Period range alongside overdueOnly', async () => {
