@@ -1,4 +1,4 @@
-import { isProjectedLate, type TenantEtaNoticesSetting } from '@properfy/shared';
+import { isProjectedLate, endOfCivilDayInTz, type TenantEtaNoticesSetting } from '@properfy/shared';
 import type { TenantEtaNotifier, TenantEtaTrigger } from '../tenant-eta-notifier.service';
 import { findPlanStop, type NotifyStopFn, type PlanEvaluation } from './evaluate-for-plan';
 
@@ -37,6 +37,10 @@ export async function evaluatePlanDelays(
     if (args.afterSequence !== undefined && planStop.sequence <= args.afterSequence) continue;
     if (args.tenantFilter && !args.tenantFilter(planStop.tenantId)) continue;
     if (!isProjectedLate(projected, args.settings.delayThresholdMinutes)) continue;
+    // NEXT_DAY: never send a DELAY whose projected start falls on the next local
+    // day (a severe overrun the plan will not actually serve today).
+    const dayEnd = endOfCivilDayInTz(planStop.scheduledDate, planStop.windowTimezone);
+    if (projected.projectedStartAt && projected.projectedStartAt.getTime() > dayEnd.getTime()) continue;
     if (await args.notifier.alreadyNotified('DELAY', planStop)) continue;
     const result = await args.notifyStop('DELAY', args.trigger, planStop, projected);
     delayed += 1;
