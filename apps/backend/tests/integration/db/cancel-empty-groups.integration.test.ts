@@ -1,21 +1,16 @@
 /**
- * Auto-cancel of overdue appointments and dead service groups — real-database verification.
+ * Cancellation of dead service groups — real-database verification.
  *
- * These MUST run against real PostgreSQL. Both behaviours under test live in the
+ * This MUST run against real PostgreSQL. The behaviour under test lives in the
  * SQL, not in the use case, so a mocked repository would assert nothing:
- *
- *   1. `findOverdueActive` compares a `@db.Date` column against a cutoff derived
- *      from the *Sydney* civil date. A mock cannot show that an appointment dated
- *      "today in Sydney" survives while the server clock is still on yesterday UTC.
- *   2. `CancelEmptyGroupService` relies on `findById` filtering `deleted_at`.
- *      Soft-delete clears no `service_group_id`, so a deleted appointment stays
- *      linked in the table — only the query decides whether it keeps a group alive.
+ * `CancelEmptyGroupService` relies on `findById` filtering `deleted_at`.
+ * Soft-delete clears no `service_group_id`, so a deleted appointment stays
+ * linked in the table — only the query decides whether it keeps a group alive.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 import { setupDbHarness, teardownDbHarness, type DbHarness } from './harness';
-import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
 import { PrismaServiceGroupRepository } from '../../../src/modules/service-group/infrastructure/prisma-service-group.repository';
 import { CancelEmptyGroupService } from '../../../src/modules/service-group/application/services/cancel-empty-group.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
@@ -88,16 +83,14 @@ async function seedFixture(prisma: PrismaClient): Promise<Fixture> {
   };
 }
 
-describe('auto-cancel overdue appointments and dead groups (real DB)', () => {
+describe('cancellation of dead service groups (real DB)', () => {
   let harness: DbHarness | undefined;
   let fx: Fixture;
-  let appointmentRepo: PrismaAppointmentRepository;
   let groupRepo: PrismaServiceGroupRepository;
 
   beforeAll(async () => {
     harness = await setupDbHarness();
     fx = await seedFixture(harness.prisma);
-    appointmentRepo = new PrismaAppointmentRepository(harness.prisma);
     groupRepo = new PrismaServiceGroupRepository(harness.prisma);
   }, 180_000);
 
@@ -158,111 +151,6 @@ describe('auto-cancel overdue appointments and dead groups (real DB)', () => {
     });
     return appt.id;
   }
-
-  describe('findOverdueForAutoCancel', () => {
-    // Today is 2026-07-29 in Sydney; 45 days back is the civil date 2026-06-14, whose
-    // Sydney midnight (AEST, +10) is this instant. Same value startOfOverdueAgeCutoff()
-    // produces — restated here so the SQL boundary is asserted independently.
-    const CUTOFF = new Date('2026-06-13T14:00:00.000Z');
-
-    it('returns only cancellable appointments created strictly before the cutoff', async () => {
-      const oldAwaiting = await createAppointment({
-        date: '2026-07-20', status: 'AWAITING_INSPECTOR', createdAt: '2026-05-01T00:00:00.000Z',
-      });
-      const oldScheduled = await createAppointment({
-        date: '2026-07-28', status: 'SCHEDULED', createdAt: '2026-06-01T00:00:00.000Z',
-      });
-      const oldDraft = await createAppointment({
-        date: '2026-07-20', status: 'DRAFT', createdAt: '2026-05-01T00:00:00.000Z',
-      });
-      const oldDone = await createAppointment({
-        date: '2026-07-20', status: 'DONE', createdAt: '2026-05-01T00:00:00.000Z',
-      });
-      const oldCancelled = await createAppointment({
-        date: '2026-07-20', status: 'CANCELLED', createdAt: '2026-05-01T00:00:00.000Z',
-      });
-      const recent = await createAppointment({
-        date: '2026-07-20', status: 'SCHEDULED', createdAt: '2026-07-25T00:00:00.000Z',
-      });
-
-      const ids = (await appointmentRepo.findOverdueForAutoCancel(CUTOFF, 500)).map((a) => a.id);
-
-      expect(ids).toContain(oldAwaiting);
-      expect(ids).toContain(oldScheduled);
-
-      // DRAFT carries the overdue badge but is the operator's repair state — the
-      // sweep must never cancel it.
-      expect(ids).not.toContain(oldDraft);
-      expect(ids).not.toContain(oldDone);
-      expect(ids).not.toContain(oldCancelled);
-      // Younger than the threshold, however old its scheduled date is.
-      expect(ids).not.toContain(recent);
-    });
-
-    it('selects a FUTURE-dated appointment that has been stalled too long', async () => {
-      // The semantic change, provable only against real SQL: under the old
-      // scheduled_date rule this row could never be selected. Under the age rule a
-      // record parked with a far-future date is exactly what needs surfacing.
-      const futureDatedButStale = await createAppointment({
-        date: '2026-12-25', status: 'SCHEDULED', createdAt: '2026-05-01T00:00:00.000Z',
-      });
-
-      const ids = (await appointmentRepo.findOverdueForAutoCancel(CUTOFF, 500)).map((a) => a.id);
-
-      expect(ids).toContain(futureDatedButStale);
-    });
-
-    it('excludes soft-deleted appointments', async () => {
-      const deleted = await createAppointment({
-        date: '2026-07-20', status: 'SCHEDULED', createdAt: '2026-05-01T00:00:00.000Z', deleted: true,
-      });
-
-      const found = await appointmentRepo.findOverdueForAutoCancel(CUTOFF, 500);
-
-      expect(found.map((a) => a.id)).not.toContain(deleted);
-    });
-
-    it('compares against the Sydney-midnight INSTANT, not UTC midnight of that date', async () => {
-      // created_at is a real timestamp, so the cutoff must be too. This row was created
-      // at 06:00 on 2026-06-14 in Sydney — ON the cutoff civil day, so exactly 45 days
-      // old and NOT yet overdue.
-      const onCutoffDayInSydney = await createAppointment({
-        date: '2026-07-20', status: 'SCHEDULED', createdAt: '2026-06-13T20:00:00.000Z',
-      });
-
-      const correct = (await appointmentRepo.findOverdueForAutoCancel(CUTOFF, 500)).map((a) => a.id);
-      expect(correct).not.toContain(onCutoffDayInSydney);
-
-      // Reusing startOfPlatformToday's @db.Date convention (UTC midnight of the civil
-      // date) would put the cutoff 10h later and wrongly cancel this appointment a
-      // day early — the regression this test exists to catch.
-      const naiveUtcCutoff = new Date('2026-06-14T00:00:00.000Z');
-      const naive = (await appointmentRepo.findOverdueForAutoCancel(naiveUtcCutoff, 500)).map((a) => a.id);
-      expect(naive).toContain(onCutoffDayInSydney);
-    });
-
-    it('drains the oldest records first', async () => {
-      const newer = await createAppointment({
-        date: '2026-07-20', status: 'SCHEDULED', createdAt: '2026-06-01T00:00:00.000Z',
-      });
-      const older = await createAppointment({
-        date: '2026-07-20', status: 'SCHEDULED', createdAt: '2026-02-01T00:00:00.000Z',
-      });
-
-      const ids = (await appointmentRepo.findOverdueForAutoCancel(CUTOFF, 500)).map((a) => a.id);
-
-      expect(ids.indexOf(older)).toBeLessThan(ids.indexOf(newer));
-    });
-
-    it('honours the batch limit', async () => {
-      await createAppointment({ date: '2026-07-01', status: 'SCHEDULED', createdAt: '2026-03-01T00:00:00.000Z' });
-      await createAppointment({ date: '2026-07-02', status: 'SCHEDULED', createdAt: '2026-03-02T00:00:00.000Z' });
-
-      const found = await appointmentRepo.findOverdueForAutoCancel(CUTOFF, 1);
-
-      expect(found).toHaveLength(1);
-    });
-  });
 
   describe('CancelEmptyGroupService against real membership queries', () => {
     function makeService(): CancelEmptyGroupService {

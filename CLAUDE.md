@@ -128,10 +128,10 @@ Official statuses:
 | `DRAFT` | `REJECTED` | OP, AM | Yes | |
 | `DRAFT` | `CANCELLED` | OP, CL, AM | Yes | |
 | `AWAITING_INSPECTOR` | `SCHEDULED` | SYS, OP | No | |
-| `AWAITING_INSPECTOR` | `CANCELLED` | OP, CL, AM, SYS | Yes | System-triggered daily for appointments created more than 45 days ago and still not executed (reason code `EXPIRED`) |
+| `AWAITING_INSPECTOR` | `CANCELLED` | OP, CL, AM, SYS | Yes | |
 | `AWAITING_INSPECTOR` | `REJECTED` | OP, AM, SYS | Yes | System-triggered when the rental tenant declines in the portal (reason code `TENANT_DECLINED`) or never responds by T-1 (`TENANT_NO_RESPONSE`) |
 | `SCHEDULED` | `DONE` | INSP, OP | No | |
-| `SCHEDULED` | `CANCELLED` | OP, CL, AM, SYS | Yes | System-triggered daily for appointments created more than 45 days ago and still not executed (reason code `EXPIRED`) |
+| `SCHEDULED` | `CANCELLED` | OP, CL, AM, SYS | Yes | |
 | `SCHEDULED` | `REJECTED` | OP, AM, SYS | Yes | Same system triggers as `AWAITING_INSPECTOR → REJECTED` |
 | `REJECTED` | `DRAFT` | OP, AM | Yes | |
 | `REJECTED` | `AWAITING_INSPECTOR` | OP, AM, SYS | Yes | System-triggered when the appointment is added to a service group, or when the rental tenant picks another time in the portal (immediately followed by `→ SCHEDULED`) |
