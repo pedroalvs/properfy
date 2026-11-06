@@ -27,12 +27,12 @@ async function seedTenant(name: string): Promise<string> {
 }
 
 async function seedAppointment(tenantId: string): Promise<string> {
-  const branch = await harness.prisma.branch.create({ data: { tenant_id: tenantId, name: 'B', status: 'ACTIVE' } });
+  const branch = await harness.prisma.branch.create({ data: { tenant_id: tenantId, name: `B-${randomUUID().slice(0, 8)}`, status: 'ACTIVE' } });
   const st = await harness.prisma.serviceType.create({
-    data: { code: `ST-${randomUUID().slice(0, 6)}`, name: 'Routine', flow_type: 'ROUTINE', requires_rental_tenant_confirmation: true, status: 'ACTIVE' },
+    data: { code: `ST-${randomUUID().slice(0, 6)}`, name: `Routine-${randomUUID().slice(0, 6)}`, flow_type: 'ROUTINE', requires_rental_tenant_confirmation: true, status: 'ACTIVE' },
   });
   const prop = await harness.prisma.property.create({
-    data: { tenant_id: tenantId, branch_id: branch.id, property_code: `P-${randomUUID().slice(0, 6)}`, type: 'HOUSE', street: '1 A St', suburb: 'Surry Hills', postcode: '2010', state: 'NSW', country: 'AU', geocoding_status: 'SUCCESS' },
+    data: { tenant_id: tenantId, branch_id: branch.id, property_code: `P-${randomUUID().slice(0, 6)}`, type: 'HOUSE', street: `${randomUUID().slice(0, 8)} A St`, suburb: 'Surry Hills', postcode: '2010', state: 'NSW', country: 'AU', geocoding_status: 'SUCCESS' },
   });
   const user = await harness.prisma.user.create({
     data: { tenant_id: tenantId, branch_id: branch.id, role: 'CL_ADMIN', name: 'U', email: `u-${randomUUID().slice(0, 8)}@test.local`, password_hash: '$2a$10$fakehashfakehashfakehashfakehashfake', status: 'ACTIVE' },
@@ -113,10 +113,13 @@ describe('PrismaTenantEtaNoticeLog (real DB)', () => {
   });
 
   it('countSmsCreatedSince counts only TENANT_ETA_* SMS created at/after since, across tenants (L-F06-11)', async () => {
-    // Fresh tenants to isolate the count from the morning-band rows above.
+    // countSmsCreatedSince is cross-tenant by design, so assert the DELTA from
+    // whatever earlier tests seeded rather than an absolute count.
     const tA = await seedTenant('CountA');
     const tB = await seedTenant('CountB');
-    // Counted: 3 eta SMS today across both tenants.
+    const sinceCount = new Date('2026-11-04T20:00:00.000Z');
+    const before = await log.countSmsCreatedSince(sinceCount);
+    // Counted (+3): eta SMS today across both tenants.
     await seedNotification({ tenantId: tA, channel: 'SMS', templateCode: 'TENANT_ETA_MORNING', createdAt: TODAY });
     await seedNotification({ tenantId: tA, channel: 'SMS', templateCode: 'TENANT_ETA_DELAY', createdAt: TODAY });
     await seedNotification({ tenantId: tB, channel: 'SMS', templateCode: 'TENANT_ETA_ON_THE_WAY', createdAt: TODAY_LATER });
@@ -125,8 +128,7 @@ describe('PrismaTenantEtaNoticeLog (real DB)', () => {
     await seedNotification({ tenantId: tA, channel: 'SMS', templateCode: 'TENANT_PORTAL_LINK', createdAt: TODAY });
     await seedNotification({ tenantId: tB, channel: 'SMS', templateCode: 'TENANT_ETA_MORNING', createdAt: YESTERDAY });
 
-    const sinceCount = new Date('2026-11-04T20:00:00.000Z');
-    const count = await log.countSmsCreatedSince(sinceCount);
-    expect(count).toBe(3);
+    const after = await log.countSmsCreatedSince(sinceCount);
+    expect(after - before).toBe(3);
   });
 });

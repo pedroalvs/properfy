@@ -15,8 +15,8 @@ import type { INotificationRepository } from '../../notification/domain/notifica
 import type {
   CreateNotificationUseCase,
 } from '../../notification/application/use-cases/create-notification.use-case';
-import { BuildNotificationPayloadService } from '../../notification/domain/build-notification-payload.service';
-import { AppointmentCodeFormatter } from '../../appointment/domain/appointment-code.formatter';
+import type { BuildNotificationPayloadService } from '../../notification/domain/build-notification-payload.service';
+import type { AppointmentCodeFormatter } from '../../appointment/domain/appointment-code.formatter';
 import type { AppointmentWithRelations } from '../../appointment/domain/appointment.repository';
 import type { TenantEntity } from '../../tenant/domain/tenant.entity';
 import { TENANT_ETA_TEMPLATE_CODES, type TenantEtaKind } from '../domain/tenant-eta.constants';

@@ -13,7 +13,7 @@ Reused F06-1/F04-2 contracts (do NOT re-implement): `projectStopEta`/`isProjecte
 ## Phase 1: Setup
 
 - [x] T001 Worktree `058-f06-2-tenant-notice-triggers` from `origin/develop`; `pnpm install`, `prisma generate`, `@properfy/shared` + `@properfy/frontend-standards` builds, baseline backend+shared typecheck/lint green (done at setup).
-- [ ] T002 Re-confirm build order before any cross-package typecheck: `pnpm --filter @properfy/shared build` is already current (no shared change expected this task); rebuild only if a shared file is touched.
+- [x] T002 Re-confirm build order before any cross-package typecheck: `pnpm --filter @properfy/shared build` is already current (no shared change expected this task); rebuild only if a shared file is touched.
 
 ## Phase 2: Foundational (blocking prerequisites)
 
@@ -84,8 +84,8 @@ Reused F06-1/F04-2 contracts (do NOT re-implement): `projectStopEta`/`isProjecte
 ## Phase 9: Polish & Cross-Cutting
 
 - [x] T070 Update `apps/backend/CLAUDE.md` §9 (3 jobs `tenant-eta.{morning,evaluate,sweep-delays}`; tick-with-`>=`+mandatory-cutoff pattern; "subscriber only enqueues a durable job") and §10 (dedupe by deterministic id + count-since-agency-local-midnight, no `_SMS` family; ON_THE_WAY ≤ 60-min lead; `INSPECTOR_FINISH`-only check-out trigger; confirmation + `tenantEtaNoticesEnabled` skips; SMS reserve; `tenantEtaNoticeCounts` metric + `daily_volume_high`; **consent email-casing fix** — update the F06-1 "email … never lowercased" note to "case-insensitive at the consent repo"). Update root `CLAUDE.md` Active Technologies / Recent Changes with the F06-2 entry (X00 rule §13.11).
-- [ ] T071 Run full gates inside the worktree via a subagent (condensed summary): `pnpm --filter @properfy/shared build`; `pnpm --filter backend exec prisma generate && pnpm --filter backend typecheck && pnpm --filter backend lint && pnpm --filter backend test && pnpm --filter backend test:integration:db`. Fix any failure and re-run until green.
-- [ ] T072 Verify negative constraints (FR-022): `git diff --name-only origin/develop... | grep -E 'prisma/migrations|api-types.ts|openapi.json'` → empty; `TenantCronTick` + the send pipeline (beyond the consent fix + F06-1 cost log) + the daily SMS cap untouched. Confirm `git diff --stat origin/develop... | tail -1` < 150 files (~30).
+- [x] T071 Run full gates inside the worktree via a subagent (condensed summary): `pnpm --filter @properfy/shared build`; `pnpm --filter backend exec prisma generate && pnpm --filter backend typecheck && pnpm --filter backend lint && pnpm --filter backend test && pnpm --filter backend test:integration:db`. Fix any failure and re-run until green.
+- [x] T072 Verify negative constraints (FR-022): `git diff --name-only origin/develop... | grep -E 'prisma/migrations|api-types.ts|openapi.json'` → empty; `TenantCronTick` + the send pipeline (beyond the consent fix + F06-1 cost log) + the daily SMS cap untouched. Confirm `git diff --stat origin/develop... | tail -1` < 150 files (~30).
 
 ---
 

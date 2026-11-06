@@ -14,10 +14,10 @@ import type {
 } from '../../domain/tenant-eta-plan.reader';
 import { computeEtaBand } from '../../domain/eta-band';
 import type { TenantEtaKind } from '../../domain/tenant-eta.constants';
-import {
+import type {
   TenantEtaNotifier,
-  type TenantEtaTrigger,
-  type TenantEtaNotifyResult,
+  TenantEtaTrigger,
+  TenantEtaNotifyResult,
 } from '../tenant-eta-notifier.service';
 
 export type PlanEvaluationSkip = 'NO_PLAN' | 'PLAN_STALE';

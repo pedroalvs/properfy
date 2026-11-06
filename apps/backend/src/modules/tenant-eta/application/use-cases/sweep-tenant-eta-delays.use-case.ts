@@ -10,7 +10,7 @@ import { civilDateInTimezone } from '../../../../shared/domain/timezone-date';
 import type { IPlatformSettingsReader } from '../../../../shared/domain/platform-settings';
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
-import { TenantEtaNotifier } from '../tenant-eta-notifier.service';
+import type { TenantEtaNotifier } from '../tenant-eta-notifier.service';
 import type { ITenantEtaNoticeLog } from '../../domain/tenant-eta-notice-log';
 import type { ITenantEtaPlanReader } from '../../domain/tenant-eta-plan.reader';
 import { evaluateForPlan, createStopNotifier, type EvaluateForPlanDeps } from '../services/evaluate-for-plan';
