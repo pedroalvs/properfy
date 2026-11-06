@@ -54,24 +54,28 @@ export async function evaluateForPlan(
   const ref = await deps.planReader.findPlanByInspectorDate(inspectorId, planDate);
   if (!ref) return { skip: 'NO_PLAN' };
 
-  let chosen: FreshDayPlanStop | null = null;
-  for (const appointmentId of ref.appointmentIds) {
-    const fresh = await deps.getFreshStop.execute({ appointmentId, now });
-    if (fresh === null) continue; // appointment left the plan between reads — try the next seed
-    if (fresh.status === 'STALE') return { skip: 'PLAN_STALE' };
-    chosen = fresh;
-    break;
-  }
-  if (!chosen) return { skip: 'NO_PLAN' };
+  const seed = await resolveSeed(deps, ref, now);
+  if (seed === 'STALE') return { skip: 'PLAN_STALE' };
+  if (seed === null) return { skip: 'NO_PLAN' };
 
-  let snapshot = await deps.planReader.loadPlan(chosen.dayPlanId);
+  // Always load THIS inspector's plan for THIS date — never the seed's
+  // self-reported dayPlanId (which `resolveSeed` already pinned to `ref`), so a
+  // reassigned appointment can never pull in another plan.
+  let snapshot = await deps.planReader.loadPlan(ref.dayPlanId);
   if (!snapshot) return { skip: 'NO_PLAN' };
+  if (snapshot.plan.planDate !== planDate) return { skip: 'NO_PLAN' };
 
   // A plan-version mismatch means another compute wrote between the fresh read
-  // and loadPlan; re-read once and proceed with the newest snapshot.
-  if (snapshot.plan.planVersion !== chosen.planVersion) {
-    const reread = await deps.planReader.loadPlan(chosen.dayPlanId);
-    if (reread) snapshot = reread;
+  // and loadPlan (task 2b). Re-validate freshness once: if the seed is now STALE,
+  // do not notify; otherwise proceed with the newest snapshot.
+  if (snapshot.plan.planVersion !== seed.planVersion) {
+    const refresh = await deps.getFreshStop.execute({ appointmentId: seed.appointmentId, now });
+    if (refresh === null) return { skip: 'NO_PLAN' };
+    if (refresh.status === 'STALE') return { skip: 'PLAN_STALE' };
+    if (refresh.dayPlanId !== ref.dayPlanId) return { skip: 'NO_PLAN' };
+    const reread = await deps.planReader.loadPlan(ref.dayPlanId);
+    if (!reread || reread.plan.planDate !== planDate) return { skip: 'NO_PLAN' };
+    snapshot = reread;
   }
 
   const projection = projectStopEta(snapshot.plan, snapshot.events, now);
@@ -81,6 +85,26 @@ export async function evaluateForPlan(
     planVersion: snapshot.plan.planVersion,
     approximate: snapshot.plan.approximate,
   };
+}
+
+/**
+ * Picks a seed appointment that is FRESH and still belongs to THIS plan
+ * (`ref.dayPlanId`). Returns `'STALE'` (do not notify) as soon as a seed is
+ * stale, `null` when no appointment is a valid seed for this plan.
+ */
+async function resolveSeed(
+  deps: EvaluateForPlanDeps,
+  ref: { dayPlanId: string; appointmentIds: string[] },
+  now: Date,
+): Promise<{ planVersion: number; appointmentId: string } | 'STALE' | null> {
+  for (const appointmentId of ref.appointmentIds) {
+    const fresh: FreshDayPlanStop | null = await deps.getFreshStop.execute({ appointmentId, now });
+    if (fresh === null) continue; // appointment left the plan between reads — try the next seed
+    if (fresh.status === 'STALE') return 'STALE';
+    if (fresh.dayPlanId !== ref.dayPlanId) continue; // reassigned to another plan — not a seed for this one
+    return { planVersion: fresh.planVersion, appointmentId };
+  }
+  return null;
 }
 
 export interface StopNotifierDeps {

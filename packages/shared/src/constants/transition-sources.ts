@@ -11,3 +11,10 @@
  * `actorType`.
  */
 export const TRANSITION_SOURCE_INSPECTOR_CANT_DO = 'INSPECTOR_CANT_DO';
+
+/**
+ * Set by `FinishInspectionUseCase` on the `SCHEDULED → DONE` check-out transition
+ * (TASK-F06-2, L-F06-04). Lets the tenant-ETA "on the way" subscriber fire only on
+ * a real inspector check-out, never on a manual OP/AM DONE (which carries no source).
+ */
+export const TRANSITION_SOURCE_INSPECTOR_FINISH = 'INSPECTOR_FINISH';

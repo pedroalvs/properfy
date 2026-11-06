@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { evaluateForPlan } from '../../../src/modules/tenant-eta/application/services/evaluate-for-plan';
-import { buildLoadedPlan, makeFreshStop, INSPECTOR_ID, PLAN_DATE, DAY_PLAN_ID, NOW_0700 } from './fixtures';
+import { buildLoadedPlan, buildPlan, makeFreshStop, INSPECTOR_ID, PLAN_DATE, DAY_PLAN_ID, NOW_0700 } from './fixtures';
 
 function deps(overrides: { findPlanByInspectorDate?: unknown; loadPlan?: unknown; getFreshStop?: unknown } = {}) {
   const planReader = {
@@ -33,6 +33,18 @@ describe('evaluateForPlan (common seed-in-plan flow)', () => {
 
   it('returns NO_PLAN only when every seed returns null', async () => {
     const r = await evaluateForPlan(deps({ getFreshStop: async () => null }), INSPECTOR_ID, PLAN_DATE, NOW_0700);
+    expect(r).toEqual({ skip: 'NO_PLAN' });
+  });
+
+  it('skips a seed whose fresh stop belongs to a different plan (does not load the wrong plan)', async () => {
+    let call = 0;
+    const d = deps({ getFreshStop: async () => (call++ === 0 ? makeFreshStop({ dayPlanId: 'other-plan' }) : makeFreshStop()) });
+    const r = await evaluateForPlan(d, INSPECTOR_ID, PLAN_DATE, NOW_0700);
+    expect('skip' in r).toBe(false); // the second, correct-plan seed is used
+  });
+
+  it('returns NO_PLAN when the loaded plan is for a different date', async () => {
+    const r = await evaluateForPlan(deps({ loadPlan: async () => buildLoadedPlan({ plan: buildPlan(undefined, { planDate: '2026-11-06' }) }) }), INSPECTOR_ID, PLAN_DATE, NOW_0700);
     expect(r).toEqual({ skip: 'NO_PLAN' });
   });
 
