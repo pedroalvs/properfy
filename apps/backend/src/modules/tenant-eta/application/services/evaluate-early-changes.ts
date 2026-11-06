@@ -7,7 +7,6 @@ export interface EvaluateEarlyChangesArgs {
   now: Date;
   noticeLog: ITenantEtaNoticeLog;
   notifyStop: NotifyStopFn;
-  tenantFilter?: (tenantId: string) => boolean;
   afterSequence?: number;
 }
 
@@ -33,7 +32,6 @@ export async function evaluateEarlyChanges(
     .filter((c) => {
       if (!c.planStop) return false;
       if (args.afterSequence !== undefined && c.planStop.sequence <= args.afterSequence) return false;
-      if (args.tenantFilter && !args.tenantFilter(c.planStop.tenantId)) return false;
       return true;
     });
 
@@ -58,7 +56,7 @@ export async function evaluateEarlyChanges(
     const earlyThreshold = bandFrom.getTime() - TENANT_ETA_EARLY_CHANGE_MINUTES * MILLIS_PER_MINUTE;
     if (projected.projectedStartAt!.getTime() < earlyThreshold) {
       const result = await args.notifyStop('ON_THE_WAY', 'EARLY_CHANGE', planStop!, projected);
-      earlyChanged += 1;
+      if (result.created > 0) earlyChanged += 1;
       created += result.created;
     }
   }

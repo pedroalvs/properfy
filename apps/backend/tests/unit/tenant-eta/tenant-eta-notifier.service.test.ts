@@ -411,6 +411,24 @@ describe('TenantEtaNotifier', () => {
     expect(repo.countByTenantChannelSince).not.toHaveBeenCalled();
   });
 
+  // NEXT_DAY (guard covers morning/evaluate/sweep via the notifier)
+  it('skips with NEXT_DAY when the projection falls on the next local day', async () => {
+    const nextDay = new Date('2026-11-05T13:30:00.000Z'); // 00:30 Sydney, past the 2026-11-05 day end
+    const r = await notifier.notify(makeInput({ kind: 'DELAY', trigger: 'SWEEP', projected: makeProjected({ projectedArrivalAt: nextDay, projectedStartAt: nextDay, lateS: 9000 }) }));
+    expect(r.skippedReason).toBe('NEXT_DAY');
+    expect(storedRows()).toHaveLength(0);
+  });
+
+  // SMS_ELSE_EMAIL must not double-notify across channels via the budget fallback
+  it('SMS_ELSE_EMAIL sends a kind at most once per stop/day across channels', async () => {
+    const input = () => makeInput({ settings: { ...DEFAULT_SETTINGS, channelMode: 'SMS_ELSE_EMAIL' } });
+    const first = await notifier.notify(input());
+    expect(first.created).toBe(1); // SMS
+    const second = await notifier.notify(input());
+    expect(second.skippedReason).toBe('ALREADY_SENT');
+    expect(storedRows().filter((r) => r.templateCode === 'TENANT_ETA_MORNING')).toHaveLength(1);
+  });
+
   // ── test helpers: rebuild resets the store so each sub-case is isolated ────
   function rebuild() {
     repo = makeRepo();

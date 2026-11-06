@@ -63,6 +63,7 @@ export class SendMorningEtaNoticesUseCase {
     let skipped = 0;
 
     for (const inspectorId of inspectorIds) {
+      try {
       const evaluation = await evaluateForPlan(
         { planReader: this.planReader, getFreshStop: this.getFreshStop },
         inspectorId,
@@ -124,6 +125,11 @@ export class SendMorningEtaNoticesUseCase {
           created += r.created;
           if (r.created === 0) skipped += 1;
         }
+      }
+      } catch (err) {
+        // Isolate one inspector's failure so the rest of the group still sends
+        // and runDue does not release the whole agency's claim over one bad plan.
+        this.logger.error({ inspectorId, err }, 'tenant_eta.morning_inspector_failed');
       }
     }
 

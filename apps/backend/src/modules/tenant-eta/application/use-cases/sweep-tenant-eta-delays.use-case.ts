@@ -54,32 +54,37 @@ export class SweepTenantEtaDelaysUseCase {
 
     for (const candidate of candidates) {
       plans += 1;
-      const evaluation = await evaluateForPlan(
-        { planReader: this.planReader, getFreshStop: this.getFreshStop },
-        candidate.inspectorId,
-        candidate.planDate,
-        now,
-      );
-      if ('skip' in evaluation) {
-        if (evaluation.skip === 'PLAN_STALE') skippedStale += 1;
-        continue;
+      try {
+        const evaluation = await evaluateForPlan(
+          { planReader: this.planReader, getFreshStop: this.getFreshStop },
+          candidate.inspectorId,
+          candidate.planDate,
+          now,
+        );
+        if ('skip' in evaluation) {
+          if (evaluation.skip === 'PLAN_STALE') skippedStale += 1;
+          continue;
+        }
+        evaluated += 1;
+
+        const notifyStop = createStopNotifier(
+          { appointmentRepo: this.appointmentRepo, tenantRepo: this.tenantRepo, notifier: this.notifier, logger: this.logger },
+          { snapshot: evaluation.snapshot, settings, planVersion: evaluation.planVersion, approximate: evaluation.approximate, now },
+        );
+
+        // The notifier's per-stop BEFORE_MORNING_HOUR guard honours each stop's
+        // agency morning hour; the sweep need not pre-filter by timezone.
+        const delays = await evaluatePlanDelays({ evaluation, settings, trigger: 'SWEEP', notifier: this.notifier, notifyStop });
+        delayed += delays.delayed;
+        created += delays.created;
+
+        const early = await evaluateEarlyChanges({ evaluation, now, noticeLog: this.noticeLog, notifyStop });
+        earlyChanged += early.earlyChanged;
+        created += early.created;
+      } catch (err) {
+        // Isolate one plan's failure so the rest of the sweep still runs.
+        this.logger.error({ inspectorId: candidate.inspectorId, planDate: candidate.planDate, err }, 'tenant_eta.sweep_plan_failed');
       }
-      evaluated += 1;
-
-      const notifyStop = createStopNotifier(
-        { appointmentRepo: this.appointmentRepo, tenantRepo: this.tenantRepo, notifier: this.notifier, logger: this.logger },
-        { snapshot: evaluation.snapshot, settings, planVersion: evaluation.planVersion, approximate: evaluation.approximate, now },
-      );
-
-      // The notifier's per-stop BEFORE_MORNING_HOUR guard honours each stop's
-      // agency morning hour; the sweep need not pre-filter by timezone.
-      const delays = await evaluatePlanDelays({ evaluation, settings, trigger: 'SWEEP', notifier: this.notifier, notifyStop });
-      delayed += delays.delayed;
-      created += delays.created;
-
-      const early = await evaluateEarlyChanges({ evaluation, now, noticeLog: this.noticeLog, notifyStop });
-      earlyChanged += early.earlyChanged;
-      created += early.created;
     }
 
     const platformMidnight = zonedWallTimeToUtc(

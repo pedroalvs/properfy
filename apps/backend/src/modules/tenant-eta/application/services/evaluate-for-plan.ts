@@ -142,10 +142,16 @@ export function createStopNotifier(deps: StopNotifierDeps, ctx: StopNotifierCont
   const zero: TenantEtaNotifyResult = { created: 0, duplicates: 0 };
 
   return async (kind, trigger, planStop, projected) => {
-    if (!projected.projectedStartAt) return zero;
+    if (!projected.projectedStartAt) {
+      deps.logger.warn({ appointmentId: planStop.appointmentId, kind, trigger }, 'tenant_eta.stop_no_projection');
+      return zero;
+    }
 
     const stopMeta = ctx.snapshot.stopMeta.get(planStop.appointmentId);
-    if (!stopMeta) return zero;
+    if (!stopMeta) {
+      deps.logger.warn({ appointmentId: planStop.appointmentId, kind, trigger }, 'tenant_eta.stop_no_meta');
+      return zero;
+    }
 
     const appointmentWithRelations = await deps.appointmentRepo.findById(
       planStop.appointmentId,

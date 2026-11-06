@@ -1,4 +1,4 @@
-import { isProjectedLate, endOfCivilDayInTz, type TenantEtaNoticesSetting } from '@properfy/shared';
+import { isProjectedLate, type TenantEtaNoticesSetting } from '@properfy/shared';
 import type { TenantEtaNotifier, TenantEtaTrigger } from '../tenant-eta-notifier.service';
 import { findPlanStop, type NotifyStopFn, type PlanEvaluation } from './evaluate-for-plan';
 
@@ -8,13 +8,12 @@ export interface EvaluatePlanDelaysArgs {
   trigger: TenantEtaTrigger;
   notifier: TenantEtaNotifier;
   notifyStop: NotifyStopFn;
-  /** Restrict to these agencies (morning group); omit to cover every stop. */
-  tenantFilter?: (tenantId: string) => boolean;
   /** Only stops after this sequence (FINISH re-checks the tail past the next stop). */
   afterSequence?: number;
 }
 
 export interface EvaluatePlanDelaysResult {
+  /** Stops for which a DELAY notice was actually created. */
   delayed: number;
   created: number;
 }
@@ -22,8 +21,9 @@ export interface EvaluatePlanDelaysResult {
 /**
  * Shared by the morning job, the evaluate job and the sweep: for every pending
  * stop whose projection crosses the booked window + threshold and that has not
- * had a DELAY today, send one "running late" notice (one per stop per day is
- * enforced by the notifier's deterministic id + `alreadyNotified`).
+ * had a DELAY today, send one "running late" notice. One per stop per day is
+ * enforced by `alreadyNotified` + the notifier's deterministic id; the notifier
+ * also drops a projection that falls on the next local day (NEXT_DAY).
  */
 export async function evaluatePlanDelays(
   args: EvaluatePlanDelaysArgs,
@@ -35,15 +35,10 @@ export async function evaluatePlanDelays(
     const planStop = findPlanStop(args.evaluation.snapshot, projected.appointmentId);
     if (!planStop) continue;
     if (args.afterSequence !== undefined && planStop.sequence <= args.afterSequence) continue;
-    if (args.tenantFilter && !args.tenantFilter(planStop.tenantId)) continue;
     if (!isProjectedLate(projected, args.settings.delayThresholdMinutes)) continue;
-    // NEXT_DAY: never send a DELAY whose projected start falls on the next local
-    // day (a severe overrun the plan will not actually serve today).
-    const dayEnd = endOfCivilDayInTz(planStop.scheduledDate, planStop.windowTimezone);
-    if (projected.projectedStartAt && projected.projectedStartAt.getTime() > dayEnd.getTime()) continue;
     if (await args.notifier.alreadyNotified('DELAY', planStop)) continue;
     const result = await args.notifyStop('DELAY', args.trigger, planStop, projected);
-    delayed += 1;
+    if (result.created > 0) delayed += 1;
     created += result.created;
   }
   return { delayed, created };

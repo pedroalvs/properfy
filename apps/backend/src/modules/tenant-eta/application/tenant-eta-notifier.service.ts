@@ -8,6 +8,7 @@ import {
   suppressesOccupantNotifications,
   toE164Au,
   zonedWallTimeToUtc,
+  endOfCivilDayInTz,
   TENANT_ETA_ON_THE_WAY_MAX_LEAD_MINUTES,
 } from '@properfy/shared';
 import type { Logger } from '../../../shared/infrastructure/logger';
@@ -124,6 +125,14 @@ export class TenantEtaNotifier {
       stopMeta.requiresRentalTenantConfirmation;
     if (unconfirmed) return skip('TENANT_UNCONFIRMED');
 
+    // NEXT_DAY: never notify a projection that falls on the stop's next local day
+    // (a severe overrun the plan will not serve today). Covers every path
+    // (morning DELAY, finish/cant-do next stop, sweep) in one place.
+    if (projected.projectedStartAt) {
+      const dayEnd = endOfCivilDayInTz(planStop.scheduledDate, timezone);
+      if (projected.projectedStartAt.getTime() > dayEnd.getTime()) return skip('NEXT_DAY');
+    }
+
     // On-the-way lead (L-F06-01) — never applies to DELAY.
     if (kind === 'ON_THE_WAY') {
       const arrival = projected.projectedArrivalAt;
@@ -138,6 +147,14 @@ export class TenantEtaNotifier {
     const phone = contact?.effectivePhone ?? null;
     let channels = this.resolveChannels(settings.channelMode, email, phone);
     if (channels.length === 0) return skip('NO_RECIPIENT');
+
+    // SMS_ELSE_EMAIL delivers exactly one channel per stop/day, so if a notice of
+    // this kind already went today (via either channel) do not send a second one
+    // through the budget fallback. BOTH mode keeps per-channel completion (a
+    // half-created email+sms notice finishes its missing channel on retry).
+    if (settings.channelMode === 'SMS_ELSE_EMAIL' && (await this.alreadyNotified(kind, planStop))) {
+      return skip('ALREADY_SENT');
+    }
 
     // ── SMS budget reserve (D15) — only read the counter when an SMS leg exists ──
     if (channels.includes('SMS')) {
