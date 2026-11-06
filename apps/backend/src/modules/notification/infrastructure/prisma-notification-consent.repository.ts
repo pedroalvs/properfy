@@ -8,6 +8,20 @@ import type {
   CountSkippedForRecipientParams,
 } from '../domain/notification-consent.repository';
 
+/**
+ * Email is case-insensitive by identity, but the send pipeline compares
+ * `notification.recipient` verbatim and contacts are stored as entered. F06-2
+ * fixes a silent non-block (an opt-out recorded for `Ana@x.com` not matching a
+ * send to `ana@x.com`) by canonicalizing EMAIL recipients to lowercase at this
+ * one repository choke point — both on write (`upsert`) and on every consent
+ * lookup (`findByScope`, `listByRecipient`). Phones (E.164) are left untouched.
+ * `.includes('@')` covers `listByRecipient`, whose channel is optional.
+ */
+function normalizeConsentRecipient(recipient: string, channel?: NotificationChannel): string {
+  const isEmail = channel === 'EMAIL' || (channel === undefined && recipient.includes('@'));
+  return isEmail ? recipient.trim().toLowerCase() : recipient;
+}
+
 function mapToEntity(row: any): NotificationConsentEntity {
   return new NotificationConsentEntity({
     id: row.id,
@@ -56,7 +70,7 @@ export class PrismaNotificationConsentRepository implements INotificationConsent
     if (scope.tenantId === null) return null;
     const row = await this.prisma.notificationConsent.findFirst({
       where: {
-        recipient: scope.recipient,
+        recipient: normalizeConsentRecipient(scope.recipient, scope.channel),
         channel: scope.channel,
         tenant_id: scope.tenantId,
         notification_class: scope.notificationClass,
@@ -69,7 +83,7 @@ export class PrismaNotificationConsentRepository implements INotificationConsent
     const rows = await this.prisma.notificationConsent.findMany({
       where: {
         tenant_id: params.tenantId,
-        recipient: params.recipient,
+        recipient: normalizeConsentRecipient(params.recipient, params.channel),
         ...(params.channel ? { channel: params.channel } : {}),
       },
       orderBy: [{ channel: 'asc' }, { notification_class: 'asc' }],
@@ -98,7 +112,7 @@ export class PrismaNotificationConsentRepository implements INotificationConsent
     // and we want to stay resilient to Prisma client naming changes.
     const existing = await this.prisma.notificationConsent.findFirst({
       where: {
-        recipient: consent.recipient,
+        recipient: normalizeConsentRecipient(consent.recipient, consent.channel),
         channel: consent.channel,
         tenant_id: consent.tenantId,
         notification_class: consent.notificationClass,
@@ -122,7 +136,7 @@ export class PrismaNotificationConsentRepository implements INotificationConsent
       await this.prisma.notificationConsent.create({
         data: {
           id: consent.id,
-          recipient: consent.recipient,
+          recipient: normalizeConsentRecipient(consent.recipient, consent.channel),
           channel: consent.channel,
           tenant_id: consent.tenantId,
           notification_class: consent.notificationClass,

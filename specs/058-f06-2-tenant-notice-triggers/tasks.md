@@ -71,9 +71,9 @@ Reused F06-1/F04-2 contracts (do NOT re-implement): `projectStopEta`/`isProjecte
 **Goal**: Fix the handed-off consent defect (research D-R1); minimal, safe, no migration.
 **Independent test**: a consent test blocking a differently-cased email opt-out; fails on `develop` before the fix.
 
-- [ ] T050 [P] [US5] Author `BT=/unit/notification/consent-email-case.test.ts` (new): record an EMAIL OPERATIONAL opt-out for `Ana@Example.com`, then `isBlockedByConsent` / `findByScope` for `ana@example.com` (same tenant/channel/class) → blocked; phone matching unchanged. RED (fails on develop).
-- [ ] T051 [US5] Add `private normalizeConsentRecipient(recipient, channel)` (EMAIL → `.trim().toLowerCase()`, else as-is) to `B=/modules/notification/infrastructure/prisma-notification-consent.repository.ts`; apply in `findByScope` (where.recipient), `upsert` (findFirst where + stored `recipient`), `listByRecipient` (where.recipient). Leave `countSkippedForRecipient` (notifications table) untouched. GREEN.
-- [ ] T052 [US5] Update `B=/modules/notification/application/use-cases/record-consent-opt-out.use-case.ts` `normalizeRecipient` to lowercase email; fix the now-false "do NOT lowercase" comment and the class JSDoc. Confirm existing `BT=/.../record-consent-opt-out.use-case.test.ts` + consent suite still green.
+- [x] T050 [P] [US5] Author `BT=/unit/notification/consent-email-case.test.ts` (new): record an EMAIL OPERATIONAL opt-out for `Ana@Example.com`, then `isBlockedByConsent` / `findByScope` for `ana@example.com` (same tenant/channel/class) → blocked; phone matching unchanged. RED (fails on develop).
+- [x] T051 [US5] Add `private normalizeConsentRecipient(recipient, channel)` (EMAIL → `.trim().toLowerCase()`, else as-is) to `B=/modules/notification/infrastructure/prisma-notification-consent.repository.ts`; apply in `findByScope` (where.recipient), `upsert` (findFirst where + stored `recipient`), `listByRecipient` (where.recipient). Leave `countSkippedForRecipient` (notifications table) untouched. GREEN.
+- [x] T052 [US5] Update `B=/modules/notification/application/use-cases/record-consent-opt-out.use-case.ts` `normalizeRecipient` to lowercase email; fix the now-false "do NOT lowercase" comment and the class JSDoc. Confirm existing `BT=/.../record-consent-opt-out.use-case.test.ts` + consent suite still green.
 
 ## Phase 8: Wiring (depends on all use cases/subscribers)
 

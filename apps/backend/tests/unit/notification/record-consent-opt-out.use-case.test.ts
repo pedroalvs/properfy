@@ -120,17 +120,17 @@ describe('RecordConsentOptOutUseCase', () => {
     await expect(useCase.execute({ ...smsInput, reason: 'x'.repeat(1001) })).rejects.toThrow(ValidationError);
   });
 
-  it('normalizes a national phone to E.164 and leaves an email as entered (trimmed)', async () => {
+  it('normalizes a national phone to E.164 and lowercases an email (trimmed)', async () => {
     const phone = await useCase.execute({ ...smsInput, recipient: '0412 000 001' });
     expect(phone.recipient).toBe('+61412000001');
-    // Email is matched RAW by the send pipeline (contacts are not lowercased), so
-    // trim only — lowercasing would guarantee a mismatch for an upper-case email.
+    // F06-2: email is canonicalized to lowercase so a mixed-case opt-out blocks a
+    // differently-cased send (the consent repo lowercases on both write and lookup).
     const email = await useCase.execute({
       ...smsInput,
       recipient: '  Ana@Example.com  ',
       channel: 'EMAIL',
     });
-    expect(email.recipient).toBe('Ana@Example.com');
+    expect(email.recipient).toBe('ana@example.com');
   });
 
   it('rejects an SMS recipient that is not a valid AU mobile (avoids a silent non-block)', async () => {
@@ -148,10 +148,10 @@ describe('RecordConsentOptOutUseCase', () => {
     expect(found?.isOptedOut()).toBe(true);
   });
 
-  // Real-path check for the mixed-case email class the review flagged: the send
-  // pipeline looks up the RAW notification.recipient (the contact's verbatim,
-  // non-lowercased email), so the opt-out must store that exact value to block.
-  it('blocks a mixed-case email send using the exact raw recipient the pipeline looks up', async () => {
+  // F06-2: the use case stores the email lowercased; the consent repo lowercases the
+  // pipeline's lookup too, so a mixed-case send is blocked regardless of casing
+  // (the end-to-end repo proof lives in consent-email-case.test.ts).
+  it('stores an email opt-out lowercased so the send lookup matches', async () => {
     await useCase.execute({
       tenantId: TENANT,
       recipient: 'John.Doe@Gmail.com',
@@ -159,10 +159,9 @@ describe('RecordConsentOptOutUseCase', () => {
       reason: 'Tenant asked to stop email',
       actor: makeActor(),
     });
-    // What a future OPERATIONAL notice would carry (contact snapshot email, verbatim).
     const found = await store.repo.findByScope({
       tenantId: TENANT,
-      recipient: 'John.Doe@Gmail.com',
+      recipient: 'john.doe@gmail.com',
       channel: 'EMAIL',
       notificationClass: 'OPERATIONAL',
     });
