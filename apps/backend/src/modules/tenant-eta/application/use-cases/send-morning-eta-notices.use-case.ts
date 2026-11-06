@@ -61,6 +61,7 @@ export class SendMorningEtaNoticesUseCase {
     let stops = 0;
     let created = 0;
     let skipped = 0;
+    const failures: unknown[] = [];
 
     for (const inspectorId of inspectorIds) {
       try {
@@ -127,13 +128,21 @@ export class SendMorningEtaNoticesUseCase {
         }
       }
       } catch (err) {
-        // Isolate one inspector's failure so the rest of the group still sends
-        // and runDue does not release the whole agency's claim over one bad plan.
+        // Isolate one inspector's failure so the rest of the group still sends,
+        // then rethrow after the loop (below) so the claim is released and retried.
         this.logger.error({ inspectorId, err }, 'tenant_eta.morning_inspector_failed');
+        failures.push(err);
       }
     }
 
     this.logger.info({ stops, created, skipped }, 'tenant_eta.morning_completed');
+
+    // Rethrow so TenantCronTick releases this group's claim and the next hourly
+    // tick (still within the 09:00 cutoff) retries it. Notices already created
+    // dedupe by deterministic id, so the retry only recovers the failed inspectors.
+    if (failures.length > 0) {
+      throw new AggregateError(failures, `tenant-eta.morning: ${failures.length} inspector(s) failed`);
+    }
   }
 
   private skip(appointmentId: string, reason: string): void {

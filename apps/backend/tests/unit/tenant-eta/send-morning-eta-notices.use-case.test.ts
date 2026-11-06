@@ -184,6 +184,15 @@ describe('SendMorningEtaNoticesUseCase', () => {
     expect(etaRows(repo)).toHaveLength(5);
   });
 
+  // Failure isolation + retry: a per-inspector throw is logged and rethrown so the
+  // TenantCronTick claim releases and the group retries (dedupe-safe).
+  it('rethrows a per-inspector failure so the group is retried', async () => {
+    const h = harness();
+    h.getFreshStop.execute.mockRejectedValue(new Error('boom'));
+    await expect(h.useCase.execute(GROUP)).rejects.toBeInstanceOf(AggregateError);
+    expect(h.logger.error.mock.calls.some((c) => c[1] === 'tenant_eta.morning_inspector_failed')).toBe(true);
+  });
+
   // 20b
   it('skips an unavailable tenant but keeps the others (L-F06-02)', async () => {
     const loaded = buildLoadedPlan();
