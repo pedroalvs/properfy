@@ -31,14 +31,14 @@ export default defineConfig({
     //   fly ssh console -a properfy-api -C \
     //     "cd /app/apps/backend && node dist/backfill-financial-entries-on-done.js --apply"
     'backfill-financial-entries-on-done': 'src/scripts/backfill-financial-entries-on-done.ts',
-    // Read-only report of what the two auto-cancel sweeps
-    // (appointment.cancel-overdue, service-group.cancel-empty) would act on.
-    // Both sweeps are unscoped by tenant, so this is how an operator sizes the
-    // backlog before the first run. Bundled so it can be inspected in-container
-    // without exporting database credentials to a workstation:
+    // Read-only report of what the empty-group cancellation sweep
+    // (service-group.cancel-empty) would act on. The sweep is unscoped by tenant,
+    // so this is how an operator sizes the backlog before the first run. Bundled so
+    // it can be inspected in-container without exporting database credentials to a
+    // workstation:
     //   fly ssh console -a properfy-prod -C \
-    //     "cd /app/apps/backend && node dist/dry-run-auto-cancel.js"
-    'dry-run-auto-cancel': 'src/scripts/dry-run-auto-cancel.ts',
+    //     "cd /app/apps/backend && node dist/dry-run-cancel-empty-groups.js"
+    'dry-run-cancel-empty-groups': 'src/scripts/dry-run-cancel-empty-groups.ts',
     // Production first-admin one-shot — the only user-creating artifact
     // allowed in prod. Refuses if an AM already exists:
     //   fly ssh console -a properfy-api -C \

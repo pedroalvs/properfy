@@ -462,8 +462,6 @@ import { SweepAbandonedAppointmentImportsWorker } from '../modules/appointment/i
 import { ImportGeocodeVerifier } from '../modules/property/application/services/import-geocode-verifier';
 import { RejectUnconfirmedAppointmentsUseCase } from '../modules/appointment/application/use-cases/reject-unconfirmed-appointments.use-case';
 import { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
-import { CancelOverdueAppointmentsUseCase } from '../modules/appointment/application/use-cases/cancel-overdue-appointments.use-case';
-import { CancelOverdueWorker } from '../modules/appointment/infrastructure/workers/cancel-overdue.worker';
 import { CancelEmptyGroupService } from '../modules/service-group/application/services/cancel-empty-group.service';
 import { CancelEmptyGroupOnTransitionSubscriber } from '../modules/service-group/application/subscribers/cancel-empty-group-on-transition.subscriber';
 import { CancelEmptyServiceGroupsUseCase } from '../modules/service-group/application/use-cases/cancel-empty-service-groups.use-case';
@@ -574,7 +572,6 @@ export interface AppContainer {
   publishDayPlansUseCase: PublishDayPlansUseCase;
   auditRetentionWorker: AuditRetentionWorker;
   rejectUnconfirmedWorker: RejectUnconfirmedWorker;
-  cancelOverdueWorker: CancelOverdueWorker;
   cancelEmptyGroupsWorker: CancelEmptyGroupsWorker;
 }
 
@@ -1665,13 +1662,7 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const rejectUnconfirmedWorker = new RejectUnconfirmedWorker(rejectUnconfirmedAppointmentsUseCase);
 
-  // Auto-cancel appointments whose date passed while still active, and released
-  // groups left with nothing to execute. The overdue sweep routes through the
-  // transition use case, so its cancellations reach cancelEmptyGroupSubscriber too.
-  const cancelOverdueAppointmentsUseCase = new CancelOverdueAppointmentsUseCase(
-    appointmentRepo, executeStatusTransitionUseCase, logger,
-  );
-  const cancelOverdueWorker = new CancelOverdueWorker(cancelOverdueAppointmentsUseCase);
+  // Backstop sweep for released groups left with nothing to execute.
   const cancelEmptyServiceGroupsUseCase = new CancelEmptyServiceGroupsUseCase(
     serviceGroupRepo, cancelEmptyGroupService, logger,
   );
@@ -2129,7 +2120,6 @@ export function createContainer(logger: Logger): AppContainer {
     publishDayPlansUseCase,
     auditRetentionWorker,
     rejectUnconfirmedWorker,
-    cancelOverdueWorker,
     cancelEmptyGroupsWorker,
   };
 }
