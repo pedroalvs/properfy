@@ -120,17 +120,17 @@ describe('RecordConsentOptOutUseCase', () => {
     await expect(useCase.execute({ ...smsInput, reason: 'x'.repeat(1001) })).rejects.toThrow(ValidationError);
   });
 
-  it('normalizes a national phone to E.164 and lowercases an email (trimmed)', async () => {
+  it('normalizes a national phone to E.164 and stores an email as entered (trimmed)', async () => {
     const phone = await useCase.execute({ ...smsInput, recipient: '0412 000 001' });
     expect(phone.recipient).toBe('+61412000001');
-    // F06-2: email is canonicalized to lowercase so a mixed-case opt-out blocks a
-    // differently-cased send (the consent repo lowercases on both write and lookup).
+    // F06-2: email is stored as entered (trim only); the consent repo matches EMAIL
+    // case-insensitively on write and read, so casing never causes a silent non-block.
     const email = await useCase.execute({
       ...smsInput,
       recipient: '  Ana@Example.com  ',
       channel: 'EMAIL',
     });
-    expect(email.recipient).toBe('ana@example.com');
+    expect(email.recipient).toBe('Ana@Example.com');
   });
 
   it('rejects an SMS recipient that is not a valid AU mobile (avoids a silent non-block)', async () => {
@@ -148,10 +148,11 @@ describe('RecordConsentOptOutUseCase', () => {
     expect(found?.isOptedOut()).toBe(true);
   });
 
-  // F06-2: the use case stores the email lowercased; the consent repo lowercases the
-  // pipeline's lookup too, so a mixed-case send is blocked regardless of casing
-  // (the end-to-end repo proof lives in consent-email-case.test.ts).
-  it('stores an email opt-out lowercased so the send lookup matches', async () => {
+  // F06-2: the real repo matches EMAIL case-insensitively, so a mixed-case opt-out
+  // blocks a differently-cased send (end-to-end proof against Postgres lives in
+  // tests/integration/db/consent-email-case.integration.test.ts). Here the
+  // in-memory stub matches exactly, so we assert the opt-out is recorded.
+  it('records an email opt-out that the pipeline can then block', async () => {
     await useCase.execute({
       tenantId: TENANT,
       recipient: 'John.Doe@Gmail.com',
@@ -161,7 +162,7 @@ describe('RecordConsentOptOutUseCase', () => {
     });
     const found = await store.repo.findByScope({
       tenantId: TENANT,
-      recipient: 'john.doe@gmail.com',
+      recipient: 'John.Doe@Gmail.com',
       channel: 'EMAIL',
       notificationClass: 'OPERATIONAL',
     });

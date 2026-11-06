@@ -81,6 +81,10 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // autoArchiveInspectorNoticesUseCase
     makeWorkerMock() as any,   // sendCompletionRemindersUseCase
     makeWorkerMock() as any,   // publishDayPlansUseCase
+    makeWorkerMock() as any,   // sendMorningEtaNoticesUseCase
+    makeWorkerMock() as any,   // evaluateTenantEtaUseCase
+    makeWorkerMock() as any,   // sweepTenantEtaDelaysUseCase
+    { get: vi.fn().mockResolvedValue({ enabled: false, channelMode: 'BOTH', morningHour: 7, morningCutoffHour: 9, delayThresholdMinutes: 20, smsBudgetSharePercent: 80 }) } as any, // tenantEtaSettingsReader
     logger as any,
   );
 }
@@ -114,6 +118,8 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
     // day-plan.publish carries extra send options (singletonKey, expireInMinutes), so it
     // is asserted with objectContaining below rather than an exact { tz } match.
     ['day-plan.publish', '30 * * * *'],
+    ['tenant-eta.morning', '0 * * * *'],
+    ['tenant-eta.sweep-delays', '*/30 * * * *'],
     ['system.dlq-monitor', '*/5 * * * *'],
   ];
 

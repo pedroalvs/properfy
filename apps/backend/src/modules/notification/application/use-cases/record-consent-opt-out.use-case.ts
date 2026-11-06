@@ -132,12 +132,11 @@ function normalizeRecipient(recipient: string, channel: NotificationChannel): st
     // Phones are stored canonical E.164, so match that (callers reject unparseable).
     return toE164Au(trimmed) ?? trimmed;
   }
-  // Email is canonicalized to lowercase (F06-2): the consent repository lowercases
-  // EMAIL recipients on both write and lookup, so the send pipeline's
-  // `isBlockedByConsent` matches regardless of the casing of the contact's snapshot
-  // email. We lowercase here too so the returned `ConsentRecordOutput.recipient`
-  // reflects the stored value.
-  return trimmed.toLowerCase();
+  // Email is stored as entered (trim only). The consent repository matches EMAIL
+  // recipients case-insensitively on both the opt-out write (idempotency lookup)
+  // and the send pipeline's read (F06-2), so a mixed-case opt-out blocks a
+  // differently-cased send without canonicalizing the stored value here.
+  return trimmed;
 }
 
 function toOutput(consent: NotificationConsentEntity): ConsentRecordOutput {

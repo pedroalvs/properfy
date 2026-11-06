@@ -325,6 +325,14 @@ import { OverrideConsentUseCase } from '../modules/notification/application/use-
 import { RecordConsentOptOutUseCase } from '../modules/notification/application/use-cases/record-consent-opt-out.use-case';
 import { PrismaTenantEtaPlanReader } from '../modules/tenant-eta/infrastructure/prisma-tenant-eta-plan.reader';
 import type { ITenantEtaPlanReader } from '../modules/tenant-eta/domain/tenant-eta-plan.reader';
+import { PrismaTenantEtaNoticeLog } from '../modules/tenant-eta/infrastructure/prisma-tenant-eta-notice-log';
+import { TenantEtaNotifier } from '../modules/tenant-eta/application/tenant-eta-notifier.service';
+import { SendMorningEtaNoticesUseCase } from '../modules/tenant-eta/application/use-cases/send-morning-eta-notices.use-case';
+import { EvaluateTenantEtaUseCase } from '../modules/tenant-eta/application/use-cases/evaluate-tenant-eta.use-case';
+import { SweepTenantEtaDelaysUseCase } from '../modules/tenant-eta/application/use-cases/sweep-tenant-eta-delays.use-case';
+import { EnqueueTenantEtaOnDoneSubscriber } from '../modules/tenant-eta/application/subscribers/enqueue-tenant-eta-on-done.subscriber';
+import { EnqueueTenantEtaOnCantDoSubscriber } from '../modules/tenant-eta/application/subscribers/enqueue-tenant-eta-on-cant-do.subscriber';
+import { EnqueueTenantEtaOnLateNoticeSubscriber } from '../modules/tenant-eta/application/subscribers/enqueue-tenant-eta-on-late-notice.subscriber';
 import { BuildNotificationPayloadService } from '../modules/notification/domain/build-notification-payload.service';
 import { AppointmentCodeFormatter } from '../modules/appointment/domain/appointment-code.formatter';
 import type { NotificationRouteContainer } from '../modules/notification/interfaces/notification.routes';
@@ -526,8 +534,15 @@ export interface AppContainer {
     computeDayPlanUseCase: ComputeDayPlanUseCase;
     getFreshStopForAppointmentUseCase: GetFreshStopForAppointmentUseCase;
   };
-  // F06 arrival-notice prediction read side (consumed by TASK-F06-2; no route here).
-  tenantEta: { planReader: ITenantEtaPlanReader };
+  // F06 arrival-notice prediction read side + F06-2 trigger use cases (no route;
+  // the use cases are driven by the pg-boss workers wired in registerWorkers).
+  tenantEta: {
+    planReader: ITenantEtaPlanReader;
+    sendMorningEtaNoticesUseCase: SendMorningEtaNoticesUseCase;
+    evaluateTenantEtaUseCase: EvaluateTenantEtaUseCase;
+    sweepTenantEtaDelaysUseCase: SweepTenantEtaDelaysUseCase;
+    settingsReader: PlatformSettingsService;
+  };
   auth: AuthRouteContainer;
   tenant: TenantRouteContainer;
   user: UserRouteContainer;
@@ -1557,6 +1572,51 @@ export function createContainer(logger: Logger): AppContainer {
   // F06 tenant-eta plan reader (consumed by TASK-F06-2; no HTTP route here).
   const tenantEtaPlanReader = new PrismaTenantEtaPlanReader(prisma, inspectorFieldEventRepo);
 
+  // F06-2 tenant arrival-notice triggers (no HTTP route; driven by jobs + events).
+  const tenantEtaNoticeLog = new PrismaTenantEtaNoticeLog(prisma);
+  const tenantEtaNotifier = new TenantEtaNotifier(
+    createNotificationUseCase,
+    notificationRepo,
+    buildNotificationPayload,
+    appointmentCodeFormatter,
+    env.TENANT_PORTAL_BASE_URL,
+    metrics,
+    logger,
+  );
+  const sendMorningEtaNoticesUseCase = new SendMorningEtaNoticesUseCase(
+    tenantEtaPlanReader,
+    getFreshStopForAppointmentUseCase,
+    appointmentRepo,
+    tenantRepo,
+    tenantEtaNotifier,
+    platformSettingsService,
+    logger,
+  );
+  const evaluateTenantEtaUseCase = new EvaluateTenantEtaUseCase(
+    tenantEtaPlanReader,
+    getFreshStopForAppointmentUseCase,
+    appointmentRepo,
+    tenantRepo,
+    tenantEtaNotifier,
+    tenantEtaNoticeLog,
+    platformSettingsService,
+    notificationJobQueue,
+    logger,
+  );
+  const sweepTenantEtaDelaysUseCase = new SweepTenantEtaDelaysUseCase(
+    tenantEtaPlanReader,
+    getFreshStopForAppointmentUseCase,
+    appointmentRepo,
+    tenantRepo,
+    tenantEtaNotifier,
+    tenantEtaNoticeLog,
+    platformSettingsService,
+    logger,
+  );
+  new EnqueueTenantEtaOnDoneSubscriber(notificationJobQueue, logger).register(domainEventBus);
+  new EnqueueTenantEtaOnCantDoSubscriber(notificationJobQueue, logger).register(domainEventBus);
+  new EnqueueTenantEtaOnLateNoticeSubscriber(notificationJobQueue, logger).register(domainEventBus);
+
   // Dashboard repositories and use cases
   const dashboardRepo = new PrismaDashboardRepository(prisma);
   const getDashboardStatsUseCase = new GetDashboardStatsUseCase(dashboardRepo);
@@ -1722,7 +1782,13 @@ export function createContainer(logger: Logger): AppContainer {
     domainEventBus,
     geocodingService,
     dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, getFreshStopForAppointmentUseCase, getRouteEtaAccuracyUseCase, previewRouteWeightsUseCase, previewDayPlanOrderUseCase, getDayPlanSheetUseCase, jwtService, tenantRepo },
-    tenantEta: { planReader: tenantEtaPlanReader },
+    tenantEta: {
+      planReader: tenantEtaPlanReader,
+      sendMorningEtaNoticesUseCase,
+      evaluateTenantEtaUseCase,
+      sweepTenantEtaDelaysUseCase,
+      settingsReader: platformSettingsService,
+    },
     auth: {
       loginUseCase,
       refreshTokenUseCase,

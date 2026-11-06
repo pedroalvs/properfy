@@ -6,6 +6,10 @@ import { getQueue, resolvePgBossSchema, assertQueueDbConsistency } from '../shar
 import { withJobMetrics } from './with-job-metrics';
 import { registerDayPlanPublishWorker } from './day-plan-publish.worker';
 import type { PublishDayPlansUseCase } from '../modules/day-plan/application/use-cases/publish-day-plans.use-case';
+import type { SendMorningEtaNoticesUseCase } from '../modules/tenant-eta/application/use-cases/send-morning-eta-notices.use-case';
+import type { EvaluateTenantEtaUseCase, EvaluateTenantEtaJob } from '../modules/tenant-eta/application/use-cases/evaluate-tenant-eta.use-case';
+import type { SweepTenantEtaDelaysUseCase } from '../modules/tenant-eta/application/use-cases/sweep-tenant-eta-delays.use-case';
+import type { IPlatformSettingsReader } from '../shared/domain/platform-settings';
 import type { DeliverInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/deliver-inspector-notice.use-case';
 import type { SweepUndeliveredInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/sweep-undelivered-inspector-notices.use-case';
 import type { AutoArchiveInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/auto-archive-inspector-notices.use-case';
@@ -66,6 +70,10 @@ export async function registerWorkers(
   autoArchiveInspectorNoticesUseCase: AutoArchiveInspectorNoticesUseCase,
   sendCompletionRemindersUseCase: SendCompletionRemindersUseCase,
   publishDayPlansUseCase: PublishDayPlansUseCase,
+  sendMorningEtaNoticesUseCase: SendMorningEtaNoticesUseCase,
+  evaluateTenantEtaUseCase: EvaluateTenantEtaUseCase,
+  sweepTenantEtaDelaysUseCase: SweepTenantEtaDelaysUseCase,
+  tenantEtaSettingsReader: IPlatformSettingsReader,
   logger: Logger,
 ): Promise<void> {
   // Guard against the misconfiguration where this process consumes jobs from one
@@ -362,6 +370,37 @@ export async function registerWorkers(
     logger,
   });
 
+  // F06-2 tenant arrival notices. Morning tick 07:00 local (cutoff 09:00 handled
+  // in the use case); on-demand evaluate (check-out / can't-do / late-notice);
+  // 30-min delay sweep (singleton). enabled-gated so a disabled feature spends no
+  // claim and lists no plans.
+  await boss.schedule('tenant-eta.morning', '0 * * * *', {}, SYDNEY_TZ);
+  await boss.work('tenant-eta.morning', withJobMetrics('tenant-eta.morning', async (job) => {
+    const settings = await tenantEtaSettingsReader.get('tenantEtaNotices');
+    if (!settings.enabled) return;
+    const groups = await tenantCronTick.runDue('tenant-eta.morning', settings.morningHour, async (group) => {
+      await sendMorningEtaNoticesUseCase.execute(group);
+    });
+    if (groups.length > 0) {
+      logger.info({ jobId: job.id, groups: groups.length }, 'Tenant ETA morning completed');
+    }
+  }));
+
+  await boss.work('tenant-eta.evaluate', withJobMetrics('tenant-eta.evaluate', async (job) => {
+    await evaluateTenantEtaUseCase.execute(job.data as unknown as EvaluateTenantEtaJob);
+  }));
+
+  await boss.schedule('tenant-eta.sweep-delays', '*/30 * * * *', {}, SYDNEY_TZ);
+  await boss.work(
+    'tenant-eta.sweep-delays',
+    { teamSize: 1, teamConcurrency: 1 },
+    withJobMetrics('tenant-eta.sweep-delays', async () => {
+      const settings = await tenantEtaSettingsReader.get('tenantEtaNotices');
+      if (!settings.enabled) return;
+      await sweepTenantEtaDelaysUseCase.execute();
+    }),
+  );
+
   // DLQ monitor — alert on accumulated failed jobs
   const dlqMonitor = new DlqMonitor(prisma, logger, { threshold: 10, schema: resolvePgBossSchema() });
   await boss.schedule('system.dlq-monitor', '*/5 * * * *', {}, SYDNEY_TZ);
@@ -371,7 +410,7 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, inspection-execution.completion-reminder, audit.retention, appointment.reject-unconfirmed, service-group.cancel-empty, inspector-notice.deliver, inspector-notice.delivery-sweep, inspector-notice.auto-archive, day-plan.publish, system.dlq-monitor');
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, inspection-execution.completion-reminder, audit.retention, appointment.reject-unconfirmed, service-group.cancel-empty, inspector-notice.deliver, inspector-notice.delivery-sweep, inspector-notice.auto-archive, day-plan.publish, tenant-eta.morning, tenant-eta.evaluate, tenant-eta.sweep-delays, system.dlq-monitor');
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({
