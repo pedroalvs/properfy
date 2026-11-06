@@ -35,7 +35,7 @@ interface Fixture {
 async function seedFixture(prisma: PrismaClient): Promise<Fixture> {
   const suffix = Math.random().toString(36).slice(2, 10);
   const tenant = await prisma.tenant.create({
-    data: { name: `Overdue ${suffix}`, legal_name: `Overdue LLC ${suffix}`, status: 'ACTIVE' },
+    data: { name: `DeadGroup ${suffix}`, legal_name: `DeadGroup LLC ${suffix}`, status: 'ACTIVE' },
   });
   const branch = await prisma.branch.create({
     data: { tenant_id: tenant.id, name: `Branch ${suffix}`, status: 'ACTIVE' },
@@ -46,7 +46,7 @@ async function seedFixture(prisma: PrismaClient): Promise<Fixture> {
       branch_id: branch.id,
       role: 'OP',
       name: `Actor ${suffix}`,
-      email: `overdue-${suffix}@test.local`,
+      email: `dead-group-${suffix}@test.local`,
       password_hash: '$2a$10$fakehashfakehashfakehashfakehashfake',
       status: 'ACTIVE',
     },
@@ -55,9 +55,9 @@ async function seedFixture(prisma: PrismaClient): Promise<Fixture> {
     data: {
       tenant_id: tenant.id,
       branch_id: branch.id,
-      property_code: `OVD-${suffix}`,
+      property_code: `DG-${suffix}`,
       type: 'HOUSE',
-      street: '1 Overdue St',
+      street: '1 Group St',
       suburb: 'Testville',
       postcode: '2000',
       state: 'NSW',
@@ -67,8 +67,8 @@ async function seedFixture(prisma: PrismaClient): Promise<Fixture> {
   });
   const serviceType = await prisma.serviceType.create({
     data: {
-      code: `OVD-ST-${suffix}`,
-      name: `Overdue Routine ${suffix}`,
+      code: `DG-ST-${suffix}`,
+      name: `Group Routine ${suffix}`,
       flow_type: 'ROUTINE',
       requires_rental_tenant_confirmation: true,
       status: 'ACTIVE',
