@@ -156,3 +156,48 @@ describe('tenantEtaNotices platform setting (F06)', () => {
     expect(schema.safeParse(value).success).toBe(true);
   });
 });
+
+describe('liveDayAlerts platform setting (F05)', () => {
+  const schema = PLATFORM_SETTINGS_REGISTRY.liveDayAlerts.schema;
+
+  it('has the onboarding defaults and section label', () => {
+    expect(PLATFORM_SETTINGS_REGISTRY.liveDayAlerts.defaults).toEqual({
+      delayMinutes: 20,
+      notStartedMinutes: 30,
+    });
+    expect(PLATFORM_SETTINGS_REGISTRY.liveDayAlerts.section).toBe('Live Day alerts');
+  });
+
+  it('accepts valid thresholds', () => {
+    expect(schema.safeParse({ delayMinutes: 20, notStartedMinutes: 30 }).success).toBe(true);
+    expect(schema.safeParse({ delayMinutes: 5, notStartedMinutes: 240 }).success).toBe(true);
+  });
+
+  it.each([
+    { delayMinutes: 0, notStartedMinutes: 30 },
+    { delayMinutes: 4, notStartedMinutes: 30 },
+    { delayMinutes: 20, notStartedMinutes: 241 },
+    { delayMinutes: 20.5, notStartedMinutes: 30 },
+    { delayMinutes: 20 },
+  ])('rejects invalid %o', (value) => {
+    expect(schema.safeParse(value).success).toBe(false);
+  });
+
+  it('is a known platform setting key', () => {
+    expect(isPlatformSettingKey('liveDayAlerts')).toBe(true);
+  });
+
+  it('merges a stored value over defaults', () => {
+    expect(resolvePlatformSettingValue('liveDayAlerts', { delayMinutes: 25 })).toEqual({
+      value: { delayMinutes: 25, notStartedMinutes: 30 },
+      valid: true,
+    });
+  });
+
+  it('falls back to defaults on an invalid stored value', () => {
+    expect(resolvePlatformSettingValue('liveDayAlerts', { delayMinutes: 'x' })).toEqual({
+      value: PLATFORM_SETTINGS_REGISTRY.liveDayAlerts.defaults,
+      valid: false,
+    });
+  });
+});

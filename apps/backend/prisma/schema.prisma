@@ -526,6 +526,8 @@ model Inspector {
   app_version                String?            @db.VarChar(40)
   // F04-2 (tour, 00.2): set once by the app-state heartbeat; null = not completed/skipped.
   onboarding_completed_at    DateTime?
+  // F05 per-inspector Live Day alert overrides; null = platform defaults. No tenant_id (D14, inspector is cross-tenant).
+  alert_overrides_json       Json?
   abn                        String?            @db.VarChar(20)
   date_of_birth              DateTime?          @db.Date
   insurance_file_key         String?

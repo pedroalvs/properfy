@@ -140,6 +140,8 @@ export function createMockContainer(
       getInspectorDocumentDownloadUrlUseCase: { execute: vi.fn() },
       getInspectorAvailabilityTemplateUseCase: { execute: vi.fn() },
       updateInspectorAvailabilityTemplateUseCase: { execute: vi.fn() },
+      getInspectorAlertThresholdsUseCase: { execute: vi.fn() },
+      updateInspectorAlertThresholdsUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
       slotRepo: { findByIdAny: vi.fn() },
@@ -327,6 +329,12 @@ export function createMockContainer(
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['executionDensity'],
+    liveDay: {
+      getLiveDayUseCase: { execute: vi.fn() },
+      getLockedTimeUseCase: { execute: vi.fn() },
+      jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
+    } as AppContainer['liveDay'],
     serviceRegion: {
       createServiceRegionUseCase: { execute: vi.fn() },
       updateServiceRegionUseCase: { execute: vi.fn() },

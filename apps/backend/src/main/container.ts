@@ -107,6 +107,8 @@ import { UpdateAvailabilitySlotUseCase } from '../modules/inspector/application/
 import { LinkInspectorToUserUseCase } from '../modules/inspector/application/use-cases/link-inspector-to-user.use-case';
 import { DeactivateInspectorUseCase } from '../modules/inspector/application/use-cases/deactivate-inspector.use-case';
 import { ResetInspectorPasswordUseCase } from '../modules/inspector/application/use-cases/reset-inspector-password.use-case';
+import { GetInspectorAlertThresholdsUseCase } from '../modules/inspector/application/use-cases/get-inspector-alert-thresholds.use-case';
+import { UpdateInspectorAlertThresholdsUseCase } from '../modules/inspector/application/use-cases/update-inspector-alert-thresholds.use-case';
 import { GenerateInspectorPhotoUploadUrlUseCase } from '../modules/inspector/application/use-cases/generate-inspector-photo-upload-url.use-case';
 import { ConfirmInspectorPhotoUploadUseCase } from '../modules/inspector/application/use-cases/confirm-inspector-photo-upload.use-case';
 import { UpdateInspectorSelfProfileUseCase } from '../modules/inspector/application/use-cases/update-inspector-self-profile.use-case';
@@ -255,6 +257,10 @@ import type { InspectorExecutionRouteContainer } from '../modules/inspector-exec
 import { GetExecutionDensityUseCase } from '../modules/inspector-execution/application/use-cases/get-execution-density.use-case';
 import { PrismaExecutionDensityReader } from '../modules/inspector-execution/infrastructure/prisma-execution-density.reader';
 import type { ExecutionDensityRouteContainer } from '../modules/inspector-execution/interfaces/execution-density.routes';
+import { GetLiveDayUseCase } from '../modules/live-day/application/use-cases/get-live-day.use-case';
+import { GetLockedTimeUseCase } from '../modules/live-day/application/use-cases/get-locked-time.use-case';
+import { PrismaLiveDayReadRepository } from '../modules/live-day/infrastructure/prisma-live-day.read-repository';
+import type { LiveDayRouteContainer } from '../modules/live-day/interfaces/live-day.routes';
 
 // Billing module
 import { PrismaFinancialEntryRepository } from '../modules/billing/infrastructure/prisma-financial-entry.repository';
@@ -566,6 +572,7 @@ export interface AppContainer {
   rentalTenantPortal: RentalTenantPortalRouteContainer;
   inspectorExecution: InspectorExecutionRouteContainer;
   executionDensity: ExecutionDensityRouteContainer;
+  liveDay: LiveDayRouteContainer;
   platformSettings: PlatformSettingsRouteContainer;
   billing: BillingRouteContainer;
   report: ReportRouteContainer;
@@ -1241,6 +1248,23 @@ export function createContainer(logger: Logger): AppContainer {
   // has no method that returns a raw coordinate.
   const executionDensityReader = new PrismaExecutionDensityReader(prisma);
   const getExecutionDensityUseCase = new GetExecutionDensityUseCase(executionDensityReader);
+  // Live Day read model (F05-1): one aggregated query, zero Mapbox; reads thresholds
+  // through the shared IPlatformSettingsReader (30 s cache).
+  const liveDayReadRepository = new PrismaLiveDayReadRepository(prisma);
+  const getLiveDayUseCase = new GetLiveDayUseCase(liveDayReadRepository, platformSettingsService);
+  const getLockedTimeUseCase = new GetLockedTimeUseCase(liveDayReadRepository);
+  // F05-1 US5: per-inspector Live Day alert threshold config (platform-scoped).
+  const getInspectorAlertThresholdsUseCase = new GetInspectorAlertThresholdsUseCase(
+    inspectorRepo,
+    platformSettingsService,
+    authorizationService,
+  );
+  const updateInspectorAlertThresholdsUseCase = new UpdateInspectorAlertThresholdsUseCase(
+    inspectorRepo,
+    platformSettingsService,
+    authorizationService,
+    auditService,
+  );
   // Completion reminder (F03, 03.16): reuses F02's PublishSystemInspectorNoticeUseCase.
   const completionReminderReader = new PrismaCompletionReminderReader(prisma);
   const sendCompletionRemindersUseCase = new SendCompletionRemindersUseCase(
@@ -1886,6 +1910,8 @@ export function createContainer(logger: Logger): AppContainer {
       getInspectorAvailabilityTemplateUseCase,
       updateInspectorAvailabilityTemplateUseCase,
       getInspectorAvailabilityTemplateForOperatorUseCase,
+      getInspectorAlertThresholdsUseCase,
+      updateInspectorAlertThresholdsUseCase,
       jwtService,
       tenantRepo,
       slotRepo: availabilitySlotRepo,
@@ -2033,6 +2059,12 @@ export function createContainer(logger: Logger): AppContainer {
     },
     executionDensity: {
       getExecutionDensityUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    liveDay: {
+      getLiveDayUseCase,
+      getLockedTimeUseCase,
       jwtService,
       tenantRepo,
     },
