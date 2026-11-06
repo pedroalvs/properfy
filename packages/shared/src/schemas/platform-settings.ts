@@ -61,6 +61,20 @@ export const tenantEtaNoticesSettingSchema = z
   });
 export type TenantEtaNoticesSetting = z.infer<typeof tenantEtaNoticesSettingSchema>;
 
+/**
+ * Live Day alert thresholds (F05). `delayMinutes` fires a DELAY alert when the
+ * accumulated delay exceeds it (strict); `notStartedMinutes` fires a NOT_STARTED
+ * alert when now exceeds a stop's planned start + this value. Platform default;
+ * optionally overridden per inspector in `inspectors.alert_overrides_json`.
+ */
+const liveDayAlertMinutes = z.number().int().min(5).max(240);
+export const liveDayAlertsSettingSchema = z.object({
+  delayMinutes: liveDayAlertMinutes,
+  notStartedMinutes: liveDayAlertMinutes,
+});
+export type LiveDayAlertsSetting = z.infer<typeof liveDayAlertsSettingSchema>;
+export const DEFAULT_LIVE_DAY_ALERTS = { delayMinutes: 20, notStartedMinutes: 30 } as const;
+
 export const PLATFORM_SETTINGS_REGISTRY = {
   fieldEvents: {
     schema: fieldEventsSettingSchema,
@@ -89,6 +103,11 @@ export const PLATFORM_SETTINGS_REGISTRY = {
       smsBudgetSharePercent: 80,
     },
     section: 'Tenant arrival notices',
+  },
+  liveDayAlerts: {
+    schema: liveDayAlertsSettingSchema,
+    defaults: DEFAULT_LIVE_DAY_ALERTS,
+    section: 'Live Day alerts',
   },
 } as const satisfies Record<string, { schema: z.ZodTypeAny; defaults: unknown; section: string }>;
 

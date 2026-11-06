@@ -4344,6 +4344,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspectors/{inspectorId}/alert-thresholds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                inspectorId: string;
+                                platformDefaults: {
+                                    delayMinutes: number;
+                                    notStartedMinutes: number;
+                                };
+                                override: {
+                                    delayMinutes: number | null;
+                                    notStartedMinutes: number | null;
+                                };
+                                effective: {
+                                    delayMinutes: number;
+                                    notStartedMinutes: number;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        delayMinutes: number | null;
+                        notStartedMinutes: number | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                inspectorId: string;
+                                platformDefaults: {
+                                    delayMinutes: number;
+                                    notStartedMinutes: number;
+                                };
+                                override: {
+                                    delayMinutes: number | null;
+                                    notStartedMinutes: number | null;
+                                };
+                                effective: {
+                                    delayMinutes: number;
+                                    notStartedMinutes: number;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/inspectors/me": {
         parameters: {
             query?: never;
@@ -12329,6 +12428,251 @@ export interface paths {
                                 totalExecutions: number;
                                 excludedWithoutCoordinates: number;
                                 truncated: boolean;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/live-day": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    date?: string;
+                    includeGeometry?: "none" | "selected" | "all";
+                    inspectorId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                date: string;
+                                today: string;
+                                timezone: string;
+                                isToday: boolean;
+                                generatedAt: string;
+                                thresholdsDefault: {
+                                    delayMinutes: number;
+                                    notStartedMinutes: number;
+                                };
+                                summary: {
+                                    inspectors: number;
+                                    notStarted: number;
+                                    atProperty: number;
+                                    inTransit: number;
+                                    doneForDay: number;
+                                    needsAttention: number;
+                                    stopsDone: number;
+                                    stopsTotal: number;
+                                };
+                                inspectors: {
+                                    /** Format: uuid */
+                                    inspectorId: string;
+                                    inspectorName: string;
+                                    /** @enum {string} */
+                                    state: "NOT_STARTED" | "AT_PROPERTY" | "IN_TRANSIT" | "DONE_FOR_DAY";
+                                    lastKnown: {
+                                        /** @enum {string} */
+                                        source: "CHECK_IN" | "CHECK_OUT" | "BASE" | "NONE";
+                                        lat: number | null;
+                                        lng: number | null;
+                                        at: (string) | null;
+                                        /** Format: uuid */
+                                        appointmentId: string | null;
+                                        label: string | null;
+                                    };
+                                    progress: {
+                                        done: number;
+                                        inProgress: number;
+                                        remaining: number;
+                                        total: number;
+                                    };
+                                    delayMinutes: number | null;
+                                    thresholds: {
+                                        delayMinutes: number;
+                                        /** @enum {string} */
+                                        delaySource: "PLATFORM" | "INSPECTOR";
+                                        notStartedMinutes: number;
+                                        /** @enum {string} */
+                                        notStartedSource: "PLATFORM" | "INSPECTOR";
+                                    };
+                                    alerts: {
+                                        /** @enum {string} */
+                                        type: "DELAY" | "NOT_STARTED" | "LATE_NOTICE" | "CANT_DO" | "GEOFENCE" | "OUT_OF_WINDOW" | "COMPLETION_REMINDER";
+                                        occurredAt: string;
+                                        /** Format: uuid */
+                                        appointmentId: string | null;
+                                        appointmentCode: string | null;
+                                        minutes: number | null;
+                                        estimatedArrivalAt: (string) | null;
+                                        thresholdMinutes: number | null;
+                                        /** @enum {string|null} */
+                                        thresholdSource: "PLATFORM" | "INSPECTOR" | null;
+                                        reason: string | null;
+                                        reasonLabel: string | null;
+                                        note: string | null;
+                                        /** @enum {string|null} */
+                                        phase: "START" | "FINISH" | null;
+                                        distanceMeters: number | null;
+                                        radiusMeters: number | null;
+                                    }[];
+                                    needsAttention: boolean;
+                                    /** Format: uuid */
+                                    dayPlanId: string | null;
+                                    /** @enum {string} */
+                                    planStatus: "DRAFT" | "PUBLISHED" | "STALE" | "NONE";
+                                    planVersion: number | null;
+                                    routeOutOfDate: boolean;
+                                    routeApproximate: boolean;
+                                    routeFeasible: boolean;
+                                    routeViolations: {
+                                        /** Format: uuid */
+                                        appointmentId: string;
+                                        appointmentCode: string;
+                                        sequence: number;
+                                        lateMinutes: number;
+                                    }[];
+                                    origin: {
+                                        lat: number;
+                                        lng: number;
+                                        label: string | null;
+                                    } | null;
+                                    geometryIncluded: boolean;
+                                    geometry: {
+                                        /** @enum {string} */
+                                        type: "FeatureCollection";
+                                        features: {
+                                            /** @enum {string} */
+                                            type: "Feature";
+                                            geometry: {
+                                                /** @enum {string} */
+                                                type: "LineString";
+                                                coordinates: [
+                                                    number,
+                                                    number
+                                                ][];
+                                            };
+                                            properties: {
+                                                fromSequence: number;
+                                                toSequence: number;
+                                                approximate: boolean;
+                                            };
+                                        }[];
+                                    } | null;
+                                    stops: {
+                                        /** Format: uuid */
+                                        appointmentId: string;
+                                        appointmentCode: string;
+                                        sequence: number | null;
+                                        inPlan: boolean;
+                                        /** @enum {string} */
+                                        progress: "DONE" | "CURRENT" | "OPEN" | "REMAINING";
+                                        agencyName: string;
+                                        propertyAddress: string;
+                                        suburb: string;
+                                        lat: number | null;
+                                        lng: number | null;
+                                        missingCoordinates: boolean;
+                                        windowStart: string;
+                                        windowEnd: string;
+                                        timezone: string;
+                                        startedAt: (string) | null;
+                                        finishedAt: (string) | null;
+                                        predictedStartAt: (string) | null;
+                                        publishedStartAt: (string) | null;
+                                        delayMinutes: number | null;
+                                    }[];
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/locked-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    to?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                from: string;
+                                to: string;
+                                generatedAt: string;
+                                overall: {
+                                    confirmed: number;
+                                    required: number;
+                                    percent: number | null;
+                                };
+                                byAgency: {
+                                    /** Format: uuid */
+                                    tenantId: string;
+                                    agencyName: string;
+                                    confirmed: number;
+                                    required: number;
+                                    percent: number | null;
+                                }[];
+                                byRegion: {
+                                    /** Format: uuid */
+                                    regionId: string | null;
+                                    regionName: string;
+                                    agencyName: string | null;
+                                    confirmed: number;
+                                    required: number;
+                                    percent: number | null;
+                                }[];
                             };
                         };
                     };

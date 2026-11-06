@@ -299,6 +299,21 @@ Privacy rules (do not regress):
 
 No schema change, no migration (reads `abandoned_at` from F03-2). The web consumer is TASK-F09-2.
 
+### Live Day operations dashboard (F05-1, module `live-day/`)
+
+```text
+GET /v1/dashboard/live-day?date&includeGeometry&inspectorId   → 200  per-inspector operational read
+GET /v1/dashboard/locked-time?from&to                         → 200  01.13 confirmation rate
+GET|PUT /v1/inspectors/:inspectorId/alert-thresholds          → 200  per-inspector alert override (inspector.routes.ts)
+```
+
+The read model for the operations "Live Day" screen. **Cross-tenant AM/OP read (D14)** — no `tenant_id` predicate (precedent `PrismaInspectorWorkloadRepository`); documented exception to §5.6 / root §7.1, justified by "inspector is cross-tenant, AM/OP only" and proven by the scoping integration tests. Container key `liveDay`; routes `live-day/interfaces/live-day.routes.ts` (live-day + locked-time) and the two alert-threshold routes in `inspector/interfaces/inspector.routes.ts`. Per-user rate limit on all three (`keyGenerator` = sha256 of the `Authorization` header, IP fallback — `@fastify/rate-limit` runs it at `onRequest`, before auth; live-day 120/min, locked-time 30/min, alert-thresholds 30/min); the global per-IP limit still applies.
+
+- **One aggregated `$queryRaw` per endpoint, ZERO Mapbox (D13).** `PrismaLiveDayReadRepository.getDay` (Algorithm §1) and `getLockedTime` (§7) each run exactly one statement with no external call, in any mode. All derivation is pure and in memory: `filterT1Visible` (reuses the F04 `T1VisibilityService`), `derive-inspector-state`/`-stop-progress`, `resolve-last-known-point`, `compute-accumulated-delay`, `plan-freshness` (STALE via the F04 `computeDayPlanFingerprint`, D17 — the fingerprint input mirrors `loadCandidates`/`configuredOriginFor` exactly or every plan would read false-STALE), `to-eta-inputs` → the shared F06 `projectStopEta`, `derive-alerts` (7 types, §5), `resolve-effective-thresholds`, `build-route-geometry`. `$queryRaw` hazards handled: instants rendered as ISO-UTC text in SQL (`to_char … "Z"`), coords `::float8`, counts `::int`, `json_agg` snake_case camelised in the repo.
+- **Geometry is NEVER read from the DB (F04 Plan B).** PRs #072/#073/#074 dropped `day_plans.route_geometry`, so the Live Day route is ALWAYS an in-memory straight line (origin → coordinate-bearing stops), `routeApproximate` always true, built only when `includeGeometry=selected|all` requests it; the SQL is identical in all three modes (SC-003). `includeGeometry=all` over 60 inspectors → 400 `LIVE_DAY_TOO_MANY_ROUTES`; `selected` without `inspectorId` → 400 `LIVE_DAY_INSPECTOR_REQUIRED`; `date` after tomorrow → 400 `LIVE_DAY_DATE_TOO_FAR`.
+- **Plan infeasibility is an indicator, not an 8th alert** (`routeFeasible`/`routeViolations` from `day_plans.feasible`/`day_plan_stops.late_s`, L-F04-05). Roster (D19): an inspector with no T-1-visible live stop and no active `CANT_DO` is excluded. `live_day.read`/`locked_time.read` info logs carry `durationMs`/`bodyBytes`/`rows` and NEVER inspector coordinates or tokens, including on error paths.
+- **`inspectors.alert_overrides_json`** (`Json?`, platform-scoped, no `tenant_id`) holds the per-inspector `{ delayMinutes, notStartedMinutes }` override (each int 5–240 or null). Read/written through `IInspectorRepository.getAlertOverrides`/`setAlertOverrides`; the PUT last-write-wins, clears with both-null (DB NULL), is a no-op (no audit) when unchanged, and audits `inspector.alert_thresholds_updated` with `tenantId: null`. Platform default is the `liveDayAlerts` `PlatformSetting` key; OUT_OF_WINDOW reads the `fieldEvents.checkInWindowToleranceMinutes` tolerance (both via the F03 30 s cache). `GET /v1/dashboard/locked-time` denominator per D21 (tenant-driven `REJECTED` counted as not locked).
+
 ---
 
 ## 7. Data model

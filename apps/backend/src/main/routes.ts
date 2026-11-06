@@ -19,6 +19,7 @@ import { registerRentalTenantPortalRoutes } from '../modules/rental-tenant-porta
 import { registerInspectorExecutionRoutes } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
 import { registerDayPlanRoutes } from '../modules/day-plan/interfaces/day-plan.routes';
 import { registerExecutionDensityRoutes } from '../modules/inspector-execution/interfaces/execution-density.routes';
+import { registerLiveDayRoutes } from '../modules/live-day/interfaces/live-day.routes';
 import { registerPlatformSettingsRoutes } from '../modules/platform-settings/interfaces/platform-settings.routes';
 import { registerBillingRoutes } from '../modules/billing/interfaces/billing.routes';
 import { registerReportRoutes } from '../modules/report/interfaces/report.routes';
@@ -110,6 +111,7 @@ export async function registerRoutes(
   await registerInspectorExecutionRoutes(app, container.inspectorExecution);
   await registerDayPlanRoutes(app, container.dayPlan);
   await registerExecutionDensityRoutes(app, container.executionDensity);
+  await registerLiveDayRoutes(app, container.liveDay);
   await registerPlatformSettingsRoutes(app, container.platformSettings);
   await registerBillingRoutes(app, container.billing);
   await registerReportRoutes(app, container.report);

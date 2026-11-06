@@ -74,6 +74,14 @@ export interface IInspectorRepository {
    */
   recordAppState(params: RecordAppStateParams): Promise<number>;
   findByRegionId(regionId: string): Promise<InspectorEntity[]>;
+  /**
+   * F05-1 Live Day alert overrides (`inspectors.alert_overrides_json`, platform-scoped,
+   * no `tenant_id`). `getAlertOverrides` returns the raw stored JSON (`null` when unset
+   * or the inspector is missing/soft-deleted); `setAlertOverrides` writes it (or clears
+   * it with `null`) and returns `false` when no row matched.
+   */
+  getAlertOverrides(id: string): Promise<unknown>;
+  setAlertOverrides(id: string, value: unknown | null): Promise<boolean>;
   getAvailabilityTemplate(inspectorId: string): Promise<AvailabilityTemplate>;
   updateAvailabilityTemplate(
     inspectorId: string,

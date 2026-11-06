@@ -43,7 +43,7 @@ const CIVIL_DATE_PREFIX = /^\d{4}-\d{2}-\d{2}/;
  * members, which would republish the very `anyOf: [string, date-time]` ambiguity
  * this split exists to remove — the contract consumers read must state one shape.
  */
-const civilDateStr = () =>
+export const civilDateStr = () =>
   z.preprocess(
     (value) => {
       if (value instanceof Date) return value.toISOString().slice(0, 10);
@@ -58,10 +58,10 @@ const civilDateStr = () =>
  * without a timezone, so it always crosses the wire as a full ISO-8601 timestamp
  * with offset, and is rendered via `formatInstantDate` / `formatInstantDateTime`.
  */
-const instantStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
+export const instantStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
 
-const civilDateStrNullable = () => civilDateStr().nullable();
-const instantStrNullable = () => instantStr().nullable();
+export const civilDateStrNullable = () => civilDateStr().nullable();
+export const instantStrNullable = () => instantStr().nullable();
 
 // ─── Common ────────────────────────────────────────────────────────────────
 

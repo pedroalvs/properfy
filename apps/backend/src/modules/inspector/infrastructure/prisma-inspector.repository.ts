@@ -281,6 +281,26 @@ export class PrismaInspectorRepository implements IInspectorRepository {
     return affected;
   }
 
+  // F05-1 Live Day alert overrides (platform-scoped, no tenant_id).
+  async getAlertOverrides(id: string): Promise<unknown> {
+    const row = await this.prisma.inspector.findFirst({
+      where: { id, deleted_at: null },
+      select: { alert_overrides_json: true },
+    });
+    return row?.alert_overrides_json ?? null;
+  }
+
+  async setAlertOverrides(id: string, value: unknown | null): Promise<boolean> {
+    const { count } = await this.prisma.inspector.updateMany({
+      where: { id, deleted_at: null },
+      data: {
+        // Prisma distinguishes DB NULL from JSON null for a nullable Json column.
+        alert_overrides_json: value === null ? Prisma.DbNull : (value as Prisma.InputJsonValue),
+      },
+    });
+    return count > 0;
+  }
+
   async findByRegionId(regionId: string): Promise<InspectorEntity[]> {
     const rows = await this.prisma.inspector.findMany({
       where: {
