@@ -129,6 +129,10 @@ async function start() {
       container.inspectorNotice.autoArchiveInspectorNoticesUseCase,
       container.sendCompletionRemindersUseCase,
       container.publishDayPlansUseCase,
+      container.tenantEta.sendMorningEtaNoticesUseCase,
+      container.tenantEta.evaluateTenantEtaUseCase,
+      container.tenantEta.sweepTenantEtaDelaysUseCase,
+      container.tenantEta.settingsReader,
       app.log,
     );
   }

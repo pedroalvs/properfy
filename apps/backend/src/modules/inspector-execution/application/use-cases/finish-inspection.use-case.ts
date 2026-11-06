@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { AuthContext } from '@properfy/shared';
+import { TRANSITION_SOURCE_INSPECTOR_FINISH, type AuthContext } from '@properfy/shared';
 import type { IInspectionExecutionRepository } from '../../domain/inspection-execution.repository';
 import type { IInspectorFieldEventRepository } from '../../domain/inspector-field-event.repository';
 import type { IIdempotencyService } from '../../domain/idempotency.service';
@@ -125,7 +125,15 @@ export class FinishInspectionUseCase {
       // CAS: only finish a still-SCHEDULED appointment, so a concurrent transition
       // that already moved it loses cleanly (409) instead of a mixed state.
       const transitionResult = await this.executeStatusTransition.executeInTransaction(
-        { appointmentId, targetStatus: 'DONE', expectedStatus: 'SCHEDULED', actor },
+        {
+          appointmentId,
+          targetStatus: 'DONE',
+          expectedStatus: 'SCHEDULED',
+          actor,
+          // L-F06-04: marks this DONE as a real inspector check-out so the
+          // tenant-ETA "on the way" subscriber fires (a manual OP/AM DONE has no source).
+          auditMetadata: { source: TRANSITION_SOURCE_INSPECTOR_FINISH },
+        },
         tx,
       );
       appointmentStatus = transitionResult.output.status;

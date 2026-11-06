@@ -152,6 +152,9 @@ describe('FinishInspectionUseCase', () => {
         // F03-2: finish uses a compare-and-swap on the current status.
         expectedStatus: 'SCHEDULED',
         actor: inspActor,
+        // F06-2 L-F06-04: the check-out stamps metadata.source so the tenant-ETA
+        // "on the way" subscriber can distinguish it from a manual OP/AM DONE.
+        auditMetadata: { source: 'INSPECTOR_FINISH' },
       },
       undefined,
     );
@@ -266,6 +269,9 @@ describe('FinishInspectionUseCase', () => {
         // F03-2: finish uses a compare-and-swap on the current status.
         expectedStatus: 'SCHEDULED',
         actor: inspActor,
+        // F06-2 L-F06-04: the check-out stamps metadata.source so the tenant-ETA
+        // "on the way" subscriber can distinguish it from a manual OP/AM DONE.
+        auditMetadata: { source: 'INSPECTOR_FINISH' },
       },
       undefined,
     );

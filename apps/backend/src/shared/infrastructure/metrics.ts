@@ -62,6 +62,7 @@ export class MetricsCollector {
   private routingProviderFailuresByCode = new Map<string, number>();
   private dayPlansApproximateTotal = new Map<string, number>();
   private smsPartsByTemplate = new Map<string, number>();
+  private tenantEtaNoticeCounts = new Map<string, number>();
 
   /** Register a function that returns the current JWT previous key days remaining. Called on each snapshot. */
   setJwtGaugeProvider(provider: () => number | null): void {
@@ -139,6 +140,16 @@ export class MetricsCollector {
     this.smsPartsByTemplate.set(templateCode, (this.smsPartsByTemplate.get(templateCode) ?? 0) + parts);
   }
 
+  /**
+   * Count one created tenant arrival notice, keyed by kind + channel (F06-2
+   * L-F06-11). Per-machine, like the other counters. Feeds `/metrics` so the
+   * arrival-notice volume is visible without log scraping.
+   */
+  incrementTenantEtaNoticeCount(kind: string, channel: string): void {
+    const key = `${kind}|${channel}`;
+    this.tenantEtaNoticeCounts.set(key, (this.tenantEtaNoticeCounts.get(key) ?? 0) + 1);
+  }
+
   httpRequestStart(): () => number {
     this.activeRequests += 1;
     const start = performance.now();
@@ -198,6 +209,7 @@ export class MetricsCollector {
     this.routingProviderFailuresByCode.clear();
     this.dayPlansApproximateTotal.clear();
     this.smsPartsByTemplate.clear();
+    this.tenantEtaNoticeCounts.clear();
   }
 
   getSnapshot(): MetricsSnapshot {
@@ -279,6 +291,7 @@ export class MetricsCollector {
         agencyForwardFailedCount: this.agencyForwardFailedCount,
         missingVariableCount: this.notificationMissingVariableCount,
         smsPartsByTemplate: Object.fromEntries(this.smsPartsByTemplate),
+        tenantEtaNoticeCounts: Object.fromEntries(this.tenantEtaNoticeCounts),
       },
       routing: {
         providerCalls: Array.from(this.routingProviderCalls, ([key, count]) => {
@@ -356,6 +369,8 @@ export interface MetricsSnapshot {
     missingVariableCount: number;
     /** Dispatched SMS segments, keyed by template code (F06 L-F06-11). */
     smsPartsByTemplate: Record<string, number>;
+    /** Created tenant arrival notices, keyed by `{kind}|{channel}` (F06-2 L-F06-11). */
+    tenantEtaNoticeCounts: Record<string, number>;
   };
   routing?: {
     providerCalls: Array<{ api: string; outcome: string; count: number }>;
