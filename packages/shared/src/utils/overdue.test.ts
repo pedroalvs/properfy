@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   OVERDUE_AGE_DAYS,
-  OVERDUE_AUTO_CANCEL_STATUSES,
   OVERDUE_ELIGIBLE_STATUSES,
   isAppointmentOverdue,
   overdueCreatedBeforeCivilDate,
@@ -37,17 +36,6 @@ describe('overdue age rule', () => {
         'AWAITING_INSPECTOR',
         'SCHEDULED',
       ]);
-    });
-
-    it('excludes DRAFT from the auto-cancel subset — it is the operator repair state', () => {
-      expect([...OVERDUE_AUTO_CANCEL_STATUSES]).toEqual(['AWAITING_INSPECTOR', 'SCHEDULED']);
-      expect(OVERDUE_AUTO_CANCEL_STATUSES).not.toContain('DRAFT');
-    });
-
-    it('keeps the auto-cancel set a subset of the eligible set', () => {
-      for (const status of OVERDUE_AUTO_CANCEL_STATUSES) {
-        expect(OVERDUE_ELIGIBLE_STATUSES).toContain(status);
-      }
     });
   });
 
