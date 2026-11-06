@@ -33,7 +33,9 @@ function makeInput(overrides: Partial<Parameters<UpsertNotificationTemplateUseCa
     templateCode: 'INSPECTION_NOTICE',
     channel: 'EMAIL',
     subject: 'Inspection for {{propertyAddress}}',
-    bodyHtml: '<p>Hello {{rentalTenantName}}</p>',
+    // Carries every INSPECTION_NOTICE required variable so the F06 required-var
+    // guard (L-F06-09) passes; individual tests override as needed.
+    bodyHtml: '<p>Hello {{rentalTenantName}}, your inspection is on {{scheduledDate}} at {{timeSlot}}.</p>',
     bodyText: 'Hello {{rentalTenantName}}, your inspection at {{propertyAddress}} is scheduled.',
     isActive: true,
     actor: makeActor(),
@@ -262,7 +264,7 @@ describe('UpsertNotificationTemplateUseCase', () => {
     expect(entity.templateCode).toBe('INSPECTION_NOTICE');
     expect(entity.channel).toBe('EMAIL');
     // bodyText is now derived from bodyHtml (htmlToText not injected → fallback to bodyHtml)
-    expect(entity.bodyText).toBe('<p>Hello {{rentalTenantName}}</p>');
+    expect(entity.bodyText).toBe('<p>Hello {{rentalTenantName}}, your inspection is on {{scheduledDate}} at {{timeSlot}}.</p>');
     expect(entity.active).toBe(true);
     expect(entity.tenantId).toBeNull();
   });
@@ -402,7 +404,7 @@ describe('UpsertNotificationTemplateUseCase', () => {
           templateCode: 'INSPECTION_NOTICE_SMS',
           channel: 'SMS',
           subject: undefined,
-          bodyHtml: 'Properfy: your inspection is scheduled.',
+          bodyHtml: 'Properfy: Hi {{rentalTenantName}}, your inspection is on {{scheduledDate}}.',
         }),
       );
 
@@ -468,9 +470,9 @@ describe('UpsertNotificationTemplateUseCase', () => {
       await makeUseCase(htmlToText).execute(makeInput());
 
       const entity = vi.mocked(templateRepo.upsert).mock.calls[0][0];
-      expect(entity.bodyHtml).toBe('<p>Hello {{rentalTenantName}}</p>');
+      expect(entity.bodyHtml).toBe('<p>Hello {{rentalTenantName}}, your inspection is on {{scheduledDate}} at {{timeSlot}}.</p>');
       expect(entity.bodyText).toBe('CONVERTED FROM HTML');
-      expect(htmlToText.convert).toHaveBeenCalledWith('<p>Hello {{rentalTenantName}}</p>');
+      expect(htmlToText.convert).toHaveBeenCalledWith('<p>Hello {{rentalTenantName}}, your inspection is on {{scheduledDate}} at {{timeSlot}}.</p>');
     });
 
     it('forces subject to null on SMS even if the client still sends one', async () => {
@@ -547,10 +549,13 @@ describe('UpsertNotificationTemplateUseCase', () => {
     it('accepts an SMS body exactly at the GSM-7 limit', async () => {
       vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
 
+      // The required vars render (via SAMPLE_DATA) to 'John Smith' (10) +
+      // '15/04/2026' (10); padding to 1530 keeps the body exactly at the GSM-7
+      // 10-part ceiling after substitution while satisfying the var guard.
       await useCase.execute({
         templateCode: 'INSPECTION_NOTICE_SMS',
         channel: 'SMS',
-        bodyHtml: 'a'.repeat(1530),
+        bodyHtml: '{{rentalTenantName}}{{scheduledDate}}' + 'a'.repeat(1510),
         isActive: true,
         actor: makeActor(),
       });
@@ -564,7 +569,10 @@ describe('UpsertNotificationTemplateUseCase', () => {
       await useCase.execute(
         makeInput({
           templateCode: 'INSPECTION_NOTICE',
-          bodyHtml: '<p>' + 'a'.repeat(5000) + '</p>',
+          bodyHtml:
+            '<p>{{rentalTenantName}} {{propertyAddress}} {{scheduledDate}} {{timeSlot}} ' +
+            'a'.repeat(5000) +
+            '</p>',
         }),
       );
 
@@ -633,7 +641,7 @@ describe('UpsertNotificationTemplateUseCase', () => {
           templateCode: 'INSPECTION_CANCELLED',
           channel: 'EMAIL',
           subject: 'A custom operator subject',
-          bodyHtml: '<p>Custom operator copy for {{propertyAddress}}</p>',
+          bodyHtml: '<p>Custom operator copy for {{rentalTenantName}} at {{propertyAddress}} on {{scheduledDate}}</p>',
           actor: makeActor({ role: 'OP', tenantId: null }),
         }),
       );
@@ -660,6 +668,81 @@ describe('UpsertNotificationTemplateUseCase', () => {
       const entity = vi.mocked(templateRepo.upsert).mock.calls[0][0];
       expect(entity.tenantId).toBe('11111111-1111-4111-8111-111111111111');
       expect(entity.seededContentHash).toBeNull();
+    });
+  });
+
+  // F06 L-F06-09: the server rejects a template missing a required variable.
+  describe('required-variable guard (L-F06-09)', () => {
+    it('rejects a TENANT_ETA_DELAY SMS body without etaFrom/etaTo and saves nothing', async () => {
+      await expect(
+        useCase.execute(
+          makeInput({
+            templateCode: 'TENANT_ETA_DELAY',
+            channel: 'SMS',
+            subject: undefined,
+            bodyHtml: 'Hi {{rentalTenantName}}, running late.',
+            actor: makeActor({ role: 'AM', tenantId: null }),
+          }),
+        ),
+      ).rejects.toMatchObject({
+        message: 'Missing required variables: etaFrom, etaTo',
+        details: [{ field: 'bodyHtml', message: 'Missing required variables: etaFrom, etaTo' }],
+      });
+      expect(templateRepo.upsert).not.toHaveBeenCalled();
+    });
+
+    it('saves a TENANT_ETA_DELAY SMS body that includes both variables', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+      await useCase.execute(
+        makeInput({
+          templateCode: 'TENANT_ETA_DELAY',
+          channel: 'SMS',
+          subject: undefined,
+          bodyHtml: 'Running late. Between {{etaFrom}} and {{etaTo}}.',
+          actor: makeActor({ role: 'AM', tenantId: null }),
+        }),
+      );
+      expect(templateRepo.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it('accepts a required variable that appears only in the subject (extraction uses subject + body)', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+      await useCase.execute(
+        makeInput({
+          templateCode: 'TENANT_ETA_MORNING',
+          channel: 'EMAIL',
+          subject: 'Arrival from {{etaFrom}}',
+          bodyHtml: '<p>until {{etaTo}}</p>',
+          actor: makeActor({ role: 'AM', tenantId: null }),
+        }),
+      );
+      expect(templateRepo.upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it('applies the generic rule to a legacy code (INSPECTION_NOTICE missing scheduledDate)', async () => {
+      await expect(
+        useCase.execute(
+          makeInput({
+            subject: 'Inspection for {{propertyAddress}}',
+            bodyHtml: '<p>Hello {{rentalTenantName}} at {{timeSlot}}</p>',
+            actor: makeActor({ role: 'AM', tenantId: null }),
+          }),
+        ),
+      ).rejects.toMatchObject({ message: 'Missing required variables: scheduledDate' });
+    });
+
+    it('counts a {{#if}} guard as present (same extraction as the editor)', async () => {
+      vi.mocked(templateRepo.upsert).mockResolvedValue(undefined);
+      await useCase.execute(
+        makeInput({
+          templateCode: 'TENANT_ETA_MORNING',
+          channel: 'SMS',
+          subject: undefined,
+          bodyHtml: '{{#if etaFrom}}{{etaFrom}}{{/if}} {{etaTo}}',
+          actor: makeActor({ role: 'AM', tenantId: null }),
+        }),
+      );
+      expect(templateRepo.upsert).toHaveBeenCalledTimes(1);
     });
   });
 });

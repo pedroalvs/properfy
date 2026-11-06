@@ -70,6 +70,22 @@ export const overrideConsentSchema = z.object({
 });
 export type OverrideConsentInput = z.infer<typeof overrideConsentSchema>;
 
+/**
+ * Body for `POST /v1/notifications/consents/opt-out` (F06, L-F06-03). An AM/OP
+ * records a manual opt-out for one recipient + channel so that OPERATIONAL
+ * tenant messages (including the arrival-time notices, which carry no "reply
+ * STOP" footer) stop reaching them. The recipient is normalized server-side
+ * exactly as the send pipeline normalizes it before `findByScope`.
+ */
+export const recordConsentOptOutSchema = z.object({
+  tenantId: z.string().uuid(),
+  recipient: z.string().min(3).max(320),
+  channel: z.enum(['EMAIL', 'SMS']),
+  notificationClass: z.enum(['OPERATIONAL']).default('OPERATIONAL'),
+  reason: z.string().trim().min(1).max(1000),
+});
+export type RecordConsentOptOutInput = z.infer<typeof recordConsentOptOutSchema>;
+
 export const consentRecordResponseSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),

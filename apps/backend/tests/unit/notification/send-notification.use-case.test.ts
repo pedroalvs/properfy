@@ -130,6 +130,7 @@ function makeSut(extraDeps: { properfyLogoUrl?: string } = {}) {
     incrementMissingVariableCount: vi.fn(),
     incrementNotificationHandlerErrorCount: vi.fn(),
     incrementAgencyForwardFailedCount: vi.fn(),
+    addSmsParts: vi.fn(),
   } as unknown as MetricsCollector;
   const getTenantSettings = vi.fn().mockResolvedValue({});
   const auditService = { log: vi.fn() } as unknown as AuditService;
@@ -568,6 +569,102 @@ describe('SendNotificationUseCase', () => {
 
     const [, body] = vi.mocked(smsProvider.send).mock.calls[0]!;
     expect((body as string).length).toBe(1530);
+  });
+
+  // ── F06 L-F06-11: SMS cost log + per-template parts metric ────────────────
+  describe('SMS cost observability (F06)', () => {
+    it('logs notification.sms_dispatched and adds parts on a successful SMS', async () => {
+      const sut = makeSut();
+      const notification = makeNotification({
+        channel: 'SMS',
+        recipient: '+61412345678',
+        templateCode: 'TENANT_ETA_DELAY',
+        payloadJson: {},
+      });
+      // 170 GSM-7 chars → 2 parts.
+      const template = makeTemplate({
+        templateCode: 'TENANT_ETA_DELAY',
+        channel: 'SMS',
+        subject: null,
+        bodyHtml: null,
+        bodyText: 'a'.repeat(170),
+        variablesJson: [],
+      });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
+      vi.mocked(sut.smsProvider.send).mockResolvedValue({ messageId: 'msg-sms-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          notificationId: 'notif-1',
+          tenantId: 'tenant-1',
+          templateCode: 'TENANT_ETA_DELAY',
+          parts: 2,
+          encoding: 'GSM-7',
+          length: 170,
+          truncated: false,
+        }),
+        'notification.sms_dispatched',
+      );
+      expect(sut.metrics.addSmsParts).toHaveBeenCalledTimes(1);
+      expect(sut.metrics.addSmsParts).toHaveBeenCalledWith('TENANT_ETA_DELAY', 2);
+    });
+
+    it('reports UCS-2 for an emoji body', async () => {
+      const sut = makeSut();
+      const notification = makeNotification({ channel: 'SMS', recipient: '+61412345678', payloadJson: {} });
+      const template = makeTemplate({
+        channel: 'SMS',
+        subject: null,
+        bodyHtml: null,
+        bodyText: 'Hi \u{1F600} your inspection',
+        variablesJson: [],
+      });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
+      vi.mocked(sut.smsProvider.send).mockResolvedValue({ messageId: 'msg-sms-1' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ encoding: 'UCS-2' }),
+        'notification.sms_dispatched',
+      );
+    });
+
+    it('does not log sms_dispatched or add parts for an EMAIL send', async () => {
+      const sut = makeSut();
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification());
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
+      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-42' });
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.metrics.addSmsParts).not.toHaveBeenCalled();
+      const smsLogs = vi
+        .mocked(sut.logger.info)
+        .mock.calls.filter((c) => c[1] === 'notification.sms_dispatched');
+      expect(smsLogs).toHaveLength(0);
+    });
+
+    it('does not log or add parts when the SMS provider fails', async () => {
+      const sut = makeSut();
+      const notification = makeNotification({ channel: 'SMS', recipient: '+61412345678', payloadJson: {} });
+      const template = makeTemplate({ channel: 'SMS', subject: null, bodyHtml: null, bodyText: 'Hi there', variablesJson: [] });
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(template);
+      vi.mocked(sut.smsProvider.send).mockRejectedValue(new Error('provider down'));
+
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.metrics.addSmsParts).not.toHaveBeenCalled();
+      const smsLogs = vi
+        .mocked(sut.logger.info)
+        .mock.calls.filter((c) => c[1] === 'notification.sms_dispatched');
+      expect(smsLogs).toHaveLength(0);
+    });
   });
 
   it('should update notification to SENT on provider success with providerName and providerMessageId', async () => {

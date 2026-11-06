@@ -759,6 +759,8 @@ export interface paths {
                             smsFromName?: string;
                             /** @default true */
                             rentalTenantNotificationsEnabled?: boolean;
+                            /** @default true */
+                            tenantEtaNoticesEnabled?: boolean;
                             /** Format: uri */
                             logoUrl?: string;
                             primaryColor?: string;
@@ -943,6 +945,8 @@ export interface paths {
                             smsFromName?: string;
                             /** @default true */
                             rentalTenantNotificationsEnabled?: boolean;
+                            /** @default true */
+                            tenantEtaNoticesEnabled?: boolean;
                             /** Format: uri */
                             logoUrl?: string;
                             primaryColor?: string;
@@ -14250,6 +14254,39 @@ export interface paths {
                 path: {
                     consentId: string;
                 };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/consents/opt-out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
                 cookie?: never;
             };
             requestBody?: never;

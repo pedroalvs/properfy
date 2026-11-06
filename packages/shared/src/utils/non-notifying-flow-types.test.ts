@@ -68,4 +68,11 @@ describe('isWithheldForNonNotifyingFlow', () => {
   it('keeps sending a custom code outside both catalogs', () => {
     expect(isWithheldForNonNotifyingFlow('SOME_TENANT_CUSTOM_CODE')).toBe(false);
   });
+
+  it.each(['TENANT_ETA_MORNING', 'TENANT_ETA_ON_THE_WAY', 'TENANT_ETA_DELAY'])(
+    'withholds %s for a non-notifying flow type (RENTAL_TENANT target)',
+    (code) => {
+      expect(isWithheldForNonNotifyingFlow(code)).toBe(true);
+    },
+  );
 });

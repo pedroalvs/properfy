@@ -7,6 +7,7 @@ import {
   getDefaultClass,
   getTemplateCodeLabel,
   getTemplateTarget,
+  measureSmsTemplate,
 } from '@properfy/shared';
 import {
   PLATFORM_TEMPLATES,
@@ -210,6 +211,9 @@ const APPOINTMENT_EMAIL_CODES = [
   'INSPECTION_CANCELLED_AGENCY',
   'INSPECTION_UNAVAILABILITY_REPORTED',
   'TENANT_PORTAL_LINK',
+  'TENANT_ETA_MORNING',
+  'TENANT_ETA_ON_THE_WAY',
+  'TENANT_ETA_DELAY',
 ] as const;
 
 describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
@@ -270,7 +274,12 @@ describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
       const rendered = renderer.render(entry!.bodyHtml!, { ...SAMPLE_DATA });
       expect(rendered).not.toMatch(/\{\{/);
       const sanitized = sanitizer.sanitizeForRender(rendered);
-      expect(sanitized).toContain(SAMPLE_DATA.rentalTenantName);
+      // Most tenant emails greet by name; the F06 arrival-time bodies intentionally
+      // omit the greeting (the copy was reviewed without one), so only assert the
+      // name rendered when the body actually references it.
+      if (entry!.bodyHtml!.includes('{{rentalTenantName}}')) {
+        expect(sanitized).toContain(SAMPLE_DATA.rentalTenantName);
+      }
     });
   }
 
@@ -482,5 +491,53 @@ describe('INSPECTOR_NOTICE_SMS platform template (F02-1)', () => {
   it('renders the free operator text unescaped (no &amp;)', () => {
     const renderer = new TemplateRendererService();
     expect(renderer.render(entry!.body, { message: 'Tom & Jerry <test>' })).toBe('Tom & Jerry <test>');
+  });
+});
+
+describe('tenant arrival-time templates (F06)', () => {
+  const renderer = new TemplateRendererService();
+  const sanitizer = new SanitizeHtmlService();
+  const ETA_CODES = ['TENANT_ETA_MORNING', 'TENANT_ETA_ON_THE_WAY', 'TENANT_ETA_DELAY'] as const;
+
+  it('seeds exactly six TENANT_ETA_* rows (3 codes x EMAIL/SMS)', () => {
+    const rows = PLATFORM_TEMPLATES.filter((t) => t.code.startsWith('TENANT_ETA_'));
+    expect(rows).toHaveLength(6);
+    for (const code of ETA_CODES) {
+      expect(rows.filter((t) => t.code === code).map((t) => t.channel).sort()).toEqual(['EMAIL', 'SMS']);
+    }
+  });
+
+  it('every row resolves to OPERATIONAL', () => {
+    for (const t of PLATFORM_TEMPLATES.filter((t) => t.code.startsWith('TENANT_ETA_'))) {
+      expect(resolvePlatformTemplateClass(t), `${t.code} (${t.channel})`).toBe('OPERATIONAL');
+    }
+  });
+
+  it('uses no timeSlot or confirmationLink (D4, D12)', () => {
+    for (const t of PLATFORM_TEMPLATES.filter((t) => t.code.startsWith('TENANT_ETA_'))) {
+      const content = `${t.subject ?? ''} ${t.body} ${t.bodyHtml ?? ''}`;
+      expect(content).not.toContain('{{timeSlot}}');
+      expect(content).not.toContain('{{confirmationLink}}');
+    }
+  });
+
+  it('each SMS body is a single GSM-7 part with SAMPLE_DATA and has no en dash or apostrophe', () => {
+    for (const code of ETA_CODES) {
+      const sms = PLATFORM_TEMPLATES.find((t) => t.code === code && t.channel === 'SMS')!;
+      const measured = measureSmsTemplate(sms.body, SAMPLE_DATA);
+      expect(measured.encoding, `${code} encoding`).toBe('GSM-7');
+      expect(measured.parts, `${code} parts`).toBe(1);
+      expect(sms.body).not.toContain('–'); // en dash
+      expect(sms.body).not.toContain('’'); // curly apostrophe
+    }
+  });
+
+  it('on-the-way EMAIL never claims the previous visit finished (L-F06-08)', () => {
+    const entry = PLATFORM_TEMPLATES.find((t) => t.code === 'TENANT_ETA_ON_THE_WAY' && t.channel === 'EMAIL')!;
+    expect(entry.body).not.toContain('finished the previous visit');
+    expect(entry.bodyHtml).not.toContain('finished the previous visit');
+    expect(entry.body).toContain('is on the way');
+    const rendered = sanitizer.sanitizeForRender(renderer.render(entry.bodyHtml!, { ...SAMPLE_DATA }));
+    expect(rendered).toContain('is on the way');
   });
 });

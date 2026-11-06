@@ -39,6 +39,13 @@ export interface NotificationPayloadContext {
   rawPortalToken?: string | null;
   portalBaseUrl: string;
   appointmentCodeFormatter: AppointmentCodeFormatter;
+  /**
+   * Pre-formatted arrival-time band for the F06 `TENANT_ETA_*` codes (already
+   * wall-clock `'h:mm am'` strings). When present, `etaFrom`/`etaTo` are emitted;
+   * when absent, the keys stay out of the payload so the required-variable guard
+   * throws rather than ever sending a notice without a time.
+   */
+  eta?: { from: string; to: string };
 }
 
 /**
@@ -125,6 +132,10 @@ export class BuildNotificationPayloadService {
       // ''; templates that list the link as optional still render empty. This is the
       // defense-in-depth behind issue #1055's handler-level fix.
       ...(ctx.rawPortalToken ? { confirmationLink, rescheduleLink, surveyLink } : {}),
+      // Same absent-key pattern: the F06 arrival-time codes REQUIRE etaFrom/etaTo,
+      // so leaving the keys out when no band is supplied makes the guard throw
+      // (no notice without a time) instead of rendering ''.
+      ...(ctx.eta ? { etaFrom: ctx.eta.from, etaTo: ctx.eta.to } : {}),
       propertyAddress: ctx.propertyAddress ?? '',
       scheduledDate,
       timeSlot: formatTimeSlot(ctx.appointment.timeSlotStart, ctx.appointment.timeSlotEnd),

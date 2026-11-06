@@ -412,6 +412,14 @@ describe('tenantSettingsSchema', () => {
     }
   });
 
+  it('defaults tenantEtaNoticesEnabled to true, accepts false, rejects non-boolean (F06)', () => {
+    const empty = tenantSettingsSchema.safeParse({});
+    expect(empty.success && empty.data.tenantEtaNoticesEnabled).toBe(true);
+    const off = tenantSettingsSchema.safeParse({ tenantEtaNoticesEnabled: false });
+    expect(off.success && off.data.tenantEtaNoticesEnabled).toBe(false);
+    expect(tenantSettingsSchema.safeParse({ tenantEtaNoticesEnabled: 'no' }).success).toBe(false);
+  });
+
   it('should allow extra fields (passthrough mode)', () => {
     const result = tenantSettingsSchema.safeParse({
       billingPeriod: 'MONTHLY',

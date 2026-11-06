@@ -65,7 +65,7 @@ function makeMocks() {
   };
 
   const notificationSender: ReportNotificationSender = {
-    execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+    execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }),
   };
 
   const userReader: ReportUserReader = {

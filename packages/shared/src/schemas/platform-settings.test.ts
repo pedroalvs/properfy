@@ -91,3 +91,68 @@ describe('resolvePlatformSettingValue', () => {
     expect(resolvePlatformSettingValue('fieldEvents', undefined).valid).toBe(true);
   });
 });
+
+describe('tenantEtaNotices platform setting (F06)', () => {
+  const schema = PLATFORM_SETTINGS_REGISTRY.tenantEtaNotices.schema;
+
+  it('defaults are disabled with the onboarding values and the right section', () => {
+    expect(PLATFORM_SETTINGS_REGISTRY.tenantEtaNotices.defaults).toEqual({
+      enabled: false,
+      channelMode: 'BOTH',
+      morningHour: 7,
+      morningCutoffHour: 9,
+      delayThresholdMinutes: 20,
+      smsBudgetSharePercent: 80,
+    });
+    expect(PLATFORM_SETTINGS_REGISTRY.tenantEtaNotices.section).toBe('Tenant arrival notices');
+  });
+
+  it('merges a partial stored value over the defaults', () => {
+    expect(resolvePlatformSettingValue('tenantEtaNotices', { enabled: true })).toEqual({
+      value: { ...PLATFORM_SETTINGS_REGISTRY.tenantEtaNotices.defaults, enabled: true },
+      valid: true,
+    });
+  });
+
+  it.each([
+    { morningHour: 7, morningCutoffHour: 7 },
+    { morningHour: 4 },
+    { morningHour: 12 },
+    { morningCutoffHour: 13 },
+    { delayThresholdMinutes: 4 },
+    { delayThresholdMinutes: 121 },
+    { delayThresholdMinutes: 20.5 },
+    { channelMode: 'EMAIL_ONLY' },
+    { smsBudgetSharePercent: 9 },
+    { smsBudgetSharePercent: 101 },
+    { smsBudgetSharePercent: 79.5 },
+  ])('rejects invalid %o', (patch) => {
+    const value = { ...PLATFORM_SETTINGS_REGISTRY.tenantEtaNotices.defaults, ...patch };
+    expect(schema.safeParse(value).success).toBe(false);
+  });
+
+  it('reports the cutoff message when it is not after the morning hour', () => {
+    const res = schema.safeParse({
+      ...PLATFORM_SETTINGS_REGISTRY.tenantEtaNotices.defaults,
+      morningHour: 7,
+      morningCutoffHour: 7,
+    });
+    expect(res.success).toBe(false);
+    if (!res.success) {
+      expect(res.error.issues[0]?.message).toBe('Cutoff must be after the morning notice hour');
+      expect(res.error.issues[0]?.path).toEqual(['morningCutoffHour']);
+    }
+  });
+
+  it.each([
+    { morningHour: 6, morningCutoffHour: 7 },
+    { delayThresholdMinutes: 5 },
+    { delayThresholdMinutes: 120 },
+    { channelMode: 'SMS_ELSE_EMAIL' },
+    { smsBudgetSharePercent: 10 },
+    { smsBudgetSharePercent: 100 },
+  ])('accepts valid %o', (patch) => {
+    const value = { ...PLATFORM_SETTINGS_REGISTRY.tenantEtaNotices.defaults, ...patch };
+    expect(schema.safeParse(value).success).toBe(true);
+  });
+});

@@ -1,4 +1,5 @@
 import type { AuthContext, NotificationChannel, NotificationClass } from '@properfy/shared';
+import { findTemplateVariableIssues } from '@properfy/shared';
 import { ValidationError, UnprocessableEntityError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
@@ -13,6 +14,8 @@ import {
   getProtectedClass,
   getDefaultClass,
   SAMPLE_DATA,
+  TEMPLATE_VARIABLES,
+  ALLOWED_VARIABLES,
 } from '../../domain/notification.constants';
 import { measureSmsTemplate, describeSmsOverLimit } from '../../domain/sms-content';
 import { NotificationTemplateEntity } from '../../domain/notification-template.entity';
@@ -138,6 +141,25 @@ export class UpsertNotificationTemplateUseCase {
       const measured = measureSmsTemplate(input.bodyHtml, SAMPLE_DATA);
       if (measured.overLimit) {
         const message = describeSmsOverLimit(measured);
+        throw new ValidationError(message, [{ code: 'custom', message, field: 'bodyHtml' }]);
+      }
+    }
+
+    // 5c. Reject a template missing a required variable (F06, L-F06-09). The same
+    // extraction the web editor uses (`findTemplateVariableIssues` over
+    // subject + bodyHtml); only `missing` is applied here — `invalid` stays an
+    // editor-only concern so existing templates with extra placeholders still
+    // save. A code with no spec in TEMPLATE_VARIABLES is unaffected. This makes
+    // "never a notice without a time" hold for API-saved templates too, not only
+    // the web editor.
+    const varSpec = TEMPLATE_VARIABLES[input.templateCode as keyof typeof TEMPLATE_VARIABLES];
+    if (varSpec) {
+      const { missing } = findTemplateVariableIssues(`${input.subject ?? ''} ${input.bodyHtml}`, {
+        required: varSpec.required,
+        allowed: ALLOWED_VARIABLES,
+      });
+      if (missing.length > 0) {
+        const message = `Missing required variables: ${missing.join(', ')}`;
         throw new ValidationError(message, [{ code: 'custom', message, field: 'bodyHtml' }]);
       }
     }

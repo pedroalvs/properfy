@@ -20,6 +20,7 @@ import {
   getTemplateTarget,
   isEditableTemplateCode,
   isPlatformScopedEditableCode,
+  isProtectedTemplateCode,
   isSystemTemplate,
   matchTemplateCodesBySearch,
 } from './notification-templates';
@@ -581,5 +582,65 @@ describe('INSPECTOR_NOTICE_SMS registration (F02-1)', () => {
 
   it('is not an email system-identity template', () => {
     expect(isSystemTemplate('INSPECTOR_NOTICE_SMS')).toBe(false);
+  });
+});
+
+const TENANT_ETA_CODES = ['TENANT_ETA_MORNING', 'TENANT_ETA_ON_THE_WAY', 'TENANT_ETA_DELAY'] as const;
+
+describe('tenant arrival-time templates (F06)', () => {
+  it('registers the three codes in the mandatory (customizable) catalog, not platform-only', () => {
+    for (const code of TENANT_ETA_CODES) {
+      expect(MANDATORY_TEMPLATE_CODES as readonly string[]).toContain(code);
+      expect(PLATFORM_ONLY_TEMPLATE_CODES as readonly string[]).not.toContain(code);
+    }
+  });
+
+  it('never suffixes a code with _SMS (one code, two channel rows like TENANT_PORTAL_LINK)', () => {
+    for (const code of TENANT_ETA_CODES) expect(code.endsWith('_SMS')).toBe(false);
+  });
+
+  it('labels each code', () => {
+    expect(TEMPLATE_CODE_LABELS.TENANT_ETA_MORNING).toBe('Arrival Estimate – Morning');
+    expect(TEMPLATE_CODE_LABELS.TENANT_ETA_ON_THE_WAY).toBe('Inspector On The Way');
+    expect(getTemplateCodeLabel('TENANT_ETA_DELAY')).toBe('Inspector Running Late');
+  });
+
+  it('targets the rental tenant, defaults to OPERATIONAL and is never protected', () => {
+    for (const code of TENANT_ETA_CODES) {
+      expect(getTemplateTarget(code)).toBe('RENTAL_TENANT');
+      expect(getDefaultClass(code)).toBe('OPERATIONAL');
+      expect(isProtectedTemplateCode(code)).toBe(false);
+    }
+  });
+
+  it('requires etaFrom/etaTo and offers the shared tenant optionals', () => {
+    for (const code of TENANT_ETA_CODES) {
+      const spec = TEMPLATE_VARIABLES[code];
+      expect(spec.required).toEqual(['etaFrom', 'etaTo']);
+      expect(spec.optional).toEqual([
+        'rentalTenantName',
+        'propertyAddress',
+        'scheduledDate',
+        'appointmentCode',
+        'inspectorName',
+        'branchName',
+        'agencyName',
+        'agencyPhone',
+        'serviceTypeName',
+        'properfyLogoUrl',
+        'agencyLogoUrl',
+      ]);
+    }
+  });
+
+  it('exposes etaFrom/etaTo with formatter-derived sample data', () => {
+    expect(ALLOWED_VARIABLES as readonly string[]).toContain('etaFrom');
+    expect(ALLOWED_VARIABLES as readonly string[]).toContain('etaTo');
+    expect(SAMPLE_DATA.etaFrom).toBe('10:15 am');
+    expect(SAMPLE_DATA.etaTo).toBe('11:15 am');
+  });
+
+  it('is findable by search', () => {
+    expect(matchTemplateCodesBySearch('running late')).toContain('TENANT_ETA_DELAY');
   });
 });

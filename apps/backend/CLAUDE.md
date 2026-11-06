@@ -461,6 +461,17 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 - Implement via adapter pattern (easy to swap providers)
 - Circuit breaker on external calls
 - Fallback: keep in `pending_retry` → DLQ on exhaustion
+- **SMS cost observability (F06-1):** every dispatched SMS logs `notification.sms_dispatched { notificationId, tenantId, templateCode, parts, encoding, length, truncated }` (no recipient, measured on the prepared body) and feeds `MetricsCollector.addSmsParts(templateCode, parts)` → `/metrics` `notification.smsPartsByTemplate` (L-F06-11). Email and provider-failure paths do neither.
+- **New rental-tenant template codes (F06-1):** a customizable tenant-facing code is **one code with two channel rows** (EMAIL + SMS) like `TENANT_PORTAL_LINK` — **never an `_SMS` twin** (the `templateFamily()` fold in `notify-on-status-transition.handler.ts` would cross-suppress). The `TENANT_ETA_{MORNING,ON_THE_WAY,DELAY}` seeds live in `platform-notification-templates.ts`; SMS bodies are GSM-7 only (no en dash / apostrophe).
+- **`UpsertNotificationTemplateUseCase` required-var guard (F06-1, L-F06-09):** a template whose code has `required` vars in the shared `TEMPLATE_VARIABLES` is rejected (`ValidationError` 400 `Missing required variables: …`, `field 'bodyHtml'`) when `subject + bodyHtml` omits one — the same `findTemplateVariableIssues` the web editor uses (only `missing` applied). So "never a notice without a time" holds for API-saved templates too.
+- **`CreateNotificationOutput.created` (F06-1):** `{ notificationId, created }` — `created: false` means the deterministic id already existed (no job enqueued), the dedupe signal F06-2's triggers rely on. No existing caller reads it.
+
+### Tenant arrival-notice prediction & consent opt-out (F06-1, module `tenant-eta/`)
+
+- **No sends, no migration** — this task only builds what TASK-F06-2 (triggers) and F05 consume. `domain/`: `computeEtaBand`/`formatEtaBand`/`wallTimeHHmm` (±30-min band, agency tz, GSM-7); `getTenantEtaNotificationId` (UUID v5, fixed namespace, dedupe by kind+appointment+date+channel); `ITenantEtaPlanReader` + `infrastructure/prisma-tenant-eta-plan.reader.ts` (`loadPlan`/`findPlanByInspectorDate`/`listSweepCandidates`, builds the shared `EtaPlanInput`/`EtaRealEvents` + a `stopMeta` confirmation map). Exposed as `container.tenantEta.planReader`.
+- **Cross-tenant read exception (D9, §5.6 / root §7.1):** the reader deliberately reads a whole inspector plan (stops of several agencies) with no `tenant_id` filter, only to compute times; **no HTTP route returns the plan**, and F06-2 creates each notification with the appointment's own `tenant_id`. The scoping proof is `tests/integration/db/tenant-eta-plan.reader.integration.test.ts` (two agencies coexist; reassigned/deleted stops drop out).
+- **`IInspectorFieldEventRepository.findLatestLateNoticeByAppointmentIds(ids, since)`** (DISTINCT ON, `type='LATE_NOTICE'`) feeds the predictor's D18 floor.
+- **Manual AM/OP opt-out (L-F06-03):** `RecordConsentOptOutUseCase` + `POST /v1/notifications/consents/opt-out` (AM/OP, `assertTenantScope` like `…/:consentId/override`) writes an `operator_override` opt-out (reuses the existing enum — **no migration**), normalizing the recipient as the send pipeline does (E.164 phone / lowercased email) so it actually blocks. **Compliance stance:** arrival-time notices are factual-service `OPERATIONAL` messages with **no "reply STOP" footer**; the manual opt-out is the stop mechanism. Idempotent.
 
 ### Maps/Geocoding
 

@@ -887,6 +887,10 @@
                         "type": "boolean",
                         "default": true
                       },
+                      "tenantEtaNoticesEnabled": {
+                        "type": "boolean",
+                        "default": true
+                      },
                       "logoUrl": {
                         "type": "string",
                         "format": "uri"
@@ -1543,6 +1547,10 @@
                         "pattern": "^[a-zA-Z0-9]*$"
                       },
                       "rentalTenantNotificationsEnabled": {
+                        "type": "boolean",
+                        "default": true
+                      },
+                      "tenantEtaNoticesEnabled": {
                         "type": "boolean",
                         "default": true
                       },
@@ -35340,6 +35348,15 @@
             "required": true
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/notifications/consents/opt-out": {
+      "post": {
         "responses": {
           "200": {
             "description": "Default Response"

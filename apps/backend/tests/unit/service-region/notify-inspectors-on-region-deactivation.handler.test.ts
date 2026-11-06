@@ -63,7 +63,7 @@ describe('NotifyInspectorsOnRegionDeactivationHandler', () => {
       findByRegionId: vi.fn(),
     };
     createNotification = {
-      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }),
     } as unknown as CreateNotificationUseCase;
     logger = { error: vi.fn() };
     handler = new NotifyInspectorsOnRegionDeactivationHandler(
@@ -113,7 +113,7 @@ describe('NotifyInspectorsOnRegionDeactivationHandler', () => {
     vi.mocked(inspectorRepo.findByRegionId).mockResolvedValue([inspector1, inspector2]);
     vi.mocked(createNotification.execute)
       .mockRejectedValueOnce(new Error('Email service down'))
-      .mockResolvedValueOnce({ notificationId: 'notif-2' });
+      .mockResolvedValueOnce({ notificationId: 'notif-2', created: true });
 
     await expect(handler.handle(makeEvent())).resolves.not.toThrow();
 
@@ -126,7 +126,7 @@ describe('NotifyInspectorsOnRegionDeactivationHandler', () => {
     vi.mocked(inspectorRepo.findByRegionId).mockResolvedValue([inspector1, inspector2]);
     vi.mocked(createNotification.execute)
       .mockRejectedValueOnce(new Error('DB down'))
-      .mockResolvedValueOnce({ notificationId: 'notif-2' });
+      .mockResolvedValueOnce({ notificationId: 'notif-2', created: true });
 
     await handler.handle(makeEvent());
 

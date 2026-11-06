@@ -1,6 +1,9 @@
 import { type PrismaClient, type Prisma } from '@prisma/client';
 import type { InspectorFieldEventType } from '@properfy/shared';
-import type { IInspectorFieldEventRepository } from '../domain/inspector-field-event.repository';
+import type {
+  IInspectorFieldEventRepository,
+  LatestLateNotice,
+} from '../domain/inspector-field-event.repository';
 import type {
   InspectorFieldEventEntity,
   LatestCantDo,
@@ -16,6 +19,13 @@ interface LatestCantDoRow {
   inspector_id: string;
   inspector_name: string | null;
   created_at: Date;
+}
+
+interface LatestLateNoticeRow {
+  appointment_id: string;
+  minutes: number | null;
+  created_at: Date;
+  client_occurred_at: Date | null;
 }
 
 function toLatestCantDo(row: LatestCantDoRow): LatestCantDo {
@@ -72,6 +82,30 @@ export class PrismaInspectorFieldEventRepository implements IInspectorFieldEvent
        ORDER BY e.appointment_id, e.created_at DESC, e.id DESC
     `;
     return rows.map(toLatestCantDo);
+  }
+
+  // Latest LATE_NOTICE per appointment at/after `since`, one DISTINCT ON query
+  // (F06 ETA floor, D18). Uses the (appointment_id, type, created_at desc) index.
+  async findLatestLateNoticeByAppointmentIds(
+    appointmentIds: string[],
+    since: Date,
+  ): Promise<LatestLateNotice[]> {
+    if (appointmentIds.length === 0) return [];
+    const rows = await this.prisma.$queryRaw<LatestLateNoticeRow[]>`
+      SELECT DISTINCT ON (e.appointment_id)
+             e.appointment_id, e.minutes, e.created_at, e.client_occurred_at
+        FROM inspector_field_events e
+       WHERE e.appointment_id = ANY(${appointmentIds}::text[])
+         AND e.type = 'LATE_NOTICE'
+         AND e.created_at >= ${since}
+       ORDER BY e.appointment_id, e.created_at DESC, e.id DESC
+    `;
+    return rows.map((r) => ({
+      appointmentId: r.appointment_id,
+      minutesLate: Number(r.minutes ?? 0),
+      createdAt: r.created_at,
+      clientOccurredAt: r.client_occurred_at,
+    }));
   }
 
   async findLatestCantDoByAppointmentId(
