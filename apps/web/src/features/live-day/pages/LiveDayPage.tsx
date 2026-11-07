@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type mapboxgl from 'mapbox-gl';
+import { cn } from '@properfy/frontend-standards';
 import {
   type LiveDayInspector,
   civilDateSchema,
@@ -16,6 +17,7 @@ import { useFrozenOrder } from '../hooks/useFrozenOrder';
 import { canShowAllRoutes, filterInspectors, routesToDraw, sortInspectors } from '../lib/liveDayView';
 import { STATE_VISUALS } from '../lib/stateVisuals';
 import { LiveDayPanel } from '../components/LiveDayPanel';
+import { LiveDayLegend } from '../components/LiveDayLegend';
 
 const PIN_COLLISION_DIAMETER = 36;
 const SYDNEY_DEFAULT = { longitude: 151.2093, latitude: -33.8688, zoom: 10 };
@@ -56,6 +58,7 @@ export function LiveDayPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
   const [isInteracting, setIsInteracting] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
   const [redirectNotice, setRedirectNotice] = useState<string | null>(null);
   const [vanishNotice, setVanishNotice] = useState<string | null>(null);
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -251,7 +254,13 @@ export function LiveDayPage() {
   }, [selectedInspector]);
 
   // ── Map layers ──────────────────────────────────────────────────────────────
-  const pinInspectors = visibleInspectors.filter(
+  // The selected inspector must stay on the map even when a poll filters them out
+  // of the list (e.g. their alert clears while "Needs attention" is on).
+  const mapInspectors =
+    selectedInspector && !visibleInspectors.some((i) => i.inspectorId === selectedInspector.inspectorId)
+      ? [...visibleInspectors, selectedInspector]
+      : visibleInspectors;
+  const pinInspectors = mapInspectors.filter(
     (i) => i.lastKnown.source !== 'NONE' && i.lastKnown.lat != null && i.lastKnown.lng != null,
   );
   const offsets = computeMarkerOffsets(
@@ -259,7 +268,7 @@ export function LiveDayPage() {
     PIN_COLLISION_DIAMETER,
   );
   const drawShowAll = geometryMode === 'all';
-  const routeList = routesToDraw(visibleInspectors, {
+  const routeList = routesToDraw(mapInspectors, {
     showAll: drawShowAll,
     selectedId: selectedInspector ? selectedId : null,
   }).filter((r) => r.inspector.geometryIncluded && r.inspector.geometry != null);
@@ -281,7 +290,8 @@ export function LiveDayPage() {
             emphasis={emphasis}
             label={inspector.inspectorName}
             onClick={() => handleSelect(inspector.inspectorId)}
-            stops={drawShowAll ? { variant: 'dots', points: stopPoints } : undefined}
+            // The selected inspector shows numbered stop markers, so it never also gets dots.
+            stops={drawShowAll && inspector.inspectorId !== selectedId ? { variant: 'dots', points: stopPoints } : undefined}
           />
         );
       })}
@@ -327,10 +337,34 @@ export function LiveDayPage() {
     </>
   );
 
+  const legendRoutes = drawShowAll
+    ? mapInspectors.map((i) => ({
+        inspectorId: i.inspectorId,
+        inspectorName: i.inspectorName,
+        color: inspectorRouteColor(i.inspectorId).hex,
+      }))
+    : [];
+
   const map = (
-    <MapContainer initialViewState={SYDNEY_DEFAULT} onMapReady={setMapInstance}>
-      {mapChildren}
-    </MapContainer>
+    <>
+      <MapContainer initialViewState={SYDNEY_DEFAULT} onMapReady={setMapInstance}>
+        {mapChildren}
+      </MapContainer>
+      {/* Legend overlay — always visible from md up; a collapsible "Legend" button on phones. */}
+      <div className="pointer-events-none absolute bottom-4 right-4 z-30 flex flex-col items-end gap-2">
+        <button
+          type="button"
+          className="pointer-events-auto rounded-lg border border-border-subtle bg-card-bg/90 px-3 py-2 text-sm font-semibold text-text-primary shadow-lg backdrop-blur-sm md:hidden"
+          aria-expanded={legendOpen}
+          onClick={() => setLegendOpen((v) => !v)}
+        >
+          Legend
+        </button>
+        <div className={cn('pointer-events-auto', legendOpen ? 'block' : 'hidden', 'md:block')}>
+          <LiveDayLegend showAll={drawShowAll} routes={legendRoutes} />
+        </div>
+      </div>
+    </>
   );
 
   // ── Panel / states ──────────────────────────────────────────────────────────

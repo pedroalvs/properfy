@@ -25,8 +25,14 @@ vi.mock('@/components/map', async () => {
     // inspector name is unambiguous between the list row and its pin in queries.
     MapMarker: ({ ariaLabel, label, onClick, headColor }: { ariaLabel?: string; label?: string; onClick?: () => void; headColor?: string }) =>
       React.createElement('button', { 'data-testid': 'map-marker', 'aria-label': ariaLabel ?? label, 'data-headcolor': headColor, onClick }),
-    RouteLayer: ({ id, emphasis, onClick }: { id: string; emphasis?: string; onClick?: () => void }) =>
-      React.createElement('button', { 'data-testid': 'route-layer', 'data-id': id, 'data-emphasis': emphasis, onClick }),
+    RouteLayer: ({ id, emphasis, onClick, stops }: { id: string; emphasis?: string; onClick?: () => void; stops?: unknown }) =>
+      React.createElement('button', {
+        'data-testid': 'route-layer',
+        'data-id': id,
+        'data-emphasis': emphasis,
+        'data-has-dots': stops ? 'true' : 'false',
+        onClick,
+      }),
     computeMarkerOffsets: () => new Map(),
   };
 });
@@ -257,6 +263,68 @@ describe('LiveDayPage', () => {
     expect(await screen.findByRole('heading', { level: 2, name: /Jane Doe/ })).toBeInTheDocument();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(await screen.findByRole('list', { name: 'Inspectors' })).toBeInTheDocument();
+  });
+
+  it('renders the map legend with the state key, and a Routes section under Show all routes', async () => {
+    getMock.mockImplementation((path: string, opts: { params?: { query?: { includeGeometry?: string } } }) => {
+      if (path.includes('eta-accuracy')) return Promise.resolve(etaEnvelope);
+      const withGeom = opts?.params?.query?.includeGeometry === 'all';
+      const geom: DayPlanGeometry | null = withGeom ? { type: 'FeatureCollection', features: [] } : null;
+      return Promise.resolve(
+        envelope(
+          makeLiveDayResponse({
+            inspectors: [makeInspector({ inspectorId: 'a', inspectorName: 'Jane Doe', geometryIncluded: withGeom, geometry: geom })],
+          }),
+        ),
+      );
+    });
+    renderPage();
+    // Wait for the panel (data loaded), then assert the always-on 4-state legend.
+    const showAll = await screen.findByRole('button', { name: /Show all routes/ });
+    expect(screen.getByRole('list', { name: 'States' })).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Route colours' })).toBeNull();
+    // Turning on Show all routes reveals the per-route colour legend.
+    fireEvent.click(showAll);
+    expect(await screen.findByRole('list', { name: 'Route colours' })).toBeInTheDocument();
+  });
+
+  it('does not double-draw the selected inspector (route dots + numbered markers)', async () => {
+    getMock.mockImplementation((path: string, opts: { params?: { query?: { includeGeometry?: string } } }) => {
+      if (path.includes('eta-accuracy')) return Promise.resolve(etaEnvelope);
+      const withGeom = opts?.params?.query?.includeGeometry === 'all';
+      const geom: DayPlanGeometry | null = withGeom ? { type: 'FeatureCollection', features: [] } : null;
+      return Promise.resolve(
+        envelope(
+          makeLiveDayResponse({
+            inspectors: [
+              makeInspector({ inspectorId: 'a', inspectorName: 'Jane', geometryIncluded: withGeom, geometry: geom }),
+              makeInspector({ inspectorId: 'b', inspectorName: 'Tom', geometryIncluded: withGeom, geometry: geom, lastKnown: { source: 'CHECK_IN', lat: -33.9, lng: 151.3, at: '2026-11-05T10:00:00+11:00', appointmentId: null, label: null } }),
+            ],
+          }),
+        ),
+      );
+    });
+    renderPage('/live-day?routes=all&inspector=a');
+    await waitFor(() => expect(screen.getAllByTestId('route-layer').length).toBe(2));
+    const selectedRoute = document.querySelector('[data-id="live-route-a"]');
+    const otherRoute = document.querySelector('[data-id="live-route-b"]');
+    expect(selectedRoute).toHaveAttribute('data-has-dots', 'false'); // selected uses numbered markers
+    expect(otherRoute).toHaveAttribute('data-has-dots', 'true');
+  });
+
+  it('keeps the selected inspector on the map when a poll filters them out (attention on)', async () => {
+    vi.useFakeTimers();
+    const alerting = makeInspector({ inspectorId: 'a', inspectorName: 'Jane Doe', needsAttention: true, alerts: [makeAlert({ type: 'CANT_DO', appointmentId: 'x', appointmentCode: 'INS-9' })], geometryIncluded: true, geometry: { type: 'FeatureCollection', features: [] } });
+    setLiveDay(envelope(makeLiveDayResponse({ inspectors: [alerting] })));
+    renderPage('/live-day?attention=1&inspector=a');
+    await vi.waitFor(() => expect(screen.getByRole('heading', { level: 2, name: /Jane Doe/ })).toBeInTheDocument());
+    await vi.waitFor(() => expect(screen.getByTestId('route-layer')).toBeInTheDocument());
+    // Poll clears the alert → they leave the filtered list but the detail still shows them.
+    setLiveDay(envelope(makeLiveDayResponse({ inspectors: [makeInspector({ inspectorId: 'a', inspectorName: 'Jane Doe', needsAttention: false, alerts: [], geometryIncluded: true, geometry: { type: 'FeatureCollection', features: [] } })] })));
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    // Their pin and route stay drawn (not dropped by the attention filter).
+    await vi.waitFor(() => expect(screen.getByTestId('route-layer')).toBeInTheDocument());
+    expect(screen.getAllByTestId('map-marker').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the ETA accuracy footer', async () => {
