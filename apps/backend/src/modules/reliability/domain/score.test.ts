@@ -153,6 +153,28 @@ describe('computeReliabilityScore — worked examples', () => {
   });
 });
 
+describe('computeReliabilityScore — unrounded rates (FR-027/FR-028)', () => {
+  it('scores from weightedSuccess/weightedEligible, not the 4-decimal rate', () => {
+    // Exact rate 0.85045 rounds to 0.8505 at 4 decimals. The 4-decimal rate would
+    // give 85.1; the unrounded rate gives 85.0 — proving the score uses the exact ratio.
+    const result: ReliabilityMetricResult = {
+      metric: 'PUNCTUALITY',
+      rate: 0.8505,
+      eligibleCount: 1,
+      successCount: 1,
+      averageRating: null,
+      volumeReference: null,
+      weightedSuccess: 8504.5,
+      weightedEligible: 10000,
+      volume: 10,
+      activeDays: null,
+      failureCount: 0,
+      failures: [],
+    };
+    expect(computeReliabilityScore([result], settings(), 10).score).toBe(85.0);
+  });
+});
+
 describe('computeReliabilityScore — statuses', () => {
   it('is INSUFFICIENT_VOLUME below minimumVolume (Carla, 9 < 10)', () => {
     expect(computeReliabilityScore(resultsFrom({}), settings(), 9)).toEqual({

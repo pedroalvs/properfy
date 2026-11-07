@@ -146,6 +146,7 @@ export class PrismaReliabilityFactsReader implements IReliabilityFactsReader {
         AND NOT EXISTS (
           SELECT 1 FROM inspection_executions e2
           WHERE e2.appointment_id = a.id AND e2.inspector_id = a.inspector_id AND e2.abandoned_at IS NULL
+            AND (e2.finished_at IS NOT NULL OR e2.resumed_at IS NOT NULL)
         )
         ${filterQ1a}
 
@@ -327,6 +328,7 @@ export class PrismaReliabilityFactsReader implements IReliabilityFactsReader {
           AND NOT EXISTS (
             SELECT 1 FROM inspection_executions e2
             WHERE e2.appointment_id = a.id AND e2.inspector_id = a.inspector_id AND e2.abandoned_at IS NULL
+              AND (e2.finished_at IS NOT NULL OR e2.resumed_at IS NOT NULL)
           )
       ) completed
       GROUP BY inspector_id

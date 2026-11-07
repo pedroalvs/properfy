@@ -342,6 +342,23 @@ describe('PrismaReliabilityFactsReader + ReliabilityMetricsService (real DB)', (
     expect(isCompletedDone(fact!)).toBe(true);
   });
 
+  it('C3b: DONE with a started-but-unfinished execution — DONE_WITHOUT_EXECUTION, counted in the universe and the median', async () => {
+    const agency = await createAgency('C3b');
+    const ana = await createInspector('Ana');
+    const appt = await createAppointment(agency, { status: 'DONE', inspectorId: ana });
+    // Ana checked in (execution started) but never finished or abandoned it; the appointment was marked DONE.
+    await createExecution(appt, ana, { startedAt: '2026-11-10T00:00:00.000Z', finishedAt: null });
+
+    const facts = await loadFacts();
+    const fact = factFor(facts, appt, ana);
+    expect(fact?.kind).toBe('DONE_WITHOUT_EXECUTION');
+    expect(fact?.origin).toBe('CURRENT_DONE');
+    expect(fact?.serviceDate).toBe('2026-11-10'); // scheduled_date, not the unfinished execution
+    expect(isCompletedDone(fact!)).toBe(true);
+    // the completed-count path (volume median) must see it too
+    expect((await reader.loadCompletedCounts(PERIOD)).get(ana)).toBe(1);
+  });
+
   it('C4: DONE without execution then DONE → REJECTED — DONE_WITHOUT_EXECUTION, doneRejected true, by releasedInspectorId', async () => {
     const agency = await createAgency('C4');
     const ana = await createInspector('Ana');
