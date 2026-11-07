@@ -1,12 +1,13 @@
 /**
- * Pure coverage for `computeMarkerOffsets` — the appointments map's answer to
- * two pins landing on the exact same spot. No Mapbox runtime needed: offsets
- * are derived from coordinates alone, and the grouping itself lives in and is
- * tested by `@properfy/shared`.
+ * Pure coverage for `computeMarkerOffsets` — the answer to two pins landing on
+ * the exact same spot. No Mapbox runtime needed: offsets are derived from
+ * coordinates alone, and the grouping itself lives in and is tested by
+ * `@properfy/shared`. Moved here from the appointments page so both map screens
+ * share it (TASK-F05-2).
  */
 
 import { describe, it, expect } from 'vitest';
-import { computeMarkerOffsets } from './AppointmentMapPage';
+import { computeMarkerOffsets } from './marker-offsets';
 
 const D = 36;
 

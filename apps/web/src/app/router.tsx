@@ -77,6 +77,7 @@ const MarketplacePage = Loadable(lazyRetry(() => import('@/features/marketplace/
 const ServiceRegionListPage = Loadable(lazyRetry(() => import('@/features/service-regions/pages/ServiceRegionListPage').then(m => ({ default: m.ServiceRegionListPage }))));
 const PlatformSettingsPage = Loadable(lazyRetry(() => import('@/features/platform-settings/pages/PlatformSettingsPage').then(m => ({ default: m.PlatformSettingsPage }))));
 const AppointmentMapPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentMapPage').then(m => ({ default: m.AppointmentMapPage }))));
+const LiveDayPage = Loadable(lazyRetry(() => import('@/features/live-day/pages/LiveDayPage').then(m => ({ default: m.LiveDayPage }))));
 
 import { ProtectedRoute } from './ProtectedRoute';
 import { AuthGuard } from './AuthGuard';
@@ -174,6 +175,18 @@ export const routes: RouteObject[] = [
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <InspectorWorkloadPage />
+              </AuthGuard>
+            ),
+          },
+          // Live Day (F05) — fullscreen map, AM/OP only (inspectors are cross-tenant,
+          // like Workload; the server enforces the same set). Listed in the Dashboard
+          // group right after Overview.
+          {
+            path: 'live-day',
+            handle: { fullHeight: true },
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+                <LiveDayPage />
               </AuthGuard>
             ),
           },

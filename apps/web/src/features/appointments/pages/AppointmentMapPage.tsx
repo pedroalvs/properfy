@@ -7,14 +7,14 @@ import mapboxgl from 'mapbox-gl';
 import { MapScreenLayout } from '@/components/map/MapScreenLayout';
 import { MapContainer } from '@/components/map/MapContainer';
 import { MapMarker, PIN_COLLISION_DIAMETER_PX } from '@/components/map/MapMarker';
+import { computeMarkerOffsets } from '@/components/map/marker-offsets';
 import { MapFloatingAction } from '@/components/map/MapFloatingAction';
 import { computeBounds, isSinglePointBounds, isPlottablePoint, type PointLike } from '@/lib/map-bounds';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-import type { ServiceGroupStatus, MarkerOffset } from '@properfy/shared';
-import { resolveCoincidentMarkerOffsets } from '@properfy/shared';
+import type { ServiceGroupStatus } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { useMapFilterPersistence } from '../hooks/useMapFilterPersistence';
 import { useAllPagesQuery, type ListParams } from '@/hooks/useApiQuery';
@@ -282,30 +282,6 @@ export function resolveActiveLassoPoints(args: {
 }): LassoPoint[] {
   if (args.mode === 'groups' && args.groupDrilledIn) return args.groupAppointmentPoints;
   return args.appointmentPoints;
-}
-
-/**
- * Pixel offsets that stop two pins at the *same address* being drawn on top of
- * each other, keyed by pin id.
- *
- * Only exactly-coincident pins are moved: those are the ones no zoom level can
- * separate, so one would stay invisible under the other forever. Pins that are
- * merely close keep their true position — a pin's job on this screen is to say
- * where the property is, and the operator separates crowded ones by zooming in.
- * Since coincidence does not depend on the camera, this is computed once per pin
- * set rather than on every camera move.
- */
-export function computeMarkerOffsets(
-  pins: Array<{ id: string; latitude: number; longitude: number }>,
-  diameter: number,
-): Map<string, MarkerOffset> {
-  // Sorted by id so the layout does not depend on list order. Coincident pins
-  // are laid out in input order, and the queries feeding this page sort by
-  // created_at with no unique tie-breaker — an unsorted input would let a
-  // refetch swap two markers' offsets and make the pins jump for no reason.
-  const ordered = [...pins].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const offsets = resolveCoincidentMarkerOffsets(ordered, diameter);
-  return new Map(ordered.map((p, index) => [p.id, offsets[index]!]));
 }
 
 export function AppointmentMapPage() {
