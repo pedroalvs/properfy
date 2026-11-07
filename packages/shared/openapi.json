@@ -5172,6 +5172,42 @@
                               "format": "date-time"
                             }
                           ]
+                        },
+                        "hasUnseenIssues": {
+                          "type": "boolean"
+                        },
+                        "fileCounts": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "issues": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "documents": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "reports": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "other": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "issues",
+                            "documents",
+                            "reports",
+                            "other"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -5333,6 +5369,54 @@
             },
             "in": "query",
             "name": "hasCoordinates",
+            "required": false
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "false"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "1"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "0"
+                  ]
+                },
+                {
+                  "type": "number",
+                  "enum": [
+                    1
+                  ]
+                },
+                {
+                  "type": "number",
+                  "enum": [
+                    0
+                  ]
+                }
+              ]
+            },
+            "in": "query",
+            "name": "withIssues",
             "required": false
           },
           {
@@ -5519,6 +5603,42 @@
                                 "format": "date-time"
                               }
                             ]
+                          },
+                          "hasUnseenIssues": {
+                            "type": "boolean"
+                          },
+                          "fileCounts": {
+                            "type": "object",
+                            "properties": {
+                              "total": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "issues": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "documents": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "reports": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "other": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "total",
+                              "issues",
+                              "documents",
+                              "reports",
+                              "other"
+                            ],
+                            "additionalProperties": false
                           }
                         },
                         "required": [
@@ -5815,6 +5935,42 @@
                               "format": "date-time"
                             }
                           ]
+                        },
+                        "hasUnseenIssues": {
+                          "type": "boolean"
+                        },
+                        "fileCounts": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "issues": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "documents": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "reports": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "other": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "issues",
+                            "documents",
+                            "reports",
+                            "other"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -6147,6 +6303,42 @@
                               "format": "date-time"
                             }
                           ]
+                        },
+                        "hasUnseenIssues": {
+                          "type": "boolean"
+                        },
+                        "fileCounts": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "issues": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "documents": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "reports": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "other": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "issues",
+                            "documents",
+                            "reports",
+                            "other"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -14112,7 +14304,43 @@
                         "inspector": {
                           "nullable": true
                         },
-                        "branch": {}
+                        "branch": {},
+                        "hasUnseenIssues": {
+                          "type": "boolean"
+                        },
+                        "fileCounts": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "issues": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "documents": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "reports": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "other": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "issues",
+                            "documents",
+                            "reports",
+                            "other"
+                          ],
+                          "additionalProperties": false
+                        }
                       },
                       "required": [
                         "id",
@@ -14387,6 +14615,14 @@
             },
             "in": "query",
             "name": "serviceGroupId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "withIssues",
             "required": false
           }
         ],
@@ -14781,7 +15017,43 @@
                           "inspector": {
                             "nullable": true
                           },
-                          "branch": {}
+                          "branch": {},
+                          "hasUnseenIssues": {
+                            "type": "boolean"
+                          },
+                          "fileCounts": {
+                            "type": "object",
+                            "properties": {
+                              "total": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "issues": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "documents": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "reports": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "other": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "total",
+                              "issues",
+                              "documents",
+                              "reports",
+                              "other"
+                            ],
+                            "additionalProperties": false
+                          }
                         },
                         "required": [
                           "id",
@@ -15132,6 +15404,14 @@
             },
             "in": "query",
             "name": "serviceGroupId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "withIssues",
             "required": false
           }
         ],
@@ -15577,7 +15857,43 @@
                         "inspector": {
                           "nullable": true
                         },
-                        "branch": {}
+                        "branch": {},
+                        "hasUnseenIssues": {
+                          "type": "boolean"
+                        },
+                        "fileCounts": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "issues": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "documents": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "reports": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "other": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "issues",
+                            "documents",
+                            "reports",
+                            "other"
+                          ],
+                          "additionalProperties": false
+                        }
                       },
                       "required": [
                         "id",
@@ -16302,7 +16618,43 @@
                         "inspector": {
                           "nullable": true
                         },
-                        "branch": {}
+                        "branch": {},
+                        "hasUnseenIssues": {
+                          "type": "boolean"
+                        },
+                        "fileCounts": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "issues": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "documents": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "reports": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "other": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "issues",
+                            "documents",
+                            "reports",
+                            "other"
+                          ],
+                          "additionalProperties": false
+                        }
                       },
                       "required": [
                         "id",
@@ -31210,6 +31562,1191 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/property-files/presign": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "propertyId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "appointmentId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "ISSUE",
+                      "DOCUMENT",
+                      "REPORT",
+                      "OTHER"
+                    ]
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "mime": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sizeBytes": {
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "propertyId",
+                  "type",
+                  "fileName",
+                  "mime"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "fileId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "uploadUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "storageKey": {
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "fileId",
+                        "uploadUrl",
+                        "storageKey",
+                        "expiresAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/property-files/confirm": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fileId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "fileId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "propertyId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "appointmentId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "issueId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "ISSUE",
+                            "DOCUMENT",
+                            "REPORT",
+                            "OTHER"
+                          ]
+                        },
+                        "versionGroupId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "version": {
+                          "type": "integer"
+                        },
+                        "fileName": {
+                          "type": "string"
+                        },
+                        "mime": {
+                          "type": "string"
+                        },
+                        "sizeBytes": {
+                          "type": "integer"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING",
+                            "READY"
+                          ]
+                        },
+                        "uploadedByUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "propertyId",
+                        "appointmentId",
+                        "issueId",
+                        "type",
+                        "versionGroupId",
+                        "version",
+                        "fileName",
+                        "mime",
+                        "sizeBytes",
+                        "status",
+                        "uploadedByUserId",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/property-files": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "propertyId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "appointmentId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ISSUE",
+                "DOCUMENT",
+                "REPORT",
+                "OTHER"
+              ]
+            },
+            "in": "query",
+            "name": "type",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "files": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "propertyId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "issueId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "ISSUE",
+                                  "DOCUMENT",
+                                  "REPORT",
+                                  "OTHER"
+                                ]
+                              },
+                              "versionGroupId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "version": {
+                                "type": "integer"
+                              },
+                              "fileName": {
+                                "type": "string"
+                              },
+                              "mime": {
+                                "type": "string"
+                              },
+                              "sizeBytes": {
+                                "type": "integer"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "PENDING",
+                                  "READY"
+                                ]
+                              },
+                              "uploadedByUserId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "createdAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "propertyId",
+                              "appointmentId",
+                              "issueId",
+                              "type",
+                              "versionGroupId",
+                              "version",
+                              "fileName",
+                              "mime",
+                              "sizeBytes",
+                              "status",
+                              "uploadedByUserId",
+                              "createdAt"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "counts": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "issues": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "documents": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "reports": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "other": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "issues",
+                            "documents",
+                            "reports",
+                            "other"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "files",
+                        "counts"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/property-files/{id}/download": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "expiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "expiresAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/property-files/{id}/versions": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fileName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "mime": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sizeBytes": {
+                    "type": "integer",
+                    "exclusiveMinimum": true,
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "fileName",
+                  "mime"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "fileId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "uploadUrl": {
+                          "type": "string",
+                          "format": "uri"
+                        },
+                        "storageKey": {
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "fileId",
+                        "uploadUrl",
+                        "storageKey",
+                        "expiresAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/property-files/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/v1/property-issues": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "propertyId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "appointmentId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "photoFileIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
+                  "cantDoEventId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "propertyId",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "propertyId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "appointmentId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "INSPECTOR",
+                            "STAFF",
+                            "RENTAL_TENANT_PORTAL"
+                          ]
+                        },
+                        "createdByUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "cantDoEventId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "seenAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "seenByUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "photos": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "propertyId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "issueId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "ISSUE",
+                                  "DOCUMENT",
+                                  "REPORT",
+                                  "OTHER"
+                                ]
+                              },
+                              "versionGroupId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "version": {
+                                "type": "integer"
+                              },
+                              "fileName": {
+                                "type": "string"
+                              },
+                              "mime": {
+                                "type": "string"
+                              },
+                              "sizeBytes": {
+                                "type": "integer"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "PENDING",
+                                  "READY"
+                                ]
+                              },
+                              "uploadedByUserId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "createdAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "propertyId",
+                              "appointmentId",
+                              "issueId",
+                              "type",
+                              "versionGroupId",
+                              "version",
+                              "fileName",
+                              "mime",
+                              "sizeBytes",
+                              "status",
+                              "uploadedByUserId",
+                              "createdAt"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "propertyId",
+                        "appointmentId",
+                        "reason",
+                        "source",
+                        "createdByUserId",
+                        "cantDoEventId",
+                        "seenAt",
+                        "seenByUserId",
+                        "createdAt",
+                        "photos"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "propertyId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "appointmentId",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "issues": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "propertyId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "appointmentId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "reason": {
+                                "type": "string"
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "INSPECTOR",
+                                  "STAFF",
+                                  "RENTAL_TENANT_PORTAL"
+                                ]
+                              },
+                              "createdByUserId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "cantDoEventId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "seenAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ],
+                                "nullable": true
+                              },
+                              "seenByUserId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "createdAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                ]
+                              },
+                              "photos": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "format": "uuid"
+                                    },
+                                    "propertyId": {
+                                      "type": "string",
+                                      "format": "uuid"
+                                    },
+                                    "appointmentId": {
+                                      "type": "string",
+                                      "format": "uuid",
+                                      "nullable": true
+                                    },
+                                    "issueId": {
+                                      "type": "string",
+                                      "format": "uuid",
+                                      "nullable": true
+                                    },
+                                    "type": {
+                                      "type": "string",
+                                      "enum": [
+                                        "ISSUE",
+                                        "DOCUMENT",
+                                        "REPORT",
+                                        "OTHER"
+                                      ]
+                                    },
+                                    "versionGroupId": {
+                                      "type": "string",
+                                      "format": "uuid"
+                                    },
+                                    "version": {
+                                      "type": "integer"
+                                    },
+                                    "fileName": {
+                                      "type": "string"
+                                    },
+                                    "mime": {
+                                      "type": "string"
+                                    },
+                                    "sizeBytes": {
+                                      "type": "integer"
+                                    },
+                                    "status": {
+                                      "type": "string",
+                                      "enum": [
+                                        "PENDING",
+                                        "READY"
+                                      ]
+                                    },
+                                    "uploadedByUserId": {
+                                      "type": "string",
+                                      "format": "uuid",
+                                      "nullable": true
+                                    },
+                                    "createdAt": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "string",
+                                          "format": "date-time"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "propertyId",
+                                    "appointmentId",
+                                    "issueId",
+                                    "type",
+                                    "versionGroupId",
+                                    "version",
+                                    "fileName",
+                                    "mime",
+                                    "sizeBytes",
+                                    "status",
+                                    "uploadedByUserId",
+                                    "createdAt"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "propertyId",
+                              "appointmentId",
+                              "reason",
+                              "source",
+                              "createdByUserId",
+                              "cantDoEventId",
+                              "seenAt",
+                              "seenByUserId",
+                              "createdAt",
+                              "photos"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "issues"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/property-issues/unseen-count": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "appointmentsWithUnseenIssues": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "propertiesWithUnseenIssues": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "appointmentsWithUnseenIssues",
+                        "propertiesWithUnseenIssues"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/property-issues/{id}/seen": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "seen": {
+                          "type": "boolean"
+                        },
+                        "alreadySeen": {
+                          "type": "boolean"
+                        },
+                        "seenAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "seenByUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "seen",
+                        "alreadySeen",
+                        "seenAt",
+                        "seenByUserId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/property-issues/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
           }
         }
       }

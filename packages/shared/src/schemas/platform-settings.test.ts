@@ -201,3 +201,68 @@ describe('liveDayAlerts platform setting (F05)', () => {
     });
   });
 });
+
+describe('propertyFiles platform setting (F10)', () => {
+  const schema = PLATFORM_SETTINGS_REGISTRY.propertyFiles.schema;
+  const defaults = PLATFORM_SETTINGS_REGISTRY.propertyFiles.defaults;
+
+  it('has the documented defaults and section label', () => {
+    expect(defaults).toEqual({
+      allowedMimes: [
+        'image/jpeg',
+        'image/png',
+        'image/heic',
+        'image/webp',
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ],
+      maxFileSizeMb: 20,
+      issueImageMimes: ['image/jpeg', 'image/png', 'image/heic', 'image/webp'],
+      maxPhotosPerIssue: 10,
+      retentionDays: null,
+      deletedRetentionDays: 365,
+    });
+    expect(PLATFORM_SETTINGS_REGISTRY.propertyFiles.section).toBe('Property files');
+    expect(isPlatformSettingKey('propertyFiles')).toBe(true);
+    expect(schema.safeParse(defaults).success).toBe(true);
+  });
+
+  it.each([
+    { maxFileSizeMb: 4 },
+    { maxFileSizeMb: 201 },
+    { maxFileSizeMb: 20.5 },
+    { maxPhotosPerIssue: 0 },
+    { maxPhotosPerIssue: 21 },
+    { deletedRetentionDays: 29 },
+    { deletedRetentionDays: 3651 },
+    { retentionDays: 0 },
+    { allowedMimes: [] },
+    { issueImageMimes: [] },
+  ])('rejects invalid %o', (patch) => {
+    expect(schema.safeParse({ ...defaults, ...patch }).success).toBe(false);
+  });
+
+  it.each([
+    { maxFileSizeMb: 5 },
+    { maxFileSizeMb: 200 },
+    { maxPhotosPerIssue: 1 },
+    { maxPhotosPerIssue: 20 },
+    { retentionDays: null },
+    { retentionDays: 90 },
+    { deletedRetentionDays: 30 },
+    { deletedRetentionDays: 3650 },
+  ])('accepts valid %o', (patch) => {
+    expect(schema.safeParse({ ...defaults, ...patch }).success).toBe(true);
+  });
+
+  it('merges a stored value over defaults and falls back on invalid', () => {
+    expect(resolvePlatformSettingValue('propertyFiles', { maxPhotosPerIssue: 3 })).toEqual({
+      value: { ...defaults, maxPhotosPerIssue: 3 },
+      valid: true,
+    });
+    expect(resolvePlatformSettingValue('propertyFiles', { maxFileSizeMb: 9999 }).valid).toBe(
+      false,
+    );
+  });
+});

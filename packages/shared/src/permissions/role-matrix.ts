@@ -299,6 +299,39 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   'map.execution_density': {
     roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
   },
+
+  // ── Property Files & Issues (F10) ─────────────────────────────────────
+  // Base-role gate only; the use cases refine at runtime: cross-tenant reads
+  // return 404 (never 403), INSP is scoped to its own T-1-visible appointments,
+  // and `property_file.upload` for INSP is limited to ISSUE photos.
+  'property_file.read': {
+    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP'],
+  },
+  'property_file.upload': {
+    // INSP may upload only ISSUE photos on its own, T-1-visible appointments
+    // (enforced in the presign use case); CL_USER cannot upload.
+    roles: ['AM', 'OP', 'CL_ADMIN', 'INSP'],
+  },
+  'property_file.version': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
+  'property_file.delete': {
+    roles: ['AM', 'OP'],
+  },
+  'property_issue.create': {
+    // source is server-derived from the role (INSPECTOR vs STAFF); the portal
+    // (RENTAL_TENANT_PORTAL) is token-authenticated in TASK-F10-4, not via this matrix.
+    roles: ['AM', 'OP', 'CL_ADMIN', 'INSP'],
+  },
+  'property_issue.mark_seen': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
+  'property_issue.delete': {
+    roles: ['AM', 'OP'],
+  },
+  'property_issue.unseen_count': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
 } as const;
 
 /** All action keys in the matrix */

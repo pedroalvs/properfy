@@ -257,6 +257,25 @@ import type { InspectorExecutionRouteContainer } from '../modules/inspector-exec
 import { GetExecutionDensityUseCase } from '../modules/inspector-execution/application/use-cases/get-execution-density.use-case';
 import { PrismaExecutionDensityReader } from '../modules/inspector-execution/infrastructure/prisma-execution-density.reader';
 import type { ExecutionDensityRouteContainer } from '../modules/inspector-execution/interfaces/execution-density.routes';
+// Property files & issues (F10)
+import { PrismaPropertyFileRepository } from '../modules/property-file/infrastructure/prisma-property-file.repository';
+import { PrismaPropertyIssueRepository } from '../modules/property-file/infrastructure/prisma-property-issue.repository';
+import { InspectorAppointmentVisibilityAdapter } from '../modules/property-file/infrastructure/inspector-appointment-visibility.adapter';
+import { PropertyScopeService } from '../modules/property-file/application/property-scope.service';
+import { PresignPropertyFileUploadUseCase } from '../modules/property-file/application/use-cases/presign-property-file-upload.use-case';
+import { ConfirmPropertyFileUploadUseCase } from '../modules/property-file/application/use-cases/confirm-property-file-upload.use-case';
+import { ListPropertyFilesUseCase } from '../modules/property-file/application/use-cases/list-property-files.use-case';
+import { GetPropertyFileDownloadUrlUseCase } from '../modules/property-file/application/use-cases/get-property-file-download-url.use-case';
+import { AddPropertyFileVersionUseCase } from '../modules/property-file/application/use-cases/add-property-file-version.use-case';
+import { DeletePropertyFileUseCase } from '../modules/property-file/application/use-cases/delete-property-file.use-case';
+import { CreatePropertyIssueUseCase } from '../modules/property-file/application/use-cases/create-property-issue.use-case';
+import { MarkPropertyIssueAsSeenUseCase } from '../modules/property-file/application/use-cases/mark-property-issue-seen.use-case';
+import { DeletePropertyIssueUseCase } from '../modules/property-file/application/use-cases/delete-property-issue.use-case';
+import { ListPropertyIssuesUseCase } from '../modules/property-file/application/use-cases/list-property-issues.use-case';
+import { CountUnseenPropertyIssuesUseCase } from '../modules/property-file/application/use-cases/count-unseen-property-issues.use-case';
+import { PropertyFileRetentionWorker } from '../modules/property-file/infrastructure/workers/property-file-retention.worker';
+import type { PropertyFileRouteContainer } from '../modules/property-file/interfaces/property-file.routes';
+import type { PropertyIssueRouteContainer } from '../modules/property-file/interfaces/property-issue.routes';
 import { GetLiveDayUseCase } from '../modules/live-day/application/use-cases/get-live-day.use-case';
 import { GetLockedTimeUseCase } from '../modules/live-day/application/use-cases/get-locked-time.use-case';
 import { PrismaLiveDayReadRepository } from '../modules/live-day/infrastructure/prisma-live-day.read-repository';
@@ -572,6 +591,8 @@ export interface AppContainer {
   rentalTenantPortal: RentalTenantPortalRouteContainer;
   inspectorExecution: InspectorExecutionRouteContainer;
   executionDensity: ExecutionDensityRouteContainer;
+  propertyFile: PropertyFileRouteContainer;
+  propertyIssue: PropertyIssueRouteContainer;
   liveDay: LiveDayRouteContainer;
   platformSettings: PlatformSettingsRouteContainer;
   billing: BillingRouteContainer;
@@ -589,6 +610,7 @@ export interface AppContainer {
   cleanupSessionsWorker: CleanupSessionsWorker;
   keyExpiryCheckWorker: KeyExpiryCheckWorker;
   expireFilesWorker: ExpireFilesWorker;
+  propertyFileRetentionWorker: PropertyFileRetentionWorker;
   processReportJobUseCase: ProcessReportJobUseCase;
   appointmentImportCommitWorker: AppointmentImportCommitWorker;
   sweepAbandonedAppointmentImportsWorker: SweepAbandonedAppointmentImportsWorker;
@@ -773,6 +795,10 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Property repositories and use cases
   const propertyRepo = new PrismaPropertyRepository(prisma);
+  // Property files & issues (F10). The repos double as the indicator/count
+  // readers injected into the appointment/property list+detail use cases.
+  const propertyFileRepo = new PrismaPropertyFileRepository(prisma);
+  const propertyIssueRepo = new PrismaPropertyIssueRepository(prisma);
   const geocodingService = new DynamicGeocodingService(integrationConfigResolver);
 
   // F04 routing: shared Postgres rate limiter + per-call provider resolution +
@@ -791,8 +817,8 @@ export function createContainer(logger: Logger): AppContainer {
   // Geocode synchronously at creation time so a new property has coordinates the
   // instant the request returns (the async worker remains the fallback).
   const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo, authorizationService, logger, geocodingService);
-  const getPropertyUseCase = new GetPropertyUseCase(propertyRepo);
-  const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo);
+  const getPropertyUseCase = new GetPropertyUseCase(propertyRepo, propertyFileRepo);
+  const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo, propertyIssueRepo);
   const getPropertySummaryUseCase = new GetPropertySummaryUseCase(propertyRepo);
   const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger);
   const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
@@ -969,8 +995,8 @@ export function createContainer(logger: Logger): AppContainer {
   );
   // createAppointmentUseCase is constructed AFTER the service-group use cases below —
   // the INGOING/OUTGOING auto-group step needs create/publish, which need serviceGroupRepo.
-  const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService, appCredentialRepo, inspectorFieldEventRepo);
-  const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService, inspectorFieldEventRepo);
+  const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService, appCredentialRepo, inspectorFieldEventRepo, propertyFileRepo);
+  const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService, inspectorFieldEventRepo, propertyIssueRepo);
   const listAppointmentSuburbsUseCase = new ListAppointmentSuburbsUseCase(appointmentRepo, authorizationService);
   // exportAppointmentsUseCase is constructed AFTER the report module below —
   // it reuses that module's XLSX generator.
@@ -1140,6 +1166,55 @@ export function createContainer(logger: Logger): AppContainer {
   // Platform settings (F03) — shared registry read through IPlatformSettingsReader.
   const platformSettingRepo = new PrismaPlatformSettingRepository(prisma);
   const platformSettingsService = new PlatformSettingsService(platformSettingRepo, logger);
+
+  // ── Property files & issues (F10) ─────────────────────────────────────────
+  const propertyFileClock = new SystemClock();
+  const inspectorAppointmentVisibility = new InspectorAppointmentVisibilityAdapter(
+    appointmentRepo,
+    serviceTypeReaderForExec,
+    tenantTimezoneLookup,
+    propertyFileClock,
+  );
+  const propertyScopeService = new PropertyScopeService(inspectorAppointmentVisibility);
+  const presignPropertyFileUploadUseCase = new PresignPropertyFileUploadUseCase(
+    propertyFileRepo, propertyIssueRepo, inspectorAppointmentVisibility, storageService,
+    platformSettingsService, authorizationService, propertyFileClock,
+  );
+  const confirmPropertyFileUploadUseCase = new ConfirmPropertyFileUploadUseCase(
+    prisma, propertyFileRepo, storageService, platformSettingsService, propertyScopeService,
+    idempotencyService, auditService, authorizationService, propertyFileClock,
+  );
+  const listPropertyFilesUseCase = new ListPropertyFilesUseCase(propertyFileRepo, propertyScopeService);
+  const getPropertyFileDownloadUrlUseCase = new GetPropertyFileDownloadUrlUseCase(
+    propertyFileRepo, storageService, propertyScopeService, propertyFileClock,
+  );
+  const addPropertyFileVersionUseCase = new AddPropertyFileVersionUseCase(
+    propertyFileRepo, storageService, platformSettingsService, propertyScopeService,
+    authorizationService, propertyFileClock,
+  );
+  const deletePropertyFileUseCase = new DeletePropertyFileUseCase(
+    propertyFileRepo, propertyScopeService, auditService, authorizationService, propertyFileClock,
+  );
+  const createPropertyIssueUseCase = new CreatePropertyIssueUseCase(
+    prisma, propertyIssueRepo, propertyFileRepo, inspectorAppointmentVisibility,
+    platformSettingsService, idempotencyService, auditService, authorizationService, propertyFileClock,
+  );
+  const markPropertyIssueAsSeenUseCase = new MarkPropertyIssueAsSeenUseCase(
+    propertyIssueRepo, propertyScopeService, auditService, authorizationService, propertyFileClock,
+  );
+  const deletePropertyIssueUseCase = new DeletePropertyIssueUseCase(
+    prisma, propertyIssueRepo, propertyFileRepo, propertyScopeService, auditService,
+    authorizationService, propertyFileClock,
+  );
+  const listPropertyIssuesUseCase = new ListPropertyIssuesUseCase(
+    propertyIssueRepo, propertyFileRepo, propertyScopeService,
+  );
+  const countUnseenPropertyIssuesUseCase = new CountUnseenPropertyIssuesUseCase(
+    propertyIssueRepo, authorizationService,
+  );
+  const propertyFileRetentionWorker = new PropertyFileRetentionWorker(
+    propertyFileRepo, storageService, platformSettingsService, auditService, logger, propertyFileClock,
+  );
 
   // Day plan (F04-2): persistence + compute + the inspector's own read.
   const dayPlanRepo = new PrismaDayPlanRepository(prisma);
@@ -2062,6 +2137,25 @@ export function createContainer(logger: Logger): AppContainer {
       jwtService,
       tenantRepo,
     },
+    propertyFile: {
+      presignPropertyFileUploadUseCase,
+      confirmPropertyFileUploadUseCase,
+      listPropertyFilesUseCase,
+      getPropertyFileDownloadUrlUseCase,
+      addPropertyFileVersionUseCase,
+      deletePropertyFileUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    propertyIssue: {
+      createPropertyIssueUseCase,
+      markPropertyIssueAsSeenUseCase,
+      deletePropertyIssueUseCase,
+      listPropertyIssuesUseCase,
+      countUnseenPropertyIssuesUseCase,
+      jwtService,
+      tenantRepo,
+    },
     liveDay: {
       getLiveDayUseCase,
       getLockedTimeUseCase,
@@ -2220,6 +2314,7 @@ export function createContainer(logger: Logger): AppContainer {
     cleanupSessionsWorker,
     keyExpiryCheckWorker,
     expireFilesWorker,
+    propertyFileRetentionWorker,
     processReportJobUseCase,
     geocodeWorker,
     geocodeRetryWorker,

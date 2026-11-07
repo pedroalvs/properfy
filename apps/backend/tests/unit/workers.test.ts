@@ -120,6 +120,7 @@ describe('registerWorkers', () => {
       { execute: vi.fn().mockResolvedValue(undefined) } as any, // evaluateTenantEtaUseCase
       { execute: vi.fn().mockResolvedValue(undefined) } as any, // sweepTenantEtaDelaysUseCase
       { get: vi.fn().mockResolvedValue({ enabled: false, channelMode: 'BOTH', morningHour: 7, morningCutoffHour: 9, delayThresholdMinutes: 20, smsBudgetSharePercent: 80 }) } as any, // tenantEtaSettingsReader
+      { execute: vi.fn().mockResolvedValue({ deletedPurged: 0, activePurged: 0, orphansPurged: 0 }) } as any, // propertyFileRetentionWorker
       mockLogger,
     );
   }
@@ -131,7 +132,7 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(29);
+    expect(mockWork).toHaveBeenCalledTimes(30);
     expect(mockWork).toHaveBeenCalledWith('day-plan.publish', { teamSize: 1, teamConcurrency: 1 }, expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('tenant-eta.morning', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('tenant-eta.evaluate', expect.any(Function));
@@ -160,7 +161,7 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
     // All recurring jobs are anchored to the platform timezone (Sydney).
     const sydneyTz = { tz: 'Australia/Sydney' };
-    expect(mockSchedule).toHaveBeenCalledTimes(21);
+    expect(mockSchedule).toHaveBeenCalledTimes(22);
     expect(mockSchedule).toHaveBeenCalledWith('day-plan.publish', '30 * * * *', {}, expect.objectContaining(sydneyTz));
     expect(mockSchedule).toHaveBeenCalledWith('tenant-eta.morning', '0 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('tenant-eta.sweep-delays', '*/30 * * * *', {}, sydneyTz);

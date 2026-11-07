@@ -19,3 +19,4 @@ export * from './confirmation-cycle';
 export * from './field-events';
 export * from './day-plan';
 export * from './live-day';
+export * from './property-file';
