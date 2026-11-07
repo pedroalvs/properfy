@@ -80,6 +80,8 @@ export const listPropertiesQuerySchema = paginationSchema.extend({
   type: z.enum(PROPERTY_TYPE_VALUES).optional(),
   search: z.string().max(200).optional(),
   hasCoordinates: booleanQueryParam().optional(),
+  // F10 "With issues" filter: return only properties that have a non-deleted issue.
+  withIssues: booleanQueryParam().optional(),
   nearLat: z.coerce.number().min(-90).max(90).optional(),
   nearLng: z.coerce.number().min(-180).max(180).optional(),
   nearRadiusKm: z.coerce.number().positive().max(500).optional(),

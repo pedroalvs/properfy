@@ -282,3 +282,73 @@ describe('map.execution_density (F09-1 §L-F09-09)', () => {
     expect(can('CL_USER', 'map.execution_density')).toBe(true);
   });
 });
+
+describe('property_file.* / property_issue.* (F10-1)', () => {
+  it('property_file.read: all tenant/inspector roles, not TNT', () => {
+    for (const role of ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP'] as UserRole[]) {
+      expect(can(role, 'property_file.read')).toBe(true);
+    }
+    expect(can('TNT', 'property_file.read')).toBe(false);
+  });
+
+  it('property_file.upload: AM/OP/CL_ADMIN/INSP (base); not CL_USER/TNT', () => {
+    for (const role of ['AM', 'OP', 'CL_ADMIN', 'INSP'] as UserRole[]) {
+      expect(can(role, 'property_file.upload')).toBe(true);
+    }
+    expect(can('CL_USER', 'property_file.upload')).toBe(false);
+    expect(can('TNT', 'property_file.upload')).toBe(false);
+  });
+
+  it('property_file.version: AM/OP/CL_ADMIN only', () => {
+    for (const role of ['AM', 'OP', 'CL_ADMIN'] as UserRole[]) {
+      expect(can(role, 'property_file.version')).toBe(true);
+    }
+    for (const role of ['CL_USER', 'INSP', 'TNT'] as UserRole[]) {
+      expect(can(role, 'property_file.version')).toBe(false);
+    }
+  });
+
+  it('property_file.delete / property_issue.delete: AM/OP only', () => {
+    for (const role of ['AM', 'OP'] as UserRole[]) {
+      expect(can(role, 'property_file.delete')).toBe(true);
+      expect(can(role, 'property_issue.delete')).toBe(true);
+    }
+    for (const role of ['CL_ADMIN', 'CL_USER', 'INSP', 'TNT'] as UserRole[]) {
+      expect(can(role, 'property_file.delete')).toBe(false);
+      expect(can(role, 'property_issue.delete')).toBe(false);
+    }
+  });
+
+  it('property_issue.create: AM/OP/CL_ADMIN/INSP (base); source is server-derived', () => {
+    for (const role of ['AM', 'OP', 'CL_ADMIN', 'INSP'] as UserRole[]) {
+      expect(can(role, 'property_issue.create')).toBe(true);
+    }
+    expect(can('CL_USER', 'property_issue.create')).toBe(false);
+  });
+
+  it('property_issue.mark_seen / unseen_count: AM/OP/CL_ADMIN only', () => {
+    for (const role of ['AM', 'OP', 'CL_ADMIN'] as UserRole[]) {
+      expect(can(role, 'property_issue.mark_seen')).toBe(true);
+      expect(can(role, 'property_issue.unseen_count')).toBe(true);
+    }
+    for (const role of ['CL_USER', 'INSP', 'TNT'] as UserRole[]) {
+      expect(can(role, 'property_issue.mark_seen')).toBe(false);
+      expect(can(role, 'property_issue.unseen_count')).toBe(false);
+    }
+  });
+
+  it('the F10 actions carry no cl_user_flag/tenant_setting condition', () => {
+    for (const action of [
+      'property_file.read',
+      'property_file.upload',
+      'property_file.version',
+      'property_file.delete',
+      'property_issue.create',
+      'property_issue.mark_seen',
+      'property_issue.delete',
+      'property_issue.unseen_count',
+    ]) {
+      expect(getMatrixEntry(action)?.condition).toBeUndefined();
+    }
+  });
+});
