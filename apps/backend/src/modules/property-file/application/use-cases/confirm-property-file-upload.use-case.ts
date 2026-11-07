@@ -71,6 +71,9 @@ export class ConfirmPropertyFileUploadUseCase {
     // while holding a DB connection).
     const file = await this.fileRepo.findById(fileId);
     if (!file || file.deletedAt || file.purgedAt) throw new PropertyFileNotFoundError();
+    // INSP may only upload/confirm ISSUE photos (matrix parity with presign); a
+    // staff Document/Report/Other is invisible to them — 404, never reveal it.
+    if (actor.role === 'INSP' && file.type !== 'ISSUE') throw new PropertyFileNotFoundError();
     await this.scope.assertCanReadFile(actor, file);
     if (file.status === 'READY') return toPropertyFileResponse(file);
 

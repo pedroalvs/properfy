@@ -92,6 +92,13 @@ describe('ConfirmPropertyFileUploadUseCase', () => {
     expect(audit.log).not.toHaveBeenCalled();
   });
 
+  it('rejects an INSP confirming a non-ISSUE file (matrix parity with presign)', async () => {
+    const { uc } = build({ file: makeFile({ type: 'DOCUMENT' }) });
+    await expect(
+      uc.execute({ actor: makeActor('INSP'), fileId: FILE_ID, idempotencyKey: 'kinsp' }),
+    ).rejects.toMatchObject({ code: 'PROPERTY_FILE_NOT_FOUND' });
+  });
+
   it('rejects a file larger than the max (C.A5 confirm side)', async () => {
     const { uc } = build({ head: { exists: true, sizeBytes: 21 * 1024 * 1024 } });
     await expect(
