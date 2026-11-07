@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom';
 import type mapboxgl from 'mapbox-gl';
 import {
   type LiveDayInspector,
-  type LiveDayResponse,
   civilDateSchema,
   formatInstantTime,
   inspectorRouteColor,
@@ -69,21 +68,25 @@ export function LiveDayPage() {
   const wantsRoutesAll = searchParams.get('routes') === 'all';
 
   // The "all" request is gated by the client cap, which needs the roster, which
-  // needs a first response — so decide the geometry mode from the LAST response.
-  const lastDataRef = useRef<LiveDayResponse | null>(null);
-  const prevVisibleCount = lastDataRef.current
-    ? filterInspectors(lastDataRef.current.inspectors, { needsAttention: wantsAttention }).length
-    : 0;
-  const effectiveShowAll = wantsRoutesAll && lastDataRef.current != null && canShowAllRoutes(prevVisibleCount);
-  const geometryMode: GeometryMode = effectiveShowAll ? 'all' : selectedId ? 'selected' : 'none';
+  // needs a first response. So the geometry mode is state, re-derived by an
+  // effect once data is in: `all` only when "Show all routes" is on AND the
+  // visible roster fits the cap; else `selected` when one is picked; else `none`.
+  const [geometryMode, setGeometryMode] = useState<GeometryMode>(() => (selectedId ? 'selected' : 'none'));
 
   const { liveDay, isLoading, isFetching, isError, isRefetchError, dataUpdatedAt, isLive, error, refetch } = useLiveDay({
     date,
     geometryMode,
     selectedId,
   });
-  if (liveDay) lastDataRef.current = liveDay;
   const eta = useEtaAccuracy();
+
+  useEffect(() => {
+    const visibleCount = liveDay
+      ? filterInspectors(liveDay.inspectors, { needsAttention: wantsAttention }).length
+      : 0;
+    const showAll = wantsRoutesAll && liveDay != null && canShowAllRoutes(visibleCount);
+    setGeometryMode(showAll ? 'all' : selectedId ? 'selected' : 'none');
+  }, [liveDay, wantsRoutesAll, wantsAttention, selectedId]);
 
   const isFarDateError = errorCode(error) === 'LIVE_DAY_DATE_TOO_FAR';
 
@@ -231,6 +234,21 @@ export function LiveDayPage() {
   const handleToggleAttention = () => setParam('attention', wantsAttention ? null : '1');
   const handleToggleShowAll = () => setParam('routes', wantsRoutesAll ? null : 'all');
   const handleShowEveryone = () => setParam('attention', null);
+
+  // Escape returns from the inspector detail to the list (keyboard, WCAG 2.1.1).
+  const handleBackRef = useRef(handleBack);
+  handleBackRef.current = handleBack;
+  useEffect(() => {
+    if (!selectedInspector) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        handleBackRef.current();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [selectedInspector]);
 
   // ── Map layers ──────────────────────────────────────────────────────────────
   const pinInspectors = visibleInspectors.filter(

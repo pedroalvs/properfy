@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { DayPlanGeometry } from '@properfy/shared';
 import { makeInspector, makeAlert, makeLiveDayResponse, envelope } from '../test-support/fixtures';
 
 // ── Map doubles — the real map components have their own tests; here we only
@@ -199,6 +200,29 @@ describe('LiveDayPage', () => {
     expect(toggle).toHaveAttribute('title', 'Narrow the list (Needs attention) to show all routes — up to 40 at once');
   });
 
+  it('Show all routes requests all geometry and draws a route per visible inspector', async () => {
+    getMock.mockImplementation((path: string, opts: { params?: { query?: { includeGeometry?: string } } }) => {
+      if (path.includes('eta-accuracy')) return Promise.resolve(etaEnvelope);
+      const withGeom = opts?.params?.query?.includeGeometry === 'all';
+      const geom: DayPlanGeometry | null = withGeom ? { type: 'FeatureCollection', features: [] } : null;
+      return Promise.resolve(
+        envelope(
+          makeLiveDayResponse({
+            inspectors: [
+              makeInspector({ inspectorId: 'a', inspectorName: 'Jane', geometryIncluded: withGeom, geometry: geom }),
+              makeInspector({ inspectorId: 'b', inspectorName: 'Tom', geometryIncluded: withGeom, geometry: geom, lastKnown: { source: 'CHECK_IN', lat: -33.9, lng: 151.3, at: '2026-11-05T10:00:00+11:00', appointmentId: null, label: null } }),
+            ],
+          }),
+        ),
+      );
+    });
+    renderPage();
+    await within(await screen.findByRole('list', { name: 'Inspectors' })).findByText('Jane');
+    expect(screen.queryAllByTestId('route-layer')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: /Show all routes/ }));
+    await waitFor(() => expect(screen.getAllByTestId('route-layer').length).toBe(2));
+  });
+
   it('re-anchors a too-far deep link to today with a notice (L-F05-05)', async () => {
     getMock.mockImplementation((path: string, opts: { params?: { query?: { date?: string } } }) => {
       if (path.includes('eta-accuracy')) return Promise.resolve(etaEnvelope);
@@ -212,6 +236,27 @@ describe('LiveDayPage', () => {
     expect(await screen.findByText("That day isn't available yet. Showing today.")).toBeInTheDocument();
     await waitFor(() => expect(currentSearch).toContain('date=2026-11-05'));
     expect(screen.queryByText("We couldn't load the Live Day.")).toBeNull();
+  });
+
+  it('exposes aria-pressed toggles and returns to the list on Escape', async () => {
+    setLiveDay(
+      envelope(
+        makeLiveDayResponse({
+          inspectors: [makeInspector({ inspectorId: 'insp-1', inspectorName: 'Jane Doe', geometryIncluded: true, geometry: { type: 'FeatureCollection', features: [] } })],
+        }),
+      ),
+    );
+    renderPage();
+    const attention = await screen.findByRole('button', { name: /Needs attention/ });
+    expect(attention).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(attention);
+    expect(screen.getByRole('button', { name: /Needs attention/ })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /Needs attention/ }));
+
+    fireEvent.click(within(screen.getByRole('list', { name: 'Inspectors' })).getByText('Jane Doe'));
+    expect(await screen.findByRole('heading', { level: 2, name: /Jane Doe/ })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(await screen.findByRole('list', { name: 'Inspectors' })).toBeInTheDocument();
   });
 
   it('renders the ETA accuracy footer', async () => {
