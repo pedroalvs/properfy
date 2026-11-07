@@ -120,6 +120,7 @@ export class PrismaPropertyFileRepository implements IPropertyFileRepository {
         property_id: propertyId,
         status: 'READY',
         deleted_at: null,
+        purged_at: null,
         ...(filter?.type ? { type: filter.type } : {}),
         ...(filter?.tenantId ? { tenant_id: filter.tenantId } : {}),
       },
@@ -138,6 +139,7 @@ export class PrismaPropertyFileRepository implements IPropertyFileRepository {
         appointment_id: appointmentId,
         status: 'READY',
         deleted_at: null,
+        purged_at: null,
         ...(filter?.type ? { type: filter.type } : {}),
         ...(filter?.tenantId ? { tenant_id: filter.tenantId } : {}),
       },
@@ -149,7 +151,7 @@ export class PrismaPropertyFileRepository implements IPropertyFileRepository {
   private async counts(where: Prisma.PropertyFileWhereInput): Promise<FileCounts> {
     const grouped = await this.prisma.propertyFile.groupBy({
       by: ['type'],
-      where: { ...where, status: 'READY', deleted_at: null },
+      where: { ...where, status: 'READY', deleted_at: null, purged_at: null },
       _count: { _all: true },
     });
     const counts: FileCounts = { ...EMPTY_COUNTS };
@@ -216,7 +218,7 @@ export class PrismaPropertyFileRepository implements IPropertyFileRepository {
   ): Promise<PropertyFileEntity[]> {
     if (issueIds.length === 0) return [];
     const rows = (await this.db(tx).propertyFile.findMany({
-      where: { issue_id: { in: issueIds }, status: 'READY', deleted_at: null },
+      where: { issue_id: { in: issueIds }, status: 'READY', deleted_at: null, purged_at: null },
       orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
     })) as PropertyFileRow[];
     return rows.map(toEntity);

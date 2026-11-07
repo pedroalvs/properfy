@@ -208,4 +208,63 @@ describe('Retention worker', () => {
     expect(purged?.purged_at).not.toBeNull();
     expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'property_file.purged' }));
   });
+
+  it('active-retention purge removes the file from every read (D27): listings, counts, issue photos', async () => {
+    const a = await createTenantWithProperty('RETACT');
+    // An active (not soft-deleted) READY document, created long before the window.
+    const docId = randomUUID();
+    await prisma.propertyFile.create({
+      data: {
+        id: docId, tenant_id: a.tenantId, property_id: a.propertyId, type: 'DOCUMENT',
+        version_group_id: randomUUID(), version: 1, file_name: 'ancient.pdf', mime: 'application/pdf',
+        size_bytes: 10n, storage_key: `files/${a.tenantId}/${a.propertyId}/${docId}.pdf`,
+        status: 'READY', confirmed_at: new Date('2020-01-01T00:00:00Z'),
+        created_at: new Date('2020-01-01T00:00:00Z'),
+      },
+    });
+    // An active READY issue photo linked to a real issue (D27 target).
+    const issue = await createIssue.execute({
+      actor: actor('OP', null),
+      input: { propertyId: a.propertyId, reason: 'old leak' },
+      idempotencyKey: `k-${suffix()}`,
+    });
+    const photoId = randomUUID();
+    await prisma.propertyFile.create({
+      data: {
+        id: photoId, tenant_id: a.tenantId, property_id: a.propertyId, issue_id: issue.id, type: 'ISSUE',
+        version_group_id: randomUUID(), version: 1, file_name: 'leak.jpg', mime: 'image/jpeg',
+        size_bytes: 10n, storage_key: `files/${a.tenantId}/${a.propertyId}/${photoId}.jpg`,
+        status: 'READY', confirmed_at: new Date('2020-01-01T00:00:00Z'),
+        created_at: new Date('2020-01-01T00:00:00Z'),
+      },
+    });
+
+    // Sanity: both are visible before retention runs.
+    const before = (await fileRepo.listReadyByProperty(a.propertyId)).map((f) => f.id);
+    expect(before).toEqual(expect.arrayContaining([docId, photoId]));
+    expect((await fileRepo.countsByProperty(a.propertyId)).total).toBe(2);
+
+    const deleteObject = vi.fn(async () => undefined);
+    const audit = { log: vi.fn() };
+    const activeSettings = {
+      get: vi.fn(async () => ({ ...DEFAULT_PROPERTY_FILES_SETTING, retentionDays: 30 }) as never),
+    };
+    const worker = new PropertyFileRetentionWorker(
+      fileRepo, { deleteObject } as never, activeSettings as never, audit,
+      { info: vi.fn(), error: vi.fn() } as never, clock,
+    );
+    const result = await worker.execute();
+    expect(result.activePurged).toBeGreaterThanOrEqual(2);
+    expect(deleteObject).toHaveBeenCalled();
+
+    // After the purge the objects are gone, so the rows must vanish from EVERY read
+    // (consistent with the download use case, which already 404s a purged file).
+    const after = (await fileRepo.listReadyByProperty(a.propertyId)).map((f) => f.id);
+    expect(after).not.toContain(docId);
+    expect(after).not.toContain(photoId);
+    expect((await fileRepo.countsByProperty(a.propertyId)).total).toBe(0);
+    expect(await fileRepo.listReadyPhotosByIssueIds([issue.id])).toHaveLength(0);
+    // D27: the issue itself survives the retention purge of its photo.
+    expect(await prisma.propertyIssue.findUnique({ where: { id: issue.id } })).not.toBeNull();
+  });
 });
