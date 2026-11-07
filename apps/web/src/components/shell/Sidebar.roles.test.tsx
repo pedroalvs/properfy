@@ -160,6 +160,30 @@ describe('Sidebar — Dashboard group', () => {
     expect(labels.indexOf('Inspector notices')).toBeLessThan(labels.indexOf('Analytics'));
   });
 
+  // F05 — "Live Day" sits right after Overview and before Analytics (canonical X01 order, L-X01-03).
+  it.each(['AM', 'OP'])('%s: Live Day is a menuitem after Overview and before Analytics', (role) => {
+    renderDesktop(role);
+    openFlyout('Dashboard');
+    const menu = screen.getByRole('menu');
+    expect(within(menu).getByRole('menuitem', { name: 'Live Day' })).toHaveAttribute('href', '/live-day');
+    const labels = within(menu)
+      .getAllByRole('menuitem')
+      .map((el) => el.textContent?.trim() ?? '');
+    expect(labels.indexOf('Live Day')).toBeGreaterThan(labels.indexOf('Overview'));
+    expect(labels.indexOf('Live Day')).toBeLessThan(labels.indexOf('Analytics'));
+  });
+
+  it.each(['CL_ADMIN', 'CL_USER'])('%s: does not see Live Day', (role) => {
+    renderDesktop(role);
+    openFlyout('Dashboard');
+    expect(within(screen.getByRole('menu')).queryByRole('menuitem', { name: 'Live Day' })).not.toBeInTheDocument();
+  });
+
+  it('INSP does not see Live Day', () => {
+    renderDesktop('INSP');
+    expect(screen.queryByText('Live Day')).not.toBeInTheDocument();
+  });
+
   // S2 — CL_ADMIN/CL_USER: Overview + Analytics, no Workload.
   it.each(['CL_ADMIN', 'CL_USER'])('%s: group has Overview and Analytics but not Workload', (role) => {
     renderDesktop(role);
@@ -190,7 +214,7 @@ describe('Sidebar — Dashboard group', () => {
   });
 
   // S5/S6 — the group shows its active indicator on the panel routes.
-  it.each(['/analytics', '/inspector-workload'])('group is active on %s', (route) => {
+  it.each(['/analytics', '/inspector-workload', '/live-day'])('group is active on %s', (route) => {
     renderDesktop('AM', route);
     const container = screen.getByRole('button', { name: 'Dashboard' }).closest('div');
     expect(container?.querySelector('.bg-realty')).not.toBeNull();

@@ -1,6 +1,9 @@
 export { MapContainer, useMapInstance } from './MapContainer';
 export type { MapViewState } from './MapContainer';
 export { MapMarker } from './MapMarker';
+export { computeMarkerOffsets } from './marker-offsets';
+export { RouteLayer } from './RouteLayer';
+export type { RouteLayerProps, RouteEmphasis } from './RouteLayer';
 export { MapScreenLayout } from './MapScreenLayout';
 export { MapFloatingAction } from './MapFloatingAction';
 export { MapLassoToggleButton } from './MapLassoToggleButton';

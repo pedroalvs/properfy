@@ -125,4 +125,10 @@ describe('filterNavItems — collapseIfSingle', () => {
     expect(children).toContain('/analytics');
     expect(children).not.toContain('/inspector-workload');
   });
+
+  // F7 (F05) — AM sees /live-day; CL_USER does not (presence only, never position/count).
+  it('F7: filterNavItems exposes /live-day to AM but not CL_USER', () => {
+    expect(dashboardChildren('AM')).toContain('/live-day');
+    expect(dashboardChildren('CL_USER')).not.toContain('/live-day');
+  });
 });
