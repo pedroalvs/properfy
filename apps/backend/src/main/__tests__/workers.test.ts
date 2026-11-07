@@ -85,6 +85,7 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // evaluateTenantEtaUseCase
     makeWorkerMock() as any,   // sweepTenantEtaDelaysUseCase
     { get: vi.fn().mockResolvedValue({ enabled: false, channelMode: 'BOTH', morningHour: 7, morningCutoffHour: 9, delayThresholdMinutes: 20, smsBudgetSharePercent: 80 }) } as any, // tenantEtaSettingsReader
+    makeWorkerMock() as any,   // propertyFileRetentionWorker
     logger as any,
   );
 }
@@ -105,6 +106,7 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
     ['auth.cleanup-sessions', '0 2 * * *'],
     ['auth.check-key-expiry', '0 3 * * *'],
     ['report.expire-files', '0 3 * * *'],
+    ['property-file.retention', '0 4 * * *'],
     ['property.geocode-retry', '*/15 * * * *'],
     ['appointment.import.sweep-abandoned', '0 * * * *'],
     ['rental-tenant-portal.expire-tokens', '*/15 * * * *'],

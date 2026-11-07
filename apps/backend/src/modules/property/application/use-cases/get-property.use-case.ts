@@ -1,7 +1,16 @@
-import type { AuthContext } from '@properfy/shared';
+import type { AuthContext, FileCounts } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { IPropertyRepository } from '../../domain/property.repository';
+import type { IPropertyFileCountReader } from '../../../property-file/domain/property-file.repository';
 import { PropertyNotFoundError } from '../../domain/property.errors';
+
+const EMPTY_FILE_COUNTS: FileCounts = {
+  total: 0,
+  issues: 0,
+  documents: 0,
+  reports: 0,
+  other: 0,
+};
 
 export interface GetPropertyInput {
   propertyId: string;
@@ -36,10 +45,15 @@ export interface GetPropertyOutput {
   rulesJson: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
+  /** Per-type counts of non-deleted READY property files (F10 C.9). */
+  fileCounts: FileCounts;
 }
 
 export class GetPropertyUseCase {
-  constructor(private readonly propertyRepo: IPropertyRepository) {}
+  constructor(
+    private readonly propertyRepo: IPropertyRepository,
+    private readonly fileCountReader?: IPropertyFileCountReader,
+  ) {}
 
   async execute(input: GetPropertyInput): Promise<GetPropertyOutput> {
     const { propertyId, actor } = input;
@@ -59,6 +73,10 @@ export class GetPropertyUseCase {
     if (!found || found.property.isDeleted()) {
       throw new PropertyNotFoundError();
     }
+
+    const fileCounts = this.fileCountReader
+      ? await this.fileCountReader.countsByProperty(found.property.id, found.property.tenantId)
+      : EMPTY_FILE_COUNTS;
 
     // For CL roles, verify tenant scope
     if (
@@ -98,6 +116,7 @@ export class GetPropertyUseCase {
       rulesJson: found.property.rulesJson,
       createdAt: found.property.createdAt,
       updatedAt: found.property.updatedAt,
+      fileCounts,
     };
   }
 }

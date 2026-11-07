@@ -58,7 +58,9 @@ export class ConfirmPropertyFileUploadUseCase {
       entityType: 'PropertyFile',
     });
 
-    const payloadHash = hashIdempotencyPayload({ fileId });
+    // Bind the idempotency cache to the actor so a replayed key cannot return
+    // another actor's file DTO (defense in depth; the key is a client UUID).
+    const payloadHash = hashIdempotencyPayload({ fileId, _actor: actor.userId });
     const cached = await this.idempotency.getWithHash<PropertyFileResponse>(idempotencyKey, SCOPE);
     if (cached) {
       if (cached.payloadHash !== payloadHash) throw new PropertyFileIdempotencyMismatchError();

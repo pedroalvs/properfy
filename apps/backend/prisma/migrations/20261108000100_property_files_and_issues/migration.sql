@@ -48,6 +48,7 @@ CREATE TABLE "property_files" (
     "size_bytes" BIGINT NOT NULL,
     "storage_key" TEXT NOT NULL,
     "status" "PropertyFileStatus" NOT NULL DEFAULT 'PENDING',
+    "confirmed_at" TIMESTAMP(3),
     "uploaded_by_user_id" TEXT,
     "deleted_at" TIMESTAMP(3),
     "deleted_by_user_id" TEXT,

@@ -15,6 +15,8 @@ export interface PropertyFileEntity {
   sizeBytes: number;
   storageKey: string;
   status: PropertyFileStatus;
+  /** Set once the upload passed confirm validation (size + magic bytes). */
+  confirmedAt: Date | null;
   uploadedByUserId: string | null;
   deletedAt: Date | null;
   deletedByUserId: string | null;

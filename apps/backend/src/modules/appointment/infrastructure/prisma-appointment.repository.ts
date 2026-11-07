@@ -709,6 +709,10 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     if (filters.serviceGroupId && !filters.ungroupedOnly) {
       where['service_group_id'] = filters.serviceGroupId;
     }
+    // F10 "With issues": only appointments with a non-deleted property issue.
+    if (filters.withIssues) {
+      where['property_issues'] = { some: { deleted_at: null } };
+    }
     // Free time-range filter: match appointments whose start time falls within
     // [timeFrom, timeTo]. HH:mm strings sort lexicographically == chronologically.
     if (filters.timeFrom || filters.timeTo) {

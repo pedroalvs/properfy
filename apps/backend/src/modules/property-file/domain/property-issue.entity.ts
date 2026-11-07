@@ -36,3 +36,11 @@ export interface AppointmentScope {
   propertyId: string | null;
   tenantId: string;
 }
+
+/** The scope of an inspector field event (for cant_do_event_id validation). */
+export interface InspectorFieldEventScope {
+  appointmentId: string;
+  inspectorId: string;
+  tenantId: string;
+  type: string;
+}

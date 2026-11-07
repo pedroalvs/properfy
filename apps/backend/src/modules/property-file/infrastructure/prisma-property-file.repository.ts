@@ -28,6 +28,7 @@ interface PropertyFileRow {
   size_bytes: bigint;
   storage_key: string;
   status: string;
+  confirmed_at: Date | null;
   uploaded_by_user_id: string | null;
   deleted_at: Date | null;
   deleted_by_user_id: string | null;
@@ -51,6 +52,7 @@ function toEntity(row: PropertyFileRow): PropertyFileEntity {
     sizeBytes: Number(row.size_bytes),
     storageKey: row.storage_key,
     status: row.status as PropertyFileEntity['status'],
+    confirmedAt: row.confirmed_at,
     uploadedByUserId: row.uploaded_by_user_id,
     deletedAt: row.deleted_at,
     deletedByUserId: row.deleted_by_user_id,
@@ -189,6 +191,7 @@ export class PrismaPropertyFileRepository implements IPropertyFileRepository {
       where: { id },
       data: {
         size_bytes: BigInt(sizeBytes),
+        confirmed_at: now,
         updated_at: now,
         ...(setReady ? { status: 'READY' } : {}),
       },
@@ -231,6 +234,12 @@ export class PrismaPropertyFileRepository implements IPropertyFileRepository {
         type: 'ISSUE',
         issue_id: null,
         tenant_id: params.tenantId,
+        property_id: params.propertyId,
+        // Only validated (confirmed) photos may be linked (C.A5); and never a
+        // soft-deleted or purged row.
+        confirmed_at: { not: null },
+        deleted_at: null,
+        purged_at: null,
       },
       data: {
         issue_id: params.issueId,

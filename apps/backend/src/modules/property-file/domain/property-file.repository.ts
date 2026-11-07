@@ -11,6 +11,7 @@ export interface PropertyFileListFilter {
 export interface LinkPendingIssuePhotosParams {
   fileIds: string[];
   issueId: string;
+  propertyId: string;
   appointmentId: string | null;
   tenantId: string;
   now: Date;

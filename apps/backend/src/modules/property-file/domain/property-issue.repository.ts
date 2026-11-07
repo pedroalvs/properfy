@@ -3,6 +3,7 @@ import type {
   PropertyIssueEntity,
   NewPropertyIssue,
   AppointmentScope,
+  InspectorFieldEventScope,
 } from './property-issue.entity';
 
 export interface IPropertyIssueRepository {
@@ -37,6 +38,11 @@ export interface IPropertyIssueRepository {
     appointmentId: string,
     tx?: Prisma.TransactionClient,
   ): Promise<AppointmentScope | null>;
+  /** The scope of an inspector field event (cant_do_event_id ownership check), or null. */
+  findInspectorFieldEventScope(
+    eventId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<InspectorFieldEventScope | null>;
 }
 
 /**

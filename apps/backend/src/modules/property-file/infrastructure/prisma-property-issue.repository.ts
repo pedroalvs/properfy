@@ -8,6 +8,7 @@ import type {
   PropertyIssueEntity,
   NewPropertyIssue,
   AppointmentScope,
+  InspectorFieldEventScope,
 } from '../domain/property-issue.entity';
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
@@ -137,6 +138,23 @@ export class PrismaPropertyIssueRepository
     });
     if (!row) return null;
     return { propertyId: row.property_id, tenantId: row.tenant_id };
+  }
+
+  async findInspectorFieldEventScope(
+    eventId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<InspectorFieldEventScope | null> {
+    const row = await this.db(tx).inspectorFieldEvent.findUnique({
+      where: { id: eventId },
+      select: { appointment_id: true, inspector_id: true, tenant_id: true, type: true },
+    });
+    if (!row) return null;
+    return {
+      appointmentId: row.appointment_id,
+      inspectorId: row.inspector_id,
+      tenantId: row.tenant_id,
+      type: row.type,
+    };
   }
 
   // ── Indicator reader (D26) ────────────────────────────────────────────────
