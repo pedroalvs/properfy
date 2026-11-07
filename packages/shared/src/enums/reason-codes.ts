@@ -74,8 +74,16 @@ export const REJECTION_CODES_BY_ORIGIN: Partial<Record<AppointmentStatus, Reject
   DONE: [RejectionReasonCode.NOT_EXECUTED],
 };
 
-/** The origin-restricted codes, in one place, so the general set is "everything else". */
-const ORIGIN_RESTRICTED_REJECTION_CODES: RejectionReasonCode[] = [
+/**
+ * The origin-restricted codes, in one place, so the general set is "everything
+ * else". Exported so an **origin-blind** consumer — the web
+ * `StatusTransitionDialog`, which knows the target status but not the source —
+ * can drop them from its manual list: offering one from the wrong origin is a
+ * guaranteed `422 REJECTION_CODE_NOT_ALLOWED` at the transition use case.
+ * TASK-F07-3 replaces that blanket exclusion with `allowedRejectionCodesFrom`
+ * once the dialog is passed the source status.
+ */
+export const ORIGIN_RESTRICTED_REJECTION_CODES: RejectionReasonCode[] = [
   RejectionReasonCode.INSPECTOR_NO_SHOW,
   RejectionReasonCode.NOT_EXECUTED,
 ];

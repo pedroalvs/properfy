@@ -3,6 +3,7 @@ import {
   CancellationReasonCode,
   RejectionReasonCode,
   SYSTEM_ONLY_REJECTION_CODES,
+  ORIGIN_RESTRICTED_REJECTION_CODES,
   formatReasonCodeLabel,
 } from '@properfy/shared';
 import { cn } from '@properfy/frontend-standards';
@@ -26,13 +27,23 @@ const CANCELLATION_OPTIONS = Object.values(CancellationReasonCode)
   .filter((code) => !SYSTEM_ONLY_CANCELLATION_CODES.includes(code))
   .map((code) => ({ value: code, label: formatReasonCodeLabel(code) }));
 
-// INSPECTOR_UNABLE (and any other SYSTEM_ONLY_REJECTION_CODES) is assigned only
-// by the system when the inspector reports "Can't do this job" — a human
-// rejecting by hand never chooses it, and the backend refuses it. Removed as an
-// isolated filter step over the enum-derived list so TASK-F07-3 can chain an
-// origin filter (`allowedRejectionCodesFrom`) ahead of it without rewriting this.
+// Two exclusions, both isolated filter steps so TASK-F07-3 can swap them for a
+// single `allowedRejectionCodesFrom(fromStatus)` once the dialog is given the
+// source status.
+//   1. SYSTEM_ONLY_REJECTION_CODES (INSPECTOR_UNABLE): assigned only by the
+//      system when the inspector reports "Can't do this job"; the backend
+//      refuses a human picking it.
+//   2. ORIGIN_RESTRICTED_REJECTION_CODES (INSPECTOR_NO_SHOW, NOT_EXECUTED): valid
+//      only from one source status each (SCHEDULED / DONE). This dialog knows the
+//      target status but not the source, so any choice here would be a guaranteed
+//      422 REJECTION_CODE_NOT_ALLOWED from the wrong origin — hidden until F07-3
+//      wires the origin filter.
 const REJECTION_OPTIONS = Object.values(RejectionReasonCode)
-  .filter((code) => !SYSTEM_ONLY_REJECTION_CODES.includes(code))
+  .filter(
+    (code) =>
+      !SYSTEM_ONLY_REJECTION_CODES.includes(code) &&
+      !ORIGIN_RESTRICTED_REJECTION_CODES.includes(code),
+  )
   .map((code) => ({ value: code, label: formatReasonCodeLabel(code) }));
 
 export interface StatusTransitionConfirmPayload {

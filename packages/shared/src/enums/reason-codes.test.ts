@@ -3,6 +3,7 @@ import {
   CancellationReasonCode,
   RejectionReasonCode,
   SYSTEM_ONLY_REJECTION_CODES,
+  ORIGIN_RESTRICTED_REJECTION_CODES,
   allowedRejectionCodesFrom,
 } from './reason-codes';
 
@@ -67,6 +68,21 @@ describe('SYSTEM_ONLY_REJECTION_CODES', () => {
   it('does not include the F07-1 operator codes', () => {
     expect(SYSTEM_ONLY_REJECTION_CODES).not.toContain(RejectionReasonCode.INSPECTOR_NO_SHOW);
     expect(SYSTEM_ONLY_REJECTION_CODES).not.toContain(RejectionReasonCode.NOT_EXECUTED);
+  });
+});
+
+describe('ORIGIN_RESTRICTED_REJECTION_CODES', () => {
+  it('is exactly the two F07-1 origin-restricted codes', () => {
+    expect(ORIGIN_RESTRICTED_REJECTION_CODES).toEqual([
+      RejectionReasonCode.INSPECTOR_NO_SHOW,
+      RejectionReasonCode.NOT_EXECUTED,
+    ]);
+  });
+
+  it('is disjoint from the system-only codes (they are operator codes, origin-gated)', () => {
+    for (const code of ORIGIN_RESTRICTED_REJECTION_CODES) {
+      expect(SYSTEM_ONLY_REJECTION_CODES).not.toContain(code);
+    }
   });
 });
 
