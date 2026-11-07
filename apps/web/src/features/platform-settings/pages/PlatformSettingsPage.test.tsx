@@ -15,6 +15,7 @@ const SECTION_BY_KEY: Record<string, string> = {
   fieldEvents: 'Field events',
   routeWeights: 'Route planning',
   tenantEtaNotices: 'Tenant arrival notices',
+  liveDayAlerts: 'Live Day alerts',
 };
 vi.mock('@/hooks/useSnackbar', () => ({
   useSnackbar: () => ({ showSuccess: vi.fn(), showError: vi.fn(), showInfo: vi.fn(), dismiss: vi.fn(), messages: [] }),
@@ -98,17 +99,32 @@ describe('PlatformSettingsPage', () => {
     expect(screen.getByLabelText('Geofence radius')).toBeInTheDocument();
   });
 
-  it('renders Field events, Route planning then Tenant arrival notices (section order)', () => {
+  it('renders Field events, Route planning, Tenant arrival notices then Live Day alerts (section order)', () => {
     setHook();
     renderPage();
     const fieldEvents = screen.getByText('Field events');
     const routePlanning = screen.getByText('Route planning');
     const tenantEta = screen.getByText('Tenant arrival notices');
+    const liveDayAlerts = screen.getByText('Live Day alerts');
     expect(routePlanning).toBeInTheDocument();
     expect(tenantEta).toBeInTheDocument();
-    // Field events → Route planning → Tenant arrival notices in document order.
+    expect(liveDayAlerts).toBeInTheDocument();
+    // Field events → Route planning → Tenant arrival notices → Live Day alerts in document order.
     expect(fieldEvents.compareDocumentPosition(routePlanning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(routePlanning.compareDocumentPosition(tenantEta) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(tenantEta.compareDocumentPosition(liveDayAlerts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('renders the Live Day alerts section with defaults 20/30 and its help text', () => {
+    setHook();
+    renderPage();
+    expect(screen.getByLabelText('Delay alert (min)')).toHaveValue('20');
+    expect(screen.getByLabelText('Not-started alert (min)')).toHaveValue('30');
+    expect(
+      screen.getByText(
+        'Applies to every inspector without a custom limit. Changes show on the Live Day within a minute.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('shows the access ErrorState when the setting read is forbidden', () => {

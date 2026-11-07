@@ -34,6 +34,12 @@ vi.mock('@/services/api', () => ({
   },
 }));
 
+// The AM/OP-only "Live Day alerts" section needs auth + query context and has its
+// own test; stub it to null here so these tests stay about the other sections.
+vi.mock('./InspectorAlertThresholdsSection', () => ({
+  InspectorAlertThresholdsSection: () => null,
+}));
+
 function makeInspector(overrides: Partial<InspectorDetail> = {}): InspectorDetail {
   return {
     id: 'insp-01',

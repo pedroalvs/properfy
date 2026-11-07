@@ -4,6 +4,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FieldEventsSettingsSection } from '../components/FieldEventsSettingsSection';
 import { RouteWeightsSettingsSection } from '../components/RouteWeightsSettingsSection';
 import { TenantEtaNoticesSection } from '../components/TenantEtaNoticesSection';
+import { LiveDayAlertsSettingsSection } from '../components/LiveDayAlertsSettingsSection';
 
 /**
  * Platform settings (AM/OP). One section per `PLATFORM_SETTINGS_REGISTRY` key —
@@ -19,7 +20,8 @@ export function PlatformSettingsPage() {
   const [fieldEventsDirty, setFieldEventsDirty] = useState(false);
   const [routeWeightsDirty, setRouteWeightsDirty] = useState(false);
   const [tenantEtaDirty, setTenantEtaDirty] = useState(false);
-  const dirty = fieldEventsDirty || routeWeightsDirty || tenantEtaDirty;
+  const [liveDayAlertsDirty, setLiveDayAlertsDirty] = useState(false);
+  const dirty = fieldEventsDirty || routeWeightsDirty || tenantEtaDirty || liveDayAlertsDirty;
   const [showDiscard, setShowDiscard] = useState(false);
   const pendingGoBack = useRef<(() => void) | null>(null);
 
@@ -49,6 +51,7 @@ export function PlatformSettingsPage() {
         <FieldEventsSettingsSection onDirtyChange={setFieldEventsDirty} />
         <RouteWeightsSettingsSection onDirtyChange={setRouteWeightsDirty} />
         <TenantEtaNoticesSection onDirtyChange={setTenantEtaDirty} />
+        <LiveDayAlertsSettingsSection onDirtyChange={setLiveDayAlertsDirty} />
       </div>
 
       <ConfirmDialog

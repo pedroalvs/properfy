@@ -24,6 +24,12 @@ vi.mock('@/services/api', () => ({
   api: { GET: (...args: unknown[]) => mockApiGet(...args) },
 }));
 
+// The AM/OP-only "Live Day alerts" section needs auth + query context and has its
+// own test; stub it to null here so these tests stay about the other sections.
+vi.mock('../InspectorAlertThresholdsSection', () => ({
+  InspectorAlertThresholdsSection: () => null,
+}));
+
 import { InspectorDetailSections } from '../InspectorDetailSections';
 import type { InspectorDetail } from '../../types';
 

@@ -1,10 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ListFilterTableTemplate } from '@/components/layout/templates/ListFilterTableTemplate';
 import { InspectorFilters } from '../components/InspectorFilters';
 import { InspectorTable } from '../components/InspectorTable';
 import { InspectorDetailDrawer } from '../components/InspectorDetailDrawer';
 import { InspectorFormDrawer } from '../components/InspectorFormDrawer';
 import { useInspectorList } from '../hooks/useInspectorList';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The `?open=` deep link only honours a well-formed uuid (L-F05-14); anything else is ignored. */
+function parseOpenId(raw: string | null): string | null {
+  return raw && UUID_RE.test(raw) ? raw : null;
+}
 
 export function InspectorListPage() {
   const {
@@ -18,10 +26,35 @@ export function InspectorListPage() {
     pagination,
   } = useInspectorList();
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openId = parseOpenId(searchParams.get('open'));
+
+  // Initialise from the deep link so a direct `/inspectors?open=<id>` load opens
+  // the drawer without a closed-then-open flash (L-F05-14).
+  const [selectedId, setSelectedId] = useState<string | null>(openId);
+  const [drawerOpen, setDrawerOpen] = useState(openId !== null);
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+
+  // Open the drawer when the `?open=` id changes to a valid uuid while mounted.
+  useEffect(() => {
+    if (openId) {
+      setSelectedId(openId);
+      setDrawerOpen(true);
+    }
+  }, [openId]);
+
+  // Close the drawer and drop the `?open=` param (replace — no extra history entry),
+  // so the browser Back button returns to wherever the user came from (e.g. the Live Day).
+  const closeDrawer = () => {
+    setDrawerOpen(false);
+    setSelectedId(null);
+    if (searchParams.has('open')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('open');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   return (
     <>
@@ -58,13 +91,9 @@ export function InspectorListPage() {
       <InspectorDetailDrawer
         inspectorId={selectedId}
         open={drawerOpen}
-        onClose={() => {
-          setDrawerOpen(false);
-          setSelectedId(null);
-        }}
+        onClose={closeDrawer}
         onEdit={(id) => {
-          setDrawerOpen(false);
-          setSelectedId(null);
+          closeDrawer();
           setEditId(id);
           setFormOpen(true);
         }}

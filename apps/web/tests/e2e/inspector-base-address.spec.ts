@@ -73,6 +73,23 @@ test.describe('F01-2 inspector base address & app adoption (web)', () => {
       });
     });
 
+    // AM/OP drawer "Live Day alerts" section (F05-3) fetches this; keep it hermetic.
+    // Registered after the detail route so it wins for the nested path.
+    await page.route('**/v1/inspectors/*/alert-thresholds', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: {
+            inspectorId: 'insp-1',
+            platformDefaults: { delayMinutes: 20, notStartedMinutes: 30 },
+            override: { delayMinutes: null, notStartedMinutes: null },
+            effective: { delayMinutes: 20, notStartedMinutes: 30 },
+          },
+        }),
+      });
+    });
+
     // List endpoint: honours the missingBaseAddress filter.
     await page.route('**/v1/inspectors?**', async (route) => {
       const url = new URL(route.request().url());

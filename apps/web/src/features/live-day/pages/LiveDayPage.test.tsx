@@ -49,6 +49,20 @@ const etaEnvelope = {
   error: undefined,
 };
 
+const lockedEnvelope = {
+  data: {
+    data: {
+      from: '2026-11-05',
+      to: '2026-11-18',
+      generatedAt: '2026-11-05T00:00:00.000Z',
+      overall: { confirmed: 2, required: 3, percent: 66.7 },
+      byAgency: [{ tenantId: 't1', agencyName: 'Ray White', confirmed: 2, required: 3, percent: 66.7 }],
+      byRegion: [{ regionId: null, regionName: 'No region', agencyName: null, confirmed: 0, required: 1, percent: 0 }],
+    },
+  },
+  error: undefined,
+};
+
 let liveDayResult: unknown = envelope(makeLiveDayResponse());
 
 function setLiveDay(result: unknown) {
@@ -78,9 +92,11 @@ beforeEach(() => {
   mapSpies.fitBounds.mockReset();
   mapSpies.flyTo.mockReset();
   liveDayResult = envelope(makeLiveDayResponse());
-  getMock.mockImplementation((path: string) =>
-    path.includes('eta-accuracy') ? Promise.resolve(etaEnvelope) : Promise.resolve(liveDayResult),
-  );
+  getMock.mockImplementation((path: string) => {
+    if (path.includes('eta-accuracy')) return Promise.resolve(etaEnvelope);
+    if (path.includes('locked-time')) return Promise.resolve(lockedEnvelope);
+    return Promise.resolve(liveDayResult);
+  });
 });
 
 afterEach(() => {
@@ -346,6 +362,50 @@ describe('LiveDayPage', () => {
     renderPage();
     expect(await screen.findByText('Route infeasible')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Needs attention \(0\)/ })).toBeInTheDocument();
+  });
+
+  it('opens the Locked time tab from ?tab=locked', async () => {
+    renderPage('/live-day?tab=locked');
+    expect(await screen.findByRole('heading', { level: 2, name: 'Locked time' })).toBeInTheDocument();
+    expect(await screen.findByText('Overall: 66.7% locked (2 of 3)')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Inspectors' })).toBeNull();
+  });
+
+  it('keeps the selection and the map when switching to Locked time, and restores it on return', async () => {
+    setLiveDay(
+      envelope(
+        makeLiveDayResponse({
+          inspectors: [makeInspector({ inspectorId: 'insp-1', inspectorName: 'Jane Doe', geometryIncluded: true, geometry: { type: 'FeatureCollection', features: [] } })],
+        }),
+      ),
+    );
+    renderPage('/live-day?inspector=insp-1');
+    expect(await screen.findByRole('heading', { level: 2, name: /Jane Doe/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Locked time' }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Locked time' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: /Jane Doe/ })).toBeNull();
+    // The map pin stays and the selection is still in the URL (not cleared by the tab switch).
+    expect(screen.getAllByTestId('map-marker').length).toBeGreaterThanOrEqual(1);
+    await waitFor(() => expect(currentSearch).toContain('inspector=insp-1'));
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Inspectors' }));
+    expect(await screen.findByRole('heading', { level: 2, name: /Jane Doe/ })).toBeInTheDocument();
+  });
+
+  it('keeps polling the live-day while on the Locked time tab', async () => {
+    vi.useFakeTimers();
+    renderPage('/live-day?tab=locked');
+    await vi.waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Locked time' })).toBeInTheDocument());
+    const before = getMock.mock.calls.filter((c) => String(c[0]).includes('dashboard/live-day')).length;
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    const after = getMock.mock.calls.filter((c) => String(c[0]).includes('dashboard/live-day')).length;
+    expect(after).toBeGreaterThan(before);
+  });
+
+  it('keeps the Route ETA accuracy footer on the Locked time tab', async () => {
+    renderPage('/live-day?tab=locked');
+    expect(await screen.findByTestId('route-eta-accuracy')).toBeInTheDocument();
   });
 
   it('camera fits on first load but not on an identical poll', async () => {

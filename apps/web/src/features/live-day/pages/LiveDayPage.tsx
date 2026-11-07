@@ -69,6 +69,7 @@ export function LiveDayPage() {
   const selectedId = searchParams.get('inspector');
   const wantsAttention = searchParams.get('attention') === '1';
   const wantsRoutesAll = searchParams.get('routes') === 'all';
+  const activeTab: 'inspectors' | 'locked' = searchParams.get('tab') === 'locked' ? 'locked' : 'inspectors';
 
   // The "all" request is gated by the client cap, which needs the roster, which
   // needs a first response. So the geometry mode is state, re-derived by an
@@ -409,6 +410,8 @@ export function LiveDayPage() {
           redirectNotice={redirectNotice}
           eta={eta}
           detailHeadingRef={detailHeadingRef}
+          activeTab={activeTab}
+          onTabChange={(tab) => setParam('tab', tab === 'locked' ? 'locked' : null)}
           onDateChange={handleDateChange}
           onToday={handleToday}
           onToggleAttention={handleToggleAttention}

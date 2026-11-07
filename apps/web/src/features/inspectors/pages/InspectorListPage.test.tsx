@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -120,6 +120,112 @@ describe('InspectorListPage', () => {
 
     expect(screen.getAllByRole('status').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Carlos Silva')).not.toBeInTheDocument();
+  });
+
+  // ── L-F05-14: ?open=<id> deep link ──────────────────────────────────────────
+  const OPEN_UUID = '11111111-1111-4111-8111-111111111111';
+
+  let currentSearch = '';
+  function LocationProbe() {
+    currentSearch = useLocation().search;
+    return null;
+  }
+
+  function detailResp(id: string, name = 'Deep Linked') {
+    return Promise.resolve({
+      data: {
+        data: {
+          id,
+          name,
+          email: 'd@example.com',
+          phone: null,
+          status: 'ACTIVE',
+          regionIds: [],
+          serviceTypesJson: [],
+          rating: { average: null, responseCount: 0, doneServicesCount: 0 },
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+          address: null,
+        },
+      },
+      error: null,
+    });
+  }
+
+  function renderAt(path: string) {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    });
+    currentSearch = '';
+    return render(
+      <MemoryRouter initialEntries={[path]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <SnackbarProvider>
+              <InspectorListPage />
+              <LocationProbe />
+            </SnackbarProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+  }
+
+  it('opens the detail drawer from ?open=<uuid>', async () => {
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/inspectors') {
+        return Promise.resolve({ data: { data: MOCK_INSPECTORS, pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 } } });
+      }
+      if (path === `/v1/inspectors/${OPEN_UUID}`) return detailResp(OPEN_UUID);
+      return Promise.resolve({ data: { data: [], pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 } } });
+    });
+    renderAt(`/inspectors?open=${OPEN_UUID}`);
+    // The name shows in the drawer header and the Name row — at least one proves it opened.
+    expect((await screen.findAllByText('Deep Linked')).length).toBeGreaterThan(0);
+  });
+
+  it('removes ?open from the URL with replace when the drawer is closed', async () => {
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/inspectors') {
+        return Promise.resolve({ data: { data: MOCK_INSPECTORS, pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 } } });
+      }
+      if (path === `/v1/inspectors/${OPEN_UUID}`) return detailResp(OPEN_UUID);
+      return Promise.resolve({ data: { data: [], pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 } } });
+    });
+    renderAt(`/inspectors?open=${OPEN_UUID}`);
+    const names = await screen.findAllByText('Deep Linked');
+    const dialog = names[0]!.closest('[role="dialog"]') as HTMLElement;
+    fireEvent.click(within(dialog).getByLabelText('Close'));
+    await waitFor(() => expect(currentSearch).not.toContain('open'));
+  });
+
+  it('shows "This inspector no longer exists." for an unknown ?open uuid (404) without crashing', async () => {
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/inspectors') {
+        return Promise.resolve({ data: { data: MOCK_INSPECTORS, pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 } } });
+      }
+      if (path === `/v1/inspectors/${OPEN_UUID}`) return Promise.reject({ error: { code: 'NOT_FOUND', message: 'gone' } });
+      return Promise.resolve({ data: { data: [], pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 } } });
+    });
+    renderAt(`/inspectors?open=${OPEN_UUID}`);
+    expect(await screen.findByText('This inspector no longer exists.')).toBeInTheDocument();
+    // The list still renders — the deep link did not crash the page.
+    expect(screen.getByText('Carlos Silva')).toBeInTheDocument();
+  });
+
+  it('ignores a non-uuid ?open value (no drawer)', async () => {
+    mockGet.mockImplementation((path: string) => {
+      if (path === '/v1/inspectors') {
+        return Promise.resolve({ data: { data: MOCK_INSPECTORS, pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1 } } });
+      }
+      return Promise.resolve({ data: { data: [], pagination: { page: 1, pageSize: 100, total: 0, totalPages: 0 } } });
+    });
+    renderAt('/inspectors?open=abc');
+    await screen.findByText('Carlos Silva');
+    // No drawer is open — both the detail and form drawers stay closed (aria-modal="false").
+    const openDialogs = screen.getAllByRole('dialog').filter((d) => d.getAttribute('aria-modal') === 'true');
+    expect(openDialogs).toHaveLength(0);
+    expect(screen.queryByText('Deep Linked')).not.toBeInTheDocument();
   });
 
   it('shows the filter-specific empty state when the "No base address" filter returns nothing', async () => {

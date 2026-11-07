@@ -33,6 +33,28 @@ async function mockRouteWeights(page: Page) {
   });
 }
 
+async function mockLiveDayAlerts(page: Page) {
+  // The page also renders the Live Day alerts section (F05-3); keep it loading cleanly.
+  const value = { delayMinutes: 20, notStartedMinutes: 30 };
+  await page.route('**/v1/platform-settings/liveDayAlerts', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          key: 'liveDayAlerts',
+          section: 'Live Day alerts',
+          value,
+          defaults: value,
+          isDefault: true,
+          updatedAt: null,
+          updatedBy: null,
+        },
+      }),
+    });
+  });
+}
+
 async function mockPlatformSetting(page: Page) {
   let value = { ...DEFAULT_VALUE };
   await page.route('**/v1/platform-settings/fieldEvents', async (route) => {
@@ -65,6 +87,7 @@ test.describe('Platform settings — Field events (03.A2 web)', () => {
     await mockMeEndpoint(page, AM_USER);
     await mockPlatformSetting(page);
     await mockRouteWeights(page);
+    await mockLiveDayAlerts(page);
   });
 
   test('AM edits the radius and mode, saves, and the values persist on reload', async ({ page }) => {
