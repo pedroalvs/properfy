@@ -208,6 +208,10 @@ The following product decisions are **settled** in `F07-tarefas.md` (plan 2026-1
 - **R3 per-field timezone** (adopted): civil dates/windows in the agency timezone; the snapshot/job (F07-2) in `PLATFORM_TIMEZONE`.
 - **Dependencies merged before this slice**: TASK-X00-1, TASK-F03-1 (settings, execution flags, `resolveEffectiveEventTime`), TASK-F03-2 (`inspector_field_events`, `abandoned_at`), TASK-F04-1 (`default_duration_minutes`), TASK-F04-2 (`day_plans`/`day_plan_stops` with `published_eta`, `published_service_start_at`).
 
+### Security tradeoff (known limitation)
+
+An automated security review flagged that the engine trusts client-reported inputs for scoring: device timestamps (`resolveEffectiveEventTime`, −7 days / +5 min) can earn advance-notice / early-`CANT_ATTEND` credit and rescue a `LATE` start to `PUNCTUAL`, and a self-reported GPS accuracy above the radius makes a far check-in geofence-`EXCLUDED`. An inspector who manipulates their device clock or reports inflated accuracy could therefore reduce their own index. This is a deliberate, spec-mandated reuse of the F03 **D25** "never penalise without evidence" rule (P4, R1, R6) and the **P6** geofence rule, chosen for the check-in flow's goal of not falsely penalising an honest late-sync; it is kept here for contract consistency with F03. The accountability-context hardening (server `created_at` for the advance/early-notice *decisions*, a server-side GPS-accuracy cap) is a cross-cutting change that also touches F03's D25 and F08's reward threat model, so it is recorded as a follow-up for the plan (`estacionamento`) rather than taken unilaterally in this slice. Mitigations already in place: a `CANT_ATTEND` warned "early" still counts as a fault in metric 6; the client time is bounded to a 7-day window; and every penalty decision has a bounded, auditable input.
+
 ### Out of scope
 
 - The daily snapshot table, job, recompute-on-save, retention, and AM/OP API (TASK-F07-2).
