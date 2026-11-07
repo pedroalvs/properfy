@@ -1346,6 +1346,7 @@ model InspectionExecution {
 
   @@index([inspector_id])
   @@index([started_at])
+  @@index([finished_at])
   @@index([out_of_radius, started_at])
   @@index([out_of_window, started_at])
   @@map("inspection_executions")
