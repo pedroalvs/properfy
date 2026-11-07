@@ -39,3 +39,4 @@ export * from './phone';
 export * from './platform-settings';
 export * from './day-plan';
 export * from './live-day';
+export * from './property-files';

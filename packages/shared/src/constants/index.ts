@@ -9,3 +9,4 @@ export * from './phone';
 export * from './transition-sources';
 export * from './inspector-notices';
 export * from './day-plan';
+export * from './property-files';
