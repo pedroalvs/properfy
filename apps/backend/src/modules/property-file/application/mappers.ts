@@ -38,3 +38,25 @@ export function toPropertyIssueResponse(
     photos: photos.map(toPropertyFileResponse),
   };
 }
+
+/**
+ * Strip actor identity from a file DTO so an inspector never learns who uploaded
+ * a peer's file (D28). Content (name, type, version, photo) is kept.
+ */
+export function maskPropertyFileForInspector(file: PropertyFileResponse): PropertyFileResponse {
+  return { ...file, uploadedByUserId: null };
+}
+
+/**
+ * Strip peer identity from an issue DTO for an inspector (D28): author, seer and
+ * the linked field event are nulled; the reason, source and photos stay visible.
+ */
+export function maskPropertyIssueForInspector(issue: PropertyIssueResponse): PropertyIssueResponse {
+  return {
+    ...issue,
+    createdByUserId: null,
+    seenByUserId: null,
+    cantDoEventId: null,
+    photos: issue.photos.map(maskPropertyFileForInspector),
+  };
+}

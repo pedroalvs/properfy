@@ -1,7 +1,7 @@
 import type { AuthContext, ListPropertyFilesQuery, ListPropertyFilesResponse } from '@properfy/shared';
 import type { IPropertyFileRepository } from '../../domain/property-file.repository';
 import type { PropertyScopeService } from '../property-scope.service';
-import { toPropertyFileResponse } from '../mappers';
+import { toPropertyFileResponse, maskPropertyFileForInspector } from '../mappers';
 
 export interface ListPropertyFilesCommand {
   actor: AuthContext;
@@ -28,6 +28,9 @@ export class ListPropertyFilesUseCase {
       ? await this.fileRepo.countsByAppointment(query.appointmentId, listScope.tenantId)
       : await this.fileRepo.countsByProperty(query.propertyId!, listScope.tenantId);
 
-    return { files: files.map(toPropertyFileResponse), counts };
+    const dtos = files.map(toPropertyFileResponse);
+    // An inspector never learns who uploaded a peer's file (D28).
+    const masked = actor.role === 'INSP' ? dtos.map(maskPropertyFileForInspector) : dtos;
+    return { files: masked, counts };
   }
 }
