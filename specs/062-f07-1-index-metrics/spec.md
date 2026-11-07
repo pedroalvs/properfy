@@ -122,7 +122,7 @@ As an operator (through the F07-3 drawer), I need each metric result to carry up
 - **FR-013**: A `CANT_ATTEND` MUST be discarded when the same inspector has a DONE occurrence or a `NO_SHOW_REJECTED` on the same appointment; a `NO_SHOW_REJECTED` co-exists with a later DONE occurrence of the same inspector on the same appointment (distinct events).
 - **FR-014**: A later-rejected DONE MUST count in metric 8 **only** when the paired `status_transition` metadata has `rejectionReasonCode = 'NOT_EXECUTED'`; any other code (or a legacy row without the key) removes that DONE from the universe entirely (no fact for anyone).
 - **FR-015**: The service date MUST follow P2 by fact type, in the **agency timezone**: `inspection_executions.finished_at` (`EXECUTED`), `appointments.scheduled_date` (`DONE_WITHOUT_EXECUTION`, `NO_SHOW_REJECTED`), `inspector_field_events.created_at` (`CANT_ATTEND`); the only exception is a late `NOT_EXECUTED` rejection (L-F07-07), which uses the rejection date.
-- **FR-016**: The facts reader MUST load the entire universe in a **fixed number of queries** (seven, per the Q1–Q7 design), independent of the number of inspectors, and MUST accept an optional `inspectorIds` filter; it MUST select **no** latitude/longitude or any coordinate (D12 / F03 D10).
+- **FR-016**: The facts reader MUST load the entire universe in a **fixed number of queries** (seven logical statements per the Q1–Q7 design; Q1a/Q1b/Q2 are combined in one `UNION ALL`), independent of the number of inspectors, and MUST accept an optional `inspectorIds` filter; it MUST select **no** latitude/longitude or any coordinate (D12 / F03 D10).
 
 **Backend — service weight & per-metric evaluation (domain, pure)**
 
@@ -161,7 +161,7 @@ As an operator (through the F07-3 drawer), I need each metric result to carry up
 
 **Multi-tenant & privacy**
 
-- **FR-037**: Reliability facts, metrics, and the (future) snapshot MUST carry **no `tenant_id`**: the inspector is cross-tenant (D9; precedents: `Inspector`, global `ServiceRegion`, `DayPlan`, `PlatformSetting`). The facts reader scopes by `inspectorId`, never by tenant; it reads `appointments.tenant_id` only to resolve the agency timezone. This slice exposes no endpoint, so the `CL_ADMIN`/`CL_USER`/`INSP`/`TNT` → 403 isolation and its scope test land at the API in TASK-F07-2; this slice MUST prove privacy-by-construction (no coordinate selected into facts, results, or failure details).
+- **FR-037**: Reliability facts, metrics, and the (future) snapshot MUST carry **no `tenant_id`**: the inspector is cross-tenant (D9; precedents: `Inspector`, `DayPlan`, `PlatformSetting`). The facts reader scopes by `inspectorId`, never by tenant; it reads `appointments.tenant_id` only to resolve the agency timezone. This slice exposes no endpoint, so the `CL_ADMIN`/`CL_USER`/`INSP`/`TNT` → 403 isolation and its scope test land at the API in TASK-F07-2; this slice MUST prove privacy-by-construction (no coordinate selected into facts, results, or failure details).
 
 ### Key Entities *(include if feature involves data)*
 
