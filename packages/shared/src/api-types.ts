@@ -2461,6 +2461,7 @@ export interface paths {
                     type?: "APARTMENT" | "HOUSE";
                     search?: string;
                     hasCoordinates?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
+                    withIssues?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
                     nearLat?: number;
                     nearLng?: number;
                     nearRadiusKm?: number;
@@ -2518,6 +2519,14 @@ export interface paths {
                                 };
                                 createdAt: string;
                                 updatedAt: string;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             }[];
                             pagination: {
                                 page: number;
@@ -2623,6 +2632,14 @@ export interface paths {
                                 };
                                 createdAt: string;
                                 updatedAt: string;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             };
                         };
                     };
@@ -2745,6 +2762,14 @@ export interface paths {
                                 };
                                 createdAt: string;
                                 updatedAt: string;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             };
                         };
                     };
@@ -2870,6 +2895,14 @@ export interface paths {
                                 };
                                 createdAt: string;
                                 updatedAt: string;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             };
                         };
                     };
@@ -5758,6 +5791,7 @@ export interface paths {
                     hasRentalTenantNote?: boolean;
                     confirmationStatus?: "sent" | "not_sent";
                     serviceGroupId?: string;
+                    withIssues?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -5874,6 +5908,14 @@ export interface paths {
                                 serviceType?: unknown;
                                 inspector?: unknown;
                                 branch?: unknown;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             }[];
                             pagination: {
                                 page: number;
@@ -6088,6 +6130,14 @@ export interface paths {
                                 serviceType?: unknown;
                                 inspector?: unknown;
                                 branch?: unknown;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             };
                         };
                     };
@@ -6175,6 +6225,7 @@ export interface paths {
                     hasRentalTenantNote?: boolean;
                     confirmationStatus?: "sent" | "not_sent";
                     serviceGroupId?: string;
+                    withIssues?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -6334,6 +6385,14 @@ export interface paths {
                                 serviceType?: unknown;
                                 inspector?: unknown;
                                 branch?: unknown;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             };
                         };
                     };
@@ -6548,6 +6607,14 @@ export interface paths {
                                 serviceType?: unknown;
                                 inspector?: unknown;
                                 branch?: unknown;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             };
                         };
                     };
@@ -12437,6 +12504,612 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-files/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        propertyId: string;
+                        /** Format: uuid */
+                        appointmentId?: string;
+                        /** @enum {string} */
+                        type: "ISSUE" | "DOCUMENT" | "REPORT" | "OTHER";
+                        fileName: string;
+                        mime: string;
+                        sizeBytes?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                fileId: string;
+                                /** Format: uri */
+                                uploadUrl: string;
+                                storageKey: string;
+                                expiresAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-files/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        fileId: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                propertyId: string;
+                                /** Format: uuid */
+                                appointmentId: string | null;
+                                /** Format: uuid */
+                                issueId: string | null;
+                                /** @enum {string} */
+                                type: "ISSUE" | "DOCUMENT" | "REPORT" | "OTHER";
+                                /** Format: uuid */
+                                versionGroupId: string;
+                                version: number;
+                                fileName: string;
+                                mime: string;
+                                sizeBytes: number;
+                                /** @enum {string} */
+                                status: "PENDING" | "READY";
+                                /** Format: uuid */
+                                uploadedByUserId: string | null;
+                                createdAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    propertyId?: string;
+                    appointmentId?: string;
+                    type?: "ISSUE" | "DOCUMENT" | "REPORT" | "OTHER";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                files: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** Format: uuid */
+                                    propertyId: string;
+                                    /** Format: uuid */
+                                    appointmentId: string | null;
+                                    /** Format: uuid */
+                                    issueId: string | null;
+                                    /** @enum {string} */
+                                    type: "ISSUE" | "DOCUMENT" | "REPORT" | "OTHER";
+                                    /** Format: uuid */
+                                    versionGroupId: string;
+                                    version: number;
+                                    fileName: string;
+                                    mime: string;
+                                    sizeBytes: number;
+                                    /** @enum {string} */
+                                    status: "PENDING" | "READY";
+                                    /** Format: uuid */
+                                    uploadedByUserId: string | null;
+                                    createdAt: string;
+                                }[];
+                                counts: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-files/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uri */
+                                url: string;
+                                expiresAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-files/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        fileName: string;
+                        mime: string;
+                        sizeBytes?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                fileId: string;
+                                /** Format: uri */
+                                uploadUrl: string;
+                                storageKey: string;
+                                expiresAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-files/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    propertyId?: string;
+                    appointmentId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                issues: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** Format: uuid */
+                                    propertyId: string;
+                                    /** Format: uuid */
+                                    appointmentId: string | null;
+                                    reason: string;
+                                    /** @enum {string} */
+                                    source: "INSPECTOR" | "STAFF" | "RENTAL_TENANT_PORTAL";
+                                    /** Format: uuid */
+                                    createdByUserId: string | null;
+                                    /** Format: uuid */
+                                    cantDoEventId: string | null;
+                                    seenAt: (string) | null;
+                                    /** Format: uuid */
+                                    seenByUserId: string | null;
+                                    createdAt: string;
+                                    photos: {
+                                        /** Format: uuid */
+                                        id: string;
+                                        /** Format: uuid */
+                                        propertyId: string;
+                                        /** Format: uuid */
+                                        appointmentId: string | null;
+                                        /** Format: uuid */
+                                        issueId: string | null;
+                                        /** @enum {string} */
+                                        type: "ISSUE" | "DOCUMENT" | "REPORT" | "OTHER";
+                                        /** Format: uuid */
+                                        versionGroupId: string;
+                                        version: number;
+                                        fileName: string;
+                                        mime: string;
+                                        sizeBytes: number;
+                                        /** @enum {string} */
+                                        status: "PENDING" | "READY";
+                                        /** Format: uuid */
+                                        uploadedByUserId: string | null;
+                                        createdAt: string;
+                                    }[];
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        propertyId: string;
+                        /** Format: uuid */
+                        appointmentId?: string;
+                        reason: string;
+                        photoFileIds?: string[];
+                        /** Format: uuid */
+                        cantDoEventId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                propertyId: string;
+                                /** Format: uuid */
+                                appointmentId: string | null;
+                                reason: string;
+                                /** @enum {string} */
+                                source: "INSPECTOR" | "STAFF" | "RENTAL_TENANT_PORTAL";
+                                /** Format: uuid */
+                                createdByUserId: string | null;
+                                /** Format: uuid */
+                                cantDoEventId: string | null;
+                                seenAt: (string) | null;
+                                /** Format: uuid */
+                                seenByUserId: string | null;
+                                createdAt: string;
+                                photos: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** Format: uuid */
+                                    propertyId: string;
+                                    /** Format: uuid */
+                                    appointmentId: string | null;
+                                    /** Format: uuid */
+                                    issueId: string | null;
+                                    /** @enum {string} */
+                                    type: "ISSUE" | "DOCUMENT" | "REPORT" | "OTHER";
+                                    /** Format: uuid */
+                                    versionGroupId: string;
+                                    version: number;
+                                    fileName: string;
+                                    mime: string;
+                                    sizeBytes: number;
+                                    /** @enum {string} */
+                                    status: "PENDING" | "READY";
+                                    /** Format: uuid */
+                                    uploadedByUserId: string | null;
+                                    createdAt: string;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-issues/unseen-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                appointmentsWithUnseenIssues: number;
+                                propertiesWithUnseenIssues: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-issues/{id}/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                seen: boolean;
+                                alreadySeen: boolean;
+                                seenAt: (string) | null;
+                                /** Format: uuid */
+                                seenByUserId: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-issues/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;

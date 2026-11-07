@@ -133,6 +133,7 @@ async function start() {
       container.tenantEta.evaluateTenantEtaUseCase,
       container.tenantEta.sweepTenantEtaDelaysUseCase,
       container.tenantEta.settingsReader,
+      container.propertyFileRetentionWorker,
       app.log,
     );
   }

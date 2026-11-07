@@ -1464,6 +1464,10 @@ model PropertyFile {
   size_bytes          BigInt
   storage_key         String
   status              PropertyFileStatus @default(PENDING)
+  // Set at confirm once headObject + size + magic-byte checks pass (F10). An
+  // issue photo stays PENDING until its issue is created, so this (not status)
+  // is what proves a photo was validated before it is linked to an issue (D20).
+  confirmed_at        DateTime?
   uploaded_by_user_id String? // actor column, no FK (house convention)
   deleted_at          DateTime?
   deleted_by_user_id  String?

@@ -65,6 +65,17 @@ export class PropertyFileObjectMissingError extends ValidationError {
   }
 }
 
+/** A `cantDoEventId` that is not the inspector's own CANT_DO event for the appointment. */
+export class PropertyIssueInvalidCantDoEventError extends ValidationError {
+  constructor() {
+    super(
+      'The referenced field event is not valid for this issue.',
+      undefined,
+      'PROPERTY_ISSUE_INVALID_CANT_DO_EVENT',
+    );
+  }
+}
+
 /** An appointment that does not belong to the issue's property + tenant (D1). */
 export class PropertyIssueAppointmentMismatchError extends ValidationError {
   constructor() {

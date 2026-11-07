@@ -18,6 +18,8 @@ export interface PropertyFilters {
   type?: string;
   search?: string;
   hasCoordinates?: boolean;
+  /** F10 "With issues": only properties that have a non-deleted issue. */
+  withIssues?: boolean;
   nearLocation?: NearLocationFilter;
 }
 

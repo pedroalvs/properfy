@@ -459,6 +459,10 @@ export class PrismaPropertyRepository
         },
       ];
     }
+    // F10 "With issues": only properties with a non-deleted property issue.
+    if (filters.withIssues) {
+      where['property_issues'] = { some: { deleted_at: null } };
+    }
     return where;
   }
 

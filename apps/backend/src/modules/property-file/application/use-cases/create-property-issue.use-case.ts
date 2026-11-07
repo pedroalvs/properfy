@@ -26,6 +26,7 @@ import {
   PropertyIssueAppointmentMismatchError,
   PropertyIssueTooManyPhotosError,
   PropertyIssuePhotoLinkError,
+  PropertyIssueInvalidCantDoEventError,
   PropertyFileIdempotencyKeyMissingError,
   PropertyFileIdempotencyMismatchError,
 } from '../../domain/property-file.errors';
@@ -89,7 +90,9 @@ export class CreatePropertyIssueUseCase {
       throw new PropertyIssueTooManyPhotosError(config.maxPhotosPerIssue);
     }
 
-    const payloadHash = hashIdempotencyPayload(input);
+    // Bind the idempotency cache to the actor so a replayed key cannot return
+    // another actor's issue (the key is a client UUID; a leak would otherwise leak).
+    const payloadHash = hashIdempotencyPayload({ ...input, _actor: actor.userId });
     const cached = await this.idempotency.getWithHash<PropertyIssueResponse>(idempotencyKey, SCOPE);
     if (cached) {
       if (cached.payloadHash !== payloadHash) throw new PropertyFileIdempotencyMismatchError();
@@ -131,6 +134,7 @@ export class CreatePropertyIssueUseCase {
           {
             fileIds: photoFileIds,
             issueId,
+            propertyId: input.propertyId,
             appointmentId: resolved.appointmentId,
             tenantId: resolved.tenantId,
             now,
@@ -187,6 +191,20 @@ export class CreatePropertyIssueUseCase {
         }
         const vis = await this.visibility.resolveForInspector(appointmentId, actor.inspectorId);
         if (!vis || vis.propertyId !== input.propertyId) throw new PropertyIssueNotFoundError();
+        // Validate a supplied cant-do event is the inspector's own CANT_DO for
+        // this appointment (D18) — never link another event (IDOR).
+        if (input.cantDoEventId) {
+          const event = await this.issueRepo.findInspectorFieldEventScope(input.cantDoEventId);
+          if (
+            !event ||
+            event.type !== 'CANT_DO' ||
+            event.appointmentId !== appointmentId ||
+            event.inspectorId !== actor.inspectorId ||
+            event.tenantId !== vis.tenantId
+          ) {
+            throw new PropertyIssueInvalidCantDoEventError();
+          }
+        }
         return {
           source: 'INSPECTOR',
           tenantId: vis.tenantId,
