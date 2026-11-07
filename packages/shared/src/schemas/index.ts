@@ -37,5 +37,6 @@ export * from './inspector-availability';
 export * from './fy';
 export * from './phone';
 export * from './platform-settings';
+export * from './reliability';
 export * from './day-plan';
 export * from './live-day';

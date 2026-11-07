@@ -2388,3 +2388,115 @@ describe('ExecuteStatusTransitionUseCase – F03 expectedStatus CAS', () => {
     expect(call).toHaveLength(4);
   });
 });
+
+// =============================================================================
+// F07-1 accountability rejection codes (INSPECTOR_NO_SHOW / NOT_EXECUTED)
+// =============================================================================
+
+describe('ExecuteStatusTransitionUseCase – F07-1 rejection codes', () => {
+  const transitionAudit = () =>
+    (auditService.log as any).mock.calls.find(
+      (c: any[]) => c[0].action === 'appointment.status_transition',
+    );
+
+  it('accepts INSPECTOR_NO_SHOW from SCHEDULED (OP) and records the released inspector + code', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    await makeUseCase().execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: "Inspector didn't show up",
+      rejectionReasonCode: 'INSPECTOR_NO_SHOW',
+      actor: makeActor('OP'),
+    });
+    const call = transitionAudit();
+    expect(call[0].metadata).toMatchObject({
+      releasedInspectorId: 'insp-1',
+      rejectionReasonCode: 'INSPECTOR_NO_SHOW',
+    });
+  });
+
+  it('omits metadata.rejectionReasonCode when a rejection carries no code', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    await makeUseCase().execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'Property inaccessible',
+      actor: makeActor('OP'),
+    });
+    expect(transitionAudit()[0].metadata).not.toHaveProperty('rejectionReasonCode');
+  });
+
+  it('rejects INSPECTOR_NO_SHOW from a non-SCHEDULED status (422)', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations({ status: 'AWAITING_INSPECTOR' }));
+    await expect(
+      makeUseCase().execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'REJECTED',
+        reason: 'x',
+        rejectionReasonCode: 'INSPECTOR_NO_SHOW',
+        actor: makeActor('OP'),
+      }),
+    ).rejects.toMatchObject({ code: 'REJECTION_CODE_NOT_ALLOWED', statusCode: 422 });
+  });
+
+  it('refuses INSPECTOR_NO_SHOW for a CL actor via the RBAC matrix (403) and for SYS (422)', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    await expect(
+      makeUseCase({ withAuthorizationService: true }).execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'REJECTED',
+        reason: 'x',
+        rejectionReasonCode: 'INSPECTOR_NO_SHOW',
+        actor: makeActor('CL_ADMIN'),
+      }),
+    ).rejects.toMatchObject({ code: 'APPOINTMENT_TRANSITION_NOT_PERMITTED' });
+
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    await expect(
+      makeUseCase().execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'REJECTED',
+        reason: 'x',
+        rejectionReasonCode: 'INSPECTOR_NO_SHOW',
+        actor: makeActor('SYS'),
+      }),
+    ).rejects.toMatchObject({ code: 'REJECTION_CODE_NOT_ALLOWED', statusCode: 422 });
+  });
+
+  it('accepts NOT_EXECUTED from DONE (AM)', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'DONE', doneCheckedByUserId: 'checker-1', inspectorId: 'insp-1' }),
+    );
+    await makeUseCase().execute({
+      appointmentId: 'appt-1',
+      targetStatus: 'REJECTED',
+      reason: 'Not actually carried out',
+      rejectionReasonCode: 'NOT_EXECUTED',
+      actor: makeActor('AM'),
+    });
+    expect(transitionAudit()[0].metadata).toMatchObject({ rejectionReasonCode: 'NOT_EXECUTED' });
+  });
+
+  it('rejects NOT_EXECUTED from a non-DONE status (422)', async () => {
+    appointmentRepo.findById.mockResolvedValue(
+      makeWithRelations({ status: 'SCHEDULED', inspectorId: 'insp-1' }),
+    );
+    await expect(
+      makeUseCase().execute({
+        appointmentId: 'appt-1',
+        targetStatus: 'REJECTED',
+        reason: 'x',
+        rejectionReasonCode: 'NOT_EXECUTED',
+        actor: makeActor('OP'),
+      }),
+    ).rejects.toMatchObject({ code: 'REJECTION_CODE_NOT_ALLOWED', statusCode: 422 });
+  });
+});

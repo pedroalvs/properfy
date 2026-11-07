@@ -1,4 +1,4 @@
-import type { AuthContext, AppointmentStatus, CancellationReasonCode, RejectionReasonCode } from '@properfy/shared';
+import type { AuthContext, AppointmentStatus, CancellationReasonCode } from '@properfy/shared';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
@@ -16,6 +16,7 @@ import {
   AppointmentAccessDeniedError,
   AppointmentInvalidTransitionError,
   AppointmentTransitionNotPermittedError,
+  RejectionCodeNotAllowedError,
   AppointmentReasonRequiredError,
   AppointmentDoneCheckRequiredError,
   AppointmentDoneCheckerInvalidRoleError,
@@ -28,7 +29,7 @@ import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { AppointmentTransitionEvent } from '@properfy/shared';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
 import { APPOINTMENT_EVENTS } from '../../../../shared/application/events/domain-event-bus';
-import { SYSTEM_ONLY_REJECTION_CODES } from '@properfy/shared';
+import { SYSTEM_ONLY_REJECTION_CODES, RejectionReasonCode, allowedRejectionCodesFrom } from '@properfy/shared';
 
 export interface ExecuteStatusTransitionInput {
   appointmentId: string;
@@ -231,6 +232,20 @@ export class ExecuteStatusTransitionUseCase {
         'REJECTION_REASON_CODE_SYSTEM_ONLY',
         'The INSPECTOR_UNABLE rejection reason is assigned by the system only',
       );
+    }
+
+    // 3a-bis-3. Transition-origin guard for the F07-1 accountability codes:
+    // INSPECTOR_NO_SHOW only from SCHEDULED (and never by the system actor),
+    // NOT_EXECUTED only from DONE. General codes keep their pre-F07 origins, so
+    // this never rejects an existing rejection path. Actor-level RBAC (who may
+    // reject from each status) is unchanged and runs above.
+    if (rejectionReasonCode) {
+      if (!allowedRejectionCodesFrom(appointment.status).includes(rejectionReasonCode)) {
+        throw new RejectionCodeNotAllowedError(appointment.status, rejectionReasonCode);
+      }
+      if (rejectionReasonCode === RejectionReasonCode.INSPECTOR_NO_SHOW && isSystemActor) {
+        throw new RejectionCodeNotAllowedError(appointment.status, rejectionReasonCode);
+      }
     }
 
     // 3b. CL_USER permission check — configurable permissions per tenant
@@ -524,6 +539,12 @@ export class ExecuteStatusTransitionUseCase {
           beforeSnapshot.inspectorId = appointment.inspectorId;
           afterSnapshot.inspectorId = null;
           metadata.releasedInspectorId = appointment.inspectorId;
+        }
+        // Record the rejection code so the F07 reliability reader can attribute
+        // the fact (Q2/Q7 read `metadata.rejectionReasonCode` on the paired
+        // transition, not the appointment's current code, which can change later).
+        if (targetStatus === 'REJECTED' && rejectionReasonCode) {
+          metadata.rejectionReasonCode = rejectionReasonCode;
         }
       }
 

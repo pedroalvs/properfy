@@ -256,6 +256,8 @@ import { PrismaCompletionReminderReader } from '../modules/inspector-execution/i
 import type { InspectorExecutionRouteContainer } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
 import { GetExecutionDensityUseCase } from '../modules/inspector-execution/application/use-cases/get-execution-density.use-case';
 import { PrismaExecutionDensityReader } from '../modules/inspector-execution/infrastructure/prisma-execution-density.reader';
+import { ReliabilityMetricsService } from '../modules/reliability/application/reliability-metrics.service';
+import { PrismaReliabilityFactsReader } from '../modules/reliability/infrastructure/prisma-reliability-facts.reader';
 import type { ExecutionDensityRouteContainer } from '../modules/inspector-execution/interfaces/execution-density.routes';
 import { GetLiveDayUseCase } from '../modules/live-day/application/use-cases/get-live-day.use-case';
 import { GetLockedTimeUseCase } from '../modules/live-day/application/use-cases/get-locked-time.use-case';
@@ -572,6 +574,7 @@ export interface AppContainer {
   rentalTenantPortal: RentalTenantPortalRouteContainer;
   inspectorExecution: InspectorExecutionRouteContainer;
   executionDensity: ExecutionDensityRouteContainer;
+  reliability: { metricsService: ReliabilityMetricsService };
   liveDay: LiveDayRouteContainer;
   platformSettings: PlatformSettingsRouteContainer;
   billing: BillingRouteContainer;
@@ -1248,6 +1251,13 @@ export function createContainer(logger: Logger): AppContainer {
   // has no method that returns a raw coordinate.
   const executionDensityReader = new PrismaExecutionDensityReader(prisma);
   const getExecutionDensityUseCase = new GetExecutionDensityUseCase(executionDensityReader);
+
+  // Reliability metrics engine (F07-1) — dark; consumed by the F07-2 snapshot job
+  // and F08. No routes in this slice.
+  const reliabilityMetricsService = new ReliabilityMetricsService(
+    new PrismaReliabilityFactsReader(prisma),
+    platformSettingsService,
+  );
   // Live Day read model (F05-1): one aggregated query, zero Mapbox; reads thresholds
   // through the shared IPlatformSettingsReader (30 s cache).
   const liveDayReadRepository = new PrismaLiveDayReadRepository(prisma);
@@ -2061,6 +2071,9 @@ export function createContainer(logger: Logger): AppContainer {
       getExecutionDensityUseCase,
       jwtService,
       tenantRepo,
+    },
+    reliability: {
+      metricsService: reliabilityMetricsService,
     },
     liveDay: {
       getLiveDayUseCase,

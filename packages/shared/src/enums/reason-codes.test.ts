@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { CancellationReasonCode, RejectionReasonCode, SYSTEM_ONLY_REJECTION_CODES } from './reason-codes';
+import {
+  CancellationReasonCode,
+  RejectionReasonCode,
+  SYSTEM_ONLY_REJECTION_CODES,
+  ORIGIN_RESTRICTED_REJECTION_CODES,
+  allowedRejectionCodesFrom,
+} from './reason-codes';
 
 describe('CancellationReasonCode', () => {
   it('has expected codes', () => {
@@ -43,16 +49,65 @@ describe('RejectionReasonCode', () => {
     expect(RejectionReasonCode.INSPECTOR_UNABLE).toBe('INSPECTOR_UNABLE');
   });
 
-  // TASK-F07-1 raises this to 11 (INSPECTOR_NO_SHOW, NOT_EXECUTED). Keep this
-  // assertion scoped to "exactly 9" here; do not depend on the list being
-  // closed beyond this count.
-  it('has exactly 9 codes', () => {
-    expect(Object.keys(RejectionReasonCode)).toHaveLength(9);
+  it('has INSPECTOR_NO_SHOW and NOT_EXECUTED (F07-1 accountability codes)', () => {
+    expect(RejectionReasonCode.INSPECTOR_NO_SHOW).toBe('INSPECTOR_NO_SHOW');
+    expect(RejectionReasonCode.NOT_EXECUTED).toBe('NOT_EXECUTED');
+  });
+
+  // F07-1 added INSPECTOR_NO_SHOW and NOT_EXECUTED: 9 + 2 = 11.
+  it('has exactly 11 codes', () => {
+    expect(Object.keys(RejectionReasonCode)).toHaveLength(11);
   });
 });
 
 describe('SYSTEM_ONLY_REJECTION_CODES', () => {
   it('contains only INSPECTOR_UNABLE', () => {
     expect(SYSTEM_ONLY_REJECTION_CODES).toEqual([RejectionReasonCode.INSPECTOR_UNABLE]);
+  });
+
+  it('does not include the F07-1 operator codes', () => {
+    expect(SYSTEM_ONLY_REJECTION_CODES).not.toContain(RejectionReasonCode.INSPECTOR_NO_SHOW);
+    expect(SYSTEM_ONLY_REJECTION_CODES).not.toContain(RejectionReasonCode.NOT_EXECUTED);
+  });
+});
+
+describe('ORIGIN_RESTRICTED_REJECTION_CODES', () => {
+  it('is exactly the two F07-1 origin-restricted codes', () => {
+    expect(ORIGIN_RESTRICTED_REJECTION_CODES).toEqual([
+      RejectionReasonCode.INSPECTOR_NO_SHOW,
+      RejectionReasonCode.NOT_EXECUTED,
+    ]);
+  });
+
+  it('is disjoint from the system-only codes (they are operator codes, origin-gated)', () => {
+    for (const code of ORIGIN_RESTRICTED_REJECTION_CODES) {
+      expect(SYSTEM_ONLY_REJECTION_CODES).not.toContain(code);
+    }
+  });
+});
+
+describe('allowedRejectionCodesFrom (F07-1)', () => {
+  it('allows INSPECTOR_NO_SHOW only from SCHEDULED', () => {
+    expect(allowedRejectionCodesFrom('SCHEDULED')).toContain(RejectionReasonCode.INSPECTOR_NO_SHOW);
+    expect(allowedRejectionCodesFrom('SCHEDULED')).not.toContain(RejectionReasonCode.NOT_EXECUTED);
+  });
+
+  it('allows NOT_EXECUTED only from DONE', () => {
+    expect(allowedRejectionCodesFrom('DONE')).toContain(RejectionReasonCode.NOT_EXECUTED);
+    expect(allowedRejectionCodesFrom('DONE')).not.toContain(RejectionReasonCode.INSPECTOR_NO_SHOW);
+  });
+
+  it('allows neither restricted code from DRAFT, AWAITING_INSPECTOR or REJECTED', () => {
+    for (const from of ['DRAFT', 'AWAITING_INSPECTOR', 'REJECTED'] as const) {
+      expect(allowedRejectionCodesFrom(from)).not.toContain(RejectionReasonCode.INSPECTOR_NO_SHOW);
+      expect(allowedRejectionCodesFrom(from)).not.toContain(RejectionReasonCode.NOT_EXECUTED);
+    }
+  });
+
+  it('keeps the general codes available from every origin', () => {
+    for (const from of ['DRAFT', 'AWAITING_INSPECTOR', 'SCHEDULED', 'DONE', 'REJECTED'] as const) {
+      expect(allowedRejectionCodesFrom(from)).toContain(RejectionReasonCode.OTHER);
+      expect(allowedRejectionCodesFrom(from)).toContain(RejectionReasonCode.INVALID_ADDRESS);
+    }
   });
 });

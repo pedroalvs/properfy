@@ -94,18 +94,25 @@ describe('StatusTransitionDialog', () => {
     expect(labels).toHaveLength(6);
   });
 
-  // INSPECTOR_UNABLE is assigned only by the system when the inspector taps
-  // "Can't do this job"; a human rejecting by hand must never pick it (the
-  // backend refuses it with REJECTION_REASON_CODE_SYSTEM_ONLY). The filter is an
-  // isolated step over the option list so F07-3 can chain an origin filter.
-  it('does not offer INSPECTOR_UNABLE as a manual rejection reason', () => {
+  // The manual list hides every code a human must not hand-pick here:
+  //  - INSPECTOR_UNABLE is system-only (the inspector's "Can't do this job"
+  //    path); the backend refuses it with REJECTION_REASON_CODE_SYSTEM_ONLY.
+  //  - INSPECTOR_NO_SHOW / NOT_EXECUTED (F07-1) are origin-restricted to
+  //    SCHEDULED / DONE. This dialog knows the target status but not the source,
+  //    so offering them would be a guaranteed 422 REJECTION_CODE_NOT_ALLOWED.
+  // Both are isolated filter steps so F07-3 can replace them with an origin
+  // filter once the source status is passed in.
+  it('does not offer system-only or origin-restricted codes as manual rejection reasons', () => {
     render(<StatusTransitionDialog {...defaultProps} targetStatus="REJECTED" />);
 
     fireEvent.click(screen.getByLabelText('Reason Code'));
     const labels = screen.getAllByRole('option').map((o) => o.textContent);
 
     expect(labels).not.toContain('Inspector Unable');
-    // The eight remaining rejection reasons are still offered.
+    // F07-1 origin-restricted codes (humanized by formatReasonCodeLabel).
+    expect(labels).not.toContain("Inspector didn't attend");
+    expect(labels).not.toContain('Inspection was not actually carried out');
+    // The eight general rejection reasons, valid from any origin, are still offered.
     expect(labels).toContain('Invalid Address');
     expect(labels).toContain('Tenant Declined');
     expect(labels).toContain('Tenant No Response');

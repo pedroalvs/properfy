@@ -15,6 +15,11 @@ describe('formatReasonCodeLabel', () => {
     expect(formatReasonCodeLabel('INSPECTOR_UNABLE')).toBe('Inspector Unable');
   });
 
+  it('uses the F07-1 override labels for the accountability codes', () => {
+    expect(formatReasonCodeLabel('INSPECTOR_NO_SHOW')).toBe("Inspector didn't attend");
+    expect(formatReasonCodeLabel('NOT_EXECUTED')).toBe('Inspection was not actually carried out');
+  });
+
   it('returns an empty string for null/undefined/empty', () => {
     expect(formatReasonCodeLabel(null)).toBe('');
     expect(formatReasonCodeLabel(undefined)).toBe('');

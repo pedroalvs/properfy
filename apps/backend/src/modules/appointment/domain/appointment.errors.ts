@@ -1,4 +1,4 @@
-import { APPOINTMENT_STATUS_LABELS, type AppointmentStatus } from '@properfy/shared';
+import { APPOINTMENT_STATUS_LABELS, type AppointmentStatus, type RejectionReasonCode } from '@properfy/shared';
 import { NotFoundError, ForbiddenError, DomainError, ConflictError } from '../../../shared/domain/errors';
 
 /**
@@ -33,6 +33,22 @@ export class AppointmentInvalidTransitionError extends DomainError {
 export class AppointmentTransitionNotPermittedError extends ForbiddenError {
   constructor() {
     super('APPOINTMENT_TRANSITION_NOT_PERMITTED', 'Role not permitted for this transition');
+  }
+}
+
+/**
+ * The rejection reason code is not valid from the appointment's current status
+ * (F07-1): `INSPECTOR_NO_SHOW` only from `SCHEDULED` (and never by the system
+ * actor), `NOT_EXECUTED` only from `DONE`. 422 so the client can correct the code.
+ */
+export class RejectionCodeNotAllowedError extends DomainError {
+  constructor(fromStatus: AppointmentStatus, rejectionReasonCode: RejectionReasonCode) {
+    super(
+      'REJECTION_CODE_NOT_ALLOWED',
+      "This rejection reason can't be used from the current status",
+      422,
+      { fromStatus, rejectionReasonCode },
+    );
   }
 }
 
