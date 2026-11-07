@@ -337,11 +337,12 @@ export function LiveDayPage() {
     </>
   );
 
+  // Parity with the drawn lines: list only the routes actually on the map.
   const legendRoutes = drawShowAll
-    ? mapInspectors.map((i) => ({
-        inspectorId: i.inspectorId,
-        inspectorName: i.inspectorName,
-        color: inspectorRouteColor(i.inspectorId).hex,
+    ? routeList.map(({ inspector }) => ({
+        inspectorId: inspector.inspectorId,
+        inspectorName: inspector.inspectorName,
+        color: inspectorRouteColor(inspector.inspectorId).hex,
       }))
     : [];
 
@@ -350,8 +351,9 @@ export function LiveDayPage() {
       <MapContainer initialViewState={SYDNEY_DEFAULT} onMapReady={setMapInstance}>
         {mapChildren}
       </MapContainer>
-      {/* Legend overlay — always visible from md up; a collapsible "Legend" button on phones. */}
-      <div className="pointer-events-none absolute bottom-4 right-4 z-30 flex flex-col items-end gap-2">
+      {/* Legend overlay. Desktop: bottom-right, always visible. Phones: top-left
+          (clear of the bottom sheet and the top-right zoom control), collapsible. */}
+      <div className="pointer-events-none absolute left-4 top-4 z-40 flex flex-col items-start gap-2 md:left-auto md:right-4 md:top-auto md:bottom-4 md:items-end">
         <button
           type="button"
           className="pointer-events-auto rounded-lg border border-border-subtle bg-card-bg/90 px-3 py-2 text-sm font-semibold text-text-primary shadow-lg backdrop-blur-sm md:hidden"
