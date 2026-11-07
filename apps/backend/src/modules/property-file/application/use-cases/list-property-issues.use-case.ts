@@ -3,7 +3,7 @@ import type { IPropertyIssueRepository } from '../../domain/property-issue.repos
 import type { IPropertyFileRepository } from '../../domain/property-file.repository';
 import type { PropertyScopeService } from '../property-scope.service';
 import type { PropertyFileEntity } from '../../domain/property-file.entity';
-import { toPropertyIssueResponse } from '../mappers';
+import { toPropertyIssueResponse, maskPropertyIssueForInspector } from '../mappers';
 
 export interface ListPropertyIssuesCommand {
   actor: AuthContext;
@@ -34,10 +34,11 @@ export class ListPropertyIssuesUseCase {
       photosByIssue.set(photo.issueId, list);
     }
 
-    return {
-      issues: issues.map((issue) =>
-        toPropertyIssueResponse(issue, photosByIssue.get(issue.id) ?? []),
-      ),
-    };
+    const dtos = issues.map((issue) =>
+      toPropertyIssueResponse(issue, photosByIssue.get(issue.id) ?? []),
+    );
+    // An inspector sees the problem (reason + photos) but never a peer's identity (D28).
+    const masked = actor.role === 'INSP' ? dtos.map(maskPropertyIssueForInspector) : dtos;
+    return { issues: masked };
   }
 }
