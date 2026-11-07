@@ -4,8 +4,7 @@ import type { CreateNotificationUseCase } from '../../../notification/applicatio
 import type { IAppointmentRepository } from '../../../appointment/domain/appointment.repository';
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
 import type { Logger } from '../../../../shared/infrastructure/logger';
-
-const STUCK_THRESHOLD_HOURS = 6;
+import { STUCK_THRESHOLD_HOURS } from '../../domain/stuck-execution';
 
 /** One alert per execution per cool-off window — the cron runs hourly, alerting hourly is noise. */
 const ALERT_COOLOFF_HOURS = 24;

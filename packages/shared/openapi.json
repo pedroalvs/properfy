@@ -16706,6 +16706,8 @@
                       "TENANT_NO_RESPONSE",
                       "TENANT_DECLINED",
                       "INSPECTOR_UNABLE",
+                      "INSPECTOR_NO_SHOW",
+                      "NOT_EXECUTED",
                       "OTHER"
                     ]
                   },

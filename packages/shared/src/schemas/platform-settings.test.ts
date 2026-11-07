@@ -5,6 +5,7 @@ import {
   isPlatformSettingKey,
   resolvePlatformSettingValue,
 } from './platform-settings';
+import { RELIABILITY_METRIC_KEYS } from '../enums/reliability';
 
 describe('fieldEventsSettingSchema', () => {
   it('rejects an empty object (every field is required)', () => {
@@ -198,6 +199,103 @@ describe('liveDayAlerts platform setting (F05)', () => {
     expect(resolvePlatformSettingValue('liveDayAlerts', { delayMinutes: 'x' })).toEqual({
       value: PLATFORM_SETTINGS_REGISTRY.liveDayAlerts.defaults,
       valid: false,
+    });
+  });
+});
+
+describe('reliabilityIndex platform setting (F07-1)', () => {
+  const schema = PLATFORM_SETTINGS_REGISTRY.reliabilityIndex.schema;
+  const defaults = PLATFORM_SETTINGS_REGISTRY.reliabilityIndex.defaults;
+
+  it('has the documented defaults and section label', () => {
+    expect(defaults).toEqual({
+      weights: {
+        PUNCTUALITY: 1,
+        GEOFENCE: 1,
+        NO_STUCK: 1,
+        SATISFACTION: 1,
+        LATE_NOTICE: 1,
+        CANT_ATTEND: 1,
+        VOLUME: 1,
+        DONE_REJECTED: 1,
+      },
+      minimumVolume: 10,
+      volumeReferenceOverride: null,
+      minimumRatings: 3,
+    });
+    expect(PLATFORM_SETTINGS_REGISTRY.reliabilityIndex.section).toBe('Reliability index');
+  });
+
+  it('the weights object carries exactly RELIABILITY_METRIC_KEYS', () => {
+    expect(Object.keys(defaults.weights).sort()).toEqual([...RELIABILITY_METRIC_KEYS].sort());
+  });
+
+  it('is a known platform setting key with defaults that pass the schema', () => {
+    expect(isPlatformSettingKey('reliabilityIndex')).toBe(true);
+    expect(schema.safeParse(defaults).success).toBe(true);
+  });
+
+  it.each([0, 51, 2.5])('rejects minimumRatings %s', (minimumRatings) => {
+    expect(schema.safeParse({ ...defaults, minimumRatings }).success).toBe(false);
+  });
+
+  it.each([1, 50])('accepts minimumRatings %s', (minimumRatings) => {
+    expect(schema.safeParse({ ...defaults, minimumRatings }).success).toBe(true);
+  });
+
+  it('accepts a single weight set to 0', () => {
+    expect(schema.safeParse({ ...defaults, weights: { ...defaults.weights, PUNCTUALITY: 0 } }).success).toBe(true);
+  });
+
+  it('rejects all weights 0 with a weights-scoped message', () => {
+    const allZero = Object.fromEntries(RELIABILITY_METRIC_KEYS.map((k) => [k, 0]));
+    const res = schema.safeParse({ ...defaults, weights: allZero });
+    expect(res.success).toBe(false);
+    if (!res.success) {
+      const issue = res.error.issues.find((i) => i.message === 'Set at least one weight above 0');
+      expect(issue).toBeDefined();
+      expect(issue?.path).toEqual(['weights']);
+    }
+  });
+
+  it.each([11, -1, 1.5])('rejects weight value %s on PUNCTUALITY', (value) => {
+    const res = schema.safeParse({ ...defaults, weights: { ...defaults.weights, PUNCTUALITY: value } });
+    expect(res.success).toBe(false);
+    if (!res.success) {
+      expect(res.error.issues.some((i) => i.path.join('.') === 'weights.PUNCTUALITY')).toBe(true);
+    }
+  });
+
+  it('rejects a missing weight key', () => {
+    const { VOLUME: _omit, ...partial } = defaults.weights;
+    void _omit;
+    expect(schema.safeParse({ ...defaults, weights: partial }).success).toBe(false);
+  });
+
+  it.each([0, 201, 2.5])('rejects minimumVolume %s', (minimumVolume) => {
+    expect(schema.safeParse({ ...defaults, minimumVolume }).success).toBe(false);
+  });
+
+  it.each([1, 200])('accepts minimumVolume %s', (minimumVolume) => {
+    expect(schema.safeParse({ ...defaults, minimumVolume }).success).toBe(true);
+  });
+
+  it.each([0, 1001, 2.5])('rejects volumeReferenceOverride %s', (volumeReferenceOverride) => {
+    expect(schema.safeParse({ ...defaults, volumeReferenceOverride }).success).toBe(false);
+  });
+
+  it.each([null, 1, 1000])('accepts volumeReferenceOverride %s', (volumeReferenceOverride) => {
+    expect(schema.safeParse({ ...defaults, volumeReferenceOverride }).success).toBe(true);
+  });
+
+  it('resolves to the defaults when there is no stored value', () => {
+    expect(resolvePlatformSettingValue('reliabilityIndex', null)).toEqual({ value: defaults, valid: true });
+  });
+
+  it('merges a top-level stored field over the defaults', () => {
+    expect(resolvePlatformSettingValue('reliabilityIndex', { minimumVolume: 20 })).toEqual({
+      value: { ...defaults, minimumVolume: 20 },
+      valid: true,
     });
   });
 });

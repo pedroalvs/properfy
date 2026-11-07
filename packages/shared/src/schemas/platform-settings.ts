@@ -75,6 +75,50 @@ export const liveDayAlertsSettingSchema = z.object({
 export type LiveDayAlertsSetting = z.infer<typeof liveDayAlertsSettingSchema>;
 export const DEFAULT_LIVE_DAY_ALERTS = { delayMinutes: 20, notStartedMinutes: 30 } as const;
 
+/**
+ * Reliability index weights and thresholds (F07). The eight per-metric weights
+ * (0–10 integers; at least one > 0) drive the score; `minimumVolume` gates
+ * whether an inspector is scored at all; `volumeReferenceOverride` (null =
+ * median of active inspectors, P11) pins a fixed volume reference;
+ * `minimumRatings` is the floor below which SATISFACTION is dropped (L-F07-03).
+ * The weights object carries exactly the `RELIABILITY_METRIC_KEYS`.
+ */
+const reliabilityMetricWeight = z.number().int().min(0).max(10);
+export const reliabilityIndexSettingSchema = z.object({
+  weights: z
+    .object({
+      PUNCTUALITY: reliabilityMetricWeight,
+      GEOFENCE: reliabilityMetricWeight,
+      NO_STUCK: reliabilityMetricWeight,
+      SATISFACTION: reliabilityMetricWeight,
+      LATE_NOTICE: reliabilityMetricWeight,
+      CANT_ATTEND: reliabilityMetricWeight,
+      VOLUME: reliabilityMetricWeight,
+      DONE_REJECTED: reliabilityMetricWeight,
+    })
+    .refine((w) => Object.values(w).some((v) => v > 0), { message: 'Set at least one weight above 0' }),
+  minimumVolume: z.number().int().min(1).max(200),
+  volumeReferenceOverride: z.number().int().min(1).max(1000).nullable(),
+  minimumRatings: z.number().int().min(1).max(50),
+});
+export type ReliabilityIndexSetting = z.infer<typeof reliabilityIndexSettingSchema>;
+
+export const DEFAULT_RELIABILITY_INDEX = {
+  weights: {
+    PUNCTUALITY: 1,
+    GEOFENCE: 1,
+    NO_STUCK: 1,
+    SATISFACTION: 1,
+    LATE_NOTICE: 1,
+    CANT_ATTEND: 1,
+    VOLUME: 1,
+    DONE_REJECTED: 1,
+  },
+  minimumVolume: 10,
+  volumeReferenceOverride: null,
+  minimumRatings: 3,
+} as const;
+
 export const PLATFORM_SETTINGS_REGISTRY = {
   fieldEvents: {
     schema: fieldEventsSettingSchema,
@@ -108,6 +152,11 @@ export const PLATFORM_SETTINGS_REGISTRY = {
     schema: liveDayAlertsSettingSchema,
     defaults: DEFAULT_LIVE_DAY_ALERTS,
     section: 'Live Day alerts',
+  },
+  reliabilityIndex: {
+    schema: reliabilityIndexSettingSchema,
+    defaults: DEFAULT_RELIABILITY_INDEX,
+    section: 'Reliability index',
   },
 } as const satisfies Record<string, { schema: z.ZodTypeAny; defaults: unknown; section: string }>;
 
