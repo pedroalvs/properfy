@@ -12,10 +12,20 @@ import { DateInput } from '@/components/forms/DateInput';
 import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { TabsNav } from '@/components/layout/TabsNav';
 import type { UseEtaAccuracyReturn } from '../hooks/useEtaAccuracy';
 import { LiveDayInspectorRow } from './LiveDayInspectorRow';
 import { LiveDayInspectorDetail } from './LiveDayInspectorDetail';
+import { LockedTimeSection } from './LockedTimeSection';
 import { RouteEtaAccuracyFooter } from './RouteEtaAccuracyFooter';
+
+/** Which panel tab is showing (D9 — 01.13 is a tab here, not a separate screen). */
+export type LiveDayTab = 'inspectors' | 'locked';
+
+const LIVE_DAY_TABS = [
+  { id: 'inspectors', label: 'Inspectors' },
+  { id: 'locked', label: 'Locked time' },
+];
 
 const HELP_TEXT =
   "Positions come from each inspector's last check-in or check-out. Properfy doesn't track inspectors between stops, so 'In transit' is an estimate.";
@@ -35,6 +45,8 @@ interface LiveDayPanelProps {
   redirectNotice: string | null;
   eta: UseEtaAccuracyReturn;
   detailHeadingRef: RefObject<HTMLHeadingElement>;
+  activeTab: LiveDayTab;
+  onTabChange: (tab: LiveDayTab) => void;
   onDateChange: (date: string) => void;
   onToday: () => void;
   onToggleAttention: () => void;
@@ -96,6 +108,8 @@ export function LiveDayPanel({
   redirectNotice,
   eta,
   detailHeadingRef,
+  activeTab,
+  onTabChange,
   onDateChange,
   onToday,
   onToggleAttention,
@@ -145,6 +159,8 @@ export function LiveDayPanel({
         </div>
       </div>
 
+      <TabsNav tabs={LIVE_DAY_TABS} activeTab={activeTab} onChange={(id) => onTabChange(id as LiveDayTab)} />
+
       {redirectNotice && (
         <p role="status" className="border-b border-border-subtle bg-info/10 px-3 py-2 text-sm text-text-primary">
           {redirectNotice}
@@ -160,6 +176,12 @@ export function LiveDayPanel({
         </div>
       )}
 
+      {activeTab === 'locked' ? (
+        <div className="flex-1 overflow-y-auto">
+          <LockedTimeSection today={data.today} />
+        </div>
+      ) : (
+        <>
       {!selectedInspector && (
         <div className="border-b border-border-subtle p-3">
           <div className="grid grid-cols-4 gap-1.5">
@@ -248,6 +270,8 @@ export function LiveDayPanel({
           </ul>
         )}
       </div>
+        </>
+      )}
 
       <RouteEtaAccuracyFooter accuracy={eta.accuracy} isLoading={eta.isLoading} isError={eta.isError} />
     </div>

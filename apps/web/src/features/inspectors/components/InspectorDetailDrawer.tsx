@@ -31,7 +31,7 @@ export function InspectorDetailDrawer({
   onEdit,
 }: InspectorDetailDrawerProps) {
   const { user } = useAuth();
-  const { inspector, isLoading, refetch } = useInspectorDetail(inspectorId);
+  const { inspector, isLoading, isError, refetch } = useInspectorDetail(inspectorId);
 
   const [activeTab, setActiveTab] = useState<DrawerTab>('details');
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
@@ -155,6 +155,14 @@ export function InspectorDetailDrawer({
                     ratingCount={inspector.ratingCount}
                   />
                 )}
+              </div>
+            </>
+          ) : isError ? (
+            // The inspector was deleted (or the id is unknown), e.g. a stale `?open=` deep link.
+            <>
+              <DrawerHeader title="Inspector" onClose={onClose} />
+              <div className="flex-1 px-6 py-4">
+                <p className="text-sm text-text-secondary">This inspector no longer exists.</p>
               </div>
             </>
           ) : null}

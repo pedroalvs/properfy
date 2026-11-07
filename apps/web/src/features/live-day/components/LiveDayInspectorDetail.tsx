@@ -1,4 +1,5 @@
 import { forwardRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
   type LiveDayInspector,
   type LiveDayStop,
@@ -69,6 +70,19 @@ export const LiveDayInspectorDetail = forwardRef<HTMLHeadingElement, LiveDayInsp
             {done} of {total} done · {formatDelay(inspector.delayMinutes)}
           </span>
         </h2>
+
+        {/* Path to the per-inspector alert-limit override (L-F05-14). Same tab, so the
+            browser Back button returns here with the ?date/?inspector selection intact. */}
+        <div className="flex flex-col gap-0.5">
+          <Link
+            to={`/inspectors?open=${inspector.inspectorId}`}
+            className="inline-flex items-center gap-1 self-start text-sm font-semibold text-primary hover:underline"
+          >
+            <i className="mdi mdi-account-arrow-right-outline text-base leading-none" aria-hidden="true" />
+            Open inspector
+          </Link>
+          <span className="text-xs text-text-muted">Alert limits for this inspector are set in their profile</span>
+        </div>
 
         {routeLoading && (
           <p className="flex items-center gap-1 text-xs text-text-muted" role="status">

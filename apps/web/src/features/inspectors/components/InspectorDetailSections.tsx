@@ -10,6 +10,7 @@ import { StarRating } from '@/components/ui/StarRating';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { PLATFORM_TIMEZONE } from '@properfy/shared';
 import { formatLastSeenAbsolute, formatLastSeenRelative } from '../lib/adoption-format';
+import { InspectorAlertThresholdsSection } from './InspectorAlertThresholdsSection';
 
 /** Muted "last device seen" caption shown next to the per-device adoption fields. */
 const LAST_DEVICE_CAPTION = <span className="text-xs text-text-muted">Last device seen</span>;
@@ -260,6 +261,9 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
           }
         />
       </FormSection>
+
+      {/* AM/OP only — self-gated (returns null + disables its hook for CL roles). */}
+      <InspectorAlertThresholdsSection inspectorId={inspector.id} />
 
       <FormSection title="Record">
         <DetailRow label="Created At" value={formatInstantDateTime(inspector.createdAt)} />

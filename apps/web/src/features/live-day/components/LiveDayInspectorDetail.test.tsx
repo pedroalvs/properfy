@@ -65,4 +65,13 @@ describe('LiveDayInspectorDetail', () => {
     renderDetail(makeInspector(), { onBack });
     expect(screen.getByRole('button', { name: /back to all inspectors/i })).toBeInTheDocument();
   });
+
+  it('links to the inspector profile for the alert-limit override (L-F05-14)', () => {
+    renderDetail(makeInspector({ inspectorId: 'insp-9', inspectorName: 'Jane Doe' }));
+    const link = screen.getByRole('link', { name: 'Open inspector' });
+    expect(link).toHaveAttribute('href', '/inspectors?open=insp-9');
+    expect(
+      screen.getByText('Alert limits for this inspector are set in their profile'),
+    ).toBeInTheDocument();
+  });
 });
