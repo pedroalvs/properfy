@@ -1,121 +1,70 @@
-# Inspection Asset Retention Runbook
+# Property File Retention Runbook
+
+> **Correction (F10-1):** this runbook previously described an `InspectionAsset`
+> model and a manual archival process. That model **never shipped** (it was
+> documented but never migrated). The real file repository is F10's
+> `property_files` / `property_issues` (tenant-scoped), and retention is an
+> **automated** daily pg-boss job — not a manual process.
 
 ## Overview
 
-Inspection assets (photos, documents, signatures) are stored in Supabase Storage with no automated retention policy. Over time, completed inspections accumulate large volumes of binary data that increase storage costs without providing operational value.
-
-This runbook describes the recommended manual process for archiving old inspection assets. Automated scheduled jobs are deferred to a future phase.
+Property files (issue photos, documents, reports, other) are stored in the
+private Supabase Storage bucket `inspection-assets`. The daily job
+`property-file.retention` purges storage objects according to the configurable
+`propertyFiles` platform setting, so storage does not grow unbounded.
 
 ## Storage layout
 
-Assets are stored in the Supabase Storage bucket under paths following the pattern:
+Keys follow the shared grammar (`packages/shared/src/constants/property-files.ts`):
 
-```
-inspections/{executionId}/{assetType}/{filename}
-```
+- Authenticated files: `files/{tenantId}/{propertyId}/{fileId}.{ext}`
+- Rental-tenant portal issue photos: `files/{tenantId}/tenant-issues/{appointmentId}/{fileId}.{ext}`
 
-Asset types include `PHOTO`, `DOCUMENT`, and `SIGNATURE`, as defined by the `InspectionAssetType` enum.
+Each `property_files` row references its object via `storage_key` (`UNIQUE`).
 
-Each `InspectionAsset` record in the database references its storage path via the `file_key` column.
+## Configuration (`propertyFiles` platform setting)
 
-## Retention policy
+Set via `PUT /v1/platform-settings/propertyFiles` (AM/OP). Relevant keys:
 
-| Age | Action |
-|---|---|
-| 0-12 months | Active storage (hot tier, no action) |
-| 12-24 months | Move to cold storage bucket or Supabase Storage archive tier |
-| 24+ months | Evaluate deletion based on legal/contractual requirements |
+| Key | Default | Meaning |
+|---|---|---|
+| `retentionDays` | `null` | Purge **active** files older than this many days. `null` = keep everything. |
+| `deletedRetentionDays` | `365` | Purge **soft-deleted** files this many days after deletion. |
 
-**Important:** Only assets belonging to **completed** executions (status `DONE`) are eligible for archiving. Never archive assets for executions in progress or linked to open/disputed appointments.
+(`allowedMimes`, `maxFileSizeMb`, `issueImageMimes`, `maxPhotosPerIssue` govern upload validation, not retention.)
 
-## Pre-archive checklist
+## The job (`property-file.retention`)
 
-1. **Verify execution status.** Query `inspection_executions` to confirm `status = 'DONE'` and the parent appointment is also `DONE`.
-2. **Verify age threshold.** Only process assets where `inspection_executions.completed_at` is older than 12 months.
-3. **Check for active disputes or audits.** If the appointment has any unresolved financial adjustments, refunds, or audit flags, skip it.
-4. **Confirm backup.** Ensure Supabase point-in-time recovery is active and recent.
+Scheduled daily at **04:00 Australia/Sydney** (`main/workers.ts`), running
+`PropertyFileRetentionWorker`. Three steps, each deleting the storage object,
+stamping `purged_at`, and auditing `property_file.purged`:
 
-## Archive procedure
+1. **Deleted beyond retention** — soft-deleted `READY` files past
+   `deletedRetentionDays`.
+2. **Active beyond retention** — when `retentionDays` is non-null, active
+   `READY` files past it. A purged issue photo leaves its issue intact (the card
+   then shows "Photo removed (retention)").
+3. **Orphaned PENDING uploads** — `PENDING` rows older than 24 h (a presigned
+   upload that was never confirmed): the object is deleted (not-found ignored),
+   the row soft-deleted, and `purged_at` set.
 
-### 1. Identify eligible assets
+A failure on one row is logged (`property_file.purge_failed`) and never aborts
+the batch. The job processes up to 50 batches of 200 rows per step per run;
+anything left over is handled on the next day's run.
 
-```sql
-SELECT ia.id, ia.file_key, ie.completed_at
-FROM inspection_assets ia
-JOIN inspection_executions ie ON ie.id = ia.execution_id
-JOIN appointments a ON a.id = ie.appointment_id
-WHERE ie.status = 'DONE'
-  AND a.status = 'DONE'
-  AND ie.completed_at < NOW() - INTERVAL '12 months'
-ORDER BY ie.completed_at ASC;
-```
+## Operational checks
 
-### 2. Copy assets to cold storage
+- **Confirm the job runs:** look for `property_file.retention_completed` logs
+  (with `deletedPurged` / `activePurged` / `orphansPurged` counts).
+- **Audit trail:** `property_file.purged` audit entries record each purge
+  (`actorType: SYSTEM`, `reason: deleted_retention | active_retention | pending_orphan`).
+- **Manual trigger (if ever needed):** the job is a standard pg-boss schedule;
+  there is no manual archival step.
 
-Use the Supabase CLI or S3-compatible tooling to copy files from the active bucket to the archive bucket:
+## Hard delete (tenant / property)
 
-```bash
-# Example using s3cmd or aws CLI with Supabase S3 endpoint
-aws s3 cp s3://active-bucket/inspections/{executionId}/ \
-          s3://archive-bucket/inspections/{executionId}/ \
-          --recursive \
-          --endpoint-url $SUPABASE_S3_ENDPOINT
-```
-
-### 3. Verify copy integrity
-
-Compare checksums between source and destination for each file before proceeding.
-
-### 4. Update database references (optional)
-
-If the archive bucket uses a different base URL, update the `file_key` or add an `archived_at` timestamp to the `inspection_assets` table:
-
-```sql
-UPDATE inspection_assets
-SET archived_at = NOW()
-WHERE id IN (...archived asset IDs...);
-```
-
-### 5. Remove from active storage
-
-Only after successful verification:
-
-```bash
-aws s3 rm s3://active-bucket/inspections/{executionId}/ \
-          --recursive \
-          --endpoint-url $SUPABASE_S3_ENDPOINT
-```
-
-### 6. Log the operation
-
-Record the archive operation in the audit log with:
-- Number of assets archived
-- Execution IDs affected
-- Operator who performed the action
-- Date and time
-
-## Cascade order
-
-1. Check appointment status is `DONE`
-2. Check execution status is `DONE`
-3. Check no active disputes/adjustments
-4. Copy assets to cold storage
-5. Verify copy
-6. Update database records
-7. Remove from active storage
-
-## Rollback
-
-If issues are discovered after archiving:
-
-1. Copy files back from the archive bucket to the active bucket.
-2. Revert any `archived_at` timestamps in the database.
-3. Verify application access to restored files.
-
-## Frequency
-
-Recommended: quarterly review. Run the identification query monthly to monitor growth.
-
-## Future automation (Phase 3+)
-
-A pg-boss scheduled job (`asset.archive`) can automate steps 1-6 with idempotency keys per execution ID. This is deferred from Phase 2 to avoid introducing complexity before the retention policy is validated operationally.
+Hard-delete runbooks remove `property_files` and `property_issues` rows together
+with the owning tenant/property (see `tenant-hard-delete.md` /
+`property-hard-delete.md`). The storage objects themselves are removed by the
+retention job once the rows are purged; a full hard delete should also delete the
+`files/{tenantId}/...` prefix from the bucket out of band.
