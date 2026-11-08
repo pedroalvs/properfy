@@ -26,7 +26,10 @@ const LOAD_ERROR = "We couldn't load inspector performance.";
 export function InspectorPerformancePage() {
   const { ranking, isLoading, isError, refetch } = useReliabilityRanking();
   const [searchParams, setSearchParams] = useSearchParams();
-  const inspectorId = searchParams.get('inspector');
+  // Normalize an empty `?inspector=` to null: `""` is not null, so without this
+  // the drawer would open while its detail query stays disabled (Boolean("") is
+  // false) → a stuck skeleton with no not-found/retry.
+  const inspectorId = searchParams.get('inspector') || null;
   const triggerRef = useRef<HTMLElement | null>(null);
 
   const openInspector = useCallback(

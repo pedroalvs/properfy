@@ -131,18 +131,29 @@ describe('InspectorPerformancePage — ranking', () => {
 });
 
 describe('InspectorPerformancePage — drawer', () => {
+  // The drawer body (e.g. "Rank 4 of 5") only renders when actually open; the
+  // DrawerPanel dialog element itself is always in the DOM, so asserting on body
+  // content is the real open/closed signal.
   it('opens the drawer and sets ?inspector on row activation', () => {
     setRanking({ ranking: rankingFixture });
     renderPage();
+    expect(screen.queryByText('Rank 4 of 5')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Open Ana Costa details' }));
     expect(screen.getByTestId('inspector-param').textContent).toBe(INSPECTOR_IDS.ana);
-    expect(screen.getByRole('dialog', { name: 'Ana Costa reliability details' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Ana Costa reliability details' })).toHaveAttribute('aria-modal', 'true');
+    expect(screen.getByText('Rank 4 of 5')).toBeInTheDocument();
   });
 
   it('opens the drawer directly from a deep link', () => {
     setRanking({ ranking: rankingFixture });
     renderPage(`/inspector-performance?inspector=${INSPECTOR_IDS.ana}`);
-    expect(screen.getByRole('dialog', { name: 'Ana Costa reliability details' })).toBeInTheDocument();
+    expect(screen.getByText('Rank 4 of 5')).toBeInTheDocument();
+  });
+
+  it('treats an empty ?inspector= as closed (no stuck drawer body)', () => {
+    setRanking({ ranking: rankingFixture });
+    renderPage('/inspector-performance?inspector=');
+    expect(screen.queryByText('Rank 4 of 5')).not.toBeInTheDocument();
   });
 
   it('closes on Escape, clears the param and restores focus to the row control', () => {
@@ -150,10 +161,12 @@ describe('InspectorPerformancePage — drawer', () => {
     renderPage();
     const trigger = screen.getByRole('button', { name: 'Open Ana Costa details' });
     fireEvent.click(trigger);
+    expect(screen.getByText('Rank 4 of 5')).toBeInTheDocument();
     expect(screen.getByTestId('inspector-param').textContent).toBe(INSPECTOR_IDS.ana);
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.getByTestId('inspector-param').textContent).toBe('');
+    expect(screen.queryByText('Rank 4 of 5')).not.toBeInTheDocument();
     expect(document.activeElement).toBe(trigger);
   });
 });
