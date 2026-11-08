@@ -1,4 +1,4 @@
-import type { PropertyType, GeocodingStatus } from '@properfy/shared';
+import type { PropertyType, GeocodingStatus, FileCounts } from '@properfy/shared';
 
 export interface Property {
   id: string;
@@ -22,6 +22,12 @@ export interface Property {
   linenProvided: boolean | null;
   rentAmount: number | null;
   notes: string | null;
+  /**
+   * F10: true when the property has an unseen, non-deleted issue (D26; any issue,
+   * with or without an appointment). Populated only for AM/OP/CL_ADMIN —
+   * `false`/absent for CL_USER/INSP. Drives the yellow row border.
+   */
+  hasUnseenIssues?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,18 +35,23 @@ export interface Property {
 export interface PropertyDetail extends Property {
   latitude: number | null;
   longitude: number | null;
+  /** F10: per-type file counts on the property detail payload (C.9). */
+  fileCounts?: FileCounts;
 }
 
 export interface PropertyFiltersState {
   search: string;
   type: string;
   branchId: string;
+  /** F10 "With issues": only properties that have a non-deleted issue. */
+  withIssues: boolean;
 }
 
 export const DEFAULT_FILTERS: PropertyFiltersState = {
   search: '',
   type: '',
   branchId: '',
+  withIssues: false,
 };
 
 export interface PropertyFormData {

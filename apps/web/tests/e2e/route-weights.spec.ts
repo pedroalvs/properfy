@@ -56,6 +56,33 @@ async function mockSettings(page: Page) {
       }),
     });
   });
+
+  // Property files section loads cleanly (the page renders it too, F10-2).
+  const propertyFiles = {
+    allowedMimes: ['image/jpeg', 'application/pdf'],
+    maxFileSizeMb: 20,
+    issueImageMimes: ['image/jpeg'],
+    maxPhotosPerIssue: 10,
+    retentionDays: null,
+    deletedRetentionDays: 365,
+  };
+  await page.route('**/v1/platform-settings/propertyFiles', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          key: 'propertyFiles',
+          section: 'Property files',
+          value: propertyFiles,
+          defaults: propertyFiles,
+          isDefault: true,
+          updatedAt: null,
+          updatedBy: null,
+        },
+      }),
+    });
+  });
 }
 
 async function mockInspectorSearch(page: Page) {

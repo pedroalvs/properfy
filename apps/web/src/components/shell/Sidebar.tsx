@@ -48,6 +48,7 @@ export const NAV_ITEMS: NavItem[] = [
       { icon: 'mdi-bullhorn-outline', label: 'Inspector notices', to: '/inspector-notices', roles: [UserRole.AM, UserRole.OP] },
       { icon: 'mdi-chart-line', label: 'Analytics', to: '/analytics', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER] },
       { icon: 'mdi-account-clock-outline', label: 'Workload', to: '/inspector-workload', roles: [UserRole.AM, UserRole.OP] },
+      { icon: 'mdi-podium', label: 'Inspector performance', to: '/inspector-performance', roles: [UserRole.AM, UserRole.OP] },
     ],
   },
   // Map-first navigation: the map is the single entry point for appointments
@@ -129,9 +130,14 @@ export function filterNavItems(
 interface SidebarProps {
   mobile?: boolean;
   onNavigate?: () => void;
+  /**
+   * F10: unseen-issue counts for the amber dots. Owned by AppShell (so Sidebar
+   * stays presentational and query-free); absent in isolation → no dots.
+   */
+  unseenCounts?: { appointments: number; properties: number };
 }
 
-export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
+export function Sidebar({ mobile = false, onNavigate, unseenCounts }: SidebarProps) {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const clFlagsKey = (user?.clUserPermissions ?? []).join(',');
@@ -142,6 +148,15 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
     [user?.role, clFlagsKey],
   );
   const isMapRoute = pathname.includes('/map');
+
+  // F10: amber dots for unseen issues. Appointment issues → Map (the appointments
+  // surface; there is no Appointments nav item); property-only issues → Properties.
+  const badgeFor = (to?: string): number | undefined => {
+    if (!unseenCounts) return undefined;
+    if (to === '/map') return unseenCounts.appointments;
+    if (to === '/properties') return unseenCounts.properties;
+    return undefined;
+  };
 
   return (
     <aside
@@ -182,6 +197,7 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
               to={item.to!}
               mobile={mobile}
               onNavigate={onNavigate}
+              badge={badgeFor(item.to)}
             />
           ),
         )}

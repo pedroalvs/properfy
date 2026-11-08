@@ -23,6 +23,7 @@ export const APPOINTMENT_FILTER_SCHEMA = {
   endDate: { type: 'string' as const, default: '' },
   showCancelled: { type: 'boolean' as const, default: false },
   overdueOnly: { type: 'boolean' as const, default: false },
+  withIssues: { type: 'boolean' as const, default: false },
 } satisfies FilterSchema;
 
 /**
@@ -50,6 +51,7 @@ export function toAppointmentListParams(filters: AppointmentFiltersState): ListP
     toDate: filters.endDate || undefined,
     showCancelled: filters.showCancelled ? 'true' : undefined,
     overdueOnly: filters.overdueOnly ? 'true' : undefined,
+    withIssues: filters.withIssues ? 'true' : undefined,
   };
 }
 

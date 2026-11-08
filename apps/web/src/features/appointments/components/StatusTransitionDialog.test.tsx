@@ -120,6 +120,75 @@ describe('StatusTransitionDialog', () => {
     expect(labels).toHaveLength(8);
   });
 
+  // F07-3 — origin-scoped rejection reasons (L-F07-01 / L-F07-04).
+  describe('origin-scoped rejection reasons', () => {
+    it('offers INSPECTOR_NO_SHOW (not NOT_EXECUTED) from SCHEDULED', () => {
+      render(<StatusTransitionDialog {...defaultProps} targetStatus="REJECTED" currentStatus="SCHEDULED" />);
+      fireEvent.click(screen.getByLabelText('Reason Code'));
+      const labels = screen.getAllByRole('option').map((o) => o.textContent);
+      expect(labels).toContain("Inspector didn't attend");
+      expect(labels).not.toContain('Inspection was not actually carried out');
+    });
+
+    it('offers NOT_EXECUTED (not INSPECTOR_NO_SHOW) from DONE', () => {
+      render(<StatusTransitionDialog {...defaultProps} targetStatus="REJECTED" currentStatus="DONE" />);
+      fireEvent.click(screen.getByLabelText('Reason Code'));
+      const labels = screen.getAllByRole('option').map((o) => o.textContent);
+      expect(labels).toContain('Inspection was not actually carried out');
+      expect(labels).not.toContain("Inspector didn't attend");
+    });
+
+    it('offers neither accountability code from DRAFT or AWAITING_INSPECTOR', () => {
+      for (const status of ['DRAFT', 'AWAITING_INSPECTOR']) {
+        const { unmount } = render(
+          <StatusTransitionDialog {...defaultProps} targetStatus="REJECTED" currentStatus={status} />,
+        );
+        fireEvent.click(screen.getByLabelText('Reason Code'));
+        const labels = screen.getAllByRole('option').map((o) => o.textContent);
+        expect(labels).not.toContain("Inspector didn't attend");
+        expect(labels).not.toContain('Inspection was not actually carried out');
+        unmount();
+      }
+    });
+
+    it('shows the no-show reliability hint and submits INSPECTOR_NO_SHOW', () => {
+      const onConfirm = vi.fn();
+      render(
+        <StatusTransitionDialog {...defaultProps} onConfirm={onConfirm} targetStatus="REJECTED" currentStatus="SCHEDULED" />,
+      );
+      fireEvent.click(screen.getByLabelText('Reason Code'));
+      fireEvent.click(screen.getByRole('option', { name: "Inspector didn't attend" }));
+      expect(screen.getByText("This counts against the inspector's reliability score.")).toBeInTheDocument();
+      fireEvent.click(screen.getByText('Confirm'));
+      expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ reasonCode: 'INSPECTOR_NO_SHOW' }));
+    });
+
+    it('shows the not-executed reliability hint from DONE', () => {
+      render(<StatusTransitionDialog {...defaultProps} targetStatus="REJECTED" currentStatus="DONE" />);
+      fireEvent.click(screen.getByLabelText('Reason Code'));
+      fireEvent.click(screen.getByRole('option', { name: 'Inspection was not actually carried out' }));
+      expect(
+        screen.getByText("Only this reason counts against the inspector's reliability score."),
+      ).toBeInTheDocument();
+    });
+
+    it('shows a server error without closing the dialog', () => {
+      render(
+        <StatusTransitionDialog
+          {...defaultProps}
+          targetStatus="REJECTED"
+          currentStatus="SCHEDULED"
+          error="This rejection reason can't be used from the current status"
+        />,
+      );
+      expect(
+        screen.getByText("This rejection reason can't be used from the current status"),
+      ).toBeInTheDocument();
+      // still open
+      expect(screen.getByText('Cancel Appointment')).toBeInTheDocument();
+    });
+  });
+
   it('hides free text when reason code dropdown is shown without OTHER selected', () => {
     render(<StatusTransitionDialog {...defaultProps} targetStatus="CANCELLED" />);
     // When a reason code dropdown is shown but no code is selected yet,
