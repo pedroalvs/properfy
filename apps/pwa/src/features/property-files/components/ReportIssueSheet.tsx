@@ -84,13 +84,13 @@ export function ReportIssueSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
+      <SheetContent className="flex flex-col">
         <SheetHeader>
           <SheetTitle>Report issue</SheetTitle>
           <SheetDescription>{propertyAddress}</SheetDescription>
         </SheetHeader>
 
-        <div className="mt-4 flex flex-col gap-4 overflow-y-auto">
+        <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
           {!isOnline && (
             <Alert tone="warning" data-testid="report-issue-offline">
               <span>You need a connection to report an issue. Try again when you&apos;re back online.</span>
@@ -137,22 +137,24 @@ export function ReportIssueSheet({
               <span>{error}</span>
             </Alert>
           )}
+        </div>
 
-          <div className="flex flex-col gap-2">
-            <Button
-              variant="primary"
-              block
-              disabled={!canSubmit}
-              loading={mutation.isPending}
-              onClick={handleSubmit}
-              data-testid="report-issue-submit"
-            >
-              {mutation.isPending ? 'Reporting…' : 'Report issue'}
-            </Button>
-            <Button variant="outlined" block onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-          </div>
+        {/* Pinned footer so the primary action stays reachable on a phone even
+            when the scrollable body (reason + photos) overflows. */}
+        <div className="mt-3 flex shrink-0 flex-col gap-2 pt-1">
+          <Button
+            variant="primary"
+            block
+            disabled={!canSubmit}
+            loading={mutation.isPending}
+            onClick={handleSubmit}
+            data-testid="report-issue-submit"
+          >
+            {mutation.isPending ? 'Reporting…' : 'Report issue'}
+          </Button>
+          <Button variant="outlined" block onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
         </div>
       </SheetContent>
     </Sheet>

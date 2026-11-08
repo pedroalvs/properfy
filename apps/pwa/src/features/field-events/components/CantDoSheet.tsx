@@ -136,7 +136,7 @@ export function CantDoSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
+      <SheetContent className="flex flex-col">
         <SheetHeader>
           <SheetTitle>Can&apos;t do this job</SheetTitle>
           <SheetDescription>
@@ -144,7 +144,7 @@ export function CantDoSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-4 flex flex-col gap-4 overflow-y-auto">
+        <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
           {!isOnline && (
             <Alert tone="warning" data-testid="cant-do-offline">
               <span>You need a connection to report this. Try again when you&apos;re back online.</span>
@@ -226,22 +226,24 @@ export function CantDoSheet({
               <span>{error}</span>
             </Alert>
           )}
+        </div>
 
-          <div className="flex flex-col gap-2">
-            <Button
-              variant="danger"
-              block
-              disabled={!canSend}
-              loading={busy}
-              onClick={handleSend}
-              data-testid="cant-do-send"
-            >
-              {busy ? 'Sending…' : 'Send to operations'}
-            </Button>
-            <Button variant="outlined" block onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-          </div>
+        {/* Pinned footer so the primary action stays reachable on a phone even
+            when the scrollable body (reasons + note + photos) overflows. */}
+        <div className="mt-3 flex shrink-0 flex-col gap-2 pt-1">
+          <Button
+            variant="danger"
+            block
+            disabled={!canSend}
+            loading={busy}
+            onClick={handleSend}
+            data-testid="cant-do-send"
+          >
+            {busy ? 'Sending…' : 'Send to operations'}
+          </Button>
+          <Button variant="outlined" block onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
         </div>
       </SheetContent>
     </Sheet>
