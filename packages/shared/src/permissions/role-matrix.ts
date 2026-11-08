@@ -332,6 +332,13 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   'property_issue.unseen_count': {
     roles: ['AM', 'OP', 'CL_ADMIN'],
   },
+
+  // ── Reliability index (F07-2) ────────────────────────────────────────
+  // Platform-wide AM/OP read of the inspector reliability ranking/detail.
+  // Agencies never see the index (D4); INSP's own index is F08.
+  'reliability.view': {
+    roles: ['AM', 'OP'],
+  },
 } as const;
 
 /** All action keys in the matrix */
