@@ -58,7 +58,7 @@ const insp = { userId: 'u-insp', tenantId: TENANT_ID, role: 'INSP', branchId: nu
 const am = { userId: 'u-am', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
 
 const emptyPage = { data: [], total: 0, page: 1, pageSize: 20 };
-const summary = { totalDebits: 0, totalPayouts: 0, totalAdjustments: 0, totalRefunds: 0, pendingCount: 0, currency: 'AUD' };
+const summary = { totalDebits: 0, totalPayouts: 0, totalAdjustments: 0, totalRefunds: 0, totalBonuses: 0, pendingCount: 0, currency: 'AUD' };
 
 /** Agency has the `view_financials` flag enabled for its CL_USER cohort. */
 function tenantWithFlag() {

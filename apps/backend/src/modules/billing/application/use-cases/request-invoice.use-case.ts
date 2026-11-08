@@ -10,6 +10,7 @@ import {
   InvoiceActiveExistsError,
   InvoiceEmptyPeriodError,
   InvoiceMixedCurrencyError,
+  InvoiceNonPositiveTotalError,
   InvoicePeriodNotAlignedError,
   InvoicePeriodNotClosedError,
 } from '../../domain/billing.errors';
@@ -85,6 +86,13 @@ export class RequestInvoiceUseCase {
     if (!currency) {
       // count > 0 guarantees a currency; defensive narrowing for the type system.
       throw new InvoiceEmptyPeriodError();
+    }
+
+    // 2b. Q12 (F08-6/DQ13): the aggregate now includes bonuses and negative reversals. A period
+    // whose net total is ≤ 0 (e.g. a reversal-only period) has nothing to invoice; the operator
+    // resolves it with a manual adjustment.
+    if (agg.totalAmount <= 0) {
+      throw new InvoiceNonPositiveTotalError();
     }
 
     // 3. No ACTIVE invoice may exist for the exact period.

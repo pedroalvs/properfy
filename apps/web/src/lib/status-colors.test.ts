@@ -196,10 +196,11 @@ describe('FINANCIAL_ENTRY_TYPE_MAP', () => {
     FinancialEntryType.INSPECTOR_PAYOUT,
     FinancialEntryType.REFUND,
     FinancialEntryType.MANUAL_ADJUSTMENT,
+    FinancialEntryType.INSPECTOR_BONUS,
   ];
 
-  it('maps all 4 financial entry types', () => {
-    expect(Object.keys(FINANCIAL_ENTRY_TYPE_MAP)).toHaveLength(4);
+  it('maps all 5 financial entry types', () => {
+    expect(Object.keys(FINANCIAL_ENTRY_TYPE_MAP)).toHaveLength(5);
     for (const type of allTypes) {
       expect(FINANCIAL_ENTRY_TYPE_MAP[type]).toBeDefined();
     }

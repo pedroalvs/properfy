@@ -8,6 +8,7 @@ import { formatInstantDateTime } from '@/lib/format-date';
 import {
   useInspectorEarningsSummary,
   useInspectorPayoutHistory,
+  type PayoutEntry,
 } from '../hooks/useInspectorEarnings';
 import { EarningsChart, type ChartBar } from '../components/EarningsChart';
 import { Badge, type BadgeProps } from '@/components/ui/Badge';
@@ -37,6 +38,21 @@ const PAYOUT_TONE: Record<string, { label: string; tone: BadgeTone }> = {
 function PayoutStatusChip({ status }: { status: string }) {
   const s = PAYOUT_TONE[status] ?? { label: status, tone: 'gray' as BadgeTone };
   return <Badge tone={s.tone}>{s.label}</Badge>;
+}
+
+/** Row heading: payouts show the amount alone; bonuses add a label and their description. */
+function EntryHeading({ entry }: { entry: PayoutEntry }) {
+  const amount = formatCurrency(entry.amount, entry.currency);
+  if (entry.entryType !== 'INSPECTOR_BONUS') {
+    return <p className="text-sm font-medium text-foreground">{amount}</p>;
+  }
+  return (
+    <>
+      <p className="text-sm font-medium text-foreground">{amount}</p>
+      <p className="text-xs font-semibold text-foreground">{entry.amount < 0 ? 'Bonus reversal' : 'Bonus'}</p>
+      {entry.description && <p className="text-xs text-muted-foreground">{entry.description}</p>}
+    </>
+  );
 }
 
 /** Shared error card for a segment: icon + message + retry. */
@@ -200,7 +216,7 @@ export function EarningsPage() {
                     {entries.slice(0, 5).map((entry) => (
                       <div key={entry.id} className="flex items-center justify-between py-2.5">
                         <div>
-                          <p className="text-sm font-medium text-foreground">{formatCurrency(entry.amount, entry.currency)}</p>
+                          <EntryHeading entry={entry} />
                           <p className="text-xs text-muted-foreground">{formatInstantDateTime(entry.effectiveAt)}</p>
                         </div>
                         <PayoutStatusChip status={entry.status} />
@@ -275,7 +291,7 @@ export function EarningsPage() {
                 {entries.map((entry) => (
                   <Card key={entry.id} className="flex items-center justify-between px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium text-foreground">{formatCurrency(entry.amount, entry.currency)}</p>
+                      <EntryHeading entry={entry} />
                       <p className="text-xs text-muted-foreground">{formatInstantDateTime(entry.effectiveAt)}</p>
                     </div>
                     <PayoutStatusChip status={entry.status} />

@@ -54,7 +54,17 @@ function pendingAward(status: 'PENDING' | 'APPROVED') {
     indexSnapshotDate: '2026-11-08', status, approvedByUserId: null, approvedByName: null, approvedAt: null,
     paidAt: null, voidedByUserId: null, voidedByName: null, voidedAt: null, voidReason: null, inspectorNote: null,
     goal: { id: 'goal-1', title: 'Weekly ten' }, inspector: { id: 'insp-1', name: 'Jane Doe', email: 'jane@acme.test' },
+    financialEntryId: status === 'APPROVED' ? 'fe-1' : null, invoice: null, voidedAfterInvoicing: false,
     createdAt: '2026-11-08T00:00:00.000Z', updatedAt: '2026-11-08T00:00:00.000Z',
+  };
+}
+
+// Q12 (F08-6): an approved reward that has ridden a PAID inspector invoice.
+function paidAward() {
+  return {
+    ...pendingAward('APPROVED'), status: 'PAID', approvedByUserId: 'user-am-1', approvedByName: 'Alex Admin',
+    approvedAt: '2026-11-10T01:00:00.000Z', paidAt: '2026-11-20T02:00:00.000Z', financialEntryId: 'fe-1',
+    invoice: { id: 'inv-1', invoiceNumberDisplay: 'PINV-000042', status: 'PAID' }, voidedAfterInvoicing: false,
   };
 }
 
@@ -147,6 +157,33 @@ test.describe('Inspector program — Goals & rewards (03.A4)', () => {
     await page.getByRole('button', { name: 'Approve reward for Jane Doe' }).click();
     await expect(page.getByText('Reward approved')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Approve reward for Jane Doe' })).toHaveCount(0);
+  });
+
+  test('AM sees a Paid reward with its invoice link (F08-6)', async ({ page }) => {
+    await setupAuth(page);
+    await mockMeEndpoint(page, AM_USER);
+    await mockProgram(page);
+    // Override: the closed period's reward is PAID through invoice PINV-000042.
+    await page.route('**/v1/inspector-program/awards**', async (route) => {
+      await json(route, [paidAward()]);
+    });
+    await page.route('**/v1/inspector-program/summary**', async (route) => {
+      const start = new URL(route.request().url()).searchParams.get('periodStart');
+      const s = closedSummary();
+      if (start === '2026-11-09') return json(route, { ...s, periodStart: '2026-11-09', status: 'IN_PROGRESS' });
+      await json(route, { ...s, totals: { ...s.totals, approved: 0, paid: 30, pending: 0 } });
+    });
+
+    await page.goto('/goals-rewards');
+    await page.getByRole('tab', { name: 'Rewards' }).click();
+    await page.getByRole('button', { name: 'Period' }).click();
+    await page.getByRole('option', { name: 'Week of Mon 2 Nov 2026' }).click();
+
+    await expect(page.getByText('Jane Doe')).toBeVisible();
+    // The bonus rode invoice PINV-000042 — the Rewards tab links to it.
+    await expect(page.getByText('PINV-000042')).toBeVisible();
+    // No "Mark as paid" control exists anywhere (Q12).
+    await expect(page.getByRole('button', { name: /Mark as paid/i })).toHaveCount(0);
   });
 
   test('CL_ADMIN is denied the Goals & rewards route (Q18)', async ({ page }) => {

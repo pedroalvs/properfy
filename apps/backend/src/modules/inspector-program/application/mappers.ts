@@ -98,6 +98,11 @@ export function toRewardAwardResponse(award: RewardAwardWithRelations): RewardAw
     inspectorNote: award.inspectorNote,
     goal: { id: award.goal.id, title: award.goal.title },
     inspector: { id: award.inspector.id, name: award.inspector.name, email: award.inspector.email },
+    // Q12 (F08-6): the bonus ledger entry, the invoice it rode, and whether a void happened
+    // after invoicing (status VOID with an invoice link → a reversal was issued).
+    financialEntryId: award.financialEntryId,
+    invoice: award.invoice,
+    voidedAfterInvoicing: award.status === 'VOID' && award.inspectorInvoiceId !== null,
     createdAt: award.createdAt.toISOString(),
     updatedAt: award.updatedAt.toISOString(),
   };

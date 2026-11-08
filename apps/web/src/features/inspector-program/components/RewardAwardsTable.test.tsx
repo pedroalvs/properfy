@@ -10,7 +10,7 @@ function award(overrides: Partial<RewardAwardResponse> = {}): RewardAwardRespons
     goalTitle: 'Weekly ten', metric: 'VOLUME', comparator: 'GTE', target: 10, amount: 30, scopeLabel: null,
     achievedValue: 62, serviceCount: 62, achievedOn: '2026-11-07', indexScoreAtClose: 88.3, levelAtClose: 'GOLD',
     indexSnapshotDate: '2026-11-08', status: 'PENDING', approvedByUserId: null, approvedByName: null, approvedAt: null,
-    paidAt: null, voidedByUserId: null, voidedByName: null, voidedAt: null, voidReason: null, inspectorNote: null,
+    paidAt: null, financialEntryId: null, invoice: null, voidedAfterInvoicing: false, voidedByUserId: null, voidedByName: null, voidedAt: null, voidReason: null, inspectorNote: null,
     goal: { id: 'g1', title: 'Weekly ten' }, inspector: { id: 'i1', name: 'Jane Doe', email: 'jane@x.com' },
     createdAt: '2026-11-08T00:00:00.000Z', updatedAt: '2026-11-08T00:00:00.000Z', ...overrides,
   };
@@ -52,6 +52,46 @@ describe('RewardAwardsTable', () => {
     expect(screen.queryByRole('button', { name: /Approve/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Void reward for Jane Doe' })).toBeInTheDocument();
     expect(screen.queryByText(/Mark as paid/i)).not.toBeInTheDocument();
+  });
+
+  const INVOICE = { id: 'inv-1', invoiceNumberDisplay: 'PINV-000042', status: 'CLOSED' } as const;
+
+  it('shows "Approved · next invoice" and Void for APPROVED without an invoice, no invoice link', () => {
+    renderTable([award({ status: 'APPROVED', invoice: null })]);
+    expect(screen.getByText('Approved · next invoice')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Void reward for Jane Doe' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /PINV/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the invoice link and "Approved · on PINV-…" for APPROVED-invoiced; link opens the invoice', async () => {
+    const onViewInvoice = vi.fn();
+    renderTable([award({ status: 'APPROVED', invoice: INVOICE, financialEntryId: 'fe-1' })], { onViewInvoice });
+    expect(screen.getByText('Approved · on PINV-000042')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'PINV-000042' }));
+    expect(onViewInvoice).toHaveBeenCalledWith('inv-1');
+  });
+
+  it('hides Void on invoiced APPROVED/PAID rows unless the actor is an Admin Master', () => {
+    const rows = [
+      award({ id: 'a1', status: 'APPROVED', invoice: INVOICE }),
+      award({ id: 'a2', status: 'PAID', invoice: INVOICE, inspector: { id: 'i2', name: 'Bob', email: 'b@x.com' } }),
+    ];
+    const { unmount } = renderTable(rows, { canVoidInvoiced: false });
+    expect(screen.queryByRole('button', { name: /Void/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Paid')).toBeInTheDocument();
+    unmount();
+    renderTable(rows, { canVoidInvoiced: true });
+    expect(screen.getByRole('button', { name: 'Void reward for Jane Doe' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Void reward for Bob' })).toBeInTheDocument();
+  });
+
+  it('labels VOID rows "Voided after invoicing" or "Voided"', () => {
+    renderTable([
+      award({ id: 'a1', status: 'VOID', voidedAfterInvoicing: true }),
+      award({ id: 'a2', status: 'VOID', voidedAfterInvoicing: false, inspector: { id: 'i2', name: 'Bob', email: 'b@x.com' } }),
+    ]);
+    expect(screen.getByText('Voided after invoicing')).toBeInTheDocument();
+    expect(screen.getByText('Voided')).toBeInTheDocument();
   });
 
   it('offers no action on PAID or VOID', () => {

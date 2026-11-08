@@ -239,28 +239,43 @@ describe('ListFinancialEntriesUseCase', () => {
     expect(filtersArg.entryTypeIn).toBeUndefined();
   });
 
-  it('should force inspectorId and entryType for INSP role', async () => {
-    const payoutEntry = makeEnriched({
-      entryType: 'INSPECTOR_PAYOUT',
-      inspectorId: 'insp-user-1',
-    });
+  it('scopes INSP to its own inspector and the inspector leg (payouts + bonuses) by default', async () => {
+    const payoutEntry = makeEnriched({ entryType: 'INSPECTOR_PAYOUT', inspectorId: 'insp-user-1' });
     vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([payoutEntry]);
     vi.mocked(entryRepo.count).mockResolvedValue(1);
 
     await useCase.execute({
       ...defaultInput,
       inspectorId: 'some-other-inspector', // Should be ignored
-      type: 'TENANT_DEBIT', // Should be ignored
       actor: makeActor({ role: 'INSP', userId: 'insp-user-1', inspectorId: 'insp-user-1' }),
     });
 
-    expect(entryRepo.findAllEnriched).toHaveBeenCalledWith(
-      expect.objectContaining({
-        inspectorId: 'insp-user-1',
-        entryType: 'INSPECTOR_PAYOUT',
+    const filtersArg = vi.mocked(entryRepo.findAllEnriched).mock.calls[0]![0];
+    expect(filtersArg.inspectorId).toBe('insp-user-1');
+    // Q12 (F08-6): both inspector-leg types, not just payouts.
+    expect(filtersArg.entryTypeIn).toEqual(['INSPECTOR_PAYOUT', 'INSPECTOR_BONUS']);
+    expect(filtersArg.entryType).toBeUndefined();
+  });
+
+  it('lets INSP filter to INSPECTOR_BONUS but refuses a non-inspector type (403)', async () => {
+    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      ...defaultInput,
+      type: 'INSPECTOR_BONUS',
+      actor: makeActor({ role: 'INSP', userId: 'insp-user-1', inspectorId: 'insp-user-1' }),
+    });
+    const filtersArg = vi.mocked(entryRepo.findAllEnriched).mock.calls[0]![0];
+    expect(filtersArg.entryType).toBe('INSPECTOR_BONUS');
+
+    await expect(
+      useCase.execute({
+        ...defaultInput,
+        type: 'TENANT_DEBIT',
+        actor: makeActor({ role: 'INSP', userId: 'insp-user-1', inspectorId: 'insp-user-1' }),
       }),
-      expect.any(Object),
-    );
+    ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it('should return paginated result with total', async () => {

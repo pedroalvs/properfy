@@ -5,6 +5,7 @@ import type { FinancialEntryEntity } from '../../domain/financial-entry.entity';
 import {
   EntryNotFoundError,
   EntryNotEditableError,
+  BonusEntryManagedByRewardError,
   BillingIdempotencyPayloadMismatchError,
   BillingIdempotencyInProgressError,
 } from '../../domain/billing.errors';
@@ -28,7 +29,7 @@ export interface UpdateFinancialEntryInput {
 
 export interface UpdateFinancialEntryOutput {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   appointmentId: string | null;
   inspectorId: string | null;
   entryType: FinancialEntryType;
@@ -143,6 +144,10 @@ export class UpdateFinancialEntryUseCase {
     if (!entry) {
       throw new EntryNotFoundError();
     }
+    // Q12 (F08-6/DQ12): a bonus entry is managed only through the reward lifecycle.
+    if (entry.entryType === 'INSPECTOR_BONUS') {
+      throw new BonusEntryManagedByRewardError();
+    }
 
     // 3. Editability guard (fast, precise 409 before any write attempt).
     if (!entry.canBeEdited()) {
@@ -151,7 +156,8 @@ export class UpdateFinancialEntryUseCase {
 
     // 4. Atomic, tenant + status + type guarded update. A concurrent approve/void
     // that collapsed the PENDING window makes this affect zero rows → 409.
-    const affected = await this.financialEntryRepo.updateManualAdjustmentFields(entryId, entry.tenantId, actor.userId, {
+    // tenantId is non-null here: an INSPECTOR_BONUS (the only tenantless type) is refused above.
+    const affected = await this.financialEntryRepo.updateManualAdjustmentFields(entryId, entry.tenantId!, actor.userId, {
       amount: input.amount,
       description: input.description,
       effectiveAt: input.effectiveAt,

@@ -111,7 +111,7 @@ export function RequestInvoicePage() {
                         {formatInvoiceCurrency(previewQuery.data.totalAmount, previewQuery.data.currency ?? 'AUD')}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {previewQuery.data.payoutCount} approved payout{previewQuery.data.payoutCount === 1 ? '' : 's'}
+                        {previewQuery.data.payoutCount} approved item{previewQuery.data.payoutCount === 1 ? '' : 's'}
                       </p>
                     </div>
                   </div>

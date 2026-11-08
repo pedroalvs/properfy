@@ -1168,6 +1168,7 @@ enum FinancialEntryType {
   INSPECTOR_PAYOUT
   REFUND
   MANUAL_ADJUSTMENT
+  INSPECTOR_BONUS // Q12 (F08-6): inspector goal bonus; tenant_id is NULL only for this type (CHECK)
 }
 
 enum FinancialEntryStatus {
@@ -1515,7 +1516,9 @@ model IdempotencyKey {
 
 model FinancialEntry {
   id                   String               @id @default(uuid())
-  tenant_id            String
+  // Q12 (F08-6): NULL only for an INSPECTOR_BONUS entry (platform↔inspector leg);
+  // a biconditional CHECK in the migration keeps every other type tenant-scoped.
+  tenant_id            String?
   appointment_id       String?
   inspector_id         String?
   entry_type           FinancialEntryType
@@ -1528,11 +1531,15 @@ model FinancialEntry {
   approved_by_user_id  String?
   approved_at          DateTime?
   reference_entry_id   String?
+  // Q12 (F08-6): the original bonus entry is 1:1 with its reward (unique). A reversal
+  // carries reference_entry_id instead (→ the original), never reward_award_id.
+  reward_award_id      String?              @unique
   reason               String?
   created_at           DateTime             @default(now())
   updated_at           DateTime             @updatedAt
 
-  tenant            Tenant       @relation(fields: [tenant_id], references: [id])
+  tenant            Tenant?      @relation(fields: [tenant_id], references: [id])
+  rewardAward       RewardAward? @relation(fields: [reward_award_id], references: [id], onDelete: Restrict)
   appointment       Appointment? @relation(fields: [appointment_id], references: [id])
   inspector         Inspector?   @relation(fields: [inspector_id], references: [id])
   initiatedBy       User?        @relation("EntryInitiator", fields: [initiated_by_user_id], references: [id])
@@ -1579,9 +1586,10 @@ model InspectorInvoice {
   created_at              DateTime               @default(now())
   updated_at              DateTime               @updatedAt
 
-  inspector   Inspector @relation(fields: [inspector_id], references: [id])
-  generatedBy User?     @relation("InspectorInvoiceGeneratedBy", fields: [generated_by_user_id], references: [id])
-  paidBy      User?     @relation("InspectorInvoicePaidBy", fields: [paid_by_user_id], references: [id])
+  inspector    Inspector     @relation(fields: [inspector_id], references: [id])
+  generatedBy  User?         @relation("InspectorInvoiceGeneratedBy", fields: [generated_by_user_id], references: [id])
+  paidBy       User?         @relation("InspectorInvoicePaidBy", fields: [paid_by_user_id], references: [id])
+  reward_awards RewardAward[] // Q12 (F08-6): rewards whose bonus line this invoice carries
 
   // Uniqueness on (inspector_id, period_start, period_end) is enforced by a SQL-managed PARTIAL
   // unique index over ACTIVE statuses only ("inspector_invoices_active_period_unique",
@@ -2155,18 +2163,24 @@ model RewardAward {
   voided_at            DateTime?
   void_reason          String?           @db.VarChar(500) // internal (AM/OP, report), L-F08-05
   inspector_note       String?           @db.VarChar(200) // L-F08-05: only void text shown in the app
+  // Q12 (F08-6/DQ11): set when the invoice carrying the bonus closes (CLOSED). "Invoiced"
+  // = not null; a CHECK requires it non-null once the reward is PAID.
+  inspector_invoice_id String?
   created_at           DateTime          @default(now())
   updated_at           DateTime          @updatedAt
 
-  goal        InspectorGoal @relation(fields: [goal_id], references: [id], onDelete: Restrict)
-  inspector   Inspector     @relation(fields: [inspector_id], references: [id], onDelete: Restrict)
-  approved_by User?         @relation("RewardAwardApprovedBy", fields: [approved_by_user_id], references: [id])
-  voided_by   User?         @relation("RewardAwardVoidedBy", fields: [voided_by_user_id], references: [id])
+  goal             InspectorGoal     @relation(fields: [goal_id], references: [id], onDelete: Restrict)
+  inspector        Inspector         @relation(fields: [inspector_id], references: [id], onDelete: Restrict)
+  approved_by      User?             @relation("RewardAwardApprovedBy", fields: [approved_by_user_id], references: [id])
+  voided_by        User?             @relation("RewardAwardVoidedBy", fields: [voided_by_user_id], references: [id])
+  inspector_invoice InspectorInvoice? @relation(fields: [inspector_invoice_id], references: [id], onDelete: Restrict)
+  financial_entry  FinancialEntry?   // Q12 (F08-6): the 1:1 original bonus ledger entry
 
   @@unique([goal_id, inspector_id, period_start])
   @@index([status, period_end])
   @@index([inspector_id, period_end])
   @@index([period_type, period_start])
+  @@index([inspector_invoice_id])
   @@map("reward_awards")
 }
 

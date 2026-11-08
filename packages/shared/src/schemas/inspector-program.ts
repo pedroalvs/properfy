@@ -5,6 +5,7 @@ import {
   RewardAwardStatus,
   InspectorLevel,
   BillingPeriodType,
+  InspectorInvoiceStatus,
   GOAL_METRIC_COMPARATOR,
   GOAL_METRIC_KIND,
 } from '../enums';
@@ -307,7 +308,7 @@ export const rewardAwardResponseSchema = z.object({
   approvedByUserId: z.string().uuid().nullable(),
   approvedByName: z.string().nullable(),
   approvedAt: instantStrNullable(),
-  // Filled by TASK-F08-6 (invoice payment); always null in this slice.
+  // Q12 (TASK-F08-6): PAID is set when the inspector invoice carrying the bonus is paid.
   paidAt: instantStrNullable(),
   voidedByUserId: z.string().uuid().nullable(),
   voidedByName: z.string().nullable(),
@@ -316,6 +317,17 @@ export const rewardAwardResponseSchema = z.object({
   inspectorNote: z.string().nullable(),
   goal: z.object({ id: z.string().uuid(), title: z.string() }),
   inspector: z.object({ id: z.string().uuid(), name: z.string(), email: z.string() }),
+  // Q12 (TASK-F08-6): the bonus ledger entry id, the inspector invoice it rode (once
+  // closed) and whether the void happened after the bonus was invoiced (AM-only reversal).
+  financialEntryId: z.string().uuid().nullable(),
+  invoice: z
+    .object({
+      id: z.string().uuid(),
+      invoiceNumberDisplay: z.string().nullable(),
+      status: z.nativeEnum(InspectorInvoiceStatus),
+    })
+    .nullable(),
+  voidedAfterInvoicing: z.boolean(),
   createdAt: instantStr(),
   updatedAt: instantStr(),
 });

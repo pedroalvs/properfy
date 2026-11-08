@@ -43,6 +43,7 @@ describe('PrismaFinancialEntryRepository.getSummary', () => {
       totalPayouts: 3000,
       totalAdjustments: 200,
       totalRefunds: 150,
+      totalBonuses: 0,
       pendingCount: 7,
       currency: null,
     });

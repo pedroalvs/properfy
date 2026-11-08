@@ -5,4 +5,5 @@ export const ENTRY_TYPE_OPTIONS: SelectOption[] = [
   { label: 'Inspector Payout', value: 'INSPECTOR_PAYOUT' },
   { label: 'Refund', value: 'REFUND' },
   { label: 'Manual Adjustment', value: 'MANUAL_ADJUSTMENT' },
+  { label: 'Bonus', value: 'INSPECTOR_BONUS' },
 ];

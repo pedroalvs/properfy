@@ -7,7 +7,7 @@ import { SystemClock } from '../../../../shared/domain/clock';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
 import { hashIdempotencyPayload } from '../../../../shared/domain/idempotency-payload-hash';
 import { runInTransaction } from '../../../../shared/application/unit-of-work';
-import { canVoid, type RewardAward } from '../../domain/reward-award.entity';
+import { canVoid, isAwardInvoiced, type RewardAward } from '../../domain/reward-award.entity';
 import type { IRewardAwardApprovalHook } from '../../domain/reward-award-approval.hook';
 import type { IRewardAwardRepository } from '../../domain/reward-award.repository';
 import {
@@ -15,6 +15,7 @@ import {
   RewardAwardIdempotencyPayloadMismatchError,
   RewardAwardInvalidStatusError,
   RewardAwardNotFoundError,
+  RewardAwardVoidRequiresAdminError,
 } from '../../domain/inspector-program.errors';
 import { toRewardAwardResponse } from '../mappers';
 
@@ -75,10 +76,27 @@ export class VoidRewardAwardUseCase {
       if (!existing) throw new RewardAwardNotFoundError();
       if (!canVoid(existing.status)) throw new RewardAwardInvalidStatusError(existing.status);
 
+      // Q12 (F08-6/DL3): once the bonus is on a CLOSED/PAID invoice, only an AM may void it
+      // (a negative reversal, not an entry void). Fast gate on the loaded state; the tx re-checks
+      // on fresh data to cover a concurrent invoice close.
+      if ((isAwardInvoiced(existing) || existing.status === 'PAID') && actor.role !== 'AM') {
+        throw new RewardAwardVoidRequiresAdminError();
+      }
+
       const voidedAt = this.clock.now();
       const applied = await runInTransaction(this.prisma, async ({ tx }) => {
-        const affected = await this.rewardRepo.voidPendingOrApproved(awardId, actor.userId, voidedAt, reason, note, tx);
+        // Decide the branch on fresh data: a concurrent close may have linked this reward after
+        // `existing` was read. Read-committed sees the committed close here (F08-6 race).
+        const fresh = await this.rewardRepo.getStatusAndInvoice(awardId, tx);
+        if (!fresh || !canVoid(fresh.status)) return false;
+        const invoiced = fresh.inspectorInvoiceId !== null || fresh.status === 'PAID';
+        if (invoiced && actor.role !== 'AM') throw new RewardAwardVoidRequiresAdminError();
+
+        const affected = invoiced
+          ? await this.rewardRepo.voidInvoiced(awardId, actor.userId, voidedAt, reason, note, tx)
+          : await this.rewardRepo.voidPendingOrApproved(awardId, actor.userId, voidedAt, reason, note, tx);
         if (affected === 0) return false;
+
         const newState: RewardAward = {
           ...existing,
           status: 'VOID',
@@ -86,9 +104,11 @@ export class VoidRewardAwardUseCase {
           voidedAt,
           voidReason: reason,
           inspectorNote: note,
+          inspectorInvoiceId: fresh.inspectorInvoiceId,
         };
+        // invoiced → reversal entry; not invoiced → void the original entry (no-op if PENDING).
         await this.approvalHook.onVoided(newState, { tx, actorUserId: actor.userId, now: voidedAt });
-        return true;
+        return invoiced ? 'invoiced' : 'voided';
       });
 
       if (!applied) {
@@ -97,6 +117,7 @@ export class VoidRewardAwardUseCase {
         throw new RewardAwardInvalidStatusError(current.status);
       }
 
+      const afterInvoicing = applied === 'invoiced';
       const updated = await this.rewardRepo.findById(awardId);
       if (!updated) throw new RewardAwardNotFoundError();
 
@@ -109,7 +130,13 @@ export class VoidRewardAwardUseCase {
         reason,
         requestId,
         before: { status: existing.status },
-        after: { status: 'VOID', voidedBy: actor.userId, voidedAt: voidedAt.toISOString(), voidReason: reason },
+        after: {
+          status: 'VOID',
+          voidedBy: actor.userId,
+          voidedAt: voidedAt.toISOString(),
+          voidReason: reason,
+          afterInvoicing,
+        },
       });
 
       const result = toRewardAwardResponse(updated);

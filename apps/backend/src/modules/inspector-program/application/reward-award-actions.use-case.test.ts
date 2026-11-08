@@ -12,6 +12,7 @@ import {
   RewardAwardInvalidStatusError,
   RewardAwardIdempotencyInProgressError,
   RewardAwardIdempotencyPayloadMismatchError,
+  RewardAwardVoidRequiresAdminError,
 } from '../domain/inspector-program.errors';
 import { ApproveRewardAwardUseCase } from './use-cases/approve-reward-award.use-case';
 import { VoidRewardAwardUseCase } from './use-cases/void-reward-award.use-case';
@@ -51,12 +52,15 @@ function buildAward(overrides: Partial<RewardAwardWithRelations> = {}): RewardAw
     voidedAt: null,
     voidReason: null,
     inspectorNote: null,
+    inspectorInvoiceId: null,
     createdAt: new Date('2026-11-09T00:00:00.000Z'),
     updatedAt: new Date('2026-11-09T00:00:00.000Z'),
     goal: { id: 'goal-1', title: 'Weekly volume' },
     inspector: { id: 'insp-1', name: 'Ana', email: 'ana@example.com' },
     approvedBy: null,
     voidedBy: null,
+    financialEntryId: null,
+    invoice: null,
     ...overrides,
   };
 }
@@ -70,6 +74,8 @@ function makeRewardRepo(): IRewardAwardRepository {
     findByPeriod: vi.fn(),
     approvePending: vi.fn(),
     voidPendingOrApproved: vi.fn(),
+    getStatusAndInvoice: vi.fn(),
+    voidInvoiced: vi.fn(),
   };
 }
 
@@ -233,13 +239,15 @@ describe('ApproveRewardAwardUseCase', () => {
 });
 
 describe('VoidRewardAwardUseCase', () => {
-  it.each<RewardAwardStatus>(['PENDING', 'APPROVED'])('voids a %s award with an inspector note', async (status) => {
+  // Branch A: a not-yet-invoiced PENDING/APPROVED reward (AM/OP) voids the ledger entry.
+  it.each<RewardAwardStatus>(['PENDING', 'APPROVED'])('voids a not-invoiced %s award with an inspector note', async (status) => {
     const rewardRepo = makeRewardRepo();
     (rewardRepo.findById as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(buildAward({ status }))
       .mockResolvedValueOnce(
         buildAward({ status: 'VOID', voidedByUserId: 'user-am', voidedAt: NOW, voidReason: 'Agency rejected', inspectorNote: 'Sorry' }),
       );
+    (rewardRepo.getStatusAndInvoice as ReturnType<typeof vi.fn>).mockResolvedValue({ status, inspectorInvoiceId: null });
     (rewardRepo.voidPendingOrApproved as ReturnType<typeof vi.fn>).mockResolvedValue(1);
     const hook = makeHook();
     const useCase = new VoidRewardAwardUseCase(rewardRepo, hook, auditService, authorizationService, makeIdempotency(), clock);
@@ -249,29 +257,81 @@ describe('VoidRewardAwardUseCase', () => {
       idempotencyKey: 'k',
       reason: 'Agency rejected',
       inspectorNote: 'Sorry',
-      actor: am(),
+      actor: am({ role: 'OP' }),
     });
 
     expect(result.status).toBe('VOID');
     expect(rewardRepo.voidPendingOrApproved).toHaveBeenCalledWith('award-1', 'user-am', NOW, 'Agency rejected', 'Sorry', undefined);
+    expect(rewardRepo.voidInvoiced).not.toHaveBeenCalled();
     expect(hook.onVoided).toHaveBeenCalledTimes(1);
-    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'reward_award.voided' }));
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'reward_award.voided', after: expect.objectContaining({ afterInvoicing: false }) }),
+    );
   });
 
-  it.each<RewardAwardStatus>(['PAID', 'VOID'])('rejects voiding a %s award (409)', async (status) => {
+  it('rejects voiding an already-VOID award (409)', async () => {
     const rewardRepo = makeRewardRepo();
-    (rewardRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(buildAward({ status }));
-    const useCase = new VoidRewardAwardUseCase(
-      rewardRepo,
-      makeHook(),
-      auditService,
-      authorizationService,
-      makeIdempotency(),
-      clock,
-    );
+    (rewardRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(buildAward({ status: 'VOID' }));
+    const useCase = new VoidRewardAwardUseCase(rewardRepo, makeHook(), auditService, authorizationService, makeIdempotency(), clock);
     await expect(
       useCase.execute({ awardId: 'award-1', idempotencyKey: 'k', reason: 'because', actor: am() }),
     ).rejects.toBeInstanceOf(RewardAwardInvalidStatusError);
+    expect(rewardRepo.voidPendingOrApproved).not.toHaveBeenCalled();
+    expect(rewardRepo.voidInvoiced).not.toHaveBeenCalled();
+  });
+
+  it('forbids OP from voiding an invoiced APPROVED reward (403)', async () => {
+    const rewardRepo = makeRewardRepo();
+    (rewardRepo.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+      buildAward({ status: 'APPROVED', inspectorInvoiceId: 'inv-1' }),
+    );
+    const useCase = new VoidRewardAwardUseCase(rewardRepo, makeHook(), auditService, authorizationService, makeIdempotency(), clock);
+    await expect(
+      useCase.execute({ awardId: 'award-1', idempotencyKey: 'k', reason: 'because', actor: am({ role: 'OP' }) }),
+    ).rejects.toBeInstanceOf(RewardAwardVoidRequiresAdminError);
+    expect(rewardRepo.voidInvoiced).not.toHaveBeenCalled();
+    expect(rewardRepo.voidPendingOrApproved).not.toHaveBeenCalled();
+  });
+
+  // Branch B: AM voids an invoiced/paid reward → reversal (voidInvoiced), afterInvoicing true.
+  it.each<RewardAwardStatus>(['APPROVED', 'PAID'])('lets AM void an invoiced %s reward (reversal)', async (status) => {
+    const rewardRepo = makeRewardRepo();
+    (rewardRepo.findById as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(buildAward({ status, inspectorInvoiceId: 'inv-1', paidAt: status === 'PAID' ? NOW : null }))
+      .mockResolvedValueOnce(
+        buildAward({ status: 'VOID', inspectorInvoiceId: 'inv-1', paidAt: status === 'PAID' ? NOW : null, voidedByUserId: 'user-am', voidedAt: NOW, voidReason: 'late data' }),
+      );
+    (rewardRepo.getStatusAndInvoice as ReturnType<typeof vi.fn>).mockResolvedValue({ status, inspectorInvoiceId: 'inv-1' });
+    (rewardRepo.voidInvoiced as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    const hook = makeHook();
+    const useCase = new VoidRewardAwardUseCase(rewardRepo, hook, auditService, authorizationService, makeIdempotency(), clock);
+
+    const result = await useCase.execute({ awardId: 'award-1', idempotencyKey: 'k', reason: 'late data', actor: am() });
+
+    expect(result.status).toBe('VOID');
+    expect(rewardRepo.voidInvoiced).toHaveBeenCalledWith('award-1', 'user-am', NOW, 'late data', null, undefined);
+    expect(rewardRepo.voidPendingOrApproved).not.toHaveBeenCalled();
+    expect(hook.onVoided).toHaveBeenCalledTimes(1);
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'reward_award.voided', after: expect.objectContaining({ afterInvoicing: true }) }),
+    );
+  });
+
+  it('follows the reversal branch when a concurrent close invoices the reward (race)', async () => {
+    const rewardRepo = makeRewardRepo();
+    // Loaded BEFORE the close: not invoiced. The in-tx fresh read sees the committed link.
+    (rewardRepo.findById as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(buildAward({ status: 'APPROVED', inspectorInvoiceId: null }))
+      .mockResolvedValueOnce(buildAward({ status: 'VOID', inspectorInvoiceId: 'inv-1', voidedByUserId: 'user-am', voidedAt: NOW }));
+    (rewardRepo.getStatusAndInvoice as ReturnType<typeof vi.fn>).mockResolvedValue({ status: 'APPROVED', inspectorInvoiceId: 'inv-1' });
+    (rewardRepo.voidInvoiced as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    const hook = makeHook();
+    const useCase = new VoidRewardAwardUseCase(rewardRepo, hook, auditService, authorizationService, makeIdempotency(), clock);
+
+    const result = await useCase.execute({ awardId: 'award-1', idempotencyKey: 'k', reason: 'late data', actor: am() });
+
+    expect(result.status).toBe('VOID');
+    expect(rewardRepo.voidInvoiced).toHaveBeenCalledTimes(1);
     expect(rewardRepo.voidPendingOrApproved).not.toHaveBeenCalled();
   });
 
@@ -280,6 +340,7 @@ describe('VoidRewardAwardUseCase', () => {
     (rewardRepo.findById as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(buildAward())
       .mockResolvedValueOnce(buildAward({ status: 'VOID', voidedByUserId: 'user-am', voidedAt: NOW, voidReason: 'x' }));
+    (rewardRepo.getStatusAndInvoice as ReturnType<typeof vi.fn>).mockResolvedValue({ status: 'PENDING', inspectorInvoiceId: null });
     (rewardRepo.voidPendingOrApproved as ReturnType<typeof vi.fn>).mockResolvedValue(1);
     const useCase = new VoidRewardAwardUseCase(
       rewardRepo,

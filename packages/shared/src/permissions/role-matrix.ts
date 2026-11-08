@@ -345,8 +345,9 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   // manage goals and view/approve/void reward awards; INSP reads only its own
   // program data (standing, challenges — TASK-F08-4). Agencies and the tenant
   // portal never reach these surfaces (Q18/D8). There is no `awards.pay` action:
-  // the inspector invoice pays the bonus (Q12), and the AM-only void-after-
-  // invoicing action is introduced by TASK-F08-6.
+  // the inspector invoice pays the bonus (Q12). Voiding a reward once its bonus is
+  // on a CLOSED/PAID invoice is AM-only (`awards.void_invoiced`, Q12/DL3) — it
+  // creates a negative reversal; voiding a not-yet-invoiced reward is AM/OP.
   'inspector_program.goals.manage': {
     roles: ['AM', 'OP'],
   },
@@ -358,6 +359,9 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   },
   'inspector_program.awards.void': {
     roles: ['AM', 'OP'],
+  },
+  'inspector_program.awards.void_invoiced': {
+    roles: ['AM'],
   },
   'inspector_program.view_own': {
     roles: ['INSP'],

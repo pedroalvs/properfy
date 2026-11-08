@@ -8,6 +8,7 @@ import {
   BillingIdempotencyPayloadMismatchError,
   BillingIdempotencyInProgressError,
 } from '../../domain/billing.errors';
+import type { IRewardAwardInvoiceSync } from '../../domain/reward-award-invoice-sync.port';
 import { validatePaidAt } from './mark-invoice-paid.use-case';
 import { SystemClock, type Clock } from '../../../../shared/domain/clock';
 
@@ -52,6 +53,8 @@ export class BatchMarkInvoicesPaidUseCase {
     private readonly authorizationService: AuthorizationService,
     private readonly idempotencyService: IIdempotencyService,
     private readonly clock: Clock = new SystemClock(),
+    // Q12 (F08-6): optional; each processed invoice's rewards go PAID in its own transaction.
+    private readonly invoiceSync?: IRewardAwardInvoiceSync,
   ) {}
 
   async execute(input: BatchMarkInvoicesPaidInput): Promise<BatchMarkInvoicesPaidOutput> {
@@ -162,12 +165,18 @@ export class BatchMarkInvoicesPaidUseCase {
 
       invoice.markPaid(paidAt, actor.userId, paymentReference);
 
-      await this.invoiceRepo.update(id, {
-        status: 'PAID',
-        paidAt,
-        paidByUserId: actor.userId,
-        paymentReference,
-      });
+      // Q12 (F08-6): one transaction per invoice (preserves "process what can be processed"):
+      // CLOSED → PAID and its rewards → PAID together.
+      const transitioned = await this.invoiceRepo.markPaidInTransaction(
+        id,
+        { paidAt, paidByUserId: actor.userId, paymentReference },
+        this.invoiceSync ? (tx) => this.invoiceSync!.markPaidForInvoice(tx, id, paidAt) : undefined,
+      );
+      if (!transitioned) {
+        // Lost a race since the batch read it CLOSED — skip rather than fail the batch.
+        skipped.push({ id, reason: 'NOT_CLOSED' });
+        continue;
+      }
 
       // Individual audit record (FR-009)
       this.auditService.log({

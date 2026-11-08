@@ -36,7 +36,7 @@ export function FinancialEntryDetailDrawer({ entryId, open, onClose, onEdit }: F
         ) : entry ? (
           <>
             <DrawerHeader
-              title={entry.appointmentCode}
+              title={entry.appointmentCode ?? entry.description}
               onClose={onClose}
               actions={
                 <>

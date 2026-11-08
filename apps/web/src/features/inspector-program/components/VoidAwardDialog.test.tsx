@@ -23,6 +23,16 @@ describe('VoidAwardDialog', () => {
     expect(screen.queryByText(/Recovery note/i)).not.toBeInTheDocument();
   });
 
+  it('shows the invoiced warning only for an invoiced award', () => {
+    const { unmount } = render(<VoidAwardDialog open invoiced onClose={vi.fn()} onConfirm={vi.fn()} />);
+    expect(
+      screen.getByText("This bonus is already on an invoice. Voiding it adds a reversal to the inspector's next invoice."),
+    ).toBeInTheDocument();
+    unmount();
+    renderDialog();
+    expect(screen.queryByText(/already on an invoice/)).not.toBeInTheDocument();
+  });
+
   it('keeps Void disabled until the reason reaches 5 characters', async () => {
     renderDialog();
     const voidBtn = screen.getByRole('button', { name: 'Void reward' });

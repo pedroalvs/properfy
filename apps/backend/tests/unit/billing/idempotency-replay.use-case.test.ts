@@ -240,7 +240,7 @@ describe('idempotency replay (real InMemoryIdempotencyService)', () => {
   it('MarkInvoicePaidUseCase: dedups on replay, conflicts on payload mismatch', async () => {
     const invoiceRepo = {
       findById: vi.fn().mockResolvedValue(makeInvoice()),
-      update: vi.fn().mockResolvedValue(undefined),
+      markPaidInTransaction: vi.fn().mockResolvedValue(true),
     };
     const idempotencyService = new InMemoryIdempotencyService();
 
@@ -251,19 +251,19 @@ describe('idempotency replay (real InMemoryIdempotencyService)', () => {
     const first = await sut.execute(input);
     const second = await sut.execute({ ...input });
 
-    expect(invoiceRepo.update).toHaveBeenCalledOnce();
+    expect(invoiceRepo.markPaidInTransaction).toHaveBeenCalledOnce();
     expect(second).toEqual(first);
 
     await expect(
       sut.execute({ invoiceId: 'inv-1', paymentReference: 'DIFFERENT', idempotencyKey: 'dedup-key-5', actor: opActor }),
     ).rejects.toThrow(BillingIdempotencyPayloadMismatchError);
-    expect(invoiceRepo.update).toHaveBeenCalledOnce();
+    expect(invoiceRepo.markPaidInTransaction).toHaveBeenCalledOnce();
   });
 
   it('BatchMarkInvoicesPaidUseCase: dedups on replay, conflicts on payload mismatch', async () => {
     const invoiceRepo = {
       findManyByIds: vi.fn().mockResolvedValue([makeInvoice({ id: 'inv-1' }), makeInvoice({ id: 'inv-2' })]),
-      update: vi.fn().mockResolvedValue(undefined),
+      markPaidInTransaction: vi.fn().mockResolvedValue(true),
     };
     const idempotencyService = new InMemoryIdempotencyService();
 
@@ -274,13 +274,13 @@ describe('idempotency replay (real InMemoryIdempotencyService)', () => {
     const first = await sut.execute(input);
     const second = await sut.execute({ ...input });
 
-    expect(invoiceRepo.update).toHaveBeenCalledTimes(2);
+    expect(invoiceRepo.markPaidInTransaction).toHaveBeenCalledTimes(2);
     expect(second).toEqual(first);
 
     await expect(
       sut.execute({ invoiceIds: ['inv-1'], idempotencyKey: 'dedup-key-6', actor: opActor }),
     ).rejects.toThrow(BillingIdempotencyPayloadMismatchError);
-    expect(invoiceRepo.update).toHaveBeenCalledTimes(2);
+    expect(invoiceRepo.markPaidInTransaction).toHaveBeenCalledTimes(2);
   });
 
   it('ReverseInvoicePaymentUseCase: dedups on replay, conflicts on payload mismatch', async () => {
@@ -288,7 +288,7 @@ describe('idempotency replay (real InMemoryIdempotencyService)', () => {
       findById: vi.fn().mockResolvedValue(
         makeInvoice({ status: 'PAID', paidAt: new Date(), paidByUserId: 'op-1', paymentReference: 'BT-001' }),
       ),
-      update: vi.fn().mockResolvedValue(undefined),
+      reversePaymentInTransaction: vi.fn().mockResolvedValue(true),
     };
     const idempotencyService = new InMemoryIdempotencyService();
 
@@ -299,12 +299,12 @@ describe('idempotency replay (real InMemoryIdempotencyService)', () => {
     const first = await sut.execute(input);
     const second = await sut.execute({ ...input });
 
-    expect(invoiceRepo.update).toHaveBeenCalledOnce();
+    expect(invoiceRepo.reversePaymentInTransaction).toHaveBeenCalledOnce();
     expect(second).toEqual(first);
 
     await expect(
       sut.execute({ invoiceId: 'inv-1', reason: 'A different reason', idempotencyKey: 'dedup-key-7', actor: opActor }),
     ).rejects.toThrow(BillingIdempotencyPayloadMismatchError);
-    expect(invoiceRepo.update).toHaveBeenCalledOnce();
+    expect(invoiceRepo.reversePaymentInTransaction).toHaveBeenCalledOnce();
   });
 });

@@ -3,7 +3,8 @@ import type { FinancialEntryType, FinancialEntryStatus } from '@properfy/shared'
 
 export interface FinancialEntryProps {
   id: string;
-  tenantId: string;
+  /** Null only for an INSPECTOR_BONUS entry (Q12 — platform↔inspector leg, no agency). */
+  tenantId: string | null;
   appointmentId: string | null;
   inspectorId: string | null;
   entryType: FinancialEntryType;
@@ -23,7 +24,7 @@ export interface FinancialEntryProps {
 }
 
 export class FinancialEntryEntity extends BaseEntity {
-  readonly tenantId: string;
+  readonly tenantId: string | null;
   readonly appointmentId: string | null;
   readonly inspectorId: string | null;
   readonly entryType: FinancialEntryType;

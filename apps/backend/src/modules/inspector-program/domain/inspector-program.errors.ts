@@ -1,5 +1,5 @@
 import type { RewardAwardStatus } from '@properfy/shared';
-import { ConflictError, NotFoundError, UnprocessableEntityError, ValidationError } from '../../../shared/domain/errors';
+import { ConflictError, ForbiddenError, NotFoundError, UnprocessableEntityError, ValidationError } from '../../../shared/domain/errors';
 import { rewardStatusWord } from './reward-award.entity';
 
 export class GoalNotFoundError extends NotFoundError {
@@ -17,6 +17,16 @@ export class RewardAwardNotFoundError extends NotFoundError {
 export class RewardAwardInvalidStatusError extends ConflictError {
   constructor(status: RewardAwardStatus) {
     super('REWARD_AWARD_INVALID_STATUS', `This reward is already ${rewardStatusWord(status)}`);
+  }
+}
+
+/**
+ * Q12 (F08-6/DL3): once a reward's bonus is on a CLOSED/PAID invoice, only an Admin Master may
+ * void it (the void creates a negative reversal on the next invoice).
+ */
+export class RewardAwardVoidRequiresAdminError extends ForbiddenError {
+  constructor() {
+    super('FORBIDDEN', 'Only an Admin Master can void an invoiced reward');
   }
 }
 

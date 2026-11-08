@@ -15,18 +15,23 @@ describe('AGENCY_VISIBLE_ENTRY_TYPES', () => {
   it('contains the three agency-facing entry types', () => {
     expect(AGENCY_VISIBLE_ENTRY_TYPES).toEqual(['TENANT_DEBIT', 'REFUND', 'MANUAL_ADJUSTMENT']);
   });
+
+  it('excludes INSPECTOR_BONUS — the platform↔inspector goal bonus (Q12)', () => {
+    expect(AGENCY_VISIBLE_ENTRY_TYPES).not.toContain('INSPECTOR_BONUS');
+  });
 });
 
 describe('FinancialEntryType', () => {
-  it('should have TENANT_DEBIT, INSPECTOR_PAYOUT, REFUND, MANUAL_ADJUSTMENT values', () => {
+  it('should have TENANT_DEBIT, INSPECTOR_PAYOUT, REFUND, MANUAL_ADJUSTMENT, INSPECTOR_BONUS values', () => {
     expect(FinancialEntryType.TENANT_DEBIT).toBe('TENANT_DEBIT');
     expect(FinancialEntryType.INSPECTOR_PAYOUT).toBe('INSPECTOR_PAYOUT');
     expect(FinancialEntryType.REFUND).toBe('REFUND');
     expect(FinancialEntryType.MANUAL_ADJUSTMENT).toBe('MANUAL_ADJUSTMENT');
+    expect(FinancialEntryType.INSPECTOR_BONUS).toBe('INSPECTOR_BONUS');
   });
 
-  it('should have exactly 4 values', () => {
-    expect(Object.keys(FinancialEntryType)).toHaveLength(4);
+  it('should have exactly 5 values', () => {
+    expect(Object.keys(FinancialEntryType)).toHaveLength(5);
   });
 });
 

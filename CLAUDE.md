@@ -212,6 +212,7 @@ Official statuses:
 5. Refund only when service was marked as done but not actually executed.
 6. Manual adjustments allowed for AM and OP.
 7. Closing/invoicing period: weekly, biweekly or monthly (configurable per client/inspector).
+8. **Inspector goal bonus (Q12, F08-6).** An approved `RewardAward` (inspector-program) becomes an `INSPECTOR_BONUS` ledger entry and a "Bonus" line on the **inspector's invoice**; the reward goes `PAID` when that invoice is paid (and back to `APPROVED` if the payment is reversed). `INSPECTOR_BONUS` is the **only** financial entry type with a null `tenant_id` (platform↔inspector leg) and is never shown to an agency. Voiding before invoicing voids the entry; after invoicing only an AM may void, adding a negative reversal to the inspector's next invoice. There is no manual reward payment.
 
 ---
 
@@ -472,6 +473,8 @@ Skip worktrees only for: pure documentation edits, CLAUDE.md updates, or tasks t
 - PostgreSQL. **No schema change, no migration.** Reads `service_groups.published_at`, `inspectors` (`service_types_json`, `blocked_clients_json`), `inspector_regions`, `service_regions` (PostGIS `ST_Intersects`), `inspector_reliability_snapshots` (F07-2). (066-f08-2-early-offer-access)
 - TypeScript 5.6 (strict, ES2022 ESM), Node.js 24, pnpm 9 + Turborepo + React 18, Vite 5, React Router 6, TanStack Query 5, Tailwind 3, `openapi-fetch` (typed by `packages/shared/src/api-types.ts`); shared: Zod 3 (067-f08-3-goals-rewards-web)
 - N/A (no DB change; consumes platform-scoped entities `InspectorGoal`/`RewardAward`/`GoalPeriodClosure` via AM/OP endpoints) (067-f08-3-goals-rewards-web)
+- TypeScript 5.6 strict, ES2022 ESM; Node.js 24 + Fastify 4, Prisma 6 (PostgreSQL/Supabase, PostGIS in CI), Zod 3, (070-f08-6-financial-bonus)
+- PostgreSQL via Prisma. New enum value `INSPECTOR_BONUS`; `financial_entries.tenant_id` (070-f08-6-financial-bonus)
 
 - TypeScript 5.6 strict, ES2022 ESM; Node.js 24 + Backend — Fastify 4, Prisma 6, Zod 3, pg-boss 9 (advisory-lock daily snapshot job). Shared — Zod 3. Consumes F07-1 `ReliabilityMetricsService` + the F03 `platform_setting.updated.v1` event. No new runtime dependency. (063-f07-2-index-snapshot-api)
 - PostgreSQL (Supabase); new table `inspector_reliability_snapshots` (expand-only, ordered after the F07-1 migration, **no `tenant_id`**); reads `platform_settings`, `inspectors` and the F07-1 facts. (063-f07-2-index-snapshot-api)

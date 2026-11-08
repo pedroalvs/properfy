@@ -69,15 +69,24 @@ export function InvoiceDetailPage() {
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Line items</p>
                 <div className="mt-3 flex flex-col gap-3">
                   {invoice.lineItemsSnapshot.map((line, i) => (
-                    <div key={`${line.appointmentCode}-${i}`} className={cn('border-t border-border pt-2 first:border-t-0 first:pt-0')}>
+                    <div key={line.entryId ?? `${line.appointmentCode}-${i}`} className={cn('border-t border-border pt-2 first:border-t-0 first:pt-0')}>
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-foreground">{line.appointmentCode}</p>
+                        <p className="text-sm font-semibold text-foreground">{line.kind === 'BONUS' ? 'Bonus' : line.appointmentCode}</p>
                         <p className="text-sm font-semibold text-foreground">{formatInvoiceCurrency(line.amount, invoice.currency)}</p>
                       </div>
-                      <p className="text-xs text-muted-foreground">{line.propertyAddress ?? '—'}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {formatCivilDate(line.serviceDate)} · {line.serviceType ?? '—'} · {line.agencyName ?? '—'}{line.branchName ? ` / ${line.branchName}` : ''}
-                      </p>
+                      {line.kind === 'BONUS' ? (
+                        <>
+                          <p className="text-xs text-muted-foreground">{line.description ?? '—'}</p>
+                          <p className="text-[11px] text-muted-foreground">{formatCivilDate(line.serviceDate)}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs text-muted-foreground">{line.propertyAddress ?? '—'}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {formatCivilDate(line.serviceDate)} · {line.serviceType ?? '—'} · {line.agencyName ?? '—'}{line.branchName ? ` / ${line.branchName}` : ''}
+                          </p>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>

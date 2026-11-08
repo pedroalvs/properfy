@@ -346,6 +346,7 @@ describe('GET /v1/financial/entries/summary', () => {
     totalPayouts: 3000,
     totalAdjustments: 200,
     totalRefunds: 150,
+    totalBonuses: 0,
     pendingCount: 7,
     currency: 'AUD',
   };

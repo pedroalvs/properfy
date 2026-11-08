@@ -157,6 +157,7 @@ day-plan route map (`features/day-plan/components/RouteMapView.tsx`) consume it 
 - Financial summary (current period)
 - Inspector invoice history (`InvoiceListPage`, `InvoiceDetailPage`) and request flow (`RequestInvoicePage`)
 - Per-appointment payout details
+- **Goal bonuses (F08-6 / Q12).** `useInspectorEarnings` (the history query, also feeding the "Recent payments" tile) sends **no `type`** param, so it returns the inspector's payouts **and** bonuses; an `INSPECTOR_BONUS` row renders "Bonus" + the entry `description`, a reversal renders "Bonus reversal" with a negative amount (`-$30.00`). `InvoiceDetailPage` renders a `kind:'BONUS'` snapshot line with no address and the description (list key `entryId ?? appointmentCode`); `RequestInvoicePage` reads "{n} approved items". No backend/schema/`api-types` change (consumes the F08-6 contract).
 
 ### 4.6 Profile (`features/profile`, route `/profile`)
 

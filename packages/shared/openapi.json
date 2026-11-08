@@ -36173,6 +36173,43 @@
                             ],
                             "additionalProperties": false
                           },
+                          "financialEntryId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "invoice": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "invoiceNumberDisplay": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "PENDING_REVIEW",
+                                  "CLOSED",
+                                  "PAID",
+                                  "VOID"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "invoiceNumberDisplay",
+                              "status"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
+                          },
+                          "voidedAfterInvoicing": {
+                            "type": "boolean"
+                          },
                           "createdAt": {
                             "anyOf": [
                               {
@@ -36227,6 +36264,9 @@
                           "inspectorNote",
                           "goal",
                           "inspector",
+                          "financialEntryId",
+                          "invoice",
+                          "voidedAfterInvoicing",
                           "createdAt",
                           "updatedAt"
                         ],
@@ -36668,6 +36708,43 @@
                           ],
                           "additionalProperties": false
                         },
+                        "financialEntryId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "invoice": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "invoiceNumberDisplay": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "PENDING_REVIEW",
+                                "CLOSED",
+                                "PAID",
+                                "VOID"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "invoiceNumberDisplay",
+                            "status"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "voidedAfterInvoicing": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -36722,6 +36799,9 @@
                         "inspectorNote",
                         "goal",
                         "inspector",
+                        "financialEntryId",
+                        "invoice",
+                        "voidedAfterInvoicing",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -36985,6 +37065,43 @@
                           ],
                           "additionalProperties": false
                         },
+                        "financialEntryId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "invoice": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "invoiceNumberDisplay": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "PENDING_REVIEW",
+                                "CLOSED",
+                                "PAID",
+                                "VOID"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "invoiceNumberDisplay",
+                            "status"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "voidedAfterInvoicing": {
+                          "type": "boolean"
+                        },
                         "createdAt": {
                           "anyOf": [
                             {
@@ -37039,6 +37156,9 @@
                         "inspectorNote",
                         "goal",
                         "inspector",
+                        "financialEntryId",
+                        "invoice",
+                        "voidedAfterInvoicing",
                         "createdAt",
                         "updatedAt"
                       ],
@@ -37414,6 +37534,9 @@
                         "totalRefunds": {
                           "type": "number"
                         },
+                        "totalBonuses": {
+                          "type": "number"
+                        },
                         "pendingCount": {
                           "type": "number"
                         },
@@ -37429,6 +37552,7 @@
                         "totalPayouts",
                         "totalAdjustments",
                         "totalRefunds",
+                        "totalBonuses",
                         "pendingCount",
                         "currency"
                       ],
@@ -37456,7 +37580,8 @@
                 "TENANT_DEBIT",
                 "INSPECTOR_PAYOUT",
                 "REFUND",
-                "MANUAL_ADJUSTMENT"
+                "MANUAL_ADJUSTMENT",
+                "INSPECTOR_BONUS"
               ]
             },
             "in": "query",
@@ -37590,7 +37715,8 @@
                           },
                           "tenantId": {
                             "type": "string",
-                            "format": "uuid"
+                            "format": "uuid",
+                            "nullable": true
                           },
                           "appointmentId": {
                             "type": "string",
@@ -37853,7 +37979,8 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "appointmentId": {
                           "type": "string",
@@ -38058,7 +38185,8 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "appointmentId": {
                           "type": "string",
@@ -38234,7 +38362,8 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "appointmentId": {
                           "type": "string",
@@ -38496,7 +38625,8 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "appointmentId": {
                           "type": "string",
@@ -38704,7 +38834,8 @@
                         },
                         "tenantId": {
                           "type": "string",
-                          "format": "uuid"
+                          "format": "uuid",
+                          "nullable": true
                         },
                         "appointmentId": {
                           "type": "string",
@@ -38980,15 +39111,25 @@
                             "items": {
                               "type": "object",
                               "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "SERVICE",
+                                    "BONUS"
+                                  ],
+                                  "default": "SERVICE"
+                                },
                                 "serviceDate": {
                                   "type": "string"
                                 },
                                 "appointmentId": {
                                   "type": "string",
-                                  "format": "uuid"
+                                  "format": "uuid",
+                                  "nullable": true
                                 },
                                 "appointmentCode": {
-                                  "type": "string"
+                                  "type": "string",
+                                  "nullable": true
                                 },
                                 "propertyAddress": {
                                   "type": "string",
@@ -39016,6 +39157,19 @@
                                   "nullable": true
                                 },
                                 "branchName": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "entryId": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "rewardAwardId": {
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "nullable": true
+                                },
+                                "description": {
                                   "type": "string",
                                   "nullable": true
                                 }
@@ -39225,15 +39379,25 @@
                           "items": {
                             "type": "object",
                             "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "SERVICE",
+                                  "BONUS"
+                                ],
+                                "default": "SERVICE"
+                              },
                               "serviceDate": {
                                 "type": "string"
                               },
                               "appointmentId": {
                                 "type": "string",
-                                "format": "uuid"
+                                "format": "uuid",
+                                "nullable": true
                               },
                               "appointmentCode": {
-                                "type": "string"
+                                "type": "string",
+                                "nullable": true
                               },
                               "propertyAddress": {
                                 "type": "string",
@@ -39261,6 +39425,19 @@
                                 "nullable": true
                               },
                               "branchName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "entryId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "rewardAwardId": {
+                                "type": "string",
+                                "format": "uuid",
+                                "nullable": true
+                              },
+                              "description": {
                                 "type": "string",
                                 "nullable": true
                               }

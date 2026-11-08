@@ -23,7 +23,7 @@ function award(): RewardAwardResponse {
     goalTitle: 'Weekly ten', metric: 'VOLUME', comparator: 'GTE', target: 10, amount: 30, scopeLabel: null,
     achievedValue: 62, serviceCount: 62, achievedOn: '2026-11-07', indexScoreAtClose: 88.3, levelAtClose: 'GOLD',
     indexSnapshotDate: '2026-11-08', status: 'PENDING', approvedByUserId: null, approvedByName: null, approvedAt: null,
-    paidAt: null, voidedByUserId: null, voidedByName: null, voidedAt: null, voidReason: null, inspectorNote: null,
+    paidAt: null, financialEntryId: null, invoice: null, voidedAfterInvoicing: false, voidedByUserId: null, voidedByName: null, voidedAt: null, voidReason: null, inspectorNote: null,
     goal: { id: UUID, title: 'Weekly ten' }, inspector: { id: UUID, name: 'Jane Doe', email: 'jane@x.com' },
     createdAt: '2026-11-08T00:00:00.000Z', updatedAt: '2026-11-08T00:00:00.000Z',
   };

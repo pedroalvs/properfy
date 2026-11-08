@@ -10,6 +10,9 @@ const showSuccess = vi.fn();
 const showError = vi.fn();
 vi.mock('@/hooks/useSnackbar', () => ({ useSnackbar: () => ({ showSuccess, showError, showInfo: vi.fn() }) }));
 
+const mockHasRole = vi.fn();
+vi.mock('@/hooks/usePermissions', () => ({ usePermissions: () => ({ hasRole: mockHasRole }) }));
+
 vi.mock('../hooks/useProgramPeriods', () => ({ useProgramPeriods: vi.fn() }));
 vi.mock('../hooks/useProgramSummary', () => ({ useProgramSummary: vi.fn() }));
 vi.mock('../hooks/useRewardAwards', () => ({ useRewardAwards: vi.fn() }));
@@ -43,7 +46,7 @@ const pendingAward = {
   goalTitle: 'Weekly ten', metric: 'VOLUME', comparator: 'GTE', target: 10, amount: 30, scopeLabel: null,
   achievedValue: 62, serviceCount: 62, achievedOn: '2026-11-07', indexScoreAtClose: 88.3, levelAtClose: 'GOLD',
   indexSnapshotDate: '2026-11-08', status: 'PENDING', approvedByUserId: null, approvedByName: null, approvedAt: null,
-  paidAt: null, voidedByUserId: null, voidedByName: null, voidedAt: null, voidReason: null, inspectorNote: null,
+  paidAt: null, financialEntryId: null, invoice: null, voidedAfterInvoicing: false, voidedByUserId: null, voidedByName: null, voidedAt: null, voidReason: null, inspectorNote: null,
   goal: { id: 'g1', title: 'Weekly ten' }, inspector: { id: 'i1', name: 'Jane Doe', email: 'jane@x.com' },
   createdAt: '2026-11-08T00:00:00.000Z', updatedAt: '2026-11-08T00:00:00.000Z',
 };
@@ -61,6 +64,7 @@ function renderTab(entry = '/goals-rewards?tab=rewards') {
 }
 
 beforeEach(() => {
+  mockHasRole.mockReset().mockReturnValue(false);
   showSuccess.mockReset();
   showError.mockReset();
   // A real action resolves to the award object; `undefined` means the call was
@@ -79,6 +83,24 @@ beforeEach(() => {
 });
 
 describe('RewardsTab', () => {
+  it('describes the Paid tile as paid through the inspector\'s invoice', () => {
+    renderTab();
+    expect(screen.getAllByLabelText("Paid through the inspector's invoice.").length).toBeGreaterThan(0);
+  });
+
+  it('shows the AM-only message when voiding an invoiced reward returns 403', async () => {
+    mockHasRole.mockReturnValue(true);
+    const invoiced = { ...pendingAward, status: 'APPROVED', invoice: { id: 'inv-1', invoiceNumberDisplay: 'PINV-000042', status: 'CLOSED' } };
+    mockAwards.mockReturnValue({ awards: [invoiced], isLoading: false, isError: false, error: null, refetch: vi.fn() });
+    voidAward.mockRejectedValue(new ApiError(403, 'forbidden'));
+    renderTab('/goals-rewards?tab=rewards&cycle=WEEKLY&period=2026-11-02');
+    await userEvent.click(screen.getByRole('button', { name: 'Void reward for Jane Doe' }));
+    expect(screen.getByText(/already on an invoice/)).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Internal reason'), 'wrong goal');
+    await userEvent.click(screen.getByRole('button', { name: 'Void reward' }));
+    await waitFor(() => expect(showError).toHaveBeenCalledWith('Only an Admin Master can void an invoiced reward.'));
+  });
+
   it('shows the cycle + period selectors with the current period marked in progress', async () => {
     renderTab();
     expect(screen.getByRole('button', { name: 'Cycle' })).toBeInTheDocument();

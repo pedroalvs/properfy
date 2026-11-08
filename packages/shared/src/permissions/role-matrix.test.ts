@@ -397,6 +397,15 @@ describe('inspector_program.* (F08-1)', () => {
     }
   });
 
+  it('inspector_program.awards.void_invoiced: AM only (Q12/DL3)', () => {
+    const entry = getMatrixEntry('inspector_program.awards.void_invoiced');
+    expect(entry).toEqual({ roles: ['AM'] });
+    expect(can('AM', 'inspector_program.awards.void_invoiced')).toBe(true);
+    for (const role of ['OP', 'CL_ADMIN', 'CL_USER', 'INSP', 'TNT'] as UserRole[]) {
+      expect(can(role, 'inspector_program.awards.void_invoiced')).toBe(false);
+    }
+  });
+
   it('has no awards.pay action (Q12 — the invoice pays, no manual payment)', () => {
     expect(getMatrixEntry('inspector_program.awards.pay')).toBeUndefined();
   });

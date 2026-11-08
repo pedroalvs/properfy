@@ -2,8 +2,10 @@ import type { BillingPeriodType, FinancialEntryType, FinancialEntryStatus, Inspe
 
 export interface FinancialEntry {
   id: string;
-  tenantId: string;
-  appointmentCode: string;
+  /** Null for platform-scoped entries (inspector bonus). */
+  tenantId: string | null;
+  /** Null for entries without an appointment (inspector bonus). */
+  appointmentCode: string | null;
   entryType: FinancialEntryType;
   amount: number;
   currency: string;
@@ -54,9 +56,14 @@ export interface FinancialSummary {
 }
 
 export interface InvoiceSnapshotLine {
+  /** `BONUS` lines have no appointment; they carry `description`. */
+  kind?: 'SERVICE' | 'BONUS';
   serviceDate: string;
-  appointmentId: string;
-  appointmentCode: string;
+  appointmentId: string | null;
+  appointmentCode: string | null;
+  entryId?: string;
+  rewardAwardId?: string;
+  description?: string;
   propertyAddress: string | null;
   serviceType: string | null;
   amount: number;
