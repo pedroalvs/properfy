@@ -114,7 +114,7 @@
 - [X] T041 Write `apps/web/tests/e2e/inspector-program-rewards.spec.ts` (03.A4), **hermetic** (API stubbed, like the whole suite): AM → `/goals-rewards` → "New goal" → save (CRUD proof) → Rewards tab → pick the closed week → award shows "Pending review" + "$30.00" summed into "Achieved" → "Approve" → "Reward approved"; and CL_ADMIN is redirected from `/goals-rewards` (Q18).
 - [X] T042 [P] Update `apps/web/CLAUDE.md`: new `inspector-program` feature (Goals & rewards page, goal form, Rewards approve/void), menu item (last Dashboard child), "bonus paid by the inspector invoice (Q12, TASK-F08-6); no manual payment", derived client-side Level column on the F07 page, Inspector program settings section.
 - [X] T043 [P] Update `packages/shared/CLAUDE.md`: add `lib/goal-copy.ts` `describeGoal` under the F08 shared entry (consumed by web/pwa/report).
-- [ ] T044 Full verification inside the worktree (via a subagent returning a condensed summary): `pnpm --filter @properfy/shared build && pnpm --filter @properfy/shared typecheck lint test`; `pnpm --filter web typecheck lint test`; `pnpm --filter web test:e2e -- inspector-program-rewards`; `git diff --stat origin/develop... | tail -1` < 150. Fix any failure and re-run.
+- [X] T044 Full verification inside the worktree (via a subagent returning a condensed summary): `pnpm --filter @properfy/shared build && pnpm --filter @properfy/shared typecheck lint test`; `pnpm --filter web typecheck lint test`; `pnpm --filter web test:e2e -- inspector-program-rewards`; `git diff --stat origin/develop... | tail -1` < 150. Fix any failure and re-run.
 
 ---
 
