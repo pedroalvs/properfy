@@ -37,6 +37,7 @@ const ResetPasswordPage = Loadable(lazyRetry(() => import('@/features/auth/pages
 const TwoFactorSetupPage = Loadable(lazyRetry(() => import('@/features/auth/pages/TwoFactorSetupPage').then(m => ({ default: m.TwoFactorSetupPage }))));
 const AnalyticsPage = Loadable(lazyRetry(() => import('@/features/analytics/pages/AnalyticsPage').then(m => ({ default: m.AnalyticsPage }))));
 const InspectorWorkloadPage = Loadable(lazyRetry(() => import('@/features/inspector-workload/pages/InspectorWorkloadPage').then(m => ({ default: m.InspectorWorkloadPage }))));
+const InspectorPerformancePage = Loadable(lazyRetry(() => import('@/features/inspector-performance/pages/InspectorPerformancePage').then(m => ({ default: m.InspectorPerformancePage }))));
 const InspectorNoticeListPage = Loadable(lazyRetry(() => import('@/features/inspector-notices/pages/InspectorNoticeListPage').then(m => ({ default: m.InspectorNoticeListPage }))));
 const InspectorNoticeDetailPage = Loadable(lazyRetry(() => import('@/features/inspector-notices/pages/InspectorNoticeDetailPage').then(m => ({ default: m.InspectorNoticeDetailPage }))));
 const AppointmentListPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentListPage').then(m => ({ default: m.AppointmentListPage }))));
@@ -175,6 +176,17 @@ export const routes: RouteObject[] = [
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <InspectorWorkloadPage />
+              </AuthGuard>
+            ),
+          },
+          // Inspector performance (F07) — AM/OP only. The reliability index is a
+          // platform-scoped view (inspectors are cross-tenant); agencies never see
+          // scores or rankings (D4). Listed in the Dashboard group after Workload.
+          {
+            path: 'inspector-performance',
+            element: (
+              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
+                <InspectorPerformancePage />
               </AuthGuard>
             ),
           },
