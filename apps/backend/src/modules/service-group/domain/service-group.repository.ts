@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { PropertyType } from '@properfy/shared';
 import type { ServiceGroupEntity } from './service-group.entity';
+import type { EarlyAccessParams, EarlyAccessGroupState } from './early-access';
 
 export interface ServiceGroupFilters {
   tenantId?: string;
@@ -296,18 +297,31 @@ export interface IServiceGroupRepository {
     inspectorServiceTypes: string[],
     inspectorBlockedClients: string[],
     pagination: PaginationParams,
+    earlyAccess: EarlyAccessParams | null,
   ): Promise<MarketplaceOffer[]>;
   countPublishedForInspector(
     inspectorId: string,
     inspectorServiceTypes: string[],
     inspectorBlockedClients: string[],
+    earlyAccess: EarlyAccessParams | null,
   ): Promise<number>;
   findPublishedOfferDetail(
     groupId: string,
     inspectorId: string,
     inspectorServiceTypes: string[],
     inspectorBlockedClients: string[],
+    earlyAccess: EarlyAccessParams | null,
   ): Promise<MarketplaceOfferDetail | null>;
+  /**
+   * The raw per-group early-access state for the accept path: `publishedAt`, the
+   * group's scheduled civil date, and whether a qualified inspector is eligible —
+   * computed with the same SQL fragment the read paths exclude on. Returns null
+   * when the group does not exist. Only called when `earlyAccess` is non-null.
+   */
+  findEarlyAccessStateForGroup(
+    groupId: string,
+    earlyAccess: EarlyAccessParams,
+  ): Promise<EarlyAccessGroupState | null>;
   /**
    * Whether the inspector meets the marketplace eligibility rules for the group
    * (region, service type, client denylist) — the same predicate the offer

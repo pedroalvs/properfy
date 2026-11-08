@@ -8,6 +8,8 @@ import type { IIdempotencyService } from '../../../../shared/domain/idempotency.
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import type { IAvailabilitySlotRepository } from '../../../inspector/domain/availability-slot.repository';
+import type { IOfferEarlyAccessPolicy } from '../../domain/offer-early-access.policy';
+import { isGroupInEarlyAccess, offerOpensAt } from '../../domain/early-access';
 import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
@@ -17,7 +19,13 @@ import {
   InspectorServiceTypeIneligibleError,
   InspectorInactiveError,
   AppointmentsNotAwaitingInspectorError,
+  OfferEarlyAccessOnlyError,
 } from '../../domain/service-group.errors';
+
+/** Minimal logger port for the denied-accept info log (no PII). */
+interface AcceptOfferLogger {
+  info(obj: Record<string, unknown>, msg: string): void;
+}
 
 export interface AcceptOfferInput {
   groupId: string;
@@ -43,6 +51,8 @@ export class AcceptOfferUseCase {
     private readonly authorizationService: AuthorizationService,
     private readonly eventBus?: DomainEventBus,
     private readonly availabilitySlotRepo?: IAvailabilitySlotRepository,
+    private readonly earlyAccessPolicy?: IOfferEarlyAccessPolicy,
+    private readonly logger?: AcceptOfferLogger,
   ) {}
 
   async execute(input: AcceptOfferInput): Promise<AcceptOfferOutput> {
@@ -106,6 +116,23 @@ export class AcceptOfferUseCase {
     );
     if (!eligible) {
       throw new InspectorRegionIneligibleError();
+    }
+
+    // Early-access gate (F08-2, 03.7): after the eligibility checks and before the
+    // optimistic accept. When the offer is still in its window and the inspector is
+    // below the required level, refuse with the "opens at" time — acceptOptimistic
+    // is never reached.
+    const earlyAccess = await this.earlyAccessPolicy?.resolve(inspectorId, new Date());
+    if (earlyAccess) {
+      const state = await this.serviceGroupRepo.findEarlyAccessStateForGroup(groupId, earlyAccess);
+      if (state && state.publishedAt && isGroupInEarlyAccess(state, earlyAccess)) {
+        const opensAt = offerOpensAt(state.publishedAt, earlyAccess);
+        this.logger?.info(
+          { groupId, inspectorId, opensAt: opensAt.toISOString() },
+          'marketplace.early_access_denied',
+        );
+        throw new OfferEarlyAccessOnlyError(opensAt);
+      }
     }
 
     const now = new Date();

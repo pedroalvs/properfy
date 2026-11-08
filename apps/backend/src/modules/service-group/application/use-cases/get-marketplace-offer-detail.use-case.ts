@@ -4,6 +4,7 @@ import type { AuthorizationService } from '../../../../shared/domain/authorizati
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { MarketplaceOfferDetail } from '../../domain/service-group.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
+import type { IOfferEarlyAccessPolicy } from '../../domain/offer-early-access.policy';
 import { InspectorInactiveError } from '../../domain/service-group.errors';
 
 export interface GetMarketplaceOfferDetailInput {
@@ -19,6 +20,7 @@ export class GetMarketplaceOfferDetailUseCase {
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly inspectorRepo: IInspectorRepository,
     private readonly authorizationService: AuthorizationService,
+    private readonly earlyAccessPolicy: IOfferEarlyAccessPolicy,
   ) {}
 
   async execute(input: GetMarketplaceOfferDetailInput): Promise<GetMarketplaceOfferDetailOutput> {
@@ -40,11 +42,16 @@ export class GetMarketplaceOfferDetailUseCase {
     // Empty list = eligible for every tenant.
     const blockedTenantIds = inspector.blockedClientsJson;
 
+    // Resolve the early-access window once; an in-window group is hidden from an
+    // under-level inspector exactly as in the list (the existing 404 then fires).
+    const earlyAccess = await this.earlyAccessPolicy.resolve(inspector.id, new Date());
+
     const detail = await this.serviceGroupRepo.findPublishedOfferDetail(
       groupId,
       inspector.id,
       serviceTypeIds,
       blockedTenantIds,
+      earlyAccess,
     );
 
     if (!detail) {

@@ -720,6 +720,7 @@ describe('FASE 1 integrated proof', () => {
       serviceGroupRepo,
       inspectorRepo as any,
       authorizationService,
+      { resolve: async () => null },
     );
 
     acceptOfferUseCase = new AcceptOfferUseCase(

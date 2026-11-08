@@ -84,6 +84,11 @@ export class ReliabilityIndexReader {
     return this.repo.findReliabilitySettingsUpdatedAt();
   }
 
+  /** Civil date of the latest reliability snapshot, or `null` when none exists (used by F08-2 early access). */
+  findLatestSnapshotDate(): Promise<string | null> {
+    return this.repo.findLatestSnapshotDate();
+  }
+
   /**
    * Current index per inspector (for F08). With `inspectorIds`, returns one entry
    * per requested id (`NOT_COMPUTED` when it has no row); without, every inspector

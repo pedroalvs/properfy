@@ -68,6 +68,7 @@ const defaultPagination = { page: 1, pageSize: 20, sortOrder: 'asc' as const };
 describe('GetMarketplaceOffersUseCase', () => {
   let serviceGroupRepo: IServiceGroupRepository;
   let inspectorRepo: IInspectorRepository;
+  let earlyAccessPolicy: { resolve: ReturnType<typeof vi.fn> };
   let useCase: GetMarketplaceOffersUseCase;
 
   beforeEach(() => {
@@ -102,7 +103,8 @@ describe('GetMarketplaceOffersUseCase', () => {
 
     const auditService = { log: vi.fn() } as unknown as AuditService;
     const authorizationService = new AuthorizationService(auditService);
-    useCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
+    earlyAccessPolicy = { resolve: vi.fn().mockResolvedValue(null) };
+    useCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo, authorizationService, earlyAccessPolicy);
   });
 
   it('should return offers for eligible inspector', async () => {
@@ -227,11 +229,13 @@ describe('GetMarketplaceOffersUseCase', () => {
       ['svc-type-1', 'svc-type-2'],
       ['tenant-blocked-1', 'tenant-blocked-2'],
       defaultPagination,
+      null,
     );
     expect(serviceGroupRepo.countPublishedForInspector).toHaveBeenCalledWith(
       'inspector-1',
       ['svc-type-1', 'svc-type-2'],
       ['tenant-blocked-1', 'tenant-blocked-2'],
+      null,
     );
   });
 
@@ -255,6 +259,7 @@ describe('GetMarketplaceOffersUseCase', () => {
       ['svc-type-1'],
       [],
       defaultPagination,
+      null,
     );
   });
 
@@ -307,5 +312,66 @@ describe('GetMarketplaceOffersUseCase', () => {
     expect(result.data[0].properties).toEqual([
       { street: '', suburb: '', propertyType: null },
     ]);
+  });
+
+  describe('early access (F08-2)', () => {
+    const PARAMS = {
+      hours: 12,
+      cutoffUtc: '2026-11-09T22:00:00.000',
+      enabledAtUtc: '2026-11-01T00:00:00.000',
+      protectedFrom: '2026-11-12',
+      minScore: 85,
+      latestSnapshotDate: '2026-11-10',
+    };
+
+    it('resolves the policy once and passes the params to BOTH the list and the count', async () => {
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+      vi.mocked(serviceGroupRepo.findPublishedForInspector).mockResolvedValue([]);
+      vi.mocked(serviceGroupRepo.countPublishedForInspector).mockResolvedValue(0);
+      earlyAccessPolicy.resolve.mockResolvedValue(PARAMS);
+
+      await useCase.execute({
+        inspectorId: 'inspector-1',
+        pagination: defaultPagination,
+        actor: makeActor(),
+      });
+
+      expect(earlyAccessPolicy.resolve).toHaveBeenCalledTimes(1);
+      expect(earlyAccessPolicy.resolve).toHaveBeenCalledWith('inspector-1', expect.any(Date));
+      expect(serviceGroupRepo.findPublishedForInspector).toHaveBeenCalledWith(
+        'inspector-1',
+        ['svc-type-1'],
+        [],
+        defaultPagination,
+        PARAMS,
+      );
+      expect(serviceGroupRepo.countPublishedForInspector).toHaveBeenCalledWith(
+        'inspector-1',
+        ['svc-type-1'],
+        [],
+        PARAMS,
+      );
+    });
+
+    it('passes null to the repository when the policy returns no window', async () => {
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+      vi.mocked(serviceGroupRepo.findPublishedForInspector).mockResolvedValue([]);
+      vi.mocked(serviceGroupRepo.countPublishedForInspector).mockResolvedValue(0);
+      earlyAccessPolicy.resolve.mockResolvedValue(null);
+
+      await useCase.execute({
+        inspectorId: 'inspector-1',
+        pagination: defaultPagination,
+        actor: makeActor(),
+      });
+
+      expect(serviceGroupRepo.findPublishedForInspector).toHaveBeenCalledWith(
+        'inspector-1',
+        ['svc-type-1'],
+        [],
+        defaultPagination,
+        null,
+      );
+    });
   });
 });

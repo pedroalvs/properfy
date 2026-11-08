@@ -112,6 +112,7 @@ describe('AcceptOfferUseCase', () => {
       countPublishedForInspector: vi.fn(),
       // Eligible by default; the region-rejection case overrides it.
       isGroupEligibleForInspector: vi.fn().mockResolvedValue(true),
+      findEarlyAccessStateForGroup: vi.fn(),
       linkAppointments: vi.fn(),
       unlinkAppointments: vi.fn(),
       scheduleAppointments: vi.fn(),
@@ -491,6 +492,135 @@ describe('AcceptOfferUseCase', () => {
 
     expect(result.status).toBe('ACCEPTED');
     expect(slotRepo.decrementCapacity).not.toHaveBeenCalled();
+  });
+
+  describe('early access (F08-2)', () => {
+    const PARAMS = {
+      hours: 12,
+      cutoffUtc: '2026-11-09T22:00:00.000',
+      enabledAtUtc: '2026-11-01T00:00:00.000',
+      protectedFrom: '2026-11-12',
+      minScore: 85,
+      latestSnapshotDate: '2026-11-10',
+    };
+    const IN_WINDOW = {
+      publishedAt: new Date('2026-11-10T10:00:00.000Z'), // after cutoff + after enabledAt
+      scheduledDate: '2026-11-13', // >= protectedFrom
+      hasQualifiedEligible: true,
+    };
+    let policy: { resolve: ReturnType<typeof vi.fn> };
+    let logger: { info: ReturnType<typeof vi.fn> };
+    let ucEa: AcceptOfferUseCase;
+
+    beforeEach(() => {
+      policy = { resolve: vi.fn().mockResolvedValue(PARAMS) };
+      logger = { info: vi.fn() };
+      ucEa = new AcceptOfferUseCase(
+        serviceGroupRepo,
+        inspectorRepo,
+        auditService,
+        idempotencyService,
+        new AuthorizationService(auditService),
+        undefined,
+        undefined,
+        policy,
+        logger,
+      );
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+      vi.mocked(serviceGroupRepo.findById).mockResolvedValue(makeGroupWithAppointments());
+      vi.mocked(serviceGroupRepo.acceptOptimistic).mockResolvedValue(1);
+      vi.mocked(serviceGroupRepo.scheduleAppointments).mockResolvedValue(5);
+    });
+
+    const run = () =>
+      ucEa.execute({ groupId: 'group-1', inspectorId: 'inspector-1', actor: makeActor() });
+
+    it('refuses a below-level inspector for an in-window group (403, acceptOptimistic not called, logged)', async () => {
+      vi.mocked(serviceGroupRepo.findEarlyAccessStateForGroup).mockResolvedValue(IN_WINDOW);
+
+      await expect(run()).rejects.toThrow(
+        expect.objectContaining({
+          code: 'OFFER_EARLY_ACCESS_ONLY',
+          statusCode: 403,
+          details: { opensAt: '2026-11-10T22:00:00.000Z' },
+        }),
+      );
+      expect(serviceGroupRepo.acceptOptimistic).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ groupId: 'group-1', opensAt: '2026-11-10T22:00:00.000Z' }),
+        'marketplace.early_access_denied',
+      );
+    });
+
+    it('checks the window AFTER region eligibility and BEFORE acceptOptimistic', async () => {
+      const order: string[] = [];
+      vi.mocked(serviceGroupRepo.isGroupEligibleForInspector).mockImplementation(async () => {
+        order.push('eligible');
+        return true;
+      });
+      vi.mocked(serviceGroupRepo.findEarlyAccessStateForGroup).mockImplementation(async () => {
+        order.push('earlyAccessState');
+        return IN_WINDOW;
+      });
+      vi.mocked(serviceGroupRepo.acceptOptimistic).mockImplementation(async () => {
+        order.push('accept');
+        return 1;
+      });
+
+      await expect(run()).rejects.toThrow(
+        expect.objectContaining({ code: 'OFFER_EARLY_ACCESS_ONLY' }),
+      );
+      expect(order).toEqual(['eligible', 'earlyAccessState']); // acceptOptimistic never reached
+    });
+
+    it('(L-F08-08) accepts when the group was published before enabledAt', async () => {
+      vi.mocked(serviceGroupRepo.findEarlyAccessStateForGroup).mockResolvedValue({
+        ...IN_WINDOW,
+        publishedAt: new Date('2026-10-31T00:00:00.000Z'),
+      });
+      const result = await run();
+      expect(result.status).toBe('ACCEPTED');
+      expect(serviceGroupRepo.acceptOptimistic).toHaveBeenCalled();
+    });
+
+    it('(DV3) accepts when no qualified-eligible inspector exists for the group', async () => {
+      vi.mocked(serviceGroupRepo.findEarlyAccessStateForGroup).mockResolvedValue({
+        ...IN_WINDOW,
+        hasQualifiedEligible: false,
+      });
+      expect((await run()).status).toBe('ACCEPTED');
+    });
+
+    it('(DV3) accepts a group scheduled for today/D+1 (never gated)', async () => {
+      vi.mocked(serviceGroupRepo.findEarlyAccessStateForGroup).mockResolvedValue({
+        ...IN_WINDOW,
+        scheduledDate: '2026-11-11', // D+1, before protectedFrom 2026-11-12
+      });
+      expect((await run()).status).toBe('ACCEPTED');
+    });
+
+    it('accepts without a state read when the policy returns no window', async () => {
+      policy.resolve.mockResolvedValue(null);
+      expect((await run()).status).toBe('ACCEPTED');
+      expect(serviceGroupRepo.findEarlyAccessStateForGroup).not.toHaveBeenCalled();
+    });
+
+    it('idempotency-cache hit short-circuits before the early-access check', async () => {
+      idempotencyService.get.mockResolvedValue({
+        groupId: 'group-1',
+        status: 'ACCEPTED',
+        assignedInspectorId: 'insp-1',
+        appointmentsScheduled: 5,
+        acceptedAt: new Date(),
+      });
+      await ucEa.execute({
+        groupId: 'group-1',
+        inspectorId: 'inspector-1',
+        actor: makeActor({ inspectorId: 'insp-1' }),
+      });
+      expect(policy.resolve).not.toHaveBeenCalled();
+      expect(serviceGroupRepo.findEarlyAccessStateForGroup).not.toHaveBeenCalled();
+    });
   });
 
 });

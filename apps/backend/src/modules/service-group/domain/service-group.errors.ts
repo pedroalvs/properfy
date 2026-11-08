@@ -1,4 +1,5 @@
 import { NotFoundError, DomainError, ConflictError } from '../../../shared/domain/errors';
+import { formatOpensAt } from './early-access';
 
 export class ServiceGroupNotFoundError extends NotFoundError {
   constructor() {
@@ -141,5 +142,17 @@ export class ServiceGroupNotDraftError extends DomainError {
       'Draft-only fields (scheduledDate and timeWindow) can only be updated when the service group is in DRAFT status',
       422,
     );
+  }
+}
+
+/**
+ * Raised on accept when the offer is still in its early-access window and the
+ * inspector is below the required level (F08-2, 03.7 / L-F08-08). A 403 with the
+ * same HTTP shape as ForbiddenError, plus `details.opensAt` (ISO UTC) — the error
+ * class carries `details`, which ForbiddenError's constructor does not expose.
+ */
+export class OfferEarlyAccessOnlyError extends DomainError {
+  constructor(opensAt: Date) {
+    super('OFFER_EARLY_ACCESS_ONLY', formatOpensAt(opensAt), 403, { opensAt: opensAt.toISOString() });
   }
 }
