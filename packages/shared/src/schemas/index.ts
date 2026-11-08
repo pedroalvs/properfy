@@ -41,3 +41,4 @@ export * from './reliability';
 export * from './day-plan';
 export * from './live-day';
 export * from './property-files';
+export * from './inspector-program';

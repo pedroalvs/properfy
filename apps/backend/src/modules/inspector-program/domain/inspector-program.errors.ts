@@ -1,5 +1,5 @@
 import type { RewardAwardStatus } from '@properfy/shared';
-import { ConflictError, NotFoundError, UnprocessableEntityError } from '../../../shared/domain/errors';
+import { ConflictError, NotFoundError, UnprocessableEntityError, ValidationError } from '../../../shared/domain/errors';
 import { rewardStatusWord } from './reward-award.entity';
 
 export class GoalNotFoundError extends NotFoundError {
@@ -69,5 +69,27 @@ export class GoalScopeInspectorNotFoundError extends UnprocessableEntityError {
 export class GoalScopeRegionDeletedError extends UnprocessableEntityError {
   constructor() {
     super("This goal's region was deleted. Create a new goal.", undefined, 'GOAL_SCOPE_REGION_DELETED');
+  }
+}
+
+// ── Reward action idempotency (approve/void) ──────────────────────────────────
+// The reward actions carry an `Idempotency-Key` header so a retry or a concurrent
+// duplicate never runs the mutation twice (03.13, Q12 — approve/void only).
+
+export class RewardAwardIdempotencyKeyRequiredError extends ValidationError {
+  constructor() {
+    super('Idempotency-Key header is required', undefined, 'IDEMPOTENCY_KEY_REQUIRED');
+  }
+}
+
+export class RewardAwardIdempotencyPayloadMismatchError extends ConflictError {
+  constructor() {
+    super('IDEMPOTENCY_PAYLOAD_MISMATCH', 'This Idempotency-Key was used with a different request');
+  }
+}
+
+export class RewardAwardIdempotencyInProgressError extends ConflictError {
+  constructor() {
+    super('IDEMPOTENCY_IN_PROGRESS', 'An identical request is already being processed');
   }
 }

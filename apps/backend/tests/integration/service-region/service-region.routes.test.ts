@@ -20,6 +20,7 @@ import {
   ServiceRegionNotFoundError,
   ServiceRegionStillActiveError,
   ServiceRegionHasPublishedGroupsError,
+  ServiceRegionHasActiveGoalsError,
 } from '../../../src/modules/service-region/domain/service-region.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 
@@ -556,6 +557,20 @@ describe('DELETE /v1/service-regions/:id', () => {
 
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('SERVICE_REGION_STILL_ACTIVE');
+  });
+
+  // F08-1: cannot delete a region still used by active inspector-program goals
+  it('returns 409 SERVICE_REGION_HAS_ACTIVE_GOALS when active goals use the region', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockDelete.mockRejectedValueOnce(new ServiceRegionHasActiveGoalsError(3));
+
+    const res = await supertest(app.server)
+      .delete(`/v1/service-regions/${REGION_ID}`)
+      .set('Authorization', 'Bearer valid-token');
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('SERVICE_REGION_HAS_ACTIVE_GOALS');
+    expect(res.body.error.details).toEqual({ activeGoalCount: 3 });
   });
 
   // T184: Cannot delete region referenced by service groups

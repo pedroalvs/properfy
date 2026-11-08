@@ -339,6 +339,29 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   'reliability.view': {
     roles: ['AM', 'OP'],
   },
+
+  // ── Inspector Program (F08) ──────────────────────────────────────────
+  // Platform-scoped goals, rewards and closures (no tenant_id, D12). AM/OP
+  // manage goals and view/approve/void reward awards; INSP reads only its own
+  // program data (standing, challenges — TASK-F08-4). Agencies and the tenant
+  // portal never reach these surfaces (Q18/D8). There is no `awards.pay` action:
+  // the inspector invoice pays the bonus (Q12), and the AM-only void-after-
+  // invoicing action is introduced by TASK-F08-6.
+  'inspector_program.goals.manage': {
+    roles: ['AM', 'OP'],
+  },
+  'inspector_program.awards.view': {
+    roles: ['AM', 'OP'],
+  },
+  'inspector_program.awards.approve': {
+    roles: ['AM', 'OP'],
+  },
+  'inspector_program.awards.void': {
+    roles: ['AM', 'OP'],
+  },
+  'inspector_program.view_own': {
+    roles: ['INSP'],
+  },
 } as const;
 
 /** All action keys in the matrix */
