@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
-import { CalendarClock, FileText, LogOut, Megaphone, Settings, Star, User, Wallet } from 'lucide-react';
+import { CalendarClock, FileText, LogOut, Megaphone, Settings, Star, Trophy, User, Wallet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUnreadNoticeCount } from '@/features/announcements/hooks/useUnreadNoticeCount';
+import { useInspectorProgram } from '@/features/challenges/hooks/useInspectorProgram';
+import { formatBonus } from '@/features/challenges/lib/challenge-copy';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { MenuList, MenuRow } from '@/components/ui/MenuRow';
 import { Badge } from '@/components/ui/Badge';
@@ -18,6 +20,12 @@ export function ProfilePage() {
   const { data: inspectorMe } = useInspectorMe();
   const { data: availability } = useInspectorAvailabilityTemplate();
   const { count: unreadNotices } = useUnreadNoticeCount();
+  const { data: program } = useInspectorProgram();
+
+  // Open bonus total across the inspector's current-period goals; falls back to a
+  // neutral prompt while loading / on error (the tile never blocks the hub).
+  const openCash = program?.summary.openCashTotal ?? 0;
+  const challengesValue = openCash > 0 ? `Up to ${formatBonus(openCash)} in bonuses` : 'See your goals and ranking';
 
   // useInspectorMe resolves to the `{ data: InspectorMe }` envelope.
   const inspector = inspectorMe?.data;
@@ -83,6 +91,13 @@ export function ProfilePage() {
             label="Earnings"
             value="Payments & invoices"
             to="/earnings"
+          />
+          <ProfileTile
+            icon={<Trophy className="h-6 w-6" aria-hidden="true" />}
+            label="Challenges"
+            value={challengesValue}
+            to="/profile/challenges"
+            data-testid="profile-tile-challenges"
           />
           <ProfileTile
             icon={<CalendarClock className="h-6 w-6" aria-hidden="true" />}

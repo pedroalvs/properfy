@@ -72,7 +72,7 @@ export const TARGET_STEPS: readonly TourStep[] = [
     kind: 'target',
     anchor: 'nav-more',
     title: 'More',
-    body: 'Announcements, earnings, your profile and app settings.',
+    body: 'Announcements, challenges, earnings, your profile and app settings.',
   },
 ];
 
