@@ -57,7 +57,7 @@ function issueEntity(over: Partial<PropertyIssueEntity> = {}): PropertyIssueEnti
 
 function build(opts: { propertyId?: string | null; linkCount?: number } = {}) {
   const created: Record<string, unknown>[] = [];
-  const linkPendingIssuePhotos = vi.fn(async () => opts.linkCount ?? 0);
+  const linkPendingPortalIssuePhotos = vi.fn(async () => opts.linkCount ?? 0);
   const issueRepo = {
     findAppointmentScope: vi.fn(async () => ({
       propertyId: opts.propertyId === undefined ? PROPERTY_A : opts.propertyId,
@@ -73,7 +73,7 @@ function build(opts: { propertyId?: string | null; linkCount?: number } = {}) {
     }),
   } as unknown as IPropertyIssueRepository;
   const fileRepo = {
-    linkPendingIssuePhotos,
+    linkPendingPortalIssuePhotos,
     listReadyPhotosByIssueIds: vi.fn(async () => []),
   } as unknown as IPropertyFileRepository;
   const audit = { log: vi.fn() };
@@ -86,7 +86,7 @@ function build(opts: { propertyId?: string | null; linkCount?: number } = {}) {
     audit,
     { now: () => NOW },
   );
-  return { uc, created, linkPendingIssuePhotos, audit, issueRepo };
+  return { uc, created, linkPendingPortalIssuePhotos, audit, issueRepo };
 }
 
 describe('CreatePortalIssueUseCase', () => {
@@ -158,14 +158,16 @@ describe('CreatePortalIssueUseCase', () => {
     ).rejects.toMatchObject({ code: 'PROPERTY_ISSUE_PHOTO_LINK_FAILED', statusCode: 409 });
   });
 
-  it('D20: links every photo within the token scope when the count matches', async () => {
-    const { uc, linkPendingIssuePhotos } = build({ linkCount: 1 });
+  it('D20: links every photo via the portal-scoped method (pins appointment + no-user)', async () => {
+    const { uc, linkPendingPortalIssuePhotos } = build({ linkCount: 1 });
     await uc.execute({
       appointmentId: APPT_A,
       input: { reason: 'x', photoFileIds: [PHOTO_1] },
       idempotencyKey: 'c5',
     });
-    expect(linkPendingIssuePhotos).toHaveBeenCalledWith(
+    // Must use the portal-scoped link (which adds appointment_id + uploaded_by_user_id
+    // IS NULL in the WHERE), never the shared cross-appointment linkPendingIssuePhotos.
+    expect(linkPendingPortalIssuePhotos).toHaveBeenCalledWith(
       expect.objectContaining({
         fileIds: [PHOTO_1],
         issueId: expect.any(String),

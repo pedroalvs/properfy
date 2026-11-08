@@ -35,6 +35,7 @@ async function insertConfirmedPortalPhoto(
   tenantId: string,
   propertyId: string,
   appointmentId: string,
+  overrides: { uploadedByUserId?: string } = {},
 ): Promise<string> {
   const id = randomUUID();
   await prisma.propertyFile.create({
@@ -52,9 +53,38 @@ async function insertConfirmedPortalPhoto(
       storage_key: `files/${tenantId}/tenant-issues/${appointmentId}/${id}.jpg`,
       status: 'PENDING',
       confirmed_at: new Date('2026-11-07T00:00:00Z'),
+      uploaded_by_user_id: overrides.uploadedByUserId ?? null,
     },
   });
   return id;
+}
+
+/** A second appointment reusing the fixture's branch/property/service/user. */
+async function createSiblingAppointment(f: {
+  tenantId: string;
+  branchId: string;
+  propertyId: string;
+  serviceTypeId: string;
+  userId: string;
+}): Promise<string> {
+  const appt = await prisma.appointment.create({
+    data: {
+      tenant_id: f.tenantId,
+      branch_id: f.branchId,
+      property_id: f.propertyId,
+      service_type_id: f.serviceTypeId,
+      status: 'SCHEDULED',
+      scheduled_date: new Date('2026-12-01'),
+      time_slot_start: '09:00',
+      time_slot_end: '12:00',
+      price_amount: '100.00',
+      payout_amount: '80.00',
+      pricing_rule_snapshot_json: {},
+      rental_tenant_confirmation_status: 'PENDING',
+      created_by_user_id: f.userId,
+    },
+  });
+  return appt.id;
 }
 
 beforeAll(async () => {
@@ -107,6 +137,47 @@ describe('portal issue — creation scope (F10-4)', () => {
     const photo = await prisma.propertyFile.findUnique({ where: { id: photoId } });
     expect(photo!.status).toBe('READY');
     expect(photo!.issue_id).toBe(issue.id);
+  });
+
+  it('refuses to link a photo from a DIFFERENT appointment on the same property+tenant (409, rollback)', async () => {
+    const f = await seedLegacyDoneAppointment(prisma, { tenantName: `XAPPT-${suffix()}` });
+    const otherAppointmentId = await createSiblingAppointment(f);
+    // A confirmed portal photo belonging to the OTHER appointment (same property+tenant).
+    const foreignPhoto = await insertConfirmedPortalPhoto(f.tenantId, f.propertyId, otherAppointmentId);
+
+    await expect(
+      createIssue.execute({
+        appointmentId: f.appointmentId,
+        input: { reason: 'try to steal', photoFileIds: [foreignPhoto] },
+        idempotencyKey: `k-${suffix()}`,
+      }),
+    ).rejects.toMatchObject({ code: 'PROPERTY_ISSUE_PHOTO_LINK_FAILED' });
+
+    // Rolled back: no issue created, the foreign photo untouched (still PENDING, other appt).
+    const issues = await prisma.propertyIssue.findMany({ where: { appointment_id: f.appointmentId } });
+    expect(issues).toHaveLength(0);
+    const row = await prisma.propertyFile.findUnique({ where: { id: foreignPhoto } });
+    expect(row!.status).toBe('PENDING');
+    expect(row!.issue_id).toBeNull();
+    expect(row!.appointment_id).toBe(otherAppointmentId);
+  });
+
+  it('refuses to link a STAFF-uploaded photo (uploaded_by_user_id set) on the token appointment', async () => {
+    const f = await seedLegacyDoneAppointment(prisma, { tenantName: `XSTAFF-${suffix()}` });
+    const staffPhoto = await insertConfirmedPortalPhoto(f.tenantId, f.propertyId, f.appointmentId, {
+      uploadedByUserId: f.userId,
+    });
+
+    await expect(
+      createIssue.execute({
+        appointmentId: f.appointmentId,
+        input: { reason: 'steal staff photo', photoFileIds: [staffPhoto] },
+        idempotencyKey: `k-${suffix()}`,
+      }),
+    ).rejects.toMatchObject({ code: 'PROPERTY_ISSUE_PHOTO_LINK_FAILED' });
+    const row = await prisma.propertyFile.findUnique({ where: { id: staffPhoto } });
+    expect(row!.status).toBe('PENDING');
+    expect(row!.issue_id).toBeNull();
   });
 });
 

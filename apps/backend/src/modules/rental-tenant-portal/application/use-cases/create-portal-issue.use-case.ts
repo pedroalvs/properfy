@@ -109,8 +109,11 @@ export class CreatePortalIssueUseCase {
 
       // D20: attach every referenced PENDING issue photo atomically; a partial
       // link means a photo was missing/foreign/unconfirmed/already-linked → 409.
+      // The portal-scoped link also pins `appointment_id` + `uploaded_by_user_id
+      // IS NULL`, so a token can never link another appointment's photo nor a
+      // staff member's in-flight issue photo on the same property+tenant.
       if (photoFileIds.length > 0) {
-        const linked = await this.fileRepo.linkPendingIssuePhotos(
+        const linked = await this.fileRepo.linkPendingPortalIssuePhotos(
           {
             fileIds: photoFileIds,
             issueId,
