@@ -8,6 +8,7 @@ import {
   InvoiceEmptyPeriodError,
   InvoiceMixedCurrencyError,
   InvoiceLinesChangedError,
+  InvoiceNonPositiveTotalError,
   BillingIdempotencyPayloadMismatchError,
   BillingIdempotencyInProgressError,
 } from '../../domain/billing.errors';
@@ -140,6 +141,12 @@ export class ApproveDraftInvoiceUseCase {
     }
     // Round to cents so accumulated float error (e.g. 80.00000000001) can't be frozen as the total.
     const totalAmount = Math.round(snapshot.reduce((sum, line) => sum + line.amount, 0) * 100) / 100;
+    // Q12 (F08-6/DQ13): re-check at approval, not only at request — a bonus reversal
+    // (effective_at = now) or a manual adjustment landing between request and approve could
+    // drag the recomputed total ≤ 0, which must never be frozen as a closed invoice.
+    if (totalAmount <= 0) {
+      throw new InvoiceNonPositiveTotalError();
+    }
 
     // Q12 (F08-6): the original bonus lines (amount > 0) name the rewards paid by THIS invoice.
     // Reversal lines (amount < 0) carry the original reward id too but are already voided/linked.

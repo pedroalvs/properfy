@@ -6,6 +6,7 @@ import {
   InvoiceNotPendingReviewError,
   InvoiceEmptyPeriodError,
   InvoiceMixedCurrencyError,
+  InvoiceNonPositiveTotalError,
   BillingIdempotencyInProgressError,
   BillingIdempotencyPayloadMismatchError,
 } from '../../../src/modules/billing/domain/billing.errors';
@@ -147,6 +148,19 @@ describe('ApproveDraftInvoiceUseCase', () => {
   it('rejects when payouts span multiple currencies at approval time', async () => {
     financialEntryRepo.findApprovedPayoutLinesForSnapshot.mockResolvedValue({ lines: SNAPSHOT, currencies: ['AUD', 'USD'] });
     await expect(makeSut().execute({ invoiceId: 'inv-1', actor: opActor, idempotencyKey: 'approve-key' })).rejects.toThrow(InvoiceMixedCurrencyError);
+  });
+
+  it('rejects a non-positive recomputed total at approval (Q12/DQ13)', async () => {
+    // A bonus reversal (effective_at = now) can drag the recomputed total to <= 0 between request
+    // and approve; the invoice must not be frozen as a closed non-positive invoice.
+    financialEntryRepo.findApprovedPayoutLinesForSnapshot.mockResolvedValue({
+      lines: [
+        { kind: 'BONUS', serviceDate: '2026-03-10', appointmentId: null, appointmentCode: null, propertyAddress: null, serviceType: null, amount: -30, agencyId: null, agencyName: null, branchId: null, branchName: null, entryId: 'e1', rewardAwardId: 'r1', description: 'Bonus reversal: Weekly volume · Week of Mon 2 Nov' },
+      ],
+      currencies: ['AUD'],
+    });
+    await expect(makeSut().execute({ invoiceId: 'inv-1', actor: opActor, idempotencyKey: 'approve-key' })).rejects.toThrow(InvoiceNonPositiveTotalError);
+    expect(invoiceRepo.assignNumberAndFreeze).not.toHaveBeenCalled();
   });
 
   it('throws NotPendingReview when it loses an approval race (assignNumberAndFreeze returns null)', async () => {
