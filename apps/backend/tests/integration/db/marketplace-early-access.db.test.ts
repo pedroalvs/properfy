@@ -30,7 +30,7 @@ import {
   POINT_INSIDE_MELBOURNE,
 } from '../service-region/helpers/service-region-fixtures';
 import { PrismaServiceGroupRepository } from '../../../src/modules/service-group/infrastructure/prisma-service-group.repository';
-import type { EarlyAccessParams } from '../../../src/modules/service-group/domain/early-access';
+import { isGroupInEarlyAccess, type EarlyAccessParams } from '../../../src/modules/service-group/domain/early-access';
 
 let harness: DbHarness;
 
@@ -367,6 +367,32 @@ describe('Marketplace early access (real DB)', () => {
     // Point the params at a snapshot date with no rows.
     const sam = params({ latestSnapshotDate: addCivilDays(TODAY, -5) });
     expect(await listedIds(w.repo, w.sam, w.serviceTypeId, sam)).toContain(g1);
+  });
+
+  it('(invariant) in-memory isGroupInEarlyAccess agrees with the SQL list decision for every group', async () => {
+    // Guards the design premise that the read-path SQL exclusion and the
+    // accept-path in-memory predicate never disagree — a one-sided operator
+    // edit in either place would break this.
+    const w = await setupWorld();
+    const inWindow = await w.seedR(D_PLUS_3, hoursAgo(1));
+    const old = await w.seedR(D_PLUS_3, hoursAgo(72));
+    const legacy = await w.seedR(D_PLUS_3, null);
+    const dplus1 = await w.seedR(D_PLUS_1, hoursAgo(1));
+    const today = await w.seedR(TODAY, hoursAgo(1));
+    const groups = [inWindow, old, legacy, dplus1, today];
+
+    const sam = params();
+    const listed = new Set(await listedIds(w.repo, w.sam, w.serviceTypeId, sam));
+
+    for (const g of groups) {
+      const state = await w.repo.findEarlyAccessStateForGroup(g, sam);
+      expect(state).not.toBeNull();
+      // Gated by the in-memory predicate iff hidden from the SQL list.
+      expect(isGroupInEarlyAccess(state!, sam)).toBe(!listed.has(g));
+    }
+    // Sanity: exactly the in-window group is gated.
+    expect(isGroupInEarlyAccess((await w.repo.findEarlyAccessStateForGroup(inWindow, sam))!, sam)).toBe(true);
+    expect(listed.has(inWindow)).toBe(false);
   });
 
   it('the exclusion is session-timezone independent (Sydney vs UTC)', async () => {
