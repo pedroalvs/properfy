@@ -7,6 +7,7 @@ import { NotFoundError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceGroupRepository, PaginationParams } from '../../domain/service-group.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
+import type { IOfferEarlyAccessPolicy } from '../../domain/offer-early-access.policy';
 import { InspectorInactiveError } from '../../domain/service-group.errors';
 
 export interface GetMarketplaceOffersInput {
@@ -43,6 +44,7 @@ export class GetMarketplaceOffersUseCase {
     private readonly serviceGroupRepo: IServiceGroupRepository,
     private readonly inspectorRepo: IInspectorRepository,
     private readonly authorizationService: AuthorizationService,
+    private readonly earlyAccessPolicy: IOfferEarlyAccessPolicy,
   ) {}
 
   async execute(input: GetMarketplaceOffersInput): Promise<GetMarketplaceOffersOutput> {
@@ -64,17 +66,23 @@ export class GetMarketplaceOffersUseCase {
     // Empty list = eligible for every tenant.
     const blockedTenantIds = inspector.blockedClientsJson;
 
+    // Resolve the early-access window once per request and apply it to BOTH the
+    // list and the count, so an under-level inspector's `total` matches the ids.
+    const earlyAccess = await this.earlyAccessPolicy.resolve(inspector.id, new Date());
+
     const [data, total] = await Promise.all([
       this.serviceGroupRepo.findPublishedForInspector(
         inspector.id,
         serviceTypeIds,
         blockedTenantIds,
         pagination,
+        earlyAccess,
       ),
       this.serviceGroupRepo.countPublishedForInspector(
         inspector.id,
         serviceTypeIds,
         blockedTenantIds,
+        earlyAccess,
       ),
     ]);
 

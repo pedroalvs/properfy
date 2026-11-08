@@ -291,6 +291,8 @@ import { ApproveRewardAwardUseCase } from '../modules/inspector-program/applicat
 import { VoidRewardAwardUseCase } from '../modules/inspector-program/application/use-cases/void-reward-award.use-case';
 import { RegionGoalUsageChecker } from '../modules/inspector-program/application/region-goal-usage-checker';
 import { InspectorProgramStandingService } from '../modules/inspector-program/application/inspector-program-standing.service';
+import { OfferEarlyAccessPolicy } from '../modules/inspector-program/application/offer-early-access.policy';
+import { prepareInspectorProgramSettingForSave } from '../modules/inspector-program/application/prepare-inspector-program-setting-for-save';
 import type { InspectorProgramRouteContainer } from '../modules/inspector-program/interfaces/inspector-program.routes';
 import type { ExecutionDensityRouteContainer } from '../modules/inspector-execution/interfaces/execution-density.routes';
 // Property files & issues (F10)
@@ -1338,7 +1340,10 @@ export function createContainer(logger: Logger): AppContainer {
   const getPlatformSettingUseCase = new GetPlatformSettingUseCase(platformSettingRepo, authorizationService);
   const updatePlatformSettingUseCase = new UpdatePlatformSettingUseCase(
     platformSettingRepo, authorizationService, auditService, platformSettingsService, domainEventBus, logger,
-    PLATFORM_SETTING_SAVE_HOOKS,
+    // F08-2 (L-F08-08): register the inspectorProgram save hook at the composition
+    // root so platform-settings never imports inspector-program (clean dependency
+    // direction) and the use case stays untouched.
+    { ...PLATFORM_SETTING_SAVE_HOOKS, inspectorProgram: prepareInspectorProgramSettingForSave },
   );
 
   // Inspector execution use cases
@@ -1605,9 +1610,17 @@ export function createContainer(logger: Logger): AppContainer {
     tenantTimezoneLookup,
   );
   const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
-  const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
-  const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
-  const getMarketplaceOfferDetailUseCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
+  // F08-2: early-access policy composes the F08-1 standing service + F07 snapshot
+  // date + platform settings; the service-group use cases depend only on the port.
+  const offerEarlyAccessPolicy = new OfferEarlyAccessPolicy(
+    inspectorProgramStandingService,
+    platformSettingsService,
+    reliabilityIndexReader,
+    logger,
+  );
+  const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo, offerEarlyAccessPolicy, logger);
+  const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo, authorizationService, offerEarlyAccessPolicy);
+  const getMarketplaceOfferDetailUseCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo, authorizationService, offerEarlyAccessPolicy);
   const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, appointmentRepo, logger);

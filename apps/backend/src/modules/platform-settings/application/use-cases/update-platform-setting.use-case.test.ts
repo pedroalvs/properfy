@@ -3,6 +3,7 @@ import { UpdatePlatformSettingUseCase } from './update-platform-setting.use-case
 import { PlatformSettingUnknownKeyError } from '../../domain/platform-settings.errors';
 import { ValidationError, ForbiddenError } from '../../../../shared/domain/errors';
 import { AuthorizationService } from '../../../../shared/domain/authorization.service';
+import { prepareInspectorProgramSettingForSave } from '../../../inspector-program/application/prepare-inspector-program-setting-for-save';
 
 const VALID = {
   geofenceRadiusMeters: 150,
@@ -167,6 +168,74 @@ describe('UpdatePlatformSettingUseCase', () => {
       expect(repository.upsert).not.toHaveBeenCalled();
       expect(auditService.log).not.toHaveBeenCalled();
       expect(eventBus.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  // F08-2 (L-F08-08 / 03.A5): the inspectorProgram hook the container registers.
+  describe('inspectorProgram earlyAccess.enabledAt (L-F08-08)', () => {
+    const hooks = { inspectorProgram: prepareInspectorProgramSettingForSave };
+    const STAMP = '2026-11-03T00:00:00.000Z'; // the makeSut clock
+    const progValue = (enabled: boolean, enabledAt: string | null) => ({
+      levels: { silverMinScore: 60, goldMinScore: 85 },
+      earlyAccess: { enabled, hours: 12, minLevel: 'GOLD', enabledAt },
+    });
+
+    it('stamps the server now on false→true, ignores the client value, and audits it', async () => {
+      repository.findByKey.mockResolvedValue(null); // defaults → enabled false
+      await makeSut(hooks).execute({
+        key: 'inspectorProgram',
+        value: progValue(true, '2020-01-01T00:00:00.000Z'),
+        actor: amActor,
+      });
+      expect(repository.upsert).toHaveBeenCalledWith(
+        'inspectorProgram',
+        expect.objectContaining({ earlyAccess: expect.objectContaining({ enabledAt: STAMP }) }),
+        'am-1',
+      );
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entityId: 'inspectorProgram',
+          after: expect.objectContaining({ earlyAccess: expect.objectContaining({ enabledAt: STAMP }) }),
+        }),
+      );
+    });
+
+    it('keeps the previous enabledAt on a true→true change', async () => {
+      repository.findByKey.mockResolvedValue({
+        key: 'inspectorProgram',
+        valueJson: progValue(true, '2026-10-01T00:00:00.000Z'),
+        updatedAt: new Date(),
+        updatedBy: null,
+      });
+      await makeSut(hooks).execute({
+        key: 'inspectorProgram',
+        value: progValue(true, '2020-01-01T00:00:00.000Z'),
+        actor: amActor,
+      });
+      expect(repository.upsert).toHaveBeenCalledWith(
+        'inspectorProgram',
+        expect.objectContaining({ earlyAccess: expect.objectContaining({ enabledAt: '2026-10-01T00:00:00.000Z' }) }),
+        'am-1',
+      );
+    });
+
+    it('clears enabledAt on true→false', async () => {
+      repository.findByKey.mockResolvedValue({
+        key: 'inspectorProgram',
+        valueJson: progValue(true, '2026-10-01T00:00:00.000Z'),
+        updatedAt: new Date(),
+        updatedBy: null,
+      });
+      await makeSut(hooks).execute({
+        key: 'inspectorProgram',
+        value: progValue(false, '2026-10-01T00:00:00.000Z'),
+        actor: amActor,
+      });
+      expect(repository.upsert).toHaveBeenCalledWith(
+        'inspectorProgram',
+        expect.objectContaining({ earlyAccess: expect.objectContaining({ enabledAt: null }) }),
+        'am-1',
+      );
     });
   });
 });

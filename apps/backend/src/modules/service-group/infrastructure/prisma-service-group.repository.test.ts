@@ -68,7 +68,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       'inspector-1',
       ['st-1'],
       ['tenant-1'],
-      { page: 1, pageSize: 20, sortOrder: 'asc' },
+      { page: 1, pageSize: 20, sortOrder: 'asc' }, null,
     );
 
     // Should call raw SQL for eligible IDs
@@ -114,7 +114,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       page: 1,
       pageSize: 20,
       sortOrder: 'asc',
-    });
+    }, null);
 
     // Without this filter the list counted deleted appointments and summed
     // their payouts, so an offer card advertised more work and more money than
@@ -140,7 +140,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       page: 1,
       pageSize: 20,
       sortOrder: 'asc',
-    });
+    }, null);
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -183,8 +183,8 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       page: 1,
       pageSize: 20,
       sortOrder: 'asc',
-    });
-    await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], []);
+    }, null);
+    await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], [], null);
 
     const expectedOrder = expect.objectContaining({
       include: expect.objectContaining({
@@ -243,7 +243,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       page: 1,
       pageSize: 20,
       sortOrder: 'asc',
-    });
+    }, null);
 
     expect(result[0]!.properties).toEqual([
       { street: '10 Main St', suburb: 'Bondi NSW', propertyType: 'APARTMENT' },
@@ -299,7 +299,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       page: 1,
       pageSize: 20,
       sortOrder: 'asc',
-    });
+    }, null);
 
     expect(result[0]!.properties).toEqual([
       { street: '10 Main St', suburb: 'Bondi NSW', propertyType: 'APARTMENT' },
@@ -322,7 +322,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       'inspector-1',
       ['st-1'],
       ['tenant-1'],
-      { page: 1, pageSize: 20, sortOrder: 'asc' },
+      { page: 1, pageSize: 20, sortOrder: 'asc' }, null,
     );
 
     expect(result).toEqual([]);
@@ -341,7 +341,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     const result = await repo.countPublishedForInspector(
       'inspector-1',
       ['st-1'],
-      ['tenant-1'],
+      ['tenant-1'], null,
     );
 
     expect(result).toBe(5);
@@ -364,7 +364,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     const result = await repo.countPublishedForInspector(
       'inspector-1',
       [],
-      ['tenant-1'],
+      ['tenant-1'], null,
     );
 
     expect(result).toBe(0);
@@ -387,10 +387,10 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
         page: 1,
         pageSize: 20,
         sortOrder: 'asc',
-      }),
+      }, null),
     ).resolves.toEqual([]);
     await expect(
-      repo.countPublishedForInspector('inspector-1', [], ['tenant-1']),
+      repo.countPublishedForInspector('inspector-1', [], ['tenant-1'], null),
     ).resolves.toBe(0);
     expect(prisma.$queryRaw).not.toHaveBeenCalled();
     expect(prisma.serviceGroup.findMany).not.toHaveBeenCalled();
@@ -414,14 +414,14 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
         page: 1,
         pageSize: 20,
         sortOrder: 'asc',
-      }),
+      }, null),
     ).resolves.toEqual([]);
     expect(queryRaw).toHaveBeenCalled();
 
     queryRaw.mockClear();
     queryRaw.mockResolvedValueOnce([{ count: BigInt(0) }]);
     await expect(
-      repo.countPublishedForInspector('inspector-1', ['st-1'], []),
+      repo.countPublishedForInspector('inspector-1', ['st-1'], [], null),
     ).resolves.toBe(0);
     expect(queryRaw).toHaveBeenCalled();
   });
@@ -435,7 +435,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
 
     const repo = new PrismaServiceGroupRepository(prisma as any);
 
-    await repo.countPublishedForInspector('inspector-1', ['st-1'], ['blocked-tenant-1', 'blocked-tenant-2']);
+    await repo.countPublishedForInspector('inspector-1', ['st-1'], ['blocked-tenant-1', 'blocked-tenant-2'], null);
 
     expect(queryRaw).toHaveBeenCalledTimes(1);
     const { text: sqlText, values: params } = renderRaw(queryRaw.mock.calls[0]);
@@ -460,7 +460,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       'inspector-1',
       ['st-1'],
       ['tenant-1'],
-      { page: 3, pageSize: 10, sortOrder: 'asc' },
+      { page: 3, pageSize: 10, sortOrder: 'asc' }, null,
     );
 
     // Page 3, pageSize 10 => offset 20, limit 10
@@ -482,7 +482,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
 
     const repo = new PrismaServiceGroupRepository(prisma as any);
 
-    await repo.countPublishedForInspector('inspector-1', ['st-1'], ['tenant-1']);
+    await repo.countPublishedForInspector('inspector-1', ['st-1'], ['tenant-1'], null);
 
     const sqlText = renderRaw(queryRaw.mock.calls[0]).text;
     // Cross-tenant: region ownership (sr.tenant_id) is NOT a matching filter at all.
@@ -495,7 +495,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     const queryRaw = vi.fn().mockResolvedValue([]);
     const repo = new PrismaServiceGroupRepository({ $queryRaw: queryRaw, serviceGroup: { findMany: vi.fn() } } as any);
 
-    await repo.findPublishedForInspector('inspector-1', ['st-1'], ['tenant-1'], { page: 1, pageSize: 20, sortOrder: 'asc' });
+    await repo.findPublishedForInspector('inspector-1', ['st-1'], ['tenant-1'], { page: 1, pageSize: 20, sortOrder: 'asc' }, null);
     const eligible = await repo.isGroupEligibleForInspector('sg-1', 'inspector-1', ['st-1'], ['tenant-1']);
 
     expect(eligible).toBe(false);
@@ -559,7 +559,7 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
       page: 1,
       pageSize: 20,
       sortOrder: 'asc',
-    });
+    }, null);
 
   it('selects property coordinates in the offers list query', async () => {
     const { findMany, repo } = repoReturning([]);
@@ -749,7 +749,7 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
       serviceGroup: { findUnique },
     } as any);
 
-    const detail = await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], []);
+    const detail = await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], [], null);
 
     expect(detail?.suburbs).toEqual(['Harris Park']);
     expect(detail?.addresses).toEqual(['1 Main St, Harris Park']);
@@ -819,7 +819,7 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
       serviceGroup: { findUnique },
     } as any);
 
-    const detail = await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], []);
+    const detail = await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], [], null);
 
     // Same projection contract as the list query above — the detail centroid
     // runs through the same soft-delete filter.
