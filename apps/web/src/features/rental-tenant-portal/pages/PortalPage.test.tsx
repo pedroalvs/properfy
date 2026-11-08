@@ -609,7 +609,9 @@ describe('PortalPage', () => {
       const user = userEvent.setup();
       await screen.findByRole('button', { name: /yes/i });
       await user.click(screen.getByRole('button', { name: /yes/i }));
-      await user.click(screen.getByRole('button', { name: /submit/i }));
+      // Exact "Submit" — the confirmation form's button. The F10-4 "Submit report"
+      // button also matches a loose /submit/i, so pin the accessible name here.
+      await user.click(screen.getByRole('button', { name: /^submit$/i }));
       await screen.findByText(/cancelled/i);
       expect(screen.queryByText(/attendance confirmed/i)).toBeNull();
     });

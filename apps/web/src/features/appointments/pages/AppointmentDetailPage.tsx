@@ -498,6 +498,7 @@ export function AppointmentDetailPage() {
             <AppointmentTransitionActions
               transitions={transitions}
               onTransition={transition}
+              currentStatus={appointment.status}
               rentalTenantNotified={wasRentalTenantNotified(appointment)}
               loading={isTransitioning}
             />

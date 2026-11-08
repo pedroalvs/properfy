@@ -352,3 +352,19 @@ describe('property_file.* / property_issue.* (F10-1)', () => {
     }
   });
 });
+
+describe('reliability.view (F07-2)', () => {
+  it('lists exactly AM and OP, with no condition', () => {
+    const entry = getMatrixEntry('reliability.view');
+    expect(entry).toEqual({ roles: ['AM', 'OP'] });
+    expect(entry?.condition).toBeUndefined();
+  });
+
+  it('allows AM/OP and denies every agency role, INSP and TNT', () => {
+    expect(can('AM', 'reliability.view')).toBe(true);
+    expect(can('OP', 'reliability.view')).toBe(true);
+    for (const role of ['CL_ADMIN', 'CL_USER', 'INSP', 'TNT'] as UserRole[]) {
+      expect(can(role, 'reliability.view')).toBe(false);
+    }
+  });
+});

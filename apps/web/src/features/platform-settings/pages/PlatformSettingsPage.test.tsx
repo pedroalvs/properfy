@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { PlatformSettingResponse } from '@properfy/shared';
 import { ApiError } from '@/lib/api-error';
 import { PlatformSettingsPage } from './PlatformSettingsPage';
@@ -74,16 +75,21 @@ function setHook(partial: Partial<UsePlatformSettingReturn> = {}) {
 }
 
 function renderPage() {
+  // The Reliability index section uses useQueryClient (to invalidate the ranking
+  // after save), so the page needs a QueryClient in tests.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
-    <MemoryRouter
-      initialEntries={['/dashboard', '/platform-settings']}
-      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-    >
-      <Routes>
-        <Route path="/platform-settings" element={<PlatformSettingsPage />} />
-        <Route path="/dashboard" element={<div data-testid="dashboard-probe" />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter
+        initialEntries={['/dashboard', '/platform-settings']}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
+        <Routes>
+          <Route path="/platform-settings" element={<PlatformSettingsPage />} />
+          <Route path="/dashboard" element={<div data-testid="dashboard-probe" />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

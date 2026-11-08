@@ -253,6 +253,38 @@ export class PrismaPropertyFileRepository implements IPropertyFileRepository {
     return result.count;
   }
 
+  async linkPendingPortalIssuePhotos(
+    params: LinkPendingIssuePhotosParams,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number> {
+    if (params.fileIds.length === 0) return 0;
+    const result = await this.db(tx).propertyFile.updateMany({
+      where: {
+        id: { in: params.fileIds },
+        status: 'PENDING',
+        type: 'ISSUE',
+        issue_id: null,
+        tenant_id: params.tenantId,
+        property_id: params.propertyId,
+        // F10-4: the portal may only link its OWN appointment's photos, and only
+        // photos it uploaded itself (no user) — never another appointment's photo
+        // nor a staff member's in-flight issue photo on the same property+tenant.
+        appointment_id: params.appointmentId,
+        uploaded_by_user_id: null,
+        confirmed_at: { not: null },
+        deleted_at: null,
+        purged_at: null,
+      },
+      data: {
+        issue_id: params.issueId,
+        appointment_id: params.appointmentId,
+        status: 'READY',
+        updated_at: params.now,
+      },
+    });
+    return result.count;
+  }
+
   async softDeletePhotosByIssueId(
     issueId: string,
     deletedByUserId: string,

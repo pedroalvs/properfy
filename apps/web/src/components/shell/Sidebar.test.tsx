@@ -131,4 +131,10 @@ describe('filterNavItems — collapseIfSingle', () => {
     expect(dashboardChildren('AM')).toContain('/live-day');
     expect(dashboardChildren('CL_USER')).not.toContain('/live-day');
   });
+
+  // F8 (F07) — AM/OP see /inspector-performance; CL_ADMIN does not (D4, presence only).
+  it('F8: filterNavItems exposes /inspector-performance to OP but not CL_ADMIN', () => {
+    expect(dashboardChildren('OP')).toContain('/inspector-performance');
+    expect(dashboardChildren('CL_ADMIN')).not.toContain('/inspector-performance');
+  });
 });

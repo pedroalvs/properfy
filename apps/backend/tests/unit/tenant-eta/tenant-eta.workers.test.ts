@@ -42,6 +42,8 @@ async function register(opts: { enabled: boolean; sendMorning: any; evaluate: an
     opts.sendMorning, opts.evaluate, opts.sweep,
     { get: vi.fn().mockResolvedValue({ enabled: opts.enabled, channelMode: 'BOTH', morningHour: 7, morningCutoffHour: 9, delayThresholdMinutes: 20, smsBudgetSharePercent: 80 }) } as any,
     stub(), // propertyFileRetentionWorker
+    stub(), // computeReliabilitySnapshotsUseCase
+    stub(), // ensureTodaySnapshotUseCase
     makeLogger() as any,
   );
 }
