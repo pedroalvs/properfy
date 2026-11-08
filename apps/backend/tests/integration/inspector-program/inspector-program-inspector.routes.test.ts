@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import supertest from 'supertest';
 import type { FastifyInstance } from 'fastify';
-import { inspectorProgramResponseSchema, successResponseSchema } from '@properfy/shared';
+import { inspectorProgramResponseSchema } from '@properfy/shared';
 import { buildApp } from '../../../src/main/server';
 import { createMockContainer } from '../../helpers/mock-container';
 import { GetInspectorProgramUseCase } from '../../../src/modules/inspector-program/application/use-cases/get-inspector-program.use-case';
@@ -134,9 +134,9 @@ describe('GET /v1/inspector/program (03.A3 anonymity + RBAC)', () => {
     mockJwtVerify.mockResolvedValue(insp(ME));
     const res = await supertest(app.server).get('/v1/inspector/program').set('Authorization', 'Bearer v');
     expect(res.status).toBe(200);
-    expect(successResponseSchema(inspectorProgramResponseSchema).safeParse(res.body).success).toBe(true);
-    expect(res.body.data.ranking.myPosition).toBe(3);
-    expect(res.body.data.ranking.totalRanked).toBe(6);
+    expect(inspectorProgramResponseSchema.safeParse(res.body).success).toBe(true);
+    expect(res.body.ranking.myPosition).toBe(3);
+    expect(res.body.ranking.totalRanked).toBe(6);
   });
 
   it('never leaks another inspector id, name, email or phone (03.A3)', async () => {
@@ -147,11 +147,11 @@ describe('GET /v1/inspector/program (03.A3 anonymity + RBAC)', () => {
     const serialized = JSON.stringify(res.body);
     for (const id of OTHER_IDS) expect(serialized).not.toContain(id);
     expect(serialized).not.toContain('SECRET-INTERNAL-REASON');
-    const keys = allKeys(res.body.data);
+    const keys = allKeys(res.body);
     for (const forbidden of ['inspectorId', 'id', 'name', 'photoUrl', 'avatarUrl', 'email', 'phone', 'voidReason']) {
       expect(keys.has(forbidden)).toBe(false);
     }
-    for (const entry of res.body.data.ranking.entries) {
+    for (const entry of res.body.ranking.entries) {
       expect(Object.keys(entry).sort()).toEqual(['isMe', 'level', 'position', 'score']);
     }
   });
@@ -161,9 +161,9 @@ describe('GET /v1/inspector/program (03.A3 anonymity + RBAC)', () => {
     fakeIndexes = [current(ME, 1, 90), current(OTHER_IDS[0]!, 2, 80), current(OTHER_IDS[1]!, 3, 70), current(OTHER_IDS[2]!, 4, 60)];
     const res = await supertest(app.server).get('/v1/inspector/program').set('Authorization', 'Bearer v');
     expect(res.status).toBe(200);
-    expect(res.body.data.ranking.cohortTooSmall).toBe(true);
-    expect(res.body.data.ranking.entries).toEqual([]);
-    expect(res.body.data.ranking.myPosition).toBe(1);
+    expect(res.body.ranking.cohortTooSmall).toBe(true);
+    expect(res.body.ranking.entries).toEqual([]);
+    expect(res.body.ranking.myPosition).toBe(1);
   });
 
   it('returns 401 without a token', async () => {

@@ -113,13 +113,14 @@ export async function registerInspectorProgramRoutes(
     '/v1/inspector/program',
     {
       preHandler: authenticate,
-      schema: { response: { 200: successResponseSchema(inspectorProgramResponseSchema) } },
+      // Returned directly (not in a `{ data }` envelope), like the sibling INSP endpoints.
+      schema: { response: { 200: inspectorProgramResponseSchema } },
     },
     async (request, reply) => {
       const inspectorId = requireLinkedInspector(request.authContext!, reply, 'view their program');
       if (inspectorId === null) return reply;
       const result = await container.getInspectorProgramUseCase.execute({ inspectorId });
-      return reply.status(200).send(success(result));
+      return reply.status(200).send(result);
     },
   );
 

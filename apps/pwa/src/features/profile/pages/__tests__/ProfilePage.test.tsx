@@ -29,6 +29,11 @@ vi.mock('@/features/announcements/hooks/useUnreadNoticeCount', () => ({
   useUnreadNoticeCount: () => ({ count: unreadRef.value }),
 }));
 
+const mockUseInspectorProgram = vi.fn();
+vi.mock('@/features/challenges/hooks/useInspectorProgram', () => ({
+  useInspectorProgram: () => mockUseInspectorProgram(),
+}));
+
 describe('ProfilePage (tiles)', () => {
   const logout = vi.fn();
 
@@ -51,6 +56,7 @@ describe('ProfilePage (tiles)', () => {
     });
     mockUseInspectorMe.mockReturnValue({ data: undefined, isLoading: false, isError: false });
     mockUseAvailability.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    mockUseInspectorProgram.mockReturnValue({ data: undefined });
   });
 
   it('renders the identity header with name and an Active badge', () => {
@@ -87,6 +93,22 @@ describe('ProfilePage (tiles)', () => {
     expect(screen.getByRole('link', { name: /^Availability/ })).toHaveAttribute('href', '/profile/availability');
     expect(screen.getByRole('link', { name: /^Documents/ })).toHaveAttribute('href', '/profile/documents');
     expect(screen.getByRole('link', { name: /^My account/ })).toHaveAttribute('href', '/profile/account');
+  });
+
+  it('shows the Challenges tile right after Earnings with the open bonus total (L-F08-09)', () => {
+    mockUseInspectorProgram.mockReturnValue({ data: { summary: { openCashTotal: 110, currency: 'AUD' } } });
+    renderWithProviders(<ProfilePage />);
+    const challenges = screen.getByTestId('profile-tile-challenges');
+    expect(challenges).toHaveAttribute('href', '/profile/challenges');
+    expect(screen.getByRole('link', { name: 'Challenges, Up to $110 in bonuses' })).toBeInTheDocument();
+    const earnings = screen.getByRole('link', { name: /^Earnings/ });
+    expect(earnings.compareDocumentPosition(challenges) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('falls back to a neutral Challenges label when there is no open bonus', () => {
+    mockUseInspectorProgram.mockReturnValue({ data: undefined });
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByRole('link', { name: 'Challenges, See your goals and ranking' })).toBeInTheDocument();
   });
 
   it('exposes the documents status in the tile accessible name', () => {

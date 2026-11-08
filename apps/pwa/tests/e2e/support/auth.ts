@@ -36,6 +36,10 @@ export { INSPECTOR_ME };
  *     stay quiet; the F10-3 spec overrides them (last route wins). stubJson matches
  *     the pathname only, so the presign/confirm/`:id/download` sub-paths are NOT
  *     shadowed by these entries.
+ *   - `GET /v1/inspector/program` — F08-4 mounts the Challenges tile on the More hub
+ *     (ProfilePage), which fetches the program on every Profile load. Returned
+ *     DIRECTLY (no `{ data }` envelope). Default = an empty program; a spec that
+ *     exercises Challenges content overrides it (last route wins).
  */
 export const BASELINE_STUBS: ReadonlyArray<{ path: string; body: unknown; status?: number }> = [
   { path: '/v1/me', body: INSPECTOR_ME },
@@ -58,6 +62,23 @@ export const BASELINE_STUBS: ReadonlyArray<{ path: string; body: unknown; status
   { path: '/v1/inspectors/me/notices/unread-count', body: { data: { count: 0 } } },
   { path: '/v1/inspectors/me/push-config', body: { data: { vapidPublicKey: null } } },
   { path: '/v1/inspectors/me/push-subscriptions', body: null, status: 204 },
+  {
+    // F08-4 Challenges tile on the More hub — returned directly (no `{ data }` envelope).
+    path: '/v1/inspector/program',
+    body: {
+      generatedAt: '2026-01-01T00:00:00.000Z',
+      timezone: 'Australia/Sydney',
+      summary: { openCashTotal: 0, currency: 'AUD' },
+      activeGoals: [],
+      standing: {
+        index: { score: null, status: 'NOT_COMPUTED', snapshotDate: null },
+        level: null,
+        streak: { cycle: null, count: 0, atRisk: false },
+      },
+      awards: [],
+      ranking: { myPosition: null, myScore: null, totalRanked: 0, notRankedReason: 'NOT_COMPUTED', cohortTooSmall: false, entries: [] },
+    },
+  },
 ];
 
 export interface LoginOptions {

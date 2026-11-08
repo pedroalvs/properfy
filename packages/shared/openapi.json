@@ -34527,413 +34527,404 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "data": {
+                    "generatedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      ]
+                    },
+                    "timezone": {
+                      "type": "string",
+                      "enum": [
+                        "Australia/Sydney"
+                      ]
+                    },
+                    "summary": {
                       "type": "object",
                       "properties": {
-                        "generatedAt": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          ]
+                        "openCashTotal": {
+                          "type": "number"
                         },
-                        "timezone": {
+                        "currency": {
                           "type": "string",
                           "enum": [
-                            "Australia/Sydney"
+                            "AUD"
                           ]
-                        },
-                        "summary": {
-                          "type": "object",
-                          "properties": {
-                            "openCashTotal": {
-                              "type": "number"
-                            },
-                            "currency": {
-                              "type": "string",
-                              "enum": [
-                                "AUD"
-                              ]
-                            }
+                        }
+                      },
+                      "required": [
+                        "openCashTotal",
+                        "currency"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "activeGoals": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "goalId": {
+                            "type": "string",
+                            "format": "uuid"
                           },
-                          "required": [
-                            "openCashTotal",
-                            "currency"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "activeGoals": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "goalId": {
-                                "type": "string",
-                                "format": "uuid"
-                              },
-                              "title": {
-                                "type": "string"
-                              },
-                              "description": {
-                                "type": "string"
-                              },
-                              "metric": {
-                                "type": "string",
-                                "enum": [
-                                  "VOLUME",
-                                  "REGION_VOLUME",
-                                  "SERVICE_TYPE_VOLUME",
-                                  "INDEX_AT_LEAST",
-                                  "PUNCTUALITY",
-                                  "GEOFENCE",
-                                  "NO_STUCK",
-                                  "SATISFACTION",
-                                  "LATE_NOTICE",
-                                  "CANT_DO_MAX"
-                                ]
-                              },
-                              "comparator": {
-                                "type": "string",
-                                "enum": [
-                                  "GTE",
-                                  "LTE"
-                                ]
-                              },
-                              "target": {
-                                "type": "number"
-                              },
-                              "periodType": {
-                                "type": "string",
-                                "enum": [
-                                  "WEEKLY",
-                                  "FORTNIGHTLY",
-                                  "MONTHLY"
-                                ]
-                              },
-                              "periodStart": {
-                                "type": "string"
-                              },
-                              "periodEnd": {
-                                "type": "string"
-                              },
-                              "daysLeft": {
-                                "type": "integer"
-                              },
-                              "rewardAmount": {
-                                "type": "number"
-                              },
-                              "value": {
-                                "type": "number",
-                                "nullable": true
-                              },
-                              "serviceCount": {
-                                "type": "integer"
-                              },
-                              "minimumServices": {
-                                "type": "integer",
-                                "nullable": true
-                              },
-                              "state": {
-                                "type": "string",
-                                "enum": [
-                                  "MET_SO_FAR",
-                                  "IN_PROGRESS",
-                                  "BELOW_TARGET",
-                                  "NOT_ENOUGH_SERVICES",
-                                  "NO_DATA",
-                                  "UPCOMING"
-                                ]
-                              },
-                              "startsOn": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "countsSince": {
-                                "type": "string",
-                                "nullable": true
-                              }
-                            },
-                            "required": [
-                              "goalId",
-                              "title",
-                              "description",
-                              "metric",
-                              "comparator",
-                              "target",
-                              "periodType",
-                              "periodStart",
-                              "periodEnd",
-                              "daysLeft",
-                              "rewardAmount",
-                              "value",
-                              "serviceCount",
-                              "minimumServices",
-                              "state",
-                              "startsOn",
-                              "countsSince"
-                            ],
-                            "additionalProperties": false
+                          "title": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "metric": {
+                            "type": "string",
+                            "enum": [
+                              "VOLUME",
+                              "REGION_VOLUME",
+                              "SERVICE_TYPE_VOLUME",
+                              "INDEX_AT_LEAST",
+                              "PUNCTUALITY",
+                              "GEOFENCE",
+                              "NO_STUCK",
+                              "SATISFACTION",
+                              "LATE_NOTICE",
+                              "CANT_DO_MAX"
+                            ]
+                          },
+                          "comparator": {
+                            "type": "string",
+                            "enum": [
+                              "GTE",
+                              "LTE"
+                            ]
+                          },
+                          "target": {
+                            "type": "number"
+                          },
+                          "periodType": {
+                            "type": "string",
+                            "enum": [
+                              "WEEKLY",
+                              "FORTNIGHTLY",
+                              "MONTHLY"
+                            ]
+                          },
+                          "periodStart": {
+                            "type": "string"
+                          },
+                          "periodEnd": {
+                            "type": "string"
+                          },
+                          "daysLeft": {
+                            "type": "integer"
+                          },
+                          "rewardAmount": {
+                            "type": "number"
+                          },
+                          "value": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "serviceCount": {
+                            "type": "integer"
+                          },
+                          "minimumServices": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "MET_SO_FAR",
+                              "IN_PROGRESS",
+                              "BELOW_TARGET",
+                              "NOT_ENOUGH_SERVICES",
+                              "NO_DATA",
+                              "UPCOMING"
+                            ]
+                          },
+                          "startsOn": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "countsSince": {
+                            "type": "string",
+                            "nullable": true
                           }
                         },
-                        "standing": {
+                        "required": [
+                          "goalId",
+                          "title",
+                          "description",
+                          "metric",
+                          "comparator",
+                          "target",
+                          "periodType",
+                          "periodStart",
+                          "periodEnd",
+                          "daysLeft",
+                          "rewardAmount",
+                          "value",
+                          "serviceCount",
+                          "minimumServices",
+                          "state",
+                          "startsOn",
+                          "countsSince"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "standing": {
+                      "type": "object",
+                      "properties": {
+                        "index": {
                           "type": "object",
                           "properties": {
-                            "index": {
-                              "type": "object",
-                              "properties": {
-                                "score": {
-                                  "type": "number",
-                                  "nullable": true
-                                },
-                                "status": {
-                                  "type": "string",
-                                  "enum": [
-                                    "SCORED",
-                                    "INSUFFICIENT_VOLUME",
-                                    "NO_WEIGHTED_DATA",
-                                    "NOT_COMPUTED"
-                                  ]
-                                },
-                                "snapshotDate": {
-                                  "type": "string",
-                                  "nullable": true
-                                }
-                              },
-                              "required": [
-                                "score",
-                                "status",
-                                "snapshotDate"
-                              ],
-                              "additionalProperties": false
-                            },
-                            "level": {
-                              "type": "string",
-                              "enum": [
-                                "BRONZE",
-                                "SILVER",
-                                "GOLD"
-                              ],
-                              "nullable": true
-                            },
-                            "streak": {
-                              "type": "object",
-                              "properties": {
-                                "cycle": {
-                                  "type": "string",
-                                  "enum": [
-                                    "WEEKLY",
-                                    "FORTNIGHTLY",
-                                    "MONTHLY"
-                                  ],
-                                  "nullable": true
-                                },
-                                "count": {
-                                  "type": "integer"
-                                },
-                                "atRisk": {
-                                  "type": "boolean"
-                                }
-                              },
-                              "required": [
-                                "cycle",
-                                "count",
-                                "atRisk"
-                              ],
-                              "additionalProperties": false
-                            }
-                          },
-                          "required": [
-                            "index",
-                            "level",
-                            "streak"
-                          ],
-                          "additionalProperties": false
-                        },
-                        "awards": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "goalTitle": {
-                                "type": "string"
-                              },
-                              "metric": {
-                                "type": "string",
-                                "enum": [
-                                  "VOLUME",
-                                  "REGION_VOLUME",
-                                  "SERVICE_TYPE_VOLUME",
-                                  "INDEX_AT_LEAST",
-                                  "PUNCTUALITY",
-                                  "GEOFENCE",
-                                  "NO_STUCK",
-                                  "SATISFACTION",
-                                  "LATE_NOTICE",
-                                  "CANT_DO_MAX"
-                                ]
-                              },
-                              "periodType": {
-                                "type": "string",
-                                "enum": [
-                                  "WEEKLY",
-                                  "FORTNIGHTLY",
-                                  "MONTHLY"
-                                ]
-                              },
-                              "periodStart": {
-                                "type": "string"
-                              },
-                              "periodEnd": {
-                                "type": "string"
-                              },
-                              "amount": {
-                                "type": "number"
-                              },
-                              "achievedValue": {
-                                "type": "number"
-                              },
-                              "status": {
-                                "type": "string",
-                                "enum": [
-                                  "PENDING",
-                                  "APPROVED",
-                                  "PAID",
-                                  "VOID"
-                                ]
-                              },
-                              "paidAt": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ],
-                                "nullable": true
-                              },
-                              "voidedAt": {
-                                "anyOf": [
-                                  {
-                                    "type": "string"
-                                  },
-                                  {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  }
-                                ],
-                                "nullable": true
-                              },
-                              "inspectorNote": {
-                                "type": "string",
-                                "nullable": true
-                              }
-                            },
-                            "required": [
-                              "goalTitle",
-                              "metric",
-                              "periodType",
-                              "periodStart",
-                              "periodEnd",
-                              "amount",
-                              "achievedValue",
-                              "status",
-                              "paidAt",
-                              "voidedAt",
-                              "inspectorNote"
-                            ],
-                            "additionalProperties": false
-                          }
-                        },
-                        "ranking": {
-                          "type": "object",
-                          "properties": {
-                            "myPosition": {
-                              "type": "integer",
-                              "nullable": true
-                            },
-                            "myScore": {
+                            "score": {
                               "type": "number",
                               "nullable": true
                             },
-                            "totalRanked": {
-                              "type": "integer"
-                            },
-                            "notRankedReason": {
+                            "status": {
                               "type": "string",
                               "enum": [
-                                "NOT_ENOUGH_DATA",
+                                "SCORED",
+                                "INSUFFICIENT_VOLUME",
+                                "NO_WEIGHTED_DATA",
                                 "NOT_COMPUTED"
-                              ],
+                              ]
+                            },
+                            "snapshotDate": {
+                              "type": "string",
                               "nullable": true
-                            },
-                            "cohortTooSmall": {
-                              "type": "boolean"
-                            },
-                            "entries": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "position": {
-                                    "type": "integer"
-                                  },
-                                  "score": {
-                                    "type": "number"
-                                  },
-                                  "level": {
-                                    "type": "string",
-                                    "enum": [
-                                      "BRONZE",
-                                      "SILVER",
-                                      "GOLD"
-                                    ],
-                                    "nullable": true
-                                  },
-                                  "isMe": {
-                                    "type": "boolean"
-                                  }
-                                },
-                                "required": [
-                                  "position",
-                                  "score",
-                                  "level",
-                                  "isMe"
-                                ],
-                                "additionalProperties": false
-                              }
                             }
                           },
                           "required": [
-                            "myPosition",
-                            "myScore",
-                            "totalRanked",
-                            "notRankedReason",
-                            "cohortTooSmall",
-                            "entries"
+                            "score",
+                            "status",
+                            "snapshotDate"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "level": {
+                          "type": "string",
+                          "enum": [
+                            "BRONZE",
+                            "SILVER",
+                            "GOLD"
+                          ],
+                          "nullable": true
+                        },
+                        "streak": {
+                          "type": "object",
+                          "properties": {
+                            "cycle": {
+                              "type": "string",
+                              "enum": [
+                                "WEEKLY",
+                                "FORTNIGHTLY",
+                                "MONTHLY"
+                              ],
+                              "nullable": true
+                            },
+                            "count": {
+                              "type": "integer"
+                            },
+                            "atRisk": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "cycle",
+                            "count",
+                            "atRisk"
                           ],
                           "additionalProperties": false
                         }
                       },
                       "required": [
-                        "generatedAt",
-                        "timezone",
-                        "summary",
-                        "activeGoals",
-                        "standing",
-                        "awards",
-                        "ranking"
+                        "index",
+                        "level",
+                        "streak"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "awards": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "goalTitle": {
+                            "type": "string"
+                          },
+                          "metric": {
+                            "type": "string",
+                            "enum": [
+                              "VOLUME",
+                              "REGION_VOLUME",
+                              "SERVICE_TYPE_VOLUME",
+                              "INDEX_AT_LEAST",
+                              "PUNCTUALITY",
+                              "GEOFENCE",
+                              "NO_STUCK",
+                              "SATISFACTION",
+                              "LATE_NOTICE",
+                              "CANT_DO_MAX"
+                            ]
+                          },
+                          "periodType": {
+                            "type": "string",
+                            "enum": [
+                              "WEEKLY",
+                              "FORTNIGHTLY",
+                              "MONTHLY"
+                            ]
+                          },
+                          "periodStart": {
+                            "type": "string"
+                          },
+                          "periodEnd": {
+                            "type": "string"
+                          },
+                          "amount": {
+                            "type": "number"
+                          },
+                          "achievedValue": {
+                            "type": "number"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING",
+                              "APPROVED",
+                              "PAID",
+                              "VOID"
+                            ]
+                          },
+                          "paidAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "voidedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "inspectorNote": {
+                            "type": "string",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "goalTitle",
+                          "metric",
+                          "periodType",
+                          "periodStart",
+                          "periodEnd",
+                          "amount",
+                          "achievedValue",
+                          "status",
+                          "paidAt",
+                          "voidedAt",
+                          "inspectorNote"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "ranking": {
+                      "type": "object",
+                      "properties": {
+                        "myPosition": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "myScore": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "totalRanked": {
+                          "type": "integer"
+                        },
+                        "notRankedReason": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_ENOUGH_DATA",
+                            "NOT_COMPUTED"
+                          ],
+                          "nullable": true
+                        },
+                        "cohortTooSmall": {
+                          "type": "boolean"
+                        },
+                        "entries": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "position": {
+                                "type": "integer"
+                              },
+                              "score": {
+                                "type": "number"
+                              },
+                              "level": {
+                                "type": "string",
+                                "enum": [
+                                  "BRONZE",
+                                  "SILVER",
+                                  "GOLD"
+                                ],
+                                "nullable": true
+                              },
+                              "isMe": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "position",
+                              "score",
+                              "level",
+                              "isMe"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "myPosition",
+                        "myScore",
+                        "totalRanked",
+                        "notRankedReason",
+                        "cohortTooSmall",
+                        "entries"
                       ],
                       "additionalProperties": false
                     }
                   },
                   "required": [
-                    "data"
+                    "generatedAt",
+                    "timezone",
+                    "summary",
+                    "activeGoals",
+                    "standing",
+                    "awards",
+                    "ranking"
                   ],
                   "additionalProperties": false
                 }

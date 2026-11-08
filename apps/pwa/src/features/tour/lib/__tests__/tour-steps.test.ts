@@ -43,6 +43,12 @@ describe('resolveTourSteps', () => {
     expect(TARGET_STEPS[4].body).toBe(
       'See every stop in order, on a list or a map, and change the order if you need to.',
     );
+    // Step 8 (the More step) mentions challenges (F08-4).
+    expect(TARGET_STEPS[7]).toMatchObject({
+      anchor: 'nav-more',
+      title: 'More',
+      body: 'Announcements, challenges, earnings, your profile and app settings.',
+    });
   });
 
   it('keeps every body within 140 characters', () => {

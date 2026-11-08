@@ -104,6 +104,11 @@ const EarningsPage = lazyRetry(() =>
     default: module.EarningsPage,
   })),
 );
+const ChallengesPage = lazyRetry(() =>
+  import('@/features/challenges/pages/ChallengesPage').then((module) => ({
+    default: module.ChallengesPage,
+  })),
+);
 const RequestInvoicePage = lazyRetry(() =>
   import('@/features/earnings/pages/RequestInvoicePage').then((module) => ({
     default: module.RequestInvoicePage,
@@ -204,6 +209,7 @@ export const routes: Parameters<typeof createBrowserRouter>[0] = [
                   handle: { wide: true },
                   children: [
                     { index: true, element: null },
+                    { path: 'challenges', element: lazyElement(ChallengesPage) },
                     { path: 'availability', element: lazyElement(ProfileAvailabilityPage) },
                     { path: 'documents', element: lazyElement(ProfileDocumentsPage) },
                     { path: 'account', element: lazyElement(ProfileAccountPage) },

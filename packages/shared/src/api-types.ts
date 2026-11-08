@@ -13730,86 +13730,84 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            data: {
-                                generatedAt: string;
+                            generatedAt: string;
+                            /** @enum {string} */
+                            timezone: "Australia/Sydney";
+                            summary: {
+                                openCashTotal: number;
                                 /** @enum {string} */
-                                timezone: "Australia/Sydney";
-                                summary: {
-                                    openCashTotal: number;
+                                currency: "AUD";
+                            };
+                            activeGoals: {
+                                /** Format: uuid */
+                                goalId: string;
+                                title: string;
+                                description: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                /** @enum {string} */
+                                periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                periodStart: string;
+                                periodEnd: string;
+                                daysLeft: number;
+                                rewardAmount: number;
+                                value: number | null;
+                                serviceCount: number;
+                                minimumServices: number | null;
+                                /** @enum {string} */
+                                state: "MET_SO_FAR" | "IN_PROGRESS" | "BELOW_TARGET" | "NOT_ENOUGH_SERVICES" | "NO_DATA" | "UPCOMING";
+                                startsOn: string | null;
+                                countsSince: string | null;
+                            }[];
+                            standing: {
+                                index: {
+                                    score: number | null;
                                     /** @enum {string} */
-                                    currency: "AUD";
+                                    status: "SCORED" | "INSUFFICIENT_VOLUME" | "NO_WEIGHTED_DATA" | "NOT_COMPUTED";
+                                    snapshotDate: string | null;
                                 };
-                                activeGoals: {
-                                    /** Format: uuid */
-                                    goalId: string;
-                                    title: string;
-                                    description: string;
-                                    /** @enum {string} */
-                                    metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
-                                    /** @enum {string} */
-                                    comparator: "GTE" | "LTE";
-                                    target: number;
-                                    /** @enum {string} */
-                                    periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
-                                    periodStart: string;
-                                    periodEnd: string;
-                                    daysLeft: number;
-                                    rewardAmount: number;
-                                    value: number | null;
-                                    serviceCount: number;
-                                    minimumServices: number | null;
-                                    /** @enum {string} */
-                                    state: "MET_SO_FAR" | "IN_PROGRESS" | "BELOW_TARGET" | "NOT_ENOUGH_SERVICES" | "NO_DATA" | "UPCOMING";
-                                    startsOn: string | null;
-                                    countsSince: string | null;
-                                }[];
-                                standing: {
-                                    index: {
-                                        score: number | null;
-                                        /** @enum {string} */
-                                        status: "SCORED" | "INSUFFICIENT_VOLUME" | "NO_WEIGHTED_DATA" | "NOT_COMPUTED";
-                                        snapshotDate: string | null;
-                                    };
+                                /** @enum {string|null} */
+                                level: "BRONZE" | "SILVER" | "GOLD" | null;
+                                streak: {
+                                    /** @enum {string|null} */
+                                    cycle: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY" | null;
+                                    count: number;
+                                    atRisk: boolean;
+                                };
+                            };
+                            awards: {
+                                goalTitle: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                periodStart: string;
+                                periodEnd: string;
+                                amount: number;
+                                achievedValue: number;
+                                /** @enum {string} */
+                                status: "PENDING" | "APPROVED" | "PAID" | "VOID";
+                                paidAt: (string) | null;
+                                voidedAt: (string) | null;
+                                inspectorNote: string | null;
+                            }[];
+                            ranking: {
+                                myPosition: number | null;
+                                myScore: number | null;
+                                totalRanked: number;
+                                /** @enum {string|null} */
+                                notRankedReason: "NOT_ENOUGH_DATA" | "NOT_COMPUTED" | null;
+                                cohortTooSmall: boolean;
+                                entries: {
+                                    position: number;
+                                    score: number;
                                     /** @enum {string|null} */
                                     level: "BRONZE" | "SILVER" | "GOLD" | null;
-                                    streak: {
-                                        /** @enum {string|null} */
-                                        cycle: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY" | null;
-                                        count: number;
-                                        atRisk: boolean;
-                                    };
-                                };
-                                awards: {
-                                    goalTitle: string;
-                                    /** @enum {string} */
-                                    metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
-                                    /** @enum {string} */
-                                    periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
-                                    periodStart: string;
-                                    periodEnd: string;
-                                    amount: number;
-                                    achievedValue: number;
-                                    /** @enum {string} */
-                                    status: "PENDING" | "APPROVED" | "PAID" | "VOID";
-                                    paidAt: (string) | null;
-                                    voidedAt: (string) | null;
-                                    inspectorNote: string | null;
+                                    isMe: boolean;
                                 }[];
-                                ranking: {
-                                    myPosition: number | null;
-                                    myScore: number | null;
-                                    totalRanked: number;
-                                    /** @enum {string|null} */
-                                    notRankedReason: "NOT_ENOUGH_DATA" | "NOT_COMPUTED" | null;
-                                    cohortTooSmall: boolean;
-                                    entries: {
-                                        position: number;
-                                        score: number;
-                                        /** @enum {string|null} */
-                                        level: "BRONZE" | "SILVER" | "GOLD" | null;
-                                        isMe: boolean;
-                                    }[];
-                                };
                             };
                         };
                     };
