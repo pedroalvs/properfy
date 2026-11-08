@@ -8,6 +8,7 @@ export * from './lib/appointment-transitions';
 export * from './lib/marker-collision';
 export * from './lib/plottable-point';
 export * from './lib/rating';
+export * from './lib/inspector-level';
 export * from './route-planning';
 export * from './live-day';
 export type { paths, components, operations } from './api-types';

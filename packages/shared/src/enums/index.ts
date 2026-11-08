@@ -12,6 +12,7 @@ export * from './inspection-execution';
 export * from './import';
 export * from './reason-codes';
 export * from './reliability';
+export * from './inspector-program';
 export * from './service-region';
 export * from './contact-type';
 export * from './contact-channel-type';
