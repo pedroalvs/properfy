@@ -237,4 +237,46 @@ describe('Sidebar — Dashboard group', () => {
     expect(labels.indexOf('Overview')).toBeLessThan(labels.indexOf('Analytics'));
     expect(labels.indexOf('Analytics')).toBeLessThan(labels.indexOf('Workload'));
   });
+
+  // F07 — AM/OP: "Inspector performance" menuitem (reliability index, D4 AM/OP-only).
+  it.each(['AM', 'OP'])('%s: Inspector performance is a menuitem linking to /inspector-performance', (role) => {
+    renderDesktop(role);
+    openFlyout('Dashboard');
+    expect(
+      within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Inspector performance' }),
+    ).toHaveAttribute('href', '/inspector-performance');
+  });
+
+  it.each(['CL_ADMIN', 'CL_USER'])('%s: does not see Inspector performance', (role) => {
+    renderDesktop(role);
+    openFlyout('Dashboard');
+    expect(
+      within(screen.getByRole('menu')).queryByRole('menuitem', { name: 'Inspector performance' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('INSP does not see Inspector performance', () => {
+    renderDesktop('INSP');
+    expect(screen.queryByText('Inspector performance')).not.toBeInTheDocument();
+  });
+
+  it('group is active on /inspector-performance', () => {
+    renderDesktop('AM', '/inspector-performance');
+    const container = screen.getByRole('button', { name: 'Dashboard' }).closest('div');
+    expect(container?.querySelector('.bg-realty')).not.toBeNull();
+  });
+
+  // F07 order — Inspector performance follows Workload (canonical X01 order, by label; R4).
+  it('Inspector performance appears after Workload (and before Goals & rewards when present)', () => {
+    renderDesktop('AM');
+    openFlyout('Dashboard');
+    const labels = within(screen.getByRole('menu'))
+      .getAllByRole('menuitem')
+      .map((el) => el.textContent?.trim() ?? '');
+    expect(labels.indexOf('Workload')).toBeLessThan(labels.indexOf('Inspector performance'));
+    const goals = labels.indexOf('Goals & rewards');
+    if (goals !== -1) {
+      expect(labels.indexOf('Inspector performance')).toBeLessThan(goals);
+    }
+  });
 });
