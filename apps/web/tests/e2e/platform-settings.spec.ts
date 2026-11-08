@@ -55,6 +55,35 @@ async function mockLiveDayAlerts(page: Page) {
   });
 }
 
+async function mockPropertyFiles(page: Page) {
+  // The page also renders the Property files section (F10-2); keep it loading cleanly.
+  const value = {
+    allowedMimes: ['image/jpeg', 'application/pdf'],
+    maxFileSizeMb: 20,
+    issueImageMimes: ['image/jpeg'],
+    maxPhotosPerIssue: 10,
+    retentionDays: null,
+    deletedRetentionDays: 365,
+  };
+  await page.route('**/v1/platform-settings/propertyFiles', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          key: 'propertyFiles',
+          section: 'Property files',
+          value,
+          defaults: value,
+          isDefault: true,
+          updatedAt: null,
+          updatedBy: null,
+        },
+      }),
+    });
+  });
+}
+
 async function mockPlatformSetting(page: Page) {
   let value = { ...DEFAULT_VALUE };
   await page.route('**/v1/platform-settings/fieldEvents', async (route) => {
@@ -88,6 +117,7 @@ test.describe('Platform settings — Field events (03.A2 web)', () => {
     await mockPlatformSetting(page);
     await mockRouteWeights(page);
     await mockLiveDayAlerts(page);
+    await mockPropertyFiles(page);
   });
 
   test('AM edits the radius and mode, saves, and the values persist on reload', async ({ page }) => {

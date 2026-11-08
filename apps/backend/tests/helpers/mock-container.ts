@@ -354,6 +354,16 @@ export function createMockContainer(
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },
     } as AppContainer['liveDay'],
+    reliability: {
+      metricsService: {} as never,
+      indexReader: {} as never,
+      computeSnapshotsUseCase: { execute: vi.fn() },
+      ensureTodaySnapshotUseCase: { execute: vi.fn() },
+      getRankingUseCase: { execute: vi.fn() },
+      getInspectorReliabilityUseCase: { execute: vi.fn() },
+      jwtService: { ...defaultJwt },
+      tenantRepo: { ...defaultTenantRepo },
+    } as AppContainer['reliability'],
     serviceRegion: {
       createServiceRegionUseCase: { execute: vi.fn() },
       updateServiceRegionUseCase: { execute: vi.fn() },

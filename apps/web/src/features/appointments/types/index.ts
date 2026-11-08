@@ -9,6 +9,7 @@ import type {
   AppointmentApp,
   AvailableSlot,
   InspectorIssue,
+  FileCounts,
 } from '@properfy/shared';
 
 export type { InspectorIssue } from '@properfy/shared';
@@ -83,6 +84,14 @@ export interface Appointment {
   rentalTenantNote?: string | null;
   /** Property total area in m²; null for legacy properties with no recorded area. */
   propertyTotalAreaM2?: number | null;
+  /**
+   * F10: true when the appointment has an unseen, non-deleted property issue
+   * (D26). Populated only for AM/OP/CL_ADMIN — `false`/absent for CL_USER/INSP.
+   * Drives the yellow row border.
+   */
+  hasUnseenIssues?: boolean;
+  /** F10: per-type file counts on the appointment detail payload (C.9). */
+  fileCounts?: FileCounts;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,6 +116,8 @@ export interface AppointmentFiltersState {
   endDate: string;
   showCancelled: boolean;
   overdueOnly: boolean;
+  /** F10 "With issues": only appointments that have a non-deleted property issue. */
+  withIssues: boolean;
 }
 
 export interface AppointmentContactEntry {
@@ -327,4 +338,5 @@ export const DEFAULT_FILTERS: AppointmentFiltersState = {
   endDate: '',
   showCancelled: false,
   overdueOnly: false,
+  withIssues: false,
 };

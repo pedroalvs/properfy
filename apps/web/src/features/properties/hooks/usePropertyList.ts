@@ -8,6 +8,7 @@ const FILTER_SCHEMA = {
   search: { type: 'string' as const, default: '' },
   type: { type: 'string' as const, default: '' },
   branchId: { type: 'string' as const, default: '' },
+  withIssues: { type: 'boolean' as const, default: false },
 } satisfies FilterSchema;
 
 export interface UsePropertyListReturn {
@@ -41,6 +42,7 @@ export function usePropertyList(tenantId?: string): UsePropertyListReturn {
     tenantId: tenantId || undefined,
     branchId: filters.branchId || undefined,
     search: filters.search || undefined,
+    withIssues: filters.withIssues ? 'true' : undefined,
   };
 
   const { data: response, isLoading, isError, refetch } = usePaginatedQuery<Property>(

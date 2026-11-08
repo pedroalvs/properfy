@@ -8,12 +8,19 @@ import type { AppointmentTransition } from '../types';
 
 interface AppointmentTransitionActionsProps {
   transitions: AppointmentTransition[];
+  /**
+   * Runs the transition. May resolve to an error message (kept open, shown in the
+   * dialog) or to `null`/`undefined`/void on success (dialog closes). A void
+   * return is treated as success for callers that don't report errors back.
+   */
   onTransition: (
     targetStatus: AppointmentStatus,
     reason?: string,
     reasonCode?: string,
     notifyRentalTenant?: boolean,
-  ) => void;
+  ) => void | Promise<string | null>;
+  /** The appointment's current status — drives the dialog's rejection reason options (F07-3). */
+  currentStatus?: AppointmentStatus;
   /** Passed through to the dialog to gate the "notify the tenant" checkbox. */
   rentalTenantNotified?: boolean;
   loading?: boolean;
@@ -35,16 +42,23 @@ function getButtonVariant(variant: AppointmentTransition['variant']): 'primary' 
 export function AppointmentTransitionActions({
   transitions,
   onTransition,
+  currentStatus,
   rentalTenantNotified = false,
   loading = false,
 }: AppointmentTransitionActionsProps) {
   const [dialogTransition, setDialogTransition] = useState<AppointmentTransition | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
 
   if (transitions.length === 0) return null;
 
+  const openDialog = (transition: AppointmentTransition | null) => {
+    setDialogError(null);
+    setDialogTransition(transition);
+  };
+
   const handleClick = (transition: AppointmentTransition) => {
     if (transition.requiresReason) {
-      setDialogTransition(transition);
+      openDialog(transition);
     } else {
       onTransition(transition.targetStatus);
     }
@@ -55,8 +69,18 @@ export function AppointmentTransitionActions({
     reasonCode,
     notifyRentalTenant,
   }: StatusTransitionConfirmPayload) => {
-    if (dialogTransition) {
-      onTransition(dialogTransition.targetStatus, reason, reasonCode, notifyRentalTenant);
+    if (!dialogTransition) return;
+    setDialogError(null);
+    const result = onTransition(dialogTransition.targetStatus, reason, reasonCode, notifyRentalTenant);
+    // A returned message means the server refused (e.g. 422 wrong-origin reason):
+    // keep the dialog open and show it. `null`/`undefined`/void is success → close.
+    // Awaiting only a real promise keeps void callers synchronous (no act warning).
+    if (result && typeof (result as Promise<string | null>).then === 'function') {
+      void (result as Promise<string | null>).then((message) => {
+        if (message) setDialogError(message);
+        else setDialogTransition(null);
+      });
+    } else {
       setDialogTransition(null);
     }
   };
@@ -86,12 +110,14 @@ export function AppointmentTransitionActions({
       {dialogTransition && (
         <StatusTransitionDialog
           open={dialogTransition !== null}
-          onClose={() => setDialogTransition(null)}
+          onClose={() => openDialog(null)}
           onConfirm={handleConfirm}
           title={dialogTransition.label}
           message={`Are you sure you want to transition to "${dialogTransition.label}"?`}
           variant={dialogTransition.variant === 'danger' ? 'danger' : 'warning'}
           targetStatus={dialogTransition.targetStatus}
+          currentStatus={currentStatus}
+          error={dialogError ?? undefined}
           rentalTenantNotified={rentalTenantNotified}
           loading={loading}
         />

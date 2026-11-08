@@ -9868,6 +9868,204 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/rental-tenant-portal/{token}/property-issues/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        fileName: string;
+                        mime: string;
+                        sizeBytes?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            fileId: string;
+                            /** Format: uri */
+                            uploadUrl: string;
+                            expiresAt: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rental-tenant-portal/{token}/property-issues/confirm-upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        fileId: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            fileName: string;
+                            mime: string;
+                            /** @enum {string} */
+                            status: "PENDING" | "READY";
+                            createdAt: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rental-tenant-portal/{token}/property-issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            issues: {
+                                /** Format: uuid */
+                                id: string;
+                                reason: string;
+                                createdAt: string;
+                                photos: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    fileName: string;
+                                    mime: string;
+                                    /** @enum {string} */
+                                    status: "PENDING" | "READY";
+                                    createdAt: string;
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        reason: string;
+                        photoFileIds?: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            reason: string;
+                            createdAt: string;
+                            photos: {
+                                /** Format: uuid */
+                                id: string;
+                                fileName: string;
+                                mime: string;
+                                /** @enum {string} */
+                                status: "PENDING" | "READY";
+                                createdAt: string;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/appointments/{appointmentId}/portal-token": {
         parameters: {
             query?: never;
@@ -13345,6 +13543,155 @@ export interface paths {
                                     confirmed: number;
                                     required: number;
                                     percent: number | null;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/inspector-performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                snapshotDate: string | null;
+                                windowFrom: string | null;
+                                windowTo: string | null;
+                                computedAt: (string) | null;
+                                isStale: boolean;
+                                settingsUpdatedAt: (string) | null;
+                                minimumVolume: number;
+                                volumeReference: number | null;
+                                /** @enum {string|null} */
+                                volumeReferenceSource: "MEDIAN" | "OVERRIDE" | null;
+                                ranked: {
+                                    position: number;
+                                    /** Format: uuid */
+                                    inspectorId: string;
+                                    inspectorName: string;
+                                    score: number;
+                                    volume: number;
+                                    completedCount: number;
+                                }[];
+                                notEnoughData: {
+                                    /** Format: uuid */
+                                    inspectorId: string;
+                                    inspectorName: string;
+                                    volume: number;
+                                    /** @enum {string} */
+                                    status: "INSUFFICIENT_VOLUME" | "NO_WEIGHTED_DATA";
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/inspector-performance/{inspectorId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                inspectorId: string;
+                                inspectorName: string;
+                                /** @enum {string} */
+                                inspectorStatus: "ACTIVE" | "INACTIVE";
+                                /** @enum {string} */
+                                status: "SCORED" | "INSUFFICIENT_VOLUME" | "NO_WEIGHTED_DATA" | "NOT_COMPUTED";
+                                snapshotDate: string | null;
+                                windowFrom: string | null;
+                                windowTo: string | null;
+                                computedAt: (string) | null;
+                                isStale: boolean;
+                                settingsUpdatedAt: (string) | null;
+                                score: number | null;
+                                position: number | null;
+                                rankedCount: number;
+                                volume: number;
+                                completedCount: number;
+                                minimumVolume: number;
+                                minimumRatings: number;
+                                volumeReference: number | null;
+                                /** @enum {string|null} */
+                                volumeReferenceSource: "MEDIAN" | "OVERRIDE" | null;
+                                metrics: {
+                                    /** @enum {string} */
+                                    metric: "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_ATTEND" | "VOLUME" | "DONE_REJECTED";
+                                    rate: number | null;
+                                    eligibleCount: number;
+                                    successCount: number | null;
+                                    averageRating: number | null;
+                                    volumeReference: number | null;
+                                    weightedSuccess: number;
+                                    weightedEligible: number;
+                                    volume: number;
+                                    activeDays: number | null;
+                                    failureCount: number;
+                                    failures: {
+                                        /** Format: uuid */
+                                        appointmentId: string;
+                                        serviceDate: string;
+                                        detail: string;
+                                    }[];
+                                    weight: number;
                                 }[];
                             };
                         };

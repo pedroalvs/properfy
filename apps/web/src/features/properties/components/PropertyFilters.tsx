@@ -1,6 +1,7 @@
 import { FilterBar } from '@/components/filters/FilterBar';
 import { FilterInput } from '@/components/filters/FilterInput';
 import { FilterSelect, type FilterSelectOption } from '@/components/filters/FilterSelect';
+import { FilterBoolean } from '@/components/filters/FilterBoolean';
 import { PROPERTY_TYPE_MAP } from '@/lib/status-colors';
 import type { PropertyFiltersState } from '../types';
 
@@ -56,6 +57,11 @@ export function PropertyFilters({
         value={filters.branchId}
         onChange={(branchId) => onFiltersChange({ ...filters, branchId })}
         options={branchOptions}
+      />
+      <FilterBoolean
+        label="With issues"
+        value={filters.withIssues}
+        onChange={(withIssues) => onFiltersChange({ ...filters, withIssues })}
       />
     </FilterBar>
   );
