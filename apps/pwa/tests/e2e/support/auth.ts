@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { blockExternal, blockUnmockedApi, stubJson, stubJsonPrefix } from './api';
-import { DAY_PLAN_TODAY, INSPECTOR_ME } from './fixtures';
+import { DAY_PLAN_TODAY, INSPECTOR_ME, PROPERTY_FILES_EMPTY, PROPERTY_ISSUES_EMPTY } from './fixtures';
 
 export { INSPECTOR_ME };
 
@@ -30,10 +30,18 @@ export { INSPECTOR_ME };
  *     (the civil date segment changes daily), not a flat entry. Default = a
  *     published plan with one stop; a spec that needs another plan state overrides
  *     it (last route wins).
+ *   - `GET /v1/property-files` + `GET /v1/property-issues` — F10-3 mounts the Files
+ *     section in the appointment detail, which fetches both on render (not at boot,
+ *     but on every detail screen). Default = empty lists so detail-opening specs
+ *     stay quiet; the F10-3 spec overrides them (last route wins). stubJson matches
+ *     the pathname only, so the presign/confirm/`:id/download` sub-paths are NOT
+ *     shadowed by these entries.
  */
 export const BASELINE_STUBS: ReadonlyArray<{ path: string; body: unknown; status?: number }> = [
   { path: '/v1/me', body: INSPECTOR_ME },
   { path: '/v1/inspectors/me/app-state', body: null, status: 204 },
+  { path: '/v1/property-files', body: { data: PROPERTY_FILES_EMPTY } },
+  { path: '/v1/property-issues', body: { data: PROPERTY_ISSUES_EMPTY } },
   {
     path: '/v1/inspectors/me',
     body: {

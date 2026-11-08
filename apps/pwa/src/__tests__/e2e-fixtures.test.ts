@@ -9,6 +9,12 @@ import {
   finishInspectionResponseSchema,
   inspectorResponseSchema,
   dayPlanResponseSchema,
+  listPropertyFilesResponseSchema,
+  listPropertyIssuesResponseSchema,
+  propertyFileResponseSchema,
+  propertyIssueResponseSchema,
+  presignPropertyFileUploadResponseSchema,
+  cantDoResponseSchema,
 } from '@properfy/shared';
 import {
   INSPECTOR_ME,
@@ -22,6 +28,13 @@ import {
   INSPECTOR_PROFILE_TOUR_PENDING,
   INSPECTOR_PROFILE_TOUR_DONE,
   DAY_PLAN_TODAY,
+  PROPERTY_FILES_EMPTY,
+  PROPERTY_ISSUE_PHOTO,
+  PROPERTY_FILE_CONFIRM_PENDING,
+  PROPERTY_ISSUE_WITH_PHOTO,
+  PROPERTY_ISSUES_WITH_ONE,
+  PRESIGN_RESULT,
+  CANT_DO_RESULT,
 } from '../../tests/e2e/support/fixtures';
 
 /**
@@ -97,6 +110,16 @@ describe('E2E fixtures match the shared response contracts', () => {
   it('proves .strict() rejects a stray key on the day-plan fixture', () => {
     const result = dayPlanResponseSchema.strict().safeParse({ ...DAY_PLAN_TODAY, legacyField: 1 });
     expect(result.success).toBe(false);
+  });
+
+  it('property-file fixtures satisfy their shared response contracts (strict)', () => {
+    expect(() => listPropertyFilesResponseSchema.strict().parse(PROPERTY_FILES_EMPTY)).not.toThrow();
+    expect(() => listPropertyIssuesResponseSchema.strict().parse(PROPERTY_ISSUES_WITH_ONE)).not.toThrow();
+    expect(() => propertyFileResponseSchema.strict().parse(PROPERTY_ISSUE_PHOTO)).not.toThrow();
+    expect(() => propertyFileResponseSchema.strict().parse(PROPERTY_FILE_CONFIRM_PENDING)).not.toThrow();
+    expect(() => propertyIssueResponseSchema.strict().parse(PROPERTY_ISSUE_WITH_PHOTO)).not.toThrow();
+    expect(() => presignPropertyFileUploadResponseSchema.strict().parse(PRESIGN_RESULT)).not.toThrow();
+    expect(() => cantDoResponseSchema.strict().parse(CANT_DO_RESULT)).not.toThrow();
   });
 
   it('LOGIN_401 matches the error envelope and carries AUTH_INVALID_CREDENTIALS', () => {

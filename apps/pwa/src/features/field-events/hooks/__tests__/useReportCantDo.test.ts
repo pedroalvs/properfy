@@ -43,14 +43,24 @@ describe('useReportCantDo', () => {
     invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue(undefined);
   });
 
-  it('posts to the cant-do route (never the offline queue) and cleans up on success', async () => {
-    mockApiPost.mockResolvedValue({ data: {} });
+  it('posts to the cant-do route (never the offline queue), returns the event and cleans up on success', async () => {
+    mockApiPost.mockResolvedValue({
+      data: {
+        eventId: 'ev-1',
+        appointmentId: 'apt-1',
+        appointmentStatus: 'REJECTED',
+        occurredAt: '2026-11-08T00:00:00.000Z',
+        executionAbandoned: false,
+      },
+    });
     const { result } = renderHook(() => useReportCantDo('apt-1'), { wrapper });
 
+    let returned: unknown;
     await act(async () => {
-      await result.current.mutateAsync(input);
+      returned = await result.current.mutateAsync(input);
     });
 
+    expect(returned).toMatchObject({ eventId: 'ev-1', appointmentStatus: 'REJECTED' });
     expect(mockEnqueueAction).not.toHaveBeenCalled();
     expect(mockApiPost).toHaveBeenCalledWith(
       '/v1/inspector/appointments/apt-1/cant-do',
@@ -64,14 +74,16 @@ describe('useReportCantDo', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['inspector', 'day-plan'] });
   });
 
-  it('treats a 409 CANT_DO_ALREADY_REPORTED as success and still cleans up', async () => {
+  it('treats a 409 CANT_DO_ALREADY_REPORTED as success (returns null) and still cleans up', async () => {
     mockApiPost.mockRejectedValue(new ApiError(409, 'Already reported', 'CANT_DO_ALREADY_REPORTED'));
     const { result } = renderHook(() => useReportCantDo('apt-1'), { wrapper });
 
+    let returned: unknown = 'unset';
     await act(async () => {
-      await result.current.mutateAsync(input);
+      returned = await result.current.mutateAsync(input);
     });
 
+    expect(returned).toBeNull();
     expect(mockPurge).toHaveBeenCalledWith('apt-1');
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['inspector', 'schedule'] });
   });
