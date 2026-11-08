@@ -65,6 +65,50 @@ export async function setupAuth(page: Page) {
     localStorage.setItem('access_token', 'test-token');
     localStorage.setItem('refresh_token', 'test-refresh');
   });
+  // F10: AppShell fetches the unseen-issue count shell-wide for AM/OP/CL_ADMIN.
+  // Stub it to zero by default so every shell-loading spec stays hermetic; a spec
+  // that needs specific counts registers its own route (last-registered wins).
+  await mockUnseenIssueCount(page, { appointmentsWithUnseenIssues: 0, propertiesWithUnseenIssues: 0 });
+}
+
+export async function mockUnseenIssueCount(
+  page: Page,
+  counts: { appointmentsWithUnseenIssues: number; propertiesWithUnseenIssues: number } = {
+    appointmentsWithUnseenIssues: 0,
+    propertiesWithUnseenIssues: 0,
+  },
+) {
+  await page.route('**/v1/property-issues/unseen-count', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: counts }),
+    });
+  });
+}
+
+export async function mockPropertyFiles(
+  page: Page,
+  files: Record<string, unknown>[] = [],
+  counts = { total: 0, issues: 0, documents: 0, reports: 0, other: 0 },
+) {
+  await page.route('**/v1/property-files?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { files, counts } }),
+    });
+  });
+}
+
+export async function mockPropertyIssues(page: Page, issues: Record<string, unknown>[] = []) {
+  await page.route('**/v1/property-issues?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { issues } }),
+    });
+  });
 }
 
 export async function mockMeEndpoint(page: Page, user = AM_USER) {

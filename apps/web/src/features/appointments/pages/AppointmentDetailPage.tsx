@@ -43,6 +43,7 @@ import { AppointmentPortalActivityTab } from '../components/AppointmentPortalAct
 import { AppointmentSatisfactionSection } from '../components/AppointmentSatisfactionSection';
 import { useDeleteAppointment } from '../hooks/useDeleteAppointment';
 import { useForceConfirmation } from '../hooks/useForceConfirmation';
+import { PropertyFilesPanel } from '@/features/property-files';
 
 const BASE_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -53,6 +54,7 @@ const NOTIFICATIONS_TAB = { id: 'notifications', label: 'Notifications' };
 const TIMELINE_TAB = { id: 'timeline', label: 'Timeline' };
 const FINANCIAL_TAB = { id: 'financial', label: 'Financial' };
 const PORTAL_ACTIVITY_TAB = { id: 'portal-activity', label: 'Portal Activity' };
+const FILES_TAB = { id: 'files', label: 'Files' };
 const CAN_EDIT_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
 
 /** Shown on the disabled "Send Portal Link" button and on the 409 that backs it. */
@@ -93,6 +95,7 @@ export function AppointmentDetailPage() {
   const { canPerform, hasClUserFlag } = usePermissions();
   const canUsePortalLink = canPerform('appointment.portal_link');
   const canViewPortalActivity = canPerform('appointment.portal_activity');
+  const canViewFiles = canPerform('property_file.read');
   const { showSuccess, showError } = useSnackbar();
   const [isGeneratingPortalToken, setIsGeneratingPortalToken] = useState(false);
   const [isCopyingPortalLink, setIsCopyingPortalLink] = useState(false);
@@ -100,6 +103,7 @@ export function AppointmentDetailPage() {
   const tabs = [
     ...BASE_TABS,
     ...(canViewPortalActivity ? [PORTAL_ACTIVITY_TAB] : []),
+    ...(canViewFiles ? [FILES_TAB] : []),
     ...(isPrivileged ? [NOTIFICATIONS_TAB] : []),
     ...(isPrivileged ? [TIMELINE_TAB] : []),
     ...(isPrivileged ? [FINANCIAL_TAB] : []),
@@ -477,6 +481,15 @@ export function AppointmentDetailPage() {
           )}
           {activeTab === 'portal-activity' && canViewPortalActivity && (
             <AppointmentPortalActivityTab appointmentId={appointment.id} />
+          )}
+          {activeTab === 'files' && canViewFiles && (
+            <PropertyFilesPanel
+              context={{
+                kind: 'appointment',
+                appointmentId: appointment.id,
+                propertyId: appointment.propertyId,
+              }}
+            />
           )}
         </div>
 

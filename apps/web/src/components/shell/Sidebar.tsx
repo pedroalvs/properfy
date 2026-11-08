@@ -129,9 +129,14 @@ export function filterNavItems(
 interface SidebarProps {
   mobile?: boolean;
   onNavigate?: () => void;
+  /**
+   * F10: unseen-issue counts for the amber dots. Owned by AppShell (so Sidebar
+   * stays presentational and query-free); absent in isolation → no dots.
+   */
+  unseenCounts?: { appointments: number; properties: number };
 }
 
-export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
+export function Sidebar({ mobile = false, onNavigate, unseenCounts }: SidebarProps) {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const clFlagsKey = (user?.clUserPermissions ?? []).join(',');
@@ -142,6 +147,15 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
     [user?.role, clFlagsKey],
   );
   const isMapRoute = pathname.includes('/map');
+
+  // F10: amber dots for unseen issues. Appointment issues → Map (the appointments
+  // surface; there is no Appointments nav item); property-only issues → Properties.
+  const badgeFor = (to?: string): number | undefined => {
+    if (!unseenCounts) return undefined;
+    if (to === '/map') return unseenCounts.appointments;
+    if (to === '/properties') return unseenCounts.properties;
+    return undefined;
+  };
 
   return (
     <aside
@@ -182,6 +196,7 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
               to={item.to!}
               mobile={mobile}
               onNavigate={onNavigate}
+              badge={badgeFor(item.to)}
             />
           ),
         )}

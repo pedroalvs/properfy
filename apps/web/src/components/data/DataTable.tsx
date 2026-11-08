@@ -33,6 +33,8 @@ export interface DataTableProps<T> {
   onRowClick?: (row: T) => void;
   emptyMessage?: string;
   keyExtractor?: (row: T, index: number) => string;
+  /** Extra class(es) applied per row (desktop `<tr>` and mobile card), e.g. a status border. */
+  rowClassName?: (row: T) => string | undefined;
 }
 
 function compareValues(a: unknown, b: unknown, order: 'asc' | 'desc'): number {
@@ -80,6 +82,7 @@ export function DataTable<T>({
   onRowClick,
   emptyMessage = 'No records found',
   keyExtractor,
+  rowClassName,
 }: DataTableProps<T>) {
   const [isMobile, setIsMobile] = useState(isMobileViewport);
   const [sortBy, setSortBy] = useState(defaultSort?.key ?? '');
@@ -232,6 +235,7 @@ export function DataTable<T>({
             className={cn(
               'rounded-xl border border-border-subtle bg-card-bg p-4 shadow-sm',
               onRowClick && 'cursor-pointer transition-colors hover:bg-hover-row',
+              rowClassName?.(row),
             )}
             onClick={onRowClick ? () => onRowClick(row) : undefined}
             data-testid="data-table-mobile-card"
@@ -351,6 +355,7 @@ export function DataTable<T>({
                     className={cn(
                       'border-b border-border-light text-table-body text-text-primary',
                       onRowClick && 'cursor-pointer hover:bg-hover-row',
+                      rowClassName?.(row),
                     )}
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
                   >
