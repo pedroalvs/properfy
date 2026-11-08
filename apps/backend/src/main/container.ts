@@ -294,6 +294,10 @@ import { RegionGoalUsageChecker } from '../modules/inspector-program/application
 import { InspectorProgramStandingService } from '../modules/inspector-program/application/inspector-program-standing.service';
 import { GetInspectorProgramUseCase } from '../modules/inspector-program/application/use-cases/get-inspector-program.use-case';
 import { PrismaRecentRewardAwardReader } from '../modules/inspector-program/infrastructure/prisma-recent-reward-award.reader';
+import { F02RecentProgramNoticeReader } from '../modules/inspector-program/infrastructure/f02-recent-program-notice.reader';
+import { SendGoalReachedMessagesStep } from '../modules/inspector-program/application/steps/send-goal-reached-messages.step';
+import { SendLevelChangeMessagesStep } from '../modules/inspector-program/application/steps/send-level-change-messages.step';
+import { SendStreakRiskMessagesStep } from '../modules/inspector-program/application/steps/send-streak-risk-messages.step';
 import { OfferEarlyAccessPolicy } from '../modules/inspector-program/application/offer-early-access.policy';
 import { prepareInspectorProgramSettingForSave } from '../modules/inspector-program/application/prepare-inspector-program-setting-for-save';
 import type { InspectorProgramRouteContainer } from '../modules/inspector-program/interfaces/inspector-program.routes';
@@ -1469,10 +1473,6 @@ export function createContainer(logger: Logger): AppContainer {
     logger,
     prisma,
   );
-  const runInspectorProgramDailyUseCase = new RunInspectorProgramDailyUseCase([
-    closeGoalPeriodsUseCase,
-    new ScheduleMessagesRunStep(inspectorProgramJobQueue),
-  ]);
   const inspectorProgramStandingService = new InspectorProgramStandingService(
     goalRepository,
     goalPeriodClosureRepository,
@@ -1490,6 +1490,32 @@ export function createContainer(logger: Logger): AppContainer {
     platformSettingsService,
     inspectorProgramClock,
   );
+  // One daily job: COMPUTE steps close periods then enqueue the 08:00 MESSAGES run;
+  // the three MESSAGES steps (F08-4) run only in that 08:00 run, in this order.
+  const runInspectorProgramDailyUseCase = new RunInspectorProgramDailyUseCase([
+    closeGoalPeriodsUseCase,
+    new ScheduleMessagesRunStep(inspectorProgramJobQueue),
+    new SendGoalReachedMessagesStep(
+      recentRewardAwardReader,
+      programInspectorReader,
+      publishSystemInspectorNoticeUseCase,
+      logger,
+    ),
+    new SendLevelChangeMessagesStep(
+      reliabilitySnapshotRepo,
+      platformSettingsService,
+      new F02RecentProgramNoticeReader(hasRecentSystemNoticeUseCase),
+      publishSystemInspectorNoticeUseCase,
+      logger,
+    ),
+    new SendStreakRiskMessagesStep(
+      programInspectorReader,
+      inspectorProgramStandingService,
+      goalPeriodClosureRepository,
+      publishSystemInspectorNoticeUseCase,
+      logger,
+    ),
+  ]);
   const listRewardAwardsUseCase = new ListRewardAwardsUseCase(rewardAwardRepository, authorizationService);
   const getProgramPeriodSummaryUseCase = new GetProgramPeriodSummaryUseCase(
     goalRepository,

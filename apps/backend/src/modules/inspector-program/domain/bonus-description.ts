@@ -14,13 +14,19 @@ const MONTHS_LONG = [
  * version or timezone (memory project_icu_locale_default_date_format_node_version_drift).
  * The weekday is computed from UTC midnight of the civil date (no timezone shift).
  */
-function shortCivilDate(date: CivilDate): string {
+export function shortCivilDate(date: CivilDate): string {
   const parts = date.split('-');
   const y = Number(parts[0]);
   const m = Number(parts[1]);
   const d = Number(parts[2]);
   const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
   return `${weekday} ${d} ${MONTHS[m - 1]}`;
+}
+
+/** Full month name (no year) for a civil date's month, e.g. `November` (ICU-stable). */
+export function civilMonthLong(date: CivilDate): string {
+  const m = Number(date.split('-')[1]);
+  return MONTHS_LONG[m - 1]!;
 }
 
 /** Human label for the billing period the bonus rode (e.g. `Week of Mon 2 Nov`). */
