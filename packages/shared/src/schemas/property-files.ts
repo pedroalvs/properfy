@@ -167,3 +167,77 @@ export const propertyIssueUnseenCountResponseSchema = z.object({
 export type PropertyIssueUnseenCountResponse = z.infer<
   typeof propertyIssueUnseenCountResponseSchema
 >;
+
+// ── Portal (F10-4) — rental tenant issue reporting ──────────────────────────
+//
+// The rental tenant acts only through a magic-link token that pins exactly one
+// appointment (and through it one property and one agency). Scope
+// (propertyId/appointmentId/tenantId) and the issue `source` are therefore
+// derived from the token on the server — never sent by the client — so these
+// request schemas carry no propertyId/appointmentId/type/source/cantDoEventId;
+// Zod strips any such field a client includes.
+
+export const portalPresignIssuePhotoSchema = z.object({
+  fileName: z.string().min(1).max(255),
+  mime: z.string().min(1),
+  sizeBytes: z.number().int().positive().optional(),
+});
+export type PortalPresignIssuePhotoInput = z.infer<typeof portalPresignIssuePhotoSchema>;
+
+/**
+ * Portal presign response. Deliberately omits `storageKey` (unlike the
+ * authenticated presign response) — the key embeds the agency's `tenantId`,
+ * which the anonymous tenant must not see and does not need (it uploads to
+ * `uploadUrl` and later references the photo by `fileId`).
+ */
+export const portalPresignIssuePhotoResponseSchema = z.object({
+  fileId: z.string().uuid(),
+  uploadUrl: z.string().url(),
+  expiresAt: instantStr(),
+});
+export type PortalPresignIssuePhotoResponse = z.infer<
+  typeof portalPresignIssuePhotoResponseSchema
+>;
+
+export const portalConfirmIssuePhotoSchema = z.object({
+  fileId: z.string().uuid(),
+});
+export type PortalConfirmIssuePhotoInput = z.infer<typeof portalConfirmIssuePhotoSchema>;
+
+/**
+ * Privacy-reduced photo DTO (metadata + status only — no uploader identity,
+ * storage key, issue id, or version). Shared by the confirm response (status
+ * `PENDING`) and the issue `photos[]` (status `READY`).
+ */
+export const portalIssuePhotoResponseSchema = z.object({
+  id: z.string().uuid(),
+  fileName: z.string(),
+  mime: z.string(),
+  status: z.nativeEnum(PropertyFileStatus),
+  createdAt: instantStr(),
+});
+export type PortalIssuePhotoResponse = z.infer<typeof portalIssuePhotoResponseSchema>;
+
+export const portalCreatePropertyIssueSchema = z.object({
+  reason: z.string().trim().min(1).max(PROPERTY_ISSUE_REASON_MAX),
+  photoFileIds: z.array(z.string().uuid()).optional(),
+});
+export type PortalCreatePropertyIssueInput = z.infer<typeof portalCreatePropertyIssueSchema>;
+
+/**
+ * Privacy-reduced issue DTO. Never exposes the reviewer identity, seen status,
+ * `source`, `createdByUserId`, `cantDoEventId`, or the appointment/property ids
+ * — a tenant sees only what they submitted.
+ */
+export const portalPropertyIssueResponseSchema = z.object({
+  id: z.string().uuid(),
+  reason: z.string(),
+  createdAt: instantStr(),
+  photos: z.array(portalIssuePhotoResponseSchema),
+});
+export type PortalPropertyIssueResponse = z.infer<typeof portalPropertyIssueResponseSchema>;
+
+export const portalPropertyIssuesResponseSchema = z.object({
+  issues: z.array(portalPropertyIssueResponseSchema),
+});
+export type PortalPropertyIssuesResponse = z.infer<typeof portalPropertyIssuesResponseSchema>;

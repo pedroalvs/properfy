@@ -17,6 +17,7 @@ import { RentalTenantPortalExpiredView } from '../components/RentalTenantPortalE
 import { RentalTenantPortalInvalidView } from '../components/RentalTenantPortalInvalidView';
 import { RentalTenantPortalCancelledView } from '../components/RentalTenantPortalCancelledView';
 import { ResponseConfirmationCard } from '../components/ResponseConfirmationCard';
+import { PortalReportProblemSection } from '../components/PortalReportProblemSection';
 import { PortalSurveyView } from '../components/PortalSurveyView';
 import {
   usePortalData,
@@ -379,6 +380,10 @@ export function PortalPage() {
             </div>
           </div>
         )}
+
+        {/* Report a problem with the property (F10-4) — before the confirm control,
+            independent of confirming. Writes are refused for a read-only token. */}
+        <PortalReportProblemSection token={token} disabled={isReadOnly || isTerminal} />
 
         {showForm && (
           <InspectionConfirmationForm
