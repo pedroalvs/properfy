@@ -86,6 +86,8 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // sweepTenantEtaDelaysUseCase
     { get: vi.fn().mockResolvedValue({ enabled: false, channelMode: 'BOTH', morningHour: 7, morningCutoffHour: 9, delayThresholdMinutes: 20, smsBudgetSharePercent: 80 }) } as any, // tenantEtaSettingsReader
     makeWorkerMock() as any,   // propertyFileRetentionWorker
+    makeWorkerMock() as any,   // computeReliabilitySnapshotsUseCase
+    { execute: vi.fn().mockResolvedValue('UP_TO_DATE') } as any, // ensureTodaySnapshotUseCase (also the startup backfill)
     logger as any,
   );
 }
@@ -123,6 +125,8 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
     ['tenant-eta.morning', '0 * * * *'],
     ['tenant-eta.sweep-delays', '*/30 * * * *'],
     ['system.dlq-monitor', '*/5 * * * *'],
+    ['reliability.compute-snapshots', '15 4 * * *'],
+    ['reliability.ensure-today', '0 5-12 * * *'],
   ];
 
   it('schedules every cron with the expected expression and tz Australia/Sydney', async () => {

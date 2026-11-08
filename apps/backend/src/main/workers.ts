@@ -9,6 +9,8 @@ import type { PublishDayPlansUseCase } from '../modules/day-plan/application/use
 import type { SendMorningEtaNoticesUseCase } from '../modules/tenant-eta/application/use-cases/send-morning-eta-notices.use-case';
 import type { EvaluateTenantEtaUseCase, EvaluateTenantEtaJob } from '../modules/tenant-eta/application/use-cases/evaluate-tenant-eta.use-case';
 import type { SweepTenantEtaDelaysUseCase } from '../modules/tenant-eta/application/use-cases/sweep-tenant-eta-delays.use-case';
+import type { ComputeReliabilitySnapshotsUseCase } from '../modules/reliability/application/use-cases/compute-reliability-snapshots.use-case';
+import type { EnsureTodaySnapshotUseCase } from '../modules/reliability/application/use-cases/ensure-today-snapshot.use-case';
 import type { IPlatformSettingsReader } from '../shared/domain/platform-settings';
 import type { DeliverInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/deliver-inspector-notice.use-case';
 import type { SweepUndeliveredInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/sweep-undelivered-inspector-notices.use-case';
@@ -76,6 +78,8 @@ export async function registerWorkers(
   sweepTenantEtaDelaysUseCase: SweepTenantEtaDelaysUseCase,
   tenantEtaSettingsReader: IPlatformSettingsReader,
   propertyFileRetentionWorker: PropertyFileRetentionWorker,
+  computeReliabilitySnapshotsUseCase: ComputeReliabilitySnapshotsUseCase,
+  ensureTodaySnapshotUseCase: EnsureTodaySnapshotUseCase,
   logger: Logger,
 ): Promise<void> {
   // Guard against the misconfiguration where this process consumes jobs from one
@@ -421,7 +425,43 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, inspection-execution.completion-reminder, audit.retention, appointment.reject-unconfirmed, service-group.cancel-empty, inspector-notice.deliver, inspector-notice.delivery-sweep, inspector-notice.auto-archive, day-plan.publish, tenant-eta.morning, tenant-eta.evaluate, tenant-eta.sweep-delays, system.dlq-monitor');
+  // Reliability snapshot (F07-2): daily compute at 04:15 Sydney — after audit.retention
+  // (03:30) and the day-plan purge (03:45), and outside the DST 02:00–03:00 skip. One
+  // machine runs it (teamSize/teamConcurrency 1); a transaction advisory lock serializes
+  // it against any settings-triggered recompute.
+  await boss.schedule('reliability.compute-snapshots', '15 4 * * *', {}, SYDNEY_TZ);
+  await boss.work(
+    'reliability.compute-snapshots',
+    { teamSize: 1, teamConcurrency: 1 },
+    withJobMetrics('reliability.compute-snapshots', async (job) => {
+      const trigger = (job.data as { trigger?: 'SCHEDULED' | 'SETTINGS_CHANGED' | 'BACKFILL' }).trigger ?? 'SCHEDULED';
+      // The use case logs reliability.snapshots_failed and rethrows (pg-boss retries);
+      // pass the attempt so the alert carries the retry count (L-F07-02).
+      const retryCount = (job as { retryCount?: number }).retryCount ?? 0;
+      await computeReliabilitySnapshotsUseCase.execute({ trigger, attempt: retryCount + 1 });
+    }),
+  );
+
+  // Hourly reinforcement 05:00–12:00 Sydney: re-enqueues a missed/failed 04:15 run and an
+  // overdue weight recompute (L-F07-02 / L-F07-10). No singletonKey — the lock and the
+  // compute's idempotency make a duplicate harmless.
+  await boss.schedule('reliability.ensure-today', '0 5-12 * * *', {}, SYDNEY_TZ);
+  await boss.work(
+    'reliability.ensure-today',
+    withJobMetrics('reliability.ensure-today', async () => {
+      await ensureTodaySnapshotUseCase.execute();
+    }),
+  );
+
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, inspection-execution.completion-reminder, audit.retention, appointment.reject-unconfirmed, service-group.cancel-empty, inspector-notice.deliver, inspector-notice.delivery-sweep, inspector-notice.auto-archive, day-plan.publish, tenant-eta.morning, tenant-eta.evaluate, tenant-eta.sweep-delays, system.dlq-monitor, reliability.compute-snapshots, reliability.ensure-today');
+
+  // On startup: backfill today's reliability snapshot if it is missing (F07-2).
+  try {
+    const outcome = await ensureTodaySnapshotUseCase.execute();
+    logger.info({ outcome }, 'reliability.ensure-today backfill checked on startup');
+  } catch (err) {
+    logger.error({ err }, 'reliability.ensure-today backfill failed on startup');
+  }
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({

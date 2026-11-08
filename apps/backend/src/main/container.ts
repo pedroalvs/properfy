@@ -262,6 +262,14 @@ import { GetExecutionDensityUseCase } from '../modules/inspector-execution/appli
 import { PrismaExecutionDensityReader } from '../modules/inspector-execution/infrastructure/prisma-execution-density.reader';
 import { ReliabilityMetricsService } from '../modules/reliability/application/reliability-metrics.service';
 import { PrismaReliabilityFactsReader } from '../modules/reliability/infrastructure/prisma-reliability-facts.reader';
+import { PrismaReliabilitySnapshotRepository } from '../modules/reliability/infrastructure/prisma-reliability-snapshot.repository';
+import { ReliabilityIndexReader } from '../modules/reliability/application/reliability-index.reader';
+import { ComputeReliabilitySnapshotsUseCase } from '../modules/reliability/application/use-cases/compute-reliability-snapshots.use-case';
+import { EnsureTodaySnapshotUseCase } from '../modules/reliability/application/use-cases/ensure-today-snapshot.use-case';
+import { GetReliabilityRankingUseCase } from '../modules/reliability/application/use-cases/get-reliability-ranking.use-case';
+import { GetInspectorReliabilityUseCase } from '../modules/reliability/application/use-cases/get-inspector-reliability.use-case';
+import { RecomputeReliabilityOnSettingsChangeSubscriber } from '../modules/reliability/application/subscribers/recompute-reliability-on-settings-change.subscriber';
+import type { ReliabilityRouteContainer } from '../modules/reliability/interfaces/reliability.routes';
 import type { ExecutionDensityRouteContainer } from '../modules/inspector-execution/interfaces/execution-density.routes';
 // Property files & issues (F10)
 import { PrismaPropertyFileRepository } from '../modules/property-file/infrastructure/prisma-property-file.repository';
@@ -477,6 +485,7 @@ import { ExportAppointmentImportErrorsUseCase } from '../modules/appointment/app
 import { GetImportStatusUseCase } from '../modules/appointment/application/use-cases/get-import-status.use-case';
 import { CompensateFinancialOnDoneRejectedHandler } from '../modules/appointment/application/handlers/compensate-financial-on-done-rejected.handler';
 import { APPOINTMENT_EVENTS } from '../shared/application/events/domain-event-bus';
+import { PLATFORM_SETTING_EVENTS } from '../shared/application/events/domain-event-bus';
 import { DeleteAppointmentUseCase } from '../modules/appointment/application/use-cases/delete-appointment.use-case';
 import { BulkEditAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-edit-appointments.use-case';
 import { BulkCrossCheckDoneUseCase } from '../modules/appointment/application/use-cases/bulk-cross-check-done.use-case';
@@ -597,7 +606,12 @@ export interface AppContainer {
   rentalTenantPortal: RentalTenantPortalRouteContainer;
   inspectorExecution: InspectorExecutionRouteContainer;
   executionDensity: ExecutionDensityRouteContainer;
-  reliability: { metricsService: ReliabilityMetricsService };
+  reliability: ReliabilityRouteContainer & {
+    metricsService: ReliabilityMetricsService;
+    indexReader: ReliabilityIndexReader;
+    computeSnapshotsUseCase: ComputeReliabilitySnapshotsUseCase;
+    ensureTodaySnapshotUseCase: EnsureTodaySnapshotUseCase;
+  };
   propertyFile: PropertyFileRouteContainer;
   propertyIssue: PropertyIssueRouteContainer;
   liveDay: LiveDayRouteContainer;
@@ -1351,6 +1365,43 @@ export function createContainer(logger: Logger): AppContainer {
   const reliabilityMetricsService = new ReliabilityMetricsService(
     new PrismaReliabilityFactsReader(prisma),
     platformSettingsService,
+  );
+  // Reliability snapshot, API and recompute (F07-2). The snapshot job serializes
+  // on a transaction advisory lock; the recompute subscriber (reliabilityIndex
+  // only) enqueues a delayed run after the F03 settings event.
+  const reliabilitySnapshotRepo = new PrismaReliabilitySnapshotRepository(prisma);
+  const reliabilityIndexReader = new ReliabilityIndexReader(reliabilitySnapshotRepo);
+  const reliabilityJobQueue = env.ENABLE_JOB_QUEUE === 'true' ? new PgBossJobQueue() : new StubJobQueue();
+  const computeReliabilitySnapshotsUseCase = new ComputeReliabilitySnapshotsUseCase(
+    reliabilitySnapshotRepo,
+    reliabilityMetricsService,
+    platformSettingsService,
+    logger,
+  );
+  const ensureTodaySnapshotUseCase = new EnsureTodaySnapshotUseCase(
+    reliabilityJobQueue,
+    (snapshotDate) => reliabilitySnapshotRepo.findRowComputedAtForDate(snapshotDate),
+    () => reliabilitySnapshotRepo.findReliabilitySettingsUpdatedAt(),
+    logger,
+  );
+  const getReliabilityRankingUseCase = new GetReliabilityRankingUseCase(
+    reliabilityIndexReader,
+    platformSettingsService,
+    authorizationService,
+  );
+  const getInspectorReliabilityUseCase = new GetInspectorReliabilityUseCase(
+    reliabilityIndexReader,
+    reliabilitySnapshotRepo,
+    platformSettingsService,
+    authorizationService,
+  );
+  const recomputeReliabilityOnSettingsChangeSubscriber = new RecomputeReliabilityOnSettingsChangeSubscriber(
+    reliabilityJobQueue,
+    logger,
+  );
+  domainEventBus.subscribe(
+    PLATFORM_SETTING_EVENTS.UPDATED,
+    (event) => recomputeReliabilityOnSettingsChangeSubscriber.handle(event),
   );
   // Live Day read model (F05-1): one aggregated query, zero Mapbox; reads thresholds
   // through the shared IPlatformSettingsReader (30 s cache).
@@ -2172,6 +2223,13 @@ export function createContainer(logger: Logger): AppContainer {
     },
     reliability: {
       metricsService: reliabilityMetricsService,
+      indexReader: reliabilityIndexReader,
+      computeSnapshotsUseCase: computeReliabilitySnapshotsUseCase,
+      ensureTodaySnapshotUseCase,
+      getRankingUseCase: getReliabilityRankingUseCase,
+      getInspectorReliabilityUseCase,
+      jwtService,
+      tenantRepo,
     },
     propertyFile: {
       presignPropertyFileUploadUseCase,

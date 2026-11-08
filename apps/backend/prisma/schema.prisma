@@ -559,6 +559,7 @@ model Inspector {
   notice_recipients       InspectorNoticeRecipient[]
   push_subscriptions      InspectorPushSubscription[]
   day_plans               DayPlan[]
+  reliability_snapshots   InspectorReliabilitySnapshot[]
 
   @@index([status])
   @@index([user_id])
@@ -2007,4 +2008,37 @@ model DayPlanStop {
   @@unique([day_plan_id, appointment_id])
   @@index([appointment_id])
   @@map("day_plan_stops")
+}
+
+// -----------------------------------------------------------------------------
+// Reliability index snapshot (F07-2)
+// -----------------------------------------------------------------------------
+// One computed reliability record per inspector per civil day, frozen from the
+// F07-1 engine over a 30-day window. Platform-scoped — NO `tenant_id` (the
+// inspector is cross-tenant; documented exception to root CLAUDE.md §7.1 / this
+// workspace §5.6, D9). Isolation is by RBAC (reliability.view → AM/OP only);
+// the row stores no agency name, address or coordinate. Retained 400 days.
+model InspectorReliabilitySnapshot {
+  id              String   @id @default(uuid())
+  inspector_id    String
+  snapshot_date   DateTime @db.Date // civil date (Sydney) of the compute
+  window_days     Int      @default(30)
+  window_from     DateTime @db.Date // snapshot_date − 30
+  window_to       DateTime @db.Date // snapshot_date − 1
+  status          String   @db.VarChar(30) // SCORED | INSUFFICIENT_VOLUME | NO_WEIGHTED_DATA
+  score           Decimal? @db.Decimal(4, 1) // 0.0–100.0; NULL when status ≠ SCORED
+  volume          Int
+  completed_count Int
+  metrics_json    Json // ReliabilityMetricResult[8] (shared shape)
+  settings_json   Json // { weights, minimumVolume, minimumRatings, toleranceMinutes, volumeReference }
+  trigger         String   @db.VarChar(30) // SCHEDULED | SETTINGS_CHANGED | BACKFILL
+  computed_at     DateTime
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  inspector Inspector @relation(fields: [inspector_id], references: [id])
+
+  @@unique([inspector_id, snapshot_date])
+  @@index([snapshot_date, score(sort: Desc)])
+  @@map("inspector_reliability_snapshots")
 }

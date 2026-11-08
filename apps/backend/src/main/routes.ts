@@ -22,6 +22,7 @@ import { registerExecutionDensityRoutes } from '../modules/inspector-execution/i
 import { registerPropertyFileRoutes } from '../modules/property-file/interfaces/property-file.routes';
 import { registerPropertyIssueRoutes } from '../modules/property-file/interfaces/property-issue.routes';
 import { registerLiveDayRoutes } from '../modules/live-day/interfaces/live-day.routes';
+import { registerReliabilityRoutes } from '../modules/reliability/interfaces/reliability.routes';
 import { registerPlatformSettingsRoutes } from '../modules/platform-settings/interfaces/platform-settings.routes';
 import { registerBillingRoutes } from '../modules/billing/interfaces/billing.routes';
 import { registerReportRoutes } from '../modules/report/interfaces/report.routes';
@@ -116,6 +117,7 @@ export async function registerRoutes(
   await registerPropertyFileRoutes(app, container.propertyFile);
   await registerPropertyIssueRoutes(app, container.propertyIssue);
   await registerLiveDayRoutes(app, container.liveDay);
+  await registerReliabilityRoutes(app, container.reliability);
   await registerPlatformSettingsRoutes(app, container.platformSettings);
   await registerBillingRoutes(app, container.billing);
   await registerReportRoutes(app, container.report);
