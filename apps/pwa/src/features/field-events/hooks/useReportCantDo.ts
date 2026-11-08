@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { CantDoRequest } from '@properfy/shared';
-import { apiPost } from '@/hooks/useApiQuery';
+import type { CantDoRequest, CantDoResponse } from '@properfy/shared';
+import { apiPost, type SuccessResponse } from '@/hooks/useApiQuery';
 import type { ApiError } from '@/lib/api-error';
 import {
   purgeAppointmentFromOfflineQueue,
@@ -18,19 +18,28 @@ interface ReportCantDoInput {
  * rejected the job), the local queue + execution draft for the appointment are
  * purged and the schedule/detail queries are invalidated so the job leaves the
  * route. Any other error rejects so the sheet can show the server message.
+ *
+ * Returns the `CantDoResponse` (incl. `eventId`) so a caller can link a follow-up
+ * property issue via `cantDoEventId` (F10-3, D18); returns `null` when the job was
+ * already reported (no new event to link).
  */
 export function useReportCantDo(appointmentId: string) {
   const queryClient = useQueryClient();
 
-  return useMutation<void, ApiError, ReportCantDoInput>({
+  return useMutation<CantDoResponse | null, ApiError, ReportCantDoInput>({
     mutationFn: async ({ body, idempotencyKey }) => {
       try {
-        await apiPost(`/v1/inspector/appointments/${appointmentId}/cant-do`, body, {
-          'Idempotency-Key': idempotencyKey,
-        });
+        const res = await apiPost<SuccessResponse<CantDoResponse>>(
+          `/v1/inspector/appointments/${appointmentId}/cant-do`,
+          body,
+          { 'Idempotency-Key': idempotencyKey },
+        );
+        return res.data;
       } catch (err) {
-        // Already reported (another device / a retry) is a success for us.
+        // Already reported (another device / a retry) is a success for us, but
+        // there is no fresh event to link an issue to.
         if ((err as ApiError)?.code !== 'CANT_DO_ALREADY_REPORTED') throw err;
+        return null;
       }
     },
     onSuccess: async () => {

@@ -191,6 +191,82 @@ export const FINISH_RESULT = {
   appointmentStatus: 'DONE',
 } as const;
 
+// ---- Property files & issues (F10-3) ----
+// All inner bodies; the stubs wrap list/create responses in `{ data }`.
+
+export const PROPERTY_ID = fixtureUuid(12); // matches APPOINTMENT_DETAIL.propertyId
+export const PROPERTY_FILE_ID = fixtureUuid(40);
+export const PROPERTY_ISSUE_ID = fixtureUuid(41);
+export const CANT_DO_EVENT_ID = fixtureUuid(42);
+/** A non-/v1 same-origin URL for the signed PUT (stubbed explicitly in the spec). */
+export const PROPERTY_ISSUE_UPLOAD_URL = 'http://localhost:3000/e2e-signed-upload/photo-1';
+
+/** `GET /v1/property-files` inner body (listPropertyFilesResponseSchema). */
+export const PROPERTY_FILES_EMPTY = {
+  files: [],
+  counts: { total: 0, issues: 0, documents: 0, reports: 0, other: 0 },
+} as const;
+
+/** A READY issue photo (propertyFileResponseSchema). */
+export const PROPERTY_ISSUE_PHOTO = {
+  id: PROPERTY_FILE_ID,
+  propertyId: PROPERTY_ID,
+  appointmentId: APPOINTMENT_ID,
+  issueId: PROPERTY_ISSUE_ID,
+  type: 'ISSUE',
+  versionGroupId: fixtureUuid(43),
+  version: 1,
+  fileName: 'photo.jpg',
+  mime: 'image/jpeg',
+  sizeBytes: 1024,
+  status: 'READY',
+  uploadedByUserId: null,
+  createdAt: '2026-07-20T09:10:00.000Z',
+} as const;
+
+/** The PENDING file returned by `POST /v1/property-files/confirm` before the issue links it. */
+export const PROPERTY_FILE_CONFIRM_PENDING = {
+  ...PROPERTY_ISSUE_PHOTO,
+  issueId: null,
+  status: 'PENDING',
+} as const;
+
+/** `POST /v1/property-files/presign` inner body (presignPropertyFileUploadResponseSchema). */
+export const PRESIGN_RESULT = {
+  fileId: PROPERTY_FILE_ID,
+  uploadUrl: PROPERTY_ISSUE_UPLOAD_URL,
+  storageKey: `files/${fixtureUuid(13)}/${PROPERTY_ID}/${PROPERTY_FILE_ID}.jpg`,
+  expiresAt: '2026-07-20T09:20:00.000Z',
+} as const;
+
+/** An INSPECTOR issue with one photo (propertyIssueResponseSchema). */
+export const PROPERTY_ISSUE_WITH_PHOTO = {
+  id: PROPERTY_ISSUE_ID,
+  propertyId: PROPERTY_ID,
+  appointmentId: APPOINTMENT_ID,
+  reason: 'Broken window',
+  source: 'INSPECTOR',
+  createdByUserId: null,
+  cantDoEventId: null,
+  seenAt: null,
+  seenByUserId: null,
+  createdAt: '2026-07-20T09:11:00.000Z',
+  photos: [PROPERTY_ISSUE_PHOTO],
+} as const;
+
+/** `GET /v1/property-issues` inner bodies (listPropertyIssuesResponseSchema). */
+export const PROPERTY_ISSUES_EMPTY = { issues: [] } as const;
+export const PROPERTY_ISSUES_WITH_ONE = { issues: [PROPERTY_ISSUE_WITH_PHOTO] } as const;
+
+/** `POST …/cant-do` inner body (cantDoResponseSchema). */
+export const CANT_DO_RESULT = {
+  eventId: CANT_DO_EVENT_ID,
+  appointmentId: APPOINTMENT_ID,
+  appointmentStatus: 'REJECTED',
+  occurredAt: '2026-07-20T09:12:00.000Z',
+  executionAbandoned: false,
+} as const;
+
 /**
  * `GET /v1/inspectors/me` inner body (the stub wraps it in `{ data }`).
  * inspectorResponseSchema. `onboardingCompletedAt: null` = tour not yet done.

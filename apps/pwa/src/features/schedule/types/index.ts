@@ -33,6 +33,12 @@ export interface InspectorLastFieldIssue {
 
 export interface InspectorAppointment {
   id: string;
+  /**
+   * The property this appointment belongs to (detail endpoint only — the list
+   * payloads don't carry it). Used by the Files section (F10-3); optional because
+   * this type is shared by the detail and the schedule-list mappers.
+   */
+  propertyId?: string;
   appointmentCode: string;
   propertyAddress: string;
   suburb: string;
@@ -128,6 +134,7 @@ export interface JobDetails {
 export interface InspectorAppointmentDetailResponse {
   data: {
     id: string;
+    propertyId: string;
     appointmentCode: string;
     status: AppointmentStatus;
     scheduledDate: string;

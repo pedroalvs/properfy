@@ -47,6 +47,7 @@ export function mapInspectorAppointmentDetail(
 
   return {
     id: detail.id,
+    propertyId: detail.propertyId,
     appointmentCode: detail.appointmentCode,
     propertyAddress: detail.propertyAddress,
     suburb: detail.suburb,
