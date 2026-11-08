@@ -220,6 +220,10 @@ import { GeneratePortalTokenUseCase } from '../modules/rental-tenant-portal/appl
 import { ListPortalActivitiesUseCase } from '../modules/rental-tenant-portal/application/use-cases/list-portal-activities.use-case';
 import { GetAvailableGroupsUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-available-groups.use-case';
 import { JoinGroupUseCase } from '../modules/rental-tenant-portal/application/use-cases/join-group.use-case';
+import { PresignPortalIssuePhotoUseCase } from '../modules/rental-tenant-portal/application/use-cases/presign-portal-issue-photo.use-case';
+import { ConfirmPortalIssuePhotoUseCase } from '../modules/rental-tenant-portal/application/use-cases/confirm-portal-issue-photo.use-case';
+import { CreatePortalIssueUseCase } from '../modules/rental-tenant-portal/application/use-cases/create-portal-issue.use-case';
+import { ListPortalIssuesUseCase } from '../modules/rental-tenant-portal/application/use-cases/list-portal-issues.use-case';
 import type { RentalTenantPortalRouteContainer } from '../modules/rental-tenant-portal/interfaces/rental-tenant-portal.routes';
 
 // Inspector execution module
@@ -1219,6 +1223,21 @@ export function createContainer(logger: Logger): AppContainer {
     propertyFileRepo, storageService, platformSettingsService, auditService, logger, propertyFileClock,
   );
 
+  // Rental-tenant portal issue reporting (F10-4): token-scoped presign/confirm/
+  // create/list, reusing the F10-1 property-file repositories and storage.
+  const presignPortalIssuePhotoUseCase = new PresignPortalIssuePhotoUseCase(
+    propertyFileRepo, propertyIssueRepo, storageService, platformSettingsService, propertyFileClock,
+  );
+  const confirmPortalIssuePhotoUseCase = new ConfirmPortalIssuePhotoUseCase(
+    prisma, propertyFileRepo, propertyIssueRepo, storageService, platformSettingsService,
+    idempotencyService, propertyFileClock,
+  );
+  const createPortalIssueUseCase = new CreatePortalIssueUseCase(
+    prisma, propertyIssueRepo, propertyFileRepo, platformSettingsService, idempotencyService,
+    auditService, propertyFileClock,
+  );
+  const listPortalIssuesUseCase = new ListPortalIssuesUseCase(propertyIssueRepo, propertyFileRepo);
+
   // Day plan (F04-2): persistence + compute + the inspector's own read.
   const dayPlanRepo = new PrismaDayPlanRepository(prisma);
   const dayPlanInputReader = new PrismaDayPlanInputReader(prisma);
@@ -2121,6 +2140,10 @@ export function createContainer(logger: Logger): AppContainer {
       joinGroupUseCase,
       submitSatisfactionSurveyUseCase,
       getAppointmentSurveyUseCase,
+      presignPortalIssuePhotoUseCase,
+      confirmPortalIssuePhotoUseCase,
+      createPortalIssueUseCase,
+      listPortalIssuesUseCase,
       tokenRepo: rentalTenantPortalTokenRepo,
       tokenService,
       jwtService,

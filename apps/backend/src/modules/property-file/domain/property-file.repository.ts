@@ -66,6 +66,19 @@ export interface IPropertyFileRepository {
     params: LinkPendingIssuePhotosParams,
     tx?: Prisma.TransactionClient,
   ): Promise<number>;
+  /**
+   * Portal variant of {@link linkPendingIssuePhotos} (F10-4). Additionally
+   * requires each photo to belong to the token's own appointment
+   * (`appointment_id = params.appointmentId`) and to be portal-uploaded
+   * (`uploaded_by_user_id IS NULL`), so a rental tenant can never link another
+   * appointment's photo — nor a staff member's in-flight issue photo — on the
+   * same property+tenant. `appointmentId` must be non-null here (the portal
+   * always has an appointment). Returns the number of rows updated.
+   */
+  linkPendingPortalIssuePhotos(
+    params: LinkPendingIssuePhotosParams,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number>;
   softDeletePhotosByIssueId(
     issueId: string,
     deletedByUserId: string,
