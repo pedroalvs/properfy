@@ -17,6 +17,7 @@ const SECTION_BY_KEY: Record<string, string> = {
   routeWeights: 'Route planning',
   tenantEtaNotices: 'Tenant arrival notices',
   liveDayAlerts: 'Live Day alerts',
+  propertyFiles: 'Property files',
 };
 vi.mock('@/hooks/useSnackbar', () => ({
   useSnackbar: () => ({ showSuccess: vi.fn(), showError: vi.fn(), showInfo: vi.fn(), dismiss: vi.fn(), messages: [] }),

@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { cn } from '@properfy/frontend-standards';
 
 import { SidebarTooltip } from './SidebarTooltip';
+import { SidebarItemBadge } from './SidebarItemBadge';
 
 interface SidebarItemProps {
   icon: string;
@@ -10,9 +11,11 @@ interface SidebarItemProps {
   to: string;
   mobile?: boolean;
   onNavigate?: () => void;
+  /** F10: unseen-issue count; renders an amber dot on the icon when > 0. */
+  badge?: number;
 }
 
-export function SidebarItem({ icon, label, to, mobile = false, onNavigate }: SidebarItemProps) {
+export function SidebarItem({ icon, label, to, mobile = false, onNavigate, badge }: SidebarItemProps) {
   const linkRef = useRef<HTMLAnchorElement>(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -51,20 +54,23 @@ export function SidebarItem({ icon, label, to, mobile = false, onNavigate }: Sid
               )}
             />
           )}
-          <i
-            className={cn(
-              'mdi',
-              icon,
-              'transition-opacity',
-              mobile
-                ? `text-xl ${isActive ? 'text-real-estate' : 'text-text-secondary'}`
-                : `text-2xl ${
-                    isActive
-                      ? 'text-realty opacity-100'
-                      : 'opacity-65 group-hover:text-realty group-hover:opacity-100'
-                  }`,
-            )}
-          />
+          <span className="relative inline-block">
+            <i
+              className={cn(
+                'mdi',
+                icon,
+                'transition-opacity',
+                mobile
+                  ? `text-xl ${isActive ? 'text-real-estate' : 'text-text-secondary'}`
+                  : `text-2xl ${
+                      isActive
+                        ? 'text-realty opacity-100'
+                        : 'opacity-65 group-hover:text-realty group-hover:opacity-100'
+                    }`,
+              )}
+            />
+            {badge !== undefined && <SidebarItemBadge count={badge} />}
+          </span>
           {mobile ? (
             <span className="truncate">{label}</span>
           ) : (

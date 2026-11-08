@@ -307,4 +307,34 @@ describe('DataTable', () => {
     expect(screen.getAllByTestId('data-table-mobile-card')).toHaveLength(2);
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
+
+  it('applies rowClassName per row on the desktop rows', () => {
+    mockMatchMedia(false);
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        rowClassName={(row) => (row.id === 1 ? 'border-l-4 border-l-warning' : undefined)}
+      />,
+    );
+    const rows = screen.getAllByRole('row').filter((r) => within(r).queryByText('Item A') || within(r).queryByText('Item B'));
+    const rowA = rows.find((r) => within(r).queryByText('Item A'))!;
+    const rowB = rows.find((r) => within(r).queryByText('Item B'))!;
+    expect(rowA).toHaveClass('border-l-warning');
+    expect(rowB).not.toHaveClass('border-l-warning');
+  });
+
+  it('applies rowClassName on the mobile cards', () => {
+    mockMatchMedia(true);
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        rowClassName={(row) => (row.id === 1 ? 'border-l-4 border-l-warning' : undefined)}
+      />,
+    );
+    const cards = screen.getAllByTestId('data-table-mobile-card');
+    expect(cards[0]).toHaveClass('border-l-warning');
+    expect(cards[1]).not.toHaveClass('border-l-warning');
+  });
 });
