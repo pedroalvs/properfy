@@ -20,6 +20,7 @@ import { AppsSection } from '../components/AppsSection';
 import { KeyDetailsSection } from '../components/KeyDetailsSection';
 import { JobDetailsSection } from '../components/JobDetailsSection';
 import { StartInspectionButton } from '../components/StartInspectionButton';
+import { PropertyFilesSection } from '@/features/property-files';
 import { useInspectorAppointment } from '../hooks/useInspectorAppointment';
 import { useLocalExecutionState } from '@/features/execution/hooks/useLocalExecutionState';
 import { getErrorMessage } from '@/lib/api-error';
@@ -257,6 +258,17 @@ export function AppointmentDetailPage() {
         {/* Job Details */}
         {jobDetails && <JobDetailsSection jobDetails={jobDetails} />}
 
+        {/* Property files & issues (F10-3) — read-only files + "Report issue",
+            online-only (not cached offline). The detail payload always carries
+            propertyId; guarded because the shared type marks it optional. */}
+        {apt.propertyId && (
+          <PropertyFilesSection
+            appointmentId={apt.id}
+            propertyId={apt.propertyId}
+            propertyAddress={apt.propertyAddress}
+          />
+        )}
+
         {/* CTA — pinned to the bottom of the detail pane on tablet (where the pane owns its own
             scroll) so the primary action stays reachable; phone keeps it inline at the end. The
             negative page margin lets the opaque footer bar span the full pane width. */}
@@ -289,6 +301,7 @@ export function AppointmentDetailPage() {
         appointmentId={apt.id}
         appointmentCode={apt.appointmentCode}
         propertyAddress={apt.propertyAddress}
+        propertyId={apt.propertyId}
         onReported={() => navigate('/schedule', { replace: true })}
       />
       <LateNoticeSheet
