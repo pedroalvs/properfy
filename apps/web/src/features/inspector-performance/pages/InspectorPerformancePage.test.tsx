@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useSearchParams } from 'react-router-dom';
+import { DEFAULT_INSPECTOR_PROGRAM } from '@properfy/shared';
 import { createRouterQueryWrapper } from '@/test-utils/test-wrappers';
 import { InspectorPerformancePage } from './InspectorPerformancePage';
 import { rankingFixture, anaDetailFixture, INSPECTOR_IDS } from '../__fixtures__/reliability';
@@ -12,6 +13,25 @@ vi.mock('../hooks/useReliabilityRanking', () => ({ useReliabilityRanking: () => 
 
 const mockInspector = vi.fn<[], UseInspectorReliabilityReturn>();
 vi.mock('../hooks/useInspectorReliability', () => ({ useInspectorReliability: () => mockInspector() }));
+
+// The page reads the `inspectorProgram` setting for the derived Level column; mock
+// it so the page test doesn't fire a real query (fetching-hook-in-page gotcha).
+vi.mock('@/features/platform-settings/hooks/usePlatformSetting', () => ({ usePlatformSetting: vi.fn() }));
+import { usePlatformSetting } from '@/features/platform-settings/hooks/usePlatformSetting';
+const mockPlatformSetting = usePlatformSetting as unknown as Mock;
+
+function setProgramSetting(partial: Record<string, unknown> = {}) {
+  mockPlatformSetting.mockReturnValue({
+    setting: {
+      key: 'inspectorProgram', section: 'Inspector program',
+      value: DEFAULT_INSPECTOR_PROGRAM as unknown as Record<string, unknown>,
+      defaults: DEFAULT_INSPECTOR_PROGRAM as unknown as Record<string, unknown>,
+      isDefault: true, updatedAt: null, updatedBy: null,
+    },
+    isLoading: false, isError: false, error: null, refetch: vi.fn(), save: vi.fn(), isSaving: false,
+    ...partial,
+  });
+}
 
 const NINE_AM_SYD = new Date('2026-12-01T22:00:00Z');
 const HALF_FOUR_AM_SYD = new Date('2026-12-01T17:30:00Z');
@@ -38,6 +58,8 @@ function renderPage(initialPath = '/inspector-performance') {
 beforeEach(() => {
   mockRanking.mockReset();
   mockInspector.mockReset();
+  mockPlatformSetting.mockReset();
+  setProgramSetting();
   mockInspector.mockReturnValue({
     inspector: anaDetailFixture,
     isLoading: false,
@@ -105,6 +127,23 @@ describe('InspectorPerformancePage — ranking', () => {
     expect(screen.getByRole('button', { name: 'Open Carla Nunes details' })).toHaveTextContent(
       'Carla Nunes · 9 of 10 services',
     );
+  });
+
+  it('shows the derived Level column from the configured thresholds', () => {
+    setRanking({ ranking: rankingFixture });
+    renderPage();
+    expect(screen.getByText('Level')).toBeInTheDocument();
+    // Top inspectors score ≥ 85 → Gold under the default 60/85 thresholds.
+    expect(screen.getAllByText('Gold').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows "–" in the Level column when the inspectorProgram setting is unavailable', () => {
+    setProgramSetting({ isError: true, setting: null });
+    setRanking({ ranking: rankingFixture });
+    renderPage();
+    expect(screen.getByText('Level')).toBeInTheDocument();
+    expect(screen.getAllByText('–').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Gold')).not.toBeInTheDocument();
   });
 
   it('exposes Configure weights as a link to the settings anchor', () => {

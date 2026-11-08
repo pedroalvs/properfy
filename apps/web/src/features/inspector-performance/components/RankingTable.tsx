@@ -1,4 +1,9 @@
-import type { ReliabilityRankingResponse } from '@properfy/shared';
+import {
+  resolveInspectorLevel,
+  INSPECTOR_LEVEL_LABELS,
+  type ReliabilityRankingResponse,
+  type InspectorLevelThresholds,
+} from '@properfy/shared';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { formatScore } from '../lib/format-metric';
 
@@ -7,6 +12,12 @@ export type RankedInspector = ReliabilityRankingResponse['ranked'][number];
 export interface RankingTableProps {
   rows: RankedInspector[];
   onOpen: (inspectorId: string, trigger: HTMLElement | null) => void;
+  /**
+   * Level thresholds from the `inspectorProgram` platform setting (F08 03.11). The
+   * Level column is derived client-side from each row's score; `null` (setting still
+   * loading or unreadable) renders "–".
+   */
+  levelThresholds?: InspectorLevelThresholds | null;
 }
 
 function ScoreCell({ score }: { score: number }) {
@@ -29,7 +40,12 @@ function ScoreCell({ score }: { score: number }) {
  * the actionable affordance is a focusable button in the "Inspector" cell
  * (`aria-label` "Open {name} details"); `onRowClick` serves pointer users.
  */
-export function RankingTable({ rows, onOpen }: RankingTableProps) {
+export function RankingTable({ rows, onOpen, levelThresholds }: RankingTableProps) {
+  const levelLabel = (score: number): string => {
+    if (!levelThresholds) return '–';
+    const level = resolveInspectorLevel(score, levelThresholds);
+    return level ? INSPECTOR_LEVEL_LABELS[level] : '–';
+  };
   const columns: DataTableColumn<RankedInspector>[] = [
     {
       key: 'position',
@@ -60,6 +76,12 @@ export function RankingTable({ rows, onOpen }: RankingTableProps) {
       label: 'Score',
       width: '160px',
       render: (row) => <ScoreCell score={row.score} />,
+    },
+    {
+      key: 'level',
+      label: 'Level',
+      width: '100px',
+      render: (row) => levelLabel(row.score),
     },
     {
       key: 'volume',

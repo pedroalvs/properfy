@@ -279,4 +279,33 @@ describe('Sidebar — Dashboard group', () => {
       expect(labels.indexOf('Inspector performance')).toBeLessThan(goals);
     }
   });
+
+  // F08 — AM/OP: "Goals & rewards" menuitem, after Inspector performance (canonical X01 order, by label — DR6).
+  it.each(['AM', 'OP'])('%s: Goals & rewards is a menuitem linking to /goals-rewards, after Inspector performance', (role) => {
+    renderDesktop(role);
+    openFlyout('Dashboard');
+    const menu = screen.getByRole('menu');
+    expect(within(menu).getByRole('menuitem', { name: 'Goals & rewards' })).toHaveAttribute('href', '/goals-rewards');
+    const labels = within(menu).getAllByRole('menuitem').map((el) => el.textContent?.trim() ?? '');
+    expect(labels.indexOf('Inspector performance')).toBeLessThan(labels.indexOf('Goals & rewards'));
+  });
+
+  it.each(['CL_ADMIN', 'CL_USER'])('%s: does not see Goals & rewards', (role) => {
+    renderDesktop(role);
+    openFlyout('Dashboard');
+    expect(
+      within(screen.getByRole('menu')).queryByRole('menuitem', { name: 'Goals & rewards' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('INSP does not see Goals & rewards', () => {
+    renderDesktop('INSP');
+    expect(screen.queryByText('Goals & rewards')).not.toBeInTheDocument();
+  });
+
+  it('group is active on /goals-rewards', () => {
+    renderDesktop('AM', '/goals-rewards');
+    const container = screen.getByRole('button', { name: 'Dashboard' }).closest('div');
+    expect(container?.querySelector('.bg-realty')).not.toBeNull();
+  });
 });

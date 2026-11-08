@@ -137,4 +137,16 @@ describe('filterNavItems — collapseIfSingle', () => {
     expect(dashboardChildren('OP')).toContain('/inspector-performance');
     expect(dashboardChildren('CL_ADMIN')).not.toContain('/inspector-performance');
   });
+
+  // F9 (F08) — AM/OP see /goals-rewards, after /inspector-performance; CL_* and INSP do not
+  // (presence + relative order by `to`, never absolute index or count — DR6).
+  it('F9: filterNavItems exposes /goals-rewards to AM/OP after inspector-performance, not to CL/INSP', () => {
+    const am = dashboardChildren('AM');
+    expect(am).toContain('/goals-rewards');
+    expect(am.indexOf('/goals-rewards')).toBeGreaterThan(am.indexOf('/inspector-performance'));
+    expect(dashboardChildren('OP')).toContain('/goals-rewards');
+    expect(dashboardChildren('CL_ADMIN')).not.toContain('/goals-rewards');
+    expect(dashboardChildren('CL_USER')).not.toContain('/goals-rewards');
+    expect(dashboardChildren('INSP')).not.toContain('/goals-rewards');
+  });
 });

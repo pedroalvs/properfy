@@ -1,5 +1,7 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { resolvePlatformSettingValue, type InspectorLevelThresholds } from '@properfy/shared';
+import { usePlatformSetting } from '@/features/platform-settings/hooks/usePlatformSetting';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -25,6 +27,16 @@ const LOAD_ERROR = "We couldn't load inspector performance.";
  */
 export function InspectorPerformancePage() {
   const { ranking, isLoading, isError, refetch } = useReliabilityRanking();
+  // Level thresholds for the derived "Level" column (F08 03.11). Null while the
+  // setting loads or if it can't be read → the column shows "–".
+  const programSetting = usePlatformSetting('inspectorProgram');
+  const levelThresholds = useMemo<InspectorLevelThresholds | null>(() => {
+    if (programSetting.isLoading || programSetting.isError || !programSetting.setting) return null;
+    const resolved = resolvePlatformSettingValue('inspectorProgram', programSetting.setting.value);
+    // A stored value that fails validation is treated as unreadable → "–" (the
+    // column is informational; don't derive levels from a corrupted setting).
+    return resolved.valid ? resolved.value.levels : null;
+  }, [programSetting.setting, programSetting.isLoading, programSetting.isError]);
   const [searchParams, setSearchParams] = useSearchParams();
   // Normalize an empty `?inspector=` to null: `""` is not null, so without this
   // the drawer would open while its detail query stays disabled (Boolean("") is
@@ -109,7 +121,7 @@ export function InspectorPerformancePage() {
         />
       ) : (
         <>
-          <RankingTable rows={ranking.ranked} onOpen={openInspector} />
+          <RankingTable rows={ranking.ranked} onOpen={openInspector} levelThresholds={levelThresholds} />
           <NotEnoughDataList
             items={ranking.notEnoughData}
             minimumVolume={ranking.minimumVolume}

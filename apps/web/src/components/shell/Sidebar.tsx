@@ -49,6 +49,7 @@ export const NAV_ITEMS: NavItem[] = [
       { icon: 'mdi-chart-line', label: 'Analytics', to: '/analytics', roles: [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER] },
       { icon: 'mdi-account-clock-outline', label: 'Workload', to: '/inspector-workload', roles: [UserRole.AM, UserRole.OP] },
       { icon: 'mdi-podium', label: 'Inspector performance', to: '/inspector-performance', roles: [UserRole.AM, UserRole.OP] },
+      { icon: 'mdi-trophy-outline', label: 'Goals & rewards', to: '/goals-rewards', roles: [UserRole.AM, UserRole.OP] },
     ],
   },
   // Map-first navigation: the map is the single entry point for appointments
