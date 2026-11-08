@@ -48,6 +48,8 @@ export interface AppointmentFilters {
    * group's full membership (incl. CANCELLED/REJECTED) is returned.
    */
   serviceGroupId?: string;
+  /** F10 "With issues": only appointments that have a non-deleted property issue. */
+  withIssues?: boolean;
 }
 
 export interface PaginationParams {

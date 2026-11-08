@@ -191,6 +191,8 @@ model Tenant {
   satisfaction_surveys   SatisfactionSurvey[]
   cron_job_runs          CronJobRun[]
   inspector_field_events InspectorFieldEvent[]
+  property_files         PropertyFile[]
+  property_issues        PropertyIssue[]
 
   @@index([status])
   @@map("tenants")
@@ -429,10 +431,12 @@ model Property {
   updated_at              DateTime        @updatedAt
   deleted_at              DateTime?
 
-  coordinates  Unsupported("GEOMETRY(Point, 4326)")?
-  tenant       Tenant                                @relation(fields: [tenant_id], references: [id])
-  branch       Branch?                               @relation(fields: [branch_id], references: [id])
-  appointments Appointment[]
+  coordinates     Unsupported("GEOMETRY(Point, 4326)")?
+  tenant          Tenant                                @relation(fields: [tenant_id], references: [id])
+  branch          Branch?                               @relation(fields: [branch_id], references: [id])
+  appointments    Appointment[]
+  property_files  PropertyFile[]
+  property_issues PropertyIssue[]
 
   @@unique([tenant_id, property_code])
   @@unique([tenant_id, property_number])
@@ -733,6 +737,8 @@ model Appointment {
   notifications       Notification[]
   satisfaction_survey SatisfactionSurvey?
   day_plan_stops      DayPlanStop[]
+  property_files      PropertyFile[]
+  property_issues     PropertyIssue[]
 
   @@index([tenant_id, status])
   @@index([tenant_id, branch_id])
@@ -1379,11 +1385,110 @@ model InspectorFieldEvent {
   inspector   Inspector   @relation(fields: [inspector_id], references: [id])
   tenant      Tenant      @relation(fields: [tenant_id], references: [id])
 
+  property_issues PropertyIssue[]
+
   @@index([appointment_id, type, created_at(sort: Desc)])
   @@index([inspector_id, created_at])
   @@index([tenant_id, created_at])
   @@index([type, created_at])
   @@map("inspector_field_events")
+}
+
+// ── Property files & issues (F10) ───────────────────────────────────────────
+// Tenant-scoped entities (they carry tenant_id) — NOT a platform exception. An
+// issue groups a reason + photos; photos are PropertyFile rows of type=ISSUE.
+
+enum PropertyFileType {
+  ISSUE
+  DOCUMENT
+  REPORT
+  OTHER
+}
+
+enum PropertyFileStatus {
+  PENDING
+  READY
+}
+
+enum PropertyIssueSource {
+  INSPECTOR
+  STAFF
+  RENTAL_TENANT_PORTAL
+}
+
+// A reported problem at a property (reason + optional photos). Belongs to a
+// property and tenant, optionally to an appointment of that property.
+model PropertyIssue {
+  id                 String              @id @default(uuid())
+  tenant_id          String
+  property_id        String
+  appointment_id     String?
+  reason             String              @db.Text // 1..1000 chars (Zod + CHECK)
+  source             PropertyIssueSource
+  created_by_user_id String? // null for the rental tenant; actor column, no FK (house convention)
+  cant_do_event_id   String? // F03-2 "Can't do" event when the issue was created from it
+  seen_at            DateTime?
+  seen_by_user_id    String?
+  deleted_at         DateTime?
+  deleted_by_user_id String?
+  created_at         DateTime            @default(now())
+  updated_at         DateTime            @updatedAt
+
+  tenant         Tenant               @relation(fields: [tenant_id], references: [id])
+  property       Property             @relation(fields: [property_id], references: [id])
+  appointment    Appointment?         @relation(fields: [appointment_id], references: [id])
+  cant_do_event  InspectorFieldEvent? @relation(fields: [cant_do_event_id], references: [id])
+  photos         PropertyFile[]
+
+  // Partial indexes (unseen-issue indicators — D26) live in migration SQL; Prisma
+  // cannot express them and the drift check will not drop raw partial indexes.
+  @@index([property_id])
+  @@index([appointment_id])
+  @@map("property_issues")
+}
+
+// A stored file attached to a property (and optionally an appointment). One of
+// four types; only ISSUE files carry an issue_id (when READY). Versioned by
+// (version_group_id, version).
+model PropertyFile {
+  id                  String             @id @default(uuid())
+  tenant_id           String
+  property_id         String
+  appointment_id      String?
+  issue_id            String? // required for a READY ISSUE photo; relaxed-null while PENDING (D20)
+  type                PropertyFileType
+  version_group_id    String
+  version             Int                @default(1)
+  file_name           String
+  mime                String
+  size_bytes          BigInt
+  storage_key         String
+  status              PropertyFileStatus @default(PENDING)
+  // Set at confirm once headObject + size + magic-byte checks pass (F10). An
+  // issue photo stays PENDING until its issue is created, so this (not status)
+  // is what proves a photo was validated before it is linked to an issue (D20).
+  confirmed_at        DateTime?
+  uploaded_by_user_id String? // actor column, no FK (house convention)
+  deleted_at          DateTime?
+  deleted_by_user_id  String?
+  purged_at           DateTime?
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @updatedAt
+
+  tenant      Tenant         @relation(fields: [tenant_id], references: [id])
+  property    Property       @relation(fields: [property_id], references: [id])
+  appointment Appointment?   @relation(fields: [appointment_id], references: [id])
+  issue       PropertyIssue? @relation(fields: [issue_id], references: [id])
+
+  // The relaxed CHECK (issue_id_matches_type, D20) and the two retention partial
+  // indexes (PENDING orphans; soft-deleted-not-purged) are added in migration SQL
+  // (Prisma cannot express a CHECK or a partial index; the drift check keeps them).
+  @@unique([version_group_id, version], map: "property_files_version_group_version_unique")
+  @@unique([storage_key], map: "property_files_storage_key_unique")
+  @@index([property_id, type])
+  @@index([appointment_id, type])
+  @@index([issue_id])
+  @@map("property_files")
 }
 
 model IdempotencyKey {

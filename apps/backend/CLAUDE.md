@@ -326,6 +326,32 @@ The pure compute engine for the inspector reliability index (03.4b / 03.5). **No
 
 ---
 
+### Property files & issues (F10-1, module `property-file/`)
+
+Backend + shared foundation for the property-centred file repository + issue log (contract C.1–C.9 + the "Issues" additive). One cohesive module owns both `PropertyFile` and `PropertyIssue` (issue photos *are* property files; the create-issue transaction spans both tables). Consumed by TASK-F10-2/3/4.
+
+```text
+POST   /v1/property-files/presign              AM/OP/CL_ADMIN (+ INSP for ISSUE photos on own T-1 appt)
+POST   /v1/property-files/confirm              (Idempotency-Key) headObject + file-type sniff + size
+GET    /v1/property-files?propertyId&appointmentId&type   list READY files + per-type counts
+GET    /v1/property-files/:id/download         5-min signed URL
+POST   /v1/property-files/:id/versions         AM/OP/CL_ADMIN — new version (23505 retry)
+DELETE /v1/property-files/:id                  AM/OP — soft delete
+POST   /v1/property-issues                     (Idempotency-Key) AM/OP/CL_ADMIN (STAFF) / INSP (INSPECTOR)
+GET    /v1/property-issues?propertyId&appointmentId       list issues + photos
+GET    /v1/property-issues/unseen-count        AM/OP/CL_ADMIN → { appointmentsWithUnseenIssues, propertiesWithUnseenIssues }
+POST   /v1/property-issues/:id/seen            AM/OP/CL_ADMIN — CAS mark-as-seen
+DELETE /v1/property-issues/:id                 AM/OP — soft delete issue + photos
+```
+
+- **Tenant-scoped** (NOT platform-scoped): `property_files`/`property_issues` carry `tenant_id` (D5). Cross-tenant access → **404**, never 403 (C.A2) via `requireTenantScope`/`assertTenantScope`. **OP is cross-tenant** (v1.3.0) — use `requireTenantScope`; do **not** copy the `get-property.use-case.ts` OP-pinning bug (left untouched, out of scope). `source` is server-derived from the role (R11); CL_USER is read-only.
+- **Presign → confirm (D9).** Presign validates the declared MIME (`allowedMimes`/`issueImageMimes`), builds the key via the shared grammar (`inspection-assets` bucket, D10 — no new bucket), stores a `PENDING` row. Confirm (requires `Idempotency-Key`, D24) does `headObject` + a **magic-byte sniff** — a new `IStorageService.getObjectBytes(bucket,key,maxBytes)` range-reads a prefix, `file-type` + `isDetectedMimeCompatible` (OOXML sniffs as `application/zip`) — + size ≤ `maxFileSizeMb`, sets `confirmed_at`, and flips to `READY` (C.A5). A **new ISSUE photo stays PENDING** until its issue is created (D20).
+- **D20 issue creation** runs one transaction: insert the issue + `linkPendingIssuePhotos` (`UPDATE … WHERE id = ANY(:ids) AND status='PENDING' AND type='ISSUE' AND issue_id IS NULL AND confirmed_at IS NOT NULL AND property_id=:p AND tenant_id=:t`). Every referenced photo must link or it is 409 + rollback (only **confirmed** photos link — C.A5). `cantDoEventId` (INSP, D18) is ownership-checked (own CANT_DO for the appointment).
+- **Mark-as-seen is a CAS** (D23): `UPDATE … WHERE seen_at IS NULL AND deleted_at IS NULL`; 0 rows ⇒ `{ alreadySeen: true }`, audited only when it flips. **INSP identity masking** (D28): the file/issue **list** reads null `createdByUserId`/`seenByUserId`/`cantDoEventId`/`uploadedByUserId` for INSP (content kept). INSP read access reuses the existing T-1 appointment-visibility predicate (`InspectorAppointmentVisibilityAdapter`).
+- **Audit:** `property_file.uploaded/.version_added/.deleted/.purged`, `property_issue.created/.seen/.deleted` (author, date, version — C.A4). Idempotency hash is **actor-bound**.
+- **Retention job** `property-file.retention` (daily 04:00 Sydney, `main/workers.ts`): (1) soft-deleted READY past `deletedRetentionDays`, (2) active past `retentionDays` (if set; purged issue photo leaves the issue, D27), (3) `PENDING` orphans > 24 h → `deleteObject` + `purged_at` + audit, per-row try/catch.
+- **Payload enrichment:** `GET /v1/appointments`/`/v1/properties` list rows gain `hasUnseenIssues` (D26; AM/OP/CL_ADMIN only, false for CL_USER/INSP) + a `withIssues` filter; `/:id` details gain `fileCounts`. Config is the `propertyFiles` PlatformSetting key; role-matrix gains `property_file.*`/`property_issue.*`.
+
 ## 7. Data model
 
 See `prisma/schema.prisma` for complete entity definitions.

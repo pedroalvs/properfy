@@ -22,6 +22,7 @@ import type { DispatchEscalationsUseCase } from '../modules/notification/applica
 import type { CleanupSessionsWorker } from '../modules/auth/infrastructure/workers/cleanup-sessions.worker';
 import type { KeyExpiryCheckWorker } from '../modules/auth/infrastructure/workers/key-expiry-check.worker';
 import type { ExpireFilesWorker } from '../modules/report/infrastructure/workers/expire-files.worker';
+import type { PropertyFileRetentionWorker } from '../modules/property-file/infrastructure/workers/property-file-retention.worker';
 import type { GeocodeWorker } from '../modules/property/infrastructure/workers/geocode.worker';
 import type { GeocodeRetryWorker } from '../modules/property/infrastructure/workers/geocode-retry.worker';
 import type { AppointmentImportCommitWorker } from '../modules/appointment/infrastructure/workers/appointment-import-commit.worker';
@@ -74,6 +75,7 @@ export async function registerWorkers(
   evaluateTenantEtaUseCase: EvaluateTenantEtaUseCase,
   sweepTenantEtaDelaysUseCase: SweepTenantEtaDelaysUseCase,
   tenantEtaSettingsReader: IPlatformSettingsReader,
+  propertyFileRetentionWorker: PropertyFileRetentionWorker,
   logger: Logger,
 ): Promise<void> {
   // Guard against the misconfiguration where this process consumes jobs from one
@@ -215,6 +217,15 @@ export async function registerWorkers(
     logger.info({ jobId: job.id }, 'Processing report.expire-files job');
     const result = await expireFilesWorker.execute();
     logger.info({ jobId: job.id, expiredCount: result.expiredCount }, 'Report file expiry completed');
+  }));
+
+  // F10 daily retention sweep: purge soft-deleted / over-retention / orphaned
+  // PENDING property-file objects from storage. 04:00 Sydney (after audit.retention).
+  await boss.schedule('property-file.retention', '0 4 * * *', {}, SYDNEY_TZ);
+  await boss.work('property-file.retention', withJobMetrics('property-file.retention', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing property-file.retention job');
+    const result = await propertyFileRetentionWorker.execute();
+    logger.info({ jobId: job.id, ...result }, 'Property file retention completed');
   }));
 
   await boss.work('property.geocode', withJobMetrics('property.geocode', async (job) => {

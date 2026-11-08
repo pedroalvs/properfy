@@ -119,6 +119,40 @@ export const DEFAULT_RELIABILITY_INDEX = {
   minimumRatings: 3,
 } as const;
 
+/**
+ * Property files & issues configuration (F10 D29). One key, a six-field object —
+ * allowed MIME types + max size for Document/Report/Other, the image-only MIME
+ * set + per-issue photo cap for issues, and the two retention windows
+ * (`retentionDays` null = keep active files forever; `deletedRetentionDays` is
+ * when soft-deleted files are purged from storage, default 365).
+ */
+export const propertyFilesSettingSchema = z.object({
+  allowedMimes: z.array(z.string().min(1)).min(1),
+  maxFileSizeMb: z.number().int().min(5).max(200),
+  issueImageMimes: z.array(z.string().min(1)).min(1),
+  maxPhotosPerIssue: z.number().int().min(1).max(20),
+  retentionDays: z.number().int().min(1).nullable(),
+  deletedRetentionDays: z.number().int().min(30).max(3650),
+});
+export type PropertyFilesSetting = z.infer<typeof propertyFilesSettingSchema>;
+
+export const DEFAULT_PROPERTY_FILES_SETTING: PropertyFilesSetting = {
+  allowedMimes: [
+    'image/jpeg',
+    'image/png',
+    'image/heic',
+    'image/webp',
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ],
+  maxFileSizeMb: 20,
+  issueImageMimes: ['image/jpeg', 'image/png', 'image/heic', 'image/webp'],
+  maxPhotosPerIssue: 10,
+  retentionDays: null,
+  deletedRetentionDays: 365,
+};
+
 export const PLATFORM_SETTINGS_REGISTRY = {
   fieldEvents: {
     schema: fieldEventsSettingSchema,
@@ -157,6 +191,11 @@ export const PLATFORM_SETTINGS_REGISTRY = {
     schema: reliabilityIndexSettingSchema,
     defaults: DEFAULT_RELIABILITY_INDEX,
     section: 'Reliability index',
+  },
+  propertyFiles: {
+    schema: propertyFilesSettingSchema,
+    defaults: DEFAULT_PROPERTY_FILES_SETTING,
+    section: 'Property files',
   },
 } as const satisfies Record<string, { schema: z.ZodTypeAny; defaults: unknown; section: string }>;
 

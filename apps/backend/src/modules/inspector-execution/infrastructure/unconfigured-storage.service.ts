@@ -31,4 +31,8 @@ export class UnconfiguredStorageService implements IStorageService {
   async deleteObject(): Promise<void> {
     throw new StorageNotConfiguredError(STORAGE_MESSAGE);
   }
+
+  async getObjectBytes(): Promise<Buffer> {
+    throw new StorageNotConfiguredError(STORAGE_MESSAGE);
+  }
 }

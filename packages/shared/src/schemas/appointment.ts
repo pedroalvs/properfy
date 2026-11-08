@@ -254,6 +254,11 @@ export const listAppointmentsQuerySchema = paginationSchema.extend({
   // group (drives the map "Groups" drill-down modal). Unlike `ungroupedOnly`
   // (service_group_id IS NULL), this is a positive match on a specific group.
   serviceGroupId: z.string().uuid().optional(),
+  // F10 "With issues" filter: return only appointments that have a non-deleted
+  // property issue linked to them.
+  withIssues: z
+    .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
+    .optional(),
 }).superRefine((val, ctx) => {
   // Reject inverted time ranges (timeFrom must not be after timeTo).
   if (val.timeFrom && val.timeTo && val.timeFrom > val.timeTo) {

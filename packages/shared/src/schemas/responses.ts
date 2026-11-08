@@ -8,6 +8,9 @@ import { availableSlotSchema, storedAvailableSlotSchema } from './available-slot
 // cycle here typechecks fine and only explodes at runtime).
 import { portalSurveySchema } from './rental-tenant-portal';
 import { inspectorIssueSchema, inspectorLastFieldIssueSchema } from './field-events';
+// One-way edge: property-files.ts defines its own wire helpers and does NOT
+// import this file, so importing fileCountsSchema here forms no cycle (F10).
+import { fileCountsSchema } from './property-files';
 import { AppointmentStatus, ServiceTypeFlowType, GeofenceMode } from '../enums';
 
 // Geofence fallback reasons surfaced to the PWA (F03). Shared by the start
@@ -214,6 +217,13 @@ export const propertyResponseSchema = z.object({
   rulesJson: propertyRulesSchema.optional(),
   createdAt: instantStr(),
   updatedAt: instantStr(),
+  // F10: list rows carry `hasUnseenIssues` (any unseen, non-deleted issue of the
+  // property — with or without an appointment, D26), populated only for
+  // AM/OP/CL_ADMIN (false/absent for CL_USER). The detail endpoint carries
+  // `fileCounts` (non-deleted READY files per type, C.9). Both optional: the list
+  // and detail use cases populate only their own field; Fastify strips the other.
+  hasUnseenIssues: z.boolean().optional(),
+  fileCounts: fileCountsSchema.optional(),
 });
 
 // ─── Service Type ──────────────────────────────────────────────────────────
@@ -460,6 +470,12 @@ export const appointmentResponseSchema = z.object({
   serviceType: z.unknown().optional(),
   inspector: z.unknown().nullable().optional(),
   branch: z.unknown().optional(),
+  // F10: list rows carry `hasUnseenIssues` (an unseen, non-deleted issue linked
+  // to this appointment, D26), populated only for AM/OP/CL_ADMIN (false/absent
+  // for CL_USER/INSP). The detail endpoint carries `fileCounts` (non-deleted
+  // READY files per type, C.9). Both optional — see propertyResponseSchema.
+  hasUnseenIssues: z.boolean().optional(),
+  fileCounts: fileCountsSchema.optional(),
 });
 
 /**
