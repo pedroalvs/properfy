@@ -90,6 +90,9 @@ export class ProcessReportJobUseCase {
         case 'AGENCIES':
           rows = await this.dataReader.getAgencyRows(filters);
           break;
+        case 'INSPECTOR_PROGRAM':
+          rows = await this.dataReader.getInspectorProgramRows(filters);
+          break;
         default:
           throw new Error(`Unsupported report type: ${report.reportType}`);
       }

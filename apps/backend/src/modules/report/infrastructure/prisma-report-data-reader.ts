@@ -1,12 +1,47 @@
 import type { PrismaClient, Prisma, AppointmentStatus } from '@prisma/client';
-import { formatCivilDate, formatConfirmationDateCell, formatInstantDate, formatInstantDateTime, formatWallTimeRange, AGENCY_VISIBLE_ENTRY_TYPES } from '@properfy/shared';
+import {
+  formatCivilDate,
+  formatConfirmationDateCell,
+  formatInstantDate,
+  formatInstantDateTime,
+  formatWallTimeRange,
+  formatInvoiceNumber,
+  describeGoal,
+  REWARD_AWARD_STATUS_LABELS,
+  AGENCY_VISIBLE_ENTRY_TYPES,
+  type GoalMetric,
+  type RewardAwardStatus,
+} from '@properfy/shared';
 import { nextCivilDay, parseDateInTimezone, PLATFORM_TIMEZONE } from '../../../shared/domain/timezone-date';
+import { compareAwardsForRanking } from '../../inspector-program/domain/ordering';
+import { goalTermsForPeriod } from '../../inspector-program/domain/goal-periods';
+import { INSPECTOR_PROGRAM_COLUMNS } from '../domain/report.constants';
 import type { IReportDataReader, ReportDataFilters } from '../domain/report-data-reader';
 
+/** A fully-blank Inspector Program row (every column empty), so synthetic rows never drift from the column set. */
+const INSPECTOR_PROGRAM_BLANK_ROW: Readonly<Record<string, unknown>> = Object.freeze(
+  Object.fromEntries(INSPECTOR_PROGRAM_COLUMNS.map((c) => [c.key, ''])),
+);
+
+function inspectorProgramRow(overrides: Record<string, unknown>): Record<string, unknown> {
+  return { ...INSPECTOR_PROGRAM_BLANK_ROW, ...overrides };
+}
+
+/** `@db.Date` (UTC-midnight) → its `YYYY-MM-DD` civil string, for grouping keys and the P9 comparator. */
+function civilDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/** `financial_entries.status` (ALL_CAPS) → a human label for the Ledger status column. */
+function humaniseEntryStatus(status: string): string {
+  return status.charAt(0) + status.slice(1).toLowerCase();
+}
+
 /**
- * Reads the domain to build the 4 scoped report types. Appointment-based reports
+ * Reads the domain to build the 5 scoped report types. Appointment-based reports
  * (Appointments / Performance / Agencies) range on the axis-selected appointment
- * timestamp; the Financial report reads the `financial_entries` ledger directly.
+ * timestamp; the Financial report reads the `financial_entries` ledger directly; the
+ * Inspector Program report ranges on `goal_period_closures.period_end`.
  */
 export class PrismaReportDataReader implements IReportDataReader {
   constructor(private readonly prisma: PrismaClient) {}
@@ -296,6 +331,186 @@ export class PrismaReportDataReader implements IReportDataReader {
         currency: '',
       });
     }
+    return rows;
+  }
+
+  /**
+   * Inspector Program report (F08-5, 03.14). Platform-scoped: `tenantId`/`agencyScoped`
+   * are ignored (the program has no agency, D12). Ranges on `goal_period_closures.period_end`
+   * within the civil-date window. One row per reward (P9 order), one "No achievers" row per
+   * empty closure, one "Skipped (goal inactive)" row per SKIPPED_INACTIVE closure. Instants
+   * render in the requester timezone (DR5); civil dates in the report's `dd/mm/yyyy`; no
+   * agency/coordinate/raw-id cell.
+   */
+  async getInspectorProgramRows(filters: ReportDataFilters): Promise<Record<string, unknown>[]> {
+    const range = this.civilDateRange(filters);
+    const tz = filters.timezone ?? PLATFORM_TIMEZONE;
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    const closures = await this.prisma.goalPeriodClosure.findMany({
+      where: { period_end: range },
+      include: {
+        goal: {
+          select: {
+            title: true,
+            metric: true,
+            target: true,
+            reward_amount: true,
+            next_target: true,
+            next_reward_amount: true,
+            next_effective_from: true,
+          },
+        },
+      },
+      orderBy: [{ period_start: 'asc' }, { goal: { title: 'asc' } }],
+    });
+    if (closures.length === 0) return [];
+
+    const awards = await this.prisma.rewardAward.findMany({
+      where: { period_end: range },
+      include: {
+        inspector: { select: { name: true, email: true } },
+        approved_by: { select: { name: true } },
+        financial_entry: { select: { id: true, status: true } },
+        inspector_invoice: { select: { invoice_number: true } },
+      },
+    });
+
+    // Group awards by their closure identity (goal_id + period_start civil date).
+    const awardsByClosure = new Map<string, typeof awards>();
+    for (const a of awards) {
+      const key = `${a.goal_id}|${civilDateKey(a.period_start)}`;
+      const bucket = awardsByClosure.get(key);
+      if (bucket) bucket.push(a);
+      else awardsByClosure.set(key, [a]);
+    }
+
+    // Reversal-invoice resolution for void-after-paid rewards: the original bonus entry →
+    // its negative reversal (reference_entry_id) → the CLOSED/PAID invoice whose snapshot
+    // carries that reversal line (the GIN-indexed `line_items_snapshot` containment filter).
+    const reversalInvoiceByOriginalEntryId = new Map<string, string>();
+    const originalEntryIds = awards
+      .filter((a) => a.status === 'VOID' && a.inspector_invoice_id !== null && a.financial_entry)
+      .map((a) => a.financial_entry!.id);
+    if (originalEntryIds.length > 0) {
+      const reversals = await this.prisma.financialEntry.findMany({
+        where: { entry_type: 'INSPECTOR_BONUS', reference_entry_id: { in: originalEntryIds } },
+        select: { id: true, reference_entry_id: true },
+      });
+      await Promise.all(
+        reversals.map(async (rev) => {
+          if (!rev.reference_entry_id) return;
+          const invoice = await this.prisma.inspectorInvoice.findFirst({
+            where: {
+              status: { in: ['CLOSED', 'PAID'] },
+              line_items_snapshot: { array_contains: [{ entryId: rev.id }] },
+            },
+            select: { invoice_number: true },
+          });
+          const display = invoice ? formatInvoiceNumber(invoice.invoice_number) : null;
+          if (display) reversalInvoiceByOriginalEntryId.set(rev.reference_entry_id, display);
+        }),
+      );
+    }
+
+    const rows: Record<string, unknown>[] = [];
+
+    for (const closure of closures) {
+      const goal = closure.goal;
+      const periodStartCivil = civilDateKey(closure.period_start);
+      const terms = goalTermsForPeriod(
+        {
+          target: Number(goal.target),
+          rewardAmount: Number(goal.reward_amount),
+          nextTarget: goal.next_target !== null ? Number(goal.next_target) : null,
+          nextRewardAmount: goal.next_reward_amount !== null ? Number(goal.next_reward_amount) : null,
+          nextEffectiveFrom: goal.next_effective_from ? civilDateKey(goal.next_effective_from) : null,
+        },
+        periodStartCivil,
+      );
+      const base = {
+        periodType: closure.period_type,
+        periodStart: formatCivilDate(closure.period_start),
+        periodEnd: formatCivilDate(closure.period_end),
+        goal: goal.title,
+        goalDescription: describeGoal({ metric: goal.metric as GoalMetric, target: terms.target, scopeLabel: closure.scope_label }),
+        metric: goal.metric,
+        target: terms.target,
+        scope: closure.scope_label ?? '',
+        participants: closure.participants_count,
+        achievers: closure.achievers_count,
+        promised: round2(Number(closure.promised_amount)),
+      };
+
+      if (closure.trigger === 'SKIPPED_INACTIVE') {
+        rows.push(inspectorProgramRow({ ...base, status: 'Skipped (goal inactive)' }));
+        continue;
+      }
+
+      const closureAwards = awardsByClosure.get(`${closure.goal_id}|${periodStartCivil}`) ?? [];
+      if (closureAwards.length === 0) {
+        rows.push(inspectorProgramRow({ ...base, perWinner: round2(terms.rewardAmount), status: 'No achievers' }));
+        continue;
+      }
+
+      const ranked = [...closureAwards].sort((a, b) =>
+        compareAwardsForRanking(
+          {
+            comparator: a.comparator,
+            achievedValue: Number(a.achieved_value),
+            indexScoreAtClose: a.index_score_at_close !== null ? Number(a.index_score_at_close) : null,
+            achievedOn: civilDateKey(a.achieved_on),
+            inspectorId: a.inspector_id,
+          },
+          {
+            comparator: b.comparator,
+            achievedValue: Number(b.achieved_value),
+            indexScoreAtClose: b.index_score_at_close !== null ? Number(b.index_score_at_close) : null,
+            achievedOn: civilDateKey(b.achieved_on),
+            inspectorId: b.inspector_id,
+          },
+        ),
+      );
+
+      for (const a of ranked) {
+        const voidedAfterInvoicing = a.status === 'VOID' && a.inspector_invoice_id !== null;
+        rows.push(
+          inspectorProgramRow({
+            ...base,
+            // Award rows use the immutable snapshot (goal may have been renamed/retermed since close).
+            goal: a.goal_title,
+            goalDescription: describeGoal({ metric: a.metric as GoalMetric, target: Number(a.target), scopeLabel: a.scope_label }),
+            metric: a.metric,
+            target: Number(a.target),
+            scope: a.scope_label ?? '',
+            perWinner: round2(Number(a.amount)),
+            inspector: a.inspector.name ?? '',
+            inspectorEmail: a.inspector.email ?? '',
+            result: Number(a.achieved_value),
+            jobsInPeriod: a.service_count,
+            achievedOn: formatCivilDate(a.achieved_on),
+            indexAtClose: a.index_score_at_close !== null ? Number(a.index_score_at_close) : '',
+            levelAtClose: a.level_at_close ?? '',
+            status: REWARD_AWARD_STATUS_LABELS[a.status as RewardAwardStatus],
+            amount: round2(Number(a.amount)),
+            approvedBy: a.approved_by?.name ?? '',
+            approvedAt: formatInstantDateTime(a.approved_at, tz),
+            ledgerStatus: a.financial_entry ? humaniseEntryStatus(a.financial_entry.status) : '',
+            invoice: a.inspector_invoice ? formatInvoiceNumber(a.inspector_invoice.invoice_number) : '',
+            paidAt: formatInstantDateTime(a.paid_at, tz),
+            voidedAt: formatInstantDateTime(a.voided_at, tz),
+            voidReason: a.void_reason ?? '',
+            inspectorNote: a.inspector_note ?? '',
+            voidedAfterInvoicing: voidedAfterInvoicing ? 'Yes' : 'No',
+            reversalInvoice:
+              voidedAfterInvoicing && a.financial_entry
+                ? reversalInvoiceByOriginalEntryId.get(a.financial_entry.id) ?? ''
+                : '',
+          }),
+        );
+      }
+    }
+
     return rows;
   }
 

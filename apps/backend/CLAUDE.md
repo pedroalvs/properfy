@@ -366,6 +366,27 @@ Honours the `inspectorProgram.earlyAccess` platform setting (`enabled`/`hours` H
 
 ---
 
+### Reports — adding a `ReportType` (F08-5)
+
+The report generator (`report/`) runs the same request → pg-boss `report.generate` → XLSX → signed-download flow for every `ReportType`. **Adding a report type touches 12 places** — three are `Record<ReportType, …>` maps the compiler forces, the rest are easy to miss:
+
+| # | Place | File |
+|---|---|---|
+| 1 | Prisma enum + migration | `prisma/schema.prisma` `enum ReportType` + `…_report_type_<name>` (`ALTER TYPE … ADD VALUE`) |
+| 2 | Shared enum | `packages/shared/src/enums/misc.ts` |
+| 3 | Max period | `report/domain/report.constants.ts` `MAX_DATE_RANGE_MONTHS` (compiler-forced) |
+| 4 | Columns | `report.constants.ts` `REPORT_COLUMNS` + a `<NAME>_COLUMNS` list (compiler-forced) |
+| 5 | Agency allowlist | `report/application/report-access.ts` `AGENCY_REPORT_TYPES` — include only if agencies may run it |
+| 6 | Job switch | `report/application/use-cases/process-report-job.use-case.ts` `switch` |
+| 7 | Reader port | `report/domain/report-data-reader.ts` `IReportDataReader` |
+| 8 | Reader impl | `report/infrastructure/prisma-report-data-reader.ts` (Prisma only, no `$queryRaw`) |
+| 9 | Web chip map | `apps/web/src/lib/status-colors.ts` `REPORT_TYPE_MAP` (compiler-forced) |
+| 10 | Web token + api-types | `apps/web/src/styles/tokens.css` + `pnpm generate:api` (OpenAPI + `api-types.ts`) |
+| +1 | Request plumbing | `request-report.use-case.ts` (`dateAxisField`, any tenant forcing) |
+| +2 | Web dialog | `apps/web/src/features/reports/components/GenerateReportDialog.tsx` (offer/hide fields) |
+
+**`INSPECTOR_PROGRAM` (F08-5, 03.14):** operator-only (AM/OP; **not** in `AGENCY_REPORT_TYPES` → CL_* 403), platform-scoped — the request use case forces `tenant_id = NULL`/`agency_scoped = false` and `dateAxisField = 'period_end'` (ignoring any operator `filters.tenantId`), and the file lands under `reports/platform/INSPECTOR_PROGRAM/<id>.xlsx`. `getInspectorProgramRows` ranges on `goal_period_closures.period_end`, emits one row per reward (P9 order, reusing the inspector-program `compareAwardsForRanking`) plus a no-achievers row per empty closure (per-winner from `goalTermsForPeriod`) and a "Skipped (goal inactive)" row per `SKIPPED_INACTIVE` closure; it joins the bonus `financial_entry` (Ledger status), the `inspector_invoice` (Invoice, `formatInvoiceNumber`), and — for a void-after-paid reward — the reversal invoice via the `line_items_snapshot` `array_contains` filter (GIN-indexed). Instants render in the requester tz (DR5); civil dates in the suite's `dd/mm/yyyy`; no agency/coordinate/raw-id cell. Reader coverage lives in `tests/integration/report/prisma-report-data-reader.integration.test.ts` (real-DB harness, runs in the default `pnpm test`).
+
 ### Property files & issues (F10-1, module `property-file/`)
 
 Backend + shared foundation for the property-centred file repository + issue log (contract C.1–C.9 + the "Issues" additive). One cohesive module owns both `PropertyFile` and `PropertyIssue` (issue photos *are* property files; the create-issue transaction spans both tables). Consumed by TASK-F10-2/3/4.

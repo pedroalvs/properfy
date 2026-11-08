@@ -29,6 +29,7 @@ export const ReportType = {
   FINANCIAL: 'FINANCIAL',
   PERFORMANCE: 'PERFORMANCE',
   AGENCIES: 'AGENCIES',
+  INSPECTOR_PROGRAM: 'INSPECTOR_PROGRAM',
 } as const;
 export type ReportType = (typeof ReportType)[keyof typeof ReportType];
 

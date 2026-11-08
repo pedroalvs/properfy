@@ -1688,6 +1688,7 @@ enum ReportType {
   FINANCIAL
   PERFORMANCE
   AGENCIES
+  INSPECTOR_PROGRAM
 }
 
 enum ReportStatus {

@@ -143,10 +143,11 @@ export const TENANT_ADMIN_STATUS_MAP: Record<string, StatusStyle> = {
 };
 
 export const REPORT_TYPE_MAP: Record<ReportType, StatusStyle> = {
-  [ReportType.APPOINTMENTS]: { bg: 'var(--color-report-type-appointments)', text: 'var(--color-text-primary)', label: 'Appointments' },
-  [ReportType.FINANCIAL]:    { bg: 'var(--color-report-type-financial)',    text: 'var(--color-text-primary)', label: 'Financial' },
-  [ReportType.PERFORMANCE]:  { bg: 'var(--color-report-type-performance)',  text: 'var(--color-text-primary)', label: 'Performance' },
-  [ReportType.AGENCIES]:     { bg: 'var(--color-report-type-agencies)',     text: 'var(--color-text-primary)', label: 'Agencies' },
+  [ReportType.APPOINTMENTS]:      { bg: 'var(--color-report-type-appointments)',      text: 'var(--color-text-primary)', label: 'Appointments' },
+  [ReportType.FINANCIAL]:         { bg: 'var(--color-report-type-financial)',         text: 'var(--color-text-primary)', label: 'Financial' },
+  [ReportType.PERFORMANCE]:       { bg: 'var(--color-report-type-performance)',       text: 'var(--color-text-primary)', label: 'Performance' },
+  [ReportType.AGENCIES]:          { bg: 'var(--color-report-type-agencies)',          text: 'var(--color-text-primary)', label: 'Agencies' },
+  [ReportType.INSPECTOR_PROGRAM]: { bg: 'var(--color-report-type-inspector-program)', text: 'var(--color-text-primary)', label: 'Inspector program' },
 };
 
 export const REPORT_STATUS_MAP: Record<ReportStatus, StatusStyle> = {

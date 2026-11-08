@@ -475,6 +475,8 @@ Skip worktrees only for: pure documentation edits, CLAUDE.md updates, or tasks t
 - N/A (no DB change; consumes platform-scoped entities `InspectorGoal`/`RewardAward`/`GoalPeriodClosure` via AM/OP endpoints) (067-f08-3-goals-rewards-web)
 - TypeScript 5.6 strict, ES2022 ESM; Node.js 24 + Fastify 4, Prisma 6 (PostgreSQL/Supabase, PostGIS in CI), Zod 3, (070-f08-6-financial-bonus)
 - PostgreSQL via Prisma. New enum value `INSPECTOR_BONUS`; `financial_entries.tenant_id` (070-f08-6-financial-bonus)
+- TypeScript 5.6 strict, ES2022 ESM; Node.js 24 + Fastify 4, Prisma 6 (PostgreSQL/Supabase), Zod 3, ExcelJS (XLSX), pg-boss 9; React 18 + Vite 5 (web); `@properfy/shared` (069-f08-5-program-report)
+- PostgreSQL; Supabase Storage for the generated `.xlsx` (`reports/platform/INSPECTOR_PROGRAM/<id>.xlsx`) (069-f08-5-program-report)
 
 - TypeScript 5.6 strict, ES2022 ESM; Node.js 24 + Backend — Fastify 4, Prisma 6, Zod 3, pg-boss 9 (advisory-lock daily snapshot job). Shared — Zod 3. Consumes F07-1 `ReliabilityMetricsService` + the F03 `platform_setting.updated.v1` event. No new runtime dependency. (063-f07-2-index-snapshot-api)
 - PostgreSQL (Supabase); new table `inspector_reliability_snapshots` (expand-only, ordered after the F07-1 migration, **no `tenant_id`**); reads `platform_settings`, `inspectors` and the F07-1 facts. (063-f07-2-index-snapshot-api)

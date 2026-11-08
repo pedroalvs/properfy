@@ -62,6 +62,7 @@ function makeMocks() {
     getFinancialRows: vi.fn().mockResolvedValue([{ entryType: 'TENANT_DEBIT', revenue: 100 }]),
     getPerformanceRows: vi.fn().mockResolvedValue([{ inspectorName: 'John', completed: 10 }]),
     getAgencyRows: vi.fn().mockResolvedValue([{ agency: 'Acme', totalAppointments: 5 }]),
+    getInspectorProgramRows: vi.fn().mockResolvedValue([{ goal: 'Volume 10', status: 'Approved' }]),
   };
 
   const notificationSender: ReportNotificationSender = {
@@ -192,6 +193,7 @@ describe('ProcessReportJobUseCase', () => {
       ['FINANCIAL', 'getFinancialRows'],
       ['PERFORMANCE', 'getPerformanceRows'],
       ['AGENCIES', 'getAgencyRows'],
+      ['INSPECTOR_PROGRAM', 'getInspectorProgramRows'],
     ] as const)('%s calls %s', async (reportType, method) => {
       const report = makeReport({ reportType: reportType as ReportType });
       vi.mocked(reportRepo.findById).mockResolvedValue(report);
@@ -274,6 +276,35 @@ describe('ProcessReportJobUseCase', () => {
       const keys = vi.mocked(xlsxGenerator.generate).mock.calls[0][0].map((c) => c.key);
       expect(keys).not.toContain('inspectorEmail');
       expect(keys).toContain('inspectorName');
+    });
+  });
+
+  describe('INSPECTOR_PROGRAM report', () => {
+    it('generates with INSPECTOR_PROGRAM_COLUMNS and the platform folder key', async () => {
+      const report = makeReport({ reportType: 'INSPECTOR_PROGRAM', tenantId: null, agencyScoped: false });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      await useCase.execute('report-1');
+      expect(xlsxGenerator.generate).toHaveBeenCalledWith(REPORT_COLUMNS.INSPECTOR_PROGRAM, [
+        { goal: 'Volume 10', status: 'Approved' },
+      ]);
+      expect(storageService.upload).toHaveBeenCalledWith(
+        'reports/platform/INSPECTOR_PROGRAM/report-1.xlsx',
+        expect.any(Buffer),
+        XLSX_CT,
+      );
+      expect(report.status).toBe('READY');
+      expect(report.rowCount).toBe(1);
+    });
+
+    it('produces a header-only sheet (rowCount 0) for an empty range', async () => {
+      const report = makeReport({ reportType: 'INSPECTOR_PROGRAM', tenantId: null, agencyScoped: false });
+      vi.mocked(reportRepo.findById).mockResolvedValue(report);
+      vi.mocked(dataReader.getInspectorProgramRows).mockResolvedValue([]);
+      await useCase.execute('report-1');
+      expect(xlsxGenerator.generate).toHaveBeenCalledWith(REPORT_COLUMNS.INSPECTOR_PROGRAM, []);
+      expect(report.status).toBe('READY');
+      expect(report.rowCount).toBe(0);
+      expect(report.errorMessage).toBeNull();
     });
   });
 

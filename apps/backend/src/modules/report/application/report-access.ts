@@ -11,6 +11,9 @@ const OPERATOR_ROLES = ['AM', 'OP'] as const;
 /**
  * Report types an agency may generate. `AGENCIES` compares agencies against one
  * another, so it is meaningless — and disclosive — when scoped to a single one.
+ * `INSPECTOR_PROGRAM` (F08-5) is deliberately absent: the inspector program is
+ * platform-scoped and cross-tenant (D8/D12), so it is operator-only — an agency
+ * actor is rejected by `assertReportTypeAllowed` below.
  */
 const AGENCY_REPORT_TYPES: ReportType[] = ['APPOINTMENTS', 'FINANCIAL', 'PERFORMANCE'];
 
