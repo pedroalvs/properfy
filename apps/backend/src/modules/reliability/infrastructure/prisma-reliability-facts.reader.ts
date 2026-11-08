@@ -5,6 +5,7 @@ import type {
   ReliabilityCivilRange,
   ReliabilityDoneRow,
   ReliabilityFactsRaw,
+  ReliabilityFactsScope,
   ReliabilityLateNoticeRow,
   ReliabilityNoShowRow,
   ReliabilityPlanStopRow,
@@ -53,12 +54,12 @@ export class PrismaReliabilityFactsReader implements IReliabilityFactsReader {
   }
 
   private async loadInternal(db: DbClient, range: ReliabilityCivilRange): Promise<ReliabilityFactsRaw> {
-    const { from, to, inspectorIds } = range;
+    const { from, to, inspectorIds, scope } = range;
     const { fromLower, toUpper } = instantBounds(from, to);
 
     const [done, cantAttend, noShow] = await Promise.all([
-      this.loadDone(db, from, to, fromLower, toUpper, inspectorIds),
-      this.loadCantAttend(db, from, to, fromLower, toUpper, inspectorIds),
+      this.loadDone(db, from, to, fromLower, toUpper, inspectorIds, scope),
+      this.loadCantAttend(db, from, to, fromLower, toUpper, inspectorIds, scope),
       this.loadNoShow(db, from, to, fromLower, inspectorIds),
     ]);
 
@@ -89,6 +90,31 @@ export class PrismaReliabilityFactsReader implements IReliabilityFactsReader {
       : Prisma.empty;
   }
 
+  /**
+   * F08 region / service-type scope, applied to the appointment-based branches
+   * (Q1a/Q1b/Q2/Q3) via the alias `a`. Both params are cast explicitly so a NULL
+   * (no scope) makes the predicate vacuously true and the result equals F07's.
+   * Region membership is the marketplace rule: the property's point intersects
+   * the region polygon, regardless of region status (P4); a region with NULL geom
+   * matches no service.
+   */
+  private scopeFilter(scope?: ReliabilityFactsScope): Prisma.Sql {
+    if (!scope || (scope.serviceTypeId === undefined && scope.regionId === undefined)) {
+      return Prisma.empty;
+    }
+    const serviceTypeId = scope.serviceTypeId ?? null;
+    const regionId = scope.regionId ?? null;
+    return Prisma.sql`
+      AND (${serviceTypeId}::text IS NULL OR a.service_type_id = ${serviceTypeId}::text)
+      AND (${regionId}::text IS NULL OR EXISTS (
+            SELECT 1
+            FROM properties p
+            JOIN service_regions sr ON sr.id = ${regionId}::text AND sr.geom IS NOT NULL
+            WHERE p.id = a.property_id
+              AND p.coordinates IS NOT NULL
+              AND ST_Intersects(sr.geom, p.coordinates)))`;
+  }
+
   // Q1a (current DONE with own execution → EXECUTED) UNION ALL Q1b (DONE without own execution)
   private loadDone(
     db: DbClient,
@@ -97,9 +123,11 @@ export class PrismaReliabilityFactsReader implements IReliabilityFactsReader {
     fromLower: Date,
     toUpper: Date,
     inspectorIds?: string[],
+    scope?: ReliabilityFactsScope,
   ): Promise<ReliabilityDoneRow[]> {
     const filterQ1a = this.inspectorFilter(Prisma.sql`a.inspector_id`, inspectorIds);
     const filterQ2 = this.inspectorFilter(Prisma.sql`rel.released_inspector_id`, inspectorIds);
+    const scopeSql = this.scopeFilter(scope);
 
     return db.$queryRaw<ReliabilityDoneRow[]>(Prisma.sql`
       SELECT a.id AS "appointmentId", a.inspector_id AS "inspectorId", a.tenant_id AS "tenantId",
@@ -125,7 +153,7 @@ export class PrismaReliabilityFactsReader implements IReliabilityFactsReader {
       WHERE e.finished_at IS NOT NULL AND e.abandoned_at IS NULL
         AND e.finished_at >= ${fromLower} AND e.finished_at < ${toUpper}
         AND ((e.finished_at AT TIME ZONE 'UTC') AT TIME ZONE t.timezone)::date BETWEEN ${from}::date AND ${to}::date
-        ${filterQ1a}
+        ${filterQ1a}${scopeSql}
 
       UNION ALL
 
@@ -148,7 +176,7 @@ export class PrismaReliabilityFactsReader implements IReliabilityFactsReader {
           WHERE e2.appointment_id = a.id AND e2.inspector_id = a.inspector_id AND e2.abandoned_at IS NULL
             AND (e2.finished_at IS NOT NULL OR e2.resumed_at IS NOT NULL)
         )
-        ${filterQ1a}
+        ${filterQ1a}${scopeSql}
 
       UNION ALL
 
@@ -201,7 +229,7 @@ export class PrismaReliabilityFactsReader implements IReliabilityFactsReader {
                            ((done_tr.created_at AT TIME ZONE 'UTC') AT TIME ZONE t.timezone)::date) + 30
               )
             )
-        ${filterQ2}
+        ${filterQ2}${scopeSql}
     `);
   }
 
@@ -213,8 +241,10 @@ export class PrismaReliabilityFactsReader implements IReliabilityFactsReader {
     fromLower: Date,
     toUpper: Date,
     inspectorIds?: string[],
+    scope?: ReliabilityFactsScope,
   ): Promise<ReliabilityCantAttendRow[]> {
     const filter = this.inspectorFilter(Prisma.sql`fe.inspector_id`, inspectorIds);
+    const scopeSql = this.scopeFilter(scope);
     return db.$queryRaw<ReliabilityCantAttendRow[]>(Prisma.sql`
       SELECT DISTINCT ON (fe.inspector_id, fe.appointment_id)
              fe.inspector_id AS "inspectorId", fe.appointment_id AS "appointmentId", fe.tenant_id AS "tenantId",
@@ -232,7 +262,7 @@ export class PrismaReliabilityFactsReader implements IReliabilityFactsReader {
       WHERE fe.type = 'CANT_DO' AND fe.reason_code = 'CANT_ATTEND'
         AND fe.created_at >= ${fromLower} AND fe.created_at < ${toUpper}
         AND ((fe.created_at AT TIME ZONE 'UTC') AT TIME ZONE t.timezone)::date BETWEEN ${from}::date AND ${to}::date
-        ${filter}
+        ${filter}${scopeSql}
       ORDER BY fe.inspector_id, fe.appointment_id, fe.created_at DESC
     `);
   }

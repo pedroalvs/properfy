@@ -213,3 +213,53 @@ describe('ReliabilityMetricsService.computeAll', () => {
     await expect(service.computeAll('2026-10-01', '2026-12-31')).resolves.toBeDefined();
   });
 });
+
+describe('ReliabilityMetricsService F08 extension (scope + completedServiceDates)', () => {
+  it('passes no scope by default and keeps F07 numbers (regression)', async () => {
+    const reader = new FakeReader(population());
+    const batch = await makeService(reader, new FakeSettings()).computeAll(FROM, TO);
+    expect(reader.loadCalls[0]?.scope).toBeUndefined();
+    expect(batch.byInspector.get('ana')?.completedCount).toBe(12);
+    expect(batch.volumeReference).toMatchObject({ value: 9.5, source: 'MEDIAN' });
+  });
+
+  it('forwards the scope to the facts reader on computeAll', async () => {
+    const reader = new FakeReader(population());
+    await makeService(reader, new FakeSettings()).computeAll(FROM, TO, ['ana'], { serviceTypeId: 'st-1' });
+    expect(reader.loadCalls[0]?.scope).toEqual({ serviceTypeId: 'st-1' });
+  });
+
+  it('forwards the scope to the facts reader on computeMetric', async () => {
+    const reader = new FakeReader(population());
+    await makeService(reader, new FakeSettings()).computeMetric('VOLUME', 'ana', FROM, TO, { regionId: 'r1' });
+    expect(reader.loadCalls[0]?.scope).toEqual({ regionId: 'r1' });
+  });
+
+  it('keeps the volume reference unscoped even when a scope is given (median 9.5)', async () => {
+    const reader = new FakeReader(population());
+    const batch = await makeService(reader, new FakeSettings()).computeAll(FROM, TO, ['ana'], { regionId: 'r1' });
+    // loadCompletedCounts is called without a scope, so the median is the full-population 9.5.
+    expect(reader.completedCountsCalls).toBe(1);
+    expect(batch.volumeReference.value).toBe(9.5);
+  });
+
+  it('DR3: a scoped computeAll with an override scales the reference like the unscoped one', async () => {
+    const reader = new FakeReader([...punctual('ana', 4)]);
+    const service = makeService(reader, new FakeSettings({ volumeReferenceOverride: 20 }));
+    const batch = await service.computeAll('2026-11-02', '2026-11-08', ['ana'], { regionId: 'r1' });
+    expect(batch.volumeReference).toMatchObject({ value: 4.5, source: 'OVERRIDE', periodDays: 7 });
+    expect(reader.completedCountsCalls).toBe(0);
+  });
+
+  it('exposes completedServiceDates ascending with length === completedCount', async () => {
+    const reader = new FakeReader([
+      doneRow('ana', { serviceDate: '2026-11-20' }),
+      doneRow('ana', { serviceDate: '2026-11-05' }),
+      doneRow('ana', { serviceDate: '2026-11-12' }),
+    ]);
+    const batch = await makeService(reader, new FakeSettings()).computeAll(FROM, TO);
+    const ana = batch.byInspector.get('ana');
+    expect(ana?.completedServiceDates).toEqual(['2026-11-05', '2026-11-12', '2026-11-20']);
+    expect(ana?.completedServiceDates).toHaveLength(ana?.completedCount ?? -1);
+  });
+});
