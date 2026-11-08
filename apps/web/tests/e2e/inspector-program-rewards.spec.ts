@@ -137,7 +137,9 @@ test.describe('Inspector program — Goals & rewards (03.A4)', () => {
     await page.getByRole('button', { name: 'Period' }).click();
     await page.getByRole('option', { name: 'Week of Mon 2 Nov 2026' }).click();
 
-    await expect(page.getByText('Achieved')).toBeVisible();
+    // "Promised" is the unambiguous tiles-loaded signal ("Achieved" also appears as
+    // the per-goal table's column header → strict-mode collision).
+    await expect(page.getByText('Promised')).toBeVisible();
     await expect(page.getByText('Jane Doe')).toBeVisible();
     await expect(page.getByText('Pending review')).toBeVisible();
 
