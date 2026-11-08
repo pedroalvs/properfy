@@ -377,6 +377,7 @@ export function createMockContainer(
       listProgramPeriodsUseCase: { execute: vi.fn() },
       approveRewardAwardUseCase: { execute: vi.fn() },
       voidRewardAwardUseCase: { execute: vi.fn() },
+      getInspectorProgramUseCase: { execute: vi.fn() },
       regionGoalUsageChecker: { countActiveGoalsUsingRegion: vi.fn() },
       goalRepository: {} as never,
       goalScopeReader: {} as never,

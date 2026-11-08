@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import {
   UserRole,
@@ -13,6 +13,7 @@ import {
   programPeriodSummaryResponseSchema,
   goalResponseSchema,
   rewardAwardResponseSchema,
+  inspectorProgramResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
   type CreateGoalInput,
@@ -35,6 +36,7 @@ import type { ListRewardAwardsUseCase } from '../application/use-cases/list-rewa
 import type { GetProgramPeriodSummaryUseCase } from '../application/use-cases/get-program-period-summary.use-case';
 import type { ApproveRewardAwardUseCase } from '../application/use-cases/approve-reward-award.use-case';
 import type { VoidRewardAwardUseCase } from '../application/use-cases/void-reward-award.use-case';
+import type { GetInspectorProgramUseCase } from '../application/use-cases/get-inspector-program.use-case';
 import { RewardAwardIdempotencyKeyRequiredError } from '../domain/inspector-program.errors';
 import { toRewardAwardResponse } from '../application/mappers';
 
@@ -48,6 +50,7 @@ export interface InspectorProgramRouteContainer {
   getProgramPeriodSummaryUseCase: GetProgramPeriodSummaryUseCase;
   approveRewardAwardUseCase: ApproveRewardAwardUseCase;
   voidRewardAwardUseCase: VoidRewardAwardUseCase;
+  getInspectorProgramUseCase: GetInspectorProgramUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -85,6 +88,40 @@ export async function registerInspectorProgramRoutes(
     },
   );
   const adminOnly = [authenticate, requireRoles([UserRole.AM, UserRole.OP])];
+
+  // Local INSP guard (same codes/messages as inspector-execution): 403 for a
+  // non-inspector, 400 when the inspector user has no linked inspector profile.
+  const requireLinkedInspector = (
+    auth: { role: string; inspectorId: string | null },
+    reply: FastifyReply,
+    action: string,
+  ): string | null => {
+    if (auth.role !== UserRole.INSP) {
+      reply.status(403).send({ error: { code: 'FORBIDDEN', message: `Only inspectors can ${action}` } });
+      return null;
+    }
+    if (!auth.inspectorId) {
+      reply.status(400).send({ error: { code: 'INSPECTOR_NOT_LINKED', message: 'Inspector not linked to user account' } });
+      return null;
+    }
+    return auth.inspectorId;
+  };
+
+  // ── Inspector-facing program (INSP only; own data) ─────────────────────────
+
+  app.get(
+    '/v1/inspector/program',
+    {
+      preHandler: authenticate,
+      schema: { response: { 200: successResponseSchema(inspectorProgramResponseSchema) } },
+    },
+    async (request, reply) => {
+      const inspectorId = requireLinkedInspector(request.authContext!, reply, 'view their program');
+      if (inspectorId === null) return reply;
+      const result = await container.getInspectorProgramUseCase.execute({ inspectorId });
+      return reply.status(200).send(success(result));
+    },
+  );
 
   // ── Goals ────────────────────────────────────────────────────────────────
 

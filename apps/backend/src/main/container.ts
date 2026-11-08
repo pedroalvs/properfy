@@ -292,6 +292,8 @@ import { ApproveRewardAwardUseCase } from '../modules/inspector-program/applicat
 import { VoidRewardAwardUseCase } from '../modules/inspector-program/application/use-cases/void-reward-award.use-case';
 import { RegionGoalUsageChecker } from '../modules/inspector-program/application/region-goal-usage-checker';
 import { InspectorProgramStandingService } from '../modules/inspector-program/application/inspector-program-standing.service';
+import { GetInspectorProgramUseCase } from '../modules/inspector-program/application/use-cases/get-inspector-program.use-case';
+import { PrismaRecentRewardAwardReader } from '../modules/inspector-program/infrastructure/prisma-recent-reward-award.reader';
 import { OfferEarlyAccessPolicy } from '../modules/inspector-program/application/offer-early-access.policy';
 import { prepareInspectorProgramSettingForSave } from '../modules/inspector-program/application/prepare-inspector-program-setting-for-save';
 import type { InspectorProgramRouteContainer } from '../modules/inspector-program/interfaces/inspector-program.routes';
@@ -1480,6 +1482,14 @@ export function createContainer(logger: Logger): AppContainer {
     platformSettingsService,
     inspectorProgramClock,
   );
+  const recentRewardAwardReader = new PrismaRecentRewardAwardReader(prisma);
+  const getInspectorProgramUseCase = new GetInspectorProgramUseCase(
+    inspectorProgramStandingService,
+    reliabilityIndexReader,
+    recentRewardAwardReader,
+    platformSettingsService,
+    inspectorProgramClock,
+  );
   const listRewardAwardsUseCase = new ListRewardAwardsUseCase(rewardAwardRepository, authorizationService);
   const getProgramPeriodSummaryUseCase = new GetProgramPeriodSummaryUseCase(
     goalRepository,
@@ -2388,6 +2398,7 @@ export function createContainer(logger: Logger): AppContainer {
       listProgramPeriodsUseCase,
       approveRewardAwardUseCase,
       voidRewardAwardUseCase,
+      getInspectorProgramUseCase,
       regionGoalUsageChecker,
       goalRepository,
       goalScopeReader,
