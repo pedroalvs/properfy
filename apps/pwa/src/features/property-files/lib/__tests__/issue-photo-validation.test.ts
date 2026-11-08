@@ -26,6 +26,13 @@ describe('issue-photo-validation', () => {
     expect(photoRejectionMessage('type')).toMatch(/image files/i);
   });
 
+  it('allows an empty-type file through to the backend (e.g. HEIC via the iOS Files app)', () => {
+    expect(checkIssuePhoto({ type: '', size: 1_000_000 })).toBeNull();
+    // but the size guard still applies to an empty-type file
+    const over = (DEFAULT_PROPERTY_FILES_SETTING.maxFileSizeMb + 1) * 1024 * 1024;
+    expect(checkIssuePhoto({ type: '', size: over })).toBe('size');
+  });
+
   it('rejects an oversize image against the default limit', () => {
     const over = (DEFAULT_PROPERTY_FILES_SETTING.maxFileSizeMb + 1) * 1024 * 1024;
     expect(checkIssuePhoto({ type: 'image/png', size: over })).toBe('size');

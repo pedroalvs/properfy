@@ -19,9 +19,15 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 export type PhotoRejection = 'type' | 'size';
 
-/** Returns a soft-guard rejection reason, or null when the file looks acceptable. */
+/**
+ * Returns a soft-guard rejection reason, or null when the file looks acceptable.
+ * An **empty** `file.type` is allowed through — some pickers (e.g. HEIC via the
+ * iOS Files app, some Android file managers) report no MIME; the backend sniffs
+ * magic bytes and is authoritative (C.A5), so a soft client hint must not hard-
+ * block a file it can't classify.
+ */
 export function checkIssuePhoto(file: { type: string; size: number }): PhotoRejection | null {
-  if (!DEFAULT_PROPERTY_FILES_SETTING.issueImageMimes.includes(file.type)) return 'type';
+  if (file.type && !DEFAULT_PROPERTY_FILES_SETTING.issueImageMimes.includes(file.type)) return 'type';
   if (file.size > MAX_FILE_SIZE_BYTES) return 'size';
   return null;
 }
