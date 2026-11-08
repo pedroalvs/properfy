@@ -3,6 +3,7 @@ import type { IFinancialEntryRepository } from '../../domain/financial-entry.rep
 import {
   EntryNotFoundError,
   EntryNotPendingError,
+  BonusEntryManagedByRewardError,
 } from '../../domain/billing.errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
@@ -38,6 +39,10 @@ export class CancelFinancialEntryUseCase {
     if (!entry) {
       throw new EntryNotFoundError();
     }
+    // Q12 (F08-6/DQ12): a bonus entry is managed only through the reward lifecycle.
+    if (entry.entryType === 'INSPECTOR_BONUS') {
+      throw new BonusEntryManagedByRewardError();
+    }
 
     // 3. Check status is PENDING
     if (!entry.isPending()) {
@@ -46,7 +51,8 @@ export class CancelFinancialEntryUseCase {
 
     // 4. Cancel (validate PENDING -> CANCELLED transition)
     const cancelledAt = new Date();
-    await this.financialEntryRepo.transitionStatus(entryId, entry.tenantId, 'PENDING', 'CANCELLED');
+    // tenantId is non-null here: an INSPECTOR_BONUS (the only tenantless type) is refused above.
+    await this.financialEntryRepo.transitionStatus(entryId, entry.tenantId!, 'PENDING', 'CANCELLED');
 
     // 5. Audit log
     this.auditService.log({

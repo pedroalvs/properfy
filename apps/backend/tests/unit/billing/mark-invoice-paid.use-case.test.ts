@@ -21,6 +21,7 @@ const invoiceRepo = {
   count: vi.fn(),
   save: vi.fn(),
   update: vi.fn(),
+  markPaidInTransaction: vi.fn().mockResolvedValue(true),
   getReconciliationAggregates: vi.fn(),
 };
 
@@ -99,12 +100,11 @@ describe('MarkInvoicePaidUseCase', () => {
     expect(result.paidAt).toBeDefined();
     expect(result.paymentReference).toBeNull();
 
-    expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', {
-      status: 'PAID',
+    expect(invoiceRepo.markPaidInTransaction).toHaveBeenCalledWith('inv-1', {
       paidAt: expect.any(Date),
       paidByUserId: 'op-1',
       paymentReference: null,
-    });
+    }, undefined);
   });
 
   it('should accept a custom paidAt timestamp', async () => {
@@ -118,9 +118,9 @@ describe('MarkInvoicePaidUseCase', () => {
     });
 
     expect(result.paidAt).toBe(customPaidAt);
-    expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', expect.objectContaining({
+    expect(invoiceRepo.markPaidInTransaction).toHaveBeenCalledWith('inv-1', expect.objectContaining({
       paidAt: new Date(customPaidAt),
-    }));
+    }), undefined);
   });
 
   it('should round-trip the paymentReference', async () => {
@@ -133,9 +133,9 @@ describe('MarkInvoicePaidUseCase', () => {
     });
 
     expect(result.paymentReference).toBe('BT-20260410-001');
-    expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', expect.objectContaining({
+    expect(invoiceRepo.markPaidInTransaction).toHaveBeenCalledWith('inv-1', expect.objectContaining({
       paymentReference: 'BT-20260410-001',
-    }));
+    }), undefined);
   });
 
   it('should record the actor userId as paidByUserId', async () => {
@@ -144,9 +144,9 @@ describe('MarkInvoicePaidUseCase', () => {
     const result = await sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: amActor });
 
     expect(result.paidByUserId).toBe('am-1');
-    expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', expect.objectContaining({
+    expect(invoiceRepo.markPaidInTransaction).toHaveBeenCalledWith('inv-1', expect.objectContaining({
       paidByUserId: 'am-1',
-    }));
+    }), undefined);
   });
 
   it('should allow AM to mark invoices as paid', async () => {
@@ -335,7 +335,7 @@ describe('MarkInvoicePaidUseCase', () => {
       const result = await sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: opActor });
 
       expect(result).toEqual(cachedResult);
-      expect(invoiceRepo.update).not.toHaveBeenCalled();
+      expect(invoiceRepo.markPaidInTransaction).not.toHaveBeenCalled();
       expect(auditService.log).not.toHaveBeenCalled();
     });
 
@@ -349,7 +349,7 @@ describe('MarkInvoicePaidUseCase', () => {
       await expect(
         sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: opActor }),
       ).rejects.toThrow(BillingIdempotencyPayloadMismatchError);
-      expect(invoiceRepo.update).not.toHaveBeenCalled();
+      expect(invoiceRepo.markPaidInTransaction).not.toHaveBeenCalled();
     });
 
     it('throws a conflict when a request with the same key and payload is already in progress', async () => {
@@ -362,7 +362,7 @@ describe('MarkInvoicePaidUseCase', () => {
       await expect(
         sut.execute({ invoiceId: 'inv-1', idempotencyKey: 'idem-1', actor: opActor }),
       ).rejects.toThrow(BillingIdempotencyInProgressError);
-      expect(invoiceRepo.update).not.toHaveBeenCalled();
+      expect(invoiceRepo.markPaidInTransaction).not.toHaveBeenCalled();
     });
   });
 });

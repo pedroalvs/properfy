@@ -4,6 +4,7 @@ import {
   INSPECTOR_LEVEL_LABELS,
   describeGoal,
   formatCurrency,
+  REWARD_AWARD_STATUS_LABELS,
   type RewardAwardResponse,
 } from '@properfy/shared';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
@@ -16,6 +17,25 @@ export interface RewardAwardsTableProps {
   onVoid: (award: RewardAwardResponse) => void;
   /** The award whose action is in flight (per-row disable). */
   pendingId: string | null;
+  /** AM only: void an award that is already on an invoice (APPROVED-invoiced / PAID). */
+  canVoidInvoiced?: boolean;
+  /** Opens the invoice detail drawer (same tab). */
+  onViewInvoice?: (invoiceId: string) => void;
+}
+
+function statusText(award: RewardAwardResponse): string {
+  switch (award.status) {
+    case RewardAwardStatus.PENDING:
+      return REWARD_AWARD_STATUS_LABELS.PENDING;
+    case RewardAwardStatus.APPROVED:
+      return award.invoice
+        ? `Approved · on ${award.invoice.invoiceNumberDisplay ?? 'invoice'}`
+        : 'Approved · next invoice';
+    case RewardAwardStatus.PAID:
+      return 'Paid';
+    case RewardAwardStatus.VOID:
+      return award.voidedAfterInvoicing ? 'Voided after invoicing' : 'Voided';
+  }
 }
 
 function resultText(award: RewardAwardResponse): string {
@@ -25,14 +45,14 @@ function resultText(award: RewardAwardResponse): string {
   return `${award.achievedValue}%`;
 }
 
-function StatusChip({ status }: { status: RewardAwardStatus }) {
-  const style = REWARD_AWARD_STATUS_MAP[status];
+function StatusChip({ award }: { award: RewardAwardResponse }) {
+  const style = REWARD_AWARD_STATUS_MAP[award.status];
   return (
     <span
       className="inline-block rounded px-2 py-0.5 text-xs font-semibold"
       style={{ backgroundColor: style.bg, color: style.text }}
     >
-      {style.label}
+      {statusText(award)}
     </span>
   );
 }
@@ -42,7 +62,14 @@ function StatusChip({ status }: { status: RewardAwardStatus }) {
  * PENDING/APPROVED; there is **no "Mark as paid"** (Q12) and paid/voided rows
  * offer no action. Action labels carry the inspector's name (a11y).
  */
-export function RewardAwardsTable({ awards, onApprove, onVoid, pendingId }: RewardAwardsTableProps) {
+export function RewardAwardsTable({
+  awards,
+  onApprove,
+  onVoid,
+  pendingId,
+  canVoidInvoiced = false,
+  onViewInvoice,
+}: RewardAwardsTableProps) {
   const columns: DataTableColumn<RewardAwardResponse>[] = [
     {
       key: 'inspector',
@@ -83,7 +110,21 @@ export function RewardAwardsTable({ awards, onApprove, onVoid, pendingId }: Rewa
       render: (a) => (a.levelAtClose ? INSPECTOR_LEVEL_LABELS[a.levelAtClose] : '–'),
     },
     { key: 'amount', label: 'Amount', width: '110px', align: 'right', render: (a) => formatCurrency(a.amount) },
-    { key: 'status', label: 'Status', width: '130px', render: (a) => <StatusChip status={a.status} /> },
+    { key: 'status', label: 'Status', width: '170px', render: (a) => <StatusChip award={a} /> },
+    {
+      key: 'invoice',
+      label: 'Invoice',
+      width: '130px',
+      render: (a) => {
+        const invoice = a.invoice;
+        if (!invoice) return null;
+        return (
+          <button type="button" className="text-primary underline" onClick={() => onViewInvoice?.(invoice.id)}>
+            {invoice.invoiceNumberDisplay ?? 'View invoice'}
+          </button>
+        );
+      },
+    },
     {
       key: 'actions',
       label: '',
@@ -94,7 +135,12 @@ export function RewardAwardsTable({ awards, onApprove, onVoid, pendingId }: Rewa
         // action can't be started and silently collapsed (one action at a time).
         const anyBusy = pendingId !== null;
         const canApprove = a.status === RewardAwardStatus.PENDING;
-        const canVoid = a.status === RewardAwardStatus.PENDING || a.status === RewardAwardStatus.APPROVED;
+        const invoiced =
+          a.invoice != null && (a.status === RewardAwardStatus.APPROVED || a.status === RewardAwardStatus.PAID);
+        const canVoid = invoiced
+          ? canVoidInvoiced
+          : a.status === RewardAwardStatus.PENDING ||
+            (a.status === RewardAwardStatus.APPROVED && a.invoice == null);
         if (!canApprove && !canVoid) return null;
         return (
           <div className="flex flex-wrap justify-end gap-2">

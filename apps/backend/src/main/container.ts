@@ -274,7 +274,8 @@ import { PrismaGoalRepository, PrismaGoalScopeReader } from '../modules/inspecto
 import { PrismaRewardAwardRepository } from '../modules/inspector-program/infrastructure/prisma-reward-award.repository';
 import { PrismaGoalPeriodClosureRepository } from '../modules/inspector-program/infrastructure/prisma-goal-period-closure.repository';
 import { PrismaProgramInspectorReader } from '../modules/inspector-program/infrastructure/prisma-program-inspector.reader';
-import { NoopRewardAwardApprovalHook } from '../modules/inspector-program/domain/reward-award-approval.hook';
+import type { IRewardAwardApprovalHook } from '../modules/inspector-program/domain/reward-award-approval.hook';
+import { BonusLedgerHook } from '../modules/inspector-program/application/bonus-ledger.hook';
 import { CloseGoalPeriodsUseCase } from '../modules/inspector-program/application/use-cases/close-goal-periods.use-case';
 import {
   RunInspectorProgramDailyUseCase,
@@ -645,7 +646,7 @@ export interface AppContainer {
     rewardAwardRepository: PrismaRewardAwardRepository;
     goalPeriodClosureRepository: PrismaGoalPeriodClosureRepository;
     programInspectorReader: PrismaProgramInspectorReader;
-    rewardAwardApprovalHook: NoopRewardAwardApprovalHook;
+    rewardAwardApprovalHook: IRewardAwardApprovalHook;
     regionGoalUsageChecker: RegionGoalUsageChecker;
   };
   propertyFile: PropertyFileRouteContainer;
@@ -1451,7 +1452,9 @@ export function createContainer(logger: Logger): AppContainer {
   const rewardAwardRepository = new PrismaRewardAwardRepository(prisma);
   const goalPeriodClosureRepository = new PrismaGoalPeriodClosureRepository(prisma);
   const programInspectorReader = new PrismaProgramInspectorReader(prisma);
-  const rewardAwardApprovalHook = new NoopRewardAwardApprovalHook();
+  // Q12 (F08-6): the real hook mints/voids/reverses the INSPECTOR_BONUS ledger entry inside the
+  // reward transaction. financialEntryRepo implements IBonusEntryWriter.
+  const rewardAwardApprovalHook: IRewardAwardApprovalHook = new BonusLedgerHook(financialEntryRepo);
   const closeGoalPeriodsUseCase = new CloseGoalPeriodsUseCase(
     goalRepository,
     goalPeriodClosureRepository,
@@ -1739,14 +1742,16 @@ export function createContainer(logger: Logger): AppContainer {
     inspectorInvoiceRepo,
     reportStorageService,
   );
-  const markInvoicePaidUseCase = new MarkInvoicePaidUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
-  const batchMarkInvoicesPaidUseCase = new BatchMarkInvoicesPaidUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
-  const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
+  // Q12 (F08-6): rewardAwardRepository implements IRewardAwardInvoiceSync — paying/reversing an
+  // invoice advances/returns its linked rewards in the same transaction. (undefined clock → default)
+  const markInvoicePaidUseCase = new MarkInvoicePaidUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService, undefined, rewardAwardRepository);
+  const batchMarkInvoicesPaidUseCase = new BatchMarkInvoicesPaidUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService, undefined, rewardAwardRepository);
+  const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService, rewardAwardRepository);
   const getReconciliationSummaryUseCase = new GetReconciliationSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const getInvoiceSummaryUseCase = new GetInvoiceSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
   const updateFinancialEntryUseCase = new UpdateFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
-  const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, authorizationService, billingJobQueue, idempotencyService);
+  const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, authorizationService, billingJobQueue, idempotencyService, rewardAwardRepository);
   const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
 
   // Report repositories and use cases

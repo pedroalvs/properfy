@@ -5,6 +5,7 @@ import { FinancialEntryEntity } from '../../domain/financial-entry.entity';
 import {
   EntryNotFoundError,
   EntryNotRefundableError,
+  BonusEntryManagedByRewardError,
   RefundExceedsOriginalAmountError,
   BillingIdempotencyPayloadMismatchError,
   BillingIdempotencyInProgressError,
@@ -101,6 +102,11 @@ export class CreateRefundUseCase {
     if (!original) {
       throw new EntryNotFoundError();
     }
+    // Q12 (F08-6/DQ12): a bonus entry is managed only through the reward lifecycle — a generic
+    // refund would also copy its null tenant_id into a REFUND and blow the tenant CHECK.
+    if (original.entryType === 'INSPECTOR_BONUS') {
+      throw new BonusEntryManagedByRewardError();
+    }
 
     // 3. Validate original is an approved TENANT_DEBIT
     if (original.entryType !== 'TENANT_DEBIT' || !original.isApproved()) {
@@ -162,7 +168,8 @@ export class CreateRefundUseCase {
 
     const result: CreateRefundOutput = {
       id,
-      tenantId: original.tenantId,
+      // A refund only targets a TENANT_DEBIT (bonus refused above), so the tenant is non-null.
+      tenantId: original.tenantId!,
       appointmentId: original.appointmentId,
       entryType: 'REFUND',
       amount: refundAmount,

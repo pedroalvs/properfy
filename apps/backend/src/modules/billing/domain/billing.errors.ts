@@ -206,3 +206,49 @@ export class MultiCurrencyScopeError extends DomainError {
     );
   }
 }
+
+// ─── Inspector bonus (Q12 — TASK-F08-6) ──────────────────────────────────
+
+/**
+ * A generic billing action (void/update/approve/cancel/refund) was attempted on an
+ * INSPECTOR_BONUS entry. Bonus entries are created, voided and reversed only by the
+ * inspector-program module through the reward lifecycle, never by the generic ledger.
+ */
+export class BonusEntryManagedByRewardError extends ConflictError {
+  constructor() {
+    super('BONUS_ENTRY_MANAGED_BY_REWARD', 'Bonus entries are managed from Goals & rewards.');
+  }
+}
+
+/**
+ * The billing period being invoiced has a total of zero or less (e.g. a reversal-only
+ * period). There is nothing positive to invoice; the operator resolves it with a manual
+ * adjustment.
+ */
+export class InvoiceNonPositiveTotalError extends DomainError {
+  constructor() {
+    super('INVOICE_NON_POSITIVE_TOTAL', 'This period has no amount to invoice.', 422);
+  }
+}
+
+/**
+ * Between reading the draft snapshot and freezing it, the set of approved rewards for the
+ * period changed (e.g. a concurrent void), so the frozen bonus lines no longer match the
+ * rewards being linked. The caller should retry (the fresh read will be consistent).
+ */
+export class InvoiceLinesChangedError extends ConflictError {
+  constructor() {
+    super('INVOICE_LINES_CHANGED', 'Invoice lines changed. Try again.');
+  }
+}
+
+/**
+ * A reversal already exists for this bonus (the partial unique index on
+ * `reference_entry_id` for INSPECTOR_BONUS fired). A backstop to the reward CAS — a
+ * second void-after-invoicing of the same reward is normally rejected at the reward level.
+ */
+export class BonusReversalAlreadyExistsError extends ConflictError {
+  constructor() {
+    super('BONUS_REVERSAL_ALREADY_EXISTS', 'A reversal already exists for this bonus');
+  }
+}

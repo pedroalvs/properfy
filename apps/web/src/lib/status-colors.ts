@@ -92,6 +92,7 @@ export const FINANCIAL_ENTRY_TYPE_MAP: Record<FinancialEntryType, StatusStyle> =
   [FinancialEntryType.INSPECTOR_PAYOUT]:  { bg: 'var(--color-fin-type-payout)',     text: 'var(--color-text-primary)', label: 'Inspector Payout' },
   [FinancialEntryType.REFUND]:            { bg: 'var(--color-fin-type-refund)',     text: 'var(--color-text-primary)', label: 'Refund' },
   [FinancialEntryType.MANUAL_ADJUSTMENT]: { bg: 'var(--color-fin-type-adjustment)', text: 'var(--color-text-primary)', label: 'Manual Adjustment' },
+  [FinancialEntryType.INSPECTOR_BONUS]:   { bg: 'var(--color-fin-type-bonus)',      text: 'var(--color-text-primary)', label: 'Bonus' },
 };
 
 export const FINANCIAL_ENTRY_STATUS_MAP: Record<FinancialEntryStatus, StatusStyle> = {

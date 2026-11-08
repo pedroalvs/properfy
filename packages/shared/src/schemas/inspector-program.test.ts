@@ -316,8 +316,52 @@ describe('response schemas', () => {
       inspectorNote: null,
       goal: { id: '33333333-3333-3333-3333-333333333333', title: 'Weekly volume' },
       inspector: { id: '66666666-6666-6666-6666-666666666666', name: 'Ana', email: 'ana@example.com' },
+      financialEntryId: null,
+      invoice: null,
+      voidedAfterInvoicing: false,
       createdAt: '2026-11-09T00:00:00.000Z',
       updatedAt: '2026-11-09T00:00:00.000Z',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rewardAwardResponseSchema parses a paid award with its invoice (Q12)', () => {
+    const result = rewardAwardResponseSchema.safeParse({
+      id: '55555555-5555-5555-5555-555555555555',
+      goalId: '33333333-3333-3333-3333-333333333333',
+      inspectorId: '66666666-6666-6666-6666-666666666666',
+      periodType: 'WEEKLY',
+      periodStart: '2026-11-02',
+      periodEnd: '2026-11-08',
+      goalTitle: 'Weekly volume',
+      metric: 'VOLUME',
+      comparator: 'GTE',
+      target: 10,
+      amount: 30,
+      scopeLabel: null,
+      achievedValue: 12,
+      serviceCount: 12,
+      achievedOn: '2026-11-06',
+      indexScoreAtClose: 88.3,
+      levelAtClose: 'GOLD',
+      indexSnapshotDate: '2026-11-08',
+      status: 'PAID',
+      approvedByUserId: '77777777-7777-7777-7777-777777777777',
+      approvedByName: 'Olga Operator',
+      approvedAt: '2026-11-10T01:00:00.000Z',
+      paidAt: '2026-11-20T02:00:00.000Z',
+      voidedByUserId: null,
+      voidedByName: null,
+      voidedAt: null,
+      voidReason: null,
+      inspectorNote: null,
+      goal: { id: '33333333-3333-3333-3333-333333333333', title: 'Weekly volume' },
+      inspector: { id: '66666666-6666-6666-6666-666666666666', name: 'Ana', email: 'ana@example.com' },
+      financialEntryId: '88888888-8888-8888-8888-888888888888',
+      invoice: { id: '99999999-9999-9999-9999-999999999999', invoiceNumberDisplay: 'PINV-000042', status: 'PAID' },
+      voidedAfterInvoicing: false,
+      createdAt: '2026-11-09T00:00:00.000Z',
+      updatedAt: '2026-11-20T02:00:00.000Z',
     });
     expect(result.success).toBe(true);
   });

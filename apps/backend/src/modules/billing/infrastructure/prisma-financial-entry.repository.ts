@@ -1,4 +1,5 @@
-import type { PrismaClient } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import { type FinancialEntryType, type FinancialEntryStatus, type InvoiceSnapshotLine, AGENCY_VISIBLE_ENTRY_TYPES } from '@properfy/shared';
 import { FinancialEntryEntity } from '../domain/financial-entry.entity';
 import { AppointmentCodeFormatter } from '../../appointment/domain/appointment-code.formatter';
@@ -10,9 +11,22 @@ import type {
   FinancialEntryEnriched,
   InspectorEarningsSummary,
 } from '../domain/financial-entry.repository';
-import { InvalidEntryStatusTransitionError } from '../domain/billing.errors';
+import type {
+  IBonusEntryWriter,
+  CreateApprovedBonusInput,
+  CreateBonusReversalInput,
+  VoidBonusInput,
+} from '../../inspector-program/domain/bonus-entry-writer.port';
+import {
+  InvalidEntryStatusTransitionError,
+  BonusReversalAlreadyExistsError,
+  EntryNotFoundError,
+} from '../domain/billing.errors';
 import { formatMonthKey } from '../domain/month-key';
 import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../shared/domain/timezone-date';
+
+/** The inspector leg of the ledger: payouts and goal bonuses ride the same invoice. */
+const INSPECTOR_INVOICE_ENTRY_TYPES: FinancialEntryType[] = ['INSPECTOR_PAYOUT', 'INSPECTOR_BONUS'];
 
 function mapToEntity(row: any): FinancialEntryEntity {
   return new FinancialEntryEntity({
@@ -45,7 +59,16 @@ const SORT_FIELD_MAP: Record<string, string> = {
 function buildWhereClause(filters: FinancialEntryFilters): Record<string, unknown> {
   const where: Record<string, unknown> = {};
 
-  if (filters.tenantId) where.tenant_id = filters.tenantId;
+  if (filters.includePlatformBonus && filters.tenantId) {
+    // Q12 (F08-6/DQ10): the tenant's entries OR the platform bonus (tenantless). Other
+    // conditions below sit at the top level and AND with both OR branches.
+    where.OR = [
+      { tenant_id: filters.tenantId },
+      { tenant_id: null, entry_type: 'INSPECTOR_BONUS' },
+    ];
+  } else if (filters.tenantId) {
+    where.tenant_id = filters.tenantId;
+  }
   if (filters.appointmentId) where.appointment_id = filters.appointmentId;
   if (filters.inspectorId) where.inspector_id = filters.inspectorId;
   if (filters.entryType) where.entry_type = filters.entryType;
@@ -65,7 +88,7 @@ function buildWhereClause(filters: FinancialEntryFilters): Record<string, unknow
   return where;
 }
 
-export class PrismaFinancialEntryRepository implements IFinancialEntryRepository {
+export class PrismaFinancialEntryRepository implements IFinancialEntryRepository, IBonusEntryWriter {
   constructor(private readonly prisma: PrismaClient) {}
 
   async getSummary(
@@ -105,6 +128,7 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
       totalPayouts: 0,
       totalAdjustments: 0,
       totalRefunds: 0,
+      totalBonuses: 0,
       pendingCount,
       currency: null,
     };
@@ -116,6 +140,9 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
         case 'INSPECTOR_PAYOUT': summary.totalPayouts = amount; break;
         case 'MANUAL_ADJUSTMENT': summary.totalAdjustments = amount; break;
         case 'REFUND': summary.totalRefunds = amount; break;
+        // Q12 (F08-6): the goal bonus leg, kept separate from payouts. Never reached
+        // under `agencyScoped` (the allowlist WHERE excludes INSPECTOR_BONUS).
+        case 'INSPECTOR_BONUS': summary.totalBonuses = amount; break;
       }
     }
 
@@ -123,7 +150,8 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
   }
 
   async getInspectorEarningsSummary(inspectorId: string, monthlyFrom: Date): Promise<InspectorEarningsSummary> {
-    const payoutWhere = { inspector_id: inspectorId, entry_type: 'INSPECTOR_PAYOUT' as FinancialEntryType };
+    // Q12 (F08-6): the inspector's own earnings include goal bonuses alongside payouts.
+    const payoutWhere = { inspector_id: inspectorId, entry_type: { in: INSPECTOR_INVOICE_ENTRY_TYPES } };
 
     const [byStatus, latest, windowRows] = await Promise.all([
       this.prisma.financialEntry.groupBy({
@@ -398,7 +426,7 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
     const result = await this.prisma.financialEntry.aggregate({
       where: {
         inspector_id: inspectorId,
-        entry_type: 'INSPECTOR_PAYOUT',
+        entry_type: { in: INSPECTOR_INVOICE_ENTRY_TYPES },
         status: 'APPROVED',
         effective_at: { gte: periodStart, lte: periodEnd },
       },
@@ -416,7 +444,7 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
       by: ['currency'],
       where: {
         inspector_id: inspectorId,
-        entry_type: 'INSPECTOR_PAYOUT',
+        entry_type: { in: INSPECTOR_INVOICE_ENTRY_TYPES },
         status: 'APPROVED',
         effective_at: { gte: periodStart, lte: periodEnd },
       },
@@ -439,55 +467,107 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
     periodStart: Date,
     periodEnd: Date,
   ): Promise<{ lines: InvoiceSnapshotLine[]; currencies: string[] }> {
-    const rows = await this.prisma.financialEntry.findMany({
-      where: {
-        inspector_id: inspectorId,
-        entry_type: 'INSPECTOR_PAYOUT',
-        status: 'APPROVED',
-        effective_at: { gte: periodStart, lte: periodEnd },
-        appointment_id: { not: null },
-      },
-      orderBy: { effective_at: 'asc' },
-      select: {
-        amount: true,
-        currency: true,
-        effective_at: true,
-        appointment: {
-          select: {
-            id: true,
-            appointment_number: true,
-            branch_id: true,
-            property: { select: { street: true, suburb: true, state: true, postcode: true } },
-            branch: { select: { name: true } },
-            service_type: { select: { name: true } },
-            tenant: { select: { id: true, name: true, appointment_code_prefix: true } },
+    const [payoutRows, bonusRows] = await Promise.all([
+      this.prisma.financialEntry.findMany({
+        where: {
+          inspector_id: inspectorId,
+          entry_type: 'INSPECTOR_PAYOUT',
+          status: 'APPROVED',
+          effective_at: { gte: periodStart, lte: periodEnd },
+          appointment_id: { not: null },
+        },
+        orderBy: { effective_at: 'asc' },
+        select: {
+          amount: true,
+          currency: true,
+          effective_at: true,
+          appointment: {
+            select: {
+              id: true,
+              appointment_number: true,
+              branch_id: true,
+              property: { select: { street: true, suburb: true, state: true, postcode: true } },
+              branch: { select: { name: true } },
+              service_type: { select: { name: true } },
+              tenant: { select: { id: true, name: true, appointment_code_prefix: true } },
+            },
           },
         },
-      },
-    });
+      }),
+      // Q12 (F08-6): the bonus leg — no appointment. The display description is frozen
+      // on the entry at approval; a reversal carries the original reward's id through
+      // reference_entry_id. A second, separate query keeps the payout query untouched.
+      this.prisma.financialEntry.findMany({
+        where: {
+          inspector_id: inspectorId,
+          entry_type: 'INSPECTOR_BONUS',
+          status: 'APPROVED',
+          effective_at: { gte: periodStart, lte: periodEnd },
+        },
+        orderBy: { effective_at: 'asc' },
+        select: {
+          id: true,
+          amount: true,
+          currency: true,
+          effective_at: true,
+          description: true,
+          reward_award_id: true,
+          referenceEntry: { select: { reward_award_id: true } },
+        },
+      }),
+    ]);
 
-    const withAppointment = rows.filter((row) => row.appointment !== null);
-    const lines: InvoiceSnapshotLine[] = withAppointment.map((row) => {
+    const withAppointment = payoutRows.filter((row) => row.appointment !== null);
+    // Tag each line with its instant so the two legs interleave by effective_at in the
+    // persisted snapshot (serviceDate stays canonical YYYY-MM-DD; display is at the edge).
+    const tagged: { effectiveAt: Date; line: InvoiceSnapshotLine }[] = [];
+
+    for (const row of withAppointment) {
       const appt = row.appointment!;
       const p = appt.property;
-      return {
-        // Stays canonical YYYY-MM-DD: this is a PERSISTED snapshot field, and
-        // display formatting happens at the render edge (PDF / PWA). Only the
-        // timezone is corrected — slicing toISOString() dated a Sydney-evening
-        // service on the previous day.
-        serviceDate: civilDateInTimezone(row.effective_at, PLATFORM_TIMEZONE),
-        appointmentId: appt.id,
-        appointmentCode: AppointmentCodeFormatter.formatParts(appt.appointment_number, appt.tenant?.appointment_code_prefix ?? null),
-        propertyAddress: p ? `${p.street}, ${p.suburb} ${p.state} ${p.postcode}` : null,
-        serviceType: appt.service_type?.name ?? null,
-        amount: Number(row.amount),
-        agencyId: appt.tenant?.id ?? null,
-        agencyName: appt.tenant?.name ?? null,
-        branchId: appt.branch_id ?? null,
-        branchName: appt.branch?.name ?? null,
-      };
-    });
-    const currencies = [...new Set(withAppointment.map((row) => row.currency))];
+      tagged.push({
+        effectiveAt: row.effective_at,
+        line: {
+          kind: 'SERVICE',
+          serviceDate: civilDateInTimezone(row.effective_at, PLATFORM_TIMEZONE),
+          appointmentId: appt.id,
+          appointmentCode: AppointmentCodeFormatter.formatParts(appt.appointment_number, appt.tenant?.appointment_code_prefix ?? null),
+          propertyAddress: p ? `${p.street}, ${p.suburb} ${p.state} ${p.postcode}` : null,
+          serviceType: appt.service_type?.name ?? null,
+          amount: Number(row.amount),
+          agencyId: appt.tenant?.id ?? null,
+          agencyName: appt.tenant?.name ?? null,
+          branchId: appt.branch_id ?? null,
+          branchName: appt.branch?.name ?? null,
+        },
+      });
+    }
+
+    for (const row of bonusRows) {
+      tagged.push({
+        effectiveAt: row.effective_at,
+        line: {
+          kind: 'BONUS',
+          serviceDate: civilDateInTimezone(row.effective_at, PLATFORM_TIMEZONE),
+          appointmentId: null,
+          appointmentCode: null,
+          propertyAddress: null,
+          serviceType: null,
+          amount: Number(row.amount),
+          agencyId: null,
+          agencyName: null,
+          branchId: null,
+          branchName: null,
+          entryId: row.id,
+          rewardAwardId: row.reward_award_id ?? row.referenceEntry?.reward_award_id ?? null,
+          description: row.description,
+        },
+      });
+    }
+
+    tagged.sort((a, b) => a.effectiveAt.getTime() - b.effectiveAt.getTime());
+    const lines = tagged.map((t) => t.line);
+    const currencies = [...new Set([...withAppointment, ...bonusRows].map((row) => row.currency))];
     return { lines, currencies };
   }
 
@@ -560,4 +640,90 @@ export class PrismaFinancialEntryRepository implements IFinancialEntryRepository
       throw new InvalidEntryStatusTransitionError('APPROVED', 'VOIDED');
     }
   }
+
+  // ─── IBonusEntryWriter (Q12 — F08-6) ─────────────────────────────────────
+  // Implemented here so the inspector-program module never imports the financial
+  // repository. All methods run inside the reward transaction (atomic with the CAS).
+
+  async createApprovedBonus(tx: Prisma.TransactionClient, input: CreateApprovedBonusInput): Promise<string> {
+    const id = randomUUID();
+    await tx.financialEntry.create({
+      data: {
+        id,
+        tenant_id: null, // platform↔inspector leg (CHECK enforces NULL for this type)
+        appointment_id: null,
+        inspector_id: input.inspectorId,
+        entry_type: 'INSPECTOR_BONUS',
+        amount: input.amount,
+        currency: input.currency,
+        status: 'APPROVED',
+        description: input.description,
+        effective_at: input.effectiveAt,
+        initiated_by_user_id: null, // system-minted (never the literal 'SYSTEM' — PR #1229)
+        approved_by_user_id: input.approvedByUserId,
+        approved_at: input.approvedAt,
+        reference_entry_id: null,
+        reward_award_id: input.rewardAwardId,
+      },
+    });
+    return id;
+  }
+
+  async voidBonusForReward(tx: Prisma.TransactionClient, input: VoidBonusInput): Promise<void> {
+    // No-op when the reward never had an entry (e.g. a PENDING reward voided before approval).
+    await tx.financialEntry.updateMany({
+      where: { reward_award_id: input.rewardAwardId, entry_type: 'INSPECTOR_BONUS', status: 'APPROVED' },
+      data: {
+        status: 'VOIDED',
+        voided_by_user_id: input.voidedByUserId,
+        voided_at: input.voidedAt,
+        void_reason: input.voidReason,
+      },
+    });
+  }
+
+  async createReversalForReward(tx: Prisma.TransactionClient, input: CreateBonusReversalInput): Promise<void> {
+    const original = await tx.financialEntry.findFirst({
+      where: { reward_award_id: input.rewardAwardId, entry_type: 'INSPECTOR_BONUS' },
+      select: { id: true, amount: true, inspector_id: true, currency: true },
+    });
+    if (!original) throw new EntryNotFoundError();
+
+    try {
+      await tx.financialEntry.create({
+        data: {
+          id: randomUUID(),
+          tenant_id: null,
+          appointment_id: null,
+          inspector_id: original.inspector_id,
+          entry_type: 'INSPECTOR_BONUS',
+          amount: -Number(original.amount), // negative reversal (shape CHECK requires amount < 0)
+          currency: original.currency,
+          status: 'APPROVED',
+          description: input.description,
+          effective_at: input.effectiveAt,
+          initiated_by_user_id: null,
+          approved_by_user_id: input.approvedByUserId,
+          approved_at: input.effectiveAt,
+          reference_entry_id: original.id, // links the reversal to the original (no reward_award_id)
+          reward_award_id: null,
+        },
+      });
+    } catch (error) {
+      // The partial unique index `financial_entries_bonus_reversal_unique` is hand-written
+      // (Prisma cannot model a partial index), so a duplicate surfaces as a raw 23505 rather
+      // than P2002 (memory project_pricing_catalog_spec_execution). Map it to a 409.
+      if (isBonusReversalUniqueViolation(error)) throw new BonusReversalAlreadyExistsError();
+      throw error;
+    }
+  }
+}
+
+/** True when the error is the partial unique violation on the bonus reversal index. */
+function isBonusReversalUniqueViolation(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const e = error as { code?: string; message?: string; meta?: { target?: unknown } };
+  if (e.code === 'P2002') return true; // Prisma-mapped (if it ever knows the index)
+  const haystack = `${e.code ?? ''} ${e.message ?? ''} ${JSON.stringify(e.meta ?? {})}`;
+  return haystack.includes('23505') || haystack.includes('financial_entries_bonus_reversal_unique');
 }

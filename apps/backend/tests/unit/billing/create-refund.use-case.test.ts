@@ -3,6 +3,7 @@ import { CreateRefundUseCase } from '../../../src/modules/billing/application/us
 import { FinancialEntryEntity } from '../../../src/modules/billing/domain/financial-entry.entity';
 import {
   EntryNotFoundError,
+  BonusEntryManagedByRewardError,
   EntryNotRefundableError,
   RefundExceedsOriginalAmountError,
   BillingIdempotencyInProgressError,
@@ -471,5 +472,16 @@ describe('CreateRefundUseCase', () => {
     await expect(sut.execute(input)).rejects.toThrow(BillingIdempotencyInProgressError);
     expect(financialEntryRepo.save).toHaveBeenCalledOnce();
     expect(first.entryType).toBe('REFUND');
+  });
+
+  it('refuses an INSPECTOR_BONUS entry (409 BONUS_ENTRY_MANAGED_BY_REWARD, Q12)', async () => {
+    const sut = makeSut();
+    financialEntryRepo.findById.mockResolvedValue(
+      makeApprovedDebit({ entryType: 'INSPECTOR_BONUS', tenantId: null, inspectorId: 'insp-1', appointmentId: null }),
+    );
+    await expect(
+      sut.execute({ entryId: 'debit-1', description: 'd', reason: 'x', idempotencyKey: 'idem-bonus', actor: amActor }),
+    ).rejects.toBeInstanceOf(BonusEntryManagedByRewardError);
+    expect(financialEntryRepo.save).not.toHaveBeenCalled();
   });
 });

@@ -110,7 +110,7 @@ describe('ApproveDraftInvoiceUseCase', () => {
       inspectorAbn: '12 345 678 901',
       issuedAt: expect.any(Date),
       generatedByUserId: 'op-1',
-    });
+    }, undefined);
     expect(jobQueue.enqueue).toHaveBeenCalledWith('billing.generate-invoice-file', { invoiceId: 'inv-1' });
     expect(auditService.log).toHaveBeenCalledWith(
       expect.objectContaining({

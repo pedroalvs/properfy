@@ -88,6 +88,7 @@ export function mapRewardAward(row: PrismaAward): RewardAward {
     voidedAt: row.voided_at,
     voidReason: row.void_reason,
     inspectorNote: row.inspector_note,
+    inspectorInvoiceId: row.inspector_invoice_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

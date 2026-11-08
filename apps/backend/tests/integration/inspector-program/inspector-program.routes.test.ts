@@ -114,6 +114,9 @@ function awardPayload() {
     inspectorNote: null,
     goal: { id: GOAL_ID, title: 'Weekly volume' },
     inspector: { id: '66666666-6666-4666-8666-666666666666', name: 'Ana', email: 'ana@example.com' },
+    financialEntryId: null,
+    invoice: null,
+    voidedAfterInvoicing: false,
     createdAt: '2026-11-09T00:00:00.000Z',
     updatedAt: '2026-11-09T00:00:00.000Z',
   };

@@ -14188,6 +14188,16 @@ export interface paths {
                                     name: string;
                                     email: string;
                                 };
+                                /** Format: uuid */
+                                financialEntryId: string | null;
+                                invoice: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    invoiceNumberDisplay: string | null;
+                                    /** @enum {string} */
+                                    status: "PENDING_REVIEW" | "CLOSED" | "PAID" | "VOID";
+                                } | null;
+                                voidedAfterInvoicing: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -14356,6 +14366,16 @@ export interface paths {
                                     name: string;
                                     email: string;
                                 };
+                                /** Format: uuid */
+                                financialEntryId: string | null;
+                                invoice: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    invoiceNumberDisplay: string | null;
+                                    /** @enum {string} */
+                                    status: "PENDING_REVIEW" | "CLOSED" | "PAID" | "VOID";
+                                } | null;
+                                voidedAfterInvoicing: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -14454,6 +14474,16 @@ export interface paths {
                                     name: string;
                                     email: string;
                                 };
+                                /** Format: uuid */
+                                financialEntryId: string | null;
+                                invoice: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    invoiceNumberDisplay: string | null;
+                                    /** @enum {string} */
+                                    status: "PENDING_REVIEW" | "CLOSED" | "PAID" | "VOID";
+                                } | null;
+                                voidedAfterInvoicing: boolean;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -14657,6 +14687,7 @@ export interface paths {
                                 totalPayouts: number;
                                 totalAdjustments: number;
                                 totalRefunds: number;
+                                totalBonuses: number;
                                 pendingCount: number;
                                 currency: string | null;
                             };
@@ -14683,7 +14714,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    type?: "TENANT_DEBIT" | "INSPECTOR_PAYOUT" | "REFUND" | "MANUAL_ADJUSTMENT";
+                    type?: "TENANT_DEBIT" | "INSPECTOR_PAYOUT" | "REFUND" | "MANUAL_ADJUSTMENT" | "INSPECTOR_BONUS";
                     status?: "PENDING" | "APPROVED" | "CANCELLED" | "VOIDED";
                     inspectorId?: string;
                     tenantId?: string;
@@ -14712,7 +14743,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 /** Format: uuid */
@@ -14830,7 +14861,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 /** Format: uuid */
@@ -14899,7 +14930,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 /** Format: uuid */
@@ -14964,7 +14995,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 /** Format: uuid */
@@ -15090,7 +15121,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 /** Format: uuid */
@@ -15167,7 +15198,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 /** Format: uuid */
@@ -15250,10 +15281,15 @@ export interface paths {
                                 totalAmount: number;
                                 currency: string;
                                 lineItemsSnapshot?: {
+                                    /**
+                                     * @default SERVICE
+                                     * @enum {string}
+                                     */
+                                    kind: "SERVICE" | "BONUS";
                                     serviceDate: string;
                                     /** Format: uuid */
-                                    appointmentId: string;
-                                    appointmentCode: string;
+                                    appointmentId: string | null;
+                                    appointmentCode: string | null;
                                     propertyAddress: string | null;
                                     serviceType: string | null;
                                     amount: number;
@@ -15263,6 +15299,11 @@ export interface paths {
                                     /** Format: uuid */
                                     branchId: string | null;
                                     branchName: string | null;
+                                    /** Format: uuid */
+                                    entryId?: string;
+                                    /** Format: uuid */
+                                    rewardAwardId?: string | null;
+                                    description?: string | null;
                                 }[] | null;
                                 fileKey?: string | null;
                                 /** Format: uuid */
@@ -15335,10 +15376,15 @@ export interface paths {
                                 totalAmount: number;
                                 currency: string;
                                 lineItemsSnapshot?: {
+                                    /**
+                                     * @default SERVICE
+                                     * @enum {string}
+                                     */
+                                    kind: "SERVICE" | "BONUS";
                                     serviceDate: string;
                                     /** Format: uuid */
-                                    appointmentId: string;
-                                    appointmentCode: string;
+                                    appointmentId: string | null;
+                                    appointmentCode: string | null;
                                     propertyAddress: string | null;
                                     serviceType: string | null;
                                     amount: number;
@@ -15348,6 +15394,11 @@ export interface paths {
                                     /** Format: uuid */
                                     branchId: string | null;
                                     branchName: string | null;
+                                    /** Format: uuid */
+                                    entryId?: string;
+                                    /** Format: uuid */
+                                    rewardAwardId?: string | null;
+                                    description?: string | null;
                                 }[] | null;
                                 fileKey?: string | null;
                                 /** Format: uuid */

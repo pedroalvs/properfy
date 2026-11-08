@@ -89,6 +89,7 @@
   --color-fin-type-payout: #C8E6C9;
   --color-fin-type-refund: #FFE0B2;
   --color-fin-type-adjustment: #E1BEE7;
+  --color-fin-type-bonus: #B3E5FC;
 
   /* Financial entry status backgrounds */
   --color-fin-status-pending: #FFE0B2;

@@ -98,7 +98,13 @@ export class ApproveRewardAwardUseCase {
         entityId: awardId,
         requestId,
         before: { status: 'PENDING' },
-        after: { status: 'APPROVED', approvedBy: actor.userId, approvedAt: approvedAt.toISOString() },
+        after: {
+          status: 'APPROVED',
+          approvedBy: actor.userId,
+          approvedAt: approvedAt.toISOString(),
+          // Q12 (F08-6): the bonus ledger entry minted in the same transaction.
+          financialEntryId: updated.financialEntryId,
+        },
       });
 
       const result = toRewardAwardResponse(updated);

@@ -7,9 +7,11 @@ import {
   InvoiceNotPendingReviewError,
   InvoiceEmptyPeriodError,
   InvoiceMixedCurrencyError,
+  InvoiceLinesChangedError,
   BillingIdempotencyPayloadMismatchError,
   BillingIdempotencyInProgressError,
 } from '../../domain/billing.errors';
+import type { IRewardAwardInvoiceSync } from '../../domain/reward-award-invoice-sync.port';
 import { periodEffectiveRange } from '../../domain/billing-period.service';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IJobQueue } from '../../../../shared/domain/job-queue';
@@ -49,6 +51,9 @@ export class ApproveDraftInvoiceUseCase {
     private readonly authorizationService: AuthorizationService,
     private readonly jobQueue: IJobQueue,
     private readonly idempotencyService: IIdempotencyService,
+    // Q12 (F08-6): optional so existing wirings/tests (6 args) keep working; when present, the
+    // period's rewards are linked to this invoice inside the freeze transaction.
+    private readonly invoiceSync?: IRewardAwardInvoiceSync,
   ) {}
 
   async execute(input: ApproveDraftInvoiceInput): Promise<ApproveDraftInvoiceOutput> {
@@ -136,16 +141,34 @@ export class ApproveDraftInvoiceUseCase {
     // Round to cents so accumulated float error (e.g. 80.00000000001) can't be frozen as the total.
     const totalAmount = Math.round(snapshot.reduce((sum, line) => sum + line.amount, 0) * 100) / 100;
 
-    // 4. Atomically transition PENDING_REVIEW → CLOSED, assign number, freeze snapshot.
+    // Q12 (F08-6): the original bonus lines (amount > 0) name the rewards paid by THIS invoice.
+    // Reversal lines (amount < 0) carry the original reward id too but are already voided/linked.
+    const rewardAwardIds = snapshot
+      .filter((line) => line.kind === 'BONUS' && line.amount > 0 && line.rewardAwardId)
+      .map((line) => line.rewardAwardId as string);
+
+    // 4. Atomically transition PENDING_REVIEW → CLOSED, assign number, freeze snapshot, and link
+    //    the period's rewards inside the same transaction.
     const now = new Date();
-    const assignedNumber = await this.invoiceRepo.assignNumberAndFreeze(invoiceId, {
-      lineItemsSnapshot: snapshot,
-      totalAmount,
-      inspectorName: invoice.inspectorName,
-      inspectorAbn: invoice.inspectorAbn,
-      issuedAt: now,
-      generatedByUserId: actor.userId,
-    });
+    const assignedNumber = await this.invoiceRepo.assignNumberAndFreeze(
+      invoiceId,
+      {
+        lineItemsSnapshot: snapshot,
+        totalAmount,
+        inspectorName: invoice.inspectorName,
+        inspectorAbn: invoice.inspectorAbn,
+        issuedAt: now,
+        generatedByUserId: actor.userId,
+      },
+      this.invoiceSync && rewardAwardIds.length > 0
+        ? async (tx) => {
+            const linked = await this.invoiceSync!.linkToInvoice(tx, invoiceId, rewardAwardIds);
+            // A reward voided between the snapshot read and the freeze links fewer rows than the
+            // frozen bonus lines expect → roll back and ask the caller to retry (fresh snapshot).
+            if (linked !== rewardAwardIds.length) throw new InvoiceLinesChangedError();
+          }
+        : undefined,
+    );
     if (assignedNumber === null) {
       // Lost an approval race — another operator already approved it.
       throw new InvoiceNotPendingReviewError();

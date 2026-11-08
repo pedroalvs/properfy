@@ -6,6 +6,8 @@ import { FilterSelect } from '@/components/filters/FilterSelect';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
+import { InvoiceDetailDrawer } from '@/features/financial/components/InvoiceDetailDrawer';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { toApiError } from '@/lib/api-error';
 import { PERIOD_CYCLE_LABELS } from '../lib/goal-labels';
@@ -25,6 +27,7 @@ const CYCLE_OPTIONS = Object.values(BillingPeriodType).map((period) => ({
 }));
 
 const STALE_MESSAGE = 'This reward was updated by someone else.';
+const FORBIDDEN_INVOICED_VOID_MESSAGE = 'Only an Admin Master can void an invoiced reward.';
 const IN_PROGRESS_MESSAGE = 'This period is still open. Rewards are created after it closes.';
 
 function isCycle(value: string | null): value is BillingPeriodType {
@@ -42,6 +45,9 @@ export function RewardsTab() {
   const { showSuccess, showError } = useSnackbar();
   const { approve, voidAward, pendingId } = useRewardAwardAction();
   const [voidTarget, setVoidTarget] = useState<RewardAwardResponse | null>(null);
+  const [invoiceId, setInvoiceId] = useState<string | null>(null);
+  const { hasRole } = usePermissions();
+  const isAdminMaster = hasRole('AM');
 
   const cycleParam = searchParams.get('cycle');
   const cycle: BillingPeriodType = isCycle(cycleParam) ? cycleParam : BillingPeriodType.WEEKLY;
@@ -108,7 +114,13 @@ export function RewardsTab() {
       }
     } catch (err) {
       const apiError = toApiError(err);
-      showError(apiError.status === 409 ? STALE_MESSAGE : apiError.message || 'Could not void the reward.');
+      showError(
+        apiError.status === 409
+          ? STALE_MESSAGE
+          : apiError.status === 403
+            ? FORBIDDEN_INVOICED_VOID_MESSAGE
+            : apiError.message || 'Could not void the reward.',
+      );
       setVoidTarget(null);
       if (apiError.status === 409) reload();
     }
@@ -164,6 +176,8 @@ export function RewardsTab() {
               onApprove={handleApprove}
               onVoid={setVoidTarget}
               pendingId={pendingId}
+              canVoidInvoiced={isAdminMaster}
+              onViewInvoice={setInvoiceId}
             />
           )}
         </>
@@ -172,9 +186,19 @@ export function RewardsTab() {
       <VoidAwardDialog
         open={voidTarget !== null}
         inspectorName={voidTarget?.inspector.name}
+        invoiced={voidTarget?.invoice != null}
         isSubmitting={pendingId === voidTarget?.id}
         onClose={() => setVoidTarget(null)}
         onConfirm={handleVoid}
+      />
+
+      <InvoiceDetailDrawer
+        invoiceId={invoiceId}
+        open={invoiceId !== null}
+        onClose={() => setInvoiceId(null)}
+        resolveInspectorLabel={(id) =>
+          awards.awards.find((a) => a.inspectorId === id)?.inspector.name ?? 'Unknown inspector'
+        }
       />
     </div>
   );

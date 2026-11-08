@@ -19,6 +19,7 @@ const invoiceRepo = {
   count: vi.fn(),
   save: vi.fn(),
   update: vi.fn(),
+  reversePaymentInTransaction: vi.fn().mockResolvedValue(true),
   getReconciliationAggregates: vi.fn(),
 };
 
@@ -104,12 +105,7 @@ describe('ReverseInvoicePaymentUseCase', () => {
       paymentReference: null,
     });
 
-    expect(invoiceRepo.update).toHaveBeenCalledWith('inv-1', {
-      status: 'CLOSED',
-      paidAt: null,
-      paidByUserId: null,
-      paymentReference: null,
-    });
+    expect(invoiceRepo.reversePaymentInTransaction).toHaveBeenCalledWith('inv-1', undefined);
   });
 
   it('writes an audit record including the reason and before/after snapshots', async () => {
@@ -204,7 +200,7 @@ describe('ReverseInvoicePaymentUseCase', () => {
       });
 
       expect(result).toEqual(cachedResult);
-      expect(invoiceRepo.update).not.toHaveBeenCalled();
+      expect(invoiceRepo.reversePaymentInTransaction).not.toHaveBeenCalled();
       expect(auditService.log).not.toHaveBeenCalled();
     });
 
@@ -218,7 +214,7 @@ describe('ReverseInvoicePaymentUseCase', () => {
       await expect(
         sut.execute({ invoiceId: 'inv-1', reason: 'test', idempotencyKey: 'idem-1', actor: opActor }),
       ).rejects.toThrow(BillingIdempotencyPayloadMismatchError);
-      expect(invoiceRepo.update).not.toHaveBeenCalled();
+      expect(invoiceRepo.reversePaymentInTransaction).not.toHaveBeenCalled();
     });
 
     it('throws a conflict when a request with the same key and payload is already in progress', async () => {
@@ -231,7 +227,7 @@ describe('ReverseInvoicePaymentUseCase', () => {
       await expect(
         sut.execute({ invoiceId: 'inv-1', reason: 'test', idempotencyKey: 'idem-1', actor: opActor }),
       ).rejects.toThrow(BillingIdempotencyInProgressError);
-      expect(invoiceRepo.update).not.toHaveBeenCalled();
+      expect(invoiceRepo.reversePaymentInTransaction).not.toHaveBeenCalled();
     });
   });
 });

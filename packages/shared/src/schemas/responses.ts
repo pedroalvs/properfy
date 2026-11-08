@@ -1015,7 +1015,8 @@ export const startInspectionResponseSchema = z.object({
 
 export const financialEntryResponseSchema = z.object({
   id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  // Null only for an INSPECTOR_BONUS entry (Q12 — platform↔inspector leg, no agency).
+  tenantId: z.string().uuid().nullable(),
   appointmentId: z.string().uuid().nullable(),
   inspectorId: z.string().uuid().nullable(),
   entryType: z.string(),
@@ -1042,18 +1043,32 @@ export const financialEntryResponseSchema = z.object({
 // One frozen payout line inside an inspector Property Invoice snapshot. Agency and
 // branch are line-level attributes only (never invoice ownership). Join-derived display
 // fields are nullable so the response serializer never throws if a relation is absent.
-export const invoiceSnapshotLineSchema = z.object({
-  serviceDate: civilDateStr(),
-  appointmentId: z.string().uuid(),
-  appointmentCode: z.string(),
-  propertyAddress: z.string().nullable(),
-  serviceType: z.string().nullable(),
-  amount: z.number(),
-  agencyId: z.string().uuid().nullable(),
-  agencyName: z.string().nullable(),
-  branchId: z.string().uuid().nullable(),
-  branchName: z.string().nullable(),
-});
+export const invoiceSnapshotLineSchema = z
+  .object({
+    // Q12 (TASK-F08-6): SERVICE = a payout line (an appointment); BONUS = an
+    // inspector goal bonus or its reversal (no appointment). A legacy line without
+    // `kind` parses as SERVICE, so existing snapshots keep validating.
+    kind: z.enum(['SERVICE', 'BONUS']).default('SERVICE'),
+    serviceDate: civilDateStr(),
+    appointmentId: z.string().uuid().nullable(),
+    appointmentCode: z.string().nullable(),
+    propertyAddress: z.string().nullable(),
+    serviceType: z.string().nullable(),
+    amount: z.number(),
+    agencyId: z.string().uuid().nullable(),
+    agencyName: z.string().nullable(),
+    branchId: z.string().uuid().nullable(),
+    branchName: z.string().nullable(),
+    // BONUS-only (Q12): the ledger entry id and the reward it pays (the reversal
+    // carries the original reward's id, resolved via reference_entry_id).
+    entryId: z.string().uuid().optional(),
+    rewardAwardId: z.string().uuid().nullable().optional(),
+    description: z.string().nullable().optional(),
+  })
+  .refine(
+    (line) => line.kind !== 'SERVICE' || (line.appointmentId !== null && line.appointmentCode !== null),
+    { message: 'A SERVICE invoice line requires appointmentId and appointmentCode', path: ['appointmentId'] },
+  );
 export type InvoiceSnapshotLine = z.infer<typeof invoiceSnapshotLineSchema>;
 
 export const invoiceResponseSchema = z.object({

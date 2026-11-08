@@ -16,11 +16,95 @@ import {
   inspectorScheduleItemSchema,
   inspectorScheduleMonthItemSchema,
   invoiceResponseSchema,
+  invoiceSnapshotLineSchema,
+  financialEntryResponseSchema,
   inspectorResponseSchema,
   startInspectionResponseSchema,
   finishInspectionResponseSchema,
   serviceGroupResponseSchema,
 } from './responses';
+
+describe('invoiceSnapshotLineSchema — Q12 bonus line (TASK-F08-6)', () => {
+  const serviceLine = {
+    serviceDate: '2026-11-02',
+    appointmentId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee201',
+    appointmentCode: 'APT-0001',
+    propertyAddress: '1 Test St',
+    serviceType: 'Routine Inspection',
+    amount: 80,
+    agencyId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee202',
+    agencyName: 'Agency X',
+    branchId: null,
+    branchName: null,
+  };
+
+  it('defaults a legacy line (no kind) to SERVICE', () => {
+    const parsed = invoiceSnapshotLineSchema.parse(serviceLine);
+    expect(parsed.kind).toBe('SERVICE');
+  });
+
+  it('accepts a BONUS line with null appointment and bonus fields', () => {
+    const parsed = invoiceSnapshotLineSchema.parse({
+      kind: 'BONUS',
+      serviceDate: '2026-11-10',
+      appointmentId: null,
+      appointmentCode: null,
+      propertyAddress: null,
+      serviceType: null,
+      amount: 30,
+      agencyId: null,
+      agencyName: null,
+      branchId: null,
+      branchName: null,
+      entryId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee301',
+      rewardAwardId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee302',
+      description: 'Bonus: Weekly volume · Week of Mon 2 Nov',
+    });
+    expect(parsed.kind).toBe('BONUS');
+    expect(parsed.appointmentId).toBeNull();
+    expect(parsed.description).toContain('Bonus');
+  });
+
+  it('rejects a SERVICE line missing appointmentId', () => {
+    expect(() =>
+      invoiceSnapshotLineSchema.parse({ ...serviceLine, appointmentId: null }),
+    ).toThrow();
+  });
+});
+
+describe('financialEntryResponseSchema — nullable tenantId (Q12)', () => {
+  const base = {
+    id: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee401',
+    appointmentId: null,
+    inspectorId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee402',
+    entryType: 'INSPECTOR_BONUS',
+    amount: 30,
+    currency: 'AUD',
+    status: 'APPROVED',
+    description: 'Bonus: Weekly volume · Week of Mon 2 Nov',
+    effectiveAt: '2026-11-10T01:00:00.000Z',
+    initiatedByUserId: null,
+    approvedByUserId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee403',
+    approvedAt: '2026-11-10T01:00:00.000Z',
+    referenceEntryId: null,
+    reason: null,
+    createdAt: '2026-11-10T01:00:00.000Z',
+  };
+
+  it('accepts a null tenantId (bonus entry)', () => {
+    const parsed = financialEntryResponseSchema.parse({ ...base, tenantId: null });
+    expect(parsed.tenantId).toBeNull();
+  });
+
+  it('still accepts a tenant-scoped entry', () => {
+    const parsed = financialEntryResponseSchema.parse({
+      ...base,
+      tenantId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee404',
+      entryType: 'INSPECTOR_PAYOUT',
+    });
+    expect(parsed.tenantId).toBe('4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee404');
+  });
+});
 
 describe('serviceGroupResponseSchema — assignedInspectorName', () => {
   const validBase = {

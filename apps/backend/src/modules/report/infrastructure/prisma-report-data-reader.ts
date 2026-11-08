@@ -194,8 +194,9 @@ export class PrismaReportDataReader implements IReportDataReader {
     let totalExpense = 0;
     const rows: Record<string, unknown>[] = entries.map((e) => {
       const amount = Number(e.amount);
-      // Agency revenue convention: revenue = debit − refund + adjustment.
-      // tenant_id is always set, so inspector-scope is the revenue/expense discriminator.
+      // Revenue convention: revenue = debit − refund + agency adjustment. The inspector leg
+      // (payout, inspector-scoped adjustment, Q12 goal bonus — the last has a null tenant_id)
+      // is an expense. A bonus reversal has a negative amount → a negative expense (a credit back).
       let revenue = 0;
       let expense = 0;
       switch (e.entry_type) {
@@ -206,6 +207,9 @@ export class PrismaReportDataReader implements IReportDataReader {
           revenue = -amount;
           break;
         case 'INSPECTOR_PAYOUT':
+          expense = amount;
+          break;
+        case 'INSPECTOR_BONUS':
           expense = amount;
           break;
         case 'MANUAL_ADJUSTMENT':
