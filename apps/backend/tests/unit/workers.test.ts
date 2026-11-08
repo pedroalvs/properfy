@@ -123,6 +123,7 @@ describe('registerWorkers', () => {
       { execute: vi.fn().mockResolvedValue({ deletedPurged: 0, activePurged: 0, orphansPurged: 0 }) } as any, // propertyFileRetentionWorker
       { execute: vi.fn().mockResolvedValue({ snapshotDate: '2026-12-02', inspectors: 0, scored: 0, insufficient: 0, durationMs: 1 }) } as any, // computeReliabilitySnapshotsUseCase
       { execute: vi.fn().mockResolvedValue('UP_TO_DATE') } as any, // ensureTodaySnapshotUseCase (+ startup backfill)
+      { execute: vi.fn().mockResolvedValue(undefined) } as any, // runInspectorProgramDailyUseCase
       mockLogger,
     );
   }
@@ -134,7 +135,8 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(32);
+    expect(mockWork).toHaveBeenCalledTimes(33);
+    expect(mockWork).toHaveBeenCalledWith('inspector-program.daily', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('day-plan.publish', { teamSize: 1, teamConcurrency: 1 }, expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('tenant-eta.morning', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('tenant-eta.evaluate', expect.any(Function));
@@ -165,7 +167,8 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('reliability.ensure-today', expect.any(Function));
     // All recurring jobs are anchored to the platform timezone (Sydney).
     const sydneyTz = { tz: 'Australia/Sydney' };
-    expect(mockSchedule).toHaveBeenCalledTimes(24);
+    expect(mockSchedule).toHaveBeenCalledTimes(25);
+    expect(mockSchedule).toHaveBeenCalledWith('inspector-program.daily', '45 4 * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('day-plan.publish', '30 * * * *', {}, expect.objectContaining(sydneyTz));
     expect(mockSchedule).toHaveBeenCalledWith('tenant-eta.morning', '0 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('tenant-eta.sweep-delays', '*/30 * * * *', {}, sydneyTz);

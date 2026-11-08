@@ -11,6 +11,7 @@ import type { EvaluateTenantEtaUseCase, EvaluateTenantEtaJob } from '../modules/
 import type { SweepTenantEtaDelaysUseCase } from '../modules/tenant-eta/application/use-cases/sweep-tenant-eta-delays.use-case';
 import type { ComputeReliabilitySnapshotsUseCase } from '../modules/reliability/application/use-cases/compute-reliability-snapshots.use-case';
 import type { EnsureTodaySnapshotUseCase } from '../modules/reliability/application/use-cases/ensure-today-snapshot.use-case';
+import type { RunInspectorProgramDailyUseCase } from '../modules/inspector-program/application/use-cases/run-inspector-program-daily.use-case';
 import type { IPlatformSettingsReader } from '../shared/domain/platform-settings';
 import type { DeliverInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/deliver-inspector-notice.use-case';
 import type { SweepUndeliveredInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/sweep-undelivered-inspector-notices.use-case';
@@ -80,6 +81,7 @@ export async function registerWorkers(
   propertyFileRetentionWorker: PropertyFileRetentionWorker,
   computeReliabilitySnapshotsUseCase: ComputeReliabilitySnapshotsUseCase,
   ensureTodaySnapshotUseCase: EnsureTodaySnapshotUseCase,
+  runInspectorProgramDailyUseCase: RunInspectorProgramDailyUseCase,
   logger: Logger,
 ): Promise<void> {
   // Guard against the misconfiguration where this process consumes jobs from one
@@ -453,7 +455,24 @@ export async function registerWorkers(
     }),
   );
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, inspection-execution.completion-reminder, audit.retention, appointment.reject-unconfirmed, service-group.cancel-empty, inspector-notice.deliver, inspector-notice.delivery-sweep, inspector-notice.auto-archive, day-plan.publish, tenant-eta.morning, tenant-eta.evaluate, tenant-eta.sweep-delays, system.dlq-monitor, reliability.compute-snapshots, reliability.ensure-today');
+  // Inspector program daily job (F08-1): one schedule at 04:45 Sydney that closes
+  // ended goal periods, creates rewards, and enqueues the 08:00 message run on the
+  // same queue (L-F08-01). The trigger distinguishes compute vs. messages; the kill
+  // switch leaves the queue unscheduled for rollback.
+  if (process.env.INSPECTOR_PROGRAM_JOBS_ENABLED !== 'false') {
+    await boss.schedule('inspector-program.daily', '45 4 * * *', {}, SYDNEY_TZ);
+    await boss.work(
+      'inspector-program.daily',
+      withJobMetrics('inspector-program.daily', async (job) => {
+        const trigger = (job.data as { trigger?: 'SCHEDULED' | 'STARTUP' | 'MESSAGES' }).trigger ?? 'SCHEDULED';
+        await runInspectorProgramDailyUseCase.execute({ trigger, now: new Date() });
+      }),
+    );
+  } else {
+    await boss.unschedule('inspector-program.daily');
+  }
+
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, inspection-execution.completion-reminder, audit.retention, appointment.reject-unconfirmed, service-group.cancel-empty, inspector-notice.deliver, inspector-notice.delivery-sweep, inspector-notice.auto-archive, day-plan.publish, tenant-eta.morning, tenant-eta.evaluate, tenant-eta.sweep-delays, system.dlq-monitor, reliability.compute-snapshots, reliability.ensure-today, inspector-program.daily');
 
   // On startup: backfill today's reliability snapshot if it is missing (F07-2).
   try {
@@ -461,6 +480,16 @@ export async function registerWorkers(
     logger.info({ outcome }, 'reliability.ensure-today backfill checked on startup');
   } catch (err) {
     logger.error({ err }, 'reliability.ensure-today backfill failed on startup');
+  }
+
+  // On startup: catch up any overdue goal-period closures (F08-1). The singletonKey
+  // coalesces with the scheduled run, and the use case no-ops when nothing is pending.
+  if (process.env.INSPECTOR_PROGRAM_JOBS_ENABLED !== 'false') {
+    try {
+      await boss.send('inspector-program.daily', { trigger: 'STARTUP' }, { singletonKey: 'inspector-program.daily' });
+    } catch (err) {
+      logger.error({ err }, 'inspector-program.daily startup enqueue failed');
+    }
   }
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
