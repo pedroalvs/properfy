@@ -54,4 +54,39 @@ describe('RankingTable', () => {
     const { container } = render(<RankingTable rows={rankingFixture.ranked} onOpen={vi.fn()} />);
     expect(within(container).getByText('Inspectors ranked by reliability score')).toBeInTheDocument();
   });
+
+  describe('Level column (F08 03.11)', () => {
+    const levelRows: RankedInspector[] = [
+      { position: 1, inspectorId: INSPECTOR_IDS.eva, inspectorName: 'Gold One', score: 88.3, volume: 10, completedCount: 10 },
+      { position: 2, inspectorId: INSPECTOR_IDS.dan, inspectorName: 'Silver One', score: 70, volume: 10, completedCount: 10 },
+      { position: 3, inspectorId: INSPECTOR_IDS.ana, inspectorName: 'Bronze One', score: 50, volume: 10, completedCount: 10 },
+    ];
+
+    it('derives Gold/Silver/Bronze from the default thresholds', () => {
+      render(<RankingTable rows={levelRows} onOpen={vi.fn()} levelThresholds={{ silverMinScore: 60, goldMinScore: 85 }} />);
+      expect(screen.getByText('Level')).toBeInTheDocument();
+      expect(screen.getByText('Gold')).toBeInTheDocument();
+      expect(screen.getByText('Silver')).toBeInTheDocument();
+      expect(screen.getByText('Bronze')).toBeInTheDocument();
+    });
+
+    it('re-derives when the thresholds change (88.3 → Silver at 70/90)', () => {
+      render(
+        <RankingTable
+          rows={[levelRows[0]!]}
+          onOpen={vi.fn()}
+          levelThresholds={{ silverMinScore: 70, goldMinScore: 90 }}
+        />,
+      );
+      expect(screen.getByText('Silver')).toBeInTheDocument();
+      expect(screen.queryByText('Gold')).not.toBeInTheDocument();
+    });
+
+    it('shows "–" when the thresholds are unavailable (loading/unreadable)', () => {
+      render(<RankingTable rows={[levelRows[0]!]} onOpen={vi.fn()} levelThresholds={null} />);
+      expect(screen.getByText('Level')).toBeInTheDocument();
+      expect(screen.getByText('–')).toBeInTheDocument();
+      expect(screen.queryByText('Gold')).not.toBeInTheDocument();
+    });
+  });
 });

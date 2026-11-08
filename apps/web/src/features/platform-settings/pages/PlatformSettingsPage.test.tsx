@@ -18,6 +18,7 @@ const SECTION_BY_KEY: Record<string, string> = {
   tenantEtaNotices: 'Tenant arrival notices',
   liveDayAlerts: 'Live Day alerts',
   propertyFiles: 'Property files',
+  inspectorProgram: 'Inspector program',
 };
 vi.mock('@/hooks/useSnackbar', () => ({
   useSnackbar: () => ({ showSuccess: vi.fn(), showError: vi.fn(), showInfo: vi.fn(), dismiss: vi.fn(), messages: [] }),
@@ -132,6 +133,14 @@ describe('PlatformSettingsPage', () => {
         'Applies to every inspector without a custom limit. Changes show on the Live Day within a minute.',
       ),
     ).toBeInTheDocument();
+  });
+
+  it('renders the Inspector program section with the default level thresholds', () => {
+    setHook();
+    renderPage();
+    expect(screen.getByText('Inspector program')).toBeInTheDocument();
+    expect(screen.getByLabelText('Silver from')).toHaveValue('60');
+    expect(screen.getByLabelText('Gold from')).toHaveValue('85');
   });
 
   it('shows the access ErrorState when the setting read is forbidden', () => {
