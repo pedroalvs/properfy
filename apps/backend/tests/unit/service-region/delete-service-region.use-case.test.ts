@@ -9,7 +9,9 @@ import {
   ServiceRegionNotFoundError,
   ServiceRegionStillActiveError,
   ServiceRegionHasPublishedGroupsError,
+  ServiceRegionHasActiveGoalsError,
 } from '../../../src/modules/service-region/domain/service-region.errors';
+import type { IRegionGoalUsageChecker } from '../../../src/modules/service-region/domain/region-goal-usage.checker';
 import { ServiceRegionEntity } from '../../../src/modules/service-region/domain/service-region.entity';
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
@@ -165,5 +167,55 @@ describe('DeleteServiceRegionUseCase', () => {
         after: null,
       }),
     );
+  });
+
+  describe('with the active-goal usage guard (F08-1)', () => {
+    function inactiveRegion() {
+      return new ServiceRegionEntity({
+        id: 'region-1',
+        tenantId: 'tenant-1',
+        name: 'Test',
+        geojson: {},
+        color: '#3b82f6',
+        status: 'INACTIVE',
+        createdByUserId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+
+    it('rejects deletion with 409 when active goals use the region', async () => {
+      const checker: IRegionGoalUsageChecker = { countActiveGoalsUsingRegion: vi.fn().mockResolvedValue(3) };
+      const guarded = new DeleteServiceRegionUseCase(
+        regionRepo,
+        auditService,
+        new AuthorizationService(auditService),
+        checker,
+      );
+      vi.mocked(regionRepo.findById).mockResolvedValue(inactiveRegion());
+
+      await expect(guarded.execute({ regionId: 'region-1', actor: makeActor() })).rejects.toBeInstanceOf(
+        ServiceRegionHasActiveGoalsError,
+      );
+      expect(checker.countActiveGoalsUsingRegion).toHaveBeenCalledWith('region-1');
+      expect(regionRepo.delete).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'service_region.deleted' }),
+      );
+    });
+
+    it('deletes when no active goal uses the region', async () => {
+      const checker: IRegionGoalUsageChecker = { countActiveGoalsUsingRegion: vi.fn().mockResolvedValue(0) };
+      const guarded = new DeleteServiceRegionUseCase(
+        regionRepo,
+        auditService,
+        new AuthorizationService(auditService),
+        checker,
+      );
+      vi.mocked(regionRepo.findById).mockResolvedValue(inactiveRegion());
+
+      await guarded.execute({ regionId: 'region-1', actor: makeActor() });
+      expect(regionRepo.delete).toHaveBeenCalledWith('region-1', 'tenant-1');
+    });
   });
 });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { GeofenceMode } from '../enums/field-events';
+import { InspectorLevel } from '../enums/inspector-program';
 import { DEFAULT_ROUTE_WEIGHTS } from '../route-planning/types';
 
 /**
@@ -153,6 +154,38 @@ export const DEFAULT_PROPERTY_FILES_SETTING: PropertyFilesSetting = {
   deletedRetentionDays: 365,
 };
 
+/**
+ * Inspector program configuration (F08 D3/D12). One key, two objects: the level
+ * thresholds (`silverMinScore`/`goldMinScore`, 0 < silver < gold ≤ 100, one
+ * decimal) and the early-access config (`enabled`/`hours`/`minLevel`/`enabledAt`).
+ * `enabledAt` is filled by the server when early access is switched on
+ * (TASK-F08-2); a client-supplied value is ignored. Platform-scoped (no tenant_id).
+ */
+const inspectorProgramLevelScore = z.number().min(0.1).max(100).multipleOf(0.1);
+export const inspectorProgramSettingSchema = z.object({
+  levels: z
+    .object({
+      silverMinScore: inspectorProgramLevelScore,
+      goldMinScore: inspectorProgramLevelScore,
+    })
+    .refine((l) => l.goldMinScore > l.silverMinScore, {
+      message: 'Gold must be above Silver',
+      path: ['goldMinScore'],
+    }),
+  earlyAccess: z.object({
+    enabled: z.boolean(),
+    hours: z.number().int().min(1).max(72),
+    minLevel: z.nativeEnum(InspectorLevel),
+    enabledAt: z.string().datetime().nullable(),
+  }),
+});
+export type InspectorProgramSetting = z.infer<typeof inspectorProgramSettingSchema>;
+
+export const DEFAULT_INSPECTOR_PROGRAM: InspectorProgramSetting = {
+  levels: { silverMinScore: 60, goldMinScore: 85 },
+  earlyAccess: { enabled: false, hours: 12, minLevel: InspectorLevel.GOLD, enabledAt: null },
+};
+
 export const PLATFORM_SETTINGS_REGISTRY = {
   fieldEvents: {
     schema: fieldEventsSettingSchema,
@@ -196,6 +229,11 @@ export const PLATFORM_SETTINGS_REGISTRY = {
     schema: propertyFilesSettingSchema,
     defaults: DEFAULT_PROPERTY_FILES_SETTING,
     section: 'Property files',
+  },
+  inspectorProgram: {
+    schema: inspectorProgramSettingSchema,
+    defaults: DEFAULT_INSPECTOR_PROGRAM,
+    section: 'Inspector program',
   },
 } as const satisfies Record<string, { schema: z.ZodTypeAny; defaults: unknown; section: string }>;
 

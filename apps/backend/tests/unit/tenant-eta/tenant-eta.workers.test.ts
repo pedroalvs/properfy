@@ -44,6 +44,7 @@ async function register(opts: { enabled: boolean; sendMorning: any; evaluate: an
     stub(), // propertyFileRetentionWorker
     stub(), // computeReliabilitySnapshotsUseCase
     stub(), // ensureTodaySnapshotUseCase
+    stub(), // runInspectorProgramDailyUseCase
     makeLogger() as any,
   );
 }

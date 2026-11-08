@@ -312,6 +312,10 @@ model User {
   platform_settings_updated  PlatformSetting[]     @relation("PlatformSettingUpdatedBy")
   authored_inspector_notices InspectorNotice[]     @relation("InspectorNoticeAuthor")
   computed_day_plans         DayPlan[]             @relation("DayPlanComputedBy")
+  created_inspector_goals    InspectorGoal[]       @relation("InspectorGoalCreatedBy")
+  updated_inspector_goals    InspectorGoal[]       @relation("InspectorGoalUpdatedBy")
+  approved_reward_awards     RewardAward[]         @relation("RewardAwardApprovedBy")
+  voided_reward_awards       RewardAward[]         @relation("RewardAwardVoidedBy")
 
   @@index([tenant_id])
   @@index([tenant_id, role])
@@ -465,9 +469,10 @@ model ServiceType {
   created_at                          DateTime            @default(now())
   updated_at                          DateTime            @updatedAt
 
-  price_rules    ServicePriceRule[]
-  appointments   Appointment[]
-  service_groups ServiceGroup[]
+  price_rules     ServicePriceRule[]
+  appointments    Appointment[]
+  service_groups  ServiceGroup[]
+  inspector_goals InspectorGoal[]
 
   // Uniqueness enforced case-insensitively via migration index lower(name).
   // Prisma does not support functional indexes in schema, so the constraint
@@ -546,7 +551,7 @@ model Inspector {
   updated_at                 DateTime           @updatedAt
   deleted_at                 DateTime?
 
-  user                    User?                       @relation(fields: [user_id], references: [id])
+  user                    User?                          @relation(fields: [user_id], references: [id])
   availability_slots      InspectorAvailabilitySlot[]
   appointments            Appointment[]
   assigned_service_groups ServiceGroup[]
@@ -560,6 +565,8 @@ model Inspector {
   push_subscriptions      InspectorPushSubscription[]
   day_plans               DayPlan[]
   reliability_snapshots   InspectorReliabilitySnapshot[]
+  reward_awards           RewardAward[]
+  scoped_goals            InspectorGoal[]                @relation("InspectorGoalScope")
 
   @@index([status])
   @@index([user_id])
@@ -1435,11 +1442,11 @@ model PropertyIssue {
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
 
-  tenant         Tenant               @relation(fields: [tenant_id], references: [id])
-  property       Property             @relation(fields: [property_id], references: [id])
-  appointment    Appointment?         @relation(fields: [appointment_id], references: [id])
-  cant_do_event  InspectorFieldEvent? @relation(fields: [cant_do_event_id], references: [id])
-  photos         PropertyFile[]
+  tenant        Tenant               @relation(fields: [tenant_id], references: [id])
+  property      Property             @relation(fields: [property_id], references: [id])
+  appointment   Appointment?         @relation(fields: [appointment_id], references: [id])
+  cant_do_event InspectorFieldEvent? @relation(fields: [cant_do_event_id], references: [id])
+  photos        PropertyFile[]
 
   // Partial indexes (unseen-issue indicators — D26) live in migration SQL; Prisma
   // cannot express them and the drift check will not drop raw partial indexes.
@@ -1784,6 +1791,7 @@ model ServiceRegion {
   created_by        User?             @relation("ServiceRegionCreatedBy", fields: [created_by_user_id], references: [id])
   inspector_regions InspectorRegion[]
   service_groups    ServiceGroup[]
+  inspector_goals   InspectorGoal[]
 
   @@unique([tenant_id, name])
   @@index([tenant_id])
@@ -2041,4 +2049,145 @@ model InspectorReliabilitySnapshot {
   @@unique([inspector_id, snapshot_date])
   @@index([snapshot_date, score(sort: Desc)])
   @@map("inspector_reliability_snapshots")
+}
+
+// -----------------------------------------------------------------------------
+// Inspector program — goals & rewards (F08). InspectorGoal, RewardAward and
+// GoalPeriodClosure are platform-scoped — NO `tenant_id`: the subject is the
+// cross-tenant inspector and the program is one platform program (documented
+// exception to root CLAUDE.md §7.1 / constitution §II / this workspace §5.6, D12;
+// precedents: Inspector, global ServiceRegion, PlatformSetting,
+// InspectorReliabilitySnapshot). Isolation is by RBAC (AM/OP admin, INSP own
+// data) and by inspectorId; no row stores an agency name, address or coordinate.
+// CHECK constraints live only in the migration SQL (Prisma does not model CHECK,
+// so they never drift). Period type reuses BillingPeriodType.
+// -----------------------------------------------------------------------------
+
+enum GoalMetric {
+  VOLUME
+  REGION_VOLUME
+  SERVICE_TYPE_VOLUME
+  INDEX_AT_LEAST
+  PUNCTUALITY
+  GEOFENCE
+  NO_STUCK
+  SATISFACTION
+  LATE_NOTICE
+  CANT_DO_MAX
+}
+
+enum GoalComparator {
+  GTE
+  LTE
+}
+
+enum RewardAwardStatus {
+  PENDING
+  APPROVED
+  PAID
+  VOID
+}
+
+model InspectorGoal {
+  id                    String            @id @default(uuid())
+  title                 String            @db.VarChar(120)
+  metric                GoalMetric
+  comparator            GoalComparator // fixed per metric (P1)
+  target                Decimal           @db.Decimal(8, 2) // volume: integer; rate: %; index: points
+  period                BillingPeriodType
+  scope_region_id       String? // SetNull if the region is deleted (only inactive goals reach there)
+  scope_service_type_id String?
+  scope_inspector_id    String?
+  reward_amount         Decimal           @db.Decimal(10, 2) // AUD cash bonus (DV1)
+  starts_at             DateTime          @db.Date // first day of a period (P5)
+  ends_at               DateTime?         @db.Date // last day of a period; null = open-ended
+  active                Boolean           @default(true)
+  deactivated_at        DateTime? // L-F08-02: instant of deactivation; null when active
+  next_target           Decimal?          @db.Decimal(8, 2) // L-F08-02: pending terms, effective from
+  next_reward_amount    Decimal?          @db.Decimal(10, 2) // next_effective_from (first day of next period)
+  next_effective_from   DateTime?         @db.Date
+  created_by_user_id    String
+  updated_by_user_id    String?
+  created_at            DateTime          @default(now())
+  updated_at            DateTime          @updatedAt
+
+  scope_region       ServiceRegion?      @relation(fields: [scope_region_id], references: [id], onDelete: SetNull)
+  scope_service_type ServiceType?        @relation(fields: [scope_service_type_id], references: [id], onDelete: Restrict)
+  scope_inspector    Inspector?          @relation("InspectorGoalScope", fields: [scope_inspector_id], references: [id], onDelete: Restrict)
+  created_by         User                @relation("InspectorGoalCreatedBy", fields: [created_by_user_id], references: [id])
+  updated_by         User?               @relation("InspectorGoalUpdatedBy", fields: [updated_by_user_id], references: [id])
+  awards             RewardAward[]
+  closures           GoalPeriodClosure[]
+
+  @@index([active, period])
+  @@index([scope_region_id])
+  @@index([scope_inspector_id])
+  @@map("inspector_goals")
+}
+
+model RewardAward {
+  id                   String            @id @default(uuid())
+  goal_id              String
+  inspector_id         String
+  period_type          BillingPeriodType
+  period_start         DateTime          @db.Date
+  period_end           DateTime          @db.Date
+  // Goal snapshot at close (immutable)
+  goal_title           String            @db.VarChar(120)
+  metric               GoalMetric
+  comparator           GoalComparator
+  target               Decimal           @db.Decimal(8, 2)
+  amount               Decimal           @db.Decimal(10, 2)
+  scope_label          String?           @db.VarChar(200) // L-F08-13: region/type/inspector name at close
+  // Result
+  achieved_value       Decimal           @db.Decimal(8, 2)
+  service_count        Int
+  achieved_on          DateTime          @db.Date
+  index_score_at_close Decimal?          @db.Decimal(4, 1)
+  level_at_close       String?           @db.VarChar(10)
+  index_snapshot_date  DateTime?         @db.Date // DR2: F07 snapshot used (may be < period_end + 1)
+  // Lifecycle (system award: no human author, DV2)
+  status               RewardAwardStatus @default(PENDING)
+  approved_by_user_id  String?
+  approved_at          DateTime?
+  paid_at              DateTime? // Q12: filled by TASK-F08-6 with the invoice paid_at; null until then
+  voided_by_user_id    String?
+  voided_at            DateTime?
+  void_reason          String?           @db.VarChar(500) // internal (AM/OP, report), L-F08-05
+  inspector_note       String?           @db.VarChar(200) // L-F08-05: only void text shown in the app
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @updatedAt
+
+  goal        InspectorGoal @relation(fields: [goal_id], references: [id], onDelete: Restrict)
+  inspector   Inspector     @relation(fields: [inspector_id], references: [id], onDelete: Restrict)
+  approved_by User?         @relation("RewardAwardApprovedBy", fields: [approved_by_user_id], references: [id])
+  voided_by   User?         @relation("RewardAwardVoidedBy", fields: [voided_by_user_id], references: [id])
+
+  @@unique([goal_id, inspector_id, period_start])
+  @@index([status, period_end])
+  @@index([inspector_id, period_end])
+  @@index([period_type, period_start])
+  @@map("reward_awards")
+}
+
+model GoalPeriodClosure {
+  id                  String            @id @default(uuid())
+  goal_id             String
+  period_type         BillingPeriodType
+  period_start        DateTime          @db.Date
+  period_end          DateTime          @db.Date
+  participant_ids     String[] // P3/P11
+  participants_count  Int
+  achievers_count     Int
+  promised_amount     Decimal           @db.Decimal(12, 2) // reward_amount × participants (P10); 0 in SKIPPED_INACTIVE
+  scope_label         String?           @db.VarChar(200) // L-F08-13
+  index_snapshot_date DateTime?         @db.Date // DR2: F07 snapshot read at close; null without snapshot or SKIPPED_INACTIVE
+  trigger             String            @db.VarChar(20) // SCHEDULED | STARTUP | SKIPPED_INACTIVE (L-F08-02)
+  closed_at           DateTime
+
+  goal InspectorGoal @relation(fields: [goal_id], references: [id], onDelete: Restrict)
+
+  @@unique([goal_id, period_start])
+  @@index([period_type, period_start])
+  @@map("goal_period_closures")
 }

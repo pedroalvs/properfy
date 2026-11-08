@@ -136,6 +136,7 @@ async function start() {
       container.propertyFileRetentionWorker,
       container.reliability.computeSnapshotsUseCase,
       container.reliability.ensureTodaySnapshotUseCase,
+      container.inspectorProgram.runDailyUseCase,
       app.log,
     );
   }

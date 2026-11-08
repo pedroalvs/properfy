@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   fieldEventsSettingSchema,
+  inspectorProgramSettingSchema,
   PLATFORM_SETTINGS_REGISTRY,
   isPlatformSettingKey,
   resolvePlatformSettingValue,
@@ -362,5 +363,67 @@ describe('propertyFiles platform setting (F10)', () => {
     expect(resolvePlatformSettingValue('propertyFiles', { maxFileSizeMb: 9999 }).valid).toBe(
       false,
     );
+  });
+});
+
+describe('inspectorProgramSettingSchema', () => {
+  const defaults = PLATFORM_SETTINGS_REGISTRY.inspectorProgram.defaults;
+
+  it('has the documented defaults', () => {
+    expect(defaults).toEqual({
+      levels: { silverMinScore: 60, goldMinScore: 85 },
+      earlyAccess: { enabled: false, hours: 12, minLevel: 'GOLD', enabledAt: null },
+    });
+    expect(inspectorProgramSettingSchema.safeParse(defaults).success).toBe(true);
+  });
+
+  it('validates earlyAccess.enabledAt as an ISO-8601-with-Z string or null', () => {
+    const withEnabledAt = (enabledAt: unknown) => ({
+      ...defaults,
+      earlyAccess: { ...defaults.earlyAccess, enabledAt },
+    });
+    expect(inspectorProgramSettingSchema.safeParse(withEnabledAt('2026-11-10T09:00:00.000Z')).success).toBe(true);
+    expect(inspectorProgramSettingSchema.safeParse(withEnabledAt(null)).success).toBe(true);
+    expect(inspectorProgramSettingSchema.safeParse(withEnabledAt('ontem')).success).toBe(false);
+  });
+
+  it('requires Gold above Silver', () => {
+    const result = inspectorProgramSettingSchema.safeParse({
+      ...defaults,
+      levels: { silverMinScore: 85, goldMinScore: 85 },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find((i) => i.path.join('.') === 'levels.goldMinScore');
+      expect(issue?.message).toBe('Gold must be above Silver');
+    }
+  });
+
+  it('enforces level-score bounds (0 < x <= 100, one decimal)', () => {
+    const withLevels = (silverMinScore: number, goldMinScore: number) => ({
+      ...defaults,
+      levels: { silverMinScore, goldMinScore },
+    });
+    expect(inspectorProgramSettingSchema.safeParse(withLevels(0, 85)).success).toBe(false);
+    expect(inspectorProgramSettingSchema.safeParse(withLevels(60, 101)).success).toBe(false);
+    expect(inspectorProgramSettingSchema.safeParse(withLevels(60.55, 85)).success).toBe(false);
+    expect(inspectorProgramSettingSchema.safeParse(withLevels(60.5, 85)).success).toBe(true);
+  });
+
+  it('enforces earlyAccess.hours bounds (integer 1..72)', () => {
+    const withHours = (hours: number) => ({
+      ...defaults,
+      earlyAccess: { ...defaults.earlyAccess, hours },
+    });
+    expect(inspectorProgramSettingSchema.safeParse(withHours(0)).success).toBe(false);
+    expect(inspectorProgramSettingSchema.safeParse(withHours(73)).success).toBe(false);
+    expect(inspectorProgramSettingSchema.safeParse(withHours(1.5)).success).toBe(false);
+    expect(inspectorProgramSettingSchema.safeParse(withHours(72)).success).toBe(true);
+  });
+
+  it('resolves to defaults when no value is stored', () => {
+    const resolved = resolvePlatformSettingValue('inspectorProgram', null);
+    expect(resolved.valid).toBe(true);
+    expect(resolved.value).toEqual(defaults);
   });
 });

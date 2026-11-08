@@ -7,10 +7,22 @@ import type { Prisma } from '@prisma/client';
  * `ServiceFact`s. No row carries a latitude/longitude (D12).
  */
 
+/**
+ * Optional region / service-type scope (F08). Added by F08-1 for region- and
+ * service-type-scoped volume goals; it filters the appointment-based fact
+ * branches (Q1/Q2/Q3) only. The volume-reference median (`loadCompletedCounts`)
+ * is NEVER scoped — one goal must not move the platform median.
+ */
+export interface ReliabilityFactsScope {
+  regionId?: string;
+  serviceTypeId?: string;
+}
+
 export interface ReliabilityCivilRange {
   from: string; // 'YYYY-MM-DD' (inclusive)
   to: string; // 'YYYY-MM-DD' (inclusive)
   inspectorIds?: string[];
+  scope?: ReliabilityFactsScope; // F08: narrows Q1/Q2/Q3 to a region or service type
 }
 
 interface ReliabilityBaseRow {

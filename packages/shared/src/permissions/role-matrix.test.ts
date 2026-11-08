@@ -368,3 +368,36 @@ describe('reliability.view (F07-2)', () => {
     }
   });
 });
+
+describe('inspector_program.* (F08-1)', () => {
+  const adminActions = [
+    'inspector_program.goals.manage',
+    'inspector_program.awards.view',
+    'inspector_program.awards.approve',
+    'inspector_program.awards.void',
+  ];
+
+  it.each(adminActions)('%s: AM/OP only, no condition', (action) => {
+    const entry = getMatrixEntry(action);
+    expect(entry).toEqual({ roles: ['AM', 'OP'] });
+    for (const role of ['AM', 'OP'] as UserRole[]) {
+      expect(can(role, action)).toBe(true);
+    }
+    for (const role of ['CL_ADMIN', 'CL_USER', 'INSP', 'TNT'] as UserRole[]) {
+      expect(can(role, action)).toBe(false);
+    }
+  });
+
+  it('inspector_program.view_own: INSP only', () => {
+    const entry = getMatrixEntry('inspector_program.view_own');
+    expect(entry).toEqual({ roles: ['INSP'] });
+    expect(can('INSP', 'inspector_program.view_own')).toBe(true);
+    for (const role of ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'TNT'] as UserRole[]) {
+      expect(can(role, 'inspector_program.view_own')).toBe(false);
+    }
+  });
+
+  it('has no awards.pay action (Q12 — the invoice pays, no manual payment)', () => {
+    expect(getMatrixEntry('inspector_program.awards.pay')).toBeUndefined();
+  });
+});

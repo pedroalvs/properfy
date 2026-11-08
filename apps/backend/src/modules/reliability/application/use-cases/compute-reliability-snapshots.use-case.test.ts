@@ -39,8 +39,26 @@ function batchFixture(): ReliabilityComputationBatch {
   return {
     volumeReference: { value: 9.5, source: 'MEDIAN', activeInspectors: 6, periodDays: 30 },
     byInspector: new Map([
-      ['ana', { inspectorId: 'ana', volume: 12, completedCount: 12, metrics: metricsAt(0.9) }],
-      ['ben', { inspectorId: 'ben', volume: 10, completedCount: 10, metrics: metricsAt(0.8) }],
+      [
+        'ana',
+        {
+          inspectorId: 'ana',
+          volume: 12,
+          completedCount: 12,
+          completedServiceDates: Array.from({ length: 12 }, () => '2026-11-15'),
+          metrics: metricsAt(0.9),
+        },
+      ],
+      [
+        'ben',
+        {
+          inspectorId: 'ben',
+          volume: 10,
+          completedCount: 10,
+          completedServiceDates: Array.from({ length: 10 }, () => '2026-11-15'),
+          metrics: metricsAt(0.8),
+        },
+      ],
     ]),
   };
 }

@@ -88,6 +88,7 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // propertyFileRetentionWorker
     makeWorkerMock() as any,   // computeReliabilitySnapshotsUseCase
     { execute: vi.fn().mockResolvedValue('UP_TO_DATE') } as any, // ensureTodaySnapshotUseCase (also the startup backfill)
+    makeWorkerMock() as any,   // runInspectorProgramDailyUseCase
     logger as any,
   );
 }
@@ -127,6 +128,7 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
     ['system.dlq-monitor', '*/5 * * * *'],
     ['reliability.compute-snapshots', '15 4 * * *'],
     ['reliability.ensure-today', '0 5-12 * * *'],
+    ['inspector-program.daily', '45 4 * * *'],
   ];
 
   it('schedules every cron with the expected expression and tz Australia/Sydney', async () => {

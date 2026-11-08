@@ -270,6 +270,28 @@ import { GetReliabilityRankingUseCase } from '../modules/reliability/application
 import { GetInspectorReliabilityUseCase } from '../modules/reliability/application/use-cases/get-inspector-reliability.use-case';
 import { RecomputeReliabilityOnSettingsChangeSubscriber } from '../modules/reliability/application/subscribers/recompute-reliability-on-settings-change.subscriber';
 import type { ReliabilityRouteContainer } from '../modules/reliability/interfaces/reliability.routes';
+import { PrismaGoalRepository, PrismaGoalScopeReader } from '../modules/inspector-program/infrastructure/prisma-goal.repository';
+import { PrismaRewardAwardRepository } from '../modules/inspector-program/infrastructure/prisma-reward-award.repository';
+import { PrismaGoalPeriodClosureRepository } from '../modules/inspector-program/infrastructure/prisma-goal-period-closure.repository';
+import { PrismaProgramInspectorReader } from '../modules/inspector-program/infrastructure/prisma-program-inspector.reader';
+import { NoopRewardAwardApprovalHook } from '../modules/inspector-program/domain/reward-award-approval.hook';
+import { CloseGoalPeriodsUseCase } from '../modules/inspector-program/application/use-cases/close-goal-periods.use-case';
+import {
+  RunInspectorProgramDailyUseCase,
+  ScheduleMessagesRunStep,
+} from '../modules/inspector-program/application/use-cases/run-inspector-program-daily.use-case';
+import { ListRewardAwardsUseCase } from '../modules/inspector-program/application/use-cases/list-reward-awards.use-case';
+import { GetProgramPeriodSummaryUseCase } from '../modules/inspector-program/application/use-cases/get-program-period-summary.use-case';
+import { CreateGoalUseCase } from '../modules/inspector-program/application/use-cases/create-goal.use-case';
+import { UpdateGoalUseCase } from '../modules/inspector-program/application/use-cases/update-goal.use-case';
+import { ListGoalsUseCase } from '../modules/inspector-program/application/use-cases/list-goals.use-case';
+import { GetGoalUseCase } from '../modules/inspector-program/application/use-cases/get-goal.use-case';
+import { ListProgramPeriodsUseCase } from '../modules/inspector-program/application/use-cases/list-program-periods.use-case';
+import { ApproveRewardAwardUseCase } from '../modules/inspector-program/application/use-cases/approve-reward-award.use-case';
+import { VoidRewardAwardUseCase } from '../modules/inspector-program/application/use-cases/void-reward-award.use-case';
+import { RegionGoalUsageChecker } from '../modules/inspector-program/application/region-goal-usage-checker';
+import { InspectorProgramStandingService } from '../modules/inspector-program/application/inspector-program-standing.service';
+import type { InspectorProgramRouteContainer } from '../modules/inspector-program/interfaces/inspector-program.routes';
 import type { ExecutionDensityRouteContainer } from '../modules/inspector-execution/interfaces/execution-density.routes';
 // Property files & issues (F10)
 import { PrismaPropertyFileRepository } from '../modules/property-file/infrastructure/prisma-property-file.repository';
@@ -611,6 +633,18 @@ export interface AppContainer {
     indexReader: ReliabilityIndexReader;
     computeSnapshotsUseCase: ComputeReliabilitySnapshotsUseCase;
     ensureTodaySnapshotUseCase: EnsureTodaySnapshotUseCase;
+  };
+  inspectorProgram: InspectorProgramRouteContainer & {
+    runDailyUseCase: RunInspectorProgramDailyUseCase;
+    closeGoalPeriodsUseCase: CloseGoalPeriodsUseCase;
+    standingService: InspectorProgramStandingService;
+    goalRepository: PrismaGoalRepository;
+    goalScopeReader: PrismaGoalScopeReader;
+    rewardAwardRepository: PrismaRewardAwardRepository;
+    goalPeriodClosureRepository: PrismaGoalPeriodClosureRepository;
+    programInspectorReader: PrismaProgramInspectorReader;
+    rewardAwardApprovalHook: NoopRewardAwardApprovalHook;
+    regionGoalUsageChecker: RegionGoalUsageChecker;
   };
   propertyFile: PropertyFileRouteContainer;
   propertyIssue: PropertyIssueRouteContainer;
@@ -1403,6 +1437,93 @@ export function createContainer(logger: Logger): AppContainer {
     PLATFORM_SETTING_EVENTS.UPDATED,
     (event) => recomputeReliabilityOnSettingsChangeSubscriber.handle(event),
   );
+  // Inspector program (F08-1): goals, rewards, closure job, levels/streaks. Platform
+  // -scoped (no tenant_id); the approval hook is no-op until TASK-F08-6 (Q12).
+  const inspectorProgramClock = new SystemClock();
+  const inspectorProgramJobQueue = env.ENABLE_JOB_QUEUE === 'true' ? new PgBossJobQueue() : new StubJobQueue();
+  const goalRepository = new PrismaGoalRepository(prisma);
+  const goalScopeReader = new PrismaGoalScopeReader(prisma);
+  const rewardAwardRepository = new PrismaRewardAwardRepository(prisma);
+  const goalPeriodClosureRepository = new PrismaGoalPeriodClosureRepository(prisma);
+  const programInspectorReader = new PrismaProgramInspectorReader(prisma);
+  const rewardAwardApprovalHook = new NoopRewardAwardApprovalHook();
+  const closeGoalPeriodsUseCase = new CloseGoalPeriodsUseCase(
+    goalRepository,
+    goalPeriodClosureRepository,
+    rewardAwardRepository,
+    programInspectorReader,
+    reliabilityMetricsService,
+    reliabilityIndexReader,
+    platformSettingsService,
+    auditService,
+    logger,
+    prisma,
+  );
+  const runInspectorProgramDailyUseCase = new RunInspectorProgramDailyUseCase([
+    closeGoalPeriodsUseCase,
+    new ScheduleMessagesRunStep(inspectorProgramJobQueue),
+  ]);
+  const inspectorProgramStandingService = new InspectorProgramStandingService(
+    goalRepository,
+    goalPeriodClosureRepository,
+    programInspectorReader,
+    reliabilityMetricsService,
+    reliabilityIndexReader,
+    platformSettingsService,
+    inspectorProgramClock,
+  );
+  const listRewardAwardsUseCase = new ListRewardAwardsUseCase(rewardAwardRepository, authorizationService);
+  const getProgramPeriodSummaryUseCase = new GetProgramPeriodSummaryUseCase(
+    goalRepository,
+    goalPeriodClosureRepository,
+    rewardAwardRepository,
+    programInspectorReader,
+    authorizationService,
+    inspectorProgramClock,
+  );
+  // F08-1 (Esteio slice): goal CRUD, reward approve/void and the region-delete guard.
+  const createGoalUseCase = new CreateGoalUseCase(
+    goalRepository,
+    goalScopeReader,
+    auditService,
+    authorizationService,
+    inspectorProgramClock,
+  );
+  const updateGoalUseCase = new UpdateGoalUseCase(
+    goalRepository,
+    goalPeriodClosureRepository,
+    auditService,
+    authorizationService,
+    inspectorProgramClock,
+    prisma,
+  );
+  const listGoalsUseCase = new ListGoalsUseCase(goalRepository, authorizationService, inspectorProgramClock);
+  const getGoalUseCase = new GetGoalUseCase(
+    goalRepository,
+    goalPeriodClosureRepository,
+    authorizationService,
+    inspectorProgramClock,
+  );
+  const listProgramPeriodsUseCase = new ListProgramPeriodsUseCase(authorizationService, inspectorProgramClock);
+  const approveRewardAwardUseCase = new ApproveRewardAwardUseCase(
+    rewardAwardRepository,
+    rewardAwardApprovalHook,
+    auditService,
+    authorizationService,
+    idempotencyService,
+    inspectorProgramClock,
+    prisma,
+  );
+  const voidRewardAwardUseCase = new VoidRewardAwardUseCase(
+    rewardAwardRepository,
+    rewardAwardApprovalHook,
+    auditService,
+    authorizationService,
+    idempotencyService,
+    inspectorProgramClock,
+    prisma,
+  );
+  const regionGoalUsageChecker = new RegionGoalUsageChecker(goalRepository);
   // Live Day read model (F05-1): one aggregated query, zero Mapbox; reads thresholds
   // through the shared IPlatformSettingsReader (30 s cache).
   const liveDayReadRepository = new PrismaLiveDayReadRepository(prisma);
@@ -1812,7 +1933,12 @@ export function createContainer(logger: Logger): AppContainer {
   const listServiceRegionsUseCase = new ListServiceRegionsUseCase(serviceRegionRepo, authorizationService);
   const deactivateServiceRegionUseCase = new DeactivateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService, domainEventBus);
   const reactivateServiceRegionUseCase = new ReactivateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService, domainEventBus);
-  const deleteServiceRegionUseCase = new DeleteServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService);
+  const deleteServiceRegionUseCase = new DeleteServiceRegionUseCase(
+    serviceRegionRepo,
+    auditService,
+    authorizationService,
+    regionGoalUsageChecker,
+  );
   const resolveRegionsUseCase = new ResolveRegionsUseCase(serviceRegionRepo, authorizationService);
 
   // Service region event handlers
@@ -2228,6 +2354,29 @@ export function createContainer(logger: Logger): AppContainer {
       ensureTodaySnapshotUseCase,
       getRankingUseCase: getReliabilityRankingUseCase,
       getInspectorReliabilityUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    inspectorProgram: {
+      runDailyUseCase: runInspectorProgramDailyUseCase,
+      closeGoalPeriodsUseCase,
+      standingService: inspectorProgramStandingService,
+      listRewardAwardsUseCase,
+      getProgramPeriodSummaryUseCase,
+      createGoalUseCase,
+      updateGoalUseCase,
+      listGoalsUseCase,
+      getGoalUseCase,
+      listProgramPeriodsUseCase,
+      approveRewardAwardUseCase,
+      voidRewardAwardUseCase,
+      regionGoalUsageChecker,
+      goalRepository,
+      goalScopeReader,
+      rewardAwardRepository,
+      goalPeriodClosureRepository,
+      programInspectorReader,
+      rewardAwardApprovalHook,
       jwtService,
       tenantRepo,
     },

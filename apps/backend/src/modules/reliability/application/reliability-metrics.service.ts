@@ -8,7 +8,11 @@ import {
 import type { IPlatformSettingsReader } from '../../../shared/domain/platform-settings';
 import { buildServiceFacts } from '../domain/build-service-facts';
 import { computeMetricFromFacts, type MetricContext } from '../domain/metrics';
-import type { IReliabilityFactsReader, ReliabilityFactsRaw } from '../domain/reliability-facts.reader';
+import type {
+  IReliabilityFactsReader,
+  ReliabilityFactsRaw,
+  ReliabilityFactsScope,
+} from '../domain/reliability-facts.reader';
 import { isCompletedDone, type ServiceFact } from '../domain/service-fact';
 import { computeVolumeReference, type VolumeReference } from '../domain/volume-reference';
 import { periodLengthDays } from '../domain/volume-prorata';
@@ -17,6 +21,11 @@ export interface InspectorReliabilityComputation {
   inspectorId: string;
   volume: number;
   completedCount: number;
+  /**
+   * Service dates (agency-tz civil, P2/DR1) of the counted completions, ascending,
+   * with repetition; `length === completedCount`. Added for F08 goal `achievedOn`.
+   */
+  completedServiceDates: CivilDate[];
   /** Always the 8 metrics, in `RELIABILITY_METRIC_KEYS` order. */
   metrics: ReliabilityMetricResult[];
 }
@@ -80,10 +89,11 @@ export class ReliabilityMetricsService {
     inspectorId: string,
     from: CivilDate,
     to: CivilDate,
+    scope?: ReliabilityFactsScope,
   ): Promise<ReliabilityMetricResult> {
     assertValidRange(from, to);
     const settings = await this.readSettings();
-    const raw = await this.reader.load({ from, to, inspectorIds: [inspectorId] });
+    const raw = await this.reader.load({ from, to, inspectorIds: [inspectorId], scope });
     const facts = buildServiceFacts(raw, { from, to });
 
     let volumeReferenceValue = 1;
@@ -94,11 +104,16 @@ export class ReliabilityMetricsService {
     return computeMetricFromFacts(metric, facts, this.contextFor(from, to, settings, volumeReferenceValue));
   }
 
-  /** All inspectors (optionally a subset) over any civil period. */
-  async computeAll(from: CivilDate, to: CivilDate, inspectorIds?: string[]): Promise<ReliabilityComputationBatch> {
+  /** All inspectors (optionally a subset) over any civil period, optionally scoped (F08). */
+  async computeAll(
+    from: CivilDate,
+    to: CivilDate,
+    inspectorIds?: string[],
+    scope?: ReliabilityFactsScope,
+  ): Promise<ReliabilityComputationBatch> {
     assertValidRange(from, to);
     const settings = await this.readSettings();
-    const raw = await this.reader.load({ from, to, inspectorIds });
+    const raw = await this.reader.load({ from, to, inspectorIds, scope });
     return this.assembleBatch(raw, from, to, settings, { filtered: Boolean(inspectorIds) });
   }
 
@@ -192,10 +207,13 @@ export class ReliabilityMetricsService {
     ctx: MetricContext,
   ): InspectorReliabilityComputation {
     const universe = facts.filter((f) => !f.lateRejection);
+    const completed = universe.filter(isCompletedDone);
+    const completedServiceDates = completed.map((f) => f.serviceDate).sort();
     return {
       inspectorId,
       volume: universe.length,
-      completedCount: universe.filter(isCompletedDone).length,
+      completedCount: completed.length,
+      completedServiceDates,
       metrics: RELIABILITY_METRIC_KEYS.map((metric) => computeMetricFromFacts(metric, facts, ctx)),
     };
   }
