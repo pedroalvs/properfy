@@ -67,7 +67,11 @@ export const INSPECTOR_NOTICE_TARGET_PATTERNS = [
   '/profile/announcements/:id', // default (id = noticeId)
   '/schedule/:id', // service detail on the schedule (id = appointmentId)
   '/today', // F04 route notices (ROUTE_PUBLISHED/ROUTE_CHANGED); exact static, no params
+  '/profile/challenges', // F08 PERFORMANCE_MESSAGE notices; exact static, no params
 ] as const;
+
+/** The Challenges screen path (F08), the deep-link target of PERFORMANCE_MESSAGE notices. */
+export const INSPECTOR_CHALLENGES_PATH = '/profile/challenges';
 
 /** Lowercase UUID v1–5 matcher used for the `:id` segment of an allowlisted target path. */
 export const INSPECTOR_NOTICE_UUID_RE =

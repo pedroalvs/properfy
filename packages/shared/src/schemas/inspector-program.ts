@@ -11,6 +11,7 @@ import {
 } from '../enums';
 import { civilDateSchema } from './civil-date';
 import { booleanQueryParam } from './boolean-query';
+import { reliabilityDetailStatusSchema } from './reliability';
 import {
   civilDateStr,
   civilDateStrNullable,
@@ -366,3 +367,113 @@ export const programPeriodSummaryResponseSchema = z.object({
   goals: z.array(programPeriodSummaryGoalSchema),
 });
 export type ProgramPeriodSummaryResponse = z.infer<typeof programPeriodSummaryResponseSchema>;
+
+// ─── Inspector-facing program (GET /v1/inspector/program) — TASK-F08-4 ─────────
+
+/** Progress state of an active goal the inspector participates in. */
+export const inspectorProgramGoalStateSchema = z.enum([
+  'MET_SO_FAR',
+  'IN_PROGRESS',
+  'BELOW_TARGET',
+  'NOT_ENOUGH_SERVICES',
+  'NO_DATA',
+  'UPCOMING',
+]);
+export type InspectorProgramGoalState = z.infer<typeof inspectorProgramGoalStateSchema>;
+
+const inspectorProgramActiveGoalSchema = z.object({
+  goalId: z.string().uuid(),
+  title: z.string(),
+  // Rendered server-side (describeGoal) so the client needs no scope lookup.
+  description: z.string(),
+  metric: z.nativeEnum(GoalMetric),
+  comparator: z.nativeEnum(GoalComparator),
+  target: z.number(),
+  periodType: z.nativeEnum(BillingPeriodType),
+  periodStart: civilDateStr(),
+  periodEnd: civilDateStr(),
+  daysLeft: z.number().int(),
+  rewardAmount: z.number(),
+  value: z.number().nullable(),
+  serviceCount: z.number().int(),
+  minimumServices: z.number().int().nullable(),
+  state: inspectorProgramGoalStateSchema,
+  // L-F08-12: next period start when UPCOMING, else null.
+  startsOn: civilDateStrNullable(),
+  // L-F08-12: period start when the goal began mid-period, else null.
+  countsSince: civilDateStrNullable(),
+});
+
+const inspectorProgramStandingSchema = z.object({
+  index: z.object({
+    score: z.number().nullable(),
+    status: reliabilityDetailStatusSchema,
+    snapshotDate: civilDateStrNullable(),
+  }),
+  level: z.nativeEnum(InspectorLevel).nullable(),
+  streak: z.object({
+    cycle: z.nativeEnum(BillingPeriodType).nullable(),
+    count: z.number().int(),
+    atRisk: z.boolean(),
+  }),
+});
+
+const inspectorProgramAwardSchema = z.object({
+  goalTitle: z.string(),
+  metric: z.nativeEnum(GoalMetric),
+  periodType: z.nativeEnum(BillingPeriodType),
+  periodStart: civilDateStr(),
+  periodEnd: civilDateStr(),
+  amount: z.number(),
+  achievedValue: z.number(),
+  status: z.nativeEnum(RewardAwardStatus),
+  // paidAt = the inspector invoice's paid_at (Q12, TASK-F08-6).
+  paidAt: instantStrNullable(),
+  voidedAt: instantStrNullable(),
+  // L-F08-05: the note written for the inspector; the internal void_reason is never exposed.
+  inspectorNote: z.string().nullable(),
+});
+
+/**
+ * One anonymous ranking row (03.A3). `.strict()` guarantees the serialized row
+ * carries exactly these four keys — no inspector id, name, photo, email or phone —
+ * as a contract-level backstop to the server-side anonymiser.
+ */
+export const inspectorProgramRankingEntrySchema = z
+  .object({
+    position: z.number().int(),
+    score: z.number(),
+    level: z.nativeEnum(InspectorLevel).nullable(),
+    isMe: z.boolean(),
+  })
+  .strict();
+export type InspectorProgramRankingEntry = z.infer<typeof inspectorProgramRankingEntrySchema>;
+
+const inspectorProgramRankingSchema = z.object({
+  myPosition: z.number().int().nullable(),
+  myScore: z.number().nullable(),
+  totalRanked: z.number().int(),
+  notRankedReason: z.enum(['NOT_ENOUGH_DATA', 'NOT_COMPUTED']).nullable(),
+  cohortTooSmall: z.boolean(),
+  // Empty when cohortTooSmall (DV4).
+  entries: z.array(inspectorProgramRankingEntrySchema),
+});
+
+/**
+ * `GET /v1/inspector/program` response (INSP, own data only). Civil dates are
+ * `PLATFORM_TIMEZONE` values from the backend; `generatedAt`/`paidAt`/`voidedAt`
+ * are UTC instants (DR5). The ranking exposes no other inspector's identity (03.A3).
+ */
+export const inspectorProgramResponseSchema = z.object({
+  generatedAt: instantStr(),
+  timezone: z.literal('Australia/Sydney'),
+  summary: z.object({
+    openCashTotal: z.number(),
+    currency: z.literal('AUD'),
+  }),
+  activeGoals: z.array(inspectorProgramActiveGoalSchema),
+  standing: inspectorProgramStandingSchema,
+  awards: z.array(inspectorProgramAwardSchema),
+  ranking: inspectorProgramRankingSchema,
+});
+export type InspectorProgramResponse = z.infer<typeof inspectorProgramResponseSchema>;
