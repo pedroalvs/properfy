@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  INSPECTOR_CHALLENGES_PATH,
   INSPECTOR_NOTICE_SMS_MAX_CHARS,
   INSPECTOR_NOTICE_TARGET_PATTERNS,
   SYSTEM_INSPECTOR_NOTICE_TYPES,
@@ -39,11 +40,12 @@ describe('system notice types + criticality', () => {
 });
 
 describe('target patterns + allowlist', () => {
-  it('has exactly the three patterns (F04 appended /today)', () => {
+  it('has exactly the four patterns (F04 appended /today, F08 appended /profile/challenges)', () => {
     expect([...INSPECTOR_NOTICE_TARGET_PATTERNS]).toEqual([
       '/profile/announcements/:id',
       '/schedule/:id',
       '/today',
+      '/profile/challenges',
     ]);
   });
 
@@ -92,6 +94,18 @@ describe('target patterns + allowlist', () => {
     expect(
       isAllowedInspectorNoticeTargetPath('/schedule/00000000-0000-0000-0000-000000000000'),
     ).toBe(false);
+  });
+
+  it('matches /profile/challenges only as the exact static pattern (F08, DR7/L-F02-08)', () => {
+    expect(INSPECTOR_CHALLENGES_PATH).toBe('/profile/challenges');
+    expect(isAllowedInspectorNoticeTargetPath('/profile/challenges')).toBe(true);
+    expect(isAllowedInspectorNoticeTargetPath(INSPECTOR_CHALLENGES_PATH)).toBe(true);
+    expect(isAllowedInspectorNoticeTargetPath('/profile/challenges/')).toBe(false); // trailing slash
+    expect(isAllowedInspectorNoticeTargetPath('/profile/challenges/x')).toBe(false); // extra segment
+    expect(isAllowedInspectorNoticeTargetPath('/profile/challengesx')).toBe(false); // not the exact segment
+    expect(isAllowedInspectorNoticeTargetPath('/Profile/Challenges')).toBe(false); // case-sensitive
+    expect(isAllowedInspectorNoticeTargetPath('/profile/challenges?tab=ranking')).toBe(false); // query
+    expect(isAllowedInspectorNoticeTargetPath('/profile/challenges#x')).toBe(false); // fragment
   });
 
   it('returns false (no throw) for non-string input', () => {

@@ -475,6 +475,8 @@ Skip worktrees only for: pure documentation edits, CLAUDE.md updates, or tasks t
 - N/A (no DB change; consumes platform-scoped entities `InspectorGoal`/`RewardAward`/`GoalPeriodClosure` via AM/OP endpoints) (067-f08-3-goals-rewards-web)
 - TypeScript 5.6 strict, ES2022 ESM; Node.js 24 + Fastify 4, Prisma 6 (PostgreSQL/Supabase, PostGIS in CI), Zod 3, (070-f08-6-financial-bonus)
 - PostgreSQL via Prisma. New enum value `INSPECTOR_BONUS`; `financial_entries.tenant_id` (070-f08-6-financial-bonus)
+- TypeScript 5.6 strict, ES2022 ESM; Node.js 24; pnpm 9 + Turborepo + Backend — Fastify 4, `fastify-type-provider-zod`, Prisma 6 (read-only here), Zod 3, pg-boss 9 (existing queue only). Shared — Zod 3. PWA — React 18, Vite 5, React Router 6, TanStack Query 5, Tailwind 3, lucide-react, vite-plugin-pwa. (068-f08-4-challenges-pwa)
+- PostgreSQL via existing repositories; **read-only** for this feature (`inspector_goals`, `reward_awards`, `goal_period_closures`, `inspector_reliability_snapshots`); the only write is a system notice via F02 (audited). No new table/column/migration. (068-f08-4-challenges-pwa)
 - TypeScript 5.6 strict, ES2022 ESM; Node.js 24 + Fastify 4, Prisma 6 (PostgreSQL/Supabase), Zod 3, ExcelJS (XLSX), pg-boss 9; React 18 + Vite 5 (web); `@properfy/shared` (069-f08-5-program-report)
 - PostgreSQL; Supabase Storage for the generated `.xlsx` (`reports/platform/INSPECTOR_PROGRAM/<id>.xlsx`) (069-f08-5-program-report)
 

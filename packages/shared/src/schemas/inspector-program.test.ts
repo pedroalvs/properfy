@@ -10,6 +10,8 @@ import {
   programPeriodSummaryQuerySchema,
   goalResponseSchema,
   rewardAwardResponseSchema,
+  inspectorProgramResponseSchema,
+  inspectorProgramRankingEntrySchema,
 } from './inspector-program';
 
 /** The first issue whose path ends with `field`, or undefined. */
@@ -364,5 +366,141 @@ describe('response schemas', () => {
       updatedAt: '2026-11-20T02:00:00.000Z',
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe('inspectorProgramResponseSchema (GET /v1/inspector/program)', () => {
+  const validResponse = {
+    generatedAt: '2026-11-09T21:00:00.000Z',
+    timezone: 'Australia/Sydney' as const,
+    summary: { openCashTotal: 110, currency: 'AUD' as const },
+    activeGoals: [
+      {
+        goalId: '11111111-1111-4111-8111-111111111111',
+        title: 'Weekly volume',
+        description: 'Complete 60 inspections',
+        metric: 'VOLUME' as const,
+        comparator: 'GTE' as const,
+        target: 60,
+        periodType: 'WEEKLY' as const,
+        periodStart: '2026-11-02',
+        periodEnd: '2026-11-08',
+        daysLeft: 2,
+        rewardAmount: 60,
+        value: 47,
+        serviceCount: 47,
+        minimumServices: null,
+        state: 'IN_PROGRESS' as const,
+        startsOn: null,
+        countsSince: null,
+      },
+      {
+        goalId: '22222222-2222-4222-8222-222222222222',
+        title: 'On-time arrival',
+        description: 'Punctuality at least 95%',
+        metric: 'PUNCTUALITY' as const,
+        comparator: 'GTE' as const,
+        target: 95,
+        periodType: 'WEEKLY' as const,
+        periodStart: '2026-11-16',
+        periodEnd: '2026-11-22',
+        daysLeft: 7,
+        rewardAmount: 50,
+        value: null,
+        serviceCount: 0,
+        minimumServices: 10,
+        state: 'UPCOMING' as const,
+        startsOn: '2026-11-16',
+        countsSince: null,
+      },
+    ],
+    standing: {
+      index: { score: 88.3, status: 'SCORED' as const, snapshotDate: '2026-11-08' },
+      level: 'GOLD' as const,
+      streak: { cycle: 'WEEKLY' as const, count: 3, atRisk: false },
+    },
+    awards: [
+      {
+        goalTitle: 'Weekly volume',
+        metric: 'VOLUME' as const,
+        periodType: 'WEEKLY' as const,
+        periodStart: '2026-11-02',
+        periodEnd: '2026-11-08',
+        amount: 60,
+        achievedValue: 61,
+        status: 'PENDING' as const,
+        paidAt: null,
+        voidedAt: null,
+        inspectorNote: null,
+      },
+    ],
+    ranking: {
+      myPosition: 4,
+      myScore: 88.3,
+      totalRanked: 37,
+      notRankedReason: null,
+      cohortTooSmall: false,
+      entries: [
+        { position: 1, score: 96.4, level: 'GOLD' as const, isMe: false },
+        { position: 4, score: 88.3, level: 'GOLD' as const, isMe: true },
+      ],
+    },
+  };
+
+  it('parses a full valid response', () => {
+    const result = inspectorProgramResponseSchema.safeParse(validResponse);
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a cohort-too-small ranking with empty entries', () => {
+    const result = inspectorProgramResponseSchema.safeParse({
+      ...validResponse,
+      ranking: { myPosition: 3, myScore: 70, totalRanked: 4, notRankedReason: null, cohortTooSmall: true, entries: [] },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a not-ranked caller', () => {
+    const result = inspectorProgramResponseSchema.safeParse({
+      ...validResponse,
+      standing: { ...validResponse.standing, level: null, index: { score: null, status: 'NOT_COMPUTED', snapshotDate: null } },
+      ranking: { myPosition: null, myScore: null, totalRanked: 37, notRankedReason: 'NOT_ENOUGH_DATA', cohortTooSmall: false, entries: validResponse.ranking.entries },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('strips an undeclared voidReason from an award (never exposed, L-F08-05)', () => {
+    const result = inspectorProgramResponseSchema.safeParse({
+      ...validResponse,
+      awards: [{ ...validResponse.awards[0], voidReason: 'Agency suspected fraud' }],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(Object.keys(result.data.awards[0])).not.toContain('voidReason');
+    }
+  });
+});
+
+describe('inspectorProgramRankingEntrySchema (03.A3 anonymity)', () => {
+  const entry = { position: 1, score: 96.4, level: 'GOLD' as const, isMe: false };
+
+  it('accepts exactly the four anonymous keys', () => {
+    const result = inspectorProgramRankingEntrySchema.safeParse(entry);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(Object.keys(result.data).sort()).toEqual(['isMe', 'level', 'position', 'score']);
+    }
+  });
+
+  it('is strict: rejects an inspectorId key', () => {
+    expect(inspectorProgramRankingEntrySchema.safeParse({ ...entry, inspectorId: 'x' }).success).toBe(false);
+  });
+
+  it('is strict: rejects a name key', () => {
+    expect(inspectorProgramRankingEntrySchema.safeParse({ ...entry, name: 'Ana' }).success).toBe(false);
+  });
+
+  it('allows a null level', () => {
+    expect(inspectorProgramRankingEntrySchema.safeParse({ ...entry, level: null }).success).toBe(true);
   });
 });
