@@ -13707,6 +13707,767 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspector-program/goals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    active?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
+                    metric?: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                    period?: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: "createdAt" | "title" | "startsAt";
+                    sortOrder?: "asc" | "desc";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                title: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                /** @enum {string} */
+                                period: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                /** Format: uuid */
+                                scopeRegionId: string | null;
+                                /** Format: uuid */
+                                scopeServiceTypeId: string | null;
+                                /** Format: uuid */
+                                scopeInspectorId: string | null;
+                                scopeRegionName: string | null;
+                                scopeServiceTypeName: string | null;
+                                scopeInspectorName: string | null;
+                                rewardAmount: number;
+                                startsAt: string;
+                                endsAt: string | null;
+                                active: boolean;
+                                deactivatedAt: (string) | null;
+                                pendingChange: {
+                                    target: number;
+                                    rewardAmount: number;
+                                    effectiveFrom: string;
+                                } | null;
+                                resumesOn: string | null;
+                                minEndsAt: string;
+                                currentPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                lastClosedPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                scopeRegionDeleted: boolean;
+                                /** Format: uuid */
+                                createdByUserId: string;
+                                /** Format: uuid */
+                                updatedByUserId: string | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        title: string;
+                        /** @enum {string} */
+                        metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                        /** @enum {string} */
+                        comparator?: "GTE" | "LTE";
+                        /** @enum {string} */
+                        period: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                        /** Format: uuid */
+                        scopeRegionId?: string | null;
+                        /** Format: uuid */
+                        scopeServiceTypeId?: string | null;
+                        /** Format: uuid */
+                        scopeInspectorId?: string | null;
+                        target: number;
+                        rewardAmount: number;
+                        startsAt: string;
+                        endsAt?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                title: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                /** @enum {string} */
+                                period: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                /** Format: uuid */
+                                scopeRegionId: string | null;
+                                /** Format: uuid */
+                                scopeServiceTypeId: string | null;
+                                /** Format: uuid */
+                                scopeInspectorId: string | null;
+                                scopeRegionName: string | null;
+                                scopeServiceTypeName: string | null;
+                                scopeInspectorName: string | null;
+                                rewardAmount: number;
+                                startsAt: string;
+                                endsAt: string | null;
+                                active: boolean;
+                                deactivatedAt: (string) | null;
+                                pendingChange: {
+                                    target: number;
+                                    rewardAmount: number;
+                                    effectiveFrom: string;
+                                } | null;
+                                resumesOn: string | null;
+                                minEndsAt: string;
+                                currentPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                lastClosedPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                scopeRegionDeleted: boolean;
+                                /** Format: uuid */
+                                createdByUserId: string;
+                                /** Format: uuid */
+                                updatedByUserId: string | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-program/goals/{goalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    goalId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                title: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                /** @enum {string} */
+                                period: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                /** Format: uuid */
+                                scopeRegionId: string | null;
+                                /** Format: uuid */
+                                scopeServiceTypeId: string | null;
+                                /** Format: uuid */
+                                scopeInspectorId: string | null;
+                                scopeRegionName: string | null;
+                                scopeServiceTypeName: string | null;
+                                scopeInspectorName: string | null;
+                                rewardAmount: number;
+                                startsAt: string;
+                                endsAt: string | null;
+                                active: boolean;
+                                deactivatedAt: (string) | null;
+                                pendingChange: {
+                                    target: number;
+                                    rewardAmount: number;
+                                    effectiveFrom: string;
+                                } | null;
+                                resumesOn: string | null;
+                                minEndsAt: string;
+                                currentPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                lastClosedPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                scopeRegionDeleted: boolean;
+                                /** Format: uuid */
+                                createdByUserId: string;
+                                /** Format: uuid */
+                                updatedByUserId: string | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    goalId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        title?: string;
+                        target?: number;
+                        rewardAmount?: number;
+                        endsAt?: string | null;
+                        active?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                title: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                /** @enum {string} */
+                                period: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                /** Format: uuid */
+                                scopeRegionId: string | null;
+                                /** Format: uuid */
+                                scopeServiceTypeId: string | null;
+                                /** Format: uuid */
+                                scopeInspectorId: string | null;
+                                scopeRegionName: string | null;
+                                scopeServiceTypeName: string | null;
+                                scopeInspectorName: string | null;
+                                rewardAmount: number;
+                                startsAt: string;
+                                endsAt: string | null;
+                                active: boolean;
+                                deactivatedAt: (string) | null;
+                                pendingChange: {
+                                    target: number;
+                                    rewardAmount: number;
+                                    effectiveFrom: string;
+                                } | null;
+                                resumesOn: string | null;
+                                minEndsAt: string;
+                                currentPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                lastClosedPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                scopeRegionDeleted: boolean;
+                                /** Format: uuid */
+                                createdByUserId: string;
+                                /** Format: uuid */
+                                updatedByUserId: string | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/v1/inspector-program/periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                    direction: "upcoming" | "past";
+                    count: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                start: string;
+                                end: string;
+                                /** @enum {string} */
+                                status: "CLOSED" | "IN_PROGRESS" | "UPCOMING";
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-program/awards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    status?: "PENDING" | "APPROVED" | "PAID" | "VOID";
+                    periodType?: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                    periodStart?: string;
+                    goalId?: string;
+                    inspectorId?: string;
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                goalId: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                /** @enum {string} */
+                                periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                periodStart: string;
+                                periodEnd: string;
+                                goalTitle: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                amount: number;
+                                scopeLabel: string | null;
+                                achievedValue: number;
+                                serviceCount: number;
+                                achievedOn: string;
+                                indexScoreAtClose: number | null;
+                                /** @enum {string|null} */
+                                levelAtClose: "BRONZE" | "SILVER" | "GOLD" | null;
+                                indexSnapshotDate: string | null;
+                                /** @enum {string} */
+                                status: "PENDING" | "APPROVED" | "PAID" | "VOID";
+                                /** Format: uuid */
+                                approvedByUserId: string | null;
+                                approvedByName: string | null;
+                                approvedAt: (string) | null;
+                                paidAt: (string) | null;
+                                /** Format: uuid */
+                                voidedByUserId: string | null;
+                                voidedByName: string | null;
+                                voidedAt: (string) | null;
+                                voidReason: string | null;
+                                inspectorNote: string | null;
+                                goal: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    title: string;
+                                };
+                                inspector: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    email: string;
+                                };
+                                createdAt: string;
+                                updatedAt: string;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-program/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                    periodStart: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** @enum {string} */
+                                periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                periodStart: string;
+                                periodEnd: string;
+                                /** @enum {string} */
+                                status: "CLOSED" | "IN_PROGRESS" | "UPCOMING";
+                                totals: {
+                                    promised: number;
+                                    achieved: number;
+                                    approved: number;
+                                    paid: number;
+                                    pending: number;
+                                    voided: number;
+                                };
+                                goals: {
+                                    /** Format: uuid */
+                                    goalId: string;
+                                    title: string;
+                                    /** @enum {string} */
+                                    metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                    rewardAmount: number;
+                                    participants: number;
+                                    promised: number;
+                                    achievers: number;
+                                    achievedAmount: number;
+                                    closed: boolean;
+                                    skipped: boolean;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-program/awards/{awardId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    awardId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                goalId: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                /** @enum {string} */
+                                periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                periodStart: string;
+                                periodEnd: string;
+                                goalTitle: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                amount: number;
+                                scopeLabel: string | null;
+                                achievedValue: number;
+                                serviceCount: number;
+                                achievedOn: string;
+                                indexScoreAtClose: number | null;
+                                /** @enum {string|null} */
+                                levelAtClose: "BRONZE" | "SILVER" | "GOLD" | null;
+                                indexSnapshotDate: string | null;
+                                /** @enum {string} */
+                                status: "PENDING" | "APPROVED" | "PAID" | "VOID";
+                                /** Format: uuid */
+                                approvedByUserId: string | null;
+                                approvedByName: string | null;
+                                approvedAt: (string) | null;
+                                paidAt: (string) | null;
+                                /** Format: uuid */
+                                voidedByUserId: string | null;
+                                voidedByName: string | null;
+                                voidedAt: (string) | null;
+                                voidReason: string | null;
+                                inspectorNote: string | null;
+                                goal: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    title: string;
+                                };
+                                inspector: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    email: string;
+                                };
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-program/awards/{awardId}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    awardId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        reason: string;
+                        inspectorNote?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                goalId: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                /** @enum {string} */
+                                periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                periodStart: string;
+                                periodEnd: string;
+                                goalTitle: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                amount: number;
+                                scopeLabel: string | null;
+                                achievedValue: number;
+                                serviceCount: number;
+                                achievedOn: string;
+                                indexScoreAtClose: number | null;
+                                /** @enum {string|null} */
+                                levelAtClose: "BRONZE" | "SILVER" | "GOLD" | null;
+                                indexSnapshotDate: string | null;
+                                /** @enum {string} */
+                                status: "PENDING" | "APPROVED" | "PAID" | "VOID";
+                                /** Format: uuid */
+                                approvedByUserId: string | null;
+                                approvedByName: string | null;
+                                approvedAt: (string) | null;
+                                paidAt: (string) | null;
+                                /** Format: uuid */
+                                voidedByUserId: string | null;
+                                voidedByName: string | null;
+                                voidedAt: (string) | null;
+                                voidReason: string | null;
+                                inspectorNote: string | null;
+                                goal: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    title: string;
+                                };
+                                inspector: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    email: string;
+                                };
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/platform-settings": {
         parameters: {
             query?: never;

@@ -23,6 +23,7 @@ import {
 import type { BillingPeriod } from '../../../billing/domain/billing-period.service';
 import type { IGoalPeriodClosureRepository } from '../../domain/goal-period-closure.repository';
 import { resolveParticipants } from '../../domain/participants';
+import { scopeLabelFor } from '../../domain/scope-label';
 import type { IProgramInspectorReader } from '../../domain/program-inspector.reader';
 import type { IRewardAwardRepository, RewardAwardInsert } from '../../domain/reward-award.repository';
 import type { InspectorProgramDailyStep, InspectorProgramDailyStepContext } from './run-inspector-program-daily.use-case';
@@ -40,13 +41,6 @@ function scopeOf(goal: GoalWithScope): ReliabilityFactsScope | undefined {
   if (goal.metric === 'REGION_VOLUME' && goal.scopeRegionId) return { regionId: goal.scopeRegionId };
   if (goal.metric === 'SERVICE_TYPE_VOLUME' && goal.scopeServiceTypeId) return { serviceTypeId: goal.scopeServiceTypeId };
   return undefined;
-}
-
-function scopeLabelFor(goal: GoalWithScope): string | null {
-  if (goal.metric === 'REGION_VOLUME') return goal.scope.regionName;
-  if (goal.metric === 'SERVICE_TYPE_VOLUME') return goal.scope.serviceTypeName;
-  if (goal.scopeInspectorId !== null) return goal.scope.inspectorName;
-  return null;
 }
 
 /**

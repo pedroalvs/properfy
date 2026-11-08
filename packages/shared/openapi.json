@@ -34517,6 +34517,2545 @@
         }
       }
     },
+    "/v1/inspector-program/goals": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "false"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "1"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "0"
+                  ]
+                },
+                {
+                  "type": "number",
+                  "enum": [
+                    1
+                  ]
+                },
+                {
+                  "type": "number",
+                  "enum": [
+                    0
+                  ]
+                }
+              ],
+              "default": true
+            },
+            "in": "query",
+            "name": "active",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "VOLUME",
+                "REGION_VOLUME",
+                "SERVICE_TYPE_VOLUME",
+                "INDEX_AT_LEAST",
+                "PUNCTUALITY",
+                "GEOFENCE",
+                "NO_STUCK",
+                "SATISFACTION",
+                "LATE_NOTICE",
+                "CANT_DO_MAX"
+              ]
+            },
+            "in": "query",
+            "name": "metric",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "WEEKLY",
+                "FORTNIGHTLY",
+                "MONTHLY"
+              ]
+            },
+            "in": "query",
+            "name": "period",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "title",
+                "startsAt"
+              ],
+              "default": "createdAt"
+            },
+            "in": "query",
+            "name": "sortBy",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            },
+            "in": "query",
+            "name": "sortOrder",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "metric": {
+                            "type": "string",
+                            "enum": [
+                              "VOLUME",
+                              "REGION_VOLUME",
+                              "SERVICE_TYPE_VOLUME",
+                              "INDEX_AT_LEAST",
+                              "PUNCTUALITY",
+                              "GEOFENCE",
+                              "NO_STUCK",
+                              "SATISFACTION",
+                              "LATE_NOTICE",
+                              "CANT_DO_MAX"
+                            ]
+                          },
+                          "comparator": {
+                            "type": "string",
+                            "enum": [
+                              "GTE",
+                              "LTE"
+                            ]
+                          },
+                          "target": {
+                            "type": "number"
+                          },
+                          "period": {
+                            "type": "string",
+                            "enum": [
+                              "WEEKLY",
+                              "FORTNIGHTLY",
+                              "MONTHLY"
+                            ]
+                          },
+                          "scopeRegionId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "scopeServiceTypeId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "scopeInspectorId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "scopeRegionName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "scopeServiceTypeName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "scopeInspectorName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "rewardAmount": {
+                            "type": "number"
+                          },
+                          "startsAt": {
+                            "type": "string"
+                          },
+                          "endsAt": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "active": {
+                            "type": "boolean"
+                          },
+                          "deactivatedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "pendingChange": {
+                            "type": "object",
+                            "properties": {
+                              "target": {
+                                "type": "number"
+                              },
+                              "rewardAmount": {
+                                "type": "number"
+                              },
+                              "effectiveFrom": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "target",
+                              "rewardAmount",
+                              "effectiveFrom"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
+                          },
+                          "resumesOn": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "minEndsAt": {
+                            "type": "string"
+                          },
+                          "currentPeriod": {
+                            "type": "object",
+                            "properties": {
+                              "start": {
+                                "type": "string"
+                              },
+                              "end": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "start",
+                              "end"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
+                          },
+                          "lastClosedPeriod": {
+                            "type": "object",
+                            "properties": {
+                              "start": {
+                                "type": "string"
+                              },
+                              "end": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "start",
+                              "end"
+                            ],
+                            "additionalProperties": false,
+                            "nullable": true
+                          },
+                          "scopeRegionDeleted": {
+                            "type": "boolean"
+                          },
+                          "createdByUserId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "updatedByUserId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ]
+                          },
+                          "updatedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "metric",
+                          "comparator",
+                          "target",
+                          "period",
+                          "scopeRegionId",
+                          "scopeServiceTypeId",
+                          "scopeInspectorId",
+                          "scopeRegionName",
+                          "scopeServiceTypeName",
+                          "scopeInspectorName",
+                          "rewardAmount",
+                          "startsAt",
+                          "endsAt",
+                          "active",
+                          "deactivatedAt",
+                          "pendingChange",
+                          "resumesOn",
+                          "minEndsAt",
+                          "currentPeriod",
+                          "lastClosedPeriod",
+                          "scopeRegionDeleted",
+                          "createdByUserId",
+                          "updatedByUserId",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "totalPages": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "page",
+                        "pageSize",
+                        "total",
+                        "totalPages"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "pagination"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "metric": {
+                    "type": "string",
+                    "enum": [
+                      "VOLUME",
+                      "REGION_VOLUME",
+                      "SERVICE_TYPE_VOLUME",
+                      "INDEX_AT_LEAST",
+                      "PUNCTUALITY",
+                      "GEOFENCE",
+                      "NO_STUCK",
+                      "SATISFACTION",
+                      "LATE_NOTICE",
+                      "CANT_DO_MAX"
+                    ]
+                  },
+                  "comparator": {
+                    "type": "string",
+                    "enum": [
+                      "GTE",
+                      "LTE"
+                    ]
+                  },
+                  "period": {
+                    "type": "string",
+                    "enum": [
+                      "WEEKLY",
+                      "FORTNIGHTLY",
+                      "MONTHLY"
+                    ]
+                  },
+                  "scopeRegionId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "scopeServiceTypeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "scopeInspectorId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "target": {
+                    "type": "number"
+                  },
+                  "rewardAmount": {
+                    "type": "number"
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "endsAt": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "title",
+                  "metric",
+                  "period",
+                  "target",
+                  "rewardAmount",
+                  "startsAt"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "metric": {
+                          "type": "string",
+                          "enum": [
+                            "VOLUME",
+                            "REGION_VOLUME",
+                            "SERVICE_TYPE_VOLUME",
+                            "INDEX_AT_LEAST",
+                            "PUNCTUALITY",
+                            "GEOFENCE",
+                            "NO_STUCK",
+                            "SATISFACTION",
+                            "LATE_NOTICE",
+                            "CANT_DO_MAX"
+                          ]
+                        },
+                        "comparator": {
+                          "type": "string",
+                          "enum": [
+                            "GTE",
+                            "LTE"
+                          ]
+                        },
+                        "target": {
+                          "type": "number"
+                        },
+                        "period": {
+                          "type": "string",
+                          "enum": [
+                            "WEEKLY",
+                            "FORTNIGHTLY",
+                            "MONTHLY"
+                          ]
+                        },
+                        "scopeRegionId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "scopeServiceTypeId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "scopeInspectorId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "scopeRegionName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "scopeServiceTypeName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "scopeInspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "rewardAmount": {
+                          "type": "number"
+                        },
+                        "startsAt": {
+                          "type": "string"
+                        },
+                        "endsAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "active": {
+                          "type": "boolean"
+                        },
+                        "deactivatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "pendingChange": {
+                          "type": "object",
+                          "properties": {
+                            "target": {
+                              "type": "number"
+                            },
+                            "rewardAmount": {
+                              "type": "number"
+                            },
+                            "effectiveFrom": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "target",
+                            "rewardAmount",
+                            "effectiveFrom"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "resumesOn": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "minEndsAt": {
+                          "type": "string"
+                        },
+                        "currentPeriod": {
+                          "type": "object",
+                          "properties": {
+                            "start": {
+                              "type": "string"
+                            },
+                            "end": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "start",
+                            "end"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "lastClosedPeriod": {
+                          "type": "object",
+                          "properties": {
+                            "start": {
+                              "type": "string"
+                            },
+                            "end": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "start",
+                            "end"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "scopeRegionDeleted": {
+                          "type": "boolean"
+                        },
+                        "createdByUserId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "updatedByUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "updatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title",
+                        "metric",
+                        "comparator",
+                        "target",
+                        "period",
+                        "scopeRegionId",
+                        "scopeServiceTypeId",
+                        "scopeInspectorId",
+                        "scopeRegionName",
+                        "scopeServiceTypeName",
+                        "scopeInspectorName",
+                        "rewardAmount",
+                        "startsAt",
+                        "endsAt",
+                        "active",
+                        "deactivatedAt",
+                        "pendingChange",
+                        "resumesOn",
+                        "minEndsAt",
+                        "currentPeriod",
+                        "lastClosedPeriod",
+                        "scopeRegionDeleted",
+                        "createdByUserId",
+                        "updatedByUserId",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspector-program/goals/{goalId}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "goalId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "metric": {
+                          "type": "string",
+                          "enum": [
+                            "VOLUME",
+                            "REGION_VOLUME",
+                            "SERVICE_TYPE_VOLUME",
+                            "INDEX_AT_LEAST",
+                            "PUNCTUALITY",
+                            "GEOFENCE",
+                            "NO_STUCK",
+                            "SATISFACTION",
+                            "LATE_NOTICE",
+                            "CANT_DO_MAX"
+                          ]
+                        },
+                        "comparator": {
+                          "type": "string",
+                          "enum": [
+                            "GTE",
+                            "LTE"
+                          ]
+                        },
+                        "target": {
+                          "type": "number"
+                        },
+                        "period": {
+                          "type": "string",
+                          "enum": [
+                            "WEEKLY",
+                            "FORTNIGHTLY",
+                            "MONTHLY"
+                          ]
+                        },
+                        "scopeRegionId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "scopeServiceTypeId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "scopeInspectorId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "scopeRegionName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "scopeServiceTypeName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "scopeInspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "rewardAmount": {
+                          "type": "number"
+                        },
+                        "startsAt": {
+                          "type": "string"
+                        },
+                        "endsAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "active": {
+                          "type": "boolean"
+                        },
+                        "deactivatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "pendingChange": {
+                          "type": "object",
+                          "properties": {
+                            "target": {
+                              "type": "number"
+                            },
+                            "rewardAmount": {
+                              "type": "number"
+                            },
+                            "effectiveFrom": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "target",
+                            "rewardAmount",
+                            "effectiveFrom"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "resumesOn": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "minEndsAt": {
+                          "type": "string"
+                        },
+                        "currentPeriod": {
+                          "type": "object",
+                          "properties": {
+                            "start": {
+                              "type": "string"
+                            },
+                            "end": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "start",
+                            "end"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "lastClosedPeriod": {
+                          "type": "object",
+                          "properties": {
+                            "start": {
+                              "type": "string"
+                            },
+                            "end": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "start",
+                            "end"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "scopeRegionDeleted": {
+                          "type": "boolean"
+                        },
+                        "createdByUserId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "updatedByUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "updatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title",
+                        "metric",
+                        "comparator",
+                        "target",
+                        "period",
+                        "scopeRegionId",
+                        "scopeServiceTypeId",
+                        "scopeInspectorId",
+                        "scopeRegionName",
+                        "scopeServiceTypeName",
+                        "scopeInspectorName",
+                        "rewardAmount",
+                        "startsAt",
+                        "endsAt",
+                        "active",
+                        "deactivatedAt",
+                        "pendingChange",
+                        "resumesOn",
+                        "minEndsAt",
+                        "currentPeriod",
+                        "lastClosedPeriod",
+                        "scopeRegionDeleted",
+                        "createdByUserId",
+                        "updatedByUserId",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "target": {
+                    "type": "number",
+                    "exclusiveMinimum": true,
+                    "minimum": 0
+                  },
+                  "rewardAmount": {
+                    "type": "number",
+                    "exclusiveMinimum": true,
+                    "minimum": 0,
+                    "maximum": 99999.99,
+                    "multipleOf": 0.01
+                  },
+                  "endsAt": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "nullable": true
+                  },
+                  "active": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "goalId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "metric": {
+                          "type": "string",
+                          "enum": [
+                            "VOLUME",
+                            "REGION_VOLUME",
+                            "SERVICE_TYPE_VOLUME",
+                            "INDEX_AT_LEAST",
+                            "PUNCTUALITY",
+                            "GEOFENCE",
+                            "NO_STUCK",
+                            "SATISFACTION",
+                            "LATE_NOTICE",
+                            "CANT_DO_MAX"
+                          ]
+                        },
+                        "comparator": {
+                          "type": "string",
+                          "enum": [
+                            "GTE",
+                            "LTE"
+                          ]
+                        },
+                        "target": {
+                          "type": "number"
+                        },
+                        "period": {
+                          "type": "string",
+                          "enum": [
+                            "WEEKLY",
+                            "FORTNIGHTLY",
+                            "MONTHLY"
+                          ]
+                        },
+                        "scopeRegionId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "scopeServiceTypeId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "scopeInspectorId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "scopeRegionName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "scopeServiceTypeName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "scopeInspectorName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "rewardAmount": {
+                          "type": "number"
+                        },
+                        "startsAt": {
+                          "type": "string"
+                        },
+                        "endsAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "active": {
+                          "type": "boolean"
+                        },
+                        "deactivatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "pendingChange": {
+                          "type": "object",
+                          "properties": {
+                            "target": {
+                              "type": "number"
+                            },
+                            "rewardAmount": {
+                              "type": "number"
+                            },
+                            "effectiveFrom": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "target",
+                            "rewardAmount",
+                            "effectiveFrom"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "resumesOn": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "minEndsAt": {
+                          "type": "string"
+                        },
+                        "currentPeriod": {
+                          "type": "object",
+                          "properties": {
+                            "start": {
+                              "type": "string"
+                            },
+                            "end": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "start",
+                            "end"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "lastClosedPeriod": {
+                          "type": "object",
+                          "properties": {
+                            "start": {
+                              "type": "string"
+                            },
+                            "end": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "start",
+                            "end"
+                          ],
+                          "additionalProperties": false,
+                          "nullable": true
+                        },
+                        "scopeRegionDeleted": {
+                          "type": "boolean"
+                        },
+                        "createdByUserId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "updatedByUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "updatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title",
+                        "metric",
+                        "comparator",
+                        "target",
+                        "period",
+                        "scopeRegionId",
+                        "scopeServiceTypeId",
+                        "scopeInspectorId",
+                        "scopeRegionName",
+                        "scopeServiceTypeName",
+                        "scopeInspectorName",
+                        "rewardAmount",
+                        "startsAt",
+                        "endsAt",
+                        "active",
+                        "deactivatedAt",
+                        "pendingChange",
+                        "resumesOn",
+                        "minEndsAt",
+                        "currentPeriod",
+                        "lastClosedPeriod",
+                        "scopeRegionDeleted",
+                        "createdByUserId",
+                        "updatedByUserId",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspector-program/periods": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "WEEKLY",
+                "FORTNIGHTLY",
+                "MONTHLY"
+              ]
+            },
+            "in": "query",
+            "name": "periodType",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "upcoming",
+                "past"
+              ]
+            },
+            "in": "query",
+            "name": "direction",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 26
+            },
+            "in": "query",
+            "name": "count",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "start": {
+                            "type": "string"
+                          },
+                          "end": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "CLOSED",
+                              "IN_PROGRESS",
+                              "UPCOMING"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "start",
+                          "end",
+                          "status"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspector-program/awards": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "PAID",
+                "VOID"
+              ]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "WEEKLY",
+                "FORTNIGHTLY",
+                "MONTHLY"
+              ]
+            },
+            "in": "query",
+            "name": "periodType",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "periodStart",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "goalId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "query",
+            "name": "inspectorId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "in": "query",
+            "name": "page",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "in": "query",
+            "name": "pageSize",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "goalId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "inspectorId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "periodType": {
+                            "type": "string",
+                            "enum": [
+                              "WEEKLY",
+                              "FORTNIGHTLY",
+                              "MONTHLY"
+                            ]
+                          },
+                          "periodStart": {
+                            "type": "string"
+                          },
+                          "periodEnd": {
+                            "type": "string"
+                          },
+                          "goalTitle": {
+                            "type": "string"
+                          },
+                          "metric": {
+                            "type": "string",
+                            "enum": [
+                              "VOLUME",
+                              "REGION_VOLUME",
+                              "SERVICE_TYPE_VOLUME",
+                              "INDEX_AT_LEAST",
+                              "PUNCTUALITY",
+                              "GEOFENCE",
+                              "NO_STUCK",
+                              "SATISFACTION",
+                              "LATE_NOTICE",
+                              "CANT_DO_MAX"
+                            ]
+                          },
+                          "comparator": {
+                            "type": "string",
+                            "enum": [
+                              "GTE",
+                              "LTE"
+                            ]
+                          },
+                          "target": {
+                            "type": "number"
+                          },
+                          "amount": {
+                            "type": "number"
+                          },
+                          "scopeLabel": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "achievedValue": {
+                            "type": "number"
+                          },
+                          "serviceCount": {
+                            "type": "integer"
+                          },
+                          "achievedOn": {
+                            "type": "string"
+                          },
+                          "indexScoreAtClose": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "levelAtClose": {
+                            "type": "string",
+                            "enum": [
+                              "BRONZE",
+                              "SILVER",
+                              "GOLD"
+                            ],
+                            "nullable": true
+                          },
+                          "indexSnapshotDate": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING",
+                              "APPROVED",
+                              "PAID",
+                              "VOID"
+                            ]
+                          },
+                          "approvedByUserId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "approvedByName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "approvedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "paidAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "voidedByUserId": {
+                            "type": "string",
+                            "format": "uuid",
+                            "nullable": true
+                          },
+                          "voidedByName": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "voidedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ],
+                            "nullable": true
+                          },
+                          "voidReason": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "inspectorNote": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "goal": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "title"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "inspector": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "email": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "email"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "createdAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ]
+                          },
+                          "updatedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "goalId",
+                          "inspectorId",
+                          "periodType",
+                          "periodStart",
+                          "periodEnd",
+                          "goalTitle",
+                          "metric",
+                          "comparator",
+                          "target",
+                          "amount",
+                          "scopeLabel",
+                          "achievedValue",
+                          "serviceCount",
+                          "achievedOn",
+                          "indexScoreAtClose",
+                          "levelAtClose",
+                          "indexSnapshotDate",
+                          "status",
+                          "approvedByUserId",
+                          "approvedByName",
+                          "approvedAt",
+                          "paidAt",
+                          "voidedByUserId",
+                          "voidedByName",
+                          "voidedAt",
+                          "voidReason",
+                          "inspectorNote",
+                          "goal",
+                          "inspector",
+                          "createdAt",
+                          "updatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "totalPages": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "page",
+                        "pageSize",
+                        "total",
+                        "totalPages"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "pagination"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspector-program/summary": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "WEEKLY",
+                "FORTNIGHTLY",
+                "MONTHLY"
+              ]
+            },
+            "in": "query",
+            "name": "periodType",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "in": "query",
+            "name": "periodStart",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "periodType": {
+                          "type": "string",
+                          "enum": [
+                            "WEEKLY",
+                            "FORTNIGHTLY",
+                            "MONTHLY"
+                          ]
+                        },
+                        "periodStart": {
+                          "type": "string"
+                        },
+                        "periodEnd": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "CLOSED",
+                            "IN_PROGRESS",
+                            "UPCOMING"
+                          ]
+                        },
+                        "totals": {
+                          "type": "object",
+                          "properties": {
+                            "promised": {
+                              "type": "number"
+                            },
+                            "achieved": {
+                              "type": "number"
+                            },
+                            "approved": {
+                              "type": "number"
+                            },
+                            "paid": {
+                              "type": "number"
+                            },
+                            "pending": {
+                              "type": "number"
+                            },
+                            "voided": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "promised",
+                            "achieved",
+                            "approved",
+                            "paid",
+                            "pending",
+                            "voided"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "goals": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "goalId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "metric": {
+                                "type": "string",
+                                "enum": [
+                                  "VOLUME",
+                                  "REGION_VOLUME",
+                                  "SERVICE_TYPE_VOLUME",
+                                  "INDEX_AT_LEAST",
+                                  "PUNCTUALITY",
+                                  "GEOFENCE",
+                                  "NO_STUCK",
+                                  "SATISFACTION",
+                                  "LATE_NOTICE",
+                                  "CANT_DO_MAX"
+                                ]
+                              },
+                              "rewardAmount": {
+                                "type": "number"
+                              },
+                              "participants": {
+                                "type": "integer"
+                              },
+                              "promised": {
+                                "type": "number"
+                              },
+                              "achievers": {
+                                "type": "integer"
+                              },
+                              "achievedAmount": {
+                                "type": "number"
+                              },
+                              "closed": {
+                                "type": "boolean"
+                              },
+                              "skipped": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "goalId",
+                              "title",
+                              "metric",
+                              "rewardAmount",
+                              "participants",
+                              "promised",
+                              "achievers",
+                              "achievedAmount",
+                              "closed",
+                              "skipped"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "periodType",
+                        "periodStart",
+                        "periodEnd",
+                        "status",
+                        "totals",
+                        "goals"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspector-program/awards/{awardId}/approve": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "awardId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "goalId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "inspectorId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "periodType": {
+                          "type": "string",
+                          "enum": [
+                            "WEEKLY",
+                            "FORTNIGHTLY",
+                            "MONTHLY"
+                          ]
+                        },
+                        "periodStart": {
+                          "type": "string"
+                        },
+                        "periodEnd": {
+                          "type": "string"
+                        },
+                        "goalTitle": {
+                          "type": "string"
+                        },
+                        "metric": {
+                          "type": "string",
+                          "enum": [
+                            "VOLUME",
+                            "REGION_VOLUME",
+                            "SERVICE_TYPE_VOLUME",
+                            "INDEX_AT_LEAST",
+                            "PUNCTUALITY",
+                            "GEOFENCE",
+                            "NO_STUCK",
+                            "SATISFACTION",
+                            "LATE_NOTICE",
+                            "CANT_DO_MAX"
+                          ]
+                        },
+                        "comparator": {
+                          "type": "string",
+                          "enum": [
+                            "GTE",
+                            "LTE"
+                          ]
+                        },
+                        "target": {
+                          "type": "number"
+                        },
+                        "amount": {
+                          "type": "number"
+                        },
+                        "scopeLabel": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "achievedValue": {
+                          "type": "number"
+                        },
+                        "serviceCount": {
+                          "type": "integer"
+                        },
+                        "achievedOn": {
+                          "type": "string"
+                        },
+                        "indexScoreAtClose": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "levelAtClose": {
+                          "type": "string",
+                          "enum": [
+                            "BRONZE",
+                            "SILVER",
+                            "GOLD"
+                          ],
+                          "nullable": true
+                        },
+                        "indexSnapshotDate": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING",
+                            "APPROVED",
+                            "PAID",
+                            "VOID"
+                          ]
+                        },
+                        "approvedByUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "approvedByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "approvedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "paidAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "voidedByUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "voidedByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "voidedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "voidReason": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "inspectorNote": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "goal": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "title": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "title"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "inspector": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "email"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "createdAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "updatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "goalId",
+                        "inspectorId",
+                        "periodType",
+                        "periodStart",
+                        "periodEnd",
+                        "goalTitle",
+                        "metric",
+                        "comparator",
+                        "target",
+                        "amount",
+                        "scopeLabel",
+                        "achievedValue",
+                        "serviceCount",
+                        "achievedOn",
+                        "indexScoreAtClose",
+                        "levelAtClose",
+                        "indexSnapshotDate",
+                        "status",
+                        "approvedByUserId",
+                        "approvedByName",
+                        "approvedAt",
+                        "paidAt",
+                        "voidedByUserId",
+                        "voidedByName",
+                        "voidedAt",
+                        "voidReason",
+                        "inspectorNote",
+                        "goal",
+                        "inspector",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/inspector-program/awards/{awardId}/void": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 500
+                  },
+                  "inspectorNote": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "awardId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "goalId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "inspectorId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "periodType": {
+                          "type": "string",
+                          "enum": [
+                            "WEEKLY",
+                            "FORTNIGHTLY",
+                            "MONTHLY"
+                          ]
+                        },
+                        "periodStart": {
+                          "type": "string"
+                        },
+                        "periodEnd": {
+                          "type": "string"
+                        },
+                        "goalTitle": {
+                          "type": "string"
+                        },
+                        "metric": {
+                          "type": "string",
+                          "enum": [
+                            "VOLUME",
+                            "REGION_VOLUME",
+                            "SERVICE_TYPE_VOLUME",
+                            "INDEX_AT_LEAST",
+                            "PUNCTUALITY",
+                            "GEOFENCE",
+                            "NO_STUCK",
+                            "SATISFACTION",
+                            "LATE_NOTICE",
+                            "CANT_DO_MAX"
+                          ]
+                        },
+                        "comparator": {
+                          "type": "string",
+                          "enum": [
+                            "GTE",
+                            "LTE"
+                          ]
+                        },
+                        "target": {
+                          "type": "number"
+                        },
+                        "amount": {
+                          "type": "number"
+                        },
+                        "scopeLabel": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "achievedValue": {
+                          "type": "number"
+                        },
+                        "serviceCount": {
+                          "type": "integer"
+                        },
+                        "achievedOn": {
+                          "type": "string"
+                        },
+                        "indexScoreAtClose": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "levelAtClose": {
+                          "type": "string",
+                          "enum": [
+                            "BRONZE",
+                            "SILVER",
+                            "GOLD"
+                          ],
+                          "nullable": true
+                        },
+                        "indexSnapshotDate": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING",
+                            "APPROVED",
+                            "PAID",
+                            "VOID"
+                          ]
+                        },
+                        "approvedByUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "approvedByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "approvedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "paidAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "voidedByUserId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "voidedByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "voidedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ],
+                          "nullable": true
+                        },
+                        "voidReason": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "inspectorNote": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "goal": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "title": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "title"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "inspector": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "email"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "createdAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        },
+                        "updatedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "goalId",
+                        "inspectorId",
+                        "periodType",
+                        "periodStart",
+                        "periodEnd",
+                        "goalTitle",
+                        "metric",
+                        "comparator",
+                        "target",
+                        "amount",
+                        "scopeLabel",
+                        "achievedValue",
+                        "serviceCount",
+                        "achievedOn",
+                        "indexScoreAtClose",
+                        "levelAtClose",
+                        "indexSnapshotDate",
+                        "status",
+                        "approvedByUserId",
+                        "approvedByName",
+                        "approvedAt",
+                        "paidAt",
+                        "voidedByUserId",
+                        "voidedByName",
+                        "voidedAt",
+                        "voidReason",
+                        "inspectorNote",
+                        "goal",
+                        "inspector",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/platform-settings": {
       "get": {
         "responses": {
