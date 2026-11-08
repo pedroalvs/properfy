@@ -200,7 +200,11 @@ export class InspectorProgramStandingService {
       const countsSince = civilDateInTimezone(l.goal.createdAt, PLATFORM_TIMEZONE) > l.period.start ? l.period.start : null;
       for (const id of l.participants) {
         if (!wanted.has(id)) continue;
-        const evaluation = evaluateGoal(l.goal, batch?.byInspector.get(id), { reliabilityIndex: reliabilityIndex!, periodEnd: today });
+        const evaluation = evaluateGoal(
+          { metric: l.goal.metric, comparator: l.goal.comparator, target: terms.target },
+          batch?.byInspector.get(id),
+          { reliabilityIndex: reliabilityIndex!, periodEnd: today },
+        );
         result.get(id)?.push({
           goalId: l.goal.id,
           title: l.goal.title,

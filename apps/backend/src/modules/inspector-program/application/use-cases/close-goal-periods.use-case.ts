@@ -166,10 +166,14 @@ export class CloseGoalPeriodsUseCase implements InspectorProgramDailyStep {
       const achievers = participantIds
         .map((inspectorId) => ({
           inspectorId,
-          evaluation: evaluateGoal(goal, batch?.byInspector.get(inspectorId), {
-            reliabilityIndex,
-            periodEnd: period.periodEnd,
-          }),
+          // Evaluate against the terms in force for this period (L-F08-02): on a
+          // catch-up run a period starting on/after next_effective_from is closed
+          // before next_* is promoted, so goal.target still holds the old value.
+          evaluation: evaluateGoal(
+            { metric: goal.metric, comparator: goal.comparator, target: terms.target },
+            batch?.byInspector.get(inspectorId),
+            { reliabilityIndex, periodEnd: period.periodEnd },
+          ),
         }))
         .filter((r) => r.evaluation.achieved);
 

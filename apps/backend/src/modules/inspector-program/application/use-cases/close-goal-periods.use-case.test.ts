@@ -259,4 +259,23 @@ describe('CloseGoalPeriodsUseCase (03.A4)', () => {
     expect(h.promoted).toEqual([{ id: 'g1', target: 12, rewardAmount: 40 }]);
     expect(h.audits.some((x) => x.action === 'inspector_goal.terms_applied')).toBe(true);
   });
+
+  it('L-F08-02: a catch-up run evaluates a >= next_effective_from period against the in-force (new) target', async () => {
+    // Downtime across the terms change: the period starting ON next_effective_from (2026-11-09)
+    // closes on a STARTUP run before promotion. Its in-force target is the NEW 12, so an
+    // inspector with 11 completions must NOT be awarded (bug would evaluate against the old 10).
+    const goal = scoped(
+      buildGoal({ id: 'g1', target: 10, rewardAmount: 30, nextTarget: 12, nextRewardAmount: 40, nextEffectiveFrom: '2026-11-09' }),
+    );
+    const h = makeHarness({
+      goals: [goal],
+      byInspector: new Map([['a', buildComputation({ completedServiceDates: dates(11) })]]),
+      indexes: [index('a', 88, '2026-11-16')],
+      existingClosureStarts: new Map([['g1', new Set(['2026-11-02'])]]),
+    });
+    await h.useCase.run({ now: new Date('2026-11-15T17:45:00.000Z'), today: '2026-11-16', trigger: 'STARTUP', createdAwardIds: [] });
+    expect(h.awards).toHaveLength(0); // 11 < in-force target 12 → not achieved
+    expect(h.closures[0]).toMatchObject({ promisedAmount: 40, trigger: 'STARTUP' }); // reward 40 × 1 participant
+    expect(h.promoted).toEqual([{ id: 'g1', target: 12, rewardAmount: 40 }]);
+  });
 });
