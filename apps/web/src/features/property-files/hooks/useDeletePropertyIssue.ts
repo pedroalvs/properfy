@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type Query } from '@tanstack/react-query';
 import type { ListPropertyIssuesResponse } from '@properfy/shared';
 import { api } from '@/services/api';
 import { toApiError } from '@/lib/api-error';
@@ -30,10 +30,17 @@ export function useDeletePropertyIssue(): UseDeletePropertyIssueReturn {
     },
     onMutate: async (issueId) => {
       await queryClient.cancelQueries({ queryKey: ['property-issues'] });
-      const prev = queryClient.getQueriesData({ queryKey: ['property-issues'] });
-      queryClient.setQueriesData<ListPropertyIssuesResponse>(
-        { queryKey: ['property-issues'] },
-        (old) => (old ? { ...old, issues: old.issues.filter((i) => i.id !== issueId) } : old),
+      // Scope to the issue LIST entries only. `['property-issues']` is a shared
+      // prefix: `['property-issues','unseen-count']` (useUnseenIssueCount) sits
+      // under it but has a different shape (`{appointmentsWithUnseenIssues,…}`),
+      // so a prefix-wide updater would do `undefined.filter(...)` and throw inside
+      // onMutate — aborting the mutation before the DELETE ever runs.
+      const listFilter = {
+        predicate: (q: Query) => q.queryKey[0] === 'property-issues' && q.queryKey[1] !== 'unseen-count',
+      };
+      const prev = queryClient.getQueriesData(listFilter);
+      queryClient.setQueriesData<ListPropertyIssuesResponse>(listFilter, (old) =>
+        old && Array.isArray(old.issues) ? { ...old, issues: old.issues.filter((i) => i.id !== issueId) } : old,
       );
       return { prev };
     },

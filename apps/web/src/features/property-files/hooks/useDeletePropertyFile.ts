@@ -35,8 +35,11 @@ export function useDeletePropertyFile(): UseDeletePropertyFileReturn {
     onMutate: async (fileId) => {
       await queryClient.cancelQueries({ queryKey: ['property-files'] });
       const prev = queryClient.getQueriesData({ queryKey: ['property-files'] });
+      // Array guard: every `['property-files', …]` entry is a {files,counts} list
+      // today, but guard against a future non-list key sharing the prefix (cf. the
+      // unseen-count collision fixed in useDeletePropertyIssue).
       queryClient.setQueriesData<ListPropertyFilesResponse>({ queryKey: ['property-files'] }, (old) =>
-        old ? { ...old, files: old.files.filter((f) => f.id !== fileId) } : old,
+        old && Array.isArray(old.files) ? { ...old, files: old.files.filter((f) => f.id !== fileId) } : old,
       );
       return { prev };
     },
