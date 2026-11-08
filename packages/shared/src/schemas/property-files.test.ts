@@ -8,6 +8,13 @@ import {
   fileCountsSchema,
   propertyIssueUnseenCountResponseSchema,
   PROPERTY_ISSUE_REASON_MAX,
+  portalPresignIssuePhotoSchema,
+  portalPresignIssuePhotoResponseSchema,
+  portalConfirmIssuePhotoSchema,
+  portalIssuePhotoResponseSchema,
+  portalCreatePropertyIssueSchema,
+  portalPropertyIssueResponseSchema,
+  portalPropertyIssuesResponseSchema,
 } from './property-files';
 
 const UUID = '11111111-1111-1111-1111-111111111111';
@@ -112,5 +119,145 @@ describe('response fragments', () => {
       propertiesWithUnseenIssues: 1,
     });
     expect(parsed.appointmentsWithUnseenIssues).toBe(2);
+  });
+});
+
+// ── Portal (F10-4) ─────────────────────────────────────────────────────────
+
+describe('portalPresignIssuePhotoSchema', () => {
+  it('accepts fileName + mime (+ optional sizeBytes) and strips token-derived fields', () => {
+    const parsed = portalPresignIssuePhotoSchema.parse({
+      fileName: 'leak.jpg',
+      mime: 'image/jpeg',
+      sizeBytes: 2048,
+      // the token derives these — a client must not set them:
+      propertyId: UUID,
+      appointmentId: UUID,
+      type: 'DOCUMENT',
+    } as Record<string, unknown>);
+    expect(parsed.fileName).toBe('leak.jpg');
+    expect(parsed).not.toHaveProperty('propertyId');
+    expect(parsed).not.toHaveProperty('appointmentId');
+    expect(parsed).not.toHaveProperty('type');
+  });
+
+  it('rejects an empty or over-long fileName and a missing mime', () => {
+    expect(
+      portalPresignIssuePhotoSchema.safeParse({ fileName: '', mime: 'image/png' }).success,
+    ).toBe(false);
+    expect(
+      portalPresignIssuePhotoSchema.safeParse({
+        fileName: 'a'.repeat(256),
+        mime: 'image/png',
+      }).success,
+    ).toBe(false);
+    expect(portalPresignIssuePhotoSchema.safeParse({ fileName: 'x.png' }).success).toBe(false);
+  });
+});
+
+describe('portalPresignIssuePhotoResponseSchema', () => {
+  it('carries fileId/uploadUrl/expiresAt and never storageKey', () => {
+    const parsed = portalPresignIssuePhotoResponseSchema.parse({
+      fileId: UUID,
+      uploadUrl: 'https://storage.example.com/signed',
+      expiresAt: '2026-11-07T00:00:00.000Z',
+      // a storageKey must be stripped — it embeds the agency tenantId:
+      storageKey: `files/${UUID}/tenant-issues/${UUID}/${UUID}.jpg`,
+    } as Record<string, unknown>);
+    expect(parsed.fileId).toBe(UUID);
+    expect(parsed).not.toHaveProperty('storageKey');
+  });
+});
+
+describe('portalConfirmIssuePhotoSchema', () => {
+  it('requires a uuid fileId', () => {
+    expect(portalConfirmIssuePhotoSchema.safeParse({ fileId: UUID }).success).toBe(true);
+    expect(portalConfirmIssuePhotoSchema.safeParse({ fileId: 'nope' }).success).toBe(false);
+  });
+});
+
+describe('portalIssuePhotoResponseSchema', () => {
+  it('exposes only metadata + status, no identity/storage fields', () => {
+    const parsed = portalIssuePhotoResponseSchema.parse({
+      id: UUID,
+      fileName: 'leak.jpg',
+      mime: 'image/jpeg',
+      status: 'READY',
+      createdAt: '2026-11-07T00:00:00.000Z',
+      // staff/internal fields must be stripped:
+      uploadedByUserId: UUID,
+      storageKey: 'files/x',
+      issueId: UUID,
+    } as Record<string, unknown>);
+    expect(parsed.status).toBe('READY');
+    expect(parsed).not.toHaveProperty('uploadedByUserId');
+    expect(parsed).not.toHaveProperty('storageKey');
+    expect(parsed).not.toHaveProperty('issueId');
+  });
+});
+
+describe('portalCreatePropertyIssueSchema', () => {
+  it('accepts reason (+ optional photos) and strips token-/server-derived fields', () => {
+    const parsed = portalCreatePropertyIssueSchema.parse({
+      reason: 'The front gate will not lock',
+      photoFileIds: [UUID],
+      // these are token-/server-derived and must be stripped:
+      propertyId: UUID,
+      appointmentId: UUID,
+      source: 'STAFF',
+      cantDoEventId: UUID,
+    } as Record<string, unknown>);
+    expect(parsed.reason).toBe('The front gate will not lock');
+    expect(parsed.photoFileIds).toEqual([UUID]);
+    expect(parsed).not.toHaveProperty('propertyId');
+    expect(parsed).not.toHaveProperty('appointmentId');
+    expect(parsed).not.toHaveProperty('source');
+    expect(parsed).not.toHaveProperty('cantDoEventId');
+  });
+
+  it('allows a reason-only report but rejects empty / whitespace / over-long reason', () => {
+    expect(portalCreatePropertyIssueSchema.safeParse({ reason: 'leak' }).success).toBe(true);
+    expect(portalCreatePropertyIssueSchema.safeParse({ reason: '   ' }).success).toBe(false);
+    expect(
+      portalCreatePropertyIssueSchema.safeParse({
+        reason: 'a'.repeat(PROPERTY_ISSUE_REASON_MAX + 1),
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe('portal issue response schemas', () => {
+  it('issue response exposes reason + photos but no reviewer identity or seen status', () => {
+    const parsed = portalPropertyIssueResponseSchema.parse({
+      id: UUID,
+      reason: 'leak',
+      createdAt: '2026-11-07T00:00:00.000Z',
+      photos: [
+        {
+          id: UUID,
+          fileName: 'leak.jpg',
+          mime: 'image/jpeg',
+          status: 'READY',
+          createdAt: '2026-11-07T00:00:00.000Z',
+        },
+      ],
+      // staff-internal fields must be stripped:
+      source: 'RENTAL_TENANT_PORTAL',
+      createdByUserId: UUID,
+      seenAt: '2026-11-07T00:00:00.000Z',
+      seenByUserId: UUID,
+      appointmentId: UUID,
+    } as Record<string, unknown>);
+    expect(parsed.photos).toHaveLength(1);
+    expect(parsed).not.toHaveProperty('createdByUserId');
+    expect(parsed).not.toHaveProperty('seenAt');
+    expect(parsed).not.toHaveProperty('seenByUserId');
+    expect(parsed).not.toHaveProperty('source');
+    expect(parsed).not.toHaveProperty('appointmentId');
+  });
+
+  it('issues list wraps an array', () => {
+    const parsed = portalPropertyIssuesResponseSchema.parse({ issues: [] });
+    expect(parsed.issues).toEqual([]);
   });
 });

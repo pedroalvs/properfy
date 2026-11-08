@@ -361,6 +361,21 @@ DELETE /v1/property-issues/:id                 AM/OP — soft delete issue + pho
 - **Retention job** `property-file.retention` (daily 04:00 Sydney, `main/workers.ts`): (1) soft-deleted READY past `deletedRetentionDays`, (2) active past `retentionDays` (if set; purged issue photo leaves the issue, D27), (3) `PENDING` orphans > 24 h → `deleteObject` + `purged_at` + audit, per-row try/catch.
 - **Payload enrichment:** `GET /v1/appointments`/`/v1/properties` list rows gain `hasUnseenIssues` (D26; AM/OP/CL_ADMIN only, false for CL_USER/INSP) + a `withIssues` filter; `/:id` details gain `fileCounts`. Config is the `propertyFiles` PlatformSetting key; role-matrix gains `property_file.*`/`property_issue.*`.
 
+**Portal issue reporting (F10-4, module `rental-tenant-portal/`).** The rental tenant reports a property problem before confirming, through four **token-authenticated** routes (no JWT, no RBAC role — the `TNT` runtime actor), registered in `rental-tenant-portal.routes.ts`:
+
+```text
+POST /v1/rental-tenant-portal/:token/property-issues/presign        issue photo (12/token/hour, D21)
+POST /v1/rental-tenant-portal/:token/property-issues/confirm-upload  (Idempotency-Key) headObject + size + magic bytes + D25 key↔row
+POST /v1/rental-tenant-portal/:token/property-issues                 (Idempotency-Key) source=RENTAL_TENANT_PORTAL, createdByUserId=null
+GET  /v1/rental-tenant-portal/:token/property-issues                 own appointment's RENTAL_TENANT_PORTAL issues (read-only allowed)
+```
+
+- **New portal use cases** (`application/use-cases/presign|confirm|create|list-portal-issue*.use-case.ts`) reuse the F10-1 repository ports (`IPropertyFileRepository`/`IPropertyIssueRepository`), `IStorageService`, `IPlatformSettingsReader`, `IIdempotencyService`, the `isDetectedMimeCompatible` domain helper, `runInTransaction` and the shared storage-key grammar — the F10-1 use cases require a JWT `AuthContext` the token flow lacks, so this does **not** touch merged F10-1 code.
+- **Scope is the token's appointment only.** `IPropertyIssueRepository.findAppointmentScope(appointmentId)` → `{propertyId, tenantId}`; every write/read uses that, never client input. Cross-token/cross-tenant file or issue → **404** (C.A2); confirm also re-parses `storageKey` with `parsePortalIssueStorageKey` and asserts the embedded tenant/appointment match (D25). An appointment with no property → 422 `PORTAL_ISSUE_NO_PROPERTY`. Read-only (expired/superseded) token → writes refused (`PortalActionBlockedError`), list still served.
+- **Photo link is portal-scoped.** Create uses `IPropertyFileRepository.linkPendingPortalIssuePhotos` (not the shared `linkPendingIssuePhotos`), whose atomic `updateMany` WHERE additionally pins `appointment_id = <token appointment>` and `uploaded_by_user_id IS NULL` — so a token can never link another appointment's photo, nor a staff member's in-flight issue photo, on the same property+tenant (defense-in-depth beyond the `tenant_id`/`property_id` scope). The shared method keeps linking property-level (null-appointment) photos for the authenticated F10-1 flow, untouched.
+- **Rate limit (D21):** presign uses a per-route `config.rateLimit` of `{ max: 12, timeWindow: '1 hour', keyGenerator }` where `keyGenerator` = `tokenService.hashToken(params.token)` with IP fallback (precedent `inspector.routes.ts`/`inspector-notice.routes.ts`); confirm/create/list keep the generic `{ max: 30, timeWindow: '1 minute' }` per IP.
+- **Audit** `property_issue.created` with `actorType: 'ANONYMOUS'` (no actor id), resolved `tenantId`. **Privacy-reduced DTOs** (`application/portal-issue-mappers.ts`): the portal never returns reviewer identity / seen status / source / storage key; the presign response omits `storageKey`. **No schema change, no migration, no role-matrix change**; `openapi.json`/`api-types` regenerated for the four routes.
+
 ## 7. Data model
 
 See `prisma/schema.prisma` for complete entity definitions.
