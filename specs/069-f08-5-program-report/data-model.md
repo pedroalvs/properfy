@@ -67,7 +67,7 @@ FinancialEntry reversal (reference_entry_id = original.id, amount<0)
 | 3 | periodEnd | Period end | closure.period_end (civil) |
 | 4 | goal | Goal | award.goal_title ∥ goal.title (no-achievers/skipped) |
 | 5 | goalDescription | Goal description | describeGoal({metric,target,scopeLabel}) |
-| 6 | metric | Metric | award.metric ∥ goal.metric |
+| 6 | metric | Metric | GOAL_METRIC_LABELS[award.metric ∥ goal.metric] (human label, not the raw enum) |
 | 7 | target | Target | award.target ∥ in-force target |
 | 8 | scope | Scope | scope_label (award ∥ closure) |
 | 9 | perWinner | Per winner (AUD) | award.amount ∥ goalTermsForPeriod amount ∥ '' |

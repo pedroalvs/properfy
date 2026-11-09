@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { REWARD_AWARD_STATUS_LABELS, describeGoal } from '@properfy/shared';
+import { GOAL_METRIC_LABELS, REWARD_AWARD_STATUS_LABELS, describeGoal } from '@properfy/shared';
 import { setupDbHarness, teardownDbHarness, type DbHarness } from '../db/harness';
 import { PrismaReportDataReader } from '../../../src/modules/report/infrastructure/prisma-report-data-reader';
 import { INSPECTOR_PROGRAM_COLUMNS } from '../../../src/modules/report/domain/report.constants';
@@ -574,6 +574,8 @@ describe('getInspectorProgramRows (INSPECTOR_PROGRAM report)', () => {
   it('shows the invoice, ledger status and paid-at for a PAID reward', () => {
     const r = row('I1');
     expect(r.status).toBe(REWARD_AWARD_STATUS_LABELS.PAID);
+    // The Metric column renders the human label, never the raw enum code (award-row path).
+    expect(r.metric).toBe(GOAL_METRIC_LABELS.VOLUME);
     expect(r.invoice).toBe('PINV-000042');
     expect(r.ledgerStatus).toBe('Approved');
     expect((r.paidAt as string).length).toBeGreaterThan(0);
@@ -641,6 +643,8 @@ describe('getInspectorProgramRows (INSPECTOR_PROGRAM report)', () => {
     expect(skipped!.participants).toBe(0);
     expect(skipped!.promised).toBe(0);
     expect(skipped!.scope).toBe('Routine');
+    // The Metric column renders the human label, never the raw enum code (closure-row path).
+    expect(skipped!.metric).toBe(GOAL_METRIC_LABELS.SERVICE_TYPE_VOLUME);
     expect(skipped!.goalDescription).toBe(describeGoal({ metric: 'SERVICE_TYPE_VOLUME', target: 9, scopeLabel: 'Routine' }));
   });
 
