@@ -286,10 +286,11 @@ describe('REPORT_TYPE_MAP', () => {
     ReportType.FINANCIAL,
     ReportType.PERFORMANCE,
     ReportType.AGENCIES,
+    ReportType.INSPECTOR_PROGRAM,
   ];
 
-  it('maps all 4 report types', () => {
-    expect(Object.keys(REPORT_TYPE_MAP)).toHaveLength(4);
+  it('maps all 5 report types', () => {
+    expect(Object.keys(REPORT_TYPE_MAP)).toHaveLength(5);
     for (const type of allTypes) {
       expect(REPORT_TYPE_MAP[type]).toBeDefined();
     }
@@ -307,6 +308,7 @@ describe('REPORT_TYPE_MAP', () => {
     expect(REPORT_TYPE_MAP[ReportType.FINANCIAL].label).toBe('Financial');
     expect(REPORT_TYPE_MAP[ReportType.PERFORMANCE].label).toBe('Performance');
     expect(REPORT_TYPE_MAP[ReportType.AGENCIES].label).toBe('Agencies');
+    expect(REPORT_TYPE_MAP[ReportType.INSPECTOR_PROGRAM].label).toBe('Inspector program');
   });
 });
 

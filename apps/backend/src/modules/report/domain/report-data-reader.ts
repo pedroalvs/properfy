@@ -40,4 +40,11 @@ export interface IReportDataReader {
   getFinancialRows(filters: ReportDataFilters): Promise<Record<string, unknown>[]>;
   getPerformanceRows(filters: ReportDataFilters): Promise<Record<string, unknown>[]>;
   getAgencyRows(filters: ReportDataFilters): Promise<Record<string, unknown>[]>;
+  /**
+   * Inspector program report (F08-5, 03.14). Platform-scoped: ignores `tenantId`/
+   * `agencyScoped` (the program has no agency). Ranges on `goal_period_closures.period_end`
+   * within `[fromDate, toDate]` (civil dates). One row per reward, plus a no-achievers row
+   * per empty closure and a "Skipped (goal inactive)" row per SKIPPED_INACTIVE closure.
+   */
+  getInspectorProgramRows(filters: ReportDataFilters): Promise<Record<string, unknown>[]>;
 }

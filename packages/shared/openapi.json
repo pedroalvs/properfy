@@ -40453,7 +40453,8 @@
                       "APPOINTMENTS",
                       "FINANCIAL",
                       "PERFORMANCE",
-                      "AGENCIES"
+                      "AGENCIES",
+                      "INSPECTOR_PROGRAM"
                     ]
                   },
                   "filters": {
@@ -40586,7 +40587,8 @@
                 "APPOINTMENTS",
                 "FINANCIAL",
                 "PERFORMANCE",
-                "AGENCIES"
+                "AGENCIES",
+                "INSPECTOR_PROGRAM"
               ]
             },
             "in": "query",

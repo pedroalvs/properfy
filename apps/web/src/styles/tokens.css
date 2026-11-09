@@ -107,6 +107,7 @@
   --color-report-type-financial: #DCEDC8;
   --color-report-type-performance: #E1BEE7;
   --color-report-type-agencies: #FFE0B2;
+  --color-report-type-inspector-program: #FFF9C4;
 
   /* Geocoding status backgrounds */
   --color-geocoding-pending: #FFE0B2;

@@ -8,6 +8,7 @@ const TYPE_LABELS: Record<ReportType, string> = {
   FINANCIAL: 'Financial',
   PERFORMANCE: 'Performance',
   AGENCIES: 'Agencies',
+  INSPECTOR_PROGRAM: 'Inspector program',
 };
 
 describe('ReportTypeChip', () => {

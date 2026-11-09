@@ -118,8 +118,8 @@ describe('reportFiltersSchema', () => {
 });
 
 describe('requestReportSchema', () => {
-  it('should accept all 4 report types', () => {
-    const types = ['APPOINTMENTS', 'FINANCIAL', 'PERFORMANCE', 'AGENCIES'];
+  it('should accept all 5 report types', () => {
+    const types = ['APPOINTMENTS', 'FINANCIAL', 'PERFORMANCE', 'AGENCIES', 'INSPECTOR_PROGRAM'];
     for (const reportType of types) {
       const result = requestReportSchema.safeParse({ reportType, filters: validFilters });
       expect(result.success).toBe(true);
@@ -183,8 +183,8 @@ describe('listReportsQuerySchema', () => {
     }
   });
 
-  it('should accept the 4 report types as list filters', () => {
-    for (const reportType of ['APPOINTMENTS', 'FINANCIAL', 'PERFORMANCE', 'AGENCIES']) {
+  it('should accept the 5 report types as list filters', () => {
+    for (const reportType of ['APPOINTMENTS', 'FINANCIAL', 'PERFORMANCE', 'AGENCIES', 'INSPECTOR_PROGRAM']) {
       const result = listReportsQuerySchema.safeParse({ reportType });
       expect(result.success).toBe(true);
     }

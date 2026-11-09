@@ -227,4 +227,56 @@ describe('RequestReportUseCase', () => {
     expect(result.status).toBe('PENDING');
     expect(reportRepo.countByUserAndStatuses).toHaveBeenCalledWith('user-1', ['PENDING', 'PROCESSING']);
   });
+
+  // --- INSPECTOR_PROGRAM (F08-5, 03.14): operator-only, platform-scoped ---
+  describe('INSPECTOR_PROGRAM report', () => {
+    it.each(['AM', 'OP'] as const)('allows %s and records period_end as the date field', async (role) => {
+      await useCase.execute(makeInput({ reportType: 'INSPECTOR_PROGRAM' }), makeAuth({ role }));
+      const saved = vi.mocked(reportRepo.save).mock.calls[0][0];
+      expect(saved.reportType).toBe('INSPECTOR_PROGRAM');
+      expect(saved.filtersJson.dateAxisField).toBe('period_end');
+      expect(saved.tenantId).toBeNull();
+      expect(saved.agencyScoped).toBe(false);
+    });
+
+    it('forces tenantId null even when an operator supplies one (platform-scoped)', async () => {
+      await useCase.execute(
+        makeInput({
+          reportType: 'INSPECTOR_PROGRAM',
+          filters: { fromDate: '2026-01-01', toDate: '2026-03-01', dateAxis: 'SCHEDULED', groupProperties: false, tenantId: 'tenant-42' },
+        }),
+        makeAuth({ role: 'OP', tenantId: null }),
+      );
+      const saved = vi.mocked(reportRepo.save).mock.calls[0][0];
+      expect(saved.tenantId).toBeNull();
+      expect(saved.filtersJson.tenantId).toBeUndefined();
+    });
+
+    it('audits the request (03.A5)', async () => {
+      const result = await useCase.execute(makeInput({ reportType: 'INSPECTOR_PROGRAM' }), makeAuth({ role: 'AM' }));
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'reportRequested',
+          entityType: 'Report',
+          entityId: result.reportId,
+          metadata: expect.objectContaining({ reportType: 'INSPECTOR_PROGRAM' }),
+        }),
+      );
+    });
+
+    it.each(['CL_ADMIN', 'CL_USER'] as const)('forbids %s (Q18)', async (role) => {
+      await expect(
+        useCase.execute(makeInput({ reportType: 'INSPECTOR_PROGRAM' }), makeAuth({ role, tenantId: 'tenant-1' })),
+      ).rejects.toThrow('Agencies cannot generate the INSPECTOR_PROGRAM report');
+      expect(reportRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('throws when the Period exceeds 12 months', async () => {
+      const input = makeInput({
+        reportType: 'INSPECTOR_PROGRAM',
+        filters: { fromDate: '2025-01-01', toDate: '2026-06-01', dateAxis: 'SCHEDULED', groupProperties: false },
+      });
+      await expect(useCase.execute(input, makeAuth({ role: 'AM' }))).rejects.toThrow(ReportDateRangeExceededError);
+    });
+  });
 });

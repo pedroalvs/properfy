@@ -15931,7 +15931,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    reportType?: "APPOINTMENTS" | "FINANCIAL" | "PERFORMANCE" | "AGENCIES";
+                    reportType?: "APPOINTMENTS" | "FINANCIAL" | "PERFORMANCE" | "AGENCIES" | "INSPECTOR_PROGRAM";
                     status?: "PENDING" | "PROCESSING" | "READY" | "FAILED";
                     fromDate?: string;
                     toDate?: string;
@@ -15997,7 +15997,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** @enum {string} */
-                        reportType: "APPOINTMENTS" | "FINANCIAL" | "PERFORMANCE" | "AGENCIES";
+                        reportType: "APPOINTMENTS" | "FINANCIAL" | "PERFORMANCE" | "AGENCIES" | "INSPECTOR_PROGRAM";
                         filters: {
                             fromDate: string;
                             toDate: string;
