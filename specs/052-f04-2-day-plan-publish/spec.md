@@ -1,3 +1,5 @@
+> **SUPERSEDIDO (parcial):** o Plan A descrito abaixo (persistência de rota/geometria) foi substituído pelo Plan B, compatível com os ToS (sem persistência de rota, geometria sob demanda). Ver specs 072/073/074 e `fase2-etapa1/decisoes.md`. O código entrega o Plan B. Este documento é um registro histórico.
+
 # Feature Specification: Day Plan — Persistence, 19:30 Publication, APIs, Route Sheet, Weights, Metric & Purge
 
 **Feature Branch**: `052-f04-2-day-plan-publish`
