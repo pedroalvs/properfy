@@ -1,3 +1,5 @@
+> **SUPERSEDIDO (parcial):** o Plan A descrito abaixo (persistência de rota/geometria) foi substituído pelo Plan B, compatível com os ToS (sem persistência de rota, geometria sob demanda). Ver specs 072/073/074 e `fase2-etapa1/decisoes.md`. O código entrega o Plan B. Este documento é um registro histórico.
+
 # Feature Specification: Service-type duration, routing port (Mapbox + stub + dynamic), pure route optimizer and PlanRouteService
 
 **Feature Branch**: `051-f04-1-routing-optimizer`
