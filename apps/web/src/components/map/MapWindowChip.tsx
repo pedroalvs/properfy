@@ -41,7 +41,12 @@ export function MapWindowChip({
 
   if (!removable) {
     return (
-      <span className={base} aria-label={`Date window: ${label}`} data-testid="map-window-chip">
+      <span
+        className={base}
+        role="group"
+        aria-label={`Map date window: ${label}. Fixed for your agency.`}
+        data-testid="map-window-chip"
+      >
         <i className="mdi mdi-calendar-range text-sm text-primary" aria-hidden="true" />
         <span>{label}</span>
       </span>
@@ -63,7 +68,7 @@ export function MapWindowChip({
       <button
         type="button"
         onClick={handleRemove}
-        aria-label="Remove date window"
+        aria-label={`Remove date window: ${label}`}
         className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full text-text-muted hover:bg-black/5 hover:text-text-primary"
         data-testid="map-window-chip-remove"
       >

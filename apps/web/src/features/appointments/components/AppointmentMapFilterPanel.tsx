@@ -12,6 +12,7 @@ import {
   SERVICE_GROUP_STATUS_MAP,
   RENTAL_TENANT_CONFIRMATION_STATUS_MAP,
 } from '@/lib/status-colors';
+import { formatCivilDate } from '@/lib/format-date';
 import { computeWindowRange, formatWindowLabel, type WindowRange } from '../lib/map-period-window';
 
 export type FilterMode = 'appointments' | 'groups';
@@ -374,7 +375,7 @@ function AppointmentModeFields({
           ? {
               min: windowRange.from,
               max: windowRange.to,
-              helperText: `Dates are limited to today + ${windowDays} days (your agency's map window).`,
+              helperText: `Dates are limited to today + ${windowDays} days (${formatCivilDate(windowRange.from)} – ${formatCivilDate(windowRange.to)}).`,
             }
           : {})}
       />
