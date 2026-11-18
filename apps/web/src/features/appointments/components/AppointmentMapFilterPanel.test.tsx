@@ -334,7 +334,7 @@ describe('AppointmentMapFilterPanel — window chip (F00)', () => {
     renderPanel({ actorRole: 'AM', onRemoveWindow: vi.fn(), ...windowProps });
     expect(screen.getByTestId('map-window-chip')).toBeInTheDocument();
     expect(screen.getByText('Today + 14 days')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Remove date window' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Remove date window/ })).toBeInTheDocument();
   });
 
   // C3 — singular label when N=1.
@@ -352,7 +352,7 @@ describe('AppointmentMapFilterPanel — window chip (F00)', () => {
   it('C4: the chip remove button clears the appointments window', () => {
     const onRemoveWindow = vi.fn();
     renderPanel({ actorRole: 'OP', onRemoveWindow, ...windowProps });
-    fireEvent.click(screen.getByRole('button', { name: 'Remove date window' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Remove date window/ }));
     expect(onRemoveWindow).toHaveBeenCalledWith('appointments');
   });
 
@@ -360,7 +360,7 @@ describe('AppointmentMapFilterPanel — window chip (F00)', () => {
   it('C5: the chip remove button clears the groups window in groups mode', () => {
     const onRemoveWindow = vi.fn();
     renderPanel({ mode: 'groups', actorRole: 'AM', onRemoveWindow, ...windowProps });
-    fireEvent.click(screen.getByRole('button', { name: 'Remove date window' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Remove date window/ }));
     expect(onRemoveWindow).toHaveBeenCalledWith('groups');
   });
 
@@ -368,7 +368,7 @@ describe('AppointmentMapFilterPanel — window chip (F00)', () => {
   it('C6: CL sees a static chip with no remove button', () => {
     renderPanel({ actorRole: 'CL_ADMIN', onRemoveWindow: vi.fn(), ...windowProps });
     expect(screen.getByTestId('map-window-chip')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Remove date window' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Remove date window/ })).not.toBeInTheDocument();
   });
 
   // C7 — no chip when the window is inactive.
@@ -404,7 +404,9 @@ describe('AppointmentMapFilterPanel — window chip (F00)', () => {
   // C10 — CL help text is wired to the inputs via aria-describedby.
   it('C10: CL shows the limiting help text wired to the inputs', () => {
     renderPanel({ actorRole: 'CL_USER', onRemoveWindow: vi.fn(), ...windowProps });
-    const help = screen.getByText(/Dates are limited to today \+ 14 days/);
+    const help = screen.getByText(
+      'Dates are limited to today + 14 days (28/10/2026 – 11/11/2026).',
+    );
     const start = screen.getByLabelText('Date Range - start');
     expect(start.getAttribute('aria-describedby') ?? '').toContain(help.id);
   });
