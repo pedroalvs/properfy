@@ -154,6 +154,7 @@ export function createMockContainer(
       listMyInspectorNoticesUseCase: { execute: vi.fn() },
       getMyInspectorNoticeUseCase: { execute: vi.fn() },
       markInspectorNoticeReadUseCase: { execute: vi.fn() },
+      markAllMyInspectorNoticesReadUseCase: { execute: vi.fn() },
       countMyUnreadInspectorNoticesUseCase: { execute: vi.fn() },
       getPushConfigUseCase: { execute: vi.fn() },
       upsertPushSubscriptionUseCase: { execute: vi.fn() },

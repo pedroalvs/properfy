@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { Button } from '@/components/ui/Button';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { useMyNotices } from '../hooks/useMyNotices';
+import { useMarkAllNoticesRead } from '../hooks/useMarkAllNoticesRead';
 import { AnnouncementListItem } from '../components/AnnouncementListItem';
 
 /**
@@ -25,7 +26,10 @@ export function AnnouncementsPage() {
     isFetchingNextPage,
   } = useMyNotices();
 
+  const markAll = useMarkAllNoticesRead();
+
   const notices = data?.pages.flatMap((p) => p.data) ?? [];
+  const hasUnread = notices.some((n) => n.readAt == null);
 
   return (
     <div className="w-full pb-20">
@@ -46,6 +50,18 @@ export function AnnouncementsPage() {
           />
         ) : (
           <>
+            {hasUnread && (
+              <div className="mb-3 flex justify-end">
+                <Button
+                  variant="secondary"
+                  className="h-11 px-4 text-sm"
+                  onClick={() => markAll.mutate()}
+                  loading={markAll.isPending}
+                >
+                  Mark all read
+                </Button>
+              </div>
+            )}
             <ul role="list" className="flex flex-col gap-3">
               {notices.map((notice) => (
                 <AnnouncementListItem key={notice.id} notice={notice} timeZone={timeZone} />

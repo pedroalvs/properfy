@@ -137,6 +137,7 @@ import { GetInspectorNoticeUseCase } from '../modules/inspector-notice/applicati
 import { ListMyInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/list-my-inspector-notices.use-case';
 import { GetMyInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/get-my-inspector-notice.use-case';
 import { MarkInspectorNoticeReadUseCase } from '../modules/inspector-notice/application/use-cases/mark-inspector-notice-read.use-case';
+import { MarkAllMyInspectorNoticesReadUseCase } from '../modules/inspector-notice/application/use-cases/mark-all-my-inspector-notices-read.use-case';
 import { CountMyUnreadInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/count-my-unread-inspector-notices.use-case';
 import { GetPushConfigUseCase } from '../modules/inspector-notice/application/use-cases/get-push-config.use-case';
 import { UpsertPushSubscriptionUseCase } from '../modules/inspector-notice/application/use-cases/upsert-push-subscription.use-case';
@@ -1014,6 +1015,7 @@ export function createContainer(logger: Logger): AppContainer {
   const listMyInspectorNoticesUseCase = new ListMyInspectorNoticesUseCase(inspectorNoticeRepo);
   const getMyInspectorNoticeUseCase = new GetMyInspectorNoticeUseCase(inspectorNoticeRepo);
   const markInspectorNoticeReadUseCase = new MarkInspectorNoticeReadUseCase(inspectorNoticeRepo, inspectorNoticeClock);
+  const markAllMyInspectorNoticesReadUseCase = new MarkAllMyInspectorNoticesReadUseCase(inspectorNoticeRepo, inspectorNoticeClock);
   const countMyUnreadInspectorNoticesUseCase = new CountMyUnreadInspectorNoticesUseCase(inspectorNoticeRepo);
   const getPushConfigUseCase = new GetPushConfigUseCase(pushConfigured ? env.VAPID_PUBLIC_KEY! : null);
   const upsertPushSubscriptionUseCase = new UpsertPushSubscriptionUseCase(pushSubscriptionRepo, pushSender, inspectorNoticeClock);
@@ -2259,6 +2261,7 @@ export function createContainer(logger: Logger): AppContainer {
       listMyInspectorNoticesUseCase,
       getMyInspectorNoticeUseCase,
       markInspectorNoticeReadUseCase,
+      markAllMyInspectorNoticesReadUseCase,
       countMyUnreadInspectorNoticesUseCase,
       getPushConfigUseCase,
       upsertPushSubscriptionUseCase,
