@@ -652,7 +652,7 @@ describe('AppointmentMapPage — period window (F00)', () => {
     await waitFor(() => expect(lastQuery('/v1/appointments')).toBeDefined());
     expect(screen.getByTestId('map-window-chip')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove date window' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Remove date window/ }));
 
     await waitFor(() => expect(lastQuery('/v1/appointments')?.fromDate).toBeUndefined());
     expect(screen.queryByTestId('map-window-chip')).not.toBeInTheDocument();
