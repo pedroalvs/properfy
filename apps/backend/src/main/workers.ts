@@ -428,7 +428,7 @@ export async function registerWorkers(
   }));
 
   // Reliability snapshot (F07-2): daily compute at 04:15 Sydney — after audit.retention
-  // (03:30) and the day-plan purge (03:45), and outside the DST 02:00–03:00 skip. One
+  // (03:30), and outside the DST 02:00–03:00 skip. One
   // machine runs it (teamSize/teamConcurrency 1); a transaction advisory lock serializes
   // it against any settings-triggered recompute.
   await boss.schedule('reliability.compute-snapshots', '15 4 * * *', {}, SYDNEY_TZ);
