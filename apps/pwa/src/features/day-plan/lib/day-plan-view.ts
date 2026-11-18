@@ -31,6 +31,30 @@ export function nextStop(plan: DayPlanResponse): DayPlanStop | null {
   return stopsInOrder(plan).find(isActive) ?? null;
 }
 
+/**
+ * The next stop to drive to after completing `appointmentId`: the first still-active
+ * stop ordered after it. The just-completed stop is excluded by position, so a cached
+ * plan that has not yet reflected the completion still resolves the right next job.
+ * Null when the appointment is not in the plan or no active stop follows it (last job).
+ */
+export function nextStopAfter(plan: DayPlanResponse, appointmentId: string): DayPlanStop | null {
+  const ordered = stopsInOrder(plan);
+  const index = ordered.findIndex((s) => s.appointmentId === appointmentId);
+  if (index === -1) return null;
+  return ordered.slice(index + 1).find(isActive) ?? null;
+}
+
+/**
+ * True when `appointmentId` was the last active job of the plan's day: it belongs to
+ * the plan and no *other* stop is still active. Ignores the just-completed stop itself
+ * so an offline finish (cached plan still shows it active) still counts as "all done".
+ */
+export function isLastActiveStop(plan: DayPlanResponse, appointmentId: string): boolean {
+  const inPlan = plan.stops.some((s) => s.appointmentId === appointmentId);
+  if (!inPlan) return false;
+  return !plan.stops.some((s) => s.appointmentId !== appointmentId && isActive(s));
+}
+
 /** Up to three not-executed stops after the current one. */
 export function comingUp(plan: DayPlanResponse): DayPlanStop[] {
   const ordered = stopsInOrder(plan);
