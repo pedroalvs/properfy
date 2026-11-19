@@ -1,9 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
-import { API, stubJson } from './support/api';
+import { API, stubJson, stubJsonPrefix } from './support/api';
 import { loginAsInspector } from './support/auth';
 import { seedExecutionState } from './support/idb';
 import { isWebKitProject } from './support/projects';
-import { APPOINTMENT_DETAIL, APPOINTMENT_ID, FINISH_RESULT } from './support/fixtures';
+import { APPOINTMENT_DETAIL, APPOINTMENT_ID, DAY_PLAN_TODAY, FINISH_RESULT } from './support/fixtures';
 
 interface SetupOptions {
   scheduledDate: string;
@@ -170,6 +170,49 @@ test.describe('Execution finish confirmations', () => {
 
     await page.getByTestId('submit-button').click();
     await expect(page.getByText('Inspection Complete')).toBeVisible();
+    expect(finishCalls()).toBe(1);
+  });
+
+  test('surfaces the next route stop on the completion screen', async ({ page }) => {
+    const { finishCalls } = await setupExecutionAtFinishing(page, {
+      scheduledDate: '2099-12-31',
+      withInspectionAppLink: false,
+    });
+
+    // The day plan is read only once the inspection is DONE; override the baseline
+    // prefix stub (last route wins) so the completed appointment is this day's first
+    // stop and a second stop follows it.
+    const baseStop = DAY_PLAN_TODAY.stops[0];
+    await stubJsonPrefix(page, '/v1/inspector/day-plans/', {
+      data: {
+        ...DAY_PLAN_TODAY,
+        suggestedOrder: [APPOINTMENT_ID, baseStop.appointmentId],
+        stops: [
+          {
+            ...baseStop,
+            appointmentId: APPOINTMENT_ID,
+            sequence: 1,
+            appointmentStatus: 'DONE',
+            executed: true,
+            propertyAddress: '12 King St, Surry Hills NSW 2010',
+          },
+          {
+            ...baseStop,
+            sequence: 2,
+            propertyAddress: '2/246 Willoughby Rd, Naremburn NSW 2065',
+            suburb: 'Naremburn',
+          },
+        ],
+      },
+    });
+
+    await page.getByTestId('submit-button').click();
+    await expect(page.getByText('Inspection Complete')).toBeVisible();
+
+    const nextCard = page.getByTestId('next-inspection');
+    await expect(nextCard).toBeVisible();
+    await expect(nextCard.getByText('2/246 Willoughby Rd, Naremburn NSW 2065')).toBeVisible();
+    await expect(nextCard.getByTestId('navigate-button')).toBeVisible();
     expect(finishCalls()).toBe(1);
   });
 });

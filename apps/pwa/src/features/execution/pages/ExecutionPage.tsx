@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -16,6 +16,9 @@ import { PastTimeConfirmModal } from '../components/PastTimeConfirmModal';
 import { CantDoSheet } from '@/features/field-events/components/CantDoSheet';
 import { useExecutionActions } from '../hooks/useExecutionActions';
 import { useInspectorAppointment } from '@/features/schedule/hooks/useInspectorAppointment';
+import { useCivilToday } from '@/features/today/hooks/useCivilToday';
+import { useDayPlan } from '@/features/day-plan/hooks/useDayPlan';
+import { nextStopAfter, isLastActiveStop } from '@/features/day-plan/lib/day-plan-view';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { isPastScheduledEnd } from '../lib/isPastScheduledEnd';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
@@ -45,6 +48,21 @@ export function ExecutionPage() {
   } = useExecutionActions(appointmentId);
   const { showInfo, showError } = useSnackbar();
   const effectiveTimezone = useEffectiveTimezone();
+
+  // After the inspection is done, surface the next stop in today's route so the
+  // inspector flows straight into the next job. The day plan is read only in the DONE
+  // phase (it may already be warm from the Today screen) and never written here.
+  const today = useCivilToday();
+  const isDone = state.phase === 'DONE';
+  const { data: dayPlan } = useDayPlan(today, { enabled: isDone });
+  const nextStop = useMemo(
+    () => (dayPlan ? nextStopAfter(dayPlan, appointmentId) : null),
+    [dayPlan, appointmentId],
+  );
+  const isLastOfDay = useMemo(
+    () => (dayPlan ? isLastActiveStop(dayPlan, appointmentId) : false),
+    [dayPlan, appointmentId],
+  );
   const resumeBannerShown = useRef(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [cantDoOpen, setCantDoOpen] = useState(false);
@@ -184,6 +202,8 @@ export function ExecutionPage() {
       {state.phase === 'DONE' && (
         <DonePanel
           pendingSync={state.pendingSync}
+          nextStop={nextStop}
+          allDone={isLastOfDay}
           onBack={() => {
             if (!state.pendingSync) {
               clearState();

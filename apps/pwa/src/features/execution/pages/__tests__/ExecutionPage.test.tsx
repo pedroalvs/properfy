@@ -28,6 +28,16 @@ vi.mock('@/features/schedule/hooks/useInspectorAppointment', () => ({
   useInspectorAppointment: vi.fn(),
 }));
 
+// The DONE panel reads the day plan to surface the next stop (B3). Mock the hook so the
+// page never hits the network and each test controls whether a next stop exists.
+vi.mock('@/features/today/hooks/useCivilToday', () => ({
+  useCivilToday: () => '2026-11-05',
+}));
+
+vi.mock('@/features/day-plan/hooks/useDayPlan', () => ({
+  useDayPlan: vi.fn(),
+}));
+
 vi.mock('../../hooks/useLocalExecutionState', () => ({
   useLocalExecutionState: vi.fn(),
 }));
@@ -86,12 +96,15 @@ vi.mock('@/hooks/useSnackbar', () => ({
 }));
 
 import { useInspectorAppointment } from '@/features/schedule/hooks/useInspectorAppointment';
+import { useDayPlan } from '@/features/day-plan/hooks/useDayPlan';
+import { buildDayPlan, buildStop } from '@/features/day-plan/__fixtures__/day-plan';
 import { useLocalExecutionState } from '../../hooks/useLocalExecutionState';
 import { useStartInspection } from '../../hooks/useStartInspection';
 import { useFinishInspection } from '../../hooks/useFinishInspection';
 import { useSnackbar } from '@/hooks/useSnackbar';
 
 const mockUseInspectorAppointment = vi.mocked(useInspectorAppointment);
+const mockUseDayPlan = vi.mocked(useDayPlan);
 const mockUseLocalExecutionState = vi.mocked(useLocalExecutionState);
 const mockUseStartInspection = vi.mocked(useStartInspection);
 const mockUseFinishInspection = vi.mocked(useFinishInspection);
@@ -145,6 +158,15 @@ describe('ExecutionPage', () => {
       mutateAsync: mockFinishMutateAsync,
       isPending: false,
     } as ReturnType<typeof useFinishInspection>);
+
+    // Default: no day plan available (no next-stop card). DONE-phase tests override this.
+    mockUseDayPlan.mockReturnValue({
+      data: undefined,
+      state: 'NOT_FOUND',
+      isOffline: false,
+      isLoading: false,
+      refetch: vi.fn(),
+    });
 
     mockUseLocalExecutionState.mockReturnValue({
       state: {
@@ -271,6 +293,111 @@ describe('ExecutionPage', () => {
       ),
     );
     expect(clearState).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the next route stop on the DONE panel', () => {
+    mockUseInspectorAppointment.mockReturnValue({
+      data: {
+        data: {
+          id: 'apt-1',
+          propertyAddress: '123 Main St',
+          scheduledDate: '2099-12-31',
+          timeSlotStart: '09:00',
+          timeSlotEnd: '11:00',
+        },
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as ReturnType<typeof useInspectorAppointment>);
+
+    mockUseLocalExecutionState.mockReturnValue({
+      state: {
+        appointmentId: 'apt-1',
+        phase: 'DONE',
+        pendingSync: false,
+        startLocation: null,
+        finishLocation: null,
+        startedAt: null,
+        errorMessage: null,
+        lastSavedAt: null,
+      },
+      updateState: vi.fn(),
+      clearState: vi.fn(),
+      isRestored: true,
+    });
+
+    mockUseDayPlan.mockReturnValue({
+      data: buildDayPlan({
+        stops: [
+          buildStop({ appointmentId: 'apt-1', sequence: 1, appointmentStatus: 'DONE', executed: true }),
+          buildStop({
+            appointmentId: 'apt-2',
+            sequence: 2,
+            propertyAddress: '2/246 Willoughby Rd, Naremburn NSW 2065',
+            suburb: 'Naremburn',
+          }),
+        ],
+      }),
+      state: 'OK',
+      isOffline: false,
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.getByTestId('next-inspection')).toBeInTheDocument();
+    expect(screen.getByText('2/246 Willoughby Rd, Naremburn NSW 2065')).toBeInTheDocument();
+    expect(screen.getByTestId('navigate-button')).toBeInTheDocument();
+  });
+
+  it('shows the all-done affordance on the DONE panel for the last stop of the day', () => {
+    mockUseInspectorAppointment.mockReturnValue({
+      data: {
+        data: {
+          id: 'apt-1',
+          propertyAddress: '123 Main St',
+          scheduledDate: '2099-12-31',
+          timeSlotStart: '09:00',
+          timeSlotEnd: '11:00',
+        },
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as ReturnType<typeof useInspectorAppointment>);
+
+    mockUseLocalExecutionState.mockReturnValue({
+      state: {
+        appointmentId: 'apt-1',
+        phase: 'DONE',
+        pendingSync: false,
+        startLocation: null,
+        finishLocation: null,
+        startedAt: null,
+        errorMessage: null,
+        lastSavedAt: null,
+      },
+      updateState: vi.fn(),
+      clearState: vi.fn(),
+      isRestored: true,
+    });
+
+    mockUseDayPlan.mockReturnValue({
+      data: buildDayPlan({
+        stops: [buildStop({ appointmentId: 'apt-1', sequence: 1 })],
+      }),
+      state: 'OK',
+      isOffline: false,
+      isLoading: false,
+      refetch: vi.fn(),
+    });
+
+    renderPage();
+
+    expect(screen.getByTestId('all-done-today')).toBeInTheDocument();
+    expect(screen.queryByTestId('next-inspection')).not.toBeInTheDocument();
   });
 
   it('reserves the iOS home-indicator inset', () => {
