@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MapScreenLayout } from './MapScreenLayout';
 
 describe('MapScreenLayout', () => {
@@ -88,5 +89,70 @@ describe('MapScreenLayout', () => {
       />,
     );
     expect(screen.getByTestId('map-area')).toBeInTheDocument();
+  });
+});
+
+// TASK-F05-2 (L-F05-04): per-screen panel-width key + a collapsible mobile sheet.
+describe('MapScreenLayout — storageKey + mobile mode', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  function mockMatchMedia(isMobile: boolean) {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query: string) => ({
+        matches: query === '(max-width: 767px)' ? isMobile : !isMobile,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    );
+  }
+
+  it('reads the width from the appointments-map key by default (so /map is unchanged)', () => {
+    // Distinct widths per key prove the default reads the /map key, not Live Day's.
+    window.sessionStorage.setItem('appointments-map.filter-panel.width', '600');
+    window.sessionStorage.setItem('live-day.panel.width', '400');
+    render(<MapScreenLayout sidePanel={<div>P</div>} map={<div>M</div>} />);
+    expect(screen.getByTestId('map-side-panel')).toHaveStyle({ width: '600px' });
+    window.sessionStorage.clear();
+  });
+
+  it('reads the width from the given storageKey and never the default', () => {
+    window.sessionStorage.setItem('appointments-map.filter-panel.width', '600');
+    window.sessionStorage.setItem('live-day.panel.width', '400');
+    render(
+      <MapScreenLayout sidePanel={<div>P</div>} map={<div>M</div>} storageKey="live-day.panel.width" />,
+    );
+    expect(screen.getByTestId('map-side-panel')).toHaveStyle({ width: '400px' });
+    window.sessionStorage.clear();
+  });
+
+  it('renders a collapsible bottom sheet below md with a Map / List toggle', async () => {
+    mockMatchMedia(true);
+    render(<MapScreenLayout sidePanel={<div>Panel body</div>} map={<div>M</div>} />);
+    const panel = screen.getByTestId('map-side-panel');
+    expect(panel).toHaveClass('max-h-[50dvh]');
+    // No desktop resize handle in mobile mode.
+    expect(document.querySelector('.cursor-col-resize')).toBeNull();
+    const toggle = screen.getByTestId('map-list-toggle');
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Panel body')).toBeInTheDocument();
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Panel body')).not.toBeInTheDocument();
+  });
+
+  it('renders the floating card (no Map / List button) at desktop width', () => {
+    mockMatchMedia(false);
+    render(<MapScreenLayout sidePanel={<div>Panel body</div>} map={<div>M</div>} />);
+    expect(screen.queryByTestId('map-list-toggle')).toBeNull();
+    expect(screen.getByTestId('map-side-panel')).toHaveClass('fixed');
   });
 });

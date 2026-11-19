@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { TRANSITION_SOURCE_INSPECTOR_CANT_DO } from '@properfy/shared';
 import { AuditTimeline } from './AuditTimeline';
 import type { AuditLogEntry } from '../hooks/useAppointmentAuditLog';
 
@@ -301,5 +302,80 @@ describe('AuditTimeline', () => {
     const node = screen.getByText(/Line one/);
     expect(node.textContent).toBe('Line one\nLine two');
     expect(node.className).toContain('whitespace-pre-line');
+  });
+
+  // ─── F03 field-event + geofence audits ────────────────────────────────────
+  describe('F03 field activity audits', () => {
+    it('labels the new geofence and field-event actions', () => {
+      const entries: AuditLogEntry[] = [
+        { ...MOCK_ENTRIES[0]!, id: 'f1', action: 'inspection.geolocation_mismatch', beforeJson: null, afterJson: null },
+        { ...MOCK_ENTRIES[0]!, id: 'f2', action: 'inspection.check_in_blocked', beforeJson: null, afterJson: null },
+        { ...MOCK_ENTRIES[0]!, id: 'f3', action: 'inspector_field_event.cant_do', beforeJson: null, afterJson: null },
+        { ...MOCK_ENTRIES[0]!, id: 'f4', action: 'inspector_field_event.late_notice', beforeJson: null, afterJson: null },
+        { ...MOCK_ENTRIES[0]!, id: 'f5', action: 'inspection.completion_reminder_sent', beforeJson: null, afterJson: null },
+      ];
+      render(<AuditTimeline entries={entries} />);
+
+      expect(screen.getByText('Location Mismatch')).toBeInTheDocument();
+      expect(screen.getByText('Check-in Blocked (Outside Geofence)')).toBeInTheDocument();
+      expect(screen.getByText("Inspector Couldn't Complete")).toBeInTheDocument();
+      expect(screen.getByText('Inspector Running Late')).toBeInTheDocument();
+      expect(screen.getByText('Completion Reminder Sent')).toBeInTheDocument();
+    });
+
+    it('gives the new actions their own icons (not the default dot)', () => {
+      const entries: AuditLogEntry[] = [
+        { ...MOCK_ENTRIES[0]!, id: 'f1', action: 'inspection.check_in_blocked', beforeJson: null, afterJson: null },
+      ];
+      const { container } = render(<AuditTimeline entries={entries} />);
+      expect(container.querySelector('.mdi-circle-small')).toBeFalsy();
+    });
+
+    it('shows "Initiated by inspector" when a SYSTEM transition was triggered by the inspector', () => {
+      const entry: AuditLogEntry = {
+        ...MOCK_ENTRIES[0]!,
+        id: 'f-src',
+        actorType: 'SYSTEM',
+        actorId: null,
+        actorName: null,
+        action: 'appointment.status_transition',
+        beforeJson: { status: 'SCHEDULED' },
+        afterJson: { status: 'REJECTED' },
+        metadataJson: { source: TRANSITION_SOURCE_INSPECTOR_CANT_DO },
+      };
+      render(<AuditTimeline entries={[entry]} />);
+      expect(screen.getByText('Initiated by inspector')).toBeInTheDocument();
+    });
+
+    it('shows a "Check-out" badge when metadata.phase is FINISH or source is INSPECTOR_FINISH', () => {
+      const phaseEntry: AuditLogEntry = {
+        ...MOCK_ENTRIES[0]!,
+        id: 'f-phase',
+        action: 'inspection.geolocation_mismatch',
+        beforeJson: null,
+        afterJson: null,
+        metadataJson: { phase: 'FINISH' },
+      };
+      const sourceEntry: AuditLogEntry = {
+        ...MOCK_ENTRIES[0]!,
+        id: 'f-finish-src',
+        actorType: 'SYSTEM',
+        actorId: null,
+        actorName: null,
+        action: 'appointment.status_transition',
+        beforeJson: { status: 'SCHEDULED' },
+        afterJson: { status: 'DONE' },
+        // Written by TASK-F06-2's FinishInspectionUseCase; inert until then.
+        metadataJson: { source: 'INSPECTOR_FINISH' },
+      };
+      render(<AuditTimeline entries={[phaseEntry, sourceEntry]} />);
+      expect(screen.getAllByText('Check-out')).toHaveLength(2);
+    });
+
+    it('shows neither badge for a plain status transition without a source', () => {
+      render(<AuditTimeline entries={[MOCK_ENTRIES[0]!]} />);
+      expect(screen.queryByText('Initiated by inspector')).not.toBeInTheDocument();
+      expect(screen.queryByText('Check-out')).not.toBeInTheDocument();
+    });
   });
 });

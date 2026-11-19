@@ -404,4 +404,81 @@ describe('AppointmentMapDetailPanel (content)', () => {
       expect(screen.getByText('No restrictions on file.')).toBeInTheDocument();
     });
   });
+
+  // F03: the REJECTED banner must humanize the reason code, and the compact
+  // "Inspector couldn't complete" card must appear whenever the appointment
+  // carries a last CANT_DO event.
+  describe('rejection reason + inspector issue (F03)', () => {
+    const rejected = (overrides: Partial<AppointmentMapItem> = {}): AppointmentMapItem => ({
+      ...sampleAppointment,
+      status: 'REJECTED',
+      ...overrides,
+    });
+
+    it('humanizes the REJECTED reason code instead of showing the raw code', () => {
+      renderPanel({ appointment: rejected({ rejectionReasonCode: 'INSPECTOR_UNABLE' }) });
+      const banner = screen.getByTestId('map-detail-rejected-banner');
+      expect(banner).toHaveTextContent('Inspector Unable');
+      expect(banner).not.toHaveTextContent('INSPECTOR_UNABLE');
+    });
+
+    it('humanizes a TENANT_DECLINED rejection (regression)', () => {
+      renderPanel({ appointment: rejected({ rejectionReasonCode: 'TENANT_DECLINED' }) });
+      expect(screen.getByTestId('map-detail-rejected-banner')).toHaveTextContent('Tenant Declined');
+    });
+
+    it('renders the compact inspector-issue card when the marker carries an issue', () => {
+      renderPanel({
+        appointment: rejected({
+          rejectionReasonCode: 'INSPECTOR_UNABLE',
+          inspectorIssue: {
+            reason: 'KEY_FAILED',
+            note: 'Lockbox jammed',
+            inspectorId: 'insp-1',
+            inspectorName: 'Jane Doe',
+            occurredAt: '2026-11-03T09:41:00+11:00',
+          },
+        }),
+      });
+      const card = screen.getByTestId('map-detail-inspector-issue');
+      expect(card).toHaveTextContent("Inspector couldn't complete");
+      expect(card).toHaveTextContent("Key didn't work");
+    });
+
+    it('prefers the detail payload issue once it loads', () => {
+      mockDetail = {
+        inspectorIssue: {
+          reason: 'UNSAFE',
+          note: null,
+          inspectorId: 'insp-9',
+          inspectorName: 'Sam Field',
+          occurredAt: '2026-11-03T09:41:00+11:00',
+        },
+      };
+      renderPanel({ appointment: rejected() });
+      expect(screen.getByTestId('map-detail-inspector-issue')).toHaveTextContent('Unsafe to enter');
+    });
+
+    it('keeps the card for a re-offered appointment (status no longer REJECTED)', () => {
+      renderPanel({
+        appointment: {
+          ...sampleAppointment,
+          status: 'SCHEDULED',
+          inspectorIssue: {
+            reason: 'NO_ANSWER',
+            note: null,
+            inspectorId: 'insp-1',
+            inspectorName: 'Jane Doe',
+            occurredAt: '2026-11-03T09:41:00+11:00',
+          },
+        },
+      });
+      expect(screen.getByTestId('map-detail-inspector-issue')).toBeInTheDocument();
+    });
+
+    it('renders no inspector-issue card when there is none', () => {
+      renderPanel({ appointment: rejected({ rejectionReasonCode: 'TENANT_DECLINED' }) });
+      expect(screen.queryByTestId('map-detail-inspector-issue')).not.toBeInTheDocument();
+    });
+  });
 });

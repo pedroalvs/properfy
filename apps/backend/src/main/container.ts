@@ -107,9 +107,12 @@ import { UpdateAvailabilitySlotUseCase } from '../modules/inspector/application/
 import { LinkInspectorToUserUseCase } from '../modules/inspector/application/use-cases/link-inspector-to-user.use-case';
 import { DeactivateInspectorUseCase } from '../modules/inspector/application/use-cases/deactivate-inspector.use-case';
 import { ResetInspectorPasswordUseCase } from '../modules/inspector/application/use-cases/reset-inspector-password.use-case';
+import { GetInspectorAlertThresholdsUseCase } from '../modules/inspector/application/use-cases/get-inspector-alert-thresholds.use-case';
+import { UpdateInspectorAlertThresholdsUseCase } from '../modules/inspector/application/use-cases/update-inspector-alert-thresholds.use-case';
 import { GenerateInspectorPhotoUploadUrlUseCase } from '../modules/inspector/application/use-cases/generate-inspector-photo-upload-url.use-case';
 import { ConfirmInspectorPhotoUploadUseCase } from '../modules/inspector/application/use-cases/confirm-inspector-photo-upload.use-case';
 import { UpdateInspectorSelfProfileUseCase } from '../modules/inspector/application/use-cases/update-inspector-self-profile.use-case';
+import { RecordInspectorAppStateUseCase } from '../modules/inspector/application/use-cases/record-inspector-app-state.use-case';
 import { GenerateInspectorDocumentUploadUrlUseCase } from '../modules/inspector/application/use-cases/generate-inspector-document-upload-url.use-case';
 import { ConfirmInspectorDocumentUploadUseCase } from '../modules/inspector/application/use-cases/confirm-inspector-document-upload.use-case';
 import { GetInspectorDocumentDownloadUrlUseCase } from '../modules/inspector/application/use-cases/get-inspector-document-download-url.use-case';
@@ -119,6 +122,31 @@ import { RegenerateInspectorAvailabilitySlotsUseCase } from '../modules/inspecto
 import { GetInspectorAvailabilityTemplateForOperatorUseCase } from '../modules/inspector/application/use-cases/get-inspector-availability-template-for-operator.use-case';
 import { PrismaInspectorAppointmentChecker } from '../modules/inspector/infrastructure/prisma-inspector-appointment-checker';
 import type { InspectorRouteContainer } from '../modules/inspector/interfaces/inspector.routes';
+import { SystemClock } from '../shared/domain/clock';
+import type { InspectorNoticeRouteContainer } from '../modules/inspector-notice/interfaces/inspector-notice.routes';
+import { PrismaInspectorNoticeRepository } from '../modules/inspector-notice/infrastructure/prisma-inspector-notice.repository';
+import { PrismaInspectorDirectoryRepository } from '../modules/inspector-notice/infrastructure/prisma-inspector-directory.repository';
+import { PrismaPushSubscriptionRepository } from '../modules/inspector-notice/infrastructure/prisma-push-subscription.repository';
+import { WebPushSender } from '../modules/inspector-notice/infrastructure/web-push.sender';
+import { DisabledPushSender } from '../modules/inspector-notice/infrastructure/disabled-push.sender';
+import { ResolveNoticeRecipientsService } from '../modules/inspector-notice/application/services/resolve-notice-recipients';
+import { PublishInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/publish-inspector-notice.use-case';
+import { ArchiveInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/archive-inspector-notice.use-case';
+import { ListInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/list-inspector-notices.use-case';
+import { GetInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/get-inspector-notice.use-case';
+import { ListMyInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/list-my-inspector-notices.use-case';
+import { GetMyInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/get-my-inspector-notice.use-case';
+import { MarkInspectorNoticeReadUseCase } from '../modules/inspector-notice/application/use-cases/mark-inspector-notice-read.use-case';
+import { MarkAllMyInspectorNoticesReadUseCase } from '../modules/inspector-notice/application/use-cases/mark-all-my-inspector-notices-read.use-case';
+import { CountMyUnreadInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/count-my-unread-inspector-notices.use-case';
+import { GetPushConfigUseCase } from '../modules/inspector-notice/application/use-cases/get-push-config.use-case';
+import { UpsertPushSubscriptionUseCase } from '../modules/inspector-notice/application/use-cases/upsert-push-subscription.use-case';
+import { UnsubscribePushSubscriptionUseCase } from '../modules/inspector-notice/application/use-cases/unsubscribe-push-subscription.use-case';
+import { PublishSystemInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/publish-system-inspector-notice.use-case';
+import { HasRecentSystemInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/has-recent-system-inspector-notice.use-case';
+import { DeliverInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/deliver-inspector-notice.use-case';
+import { SweepUndeliveredInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/sweep-undelivered-inspector-notices.use-case';
+import { AutoArchiveInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/auto-archive-inspector-notices.use-case';
 
 // Authorization service
 import { AuthorizationService } from '../shared/domain/authorization.service';
@@ -193,10 +221,15 @@ import { GeneratePortalTokenUseCase } from '../modules/rental-tenant-portal/appl
 import { ListPortalActivitiesUseCase } from '../modules/rental-tenant-portal/application/use-cases/list-portal-activities.use-case';
 import { GetAvailableGroupsUseCase } from '../modules/rental-tenant-portal/application/use-cases/get-available-groups.use-case';
 import { JoinGroupUseCase } from '../modules/rental-tenant-portal/application/use-cases/join-group.use-case';
+import { PresignPortalIssuePhotoUseCase } from '../modules/rental-tenant-portal/application/use-cases/presign-portal-issue-photo.use-case';
+import { ConfirmPortalIssuePhotoUseCase } from '../modules/rental-tenant-portal/application/use-cases/confirm-portal-issue-photo.use-case';
+import { CreatePortalIssueUseCase } from '../modules/rental-tenant-portal/application/use-cases/create-portal-issue.use-case';
+import { ListPortalIssuesUseCase } from '../modules/rental-tenant-portal/application/use-cases/list-portal-issues.use-case';
 import type { RentalTenantPortalRouteContainer } from '../modules/rental-tenant-portal/interfaces/rental-tenant-portal.routes';
 
 // Inspector execution module
 import { PrismaInspectionExecutionRepository } from '../modules/inspector-execution/infrastructure/prisma-inspection-execution.repository';
+import { PrismaInspectorFieldEventRepository } from '../modules/inspector-execution/infrastructure/prisma-inspector-field-event.repository';
 import { PrismaIdempotencyService } from '../modules/inspector-execution/infrastructure/prisma-idempotency.service';
 import { UnconfiguredStorageService } from '../modules/inspector-execution/infrastructure/unconfigured-storage.service';
 import { SupabaseBrandingStorageService } from '../modules/tenant/infrastructure/supabase-branding-storage.service';
@@ -210,8 +243,89 @@ import { GetInspectorScheduleUseCase } from '../modules/inspector-execution/appl
 import { GetAppointmentDetailUseCase } from '../modules/inspector-execution/application/use-cases/get-appointment-detail.use-case';
 import { StartInspectionUseCase } from '../modules/inspector-execution/application/use-cases/start-inspection.use-case';
 import { FinishInspectionUseCase } from '../modules/inspector-execution/application/use-cases/finish-inspection.use-case';
+import { PrismaPlatformSettingRepository } from '../modules/platform-settings/infrastructure/prisma-platform-setting.repository';
+import { PlatformSettingsService } from '../modules/platform-settings/application/platform-settings.service';
+import { ListPlatformSettingsUseCase } from '../modules/platform-settings/application/use-cases/list-platform-settings.use-case';
+import { GetPlatformSettingUseCase } from '../modules/platform-settings/application/use-cases/get-platform-setting.use-case';
+import { UpdatePlatformSettingUseCase } from '../modules/platform-settings/application/use-cases/update-platform-setting.use-case';
+import { PLATFORM_SETTING_SAVE_HOOKS } from '../modules/platform-settings/application/platform-setting-save-hooks';
+import type { PlatformSettingsRouteContainer } from '../modules/platform-settings/interfaces/platform-settings.routes';
 import { ReopenExecutionUseCase } from '../modules/inspector-execution/application/use-cases/reopen-execution.use-case';
+import { ReportCantDoUseCase } from '../modules/inspector-execution/application/use-cases/report-cant-do.use-case';
+import { ReportLateNoticeUseCase } from '../modules/inspector-execution/application/use-cases/report-late-notice.use-case';
+import { NotifyInspectorUnableService } from '../modules/inspector-execution/application/services/notify-inspector-unable.service';
+import { NullPublishedStopStartReader } from '../modules/inspector-execution/domain/late-notice';
+import { GetAppointmentFieldActivityUseCase } from '../modules/appointment/application/use-cases/get-appointment-field-activity.use-case';
+import { SendCompletionRemindersUseCase } from '../modules/inspector-execution/application/use-cases/send-completion-reminders.use-case';
+import { PrismaCompletionReminderReader } from '../modules/inspector-execution/infrastructure/prisma-completion-reminder.reader';
 import type { InspectorExecutionRouteContainer } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
+import { GetExecutionDensityUseCase } from '../modules/inspector-execution/application/use-cases/get-execution-density.use-case';
+import { PrismaExecutionDensityReader } from '../modules/inspector-execution/infrastructure/prisma-execution-density.reader';
+import { ReliabilityMetricsService } from '../modules/reliability/application/reliability-metrics.service';
+import { PrismaReliabilityFactsReader } from '../modules/reliability/infrastructure/prisma-reliability-facts.reader';
+import { PrismaReliabilitySnapshotRepository } from '../modules/reliability/infrastructure/prisma-reliability-snapshot.repository';
+import { ReliabilityIndexReader } from '../modules/reliability/application/reliability-index.reader';
+import { ComputeReliabilitySnapshotsUseCase } from '../modules/reliability/application/use-cases/compute-reliability-snapshots.use-case';
+import { EnsureTodaySnapshotUseCase } from '../modules/reliability/application/use-cases/ensure-today-snapshot.use-case';
+import { GetReliabilityRankingUseCase } from '../modules/reliability/application/use-cases/get-reliability-ranking.use-case';
+import { GetInspectorReliabilityUseCase } from '../modules/reliability/application/use-cases/get-inspector-reliability.use-case';
+import { RecomputeReliabilityOnSettingsChangeSubscriber } from '../modules/reliability/application/subscribers/recompute-reliability-on-settings-change.subscriber';
+import type { ReliabilityRouteContainer } from '../modules/reliability/interfaces/reliability.routes';
+import { PrismaGoalRepository, PrismaGoalScopeReader } from '../modules/inspector-program/infrastructure/prisma-goal.repository';
+import { PrismaRewardAwardRepository } from '../modules/inspector-program/infrastructure/prisma-reward-award.repository';
+import { PrismaGoalPeriodClosureRepository } from '../modules/inspector-program/infrastructure/prisma-goal-period-closure.repository';
+import { PrismaProgramInspectorReader } from '../modules/inspector-program/infrastructure/prisma-program-inspector.reader';
+import type { IRewardAwardApprovalHook } from '../modules/inspector-program/domain/reward-award-approval.hook';
+import { BonusLedgerHook } from '../modules/inspector-program/application/bonus-ledger.hook';
+import { CloseGoalPeriodsUseCase } from '../modules/inspector-program/application/use-cases/close-goal-periods.use-case';
+import {
+  RunInspectorProgramDailyUseCase,
+  ScheduleMessagesRunStep,
+} from '../modules/inspector-program/application/use-cases/run-inspector-program-daily.use-case';
+import { ListRewardAwardsUseCase } from '../modules/inspector-program/application/use-cases/list-reward-awards.use-case';
+import { GetProgramPeriodSummaryUseCase } from '../modules/inspector-program/application/use-cases/get-program-period-summary.use-case';
+import { CreateGoalUseCase } from '../modules/inspector-program/application/use-cases/create-goal.use-case';
+import { UpdateGoalUseCase } from '../modules/inspector-program/application/use-cases/update-goal.use-case';
+import { ListGoalsUseCase } from '../modules/inspector-program/application/use-cases/list-goals.use-case';
+import { GetGoalUseCase } from '../modules/inspector-program/application/use-cases/get-goal.use-case';
+import { ListProgramPeriodsUseCase } from '../modules/inspector-program/application/use-cases/list-program-periods.use-case';
+import { ApproveRewardAwardUseCase } from '../modules/inspector-program/application/use-cases/approve-reward-award.use-case';
+import { VoidRewardAwardUseCase } from '../modules/inspector-program/application/use-cases/void-reward-award.use-case';
+import { RegionGoalUsageChecker } from '../modules/inspector-program/application/region-goal-usage-checker';
+import { InspectorProgramStandingService } from '../modules/inspector-program/application/inspector-program-standing.service';
+import { GetInspectorProgramUseCase } from '../modules/inspector-program/application/use-cases/get-inspector-program.use-case';
+import { PrismaRecentRewardAwardReader } from '../modules/inspector-program/infrastructure/prisma-recent-reward-award.reader';
+import { F02RecentProgramNoticeReader } from '../modules/inspector-program/infrastructure/f02-recent-program-notice.reader';
+import { SendGoalReachedMessagesStep } from '../modules/inspector-program/application/steps/send-goal-reached-messages.step';
+import { SendLevelChangeMessagesStep } from '../modules/inspector-program/application/steps/send-level-change-messages.step';
+import { SendStreakRiskMessagesStep } from '../modules/inspector-program/application/steps/send-streak-risk-messages.step';
+import { OfferEarlyAccessPolicy } from '../modules/inspector-program/application/offer-early-access.policy';
+import { prepareInspectorProgramSettingForSave } from '../modules/inspector-program/application/prepare-inspector-program-setting-for-save';
+import type { InspectorProgramRouteContainer } from '../modules/inspector-program/interfaces/inspector-program.routes';
+import type { ExecutionDensityRouteContainer } from '../modules/inspector-execution/interfaces/execution-density.routes';
+// Property files & issues (F10)
+import { PrismaPropertyFileRepository } from '../modules/property-file/infrastructure/prisma-property-file.repository';
+import { PrismaPropertyIssueRepository } from '../modules/property-file/infrastructure/prisma-property-issue.repository';
+import { InspectorAppointmentVisibilityAdapter } from '../modules/property-file/infrastructure/inspector-appointment-visibility.adapter';
+import { PropertyScopeService } from '../modules/property-file/application/property-scope.service';
+import { PresignPropertyFileUploadUseCase } from '../modules/property-file/application/use-cases/presign-property-file-upload.use-case';
+import { ConfirmPropertyFileUploadUseCase } from '../modules/property-file/application/use-cases/confirm-property-file-upload.use-case';
+import { ListPropertyFilesUseCase } from '../modules/property-file/application/use-cases/list-property-files.use-case';
+import { GetPropertyFileDownloadUrlUseCase } from '../modules/property-file/application/use-cases/get-property-file-download-url.use-case';
+import { AddPropertyFileVersionUseCase } from '../modules/property-file/application/use-cases/add-property-file-version.use-case';
+import { DeletePropertyFileUseCase } from '../modules/property-file/application/use-cases/delete-property-file.use-case';
+import { CreatePropertyIssueUseCase } from '../modules/property-file/application/use-cases/create-property-issue.use-case';
+import { MarkPropertyIssueAsSeenUseCase } from '../modules/property-file/application/use-cases/mark-property-issue-seen.use-case';
+import { DeletePropertyIssueUseCase } from '../modules/property-file/application/use-cases/delete-property-issue.use-case';
+import { ListPropertyIssuesUseCase } from '../modules/property-file/application/use-cases/list-property-issues.use-case';
+import { CountUnseenPropertyIssuesUseCase } from '../modules/property-file/application/use-cases/count-unseen-property-issues.use-case';
+import { PropertyFileRetentionWorker } from '../modules/property-file/infrastructure/workers/property-file-retention.worker';
+import type { PropertyFileRouteContainer } from '../modules/property-file/interfaces/property-file.routes';
+import type { PropertyIssueRouteContainer } from '../modules/property-file/interfaces/property-issue.routes';
+import { GetLiveDayUseCase } from '../modules/live-day/application/use-cases/get-live-day.use-case';
+import { GetLockedTimeUseCase } from '../modules/live-day/application/use-cases/get-locked-time.use-case';
+import { PrismaLiveDayReadRepository } from '../modules/live-day/infrastructure/prisma-live-day.read-repository';
+import type { LiveDayRouteContainer } from '../modules/live-day/interfaces/live-day.routes';
 
 // Billing module
 import { PrismaFinancialEntryRepository } from '../modules/billing/infrastructure/prisma-financial-entry.repository';
@@ -279,6 +393,17 @@ import { DispatchRemindersUseCase } from '../modules/notification/application/us
 import { DispatchEscalationsUseCase } from '../modules/notification/application/use-cases/dispatch-escalations.use-case';
 import { ListConsentsByRecipientUseCase } from '../modules/notification/application/use-cases/list-consents-by-recipient.use-case';
 import { OverrideConsentUseCase } from '../modules/notification/application/use-cases/override-consent.use-case';
+import { RecordConsentOptOutUseCase } from '../modules/notification/application/use-cases/record-consent-opt-out.use-case';
+import { PrismaTenantEtaPlanReader } from '../modules/tenant-eta/infrastructure/prisma-tenant-eta-plan.reader';
+import type { ITenantEtaPlanReader } from '../modules/tenant-eta/domain/tenant-eta-plan.reader';
+import { PrismaTenantEtaNoticeLog } from '../modules/tenant-eta/infrastructure/prisma-tenant-eta-notice-log';
+import { TenantEtaNotifier } from '../modules/tenant-eta/application/tenant-eta-notifier.service';
+import { SendMorningEtaNoticesUseCase } from '../modules/tenant-eta/application/use-cases/send-morning-eta-notices.use-case';
+import { EvaluateTenantEtaUseCase } from '../modules/tenant-eta/application/use-cases/evaluate-tenant-eta.use-case';
+import { SweepTenantEtaDelaysUseCase } from '../modules/tenant-eta/application/use-cases/sweep-tenant-eta-delays.use-case';
+import { EnqueueTenantEtaOnDoneSubscriber } from '../modules/tenant-eta/application/subscribers/enqueue-tenant-eta-on-done.subscriber';
+import { EnqueueTenantEtaOnCantDoSubscriber } from '../modules/tenant-eta/application/subscribers/enqueue-tenant-eta-on-cant-do.subscriber';
+import { EnqueueTenantEtaOnLateNoticeSubscriber } from '../modules/tenant-eta/application/subscribers/enqueue-tenant-eta-on-late-notice.subscriber';
 import { BuildNotificationPayloadService } from '../modules/notification/domain/build-notification-payload.service';
 import { AppointmentCodeFormatter } from '../modules/appointment/domain/appointment-code.formatter';
 import type { NotificationRouteContainer } from '../modules/notification/interfaces/notification.routes';
@@ -392,6 +517,7 @@ import { ExportAppointmentImportErrorsUseCase } from '../modules/appointment/app
 import { GetImportStatusUseCase } from '../modules/appointment/application/use-cases/get-import-status.use-case';
 import { CompensateFinancialOnDoneRejectedHandler } from '../modules/appointment/application/handlers/compensate-financial-on-done-rejected.handler';
 import { APPOINTMENT_EVENTS } from '../shared/application/events/domain-event-bus';
+import { PLATFORM_SETTING_EVENTS } from '../shared/application/events/domain-event-bus';
 import { DeleteAppointmentUseCase } from '../modules/appointment/application/use-cases/delete-appointment.use-case';
 import { BulkEditAppointmentsUseCase } from '../modules/appointment/application/use-cases/bulk-edit-appointments.use-case';
 import { BulkCrossCheckDoneUseCase } from '../modules/appointment/application/use-cases/bulk-cross-check-done.use-case';
@@ -433,8 +559,36 @@ import {
   DynamicAddressLookupService,
   DynamicEmailProvider,
   DynamicGeocodingService,
+  DynamicRoutingService,
   DynamicSmsProvider,
 } from '../modules/integration/infrastructure/dynamic-providers';
+import { PostgresRoutingRateLimiter } from '../modules/day-plan/infrastructure/routing/postgres-routing-rate-limiter';
+import { StubRoutingService } from '../modules/day-plan/infrastructure/routing/stub-routing.service';
+import { PlanRouteService } from '../modules/day-plan/application/services/plan-route.service';
+import { PrismaDayPlanRepository } from '../modules/day-plan/infrastructure/prisma-day-plan.repository';
+import { PrismaDayPlanInputReader } from '../modules/day-plan/infrastructure/prisma-day-plan-input.reader';
+import { ComputeDayPlanUseCase } from '../modules/day-plan/application/use-cases/compute-day-plan.use-case';
+import { GetMyDayPlanUseCase } from '../modules/day-plan/application/use-cases/get-my-day-plan.use-case';
+import { GetDayPlanForOperatorUseCase } from '../modules/day-plan/application/use-cases/get-day-plan-for-operator.use-case';
+import { SaveDayPlanOrderUseCase } from '../modules/day-plan/application/use-cases/save-day-plan-order.use-case';
+import { RecalculateDayPlanUseCase } from '../modules/day-plan/application/use-cases/recalculate-day-plan.use-case';
+import { PublishDayPlansUseCase } from '../modules/day-plan/application/use-cases/publish-day-plans.use-case';
+import { GetRouteEtaAccuracyUseCase } from '../modules/day-plan/application/use-cases/get-route-eta-accuracy.use-case';
+import { GetDayPlanSheetUseCase } from '../modules/day-plan/application/use-cases/get-day-plan-sheet.use-case';
+import { PreviewRouteWeightsUseCase } from '../modules/day-plan/application/use-cases/preview-route-weights.use-case';
+import { PreviewDayPlanOrderUseCase } from '../modules/day-plan/application/use-cases/preview-day-plan-order.use-case';
+import {
+  DayPlanSheetRenderer,
+  PdfKitDayPlanSheetGenerator,
+} from '../modules/day-plan/infrastructure/day-plan-sheet.renderer';
+import {
+  SetDayPlanOriginUseCase,
+  ClearDayPlanOriginUseCase,
+} from '../modules/day-plan/application/use-cases/day-plan-origin.use-case';
+import { GetFreshStopForAppointmentUseCase } from '../modules/day-plan/application/use-cases/get-fresh-stop-for-appointment.use-case';
+import { MarkDayPlansStaleSubscriber } from '../modules/day-plan/application/subscribers/mark-day-plans-stale.subscriber';
+import { PrismaGroupAppointmentReader } from '../modules/day-plan/infrastructure/prisma-group-appointment.reader';
+import type { DayPlanRouteContainer } from '../modules/day-plan/interfaces/day-plan.routes';
 import { AesTokenEncrypterAdapter } from '../modules/rental-tenant-portal/infrastructure/aes-token-encrypter.adapter';
 import type { AppointmentRouteContainer } from '../modules/appointment/interfaces/appointment.routes';
 
@@ -444,6 +598,23 @@ export interface AppContainer {
   prisma: typeof prisma;
   auditService: PersistentAuditService;
   domainEventBus: DomainEventBus;
+  // Exposed for the F01-1 inspector base-coords backfill script (needs
+  // isConfigured() + geocode()); also reused by the X02-2 legacy script.
+  geocodingService: DynamicGeocodingService;
+  dayPlan: DayPlanRouteContainer & {
+    planRouteService: PlanRouteService;
+    computeDayPlanUseCase: ComputeDayPlanUseCase;
+    getFreshStopForAppointmentUseCase: GetFreshStopForAppointmentUseCase;
+  };
+  // F06 arrival-notice prediction read side + F06-2 trigger use cases (no route;
+  // the use cases are driven by the pg-boss workers wired in registerWorkers).
+  tenantEta: {
+    planReader: ITenantEtaPlanReader;
+    sendMorningEtaNoticesUseCase: SendMorningEtaNoticesUseCase;
+    evaluateTenantEtaUseCase: EvaluateTenantEtaUseCase;
+    sweepTenantEtaDelaysUseCase: SweepTenantEtaDelaysUseCase;
+    settingsReader: PlatformSettingsService;
+  };
   auth: AuthRouteContainer;
   tenant: TenantRouteContainer;
   user: UserRouteContainer;
@@ -451,6 +622,13 @@ export interface AppContainer {
   serviceType: ServiceTypeRouteContainer;
   pricingRule: PricingRuleRouteContainer;
   inspector: InspectorRouteContainer;
+  inspectorNotice: InspectorNoticeRouteContainer & {
+    publishSystemInspectorNoticeUseCase: PublishSystemInspectorNoticeUseCase;
+    hasRecentSystemNoticeUseCase: HasRecentSystemInspectorNoticeUseCase;
+    deliverInspectorNoticeUseCase: DeliverInspectorNoticeUseCase;
+    sweepUndeliveredInspectorNoticesUseCase: SweepUndeliveredInspectorNoticesUseCase;
+    autoArchiveInspectorNoticesUseCase: AutoArchiveInspectorNoticesUseCase;
+  };
   appointment: AppointmentRouteContainer;
   audit: AuditRouteContainer;
   auditErasure: AuditErasureRouteContainer;
@@ -459,6 +637,29 @@ export interface AppContainer {
   marketplace: MarketplaceRouteContainer;
   rentalTenantPortal: RentalTenantPortalRouteContainer;
   inspectorExecution: InspectorExecutionRouteContainer;
+  executionDensity: ExecutionDensityRouteContainer;
+  reliability: ReliabilityRouteContainer & {
+    metricsService: ReliabilityMetricsService;
+    indexReader: ReliabilityIndexReader;
+    computeSnapshotsUseCase: ComputeReliabilitySnapshotsUseCase;
+    ensureTodaySnapshotUseCase: EnsureTodaySnapshotUseCase;
+  };
+  inspectorProgram: InspectorProgramRouteContainer & {
+    runDailyUseCase: RunInspectorProgramDailyUseCase;
+    closeGoalPeriodsUseCase: CloseGoalPeriodsUseCase;
+    standingService: InspectorProgramStandingService;
+    goalRepository: PrismaGoalRepository;
+    goalScopeReader: PrismaGoalScopeReader;
+    rewardAwardRepository: PrismaRewardAwardRepository;
+    goalPeriodClosureRepository: PrismaGoalPeriodClosureRepository;
+    programInspectorReader: PrismaProgramInspectorReader;
+    rewardAwardApprovalHook: IRewardAwardApprovalHook;
+    regionGoalUsageChecker: RegionGoalUsageChecker;
+  };
+  propertyFile: PropertyFileRouteContainer;
+  propertyIssue: PropertyIssueRouteContainer;
+  liveDay: LiveDayRouteContainer;
+  platformSettings: PlatformSettingsRouteContainer;
   billing: BillingRouteContainer;
   report: ReportRouteContainer;
   notification: NotificationRouteContainer;
@@ -474,12 +675,15 @@ export interface AppContainer {
   cleanupSessionsWorker: CleanupSessionsWorker;
   keyExpiryCheckWorker: KeyExpiryCheckWorker;
   expireFilesWorker: ExpireFilesWorker;
+  propertyFileRetentionWorker: PropertyFileRetentionWorker;
   processReportJobUseCase: ProcessReportJobUseCase;
   appointmentImportCommitWorker: AppointmentImportCommitWorker;
   sweepAbandonedAppointmentImportsWorker: SweepAbandonedAppointmentImportsWorker;
   generateInvoiceFileWorker: GenerateInvoiceFileWorker;
   expireTokensWorker: ExpireTokensWorker;
   notifyStuckInspectionsWorker: NotifyStuckInspectionsWorker;
+  sendCompletionRemindersUseCase: SendCompletionRemindersUseCase;
+  publishDayPlansUseCase: PublishDayPlansUseCase;
   auditRetentionWorker: AuditRetentionWorker;
   rejectUnconfirmedWorker: RejectUnconfirmedWorker;
   cancelEmptyGroupsWorker: CancelEmptyGroupsWorker;
@@ -534,6 +738,8 @@ export function createContainer(logger: Logger): AppContainer {
 
   const appointmentChecker = new PrismaAppointmentChecker(prisma);
   const inspectorRepo = new PrismaInspectorRepository(prisma);
+  // Built early so DeactivateInspectorUseCase can revoke push subscriptions (F02-1 L-F02-11).
+  const pushSubscriptionRepo = new PrismaPushSubscriptionRepository(prisma);
 
   // Services
   const jwtService = new JwtService({
@@ -605,10 +811,10 @@ export function createContainer(logger: Logger): AppContainer {
   const deleteTenantLogoUseCase = new DeleteTenantLogoUseCase(tenantRepo, brandingStorageService, auditService, logger);
   const activateTenantUseCase = new ActivateTenantUseCase(tenantRepo, auditService, authorizationService, domainEventBus);
   const deactivateTenantUseCase = new DeactivateTenantUseCase(tenantRepo, appointmentChecker, auditService, authorizationService, domainEventBus);
-  const createBranchUseCase = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus);
+  // createBranchUseCase and updateBranchUseCase are defined AFTER geocodingService
+  // (below) because they geocode the branch address in permanent mode.
   const getBranchUseCase = new GetBranchUseCase(tenantRepo, branchRepo);
   const listBranchesUseCase = new ListBranchesUseCase(tenantRepo, branchRepo);
-  const updateBranchUseCase = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus);
   const deactivateBranchUseCase = new DeactivateBranchUseCase(tenantRepo, branchRepo, appointmentChecker, auditService, authorizationService, domainEventBus);
   const activateBranchUseCase = new ActivateBranchUseCase(tenantRepo, branchRepo, auditService, authorizationService, domainEventBus);
 
@@ -654,14 +860,32 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Property repositories and use cases
   const propertyRepo = new PrismaPropertyRepository(prisma);
+  // Property files & issues (F10). The repos double as the indicator/count
+  // readers injected into the appointment/property list+detail use cases.
+  const propertyFileRepo = new PrismaPropertyFileRepository(prisma);
+  const propertyIssueRepo = new PrismaPropertyIssueRepository(prisma);
   const geocodingService = new DynamicGeocodingService(integrationConfigResolver);
+
+  // F04 routing: shared Postgres rate limiter + per-call provider resolution +
+  // kill switch, consumed by TASK-F04-2 through container.dayPlan.planRouteService.
+  const routingRateLimiter = new PostgresRoutingRateLimiter(prisma);
+  const routingService = new DynamicRoutingService(integrationConfigResolver, routingRateLimiter, {
+    logger,
+    metrics,
+    providerMode: env.DAY_PLAN_ROUTING_PROVIDER,
+  });
+  const planRouteService = new PlanRouteService(routingService, new StubRoutingService(), logger, metrics);
+  // Branch use cases geocode the branch address in permanent mode (X02-1), so
+  // they must be created after geocodingService.
+  const createBranchUseCase = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus, geocodingService, logger);
+  const updateBranchUseCase = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, domainEventBus, geocodingService, logger);
   // Geocode synchronously at creation time so a new property has coordinates the
   // instant the request returns (the async worker remains the fallback).
   const createPropertyUseCase = new CreatePropertyUseCase(propertyRepo, branchRepo, auditService, tenantRepo, authorizationService, logger, geocodingService);
-  const getPropertyUseCase = new GetPropertyUseCase(propertyRepo);
-  const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo);
+  const getPropertyUseCase = new GetPropertyUseCase(propertyRepo, propertyFileRepo);
+  const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo, propertyIssueRepo);
   const getPropertySummaryUseCase = new GetPropertySummaryUseCase(propertyRepo);
-  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
+  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger);
   const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
   const geocodePropertyUseCase = new GeocodePropertyUseCase(propertyRepo, authorizationService);
   const rawAddressLookupService = new DynamicAddressLookupService(integrationConfigResolver);
@@ -712,21 +936,23 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Inspector use cases
   const availabilitySlotRepo = new PrismaAvailabilitySlotRepository(prisma);
-  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, authorizationService, serviceRegionRepo);
+  const createInspectorUseCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, authorizationService, serviceRegionRepo, geocodingService, domainEventBus, logger);
   const inspectorRatingReader = new PrismaInspectorRatingReader(prisma);
   const getInspectorUseCase = new GetInspectorUseCase(inspectorRepo, serviceRegionRepo, inspectorRatingReader);
   const listInspectorsUseCase = new ListInspectorsUseCase(inspectorRepo, serviceRegionRepo, inspectorRatingReader);
-  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, authorizationService, serviceRegionRepo, userManagementRepo);
+  const updateInspectorUseCase = new UpdateInspectorUseCase(inspectorRepo, auditService, authorizationService, serviceRegionRepo, userManagementRepo, geocodingService, domainEventBus, logger);
   const createAvailabilitySlotUseCase = new CreateAvailabilitySlotUseCase(inspectorRepo, availabilitySlotRepo, auditService);
   const listAvailabilitySlotsUseCase = new ListAvailabilitySlotsUseCase(availabilitySlotRepo);
   const updateAvailabilitySlotUseCase = new UpdateAvailabilitySlotUseCase(availabilitySlotRepo, auditService);
   const linkInspectorToUserUseCase = new LinkInspectorToUserUseCase(inspectorRepo, userManagementRepo, auditService, authorizationService);
   const inspectorAppointmentChecker = new PrismaInspectorAppointmentChecker(prisma);
-  const deactivateInspectorUseCase = new DeactivateInspectorUseCase(inspectorRepo, inspectorAppointmentChecker, auditService, authorizationService, userManagementRepo);
+  const deactivateInspectorUseCase = new DeactivateInspectorUseCase(inspectorRepo, inspectorAppointmentChecker, auditService, authorizationService, userManagementRepo, pushSubscriptionRepo);
   const resetInspectorPasswordUseCase = new ResetInspectorPasswordUseCase(inspectorRepo, resetUserPasswordUseCase, auditService, authorizationService);
   const generateInspectorPhotoUploadUrlUseCase = new GenerateInspectorPhotoUploadUrlUseCase(inspectorRepo, storageService, auditService);
   const confirmInspectorPhotoUploadUseCase = new ConfirmInspectorPhotoUploadUseCase(inspectorRepo, storageService, auditService);
-  const updateInspectorSelfProfileUseCase = new UpdateInspectorSelfProfileUseCase(inspectorRepo, auditService);
+  const updateInspectorSelfProfileUseCase = new UpdateInspectorSelfProfileUseCase(inspectorRepo, auditService, geocodingService, domainEventBus, logger);
+  // undefined clock → the use case's SystemClock default (contract 00.10 heartbeat).
+  const recordInspectorAppStateUseCase = new RecordInspectorAppStateUseCase(inspectorRepo, undefined, logger);
   const generateInspectorDocumentUploadUrlUseCase = new GenerateInspectorDocumentUploadUrlUseCase(inspectorRepo, storageService, auditService);
   const confirmInspectorDocumentUploadUseCase = new ConfirmInspectorDocumentUploadUseCase(inspectorRepo, storageService, auditService);
   const getInspectorDocumentDownloadUrlUseCase = new GetInspectorDocumentDownloadUrlUseCase(inspectorRepo, storageService);
@@ -759,6 +985,64 @@ export function createContainer(logger: Logger): AppContainer {
   // Shared idempotency service (used across modules)
   const idempotencyService = new PrismaIdempotencyService(prisma);
 
+  // ── Inspector notices (F02-1) ──────────────────────────────────────────────
+  const inspectorNoticeClock = new SystemClock();
+  const inspectorNoticeRepo = new PrismaInspectorNoticeRepository(prisma);
+  const inspectorDirectoryRepo = new PrismaInspectorDirectoryRepository(prisma);
+  const pushConfigured = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_SUBJECT);
+  const pushSender = pushConfigured
+    ? new WebPushSender({
+        subject: env.VAPID_SUBJECT!,
+        publicKey: env.VAPID_PUBLIC_KEY!,
+        privateKey: env.VAPID_PRIVATE_KEY!,
+      })
+    : new DisabledPushSender();
+  const resolveNoticeRecipientsService = new ResolveNoticeRecipientsService(inspectorDirectoryRepo);
+  const publishInspectorNoticeUseCase = new PublishInspectorNoticeUseCase(
+    prisma,
+    inspectorNoticeRepo,
+    inspectorDirectoryRepo,
+    resolveNoticeRecipientsService,
+    idempotencyService,
+    notificationJobQueue,
+    auditService,
+    inspectorNoticeClock,
+    logger,
+  );
+  const archiveInspectorNoticeUseCase = new ArchiveInspectorNoticeUseCase(inspectorNoticeRepo, auditService, inspectorNoticeClock);
+  const listInspectorNoticesUseCase = new ListInspectorNoticesUseCase(inspectorNoticeRepo);
+  const getInspectorNoticeUseCase = new GetInspectorNoticeUseCase(inspectorNoticeRepo);
+  const listMyInspectorNoticesUseCase = new ListMyInspectorNoticesUseCase(inspectorNoticeRepo);
+  const getMyInspectorNoticeUseCase = new GetMyInspectorNoticeUseCase(inspectorNoticeRepo);
+  const markInspectorNoticeReadUseCase = new MarkInspectorNoticeReadUseCase(inspectorNoticeRepo, inspectorNoticeClock);
+  const markAllMyInspectorNoticesReadUseCase = new MarkAllMyInspectorNoticesReadUseCase(inspectorNoticeRepo, inspectorNoticeClock);
+  const countMyUnreadInspectorNoticesUseCase = new CountMyUnreadInspectorNoticesUseCase(inspectorNoticeRepo);
+  const getPushConfigUseCase = new GetPushConfigUseCase(pushConfigured ? env.VAPID_PUBLIC_KEY! : null);
+  const upsertPushSubscriptionUseCase = new UpsertPushSubscriptionUseCase(pushSubscriptionRepo, pushSender, inspectorNoticeClock);
+  const unsubscribePushSubscriptionUseCase = new UnsubscribePushSubscriptionUseCase(pushSubscriptionRepo, inspectorNoticeClock);
+  const publishSystemInspectorNoticeUseCase = new PublishSystemInspectorNoticeUseCase(
+    prisma,
+    inspectorNoticeRepo,
+    inspectorDirectoryRepo,
+    notificationJobQueue,
+    auditService,
+    inspectorNoticeClock,
+    logger,
+  );
+  const hasRecentSystemNoticeUseCase = new HasRecentSystemInspectorNoticeUseCase(inspectorNoticeRepo);
+  const deliverInspectorNoticeUseCase = new DeliverInspectorNoticeUseCase(
+    inspectorNoticeRepo,
+    pushSubscriptionRepo,
+    pushSender,
+    createNotificationUseCase,
+    notificationRepo,
+    inspectorNoticeClock,
+    env.INSPECTOR_NOTICE_SMS_DAILY_CAP,
+    logger,
+  );
+  const sweepUndeliveredInspectorNoticesUseCase = new SweepUndeliveredInspectorNoticesUseCase(inspectorNoticeRepo, notificationJobQueue, inspectorNoticeClock, logger);
+  const autoArchiveInspectorNoticesUseCase = new AutoArchiveInspectorNoticesUseCase(inspectorNoticeRepo, pushSubscriptionRepo, inspectorNoticeClock, env.INSPECTOR_NOTICE_SYSTEM_RETENTION_DAYS, logger);
+
   // Billing repositories (needed before appointments for onDoneHandler wiring)
   const financialEntryRepo = new PrismaFinancialEntryRepository(prisma);
   const inspectorInvoiceRepo = new PrismaInspectorInvoiceRepository(prisma);
@@ -768,13 +1052,17 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Appointment repositories and use cases
   const appointmentRepo = new PrismaAppointmentRepository(prisma);
+  // Constructed here (not with the inspector-execution repos further down) because
+  // the appointment list/detail use cases below read it to flatten `inspectorIssue`
+  // (F03). It only needs prisma, so its position is free.
+  const inspectorFieldEventRepo = new PrismaInspectorFieldEventRepository(prisma);
   const createFinancialEntriesOnDoneUseCase = new CreateFinancialEntriesOnDoneUseCase(
     appointmentRepo, financialEntryRepo, auditService, idempotencyService, tenantRepo,
   );
   // createAppointmentUseCase is constructed AFTER the service-group use cases below —
   // the INGOING/OUTGOING auto-group step needs create/publish, which need serviceGroupRepo.
-  const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService, appCredentialRepo);
-  const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService);
+  const getAppointmentUseCase = new GetAppointmentUseCase(appointmentRepo, authorizationService, appCredentialRepo, inspectorFieldEventRepo, propertyFileRepo);
+  const listAppointmentsUseCase = new ListAppointmentsUseCase(appointmentRepo, authorizationService, inspectorFieldEventRepo, propertyIssueRepo);
   const listAppointmentSuburbsUseCase = new ListAppointmentSuburbsUseCase(appointmentRepo, authorizationService);
   // exportAppointmentsUseCase is constructed AFTER the report module below —
   // it reuses that module's XLSX generator.
@@ -822,6 +1110,7 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, propertyRepo, tenantRepo, branchRepo, notificationRepo,
     mintPortalTokenService, buildNotificationPayload, appointmentCodeFormatter,
     createNotificationUseCase, env.TENANT_PORTAL_BASE_URL, logger, metrics,
+    inspectorFieldEventRepo,
   );
   const notifyOnRentalTenantPortalActionHandler = new NotifyOnRentalTenantPortalActionHandler(
     appointmentRepo, propertyRepo, tenantRepo, notificationRepo,
@@ -908,6 +1197,8 @@ export function createContainer(logger: Logger): AppContainer {
 
   // Inspector execution repositories and services
   const inspectionExecutionRepo = new PrismaInspectionExecutionRepository(prisma);
+  // `inspectorFieldEventRepo` is constructed earlier (near appointmentRepo) so the
+  // appointment list/detail use cases can read it for `inspectorIssue`.
   const serviceTypeReaderForExec = new PrismaServiceTypeReader(prisma);
   const contactReaderForExec = new PrismaContactReader(prisma);
   const performCrossCheckUseCase = new PerformCrossCheckUseCase(
@@ -938,6 +1229,132 @@ export function createContainer(logger: Logger): AppContainer {
     logger,
   );
 
+  // Platform settings (F03) — shared registry read through IPlatformSettingsReader.
+  const platformSettingRepo = new PrismaPlatformSettingRepository(prisma);
+  const platformSettingsService = new PlatformSettingsService(platformSettingRepo, logger);
+
+  // ── Property files & issues (F10) ─────────────────────────────────────────
+  const propertyFileClock = new SystemClock();
+  const inspectorAppointmentVisibility = new InspectorAppointmentVisibilityAdapter(
+    appointmentRepo,
+    serviceTypeReaderForExec,
+    tenantTimezoneLookup,
+    propertyFileClock,
+  );
+  const propertyScopeService = new PropertyScopeService(inspectorAppointmentVisibility);
+  const presignPropertyFileUploadUseCase = new PresignPropertyFileUploadUseCase(
+    propertyFileRepo, propertyIssueRepo, inspectorAppointmentVisibility, storageService,
+    platformSettingsService, authorizationService, propertyFileClock,
+  );
+  const confirmPropertyFileUploadUseCase = new ConfirmPropertyFileUploadUseCase(
+    prisma, propertyFileRepo, storageService, platformSettingsService, propertyScopeService,
+    idempotencyService, auditService, authorizationService, propertyFileClock,
+  );
+  const listPropertyFilesUseCase = new ListPropertyFilesUseCase(propertyFileRepo, propertyScopeService);
+  const getPropertyFileDownloadUrlUseCase = new GetPropertyFileDownloadUrlUseCase(
+    propertyFileRepo, storageService, propertyScopeService, propertyFileClock,
+  );
+  const addPropertyFileVersionUseCase = new AddPropertyFileVersionUseCase(
+    propertyFileRepo, storageService, platformSettingsService, propertyScopeService,
+    authorizationService, propertyFileClock,
+  );
+  const deletePropertyFileUseCase = new DeletePropertyFileUseCase(
+    propertyFileRepo, propertyScopeService, auditService, authorizationService, propertyFileClock,
+  );
+  const createPropertyIssueUseCase = new CreatePropertyIssueUseCase(
+    prisma, propertyIssueRepo, propertyFileRepo, inspectorAppointmentVisibility,
+    platformSettingsService, idempotencyService, auditService, authorizationService, propertyFileClock,
+  );
+  const markPropertyIssueAsSeenUseCase = new MarkPropertyIssueAsSeenUseCase(
+    propertyIssueRepo, propertyScopeService, auditService, authorizationService, propertyFileClock,
+  );
+  const deletePropertyIssueUseCase = new DeletePropertyIssueUseCase(
+    prisma, propertyIssueRepo, propertyFileRepo, propertyScopeService, auditService,
+    authorizationService, propertyFileClock,
+  );
+  const listPropertyIssuesUseCase = new ListPropertyIssuesUseCase(
+    propertyIssueRepo, propertyFileRepo, propertyScopeService,
+  );
+  const countUnseenPropertyIssuesUseCase = new CountUnseenPropertyIssuesUseCase(
+    propertyIssueRepo, authorizationService,
+  );
+  const propertyFileRetentionWorker = new PropertyFileRetentionWorker(
+    propertyFileRepo, storageService, platformSettingsService, auditService, logger, propertyFileClock,
+  );
+
+  // Rental-tenant portal issue reporting (F10-4): token-scoped presign/confirm/
+  // create/list, reusing the F10-1 property-file repositories and storage.
+  const presignPortalIssuePhotoUseCase = new PresignPortalIssuePhotoUseCase(
+    propertyFileRepo, propertyIssueRepo, storageService, platformSettingsService, propertyFileClock,
+  );
+  const confirmPortalIssuePhotoUseCase = new ConfirmPortalIssuePhotoUseCase(
+    prisma, propertyFileRepo, propertyIssueRepo, storageService, platformSettingsService,
+    idempotencyService, propertyFileClock,
+  );
+  const createPortalIssueUseCase = new CreatePortalIssueUseCase(
+    prisma, propertyIssueRepo, propertyFileRepo, platformSettingsService, idempotencyService,
+    auditService, propertyFileClock,
+  );
+  const listPortalIssuesUseCase = new ListPortalIssuesUseCase(propertyIssueRepo, propertyFileRepo);
+
+  // Day plan (F04-2): persistence + compute + the inspector's own read.
+  const dayPlanRepo = new PrismaDayPlanRepository(prisma);
+  const dayPlanInputReader = new PrismaDayPlanInputReader(prisma);
+  const dayPlanClock = new SystemClock();
+  const computeDayPlanUseCase = new ComputeDayPlanUseCase(
+    dayPlanInputReader, dayPlanRepo, planRouteService, platformSettingsService, logger, dayPlanClock,
+  );
+  const getMyDayPlanUseCase = new GetMyDayPlanUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock,
+  );
+  const getDayPlanForOperatorUseCase = new GetDayPlanForOperatorUseCase(
+    dayPlanInputReader, dayPlanRepo, authorizationService, dayPlanClock,
+  );
+  const saveDayPlanOrderUseCase = new SaveDayPlanOrderUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, auditService, dayPlanClock,
+  );
+  const recalculateDayPlanUseCase = new RecalculateDayPlanUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, authorizationService,
+    publishSystemInspectorNoticeUseCase, auditService, dayPlanClock,
+  );
+  const setDayPlanOriginUseCase = new SetDayPlanOriginUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock, geocodingService, auditService, logger,
+  );
+  const clearDayPlanOriginUseCase = new ClearDayPlanOriginUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock, auditService,
+  );
+  const getFreshStopForAppointmentUseCase = new GetFreshStopForAppointmentUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock,
+  );
+  const publishDayPlansUseCase = new PublishDayPlansUseCase(
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, publishSystemInspectorNoticeUseCase,
+    auditService, metrics, logger, dayPlanClock,
+  );
+  const getRouteEtaAccuracyUseCase = new GetRouteEtaAccuracyUseCase(dayPlanRepo, dayPlanClock);
+  const previewRouteWeightsUseCase = new PreviewRouteWeightsUseCase(
+    dayPlanInputReader, planRouteService, platformSettingsService, authorizationService, dayPlanClock,
+  );
+  const previewDayPlanOrderUseCase = new PreviewDayPlanOrderUseCase(
+    dayPlanInputReader, dayPlanRepo, planRouteService, dayPlanClock,
+  );
+  const getDayPlanSheetUseCase = new GetDayPlanSheetUseCase(
+    getMyDayPlanUseCase,
+    getDayPlanForOperatorUseCase,
+    new DayPlanSheetRenderer(new ExcelJsXlsxGenerator(), new PdfKitDayPlanSheetGenerator()),
+    auditService,
+    dayPlanClock,
+  );
+  new MarkDayPlansStaleSubscriber(dayPlanRepo, new PrismaGroupAppointmentReader(prisma), logger).register(domainEventBus);
+  const listPlatformSettingsUseCase = new ListPlatformSettingsUseCase(platformSettingRepo, authorizationService);
+  const getPlatformSettingUseCase = new GetPlatformSettingUseCase(platformSettingRepo, authorizationService);
+  const updatePlatformSettingUseCase = new UpdatePlatformSettingUseCase(
+    platformSettingRepo, authorizationService, auditService, platformSettingsService, domainEventBus, logger,
+    // F08-2 (L-F08-08): register the inspectorProgram save hook at the composition
+    // root so platform-settings never imports inspector-program (clean dependency
+    // direction) and the use case stays untouched.
+    { ...PLATFORM_SETTING_SAVE_HOOKS, inspectorProgram: prepareInspectorProgramSettingForSave },
+  );
+
   // Inspector execution use cases
   const getInspectorScheduleUseCase = new GetInspectorScheduleUseCase(
     appointmentRepo, inspectionExecutionRepo, authorizationService,
@@ -946,15 +1363,20 @@ export function createContainer(logger: Logger): AppContainer {
     appointmentRepo, inspectionExecutionRepo, serviceTypeReaderForExec, authorizationService, tenantRepo, appCredentialRepo,
     contactReaderForExec, logger,
     tenantTimezoneLookup,
+    platformSettingsService,
+    inspectorFieldEventRepo,
   );
   const startInspectionUseCase = new StartInspectionUseCase(
     appointmentRepo, inspectionExecutionRepo, idempotencyService, auditService, serviceTypeReaderForExec, authorizationService,
+    platformSettingsService,
     tenantTimezoneLookup,
   );
   const finishInspectionUseCase = new FinishInspectionUseCase(
     inspectionExecutionRepo, idempotencyService,
     executeStatusTransitionUseCase, appointmentRepo, auditService, authorizationService,
     prisma,
+    platformSettingsService,
+    inspectorFieldEventRepo,
   );
   const getAvailablePeriodsUseCase = new GetAvailablePeriodsUseCase(inspectorRepo);
   const getInspectorEarningsSummaryUseCase = new GetInspectorEarningsSummaryUseCase(financialEntryRepo);
@@ -962,6 +1384,214 @@ export function createContainer(logger: Logger): AppContainer {
   const requestInvoiceUseCase = new RequestInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, inspectorRepo, auditService);
   const reopenExecutionUseCase = new ReopenExecutionUseCase(
     inspectionExecutionRepo, appointmentRepo, auditService, authorizationService,
+  );
+
+  // Inspector field events (F03): "Can't do this job" and "Running late".
+  const notifyInspectorUnableService = new NotifyInspectorUnableService(
+    userManagementRepo, createNotificationUseCase, logger,
+  );
+  const reportCantDoUseCase = new ReportCantDoUseCase(
+    inspectorFieldEventRepo, inspectionExecutionRepo, appointmentRepo, executeStatusTransitionUseCase,
+    idempotencyService, auditService, authorizationService, notifyInspectorUnableService,
+    domainEventBus, logger, prisma,
+  );
+  const reportLateNoticeUseCase = new ReportLateNoticeUseCase(
+    inspectorFieldEventRepo, inspectionExecutionRepo, appointmentRepo, idempotencyService,
+    auditService, authorizationService, new NullPublishedStopStartReader(), tenantTimezoneLookup,
+    domainEventBus, logger, prisma,
+  );
+  const getAppointmentFieldActivityUseCase = new GetAppointmentFieldActivityUseCase(
+    appointmentRepo, inspectionExecutionRepo, inspectorFieldEventRepo, inspectorRepo, authorizationService,
+  );
+  // Execution-density map read (F09-1): aggregation stays in Postgres; the reader
+  // has no method that returns a raw coordinate.
+  const executionDensityReader = new PrismaExecutionDensityReader(prisma);
+  const getExecutionDensityUseCase = new GetExecutionDensityUseCase(executionDensityReader);
+
+  // Reliability metrics engine (F07-1) — dark; consumed by the F07-2 snapshot job
+  // and F08. No routes in this slice.
+  const reliabilityMetricsService = new ReliabilityMetricsService(
+    new PrismaReliabilityFactsReader(prisma),
+    platformSettingsService,
+  );
+  // Reliability snapshot, API and recompute (F07-2). The snapshot job serializes
+  // on a transaction advisory lock; the recompute subscriber (reliabilityIndex
+  // only) enqueues a delayed run after the F03 settings event.
+  const reliabilitySnapshotRepo = new PrismaReliabilitySnapshotRepository(prisma);
+  const reliabilityIndexReader = new ReliabilityIndexReader(reliabilitySnapshotRepo);
+  const reliabilityJobQueue = env.ENABLE_JOB_QUEUE === 'true' ? new PgBossJobQueue() : new StubJobQueue();
+  const computeReliabilitySnapshotsUseCase = new ComputeReliabilitySnapshotsUseCase(
+    reliabilitySnapshotRepo,
+    reliabilityMetricsService,
+    platformSettingsService,
+    logger,
+  );
+  const ensureTodaySnapshotUseCase = new EnsureTodaySnapshotUseCase(
+    reliabilityJobQueue,
+    (snapshotDate) => reliabilitySnapshotRepo.findRowComputedAtForDate(snapshotDate),
+    () => reliabilitySnapshotRepo.findReliabilitySettingsUpdatedAt(),
+    logger,
+  );
+  const getReliabilityRankingUseCase = new GetReliabilityRankingUseCase(
+    reliabilityIndexReader,
+    platformSettingsService,
+    authorizationService,
+  );
+  const getInspectorReliabilityUseCase = new GetInspectorReliabilityUseCase(
+    reliabilityIndexReader,
+    reliabilitySnapshotRepo,
+    platformSettingsService,
+    authorizationService,
+  );
+  const recomputeReliabilityOnSettingsChangeSubscriber = new RecomputeReliabilityOnSettingsChangeSubscriber(
+    reliabilityJobQueue,
+    logger,
+  );
+  domainEventBus.subscribe(
+    PLATFORM_SETTING_EVENTS.UPDATED,
+    (event) => recomputeReliabilityOnSettingsChangeSubscriber.handle(event),
+  );
+  // Inspector program (F08-1): goals, rewards, closure job, levels/streaks. Platform
+  // -scoped (no tenant_id); the approval hook is no-op until TASK-F08-6 (Q12).
+  const inspectorProgramClock = new SystemClock();
+  const inspectorProgramJobQueue = env.ENABLE_JOB_QUEUE === 'true' ? new PgBossJobQueue() : new StubJobQueue();
+  const goalRepository = new PrismaGoalRepository(prisma);
+  const goalScopeReader = new PrismaGoalScopeReader(prisma);
+  const rewardAwardRepository = new PrismaRewardAwardRepository(prisma);
+  const goalPeriodClosureRepository = new PrismaGoalPeriodClosureRepository(prisma);
+  const programInspectorReader = new PrismaProgramInspectorReader(prisma);
+  // Q12 (F08-6): the real hook mints/voids/reverses the INSPECTOR_BONUS ledger entry inside the
+  // reward transaction. financialEntryRepo implements IBonusEntryWriter.
+  const rewardAwardApprovalHook: IRewardAwardApprovalHook = new BonusLedgerHook(financialEntryRepo);
+  const closeGoalPeriodsUseCase = new CloseGoalPeriodsUseCase(
+    goalRepository,
+    goalPeriodClosureRepository,
+    rewardAwardRepository,
+    programInspectorReader,
+    reliabilityMetricsService,
+    reliabilityIndexReader,
+    platformSettingsService,
+    auditService,
+    logger,
+    prisma,
+  );
+  const inspectorProgramStandingService = new InspectorProgramStandingService(
+    goalRepository,
+    goalPeriodClosureRepository,
+    programInspectorReader,
+    reliabilityMetricsService,
+    reliabilityIndexReader,
+    platformSettingsService,
+    inspectorProgramClock,
+  );
+  const recentRewardAwardReader = new PrismaRecentRewardAwardReader(prisma);
+  const getInspectorProgramUseCase = new GetInspectorProgramUseCase(
+    inspectorProgramStandingService,
+    reliabilityIndexReader,
+    recentRewardAwardReader,
+    platformSettingsService,
+    inspectorProgramClock,
+  );
+  // One daily job: COMPUTE steps close periods then enqueue the 08:00 MESSAGES run;
+  // the three MESSAGES steps (F08-4) run only in that 08:00 run, in this order.
+  const runInspectorProgramDailyUseCase = new RunInspectorProgramDailyUseCase([
+    closeGoalPeriodsUseCase,
+    new ScheduleMessagesRunStep(inspectorProgramJobQueue),
+    new SendGoalReachedMessagesStep(
+      recentRewardAwardReader,
+      programInspectorReader,
+      publishSystemInspectorNoticeUseCase,
+      logger,
+    ),
+    new SendLevelChangeMessagesStep(
+      reliabilitySnapshotRepo,
+      platformSettingsService,
+      new F02RecentProgramNoticeReader(hasRecentSystemNoticeUseCase),
+      publishSystemInspectorNoticeUseCase,
+      logger,
+    ),
+    new SendStreakRiskMessagesStep(
+      programInspectorReader,
+      inspectorProgramStandingService,
+      goalPeriodClosureRepository,
+      publishSystemInspectorNoticeUseCase,
+      logger,
+    ),
+  ]);
+  const listRewardAwardsUseCase = new ListRewardAwardsUseCase(rewardAwardRepository, authorizationService);
+  const getProgramPeriodSummaryUseCase = new GetProgramPeriodSummaryUseCase(
+    goalRepository,
+    goalPeriodClosureRepository,
+    rewardAwardRepository,
+    programInspectorReader,
+    authorizationService,
+    inspectorProgramClock,
+  );
+  // F08-1 (Esteio slice): goal CRUD, reward approve/void and the region-delete guard.
+  const createGoalUseCase = new CreateGoalUseCase(
+    goalRepository,
+    goalScopeReader,
+    auditService,
+    authorizationService,
+    inspectorProgramClock,
+  );
+  const updateGoalUseCase = new UpdateGoalUseCase(
+    goalRepository,
+    goalPeriodClosureRepository,
+    auditService,
+    authorizationService,
+    inspectorProgramClock,
+    prisma,
+  );
+  const listGoalsUseCase = new ListGoalsUseCase(goalRepository, authorizationService, inspectorProgramClock);
+  const getGoalUseCase = new GetGoalUseCase(
+    goalRepository,
+    goalPeriodClosureRepository,
+    authorizationService,
+    inspectorProgramClock,
+  );
+  const listProgramPeriodsUseCase = new ListProgramPeriodsUseCase(authorizationService, inspectorProgramClock);
+  const approveRewardAwardUseCase = new ApproveRewardAwardUseCase(
+    rewardAwardRepository,
+    rewardAwardApprovalHook,
+    auditService,
+    authorizationService,
+    idempotencyService,
+    inspectorProgramClock,
+    prisma,
+  );
+  const voidRewardAwardUseCase = new VoidRewardAwardUseCase(
+    rewardAwardRepository,
+    rewardAwardApprovalHook,
+    auditService,
+    authorizationService,
+    idempotencyService,
+    inspectorProgramClock,
+    prisma,
+  );
+  const regionGoalUsageChecker = new RegionGoalUsageChecker(goalRepository);
+  // Live Day read model (F05-1): one aggregated query, zero Mapbox; reads thresholds
+  // through the shared IPlatformSettingsReader (30 s cache).
+  const liveDayReadRepository = new PrismaLiveDayReadRepository(prisma);
+  const getLiveDayUseCase = new GetLiveDayUseCase(liveDayReadRepository, platformSettingsService);
+  const getLockedTimeUseCase = new GetLockedTimeUseCase(liveDayReadRepository);
+  // F05-1 US5: per-inspector Live Day alert threshold config (platform-scoped).
+  const getInspectorAlertThresholdsUseCase = new GetInspectorAlertThresholdsUseCase(
+    inspectorRepo,
+    platformSettingsService,
+    authorizationService,
+  );
+  const updateInspectorAlertThresholdsUseCase = new UpdateInspectorAlertThresholdsUseCase(
+    inspectorRepo,
+    platformSettingsService,
+    authorizationService,
+    auditService,
+  );
+  // Completion reminder (F03, 03.16): reuses F02's PublishSystemInspectorNoticeUseCase.
+  const completionReminderReader = new PrismaCompletionReminderReader(prisma);
+  const sendCompletionRemindersUseCase = new SendCompletionRemindersUseCase(
+    completionReminderReader, platformSettingsService, tenantTimezoneLookup,
+    publishSystemInspectorNoticeUseCase, auditService, logger,
   );
 
   // Audit use cases
@@ -1021,9 +1651,17 @@ export function createContainer(logger: Logger): AppContainer {
     tenantTimezoneLookup,
   );
   const assignInspectorManuallyUseCase = new AssignInspectorManuallyUseCase(serviceGroupRepo, inspectorRepo, auditService, serviceRegionRepo, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
-  const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo);
-  const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
-  const getMarketplaceOfferDetailUseCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
+  // F08-2: early-access policy composes the F08-1 standing service + F07 snapshot
+  // date + platform settings; the service-group use cases depend only on the port.
+  const offerEarlyAccessPolicy = new OfferEarlyAccessPolicy(
+    inspectorProgramStandingService,
+    platformSettingsService,
+    reliabilityIndexReader,
+    logger,
+  );
+  const acceptOfferUseCase = new AcceptOfferUseCase(serviceGroupRepo, inspectorRepo, auditService, idempotencyService, authorizationService, domainEventBus, availabilitySlotRepo, offerEarlyAccessPolicy, logger);
+  const getMarketplaceOffersUseCase = new GetMarketplaceOffersUseCase(serviceGroupRepo, inspectorRepo, authorizationService, offerEarlyAccessPolicy);
+  const getMarketplaceOfferDetailUseCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo, authorizationService, offerEarlyAccessPolicy);
   const cancelServiceGroupUseCase = new CancelServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const rejectServiceGroupUseCase = new RejectServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, domainEventBus);
   const updateServiceGroupUseCase = new UpdateServiceGroupUseCase(serviceGroupRepo, auditService, authorizationService, appointmentRepo, logger);
@@ -1142,14 +1780,16 @@ export function createContainer(logger: Logger): AppContainer {
     inspectorInvoiceRepo,
     reportStorageService,
   );
-  const markInvoicePaidUseCase = new MarkInvoicePaidUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
-  const batchMarkInvoicesPaidUseCase = new BatchMarkInvoicesPaidUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
-  const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
+  // Q12 (F08-6): rewardAwardRepository implements IRewardAwardInvoiceSync — paying/reversing an
+  // invoice advances/returns its linked rewards in the same transaction. (undefined clock → default)
+  const markInvoicePaidUseCase = new MarkInvoicePaidUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService, undefined, rewardAwardRepository);
+  const batchMarkInvoicesPaidUseCase = new BatchMarkInvoicesPaidUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService, undefined, rewardAwardRepository);
+  const reverseInvoicePaymentUseCase = new ReverseInvoicePaymentUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService, rewardAwardRepository);
   const getReconciliationSummaryUseCase = new GetReconciliationSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const getInvoiceSummaryUseCase = new GetInvoiceSummaryUseCase(inspectorInvoiceRepo, authorizationService);
   const voidFinancialEntryUseCase = new VoidFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
   const updateFinancialEntryUseCase = new UpdateFinancialEntryUseCase(financialEntryRepo, auditService, authorizationService, idempotencyService);
-  const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, authorizationService, billingJobQueue, idempotencyService);
+  const approveDraftInvoiceUseCase = new ApproveDraftInvoiceUseCase(inspectorInvoiceRepo, financialEntryRepo, auditService, authorizationService, billingJobQueue, idempotencyService, rewardAwardRepository);
   const rejectDraftInvoiceUseCase = new RejectDraftInvoiceUseCase(inspectorInvoiceRepo, auditService, authorizationService, idempotencyService);
 
   // Report repositories and use cases
@@ -1280,6 +1920,58 @@ export function createContainer(logger: Logger): AppContainer {
     authorizationService,
     auditService,
   );
+  const recordConsentOptOutUseCase = new RecordConsentOptOutUseCase(
+    consentRepo,
+    authorizationService,
+    auditService,
+  );
+  // F06 tenant-eta plan reader (consumed by TASK-F06-2; no HTTP route here).
+  const tenantEtaPlanReader = new PrismaTenantEtaPlanReader(prisma, inspectorFieldEventRepo);
+
+  // F06-2 tenant arrival-notice triggers (no HTTP route; driven by jobs + events).
+  const tenantEtaNoticeLog = new PrismaTenantEtaNoticeLog(prisma);
+  const tenantEtaNotifier = new TenantEtaNotifier(
+    createNotificationUseCase,
+    notificationRepo,
+    buildNotificationPayload,
+    appointmentCodeFormatter,
+    env.TENANT_PORTAL_BASE_URL,
+    metrics,
+    logger,
+  );
+  const sendMorningEtaNoticesUseCase = new SendMorningEtaNoticesUseCase(
+    tenantEtaPlanReader,
+    getFreshStopForAppointmentUseCase,
+    appointmentRepo,
+    tenantRepo,
+    tenantEtaNotifier,
+    platformSettingsService,
+    logger,
+  );
+  const evaluateTenantEtaUseCase = new EvaluateTenantEtaUseCase(
+    tenantEtaPlanReader,
+    getFreshStopForAppointmentUseCase,
+    appointmentRepo,
+    tenantRepo,
+    tenantEtaNotifier,
+    tenantEtaNoticeLog,
+    platformSettingsService,
+    notificationJobQueue,
+    logger,
+  );
+  const sweepTenantEtaDelaysUseCase = new SweepTenantEtaDelaysUseCase(
+    tenantEtaPlanReader,
+    getFreshStopForAppointmentUseCase,
+    appointmentRepo,
+    tenantRepo,
+    tenantEtaNotifier,
+    tenantEtaNoticeLog,
+    platformSettingsService,
+    logger,
+  );
+  new EnqueueTenantEtaOnDoneSubscriber(notificationJobQueue, logger).register(domainEventBus);
+  new EnqueueTenantEtaOnCantDoSubscriber(notificationJobQueue, logger).register(domainEventBus);
+  new EnqueueTenantEtaOnLateNoticeSubscriber(notificationJobQueue, logger).register(domainEventBus);
 
   // Dashboard repositories and use cases
   const dashboardRepo = new PrismaDashboardRepository(prisma);
@@ -1297,7 +1989,12 @@ export function createContainer(logger: Logger): AppContainer {
   const listServiceRegionsUseCase = new ListServiceRegionsUseCase(serviceRegionRepo, authorizationService);
   const deactivateServiceRegionUseCase = new DeactivateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService, domainEventBus);
   const reactivateServiceRegionUseCase = new ReactivateServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService, domainEventBus);
-  const deleteServiceRegionUseCase = new DeleteServiceRegionUseCase(serviceRegionRepo, auditService, authorizationService);
+  const deleteServiceRegionUseCase = new DeleteServiceRegionUseCase(
+    serviceRegionRepo,
+    auditService,
+    authorizationService,
+    regionGoalUsageChecker,
+  );
   const resolveRegionsUseCase = new ResolveRegionsUseCase(serviceRegionRepo, authorizationService);
 
   // Service region event handlers
@@ -1352,7 +2049,7 @@ export function createContainer(logger: Logger): AppContainer {
   const appointmentImportRowResolver = new AppointmentImportRowResolver(
     propertyRepo, serviceTypeRepo, pricingRuleRepo, contactRepo,
   );
-  const appointmentImportGeocodeVerifier = new ImportGeocodeVerifier(geocodingService);
+  const appointmentImportGeocodeVerifier = new ImportGeocodeVerifier(geocodingService, undefined, logger);
   const appointmentImportFileParser = new AppointmentImportFileParser();
   const previewAppointmentImportUseCase = new PreviewAppointmentImportUseCase(
     appointmentImportRepo, reportStorageService, branchRepo, appointmentImportRowResolver,
@@ -1444,6 +2141,15 @@ export function createContainer(logger: Logger): AppContainer {
     prisma,
     auditService,
     domainEventBus,
+    geocodingService,
+    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, getFreshStopForAppointmentUseCase, getRouteEtaAccuracyUseCase, previewRouteWeightsUseCase, previewDayPlanOrderUseCase, getDayPlanSheetUseCase, jwtService, tenantRepo },
+    tenantEta: {
+      planReader: tenantEtaPlanReader,
+      sendMorningEtaNoticesUseCase,
+      evaluateTenantEtaUseCase,
+      sweepTenantEtaDelaysUseCase,
+      settingsReader: platformSettingsService,
+    },
     auth: {
       loginUseCase,
       refreshTokenUseCase,
@@ -1534,19 +2240,45 @@ export function createContainer(logger: Logger): AppContainer {
       generateInspectorPhotoUploadUrlUseCase,
       confirmInspectorPhotoUploadUseCase,
       updateInspectorSelfProfileUseCase,
+      recordInspectorAppStateUseCase,
       generateInspectorDocumentUploadUrlUseCase,
       confirmInspectorDocumentUploadUseCase,
       getInspectorDocumentDownloadUrlUseCase,
       getInspectorAvailabilityTemplateUseCase,
       updateInspectorAvailabilityTemplateUseCase,
       getInspectorAvailabilityTemplateForOperatorUseCase,
+      getInspectorAlertThresholdsUseCase,
+      updateInspectorAlertThresholdsUseCase,
       jwtService,
       tenantRepo,
       slotRepo: availabilitySlotRepo,
     },
+    inspectorNotice: {
+      publishInspectorNoticeUseCase,
+      archiveInspectorNoticeUseCase,
+      listInspectorNoticesUseCase,
+      getInspectorNoticeUseCase,
+      listMyInspectorNoticesUseCase,
+      getMyInspectorNoticeUseCase,
+      markInspectorNoticeReadUseCase,
+      markAllMyInspectorNoticesReadUseCase,
+      countMyUnreadInspectorNoticesUseCase,
+      getPushConfigUseCase,
+      upsertPushSubscriptionUseCase,
+      unsubscribePushSubscriptionUseCase,
+      jwtService,
+      tenantRepo,
+      // Internal contracts (no HTTP route) + worker use cases.
+      publishSystemInspectorNoticeUseCase,
+      hasRecentSystemNoticeUseCase,
+      deliverInspectorNoticeUseCase,
+      sweepUndeliveredInspectorNoticesUseCase,
+      autoArchiveInspectorNoticesUseCase,
+    },
     appointment: {
       createAppointmentUseCase,
       getAppointmentUseCase,
+      getAppointmentFieldActivityUseCase,
       listAppointmentsUseCase,
       listAppointmentSuburbsUseCase,
       exportAppointmentsUseCase,
@@ -1642,6 +2374,10 @@ export function createContainer(logger: Logger): AppContainer {
       joinGroupUseCase,
       submitSatisfactionSurveyUseCase,
       getAppointmentSurveyUseCase,
+      presignPortalIssuePhotoUseCase,
+      confirmPortalIssuePhotoUseCase,
+      createPortalIssueUseCase,
+      listPortalIssuesUseCase,
       tokenRepo: rentalTenantPortalTokenRepo,
       tokenService,
       jwtService,
@@ -1653,11 +2389,84 @@ export function createContainer(logger: Logger): AppContainer {
       startInspectionUseCase,
       finishInspectionUseCase,
       reopenExecutionUseCase,
+      reportCantDoUseCase,
+      reportLateNoticeUseCase,
       getMarketplaceOffersUseCase,
       getAvailablePeriodsUseCase,
       getInspectorEarningsSummaryUseCase,
       previewInvoiceUseCase,
       requestInvoiceUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    executionDensity: {
+      getExecutionDensityUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    reliability: {
+      metricsService: reliabilityMetricsService,
+      indexReader: reliabilityIndexReader,
+      computeSnapshotsUseCase: computeReliabilitySnapshotsUseCase,
+      ensureTodaySnapshotUseCase,
+      getRankingUseCase: getReliabilityRankingUseCase,
+      getInspectorReliabilityUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    inspectorProgram: {
+      runDailyUseCase: runInspectorProgramDailyUseCase,
+      closeGoalPeriodsUseCase,
+      standingService: inspectorProgramStandingService,
+      listRewardAwardsUseCase,
+      getProgramPeriodSummaryUseCase,
+      createGoalUseCase,
+      updateGoalUseCase,
+      listGoalsUseCase,
+      getGoalUseCase,
+      listProgramPeriodsUseCase,
+      approveRewardAwardUseCase,
+      voidRewardAwardUseCase,
+      getInspectorProgramUseCase,
+      regionGoalUsageChecker,
+      goalRepository,
+      goalScopeReader,
+      rewardAwardRepository,
+      goalPeriodClosureRepository,
+      programInspectorReader,
+      rewardAwardApprovalHook,
+      jwtService,
+      tenantRepo,
+    },
+    propertyFile: {
+      presignPropertyFileUploadUseCase,
+      confirmPropertyFileUploadUseCase,
+      listPropertyFilesUseCase,
+      getPropertyFileDownloadUrlUseCase,
+      addPropertyFileVersionUseCase,
+      deletePropertyFileUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    propertyIssue: {
+      createPropertyIssueUseCase,
+      markPropertyIssueAsSeenUseCase,
+      deletePropertyIssueUseCase,
+      listPropertyIssuesUseCase,
+      countUnseenPropertyIssuesUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    liveDay: {
+      getLiveDayUseCase,
+      getLockedTimeUseCase,
+      jwtService,
+      tenantRepo,
+    },
+    platformSettings: {
+      listPlatformSettingsUseCase,
+      getPlatformSettingUseCase,
+      updatePlatformSettingUseCase,
       jwtService,
       tenantRepo,
     },
@@ -1715,6 +2524,7 @@ export function createContainer(logger: Logger): AppContainer {
       dispatchEscalationsUseCase,
       listConsentsByRecipientUseCase,
       overrideConsentUseCase,
+      recordConsentOptOutUseCase,
       jwtService,
       tenantRepo,
       webhookSignatureValidator,
@@ -1805,6 +2615,7 @@ export function createContainer(logger: Logger): AppContainer {
     cleanupSessionsWorker,
     keyExpiryCheckWorker,
     expireFilesWorker,
+    propertyFileRetentionWorker,
     processReportJobUseCase,
     geocodeWorker,
     geocodeRetryWorker,
@@ -1813,6 +2624,8 @@ export function createContainer(logger: Logger): AppContainer {
     generateInvoiceFileWorker,
     expireTokensWorker,
     notifyStuckInspectionsWorker,
+    sendCompletionRemindersUseCase,
+    publishDayPlansUseCase,
     auditRetentionWorker,
     rejectUnconfirmedWorker,
     cancelEmptyGroupsWorker,

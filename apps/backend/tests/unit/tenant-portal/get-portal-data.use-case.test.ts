@@ -291,6 +291,40 @@ describe('GetPortalDataUseCase', () => {
     expect(result.existingResponse).toBeUndefined();
   });
 
+  describe('canChangeTime (L-F03-01, D20)', () => {
+    beforeEach(() => {
+      vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+      vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+      vi.mocked(activityRepo.findLatestByTokenAndAction).mockResolvedValue(null);
+    });
+
+    it('is false for an inspector-driven rejection (INSPECTOR_UNABLE)', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'REJECTED', rejectionReasonCode: 'INSPECTOR_UNABLE' }, true, false),
+      );
+      const result = await useCase.execute(makeInput());
+      expect(result.appointment.canChangeTime).toBe(false);
+      // The tenant's confirmation status is never touched by this rule.
+      expect(result.appointment.rentalTenantConfirmationStatus).toBe('PENDING');
+    });
+
+    it('is true after a tenant decline (TENANT_DECLINED)', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'REJECTED', rejectionReasonCode: 'TENANT_DECLINED' }, true, false),
+      );
+      const result = await useCase.execute(makeInput());
+      expect(result.appointment.canChangeTime).toBe(true);
+    });
+
+    it('is true for a live SCHEDULED appointment', async () => {
+      vi.mocked(appointmentRepo.findById).mockResolvedValue(
+        makeAppointmentWithRelations({ status: 'SCHEDULED', rejectionReasonCode: null }, true, false),
+      );
+      const result = await useCase.execute(makeInput());
+      expect(result.appointment.canChangeTime).toBe(true);
+    });
+  });
+
   it('should return null contact when no contact exists', async () => {
     vi.mocked(appointmentRepo.findById).mockResolvedValue(
       makeAppointmentWithRelations({}, false, false),

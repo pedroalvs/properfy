@@ -3,6 +3,7 @@ import type { IFinancialEntryRepository } from '../../domain/financial-entry.rep
 import {
   EntryNotFoundError,
   EntryNotApprovedError,
+  BonusEntryManagedByRewardError,
   BillingIdempotencyPayloadMismatchError,
   BillingIdempotencyInProgressError,
 } from '../../domain/billing.errors';
@@ -77,6 +78,10 @@ export class VoidFinancialEntryUseCase {
       if (!entry) {
         throw new EntryNotFoundError();
       }
+      // Q12 (F08-6/DQ12): a bonus entry is managed only through the reward lifecycle.
+      if (entry.entryType === 'INSPECTOR_BONUS') {
+        throw new BonusEntryManagedByRewardError();
+      }
 
       // 3. Check status is APPROVED
       if (!entry.canBeVoided()) {
@@ -85,7 +90,8 @@ export class VoidFinancialEntryUseCase {
 
       // 4. Void the entry
       const voidedAt = new Date();
-      await this.financialEntryRepo.voidEntry(entryId, entry.tenantId, actor.userId, voidedAt, reason);
+      // tenantId is non-null here: an INSPECTOR_BONUS (the only tenantless type) is refused above.
+      await this.financialEntryRepo.voidEntry(entryId, entry.tenantId!, actor.userId, voidedAt, reason);
 
       // 5. Audit log
       this.auditService.log({

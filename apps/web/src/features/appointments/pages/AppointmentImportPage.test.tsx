@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -139,10 +139,11 @@ describe('AppointmentImportPage', () => {
     expect(screen.getByText('Import Appointments')).toBeInTheDocument();
   });
 
-  it('has back link to appointments list', () => {
+  it('has a single header Back button and no top "Back to Appointments" link', () => {
     renderPage();
-    const backLink = screen.getByText('Back to Appointments');
-    expect(backLink.closest('a')).toHaveAttribute('href', '/appointments');
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+    // The improvised top link was replaced by the standard header Back button.
+    expect(screen.queryByText('Back to Appointments')).not.toBeInTheDocument();
   });
 
   it('has template download link pointing to the csv file', () => {
@@ -481,5 +482,94 @@ describe('AppointmentImportPage — errors.csv download', () => {
       '/v1/appointments/import/{importId}/errors.csv',
       expect.objectContaining({ params: { path: { importId: 'import-1' } } }),
     ));
+  });
+});
+
+describe('AppointmentImportPage — Back navigation (X01)', () => {
+  function renderWithRoutes(initialEntries: string[] = ['/appointments/import']) {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <SnackbarProvider>
+            <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={initialEntries}>
+              <Routes>
+                <Route path="/appointments/import" element={<AppointmentImportPage />} />
+                <Route path="/appointments" element={<div>appointments list</div>} />
+              </Routes>
+            </MemoryRouter>
+          </SnackbarProvider>
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  // P-b — direct entry → header Back → fallback /appointments.
+  it('header Back on a direct entry falls back to /appointments', () => {
+    setRole('AM');
+    mockGet.mockResolvedValue(list([]));
+    renderWithRoutes();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('appointments list')).toBeInTheDocument();
+  });
+
+  // Wizard: the preview step exposes "Previous step" and keeps a single header "Back"; clicking
+  // "Previous step" returns to Upload (step 0) without leaving the screen.
+  it('preview step has "Previous step" and a single "Back"; Previous step returns to Upload', async () => {
+    setRole('CL_ADMIN', 'tenant-1');
+    mockGet.mockImplementation((path: string) =>
+      path === '/v1/branches' ? list([{ id: 'branch-9', name: 'Branch Nine' }]) : list([]),
+    );
+    mockPost.mockResolvedValue({ data: { data: PREVIEW_RESPONSE } });
+    renderWithRoutes();
+
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(await screen.findByText('Branch Nine'));
+    const file = new File(['data'], 'import.csv', { type: 'text/csv' });
+    fireEvent.change(screen.getByTestId('file-input'), { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByText('Next')).not.toBeDisabled());
+    fireEvent.click(screen.getByText('Next'));
+    await waitFor(() => expect(screen.getByText('Ready')).toBeInTheDocument());
+
+    expect(screen.getByRole('button', { name: 'Previous step' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Previous step' }));
+    expect(screen.getByText('Upload File')).toBeInTheDocument();
+  });
+
+  // Commit in progress: the header Back click is ignored (route unchanged) and the button keeps
+  // no disabled state (L-X01-06).
+  it('ignores the header Back during the commit without disabling it', async () => {
+    setRole('CL_ADMIN', 'tenant-1');
+    mockGet.mockImplementation((path: string) =>
+      path === '/v1/branches' ? list([{ id: 'branch-9', name: 'Branch Nine' }]) : list([]),
+    );
+    mockPost.mockImplementation((path: string) =>
+      path === '/v1/appointments/import/preview'
+        ? Promise.resolve({ data: { data: PREVIEW_RESPONSE } })
+        : new Promise(() => {}), // commit never resolves → isCommitting stays true
+    );
+    renderWithRoutes();
+
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(await screen.findByText('Branch Nine'));
+    const file = new File(['data'], 'import.csv', { type: 'text/csv' });
+    fireEvent.change(screen.getByTestId('file-input'), { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByText('Next')).not.toBeDisabled());
+    fireEvent.click(screen.getByText('Next'));
+    await waitFor(() => expect(screen.getByText('Ready')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Next'));
+    fireEvent.click(screen.getByText('Start Import'));
+    await waitFor(() =>
+      expect(mockPost).toHaveBeenCalledWith('/v1/appointments/import/{importId}/commit', expect.anything()),
+    );
+
+    const back = screen.getByRole('button', { name: 'Back' });
+    expect(back).not.toBeDisabled();
+    fireEvent.click(back);
+    expect(screen.queryByText('appointments list')).not.toBeInTheDocument();
+    expect(screen.getByText('Import Appointments')).toBeInTheDocument();
   });
 });

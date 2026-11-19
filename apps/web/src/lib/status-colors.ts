@@ -1,4 +1,4 @@
-import { APPOINTMENT_STATUS_LABELS, AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, RentalTenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, ContactType, type InspectorInvoiceStatus } from '@properfy/shared';
+import { APPOINTMENT_STATUS_LABELS, AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, RentalTenantConfirmationStatus, ReportType, ReportStatus, GeocodingStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, ContactType, RewardAwardStatus, REWARD_AWARD_STATUS_LABELS, type InspectorInvoiceStatus } from '@properfy/shared';
 
 export interface StatusStyle {
   bg: string;
@@ -92,6 +92,7 @@ export const FINANCIAL_ENTRY_TYPE_MAP: Record<FinancialEntryType, StatusStyle> =
   [FinancialEntryType.INSPECTOR_PAYOUT]:  { bg: 'var(--color-fin-type-payout)',     text: 'var(--color-text-primary)', label: 'Inspector Payout' },
   [FinancialEntryType.REFUND]:            { bg: 'var(--color-fin-type-refund)',     text: 'var(--color-text-primary)', label: 'Refund' },
   [FinancialEntryType.MANUAL_ADJUSTMENT]: { bg: 'var(--color-fin-type-adjustment)', text: 'var(--color-text-primary)', label: 'Manual Adjustment' },
+  [FinancialEntryType.INSPECTOR_BONUS]:   { bg: 'var(--color-fin-type-bonus)',      text: 'var(--color-text-primary)', label: 'Bonus' },
 };
 
 export const FINANCIAL_ENTRY_STATUS_MAP: Record<FinancialEntryStatus, StatusStyle> = {
@@ -142,10 +143,11 @@ export const TENANT_ADMIN_STATUS_MAP: Record<string, StatusStyle> = {
 };
 
 export const REPORT_TYPE_MAP: Record<ReportType, StatusStyle> = {
-  [ReportType.APPOINTMENTS]: { bg: 'var(--color-report-type-appointments)', text: 'var(--color-text-primary)', label: 'Appointments' },
-  [ReportType.FINANCIAL]:    { bg: 'var(--color-report-type-financial)',    text: 'var(--color-text-primary)', label: 'Financial' },
-  [ReportType.PERFORMANCE]:  { bg: 'var(--color-report-type-performance)',  text: 'var(--color-text-primary)', label: 'Performance' },
-  [ReportType.AGENCIES]:     { bg: 'var(--color-report-type-agencies)',     text: 'var(--color-text-primary)', label: 'Agencies' },
+  [ReportType.APPOINTMENTS]:      { bg: 'var(--color-report-type-appointments)',      text: 'var(--color-text-primary)', label: 'Appointments' },
+  [ReportType.FINANCIAL]:         { bg: 'var(--color-report-type-financial)',         text: 'var(--color-text-primary)', label: 'Financial' },
+  [ReportType.PERFORMANCE]:       { bg: 'var(--color-report-type-performance)',       text: 'var(--color-text-primary)', label: 'Performance' },
+  [ReportType.AGENCIES]:          { bg: 'var(--color-report-type-agencies)',          text: 'var(--color-text-primary)', label: 'Agencies' },
+  [ReportType.INSPECTOR_PROGRAM]: { bg: 'var(--color-report-type-inspector-program)', text: 'var(--color-text-primary)', label: 'Inspector program' },
 };
 
 export const REPORT_STATUS_MAP: Record<ReportStatus, StatusStyle> = {
@@ -153,6 +155,19 @@ export const REPORT_STATUS_MAP: Record<ReportStatus, StatusStyle> = {
   [ReportStatus.PROCESSING]: { bg: 'var(--color-report-status-processing)', text: 'var(--color-text-primary)', label: 'Processing' },
   [ReportStatus.READY]:      { bg: 'var(--color-report-status-ready)',      text: 'var(--color-text-primary)', label: 'Ready' },
   [ReportStatus.FAILED]:     { bg: 'var(--color-report-status-failed)',     text: 'var(--color-text-primary)', label: 'Failed' },
+};
+
+/**
+ * Reward-award lifecycle (F08). Labels come from the shared
+ * `REWARD_AWARD_STATUS_LABELS` so chips and app/report copy agree. Reuses existing
+ * status-color tokens (no new token): PENDING pending, APPROVED approved, PAID
+ * done-green, VOID cancelled.
+ */
+export const REWARD_AWARD_STATUS_MAP: Record<RewardAwardStatus, StatusStyle> = {
+  [RewardAwardStatus.PENDING]:  { bg: 'var(--color-fin-status-pending)',  text: 'var(--color-text-primary)', label: REWARD_AWARD_STATUS_LABELS.PENDING },
+  [RewardAwardStatus.APPROVED]: { bg: 'var(--color-fin-status-approved)', text: 'var(--color-text-primary)', label: REWARD_AWARD_STATUS_LABELS.APPROVED },
+  [RewardAwardStatus.PAID]:     { bg: 'var(--color-status-done)',         text: 'var(--color-text-primary)', label: REWARD_AWARD_STATUS_LABELS.PAID },
+  [RewardAwardStatus.VOID]:     { bg: 'var(--color-status-cancelled)',    text: 'var(--color-text-primary)', label: REWARD_AWARD_STATUS_LABELS.VOID },
 };
 
 export const SLOT_STATUS_MAP: Record<AvailabilitySlotStatus, StatusStyle> = {

@@ -83,7 +83,7 @@ export function LoginPage() {
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== UserRole.INSP) return;
-    const target = consumePostLoginRedirect() ?? '/schedule';
+    const target = consumePostLoginRedirect() ?? '/today';
     navigate(target, { replace: true });
   }, [isAuthenticated, navigate, user?.role]);
 

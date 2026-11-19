@@ -46,7 +46,7 @@ export default defineConfig({
     'provision-admin': 'src/scripts/provision-admin.ts',
   },
   format: ['esm'],
-  target: 'node20',
+  target: 'node24',
   platform: 'node',
   sourcemap: true,
   clean: true,

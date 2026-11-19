@@ -42,7 +42,7 @@ const COLOR_UTILITIES = [
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true, recursive: true })
     .filter((entry) => entry.isFile() && /\.tsx?$/.test(entry.name))
-    .map((entry) => resolve(entry.parentPath ?? entry.path, entry.name))
+    .map((entry) => resolve(entry.parentPath, entry.name))
     // Test files are excluded because their class names are deliberate negatives, not
     // because they are inert: `content` globs `./src/**/*.{ts,tsx}`, so a fixture string
     // (or even one inside a comment) really does get compiled into the stylesheet.

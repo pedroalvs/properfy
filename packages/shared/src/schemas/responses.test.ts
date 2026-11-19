@@ -16,10 +16,95 @@ import {
   inspectorScheduleItemSchema,
   inspectorScheduleMonthItemSchema,
   invoiceResponseSchema,
+  invoiceSnapshotLineSchema,
+  financialEntryResponseSchema,
   inspectorResponseSchema,
   startInspectionResponseSchema,
+  finishInspectionResponseSchema,
   serviceGroupResponseSchema,
 } from './responses';
+
+describe('invoiceSnapshotLineSchema — Q12 bonus line (TASK-F08-6)', () => {
+  const serviceLine = {
+    serviceDate: '2026-11-02',
+    appointmentId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee201',
+    appointmentCode: 'APT-0001',
+    propertyAddress: '1 Test St',
+    serviceType: 'Routine Inspection',
+    amount: 80,
+    agencyId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee202',
+    agencyName: 'Agency X',
+    branchId: null,
+    branchName: null,
+  };
+
+  it('defaults a legacy line (no kind) to SERVICE', () => {
+    const parsed = invoiceSnapshotLineSchema.parse(serviceLine);
+    expect(parsed.kind).toBe('SERVICE');
+  });
+
+  it('accepts a BONUS line with null appointment and bonus fields', () => {
+    const parsed = invoiceSnapshotLineSchema.parse({
+      kind: 'BONUS',
+      serviceDate: '2026-11-10',
+      appointmentId: null,
+      appointmentCode: null,
+      propertyAddress: null,
+      serviceType: null,
+      amount: 30,
+      agencyId: null,
+      agencyName: null,
+      branchId: null,
+      branchName: null,
+      entryId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee301',
+      rewardAwardId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee302',
+      description: 'Bonus: Weekly volume · Week of Mon 2 Nov',
+    });
+    expect(parsed.kind).toBe('BONUS');
+    expect(parsed.appointmentId).toBeNull();
+    expect(parsed.description).toContain('Bonus');
+  });
+
+  it('rejects a SERVICE line missing appointmentId', () => {
+    expect(() =>
+      invoiceSnapshotLineSchema.parse({ ...serviceLine, appointmentId: null }),
+    ).toThrow();
+  });
+});
+
+describe('financialEntryResponseSchema — nullable tenantId (Q12)', () => {
+  const base = {
+    id: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee401',
+    appointmentId: null,
+    inspectorId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee402',
+    entryType: 'INSPECTOR_BONUS',
+    amount: 30,
+    currency: 'AUD',
+    status: 'APPROVED',
+    description: 'Bonus: Weekly volume · Week of Mon 2 Nov',
+    effectiveAt: '2026-11-10T01:00:00.000Z',
+    initiatedByUserId: null,
+    approvedByUserId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee403',
+    approvedAt: '2026-11-10T01:00:00.000Z',
+    referenceEntryId: null,
+    reason: null,
+    createdAt: '2026-11-10T01:00:00.000Z',
+  };
+
+  it('accepts a null tenantId (bonus entry)', () => {
+    const parsed = financialEntryResponseSchema.parse({ ...base, tenantId: null });
+    expect(parsed.tenantId).toBeNull();
+  });
+
+  it('still accepts a tenant-scoped entry', () => {
+    const parsed = financialEntryResponseSchema.parse({
+      ...base,
+      tenantId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee404',
+      entryType: 'INSPECTOR_PAYOUT',
+    });
+    expect(parsed.tenantId).toBe('4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee404');
+  });
+});
 
 describe('serviceGroupResponseSchema — assignedInspectorName', () => {
   const validBase = {
@@ -1326,5 +1411,145 @@ describe('startInspectionResponseSchema', () => {
 
   it('rejects an invalid status', () => {
     expect(startInspectionResponseSchema.safeParse({ ...validPayload, status: 'DONE' }).success).toBe(false);
+  });
+
+  // F03 — the new fields are optional so a response cached under idempotency
+  // before the deploy still validates on serialize.
+  it('accepts the new F03 start fields (geofence, flags, accuracy)', () => {
+    const result = startInspectionResponseSchema.safeParse({
+      ...validPayload,
+      startAccuracyMeters: 12.4,
+      outOfRadius: true,
+      outOfWindow: false,
+      geofence: { mode: 'BLOCK', effectiveMode: 'FLAG', radiusMeters: 300, fallbackReason: 'POOR_ACCURACY' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('still accepts the pre-F03 start shape (no new fields)', () => {
+    expect(startInspectionResponseSchema.safeParse(validPayload).success).toBe(true);
+  });
+});
+
+describe('finishInspectionResponseSchema — F03 fields', () => {
+  const validPayload = {
+    executionId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee111',
+    appointmentId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee112',
+    startedAt: '2026-03-16T10:00:00.000Z',
+    finishedAt: '2026-03-16T11:00:00.000Z',
+    appointmentStatus: 'DONE' as const,
+  };
+
+  it('accepts the pre-F03 shape (no distance/flag)', () => {
+    expect(finishInspectionResponseSchema.safeParse(validPayload).success).toBe(true);
+  });
+
+  it('accepts the new F03 finish fields', () => {
+    expect(
+      finishInspectionResponseSchema.safeParse({
+        ...validPayload,
+        finishAccuracyMeters: 8,
+        finishGeolocationDistanceMeters: 80,
+        finishOutOfRadius: false,
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe('appointmentResponseSchema — inspectorIssue (F03)', () => {
+  const validBase = {
+    id: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee111',
+    tenantId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee112',
+    branchId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee113',
+    propertyId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee114',
+    serviceTypeId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee115',
+    inspectorId: null,
+    status: 'REJECTED',
+    scheduledDate: '2026-07-10',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '12:00',
+    rentalTenantConfirmationStatus: 'PENDING',
+    priceAmount: 100,
+    payoutAmount: 80,
+    notes: null,
+    createdByUserId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee116',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    updatedAt: '2026-07-01T00:00:00.000Z',
+  };
+
+  it('accepts without inspectorIssue (ungrouped / no field event)', () => {
+    expect(appointmentResponseSchema.safeParse(validBase).success).toBe(true);
+  });
+
+  it('accepts a null inspectorIssue', () => {
+    expect(appointmentResponseSchema.safeParse({ ...validBase, inspectorIssue: null }).success).toBe(true);
+  });
+
+  it('accepts a populated inspectorIssue with inspectorId', () => {
+    const result = appointmentResponseSchema.safeParse({
+      ...validBase,
+      inspectorIssue: {
+        reason: 'KEY_FAILED',
+        note: 'Lockbox code wrong',
+        inspectorId: '4f6b0f66-3f43-4b0a-9c67-3a2b1f2ee117',
+        inspectorName: 'Jane Doe',
+        occurredAt: '2026-07-10T09:41:12.000Z',
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('inspectorAppointmentDetailResponseSchema — lastFieldIssue (F03)', () => {
+  const validBase = {
+    id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+    status: 'SCHEDULED',
+    scheduledDate: '2027-06-15',
+    timeSlotStart: '09:00',
+    timeSlotEnd: '11:00',
+    serviceTypeId: 'b1ffcd00-0a1c-4ef9-cc7e-7cc0ce491b22',
+    serviceTypeName: 'Routine Inspection',
+    flowType: 'ROUTINE',
+    propertyId: 'c2ddfe22-2b3c-4ef9-cc7e-7cc0ce491b33',
+    propertyAddress: '123 Main St',
+    suburb: 'Brunswick',
+    propertyLatitude: null,
+    propertyLongitude: null,
+    rentalTenantConfirmationStatus: 'PENDING',
+    rentalTenantConfirmation: 'PENDING',
+    keyRequired: false,
+    meetingLocation: null,
+    keyLocation: null,
+    rentalTenantName: 'John Tenant',
+    rentalTenantPhone: null,
+    rentalTenantEmail: null,
+    notes: null,
+    rentalTenantNote: null,
+    observation: null,
+    restrictionsSummary: null,
+    contact: null,
+    restrictions: [],
+    execution: null,
+    assets: [],
+    apps: [],
+  };
+
+  it('accepts without lastFieldIssue', () => {
+    expect(inspectorAppointmentDetailResponseSchema.safeParse(validBase).success).toBe(true);
+  });
+
+  it('accepts a null lastFieldIssue', () => {
+    expect(
+      inspectorAppointmentDetailResponseSchema.safeParse({ ...validBase, lastFieldIssue: null }).success,
+    ).toBe(true);
+  });
+
+  it('accepts a populated lastFieldIssue', () => {
+    expect(
+      inspectorAppointmentDetailResponseSchema.safeParse({
+        ...validBase,
+        lastFieldIssue: { reason: 'KEY_FAILED', note: 'Lockbox code wrong', occurredAt: '2027-06-15T09:41:12.000Z' },
+      }).success,
+    ).toBe(true);
   });
 });

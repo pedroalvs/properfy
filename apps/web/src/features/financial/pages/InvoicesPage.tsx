@@ -152,7 +152,7 @@ export function InvoicesPage() {
 
   return (
     <>
-      <ListFilterTableTemplate title="Invoices">
+      <ListFilterTableTemplate title="Invoices" backTo="/financial/entries">
         <InvoiceFilters
           filters={filters}
           onFiltersChange={setFilters}

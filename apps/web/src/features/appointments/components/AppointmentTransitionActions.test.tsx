@@ -1,8 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AppointmentStatus } from '@properfy/shared';
 import { AppointmentTransitionActions } from './AppointmentTransitionActions';
 import type { AppointmentTransition } from '../types';
+
+const REJECT_TRANSITION: AppointmentTransition = {
+  targetStatus: AppointmentStatus.REJECTED,
+  label: 'Reject',
+  icon: 'mdi-close-circle',
+  variant: 'danger',
+  requiresReason: true,
+};
 
 const mockTransitions: AppointmentTransition[] = [
   {
@@ -114,5 +122,54 @@ describe('AppointmentTransitionActions', () => {
     );
     expect(screen.getByText('Mark as Done')).toBeInTheDocument();
     expect(screen.getByText('Cancel')).toBeInTheDocument();
+  });
+
+  it('passes currentStatus so the reject dialog offers the origin-scoped reason (F07-3)', () => {
+    render(
+      <AppointmentTransitionActions
+        transitions={[REJECT_TRANSITION]}
+        onTransition={() => {}}
+        currentStatus={AppointmentStatus.SCHEDULED}
+      />,
+    );
+    fireEvent.click(screen.getByText('Reject'));
+    fireEvent.click(screen.getByLabelText('Reason Code'));
+    expect(screen.getByRole('option', { name: "Inspector didn't attend" })).toBeInTheDocument();
+  });
+
+  it('keeps the dialog open and shows the error when onTransition resolves to a message', async () => {
+    const onTransition = vi.fn().mockResolvedValue('This rejection reason can\'t be used from the current status');
+    render(
+      <AppointmentTransitionActions
+        transitions={[REJECT_TRANSITION]}
+        onTransition={onTransition}
+        currentStatus={AppointmentStatus.SCHEDULED}
+      />,
+    );
+    fireEvent.click(screen.getByText('Reject'));
+    fireEvent.click(screen.getByLabelText('Reason Code'));
+    fireEvent.click(screen.getByRole('option', { name: "Inspector didn't attend" }));
+    fireEvent.click(screen.getByText('Confirm'));
+    await waitFor(() =>
+      expect(screen.getByText("This rejection reason can't be used from the current status")).toBeInTheDocument(),
+    );
+    // Dialog is still open (the reason-code select is still there).
+    expect(screen.getByLabelText('Reason Code')).toBeInTheDocument();
+  });
+
+  it('closes the dialog when onTransition resolves to null (success)', async () => {
+    const onTransition = vi.fn().mockResolvedValue(null);
+    render(
+      <AppointmentTransitionActions
+        transitions={[REJECT_TRANSITION]}
+        onTransition={onTransition}
+        currentStatus={AppointmentStatus.SCHEDULED}
+      />,
+    );
+    fireEvent.click(screen.getByText('Reject'));
+    fireEvent.click(screen.getByLabelText('Reason Code'));
+    fireEvent.click(screen.getByRole('option', { name: "Inspector didn't attend" }));
+    fireEvent.click(screen.getByText('Confirm'));
+    await waitFor(() => expect(screen.queryByLabelText('Reason Code')).not.toBeInTheDocument());
   });
 });

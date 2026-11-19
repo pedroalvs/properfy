@@ -30,7 +30,22 @@ const appointmentRepo = {
   findById: vi.fn(),
 };
 
+// F03-2: finish takes the appointment row lock as its first statement (deadlock-safe
+// ordering with can't-do). The use case calls it even when prisma is undefined.
+const fieldEventRepo = {
+  lockAppointmentForFieldEvent: vi.fn().mockResolvedValue(undefined),
+};
+
 const auditService = { log: vi.fn() };
+
+const platformSettings = { get: vi.fn() };
+const FIELD_EVENTS_DEFAULTS = {
+  geofenceRadiusMeters: 300,
+  geofenceMode: 'FLAG' as const,
+  checkInWindowToleranceMinutes: 15,
+  completionReminderEnabled: true,
+  completionReminderMinutesAfterWindowEnd: 30,
+};
 
 const inspActor = {
   userId: 'insp-1',
@@ -68,6 +83,9 @@ function makeSut() {
     appointmentRepo as any,
     auditService as any,
     authorizationService,
+    undefined,
+    platformSettings as any,
+    fieldEventRepo as any,
   );
 }
 
@@ -77,6 +95,7 @@ describe('FinishInspectionUseCase', () => {
     idempotencyService.get.mockResolvedValue(null);
     idempotencyService.set.mockResolvedValue(undefined);
     executionRepo.update.mockResolvedValue(undefined);
+    platformSettings.get.mockResolvedValue({ ...FIELD_EVENTS_DEFAULTS });
     const transitionOutput = {
       id: 'appt-1',
       status: 'DONE',
@@ -130,7 +149,12 @@ describe('FinishInspectionUseCase', () => {
       {
         appointmentId: 'appt-1',
         targetStatus: 'DONE',
+        // F03-2: finish uses a compare-and-swap on the current status.
+        expectedStatus: 'SCHEDULED',
         actor: inspActor,
+        // F06-2 L-F06-04: the check-out stamps metadata.source so the tenant-ETA
+        // "on the way" subscriber can distinguish it from a manual OP/AM DONE.
+        auditMetadata: { source: 'INSPECTOR_FINISH' },
       },
       undefined,
     );
@@ -242,7 +266,12 @@ describe('FinishInspectionUseCase', () => {
       {
         appointmentId: 'appt-1',
         targetStatus: 'DONE',
+        // F03-2: finish uses a compare-and-swap on the current status.
+        expectedStatus: 'SCHEDULED',
         actor: inspActor,
+        // F06-2 L-F06-04: the check-out stamps metadata.source so the tenant-ETA
+        // "on the way" subscriber can distinguish it from a manual OP/AM DONE.
+        auditMetadata: { source: 'INSPECTOR_FINISH' },
       },
       undefined,
     );
@@ -295,5 +324,64 @@ describe('FinishInspectionUseCase', () => {
 
     expect(idempotencyService.set).toHaveBeenCalledOnce();
     expect(idempotencyService.set).toHaveBeenCalledWith('key-10', 'finish', result, 24);
+  });
+
+  // --- F03: finish capture (distance, flags, accuracy, device time) ---
+
+  const withProperty = (lat: number | null, lng: number | null) => ({
+    appointment: { tenantId: 'tenant-1', serviceTypeId: 'stype-1' },
+    propertyLatitude: lat,
+    propertyLongitude: lng,
+  });
+
+  it('old body finishes with null accuracy/client time', async () => {
+    const sut = makeSut();
+    executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
+    appointmentRepo.findById.mockResolvedValue(withProperty(null, null));
+    const result = await sut.execute({ appointmentId: 'appt-1', latitude: -33.8568, longitude: 151.2153, idempotencyKey: 'fin-old', actor: inspActor });
+    expect(result.finishAccuracyMeters).toBeNull();
+    expect(result.finishGeolocationDistanceMeters).toBeNull();
+    expect(result.finishOutOfRadius).toBe(false);
+    const upd = executionRepo.update.mock.calls[0][1];
+    expect(upd.finishClientAt).toBeNull();
+  });
+
+  it('computes finish distance and clears the flag when within radius', async () => {
+    const sut = makeSut();
+    executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
+    appointmentRepo.findById.mockResolvedValue(withProperty(-33.8568, 151.2153));
+    // ~80 m north of the property
+    const result = await sut.execute({ appointmentId: 'appt-1', latitude: -33.85608, longitude: 151.2153, accuracy: 6, idempotencyKey: 'fin-near', actor: inspActor });
+    expect(result.finishGeolocationDistanceMeters).toBeTypeOf('number');
+    expect(result.finishGeolocationDistanceMeters!).toBeLessThan(300);
+    expect(result.finishOutOfRadius).toBe(false);
+    expect(result.finishAccuracyMeters).toBe(6);
+  });
+
+  it('flags a far finish but never blocks, and the mismatch audit carries no coordinates (phase FINISH)', async () => {
+    const sut = makeSut();
+    executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
+    appointmentRepo.findById.mockResolvedValue(withProperty(-33.8568, 151.2153));
+    const result = await sut.execute({ appointmentId: 'appt-1', latitude: -33.81, longitude: 151.2153, accuracy: 10, idempotencyKey: 'fin-far', actor: inspActor });
+    expect(result.appointmentStatus).toBe('DONE');
+    expect(result.finishOutOfRadius).toBe(true);
+    const mismatch = auditService.log.mock.calls.find((c: any[]) => c[0].action === 'inspection.geolocation_mismatch');
+    expect(mismatch).toBeDefined();
+    expect(mismatch![0].metadata.phase).toBe('FINISH');
+    expect(mismatch![0].metadata.thresholdMeters).toBe(300);
+    for (const k of ['latitude', 'longitude', 'inspectorLatitude', 'inspectorLongitude', 'finishLatitude', 'finishLongitude']) {
+      expect(mismatch![0].metadata).not.toHaveProperty(k);
+    }
+  });
+
+  it('writes the distance/flags/accuracy in the same transactional update as the finish', async () => {
+    const sut = makeSut();
+    executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
+    appointmentRepo.findById.mockResolvedValue(withProperty(-33.8568, 151.2153));
+    await sut.execute({ appointmentId: 'appt-1', latitude: -33.81, longitude: 151.2153, accuracy: 10, idempotencyKey: 'fin-tx', actor: inspActor });
+    const upd = executionRepo.update.mock.calls[0][1];
+    expect(upd).toMatchObject({ finishOutOfRadius: true, finishAccuracyMeters: 10 });
+    expect(upd.finishGeolocationDistanceMeters).toBeTypeOf('number');
+    expect(upd.finishedAt).toBeInstanceOf(Date);
   });
 });

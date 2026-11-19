@@ -53,4 +53,20 @@ export class SupabaseStorageService implements IStorageService {
     const command = new DeleteObjectCommand({ Bucket: bucket, Key: key });
     await this.s3Client.send(command);
   }
+
+  async getObjectBytes(bucket: string, key: string, maxBytes: number): Promise<Buffer> {
+    // Range-fetch only the prefix (file-type needs ~the first 4 KB); never pull
+    // the whole object just to sniff its signature.
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Range: `bytes=0-${Math.max(0, maxBytes - 1)}`,
+    });
+    const response = await this.s3Client.send(command);
+    if (!response.Body) {
+      return Buffer.alloc(0);
+    }
+    const bytes = await response.Body.transformToByteArray();
+    return Buffer.from(bytes);
+  }
 }

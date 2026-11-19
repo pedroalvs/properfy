@@ -3,8 +3,19 @@ import { fyWebhookEventSchema, PLATFORM_TIMEZONE } from '@properfy/shared';
 import type { FyWebhookDispatcher } from '../modules/fy/infrastructure/fy-webhook-dispatcher';
 import { FY_WEBHOOK_JOB } from '../modules/fy/application/webhooks/fy-webhook-subscriber';
 import { getQueue, resolvePgBossSchema, assertQueueDbConsistency } from '../shared/infrastructure/queue';
-import { metrics } from '../shared/infrastructure/metrics';
-import { runWithRequestContext } from '../shared/infrastructure/request-context';
+import { withJobMetrics } from './with-job-metrics';
+import { registerDayPlanPublishWorker } from './day-plan-publish.worker';
+import type { PublishDayPlansUseCase } from '../modules/day-plan/application/use-cases/publish-day-plans.use-case';
+import type { SendMorningEtaNoticesUseCase } from '../modules/tenant-eta/application/use-cases/send-morning-eta-notices.use-case';
+import type { EvaluateTenantEtaUseCase, EvaluateTenantEtaJob } from '../modules/tenant-eta/application/use-cases/evaluate-tenant-eta.use-case';
+import type { SweepTenantEtaDelaysUseCase } from '../modules/tenant-eta/application/use-cases/sweep-tenant-eta-delays.use-case';
+import type { ComputeReliabilitySnapshotsUseCase } from '../modules/reliability/application/use-cases/compute-reliability-snapshots.use-case';
+import type { EnsureTodaySnapshotUseCase } from '../modules/reliability/application/use-cases/ensure-today-snapshot.use-case';
+import type { RunInspectorProgramDailyUseCase } from '../modules/inspector-program/application/use-cases/run-inspector-program-daily.use-case';
+import type { IPlatformSettingsReader } from '../shared/domain/platform-settings';
+import type { DeliverInspectorNoticeUseCase } from '../modules/inspector-notice/application/use-cases/deliver-inspector-notice.use-case';
+import type { SweepUndeliveredInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/sweep-undelivered-inspector-notices.use-case';
+import type { AutoArchiveInspectorNoticesUseCase } from '../modules/inspector-notice/application/use-cases/auto-archive-inspector-notices.use-case';
 import type { ProcessReportJobUseCase } from '../modules/report/application/use-cases/process-report-job.use-case';
 import type { SendNotificationUseCase } from '../modules/notification/application/use-cases/send-notification.use-case';
 import type { PollRetryableNotificationsUseCase } from '../modules/notification/application/use-cases/poll-retryable-notifications.use-case';
@@ -14,6 +25,7 @@ import type { DispatchEscalationsUseCase } from '../modules/notification/applica
 import type { CleanupSessionsWorker } from '../modules/auth/infrastructure/workers/cleanup-sessions.worker';
 import type { KeyExpiryCheckWorker } from '../modules/auth/infrastructure/workers/key-expiry-check.worker';
 import type { ExpireFilesWorker } from '../modules/report/infrastructure/workers/expire-files.worker';
+import type { PropertyFileRetentionWorker } from '../modules/property-file/infrastructure/workers/property-file-retention.worker';
 import type { GeocodeWorker } from '../modules/property/infrastructure/workers/geocode.worker';
 import type { GeocodeRetryWorker } from '../modules/property/infrastructure/workers/geocode-retry.worker';
 import type { AppointmentImportCommitWorker } from '../modules/appointment/infrastructure/workers/appointment-import-commit.worker';
@@ -21,6 +33,7 @@ import type { SweepAbandonedAppointmentImportsWorker } from '../modules/appointm
 import type { GenerateInvoiceFileWorker } from '../modules/billing/infrastructure/workers/generate-invoice-file.worker';
 import type { ExpireTokensWorker } from '../modules/rental-tenant-portal/infrastructure/workers/expire-tokens.worker';
 import type { NotifyStuckInspectionsWorker } from '../modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
+import type { SendCompletionRemindersUseCase } from '../modules/inspector-execution/application/use-cases/send-completion-reminders.use-case';
 import type { AuditRetentionWorker } from '../modules/audit/infrastructure/workers/audit-retention.worker';
 import type { RejectUnconfirmedWorker } from '../modules/appointment/infrastructure/workers/reject-unconfirmed.worker';
 import type { CancelEmptyGroupsWorker } from '../modules/service-group/infrastructure/workers/cancel-empty-groups.worker';
@@ -29,25 +42,6 @@ import { DlqMonitor } from '../shared/infrastructure/dlq-monitor';
 import { prisma } from '../shared/infrastructure/prisma';
 import { TenantCronTick } from '../shared/application/tenant-cron-tick';
 import { PrismaCronJobRunRepository } from '../shared/infrastructure/prisma-cron-job-run.repository';
-
-function withJobMetrics<T extends { id: string; data: Record<string, unknown> }>(
-  queue: string,
-  handler: (job: T) => Promise<void>,
-): (job: T) => Promise<void> {
-  return async (job: T) => {
-    const requestId = (job.data?._requestId as string | undefined) ?? crypto.randomUUID();
-    const start = performance.now();
-    await runWithRequestContext({ requestId }, async () => {
-      try {
-        await handler(job);
-        metrics.jobExecuted(queue, 'success', performance.now() - start);
-      } catch (err) {
-        metrics.jobExecuted(queue, 'failure', performance.now() - start);
-        throw err;
-      }
-    });
-  };
-}
 
 // All cron schedules fire on Sydney wall-clock time (DST-aware). Note: auth.cleanup-sessions
 // at 02:00 lands on the skipped hour once a year on DST start; pg-boss fires at the next valid
@@ -75,6 +69,19 @@ export async function registerWorkers(
   rejectUnconfirmedWorker: RejectUnconfirmedWorker,
   cancelEmptyGroupsWorker: CancelEmptyGroupsWorker,
   fyWebhookDispatcher: FyWebhookDispatcher,
+  deliverInspectorNoticeUseCase: DeliverInspectorNoticeUseCase,
+  sweepUndeliveredInspectorNoticesUseCase: SweepUndeliveredInspectorNoticesUseCase,
+  autoArchiveInspectorNoticesUseCase: AutoArchiveInspectorNoticesUseCase,
+  sendCompletionRemindersUseCase: SendCompletionRemindersUseCase,
+  publishDayPlansUseCase: PublishDayPlansUseCase,
+  sendMorningEtaNoticesUseCase: SendMorningEtaNoticesUseCase,
+  evaluateTenantEtaUseCase: EvaluateTenantEtaUseCase,
+  sweepTenantEtaDelaysUseCase: SweepTenantEtaDelaysUseCase,
+  tenantEtaSettingsReader: IPlatformSettingsReader,
+  propertyFileRetentionWorker: PropertyFileRetentionWorker,
+  computeReliabilitySnapshotsUseCase: ComputeReliabilitySnapshotsUseCase,
+  ensureTodaySnapshotUseCase: EnsureTodaySnapshotUseCase,
+  runInspectorProgramDailyUseCase: RunInspectorProgramDailyUseCase,
   logger: Logger,
 ): Promise<void> {
   // Guard against the misconfiguration where this process consumes jobs from one
@@ -146,13 +153,14 @@ export async function registerWorkers(
   // catch-up after missed ticks and DST-skipped hours) and fans the use case
   // out per timezone group. `boss.schedule` upserts by name, so redeploys
   // replace the old daily Sydney cron under the same queue name.
+  const cronJobRunRepo = new PrismaCronJobRunRepository(prisma);
   const tenantCronTick = new TenantCronTick(
     () =>
       prisma.tenant.findMany({
         where: { status: 'ACTIVE', deleted_at: null },
         select: { id: true, timezone: true },
       }),
-    new PrismaCronJobRunRepository(prisma),
+    cronJobRunRepo,
   );
 
   await boss.schedule('notification.dispatch-reminders', '0 * * * *', {}, SYDNEY_TZ);
@@ -217,6 +225,15 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, expiredCount: result.expiredCount }, 'Report file expiry completed');
   }));
 
+  // F10 daily retention sweep: purge soft-deleted / over-retention / orphaned
+  // PENDING property-file objects from storage. 04:00 Sydney (after audit.retention).
+  await boss.schedule('property-file.retention', '0 4 * * *', {}, SYDNEY_TZ);
+  await boss.work('property-file.retention', withJobMetrics('property-file.retention', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing property-file.retention job');
+    const result = await propertyFileRetentionWorker.execute();
+    logger.info({ jobId: job.id, ...result }, 'Property file retention completed');
+  }));
+
   await boss.work('property.geocode', withJobMetrics('property.geocode', async (job) => {
     const { propertyId } = job.data as { propertyId: string };
     logger.info({ propertyId, jobId: job.id }, 'Processing property.geocode job');
@@ -266,6 +283,14 @@ export async function registerWorkers(
     logger.info({ jobId: job.id }, 'Processing inspection-execution.notify-not-started job');
     const result = await notifyStuckInspectionsWorker.execute();
     logger.info({ jobId: job.id, notifiedCount: result.notifiedCount }, 'Stuck inspection alerts completed');
+  }));
+
+  // F03 03.16: nudge inspectors whose job window closed today without a check-out.
+  await boss.schedule('inspection-execution.completion-reminder', '*/15 * * * *', {}, SYDNEY_TZ);
+  await boss.work('inspection-execution.completion-reminder', withJobMetrics('inspection-execution.completion-reminder', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing inspection-execution.completion-reminder job');
+    const result = await sendCompletionRemindersUseCase.execute();
+    logger.info({ jobId: job.id, ...result }, 'Completion reminders completed');
   }));
 
   // Audit log retention — daily at 03:30 Sydney (off-peak)
@@ -332,6 +357,67 @@ export async function registerWorkers(
     );
   }));
 
+  // Inspector notices (F02-1): deliver (enqueued on publish + by the sweep), the 5-min
+  // safety sweep, and the daily retention/auto-archive job.
+  await boss.work('inspector-notice.deliver', withJobMetrics('inspector-notice.deliver', async (job) => {
+    const { noticeId } = job.data as { noticeId: string };
+    logger.info({ noticeId, jobId: job.id }, 'Processing inspector-notice.deliver job');
+    await deliverInspectorNoticeUseCase.execute({ noticeId });
+  }));
+
+  await boss.schedule('inspector-notice.delivery-sweep', '*/5 * * * *', {}, SYDNEY_TZ);
+  await boss.work('inspector-notice.delivery-sweep', withJobMetrics('inspector-notice.delivery-sweep', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing inspector-notice.delivery-sweep job');
+    await sweepUndeliveredInspectorNoticesUseCase.execute();
+  }));
+
+  // After audit.retention (03:30) to spread the nightly load.
+  await boss.schedule('inspector-notice.auto-archive', '45 3 * * *', {}, SYDNEY_TZ);
+  await boss.work('inspector-notice.auto-archive', withJobMetrics('inspector-notice.auto-archive', async (job) => {
+    logger.info({ jobId: job.id }, 'Processing inspector-notice.auto-archive job');
+    await autoArchiveInspectorNoticesUseCase.execute();
+  }));
+
+  // Day-plan auto-publish at 19:30 local (contract 00.A2): singleton, T-1-gated,
+  // sequential within a budget, with continuation. Kill switch DAY_PLAN_PUBLISH_ENABLED.
+  await registerDayPlanPublishWorker(boss, {
+    tenantCronTick,
+    cronJobRunRepo,
+    publishDayPlans: publishDayPlansUseCase,
+    logger,
+  });
+
+  // F06-2 tenant arrival notices. Morning tick 07:00 local (cutoff 09:00 handled
+  // in the use case); on-demand evaluate (check-out / can't-do / late-notice);
+  // 30-min delay sweep (singleton). enabled-gated so a disabled feature spends no
+  // claim and lists no plans.
+  await boss.schedule('tenant-eta.morning', '0 * * * *', {}, SYDNEY_TZ);
+  await boss.work('tenant-eta.morning', withJobMetrics('tenant-eta.morning', async (job) => {
+    const settings = await tenantEtaSettingsReader.get('tenantEtaNotices');
+    if (!settings.enabled) return;
+    const groups = await tenantCronTick.runDue('tenant-eta.morning', settings.morningHour, async (group) => {
+      await sendMorningEtaNoticesUseCase.execute(group);
+    });
+    if (groups.length > 0) {
+      logger.info({ jobId: job.id, groups: groups.length }, 'Tenant ETA morning completed');
+    }
+  }));
+
+  await boss.work('tenant-eta.evaluate', withJobMetrics('tenant-eta.evaluate', async (job) => {
+    await evaluateTenantEtaUseCase.execute(job.data as unknown as EvaluateTenantEtaJob);
+  }));
+
+  await boss.schedule('tenant-eta.sweep-delays', '*/30 * * * *', {}, SYDNEY_TZ);
+  await boss.work(
+    'tenant-eta.sweep-delays',
+    { teamSize: 1, teamConcurrency: 1 },
+    withJobMetrics('tenant-eta.sweep-delays', async () => {
+      const settings = await tenantEtaSettingsReader.get('tenantEtaNotices');
+      if (!settings.enabled) return;
+      await sweepTenantEtaDelaysUseCase.execute();
+    }),
+  );
+
   // DLQ monitor — alert on accumulated failed jobs
   const dlqMonitor = new DlqMonitor(prisma, logger, { threshold: 10, schema: resolvePgBossSchema() });
   await boss.schedule('system.dlq-monitor', '*/5 * * * *', {}, SYDNEY_TZ);
@@ -341,7 +427,70 @@ export async function registerWorkers(
     logger.info({ jobId: job.id, alertedQueues: result.alertedQueues }, 'DLQ monitor completed');
   }));
 
-  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, audit.retention, appointment.reject-unconfirmed, service-group.cancel-empty, system.dlq-monitor');
+  // Reliability snapshot (F07-2): daily compute at 04:15 Sydney — after audit.retention
+  // (03:30), and outside the DST 02:00–03:00 skip. One
+  // machine runs it (teamSize/teamConcurrency 1); a transaction advisory lock serializes
+  // it against any settings-triggered recompute.
+  await boss.schedule('reliability.compute-snapshots', '15 4 * * *', {}, SYDNEY_TZ);
+  await boss.work(
+    'reliability.compute-snapshots',
+    { teamSize: 1, teamConcurrency: 1 },
+    withJobMetrics('reliability.compute-snapshots', async (job) => {
+      const trigger = (job.data as { trigger?: 'SCHEDULED' | 'SETTINGS_CHANGED' | 'BACKFILL' }).trigger ?? 'SCHEDULED';
+      // The use case logs reliability.snapshots_failed and rethrows (pg-boss retries);
+      // pass the attempt so the alert carries the retry count (L-F07-02).
+      const retryCount = (job as { retryCount?: number }).retryCount ?? 0;
+      await computeReliabilitySnapshotsUseCase.execute({ trigger, attempt: retryCount + 1 });
+    }),
+  );
+
+  // Hourly reinforcement 05:00–12:00 Sydney: re-enqueues a missed/failed 04:15 run and an
+  // overdue weight recompute (L-F07-02 / L-F07-10). No singletonKey — the lock and the
+  // compute's idempotency make a duplicate harmless.
+  await boss.schedule('reliability.ensure-today', '0 5-12 * * *', {}, SYDNEY_TZ);
+  await boss.work(
+    'reliability.ensure-today',
+    withJobMetrics('reliability.ensure-today', async () => {
+      await ensureTodaySnapshotUseCase.execute();
+    }),
+  );
+
+  // Inspector program daily job (F08-1): one schedule at 04:45 Sydney that closes
+  // ended goal periods, creates rewards, and enqueues the 08:00 message run on the
+  // same queue (L-F08-01). The trigger distinguishes compute vs. messages; the kill
+  // switch leaves the queue unscheduled for rollback.
+  if (process.env.INSPECTOR_PROGRAM_JOBS_ENABLED !== 'false') {
+    await boss.schedule('inspector-program.daily', '45 4 * * *', {}, SYDNEY_TZ);
+    await boss.work(
+      'inspector-program.daily',
+      withJobMetrics('inspector-program.daily', async (job) => {
+        const trigger = (job.data as { trigger?: 'SCHEDULED' | 'STARTUP' | 'MESSAGES' }).trigger ?? 'SCHEDULED';
+        await runInspectorProgramDailyUseCase.execute({ trigger, now: new Date() });
+      }),
+    );
+  } else {
+    await boss.unschedule('inspector-program.daily');
+  }
+
+  logger.info('pg-boss workers registered: report.generate, report.expire-files, notification.send, notification.retry-poll, notification.sms-delivery-poll, notification.dispatch-reminders, notification.dispatch-escalations, auth.cleanup-sessions, auth.check-key-expiry, property.geocode, property.geocode-retry, appointment.import.commit, appointment.import.sweep-abandoned, billing.generate-invoice-file, rental-tenant-portal.expire-tokens, inspection-execution.notify-not-started, inspection-execution.completion-reminder, audit.retention, appointment.reject-unconfirmed, service-group.cancel-empty, inspector-notice.deliver, inspector-notice.delivery-sweep, inspector-notice.auto-archive, day-plan.publish, tenant-eta.morning, tenant-eta.evaluate, tenant-eta.sweep-delays, system.dlq-monitor, reliability.compute-snapshots, reliability.ensure-today, inspector-program.daily');
+
+  // On startup: backfill today's reliability snapshot if it is missing (F07-2).
+  try {
+    const outcome = await ensureTodaySnapshotUseCase.execute();
+    logger.info({ outcome }, 'reliability.ensure-today backfill checked on startup');
+  } catch (err) {
+    logger.error({ err }, 'reliability.ensure-today backfill failed on startup');
+  }
+
+  // On startup: catch up any overdue goal-period closures (F08-1). The singletonKey
+  // coalesces with the scheduled run, and the use case no-ops when nothing is pending.
+  if (process.env.INSPECTOR_PROGRAM_JOBS_ENABLED !== 'false') {
+    try {
+      await boss.send('inspector-program.daily', { trigger: 'STARTUP' }, { singletonKey: 'inspector-program.daily' });
+    } catch (err) {
+      logger.error({ err }, 'inspector-program.daily startup enqueue failed');
+    }
+  }
 
   // On startup: re-enqueue geocoding for all PENDING/FAILED properties that have no coordinates
   const pendingProperties = await prisma.property.findMany({

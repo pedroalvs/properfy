@@ -45,6 +45,39 @@ interface MapMarkerProps {
    * directly would fight that transform and snap the pin to the map origin.
    */
   offset?: MarkerOffset;
+  /**
+   * TASK-F05-2 — icon (teardrop) variant: head + tail fill colour. Defaults to
+   * the near-black `#1A1A1A`. Live Day uses it so the pin head encodes the
+   * inspector's derived STATE (never the inspector's identity colour).
+   */
+  headColor?: string;
+  /**
+   * TASK-F05-2 — a 3px outline ring on the pin head (box-shadow). Live Day uses
+   * it to paint the inspector's own stable colour around the head while the head
+   * fill keeps encoding state, so the two meanings never share a channel.
+   */
+  outlineColor?: string;
+  /**
+   * TASK-F05-2 — a small red "needs attention" dot on the top-right of the head.
+   * Purely visual (`aria-hidden`); the information lives in `label`/`aria-label`.
+   */
+  badge?: boolean;
+  /**
+   * TASK-F05-2 — circle variant: short text (e.g. a stop sequence number or
+   * "•") shown instead of the default `mdi-map-marker` glyph.
+   */
+  innerText?: string;
+  /**
+   * TASK-F05-2 — circle variant: an MDI icon class (e.g. `mdi-check-bold`) shown
+   * instead of the default `mdi-map-marker` glyph. `innerText` wins if both set.
+   */
+  innerIcon?: string;
+  /**
+   * TASK-F05-2 — accessible name, when it must differ from the visible `label`.
+   * Live Day pins show the inspector name under the pin but need a richer
+   * aria-label (state, progress, delay, last-known). Falls back to `label`.
+   */
+  ariaLabel?: string;
 }
 
 const NO_OFFSET: MarkerOffset = [0, 0];
@@ -92,7 +125,15 @@ export function MapMarker({
   disabled = false,
   icon,
   offset,
+  headColor,
+  outlineColor,
+  badge = false,
+  innerText,
+  innerIcon,
+  ariaLabel,
 }: MapMarkerProps) {
+  // Icon-variant head/tail fill: the state colour on Live Day, else near-black.
+  const headFill = headColor ?? '#1A1A1A';
   const { getMap } = useMapInstance();
   // Portal target is the detached DOM node owned by mapboxgl.Marker.
   // `null` when no map context (tests) or when the map has not finished
@@ -185,17 +226,32 @@ export function MapMarker({
         e.stopPropagation();
         onDoubleClick?.();
       }}
-      aria-label={label ?? `Appointment marker at ${latitude}, ${longitude}`}
+      aria-label={ariaLabel ?? label ?? `Appointment marker at ${latitude}, ${longitude}`}
     >
       <span
-        className="flex h-7 w-7 items-center justify-center rounded-full"
-        style={{ backgroundColor: '#1A1A1A' }}
+        data-testid="pin-head"
+        data-head-color={headFill}
+        data-outline-color={outlineColor}
+        className="relative flex h-7 w-7 items-center justify-center rounded-full"
+        style={{
+          backgroundColor: headFill,
+          boxShadow: outlineColor ? `0 0 0 3px ${outlineColor}` : undefined,
+        }}
       >
         <i className={cn('mdi', icon, 'text-base leading-none text-white')} aria-hidden="true" />
+        {badge && (
+          <span
+            data-testid="pin-badge"
+            className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border border-white bg-error"
+            aria-hidden="true"
+          />
+        )}
       </span>
       <span
+        data-testid="pin-tail"
+        data-head-color={headFill}
         className="-mt-1 h-0 w-0 border-x-[6px] border-t-[10px] border-x-transparent"
-        style={{ borderTopColor: '#1A1A1A' }}
+        style={{ borderTopColor: headFill }}
         aria-hidden="true"
       />
     </button>
@@ -224,10 +280,14 @@ export function MapMarker({
         e.stopPropagation();
         onDoubleClick?.();
       }}
-      aria-label={label ?? `Map marker at ${latitude}, ${longitude}`}
+      aria-label={ariaLabel ?? label ?? `Map marker at ${latitude}, ${longitude}`}
     >
       {clustered && clusterCount ? (
         <span className="font-bold text-white">{clusterCount}</span>
+      ) : innerText != null ? (
+        <span className="text-xs font-bold leading-none text-white">{innerText}</span>
+      ) : innerIcon ? (
+        <i className={cn('mdi', innerIcon, 'text-base leading-none text-white')} aria-hidden="true" />
       ) : (
         <i className="mdi mdi-map-marker text-white text-base" aria-hidden="true" />
       )}

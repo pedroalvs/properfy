@@ -8,7 +8,11 @@ import type {
   AppointmentCustomField,
   AppointmentApp,
   AvailableSlot,
+  InspectorIssue,
+  FileCounts,
 } from '@properfy/shared';
+
+export type { InspectorIssue } from '@properfy/shared';
 import { CUSTOM_FIELDS_MAX } from '@properfy/shared';
 
 export type { AppointmentStatus } from '@properfy/shared';
@@ -59,6 +63,12 @@ export interface Appointment {
   cancellationReasonCode?: string | null;
   /** Structured reason code; set when the appointment was REJECTED. */
   rejectionReasonCode?: string | null;
+  /**
+   * Latest "Can't do this job" (CANT_DO) field event flattened onto the
+   * appointment (F03-2). Null when the inspector never reported one; persists
+   * after the appointment is re-offered (history of the last impediment).
+   */
+  inspectorIssue?: InspectorIssue | null;
   doneCheckedByUserId?: string | null;
   doneCheckedAt?: string | null;
   serviceGroupId?: string | null;
@@ -74,6 +84,14 @@ export interface Appointment {
   rentalTenantNote?: string | null;
   /** Property total area in m²; null for legacy properties with no recorded area. */
   propertyTotalAreaM2?: number | null;
+  /**
+   * F10: true when the appointment has an unseen, non-deleted property issue
+   * (D26). Populated only for AM/OP/CL_ADMIN — `false`/absent for CL_USER/INSP.
+   * Drives the yellow row border.
+   */
+  hasUnseenIssues?: boolean;
+  /** F10: per-type file counts on the appointment detail payload (C.9). */
+  fileCounts?: FileCounts;
   createdAt: string;
   updatedAt: string;
 }
@@ -98,6 +116,8 @@ export interface AppointmentFiltersState {
   endDate: string;
   showCancelled: boolean;
   overdueOnly: boolean;
+  /** F10 "With issues": only appointments that have a non-deleted property issue. */
+  withIssues: boolean;
 }
 
 export interface AppointmentContactEntry {
@@ -318,4 +338,5 @@ export const DEFAULT_FILTERS: AppointmentFiltersState = {
   endDate: '',
   showCancelled: false,
   overdueOnly: false,
+  withIssues: false,
 };

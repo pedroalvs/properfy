@@ -19,6 +19,7 @@ describe('GeocodeRetryWorker', () => {
     findFailedGeocoding: vi.fn(),
     findStalePendingGeocoding: vi.fn(),
     countFailedGeocoding: vi.fn(),
+    countBlockedFailedGeocoding: vi.fn().mockResolvedValue(0),
     update: vi.fn(),
     findById: vi.fn(),
     findByIdWithBranch: vi.fn(),
@@ -79,6 +80,24 @@ describe('GeocodeRetryWorker', () => {
     expect(sendJob).toHaveBeenCalledTimes(2);
     expect(sendJob).toHaveBeenCalledWith('property.geocode', { propertyId: 'prop-1' }, { retryLimit: 6, retryBackoff: true });
     expect(sendJob).toHaveBeenCalledWith('property.geocode', { propertyId: 'prop-2' }, { retryLimit: 6, retryBackoff: true });
+  });
+
+  it('logs the skipped count from countBlockedFailedGeocoding and never re-enqueues coded failures', async () => {
+    // findFailedGeocoding already excludes coded failures (repo-level filter), so
+    // the worker only logs how many were skipped — it must not try to re-enqueue them.
+    mockPropertyRepo.findFailedGeocoding.mockResolvedValue([]);
+    mockPropertyRepo.countBlockedFailedGeocoding.mockResolvedValue(3);
+    mockPropertyRepo.countFailedGeocoding.mockResolvedValue(3);
+
+    const result = await worker.execute();
+
+    expect(result.skippedCount).toBe(3);
+    expect(result.reenqueuedCount).toBe(0);
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      { skippedCount: 3 },
+      'Skipped FAILED properties blocked by a geocoding failure code',
+    );
+    expect(sendJob).not.toHaveBeenCalled();
   });
 
   it('passes a cutoff date 24h in the past to findFailedGeocoding', async () => {

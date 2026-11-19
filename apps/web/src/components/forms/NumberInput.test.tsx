@@ -33,4 +33,9 @@ describe('NumberInput', () => {
     );
     expect(container.firstChild).toHaveClass('shadow-[0_0_0_2px_var(--color-error)]');
   });
+
+  it('forwards aria-describedby to the input', () => {
+    render(<NumberInput value="" onChange={() => {}} aria-label="Valor" aria-describedby="help-1" />);
+    expect(screen.getByRole('textbox')).toHaveAttribute('aria-describedby', 'help-1');
+  });
 });

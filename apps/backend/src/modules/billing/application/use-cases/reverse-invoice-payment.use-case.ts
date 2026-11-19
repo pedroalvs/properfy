@@ -6,6 +6,7 @@ import {
   BillingIdempotencyPayloadMismatchError,
   BillingIdempotencyInProgressError,
 } from '../../domain/billing.errors';
+import type { IRewardAwardInvoiceSync } from '../../domain/reward-award-invoice-sync.port';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
@@ -40,6 +41,8 @@ export class ReverseInvoicePaymentUseCase {
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
     private readonly idempotencyService: IIdempotencyService,
+    // Q12 (F08-6): optional; when present, the invoice's rewards return to APPROVED in the same tx.
+    private readonly invoiceSync?: IRewardAwardInvoiceSync,
   ) {}
 
   async execute(input: ReverseInvoicePaymentInput): Promise<ReverseInvoicePaymentOutput> {
@@ -95,15 +98,18 @@ export class ReverseInvoicePaymentUseCase {
         paymentReference: invoice.paymentReference,
       };
 
-      // 4. Transition entity and persist
+      // 4. Transition entity (for audit) and persist PAID → CLOSED, returning the invoice's rewards
+      //    to APPROVED in the same transaction (Q12).
       invoice.reversePayment();
 
-      await this.invoiceRepo.update(invoiceId, {
-        status: 'CLOSED',
-        paidAt: null,
-        paidByUserId: null,
-        paymentReference: null,
-      });
+      const transitioned = await this.invoiceRepo.reversePaymentInTransaction(
+        invoiceId,
+        this.invoiceSync ? (tx) => this.invoiceSync!.revertPaidForInvoice(tx, invoiceId) : undefined,
+      );
+      if (!transitioned) {
+        // Lost a race (another operator reversed it between the load and the CAS).
+        throw new InvoiceNotPaidError();
+      }
 
       // 5. Audit log with reason (FR-020)
       this.auditService.log({

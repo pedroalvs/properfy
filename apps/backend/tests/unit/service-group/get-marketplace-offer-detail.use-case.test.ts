@@ -107,6 +107,7 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
 describe('GetMarketplaceOfferDetailUseCase', () => {
   let serviceGroupRepo: IServiceGroupRepository;
   let inspectorRepo: IInspectorRepository;
+  let earlyAccessPolicy: { resolve: ReturnType<typeof vi.fn> };
   let useCase: GetMarketplaceOfferDetailUseCase;
 
   beforeEach(() => {
@@ -141,7 +142,8 @@ describe('GetMarketplaceOfferDetailUseCase', () => {
 
     const auditService = { log: vi.fn() } as unknown as AuditService;
     const authorizationService = new AuthorizationService(auditService);
-    useCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo, authorizationService);
+    earlyAccessPolicy = { resolve: vi.fn().mockResolvedValue(null) };
+    useCase = new GetMarketplaceOfferDetailUseCase(serviceGroupRepo, inspectorRepo, authorizationService, earlyAccessPolicy);
   });
 
   it('should return full offer detail for eligible inspector', async () => {
@@ -194,6 +196,7 @@ describe('GetMarketplaceOfferDetailUseCase', () => {
       'inspector-1',
       ['svc-type-1'],
       [],
+      null,
     );
   });
 
@@ -215,6 +218,7 @@ describe('GetMarketplaceOfferDetailUseCase', () => {
       'inspector-1',
       ['svc-type-1'],
       ['tenant-blocked-1', 'tenant-blocked-2'],
+      null,
     );
   });
 
@@ -275,5 +279,44 @@ describe('GetMarketplaceOfferDetailUseCase', () => {
         actor: makeActor(),
       }),
     ).rejects.toThrow(NotFoundError);
+  });
+
+  describe('early access (F08-2)', () => {
+    const PARAMS = {
+      hours: 12,
+      cutoffUtc: '2026-11-09T22:00:00.000',
+      enabledAtUtc: '2026-11-01T00:00:00.000',
+      protectedFrom: '2026-11-12',
+      minScore: 85,
+      latestSnapshotDate: '2026-11-10',
+    };
+
+    it('resolves the policy once and passes the params to the detail read', async () => {
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+      vi.mocked(serviceGroupRepo.findPublishedOfferDetail).mockResolvedValue(makeOfferDetail());
+      earlyAccessPolicy.resolve.mockResolvedValue(PARAMS);
+
+      await useCase.execute({ groupId: 'group-1', inspectorId: 'inspector-1', actor: makeActor() });
+
+      expect(earlyAccessPolicy.resolve).toHaveBeenCalledTimes(1);
+      expect(serviceGroupRepo.findPublishedOfferDetail).toHaveBeenCalledWith(
+        'group-1',
+        'inspector-1',
+        ['svc-type-1'],
+        [],
+        PARAMS,
+      );
+    });
+
+    it('surfaces the existing 404 when an in-window group is hidden for the viewer', async () => {
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+      // The repo applies the exclusion in SQL → returns null for an under-level viewer.
+      vi.mocked(serviceGroupRepo.findPublishedOfferDetail).mockResolvedValue(null);
+      earlyAccessPolicy.resolve.mockResolvedValue(PARAMS);
+
+      await expect(
+        useCase.execute({ groupId: 'group-1', inspectorId: 'inspector-1', actor: makeActor() }),
+      ).rejects.toThrow(NotFoundError);
+    });
   });
 });

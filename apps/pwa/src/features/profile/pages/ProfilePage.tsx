@@ -1,10 +1,14 @@
 import { useMemo } from 'react';
-import { CalendarClock, FileText, LogOut, Star, User, Wallet } from 'lucide-react';
+import { CalendarClock, FileText, LogOut, Megaphone, Settings, Star, Trophy, User, Wallet } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useUnreadNoticeCount } from '@/features/announcements/hooks/useUnreadNoticeCount';
+import { useInspectorProgram } from '@/features/challenges/hooks/useInspectorProgram';
+import { formatBonus } from '@/features/challenges/lib/challenge-copy';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { MenuList, MenuRow } from '@/components/ui/MenuRow';
 import { Badge } from '@/components/ui/Badge';
 import { ProfileTile, type ProfileTileTone } from '../components/ProfileTile';
+import { BaseAddressBanner } from '@/components/feedback/BaseAddressBanner';
 import { useInspectorMe } from '../hooks/useInspectorMe';
 import { useInspectorAvailabilityTemplate } from '../hooks/useInspectorAvailabilityTemplate';
 import { getDocumentsStatus } from '../lib/documents-status';
@@ -15,6 +19,13 @@ export function ProfilePage() {
   const timeZone = useEffectiveTimezone();
   const { data: inspectorMe } = useInspectorMe();
   const { data: availability } = useInspectorAvailabilityTemplate();
+  const { count: unreadNotices } = useUnreadNoticeCount();
+  const { data: program } = useInspectorProgram();
+
+  // Open bonus total across the inspector's current-period goals; falls back to a
+  // neutral prompt while loading / on error (the tile never blocks the hub).
+  const openCash = program?.summary.openCashTotal ?? 0;
+  const challengesValue = openCash > 0 ? `Up to ${formatBonus(openCash)} in bonuses` : 'See your goals and ranking';
 
   // useInspectorMe resolves to the `{ data: InspectorMe }` envelope.
   const inspector = inspectorMe?.data;
@@ -70,6 +81,9 @@ export function ProfilePage() {
           {isActive && <Badge tone="green">Active</Badge>}
         </section>
 
+        {/* Base-address prompt while the base has no coordinates (contract 00.4). */}
+        <BaseAddressBanner />
+
         {/* Big tiles — glanceable, large touch targets for the field. */}
         <div className="grid grid-cols-2 gap-3">
           <ProfileTile
@@ -77,6 +91,13 @@ export function ProfilePage() {
             label="Earnings"
             value="Payments & invoices"
             to="/earnings"
+          />
+          <ProfileTile
+            icon={<Trophy className="h-6 w-6" aria-hidden="true" />}
+            label="Challenges"
+            value={challengesValue}
+            to="/profile/challenges"
+            data-testid="profile-tile-challenges"
           />
           <ProfileTile
             icon={<CalendarClock className="h-6 w-6" aria-hidden="true" />}
@@ -98,14 +119,28 @@ export function ProfilePage() {
             value="Details & security"
             to="/profile/account"
           />
+          <ProfileTile
+            icon={<Megaphone className="h-6 w-6" aria-hidden="true" />}
+            label="Announcements"
+            value={unreadNotices > 0 ? `${unreadNotices} unread` : 'No new announcements'}
+            tone={unreadNotices > 0 ? 'warning' : 'default'}
+            to="/profile/announcements"
+            className="col-span-2"
+            data-testid="profile-tile-announcements"
+          />
         </div>
 
-        {/* Log out */}
+        {/* App settings (design v3 places it in More; otherwise only reachable via My account) + Log out */}
         <MenuList className="mt-1">
+          <MenuRow
+            icon={<Settings className="h-5 w-5" aria-hidden="true" />}
+            label="App settings"
+            to="/profile/settings"
+          />
           <MenuRow
             icon={<LogOut className="h-5 w-5" aria-hidden="true" />}
             label="Log out"
-            onClick={logout}
+            onClick={() => logout()}
             trailing={<></>}
           />
         </MenuList>

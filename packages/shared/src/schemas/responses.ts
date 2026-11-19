@@ -7,7 +7,17 @@ import { availableSlotSchema, storedAvailableSlotSchema } from './available-slot
 // One-way edge: rental-tenant-portal.ts does not import this file (verified — a
 // cycle here typechecks fine and only explodes at runtime).
 import { portalSurveySchema } from './rental-tenant-portal';
-import { AppointmentStatus, ServiceTypeFlowType } from '../enums';
+import { inspectorIssueSchema, inspectorLastFieldIssueSchema } from './field-events';
+// One-way edge: property-files.ts defines its own wire helpers and does NOT
+// import this file, so importing fileCountsSchema here forms no cycle (F10).
+import { fileCountsSchema } from './property-files';
+import { AppointmentStatus, ServiceTypeFlowType, GeofenceMode } from '../enums';
+
+// Geofence fallback reasons surfaced to the PWA (F03). Shared by the start
+// response and the inspector appointment detail.
+const geofenceFallbackReasonSchema = z
+  .enum(['NO_PROPERTY_COORDINATES', 'NO_ACCURACY', 'POOR_ACCURACY'])
+  .nullable();
 
 /**
  * Two kinds of temporal value cross the wire, and they are NOT interchangeable.
@@ -36,7 +46,7 @@ const CIVIL_DATE_PREFIX = /^\d{4}-\d{2}-\d{2}/;
  * members, which would republish the very `anyOf: [string, date-time]` ambiguity
  * this split exists to remove — the contract consumers read must state one shape.
  */
-const civilDateStr = () =>
+export const civilDateStr = () =>
   z.preprocess(
     (value) => {
       if (value instanceof Date) return value.toISOString().slice(0, 10);
@@ -51,10 +61,10 @@ const civilDateStr = () =>
  * without a timezone, so it always crosses the wire as a full ISO-8601 timestamp
  * with offset, and is rendered via `formatInstantDate` / `formatInstantDateTime`.
  */
-const instantStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
+export const instantStr = () => z.union([z.string(), z.date().transform(d => d.toISOString())]);
 
-const civilDateStrNullable = () => civilDateStr().nullable();
-const instantStrNullable = () => instantStr().nullable();
+export const civilDateStrNullable = () => civilDateStr().nullable();
+export const instantStrNullable = () => instantStr().nullable();
 
 // ─── Common ────────────────────────────────────────────────────────────────
 
@@ -207,6 +217,13 @@ export const propertyResponseSchema = z.object({
   rulesJson: propertyRulesSchema.optional(),
   createdAt: instantStr(),
   updatedAt: instantStr(),
+  // F10: list rows carry `hasUnseenIssues` (any unseen, non-deleted issue of the
+  // property — with or without an appointment, D26), populated only for
+  // AM/OP/CL_ADMIN (false/absent for CL_USER). The detail endpoint carries
+  // `fileCounts` (non-deleted READY files per type, C.9). Both optional: the list
+  // and detail use cases populate only their own field; Fastify strips the other.
+  hasUnseenIssues: z.boolean().optional(),
+  fileCounts: fileCountsSchema.optional(),
 });
 
 // ─── Service Type ──────────────────────────────────────────────────────────
@@ -218,6 +235,7 @@ export const serviceTypeResponseSchema = z.object({
   flowType: z.string(),
   requiresRentalTenantConfirmation: z.boolean(),
   status: z.string(),
+  defaultDurationMinutes: z.number().int(),
   createdAt: instantStr(),
   updatedAt: instantStr(),
 });
@@ -266,7 +284,26 @@ export const inspectorResponseSchema = z.object({
   // Profile + denylist fields (Feedback Round item 1, item 6).
   blockedClients: z.array(z.string()).optional(),
   fullName: z.string().nullable().optional(),
+  // address stays z.unknown(): new writes are a validated AU base address, but a
+  // legacy row may hold another shape. Visible to AM/OP and the inspector only
+  // (F01-1 privacy); CL_* responses have it stripped by the field-visibility helper.
   address: z.unknown().optional(),
+  // F01-1 base-address geocoding (permanent mode). Null coordinates = not located.
+  baseLat: z.number().nullable().optional(),
+  baseLng: z.number().nullable().optional(),
+  baseGeocodedAt: instantStrNullable().optional(),
+  // Present only on write responses (create/update) to tell the client the save
+  // succeeded but geocoding did not.
+  baseGeocodeFailed: z.boolean().optional(),
+  // F01-1 app-state adoption (contract 00.10). AM/OP only.
+  appInstalledAt: instantStrNullable().optional(),
+  appLastSeenAt: instantStrNullable().optional(),
+  pushEnabled: z.boolean().nullable().optional(),
+  appVersion: z.string().nullable().optional(),
+  // F04-2 (00.2): when the inspector finished the in-app tour (null = not yet).
+  // Visible to AM/OP and the inspector itself; stripped for CL by the
+  // field-visibility helper.
+  onboardingCompletedAt: instantStrNullable().optional(),
   abn: z.string().nullable().optional(),
   dateOfBirth: civilDateStrNullable().optional(),
   insuranceFileKey: z.string().nullable().optional(),
@@ -350,6 +387,12 @@ export const appointmentResponseSchema = z.object({
   reason: z.string().nullable().optional(),
   cancellationReasonCode: z.string().nullable().optional(),
   rejectionReasonCode: z.string().nullable().optional(),
+  /**
+   * Latest "Can't do this job" of the appointment, flattened onto list and
+   * detail (F03). Null when there is none. Must stay declared here — this is the
+   * Fastify response schema and an undeclared field is stripped on serialization.
+   */
+  inspectorIssue: inspectorIssueSchema.nullable().optional(),
   createdByUserId: z.string().uuid(),
   doneCheckedByUserId: z.string().uuid().nullable().optional(),
   doneCheckedAt: instantStrNullable().optional(),
@@ -427,6 +470,12 @@ export const appointmentResponseSchema = z.object({
   serviceType: z.unknown().optional(),
   inspector: z.unknown().nullable().optional(),
   branch: z.unknown().optional(),
+  // F10: list rows carry `hasUnseenIssues` (an unseen, non-deleted issue linked
+  // to this appointment, D26), populated only for AM/OP/CL_ADMIN (false/absent
+  // for CL_USER/INSP). The detail endpoint carries `fileCounts` (non-deleted
+  // READY files per type, C.9). Both optional — see propertyResponseSchema.
+  hasUnseenIssues: z.boolean().optional(),
+  fileCounts: fileCountsSchema.optional(),
 });
 
 /**
@@ -555,7 +604,29 @@ export const inspectorAppointmentDetailResponseSchema = z.object({
     finishLongitude: z.number().nullable(),
     geolocationDistanceMeters: z.number().nullable(),
     status: z.enum(['IN_PROGRESS', 'FINISHED']),
+    // F03 capture fields (optional so pre-F03 executions still serialize).
+    startAccuracyMeters: z.number().nullable().optional(),
+    finishAccuracyMeters: z.number().nullable().optional(),
+    finishGeolocationDistanceMeters: z.number().nullable().optional(),
+    outOfRadius: z.boolean().optional(),
+    outOfWindow: z.boolean().optional(),
+    finishOutOfRadius: z.boolean().optional(),
   }).nullable(),
+  // F03: the geofence radius + mode in force, served so the PWA shows the right
+  // warning copy. Optional so older clients / cached responses stay valid.
+  geofence: z
+    .object({
+      radiusMeters: z.number(),
+      mode: z.nativeEnum(GeofenceMode),
+    })
+    .optional(),
+  /**
+   * The requesting inspector's own last "Can't do this job" on this appointment
+   * (F03, L-F03-09). Present only when the latest CANT_DO was made by this
+   * inspector (e.g. a job they reported and later re-accepted); null otherwise.
+   * Optional so older clients / cached responses stay valid.
+   */
+  lastFieldIssue: inspectorLastFieldIssueSchema.nullable().optional(),
   /** App credentials linked to this appointment (live reference). */
   apps: z.array(appointmentAppSchema).default([]),
   agencyName: z.string().nullable().optional(),
@@ -912,6 +983,10 @@ export const finishInspectionResponseSchema = z.object({
   startedAt: instantStr(),
   finishedAt: instantStr(),
   appointmentStatus: z.nativeEnum(AppointmentStatus),
+  // F03 (optional so idempotency-cached pre-F03 responses still validate).
+  finishAccuracyMeters: z.number().nullable().optional(),
+  finishGeolocationDistanceMeters: z.number().nullable().optional(),
+  finishOutOfRadius: z.boolean().optional(),
 });
 
 export const startInspectionResponseSchema = z.object({
@@ -922,13 +997,26 @@ export const startInspectionResponseSchema = z.object({
   startLongitude: z.number(),
   geolocationDistanceMeters: z.number().nullable(),
   status: z.literal('IN_PROGRESS'),
+  // F03 (all optional so idempotency-cached pre-F03 responses still validate).
+  startAccuracyMeters: z.number().nullable().optional(),
+  outOfRadius: z.boolean().optional(),
+  outOfWindow: z.boolean().optional(),
+  geofence: z
+    .object({
+      mode: z.nativeEnum(GeofenceMode),
+      effectiveMode: z.nativeEnum(GeofenceMode),
+      radiusMeters: z.number(),
+      fallbackReason: geofenceFallbackReasonSchema,
+    })
+    .optional(),
 });
 
 // ─── Financial Entry ───────────────────────────────────────────────────────
 
 export const financialEntryResponseSchema = z.object({
   id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  // Null only for an INSPECTOR_BONUS entry (Q12 — platform↔inspector leg, no agency).
+  tenantId: z.string().uuid().nullable(),
   appointmentId: z.string().uuid().nullable(),
   inspectorId: z.string().uuid().nullable(),
   entryType: z.string(),
@@ -955,18 +1043,32 @@ export const financialEntryResponseSchema = z.object({
 // One frozen payout line inside an inspector Property Invoice snapshot. Agency and
 // branch are line-level attributes only (never invoice ownership). Join-derived display
 // fields are nullable so the response serializer never throws if a relation is absent.
-export const invoiceSnapshotLineSchema = z.object({
-  serviceDate: civilDateStr(),
-  appointmentId: z.string().uuid(),
-  appointmentCode: z.string(),
-  propertyAddress: z.string().nullable(),
-  serviceType: z.string().nullable(),
-  amount: z.number(),
-  agencyId: z.string().uuid().nullable(),
-  agencyName: z.string().nullable(),
-  branchId: z.string().uuid().nullable(),
-  branchName: z.string().nullable(),
-});
+export const invoiceSnapshotLineSchema = z
+  .object({
+    // Q12 (TASK-F08-6): SERVICE = a payout line (an appointment); BONUS = an
+    // inspector goal bonus or its reversal (no appointment). A legacy line without
+    // `kind` parses as SERVICE, so existing snapshots keep validating.
+    kind: z.enum(['SERVICE', 'BONUS']).default('SERVICE'),
+    serviceDate: civilDateStr(),
+    appointmentId: z.string().uuid().nullable(),
+    appointmentCode: z.string().nullable(),
+    propertyAddress: z.string().nullable(),
+    serviceType: z.string().nullable(),
+    amount: z.number(),
+    agencyId: z.string().uuid().nullable(),
+    agencyName: z.string().nullable(),
+    branchId: z.string().uuid().nullable(),
+    branchName: z.string().nullable(),
+    // BONUS-only (Q12): the ledger entry id and the reward it pays (the reversal
+    // carries the original reward's id, resolved via reference_entry_id).
+    entryId: z.string().uuid().optional(),
+    rewardAwardId: z.string().uuid().nullable().optional(),
+    description: z.string().nullable().optional(),
+  })
+  .refine(
+    (line) => line.kind !== 'SERVICE' || (line.appointmentId !== null && line.appointmentCode !== null),
+    { message: 'A SERVICE invoice line requires appointmentId and appointmentCode', path: ['appointmentId'] },
+  );
 export type InvoiceSnapshotLine = z.infer<typeof invoiceSnapshotLineSchema>;
 
 export const invoiceResponseSchema = z.object({

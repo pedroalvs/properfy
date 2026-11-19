@@ -33,6 +33,13 @@ const VALID_CREATE_DATA: InspectorFormData = {
   confirmPassword: VALID_PASSWORD,
   phone: '11999999999',
   status: '',
+  addressStreet: '1 George St',
+  addressNumber: '',
+  addressComplement: '',
+  addressSuburb: 'Sydney',
+  addressCity: 'Sydney',
+  addressState: 'NSW',
+  addressPostcode: '2000',
   regionIds: [],
   serviceTypes: '123e4567-e89b-12d3-a456-426614174000',
   fullName: '',
@@ -93,6 +100,29 @@ describe('useInspectorSave', () => {
     expect(Object.keys(errors)).toHaveLength(0);
   });
 
+  it('validate flags the base address as required on create (F01-1)', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useInspectorSave(), { wrapper });
+    const errors = result.current.validate(
+      { ...VALID_CREATE_DATA, addressStreet: '', addressSuburb: '', addressCity: '', addressState: '', addressPostcode: '' },
+      'create',
+    );
+    expect(errors.addressStreet).toBeDefined();
+    expect(errors.addressSuburb).toBeDefined();
+    expect(errors.addressState).toBeDefined();
+    expect(errors.addressPostcode).toBeDefined();
+  });
+
+  it('validate does not require the base address on edit (F01-1: changeable, not removable)', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useInspectorSave(), { wrapper });
+    const errors = result.current.validate(
+      { ...EMPTY_INSPECTOR_FORM, name: 'X', email: 'x@y.com' },
+      'edit',
+    );
+    expect(errors.addressStreet).toBeUndefined();
+  });
+
   it('save returns success on create', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => useInspectorSave(), { wrapper });
@@ -107,6 +137,7 @@ describe('useInspectorSave', () => {
       body: expect.objectContaining({
         serviceTypes: [{ serviceTypeId: '123e4567-e89b-12d3-a456-426614174000', certified: false }],
         password: VALID_PASSWORD,
+        address: expect.objectContaining({ street: '1 George St', suburb: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' }),
       }),
     });
   });

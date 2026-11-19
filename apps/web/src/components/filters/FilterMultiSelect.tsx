@@ -76,7 +76,6 @@ export function FilterMultiSelect({
     }
     return `${value.length} selected`;
   }, [value, options]);
-  const showFloatingLabel = focused || open || value.length > 0;
 
   const openMenu = () => {
     if (disabled) return;
@@ -195,9 +194,7 @@ export function FilterMultiSelect({
       className={cn(filterContainer, disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer')}
       aria-disabled={disabled}
     >
-      {showFloatingLabel && (
-        <span className={focused || open ? filterLabelFocused : filterLabel}>{label}</span>
-      )}
+      <span className={focused || open ? filterLabelFocused : filterLabel}>{label}</span>
       <button
         ref={triggerRef}
         type="button"
@@ -228,7 +225,7 @@ export function FilterMultiSelect({
             showClear && 'pr-9',
           )}
         >
-          {triggerSummary ?? (showFloatingLabel ? placeholder || '' : label)}
+          {triggerSummary ?? placeholder ?? ''}
         </span>
         <i className={cn('mdi mdi-menu-down', filterIcon, 'transition-transform', open && 'rotate-180')} />
       </button>

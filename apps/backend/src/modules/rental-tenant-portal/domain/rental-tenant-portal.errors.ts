@@ -90,3 +90,18 @@ export class NoActivePortalTokenError extends NotFoundError {
     super('NO_ACTIVE_PORTAL_TOKEN', 'No active portal token for this appointment');
   }
 }
+
+/**
+ * The token's appointment has no associated property, so a property issue
+ * cannot be attached (F10-4). `property_issues.property_id` is NOT NULL.
+ */
+export class PortalIssueNoPropertyError extends DomainError {
+  constructor() {
+    super(
+      'PORTAL_ISSUE_NO_PROPERTY',
+      'This appointment has no property, so a problem report cannot be attached.',
+      422,
+    );
+    this.name = 'PortalIssueNoPropertyError';
+  }
+}

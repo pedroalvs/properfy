@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -45,7 +46,11 @@ function createWrapper() {
     return (
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <SnackbarProvider>{children}</SnackbarProvider>
+          <SnackbarProvider>
+            <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              {children}
+            </MemoryRouter>
+          </SnackbarProvider>
         </AuthProvider>
       </QueryClientProvider>
     );
@@ -145,5 +150,41 @@ describe('InvoicesPage', () => {
     expect(screen.getByTestId('invoice-summary-indicators')).toBeInTheDocument();
     expect(screen.getByText('Pending Amount')).toBeInTheDocument();
     expect(screen.getByText('Paid Amount')).toBeInTheDocument();
+  });
+
+  it('renders exactly one header Back button (P-a)', () => {
+    renderPage();
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+  });
+
+  it('Back on a direct entry falls back to the financial entries list (P-b)', () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    });
+    function EntriesMarker() {
+      const location = useLocation();
+      return <div data-testid="entries-fallback">{location.pathname}</div>;
+    }
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <SnackbarProvider>
+            <MemoryRouter
+              future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+              initialEntries={['/financial/invoices']}
+            >
+              <Routes>
+                <Route path="/financial/invoices" element={<InvoicesPage />} />
+                <Route path="/financial/entries" element={<EntriesMarker />} />
+              </Routes>
+            </MemoryRouter>
+          </SnackbarProvider>
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(screen.getByTestId('entries-fallback')).toHaveTextContent('/financial/entries');
   });
 });

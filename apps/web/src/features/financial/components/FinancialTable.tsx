@@ -77,6 +77,8 @@ export function FinancialTable({
       label: 'Inspection',
       width: '120px',
       sortable: true,
+      render: (row) =>
+        row.entryType === 'INSPECTOR_BONUS' ? <>{row.description}</> : <>{row.appointmentCode ?? '—'}</>,
     },
     {
       key: 'entryType',
@@ -112,6 +114,7 @@ export function FinancialTable({
       key: 'relatedEntityName',
       label: 'Entity',
       width: '160px',
+      render: (row) => <>{row.entryType === 'INSPECTOR_BONUS' ? '—' : row.relatedEntityName}</>,
     },
     {
       key: 'effectiveAt',

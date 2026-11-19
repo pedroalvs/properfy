@@ -3,6 +3,10 @@ export const FinancialEntryType = {
   INSPECTOR_PAYOUT: 'INSPECTOR_PAYOUT',
   REFUND: 'REFUND',
   MANUAL_ADJUSTMENT: 'MANUAL_ADJUSTMENT',
+  // Q12 (TASK-F08-6): inspector goal bonus. The ONLY entry type with a null
+  // `tenant_id` (platform↔inspector leg, no appointment). Created/voided only by
+  // the inspector-program module; never shown to an agency.
+  INSPECTOR_BONUS: 'INSPECTOR_BONUS',
 } as const;
 export type FinancialEntryType = (typeof FinancialEntryType)[keyof typeof FinancialEntryType];
 
@@ -17,6 +21,9 @@ export type FinancialEntryType = (typeof FinancialEntryType)[keyof typeof Financ
  * Note this is a *type* allowlist only. An inspector-scoped `MANUAL_ADJUSTMENT`
  * is also part of the inspector leg, so agency reads pair this with an
  * `inspector_id IS NULL` predicate.
+ *
+ * `INSPECTOR_BONUS` (Q12) is likewise excluded — it is the platform↔inspector goal
+ * bonus and carries no `tenant_id`, so agency `tenant_id` predicates drop it too.
  */
 export const AGENCY_VISIBLE_ENTRY_TYPES: readonly FinancialEntryType[] = [
   'TENANT_DEBIT',

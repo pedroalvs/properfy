@@ -19,7 +19,14 @@ function makeInspector(
     serviceTypesJson: [{ serviceTypeId: 'service-1', certified: false }],
     blockedClientsJson: [],
     fullName: null,
-    address: null,
+    address: { street: '1 George St', suburb: 'Sydney', city: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' },
+    baseLat: -33.86,
+    baseLng: 151.2,
+    baseGeocodedAt: new Date('2026-10-30T00:00:00Z'),
+    appInstalledAt: new Date('2026-10-30T00:00:00Z'),
+    appLastSeenAt: new Date('2026-10-30T00:00:00Z'),
+    pushEnabled: true,
+    appVersion: '0.1.0',
     abn: null,
     dateOfBirth: null,
     insuranceFileKey: null,
@@ -32,6 +39,9 @@ function makeInspector(
     ...overrides,
   });
 }
+
+const BASE_KEYS = ['address', 'baseLat', 'baseLng', 'baseGeocodedAt'] as const;
+const ADOPTION_KEYS = ['appInstalledAt', 'appLastSeenAt', 'pushEnabled', 'appVersion'] as const;
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -58,6 +68,7 @@ describe('ListInspectorsUseCase', () => {
       count: vi.fn().mockResolvedValue(1),
       save: vi.fn(),
       update: vi.fn(),
+      recordAppState: vi.fn(),
       linkUserId: vi.fn(),
       findByRegionId: vi.fn(),
     };
@@ -145,5 +156,73 @@ describe('ListInspectorsUseCase', () => {
 
     expect(result.data).toHaveLength(0);
     expect(result.total).toBe(0);
+  });
+
+  describe('F01-1 field visibility + filter (TASK-F01-1)', () => {
+    it.each(['AM', 'OP'] as const)('includes address + base + adoption in %s list items (L-F01-07)', async (role) => {
+      const result = await useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+        actor: makeActor({ role }),
+      });
+      const item = result.data[0] as Record<string, unknown>;
+      for (const k of [...BASE_KEYS, ...ADOPTION_KEYS]) expect(item).toHaveProperty(k);
+    });
+
+    it('includes a legacy raw address object for AM/OP list items', async () => {
+      vi.mocked(inspectorRepo.findAll).mockResolvedValue([makeInspector({ address: { foo: 1 }, baseLat: null, baseLng: null, baseGeocodedAt: null })]);
+      const result = await useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+        actor: makeActor({ role: 'OP' }),
+      });
+      expect((result.data[0] as Record<string, unknown>).address).toEqual({ foo: 1 });
+    });
+
+    it('strips address, base and adoption from CL_ADMIN/CL_USER list items', async () => {
+      for (const role of ['CL_ADMIN', 'CL_USER'] as const) {
+        const result = await useCase.execute({
+          filters: {},
+          pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+          actor: makeActor({ role, tenantId: 'tenant-1' }),
+        });
+        const item = result.data[0] as Record<string, unknown>;
+        for (const k of [...BASE_KEYS, ...ADOPTION_KEYS]) expect(item).not.toHaveProperty(k);
+      }
+    });
+
+    it('INSP own list item includes base + address but not adoption', async () => {
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+      const result = await useCase.execute({
+        filters: {},
+        pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+        actor: makeActor({ role: 'INSP', inspectorId: 'inspector-1' }),
+      });
+      const item = result.data[0] as Record<string, unknown>;
+      for (const k of BASE_KEYS) expect(item).toHaveProperty(k);
+      for (const k of ADOPTION_KEYS) expect(item).not.toHaveProperty(k);
+    });
+
+    it('passes missingBaseAddress through for AM/OP', async () => {
+      await useCase.execute({
+        filters: { missingBaseAddress: true },
+        pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+        actor: makeActor({ role: 'OP' }),
+      });
+      expect(inspectorRepo.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ missingBaseAddress: true }),
+        expect.any(Object),
+      );
+    });
+
+    it('ignores missingBaseAddress for CL_* (cannot see base state)', async () => {
+      await useCase.execute({
+        filters: { missingBaseAddress: true },
+        pagination: { page: 1, pageSize: 10, sortOrder: 'asc' },
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      });
+      const passed = vi.mocked(inspectorRepo.findAll).mock.calls[0][0];
+      expect(passed.missingBaseAddress).toBeUndefined();
+    });
   });
 });

@@ -249,3 +249,65 @@ describe('TenantDetailPage', () => {
     });
   });
 });
+
+describe('TenantDetailPage — Back navigation (X01)', () => {
+  function renderWithRoutes(role: string, { notFound = false } = {}) {
+    mockUseAuth.mockReturnValue({ user: { id: 'u1', role } });
+    if (notFound) {
+      mockGet.mockImplementation((path: string) =>
+        path.includes('/branches')
+          ? Promise.resolve({ data: MOCK_BRANCHES })
+          : Promise.resolve({ data: { data: null } }),
+      );
+    }
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <SnackbarProvider>
+          <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={['/tenants/ten-01']}>
+            <Routes>
+              <Route path="/tenants/:tenantId" element={<TenantDetailPage />} />
+              <Route path="/tenants" element={<div>agencies list</div>} />
+              <Route path="/dashboard" element={<div>dashboard home</div>} />
+            </Routes>
+          </MemoryRouter>
+        </SnackbarProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  // P-a — exactly one header Back button in the loaded state.
+  it('renders exactly one header Back button', async () => {
+    renderWithRoutes('AM');
+    expect(await screen.findByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+  });
+
+  // P-b — direct entry → per-role fallback.
+  it.each(['AM', 'OP'])('header Back falls back to /tenants for %s', async (role) => {
+    renderWithRoutes(role);
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }));
+    expect(screen.getByText('agencies list')).toBeInTheDocument();
+  });
+
+  it('header Back falls back to /dashboard for CL_ADMIN', async () => {
+    renderWithRoutes('CL_ADMIN');
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }));
+    expect(screen.getByText('dashboard home')).toBeInTheDocument();
+  });
+
+  // Error EmptyState uses the same per-role target and label.
+  it('not-found EmptyState sends CL_ADMIN to /dashboard with "Back to Dashboard"', async () => {
+    renderWithRoutes('CL_ADMIN', { notFound: true });
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to Dashboard' }));
+    expect(screen.getByText('dashboard home')).toBeInTheDocument();
+  });
+
+  it('not-found EmptyState sends AM to /tenants with "Back to Agencies"', async () => {
+    renderWithRoutes('AM', { notFound: true });
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to Agencies' }));
+    expect(screen.getByText('agencies list')).toBeInTheDocument();
+  });
+});

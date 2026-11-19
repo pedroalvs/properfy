@@ -3,6 +3,7 @@ import { CancelFinancialEntryUseCase } from '../../../src/modules/billing/applic
 import { FinancialEntryEntity } from '../../../src/modules/billing/domain/financial-entry.entity';
 import {
   EntryNotFoundError,
+  BonusEntryManagedByRewardError,
   EntryNotPendingError,
 } from '../../../src/modules/billing/domain/billing.errors';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
@@ -196,5 +197,16 @@ describe('CancelFinancialEntryUseCase', () => {
         after: expect.objectContaining({ status: 'CANCELLED', cancelledBy: 'op-1' }),
       }),
     );
+  });
+
+  it('refuses an INSPECTOR_BONUS entry (409 BONUS_ENTRY_MANAGED_BY_REWARD, Q12)', async () => {
+    const sut = makeSut();
+    financialEntryRepo.findById.mockResolvedValue(
+      makePendingEntry({ entryType: 'INSPECTOR_BONUS', tenantId: null, inspectorId: 'insp-1', appointmentId: null }),
+    );
+    await expect(
+      sut.execute({ entryId: 'entry-1', reason: 'x', actor: amActor }),
+    ).rejects.toBeInstanceOf(BonusEntryManagedByRewardError);
+    expect(financialEntryRepo.transitionStatus).not.toHaveBeenCalled();
   });
 });

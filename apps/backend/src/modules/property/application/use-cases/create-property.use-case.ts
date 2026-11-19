@@ -10,18 +10,12 @@ import type { ITenantRepository } from '../../../tenant/domain/tenant.repository
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IGeocodingService } from '../../domain/geocoding.service';
+import { geocodeWithTimeout, GEOCODE_SYNC_TIMEOUT_MS } from '../services/geocode-with-timeout';
 import { PropertyEntity } from '../../domain/property.entity';
 import { PropertyCodeFormatter } from '../../domain/property-code.formatter';
 import { PropertyCodeConflictError, PropertyAddressConflictError, TenantInactiveError, BranchInactiveError } from '../../domain/property.errors';
 import { BranchNotFoundError, TenantNotFoundError } from '../../../tenant/domain/tenant.errors';
 import { sendJob } from '../../../../shared/infrastructure/queue';
-
-/**
- * Upper bound for the inline geocode at creation time. Mapbox typically answers
- * in well under a second; if it exceeds this we abandon the sync attempt, persist
- * the property as PENDING and let the async worker finish it (fallback path).
- */
-const DEFAULT_SYNC_GEOCODE_TIMEOUT_MS = 4000;
 
 /**
  * Attempts for the generate-number + insert cycle. `nextPropertyNumber` is
@@ -88,35 +82,8 @@ export class CreatePropertyUseCase {
     private readonly authorizationService?: AuthorizationService,
     private readonly logger?: Logger,
     private readonly geocodingService?: IGeocodingService,
-    private readonly syncGeocodeTimeoutMs: number = DEFAULT_SYNC_GEOCODE_TIMEOUT_MS,
+    private readonly syncGeocodeTimeoutMs: number = GEOCODE_SYNC_TIMEOUT_MS,
   ) {}
-
-  /**
-   * Geocode within a bounded time. Resolves to coordinates (or null when the
-   * address has no match). Rejects on transient error OR timeout — the caller
-   * treats a rejection as "keep PENDING and finish via the async worker".
-   */
-  private async geocodeWithinTimeout(
-    address: string,
-  ): Promise<{ lat: number; lng: number } | null> {
-    const service = this.geocodingService!;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(
-        () => reject(new Error('sync geocode timed out')),
-        this.syncGeocodeTimeoutMs,
-      );
-    });
-    const lookup = service.geocode(address);
-    // If the timeout wins, the lookup promise may still settle later — handle its
-    // rejection so it never surfaces as an unhandled rejection.
-    lookup.catch(() => {});
-    try {
-      return await Promise.race([lookup, timeout]);
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
-  }
 
   async execute(input: CreatePropertyInput): Promise<CreatePropertyOutput> {
     const { actor } = input;
@@ -222,7 +189,12 @@ export class CreatePropertyUseCase {
     let geocodeOutcome: { lat: number; lng: number } | null | undefined;
     if (this.geocodingService) {
       try {
-        geocodeOutcome = await this.geocodeWithinTimeout(buildProperty(0).fullAddress);
+        // Permanent mode (default): only permanently geocoded coordinates may be
+        // stored. On timeout, account error or any transient error we keep PENDING
+        // and let the async worker finish it (the worker records the account error).
+        geocodeOutcome = await geocodeWithTimeout(this.geocodingService, buildProperty(0).fullAddress, {
+          timeoutMs: this.syncGeocodeTimeoutMs,
+        });
       } catch (err) {
         this.logger?.warn({ propertyId: id, err }, 'property.sync_geocode_failed_falling_back');
         // property stays PENDING — async fallback below
@@ -236,7 +208,7 @@ export class CreatePropertyUseCase {
       const nextNumber = await this.propertyRepo.nextPropertyNumber(tenantId);
       const candidate = buildProperty(nextNumber);
       if (geocodeOutcome !== undefined) {
-        candidate.applyGeocodingResult(geocodeOutcome);
+        candidate.applyGeocodingResult(geocodeOutcome, { permanent: true });
       }
       try {
         await this.propertyRepo.save(candidate);

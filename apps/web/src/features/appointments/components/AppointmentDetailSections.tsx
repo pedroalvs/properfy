@@ -14,6 +14,7 @@ import { formatArea, formatPropertyType, formatRent } from '@/lib/format-propert
 import type { AppointmentDetail } from '../types';
 import { formatAuPhone } from '@/lib/phone-mask';
 import { TenantAvailabilitySlots } from './TenantAvailabilitySlots';
+import { InspectorIssueCard } from './InspectorIssueCard';
 
 interface AppointmentDetailSectionsProps {
   appointment: AppointmentDetail;
@@ -46,6 +47,12 @@ export function AppointmentDetailSections({ appointment }: AppointmentDetailSect
           </div>
         </div>
       )}
+      {/* "Inspector couldn't complete" — the last CANT_DO field event, if any.
+          Sits at the top (below the overdue alert) and persists after re-offer. */}
+      <InspectorIssueCard
+        issue={appointment.inspectorIssue}
+        currentInspectorId={appointment.inspectorId}
+      />
       <FormSection title="Inspection Details">
         <DetailRow label="Service Type" value={appointment.serviceTypeName} />
         <DetailRow label="Branch" value={appointment.branchName} />

@@ -1,11 +1,19 @@
 import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
-import { formatCivilDate, formatInstantDateTime, toLocalISODate } from '@/lib/format-date';
+import { formatCivilDate, formatInstantDate, formatInstantDateTime, toLocalISODate } from '@/lib/format-date';
 import { usePaginatedQuery, useAllPagesQuery } from '@/hooks/useApiQuery';
 import { useInspectorDocumentDownload } from '../hooks/useInspectorDocumentDownload';
 import type { InspectorDetail } from '../types';
 import { formatAuPhone } from '@/lib/phone-mask';
+import { formatAddressLabel } from '@/lib/address';
 import { StarRating } from '@/components/ui/StarRating';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { PLATFORM_TIMEZONE } from '@properfy/shared';
+import { formatLastSeenAbsolute, formatLastSeenRelative } from '../lib/adoption-format';
+import { InspectorAlertThresholdsSection } from './InspectorAlertThresholdsSection';
+
+/** Muted "last device seen" caption shown next to the per-device adoption fields. */
+const LAST_DEVICE_CAPTION = <span className="text-xs text-text-muted">Last device seen</span>;
 
 interface InspectorDetailSectionsProps {
   inspector: InspectorDetail;
@@ -123,6 +131,22 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
         <DetailRow label="Date of Birth" value={inspector.dateOfBirth ? formatCivilDate(inspector.dateOfBirth) : null} />
       </FormSection>
 
+      <FormSection title="Base Address">
+        {/* Read-only. The structured address is edited in the create/edit drawer
+            (F01-1); raw coordinates are never shown (CLAUDE.md §7.9 / §12.12). */}
+        <DetailRow label="Address" value={formatAddressLabel(inspector.address) ?? 'Not set'} />
+        <DetailRow
+          label="Location"
+          value={
+            inspector.baseLat !== null ? (
+              `Located${inspector.baseGeocodedAt ? ` · Updated ${formatInstantDate(inspector.baseGeocodedAt, PLATFORM_TIMEZONE)}` : ''}`
+            ) : inspector.address != null ? (
+              <span className="text-warning">Could not be located</span>
+            ) : null
+          }
+        />
+      </FormSection>
+
       <FormSection title="Insurance &amp; Police Check">
         <DetailRow
           label="Insurance File"
@@ -182,6 +206,64 @@ export function InspectorDetailSections({ inspector }: InspectorDetailSectionsPr
           value={workloadLoading ? 'Loading...' : `${weekCount} appointments`}
         />
       </FormSection>
+
+      <FormSection title="App Adoption">
+        {/* "Installed" is any device that ever reported standalone (D16). Push and
+            App version reflect the LAST device seen; Last seen can lag up to 6 h. */}
+        <DetailRow
+          label="Installed"
+          value={inspector.appInstalledAt ? formatInstantDate(inspector.appInstalledAt, PLATFORM_TIMEZONE) : 'Not installed'}
+        />
+        <DetailRow
+          label="Push notifications"
+          value={
+            inspector.pushEnabled === null ? (
+              <Tooltip label="No data yet">
+                <span className="text-text-muted">No data yet</span>
+              </Tooltip>
+            ) : (
+              // D10: push_enabled means at least one of the inspector's devices has an active
+              // push subscription (not the last device's browser permission).
+              <Tooltip
+                label={
+                  inspector.pushEnabled
+                    ? "Push is on for at least one of the inspector's devices"
+                    : 'No device has push turned on'
+                }
+              >
+                <span>{inspector.pushEnabled ? 'On' : 'Off'}</span>
+              </Tooltip>
+            )
+          }
+        />
+        <DetailRow
+          label="Last seen"
+          value={(() => {
+            const relative = formatLastSeenRelative(inspector.appLastSeenAt);
+            const absolute = formatLastSeenAbsolute(inspector.appLastSeenAt);
+            if (!absolute) return relative;
+            return (
+              <Tooltip label={`Last reported ${absolute} (Sydney) · reported at most every 6 h`}>
+                <span>{relative}</span>
+              </Tooltip>
+            );
+          })()}
+        />
+        <DetailRow
+          label="App version"
+          value={
+            inspector.appVersion ? (
+              <span className="flex items-center gap-2">
+                {inspector.appVersion}
+                {LAST_DEVICE_CAPTION}
+              </span>
+            ) : null
+          }
+        />
+      </FormSection>
+
+      {/* AM/OP only — self-gated (returns null + disables its hook for CL roles). */}
+      <InspectorAlertThresholdsSection inspectorId={inspector.id} />
 
       <FormSection title="Record">
         <DetailRow label="Created At" value={formatInstantDateTime(inspector.createdAt)} />

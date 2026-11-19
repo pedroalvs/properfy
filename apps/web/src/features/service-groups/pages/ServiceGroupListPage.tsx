@@ -20,6 +20,7 @@ export function ServiceGroupListPage() {
   return (
     <ListFilterTableTemplate
       title="Service Groups"
+      backTo="/map?mode=groups"
       primaryAction={{
         label: 'New Group',
         icon: 'mdi-plus',

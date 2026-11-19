@@ -19,6 +19,7 @@ import { NotificationConsentNotFoundError } from '../../../src/modules/notificat
 
 const mockListConsents = vi.fn();
 const mockOverrideConsent = vi.fn();
+const mockRecordOptOut = vi.fn();
 const mockJwtVerify = vi.fn();
 
 vi.mock('../../../src/main/container', () => ({
@@ -27,6 +28,7 @@ vi.mock('../../../src/main/container', () => ({
       notification: {
         listConsentsByRecipientUseCase: { execute: mockListConsents },
         overrideConsentUseCase: { execute: mockOverrideConsent },
+        recordConsentOptOutUseCase: { execute: mockRecordOptOut },
         jwtService: { verify: mockJwtVerify },
       },
     } as any),
@@ -218,6 +220,73 @@ describe('Feature 018: operator consent endpoints', () => {
         .expect(200);
 
       expect(response.body.data.optedOut).toBe(false);
+    });
+  });
+
+  // F06 L-F06-03: manual opt-out endpoint
+  describe('POST /v1/notifications/consents/opt-out', () => {
+    const validBody = {
+      tenantId: '00000000-0000-0000-0000-000000000007',
+      recipient: '+61412000001',
+      channel: 'SMS',
+      reason: 'Tenant asked to stop SMS',
+    };
+    const optedOutRecord = {
+      id: '00000000-0000-0000-0000-000000000009',
+      recipient: '+61412000001',
+      channel: 'SMS',
+      tenantId: '00000000-0000-0000-0000-000000000007',
+      notificationClass: 'OPERATIONAL',
+      optedOut: true,
+      optedOutAt: new Date(),
+      changeSource: 'operator_override',
+      changedAt: new Date(),
+      changedByUserId: 'am-1',
+      reason: 'Tenant asked to stop SMS',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it('returns 200 with the opted-out record for AM', async () => {
+      mockRecordOptOut.mockResolvedValue(optedOutRecord);
+      const response = await supertest(app.server)
+        .post('/v1/notifications/consents/opt-out')
+        .set(authHeader(amActor))
+        .send(validBody)
+        .expect(200);
+      expect(response.body.data.optedOut).toBe(true);
+      expect(response.body.data.changeSource).toBe('operator_override');
+    });
+
+    it('returns 401 without auth', async () => {
+      await supertest(app.server).post('/v1/notifications/consents/opt-out').send(validBody).expect(401);
+      expect(mockRecordOptOut).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 for an invalid body (bad channel)', async () => {
+      await supertest(app.server)
+        .post('/v1/notifications/consents/opt-out')
+        .set(authHeader(amActor))
+        .send({ ...validBody, channel: 'PUSH' })
+        .expect(400);
+      expect(mockRecordOptOut).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 for an empty reason', async () => {
+      await supertest(app.server)
+        .post('/v1/notifications/consents/opt-out')
+        .set(authHeader(amActor))
+        .send({ ...validBody, reason: '   ' })
+        .expect(400);
+    });
+
+    it('rejects CL_ADMIN (403, same matrix as override)', async () => {
+      mockRecordOptOut.mockRejectedValue(new ForbiddenError('forbidden'));
+      await supertest(app.server)
+        .post('/v1/notifications/consents/opt-out')
+        .set(authHeader(clAdminActor))
+        .send(validBody)
+        .expect(403);
     });
   });
 });

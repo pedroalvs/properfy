@@ -216,9 +216,17 @@ const REJECTED_AGENCY_HTML = renderAppointmentEmailHtml({
     '{{#if rejectionReason}}' +
     `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Reason:</strong> {{rejectionReason}}</p>` +
     '{{/if}}' +
+    // When the inspector reported "Can't do this job" from the property, operations
+    // re-offer it — the agency need not act (F03, L-F03-07 / D26).
+    '{{#if rejectedByInspector}}' +
+    '<p>The inspector{{#if inspectorName}} ({{inspectorName}}){{/if}} reported from the ' +
+    "property that they couldn't complete this inspection. Operations have been notified " +
+    "and will offer the job again; you don't need to do anything unless we contact you.</p>" +
+    '{{else}}' +
     '<p>This inspection will not go ahead as scheduled and needs to be rearranged. ' +
     'Where the tenant told us when they are available, those times are recorded ' +
     'against the appointment.</p>' +
+    '{{/if}}' +
     CLOSING_PARAGRAPHS,
 });
 
@@ -319,6 +327,17 @@ const STUCK_ALERT_HTML = renderSystemEmailHtml({
     `<p style="${SYSTEM_NOTE_STYLE}"><strong>Action required:</strong> review the execution and follow up with the inspector.</p>`,
 });
 
+const INSPECTOR_UNABLE_ALERT_HTML = renderSystemEmailHtml({
+  heading: "An inspector couldn't complete a job",
+  contentHtml:
+    '<p>Inspector <strong>{{inspectorName}}</strong> reported from the property that they ' +
+    'cannot complete the inspection for appointment <strong>{{appointmentId}}</strong>.</p>' +
+    '<p>Reason: <strong>{{fieldIssueReason}}</strong>' +
+    '{{#if fieldIssueNote}}<br>Note: {{fieldIssueNote}}{{/if}}</p>' +
+    `<p style="${SYSTEM_NOTE_STYLE}"><strong>Action required:</strong> the job has been rejected and ` +
+    'released. Re-offer it to another inspector (directly or via a service group) when ready.</p>',
+});
+
 const GROUP_JOB_DETAILS_HTML =
   '<p>Group <strong>{{groupCode}}</strong> — {{jobCount}} job(s)<br>' +
   'Date: <strong>{{scheduledDate}}</strong><br>' +
@@ -359,6 +378,35 @@ const INSPECTOR_GROUP_JOBS_ADDED_HTML = renderSystemEmailHtml({
     'Time window: <strong>{{timeWindow}}</strong></p>' +
     `<p style="${SYSTEM_NOTE_STYLE}"><strong>Action required:</strong> open the Properfy app to see the new addresses and re-plan your route.</p>`,
 });
+
+// ── Tenant arrival-time notices (F06) ────────────────────────────────────────
+const TENANT_ETA_MORNING_HTML = tenantEmailHtml(
+  `<p>Your <strong>${SERVICE_LABEL}</strong>` +
+    '{{#if appointmentCode}} <strong>#{{appointmentCode}}</strong>{{/if}}' +
+    '{{#if propertyAddress}} of <strong>{{propertyAddress}}</strong>{{/if}} is <strong>today, {{scheduledDate}}</strong>.</p>' +
+    '<p>We expect the inspector to arrive between <strong>{{etaFrom}}</strong> and <strong>{{etaTo}}</strong>.</p>' +
+    `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Please note:</strong> this is an estimate based on the inspector's route for the day. ` +
+    'If the inspector is running late, we will let you know.</p>' +
+    CLOSING_PARAGRAPHS,
+);
+
+// Neutral copy: never claims the previous visit finished (false in the CANT_DO
+// path, F06 D16 / L-F06-08) — only that the inspector "is on the way".
+const TENANT_ETA_ON_THE_WAY_HTML = tenantEmailHtml(
+  '<p>The inspector{{#if inspectorName}}, <strong>{{inspectorName}}</strong>,{{/if}} ' +
+    `is on the way to your <strong>${SERVICE_LABEL}</strong>` +
+    '{{#if propertyAddress}} at <strong>{{propertyAddress}}</strong>{{/if}}.</p>' +
+    '<p>Expected arrival: between <strong>{{etaFrom}}</strong> and <strong>{{etaTo}}</strong>.</p>' +
+    CLOSING_PARAGRAPHS,
+);
+
+const TENANT_ETA_DELAY_HTML = tenantEmailHtml(
+  `<p>We are sorry: the inspector is running late for your <strong>${SERVICE_LABEL}</strong>` +
+    '{{#if propertyAddress}} at <strong>{{propertyAddress}}</strong>{{/if}} today.</p>' +
+    '<p>New expected arrival: between <strong>{{etaFrom}}</strong> and <strong>{{etaTo}}</strong>.</p>' +
+    `<p style="${EMAIL_CALLOUT_STYLE}"><strong>Please note:</strong> if this time no longer suits you, ${CONTACT_TEAM_SENTENCE}</p>` +
+    CLOSING_PARAGRAPHS,
+);
 
 export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
   // ── EMAIL templates ────────────────────────────────────────────────────────
@@ -482,6 +530,18 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     notificationClass: 'TRANSACTIONAL',
   },
   {
+    // Internal ops alert fanned out to every active OP/AM when an inspector taps "Can't do
+    // this job" (notify-inspector-unable.service). TRANSACTIONAL so it can never be
+    // consent-blocked; recipient is the ops team. The note is the inspector's free text and
+    // may be empty. Never carries the inspector's raw coordinates (F03 privacy).
+    code: 'INSPECTOR_UNABLE_ALERT',
+    channel: 'EMAIL',
+    subject: "Inspector couldn't complete appointment {{appointmentId}}",
+    body: 'Inspector {{inspectorName}} reported from the property that they cannot complete the inspection for appointment {{appointmentId}}. Reason: {{fieldIssueReason}}. {{#if fieldIssueNote}}Note: {{fieldIssueNote}}. {{/if}}The job has been rejected and released — re-offer it when ready.',
+    bodyHtml: INSPECTOR_UNABLE_ALERT_HTML,
+    notificationClass: 'TRANSACTIONAL',
+  },
+  {
     // Security email for the self-service forgot-password flow. TRANSACTIONAL so it can
     // never be consent-blocked. The resetLink already points at the right app for the
     // recipient (web app, or PWA for inspectors).
@@ -586,5 +646,59 @@ export const PLATFORM_TEMPLATES: PlatformTemplateSeed[] = [
     subject: 'How did your inspection go?',
     body: `Your inspection has been completed. Tell us how it went: {{surveyLink}}`,
     bodyHtml: SATISFACTION_SURVEY_HTML,
+  },
+  // ── Inspector notice SMS fallback (F02-1) ────────────────────────────────
+  // Triple-stash: the body is free operator text and the renderer escapes HTML
+  // (`noEscape: false`), so `{{message}}` would send `&amp;`. notificationClass is declared
+  // explicitly because the seed only stores the declared/derived class and the catalogue
+  // test compares it against getProtectedClass('INSPECTOR_NOTICE_SMS') = TRANSACTIONAL.
+  {
+    code: 'INSPECTOR_NOTICE_SMS',
+    channel: 'SMS',
+    subject: null,
+    body: '{{{message}}}',
+    notificationClass: 'TRANSACTIONAL',
+  },
+  // ── Tenant arrival-time notices (F06) ──────────────────────────────────────
+  // One code, two channel rows each; class derived to OPERATIONAL (consent-checked);
+  // SMS bodies are GSM-7 only (no apostrophe / en dash).
+  {
+    code: 'TENANT_ETA_MORNING',
+    channel: 'EMAIL',
+    subject: 'Your inspection today: arrival between {{etaFrom}} and {{etaTo}}',
+    body: `Dear {{rentalTenantName}}, your inspection at {{propertyAddress}} is today, {{scheduledDate}}. We expect the inspector to arrive between {{etaFrom}} and {{etaTo}}. This is an estimate based on the inspector's route for the day. If the inspector is running late, we will let you know.`,
+    bodyHtml: TENANT_ETA_MORNING_HTML,
+  },
+  {
+    code: 'TENANT_ETA_MORNING',
+    channel: 'SMS',
+    subject: null,
+    body: 'Properfy: Hi {{rentalTenantName}}, your inspection is today. The inspector is expected to arrive between {{etaFrom}} and {{etaTo}}.',
+  },
+  {
+    code: 'TENANT_ETA_ON_THE_WAY',
+    channel: 'EMAIL',
+    subject: 'Your inspector is on the way',
+    body: `Dear {{rentalTenantName}}, the inspector is on the way to your inspection at {{propertyAddress}}. Expected arrival: between {{etaFrom}} and {{etaTo}}.`,
+    bodyHtml: TENANT_ETA_ON_THE_WAY_HTML,
+  },
+  {
+    code: 'TENANT_ETA_ON_THE_WAY',
+    channel: 'SMS',
+    subject: null,
+    body: 'Properfy: Hi {{rentalTenantName}}, your inspector is on the way and is expected to arrive between {{etaFrom}} and {{etaTo}}.',
+  },
+  {
+    code: 'TENANT_ETA_DELAY',
+    channel: 'EMAIL',
+    subject: 'Your inspector is running late',
+    body: `Dear {{rentalTenantName}}, we are sorry: the inspector is running late for your inspection at {{propertyAddress}} today. New expected arrival: between {{etaFrom}} and {{etaTo}}. If this time no longer suits you, please contact our bookings team by replying to this email.`,
+    bodyHtml: TENANT_ETA_DELAY_HTML,
+  },
+  {
+    code: 'TENANT_ETA_DELAY',
+    channel: 'SMS',
+    subject: null,
+    body: 'Properfy: Hi {{rentalTenantName}}, your inspector is running late. New expected arrival: between {{etaFrom}} and {{etaTo}}. Sorry for the delay.',
   },
 ];

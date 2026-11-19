@@ -291,7 +291,26 @@ describe('AppointmentImportCommitWorker', () => {
     expect(deps.createAppointmentUseCase.execute.mock.calls[1]![0].propertyId).toBe(savedPropertyId);
   });
 
-  it('reuses a found geocode from previewJson: SUCCESS with coordinates, NO async geocode job', async () => {
+  it('reuses a found+permanent geocode from previewJson: SUCCESS with coordinates + marker, NO async geocode job', async () => {
+    const deps = buildDeps();
+    const newAddr = { resolution: 'new' as const, propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null };
+    deps.importRepo.findById.mockResolvedValue(buildRecord({
+      previewJson: { summary: {}, rows: [{ property: { ...newAddr, geocode: { status: 'found', lat: -33.97, lng: 151.12, mode: 'permanent' } } }] },
+    }));
+    deps.resolver.resolve.mockResolvedValue({ rows: [readyRow({ property: newAddr })] });
+    const worker = buildWorker(deps);
+
+    await worker.execute({ importId: 'import-1', actor: ACTOR });
+
+    const savedProperty = deps.propertyRepo.save.mock.calls[0]![0];
+    expect(savedProperty.geocodingStatus).toBe('SUCCESS');
+    expect(savedProperty.lat).toBe(-33.97);
+    expect(savedProperty.lng).toBe(151.12);
+    expect(savedProperty.geocodedPermanentlyAt).toBeInstanceOf(Date);
+    expect(deps.jobQueue.enqueue).not.toHaveBeenCalledWith('property.geocode', expect.anything());
+  });
+
+  it('treats a found WITHOUT mode (pre-deploy preview) as unverified: PENDING + async job, no stored coordinate', async () => {
     const deps = buildDeps();
     const newAddr = { resolution: 'new' as const, propertyId: null, propertyCode: null, street: '9 New St', addressLine2: null, suburb: 'Carlton', state: 'NSW', postcode: '2218', country: 'AU', duplicateOfRow: null };
     deps.importRepo.findById.mockResolvedValue(buildRecord({
@@ -303,10 +322,15 @@ describe('AppointmentImportCommitWorker', () => {
     await worker.execute({ importId: 'import-1', actor: ACTOR });
 
     const savedProperty = deps.propertyRepo.save.mock.calls[0]![0];
-    expect(savedProperty.geocodingStatus).toBe('SUCCESS');
-    expect(savedProperty.lat).toBe(-33.97);
-    expect(savedProperty.lng).toBe(151.12);
-    expect(deps.jobQueue.enqueue).not.toHaveBeenCalledWith('property.geocode', expect.anything());
+    expect(savedProperty.geocodingStatus).toBe('PENDING');
+    expect(savedProperty.lat).toBeNull();
+    expect(savedProperty.lng).toBeNull();
+    expect(savedProperty.geocodedPermanentlyAt).toBeNull();
+    expect(deps.jobQueue.enqueue).toHaveBeenCalledWith('property.geocode', { propertyId: savedProperty.id });
+    expect(deps.logger.info).toHaveBeenCalledWith(
+      { importId: 'import-1', normalizedAddressKey: expect.any(String) },
+      'Legacy preview verification treated as unverified',
+    );
   });
 
   it('persists a not_found geocode as FAILED without enqueueing a geocode job', async () => {

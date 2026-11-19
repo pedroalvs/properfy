@@ -268,3 +268,145 @@ describe('financial.view / approve (backoffice, unchanged)', () => {
     expect(can(role, 'financial.approve')).toBe(false);
   });
 });
+
+describe('map.execution_density (F09-1 §L-F09-09)', () => {
+  it('M1: lists AM/OP/CL_ADMIN/CL_USER with no condition (the /map requires no flag)', () => {
+    const entry = getMatrixEntry('map.execution_density');
+    expect(entry).toEqual({ roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'] });
+    expect(entry?.condition).toBeUndefined();
+  });
+
+  it('M2: denies INSP and TNT, allows CL_USER', () => {
+    expect(can('INSP', 'map.execution_density')).toBe(false);
+    expect(can('TNT', 'map.execution_density')).toBe(false);
+    expect(can('CL_USER', 'map.execution_density')).toBe(true);
+  });
+});
+
+describe('property_file.* / property_issue.* (F10-1)', () => {
+  it('property_file.read: all tenant/inspector roles, not TNT', () => {
+    for (const role of ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP'] as UserRole[]) {
+      expect(can(role, 'property_file.read')).toBe(true);
+    }
+    expect(can('TNT', 'property_file.read')).toBe(false);
+  });
+
+  it('property_file.upload: AM/OP/CL_ADMIN/INSP (base); not CL_USER/TNT', () => {
+    for (const role of ['AM', 'OP', 'CL_ADMIN', 'INSP'] as UserRole[]) {
+      expect(can(role, 'property_file.upload')).toBe(true);
+    }
+    expect(can('CL_USER', 'property_file.upload')).toBe(false);
+    expect(can('TNT', 'property_file.upload')).toBe(false);
+  });
+
+  it('property_file.version: AM/OP/CL_ADMIN only', () => {
+    for (const role of ['AM', 'OP', 'CL_ADMIN'] as UserRole[]) {
+      expect(can(role, 'property_file.version')).toBe(true);
+    }
+    for (const role of ['CL_USER', 'INSP', 'TNT'] as UserRole[]) {
+      expect(can(role, 'property_file.version')).toBe(false);
+    }
+  });
+
+  it('property_file.delete / property_issue.delete: AM/OP only', () => {
+    for (const role of ['AM', 'OP'] as UserRole[]) {
+      expect(can(role, 'property_file.delete')).toBe(true);
+      expect(can(role, 'property_issue.delete')).toBe(true);
+    }
+    for (const role of ['CL_ADMIN', 'CL_USER', 'INSP', 'TNT'] as UserRole[]) {
+      expect(can(role, 'property_file.delete')).toBe(false);
+      expect(can(role, 'property_issue.delete')).toBe(false);
+    }
+  });
+
+  it('property_issue.create: AM/OP/CL_ADMIN/INSP (base); source is server-derived', () => {
+    for (const role of ['AM', 'OP', 'CL_ADMIN', 'INSP'] as UserRole[]) {
+      expect(can(role, 'property_issue.create')).toBe(true);
+    }
+    expect(can('CL_USER', 'property_issue.create')).toBe(false);
+  });
+
+  it('property_issue.mark_seen / unseen_count: AM/OP/CL_ADMIN only', () => {
+    for (const role of ['AM', 'OP', 'CL_ADMIN'] as UserRole[]) {
+      expect(can(role, 'property_issue.mark_seen')).toBe(true);
+      expect(can(role, 'property_issue.unseen_count')).toBe(true);
+    }
+    for (const role of ['CL_USER', 'INSP', 'TNT'] as UserRole[]) {
+      expect(can(role, 'property_issue.mark_seen')).toBe(false);
+      expect(can(role, 'property_issue.unseen_count')).toBe(false);
+    }
+  });
+
+  it('the F10 actions carry no cl_user_flag/tenant_setting condition', () => {
+    for (const action of [
+      'property_file.read',
+      'property_file.upload',
+      'property_file.version',
+      'property_file.delete',
+      'property_issue.create',
+      'property_issue.mark_seen',
+      'property_issue.delete',
+      'property_issue.unseen_count',
+    ]) {
+      expect(getMatrixEntry(action)?.condition).toBeUndefined();
+    }
+  });
+});
+
+describe('reliability.view (F07-2)', () => {
+  it('lists exactly AM and OP, with no condition', () => {
+    const entry = getMatrixEntry('reliability.view');
+    expect(entry).toEqual({ roles: ['AM', 'OP'] });
+    expect(entry?.condition).toBeUndefined();
+  });
+
+  it('allows AM/OP and denies every agency role, INSP and TNT', () => {
+    expect(can('AM', 'reliability.view')).toBe(true);
+    expect(can('OP', 'reliability.view')).toBe(true);
+    for (const role of ['CL_ADMIN', 'CL_USER', 'INSP', 'TNT'] as UserRole[]) {
+      expect(can(role, 'reliability.view')).toBe(false);
+    }
+  });
+});
+
+describe('inspector_program.* (F08-1)', () => {
+  const adminActions = [
+    'inspector_program.goals.manage',
+    'inspector_program.awards.view',
+    'inspector_program.awards.approve',
+    'inspector_program.awards.void',
+  ];
+
+  it.each(adminActions)('%s: AM/OP only, no condition', (action) => {
+    const entry = getMatrixEntry(action);
+    expect(entry).toEqual({ roles: ['AM', 'OP'] });
+    for (const role of ['AM', 'OP'] as UserRole[]) {
+      expect(can(role, action)).toBe(true);
+    }
+    for (const role of ['CL_ADMIN', 'CL_USER', 'INSP', 'TNT'] as UserRole[]) {
+      expect(can(role, action)).toBe(false);
+    }
+  });
+
+  it('inspector_program.view_own: INSP only', () => {
+    const entry = getMatrixEntry('inspector_program.view_own');
+    expect(entry).toEqual({ roles: ['INSP'] });
+    expect(can('INSP', 'inspector_program.view_own')).toBe(true);
+    for (const role of ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'TNT'] as UserRole[]) {
+      expect(can(role, 'inspector_program.view_own')).toBe(false);
+    }
+  });
+
+  it('inspector_program.awards.void_invoiced: AM only (Q12/DL3)', () => {
+    const entry = getMatrixEntry('inspector_program.awards.void_invoiced');
+    expect(entry).toEqual({ roles: ['AM'] });
+    expect(can('AM', 'inspector_program.awards.void_invoiced')).toBe(true);
+    for (const role of ['OP', 'CL_ADMIN', 'CL_USER', 'INSP', 'TNT'] as UserRole[]) {
+      expect(can(role, 'inspector_program.awards.void_invoiced')).toBe(false);
+    }
+  });
+
+  it('has no awards.pay action (Q12 — the invoice pays, no manual payment)', () => {
+    expect(getMatrixEntry('inspector_program.awards.pay')).toBeUndefined();
+  });
+});

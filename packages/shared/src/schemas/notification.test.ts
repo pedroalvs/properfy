@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   listNotificationsQuerySchema,
+  recordConsentOptOutSchema,
   upsertNotificationTemplateSchema,
   listNotificationTemplatesQuerySchema,
   testSendEmailRequestSchema,
@@ -347,5 +348,29 @@ describe('testSendResponseSchema', () => {
       sentAt: '2026-08-25T12:00:00.000Z',
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('recordConsentOptOutSchema (F06)', () => {
+  const base = {
+    tenantId: validUuid,
+    recipient: '+61412000001',
+    channel: 'SMS' as const,
+    reason: 'Tenant asked by phone to stop SMS',
+  };
+
+  it('defaults notificationClass to OPERATIONAL', () => {
+    const res = recordConsentOptOutSchema.safeParse(base);
+    expect(res.success && res.data.notificationClass).toBe('OPERATIONAL');
+  });
+
+  it('rejects an empty reason, an oversized reason and a PUSH channel', () => {
+    expect(recordConsentOptOutSchema.safeParse({ ...base, reason: '   ' }).success).toBe(false);
+    expect(recordConsentOptOutSchema.safeParse({ ...base, reason: 'x'.repeat(1001) }).success).toBe(false);
+    expect(recordConsentOptOutSchema.safeParse({ ...base, channel: 'PUSH' }).success).toBe(false);
+  });
+
+  it('rejects a non-uuid tenantId', () => {
+    expect(recordConsentOptOutSchema.safeParse({ ...base, tenantId: 'nope' }).success).toBe(false);
   });
 });

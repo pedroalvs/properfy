@@ -9,6 +9,7 @@ import {
   listTenantsQuerySchema,
   listBranchesQuerySchema,
   tenantSettingsSchema,
+  MAP_WINDOW_DAYS_DEFAULT,
 } from './tenant';
 import { branchAddressSchema } from './address';
 
@@ -250,6 +251,8 @@ describe('updateBranchSchema', () => {
 });
 
 describe('branchAddressSchema', () => {
+  // X02-1: branch coordinates come only from permanent-mode geocoding on the
+  // backend, so the schema no longer carries latitude/longitude.
   const validFullAddress = {
     street: '123 Main St',
     number: '42A',
@@ -259,8 +262,6 @@ describe('branchAddressSchema', () => {
     state: 'NSW',
     postcode: '2000',
     country: 'AU',
-    latitude: -33.8688,
-    longitude: 151.2093,
   };
 
   it('should accept valid full address', () => {
@@ -284,8 +285,19 @@ describe('branchAddressSchema', () => {
       expect(result.data.country).toBe('AU');
       expect(result.data.number).toBeUndefined();
       expect(result.data.complement).toBeUndefined();
-      expect(result.data.latitude).toBeUndefined();
-      expect(result.data.longitude).toBeUndefined();
+    }
+  });
+
+  it('should strip client-supplied latitude/longitude (never a validation error)', () => {
+    const result = branchAddressSchema.safeParse({
+      ...validFullAddress,
+      latitude: -33.8688,
+      longitude: 151.2093,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect('latitude' in result.data).toBe(false);
+      expect('longitude' in result.data).toBe(false);
     }
   });
 
@@ -323,53 +335,12 @@ describe('branchAddressSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should reject latitude out of range (too low)', () => {
-    const result = branchAddressSchema.safeParse({
-      ...validFullAddress,
-      latitude: -91,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject latitude out of range (too high)', () => {
-    const result = branchAddressSchema.safeParse({
-      ...validFullAddress,
-      latitude: 91,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject longitude out of range (too low)', () => {
-    const result = branchAddressSchema.safeParse({
-      ...validFullAddress,
-      longitude: -181,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('should reject longitude out of range (too high)', () => {
-    const result = branchAddressSchema.safeParse({
-      ...validFullAddress,
-      longitude: 181,
-    });
-    expect(result.success).toBe(false);
-  });
-
   it('should reject street exceeding max length', () => {
     const result = branchAddressSchema.safeParse({
       ...validFullAddress,
       street: 'a'.repeat(201),
     });
     expect(result.success).toBe(false);
-  });
-
-  it('should accept boundary latitude and longitude values', () => {
-    const result = branchAddressSchema.safeParse({
-      ...validFullAddress,
-      latitude: -90,
-      longitude: 180,
-    });
-    expect(result.success).toBe(true);
   });
 });
 
@@ -439,6 +410,14 @@ describe('tenantSettingsSchema', () => {
     if (result.success) {
       expect(result.data.billingPeriod).toBe('MONTHLY');
     }
+  });
+
+  it('defaults tenantEtaNoticesEnabled to true, accepts false, rejects non-boolean (F06)', () => {
+    const empty = tenantSettingsSchema.safeParse({});
+    expect(empty.success && empty.data.tenantEtaNoticesEnabled).toBe(true);
+    const off = tenantSettingsSchema.safeParse({ tenantEtaNoticesEnabled: false });
+    expect(off.success && off.data.tenantEtaNoticesEnabled).toBe(false);
+    expect(tenantSettingsSchema.safeParse({ tenantEtaNoticesEnabled: 'no' }).success).toBe(false);
   });
 
   it('should allow extra fields (passthrough mode)', () => {
@@ -593,6 +572,40 @@ describe('tenantSettingsSchema', () => {
       expect(data['inspectionWindowBeforeMinutes']).toBe(60);
       expect(data['inspectionWindowAfterMinutes']).toBe(15);
     }
+  });
+});
+
+describe('tenantSettingsSchema — mapWindowDays (F00)', () => {
+  // S1 — accepts the integer bounds.
+  it('S1: accepts 1, 14 and 90', () => {
+    for (const n of [1, 14, 90]) {
+      const parsed = tenantSettingsSchema.parse({ mapWindowDays: n });
+      expect(parsed.mapWindowDays).toBe(n);
+    }
+  });
+
+  // S2 — rejects out-of-range, non-integer, string and null.
+  it('S2: rejects 0, 91, 7.5, "14" and null', () => {
+    for (const v of [0, 91, 7.5, '14', null]) {
+      expect(tenantSettingsSchema.safeParse({ mapWindowDays: v }).success).toBe(false);
+    }
+  });
+
+  // S3 — no default is injected when the key is absent.
+  it('S3: leaves mapWindowDays absent when not provided (no injected default)', () => {
+    const parsed = tenantSettingsSchema.parse({});
+    expect('mapWindowDays' in parsed).toBe(false);
+  });
+
+  // S4 — updateTenantSchema accepts a partial settings carrying only mapWindowDays.
+  it('S4: updateTenantSchema accepts { settings: { mapWindowDays: 30 } }', () => {
+    const result = updateTenantSchema.safeParse({ settings: { mapWindowDays: 30 } });
+    expect(result.success).toBe(true);
+  });
+
+  // S5 — the exported platform default.
+  it('S5: MAP_WINDOW_DAYS_DEFAULT is 14', () => {
+    expect(MAP_WINDOW_DAYS_DEFAULT).toBe(14);
   });
 });
 

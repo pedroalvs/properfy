@@ -11,3 +11,4 @@ pointer so there is exactly one place to maintain, in English.
 - `apps/web/CLAUDE.md`
 - `apps/pwa/CLAUDE.md`
 - `packages/shared/CLAUDE.md`
+- `packages/frontend-standards/README.md`

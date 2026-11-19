@@ -3,15 +3,22 @@ import type {
   AuthContext,
   PaymentSettings,
   ServiceTypeEntry,
+  InspectorBaseAddress,
 } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
 import type { IUserManagementRepository } from '../../../user/domain/user-management.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
+import type { IGeocodingService } from '../../../property/domain/geocoding.service';
+import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
+import type { Logger } from '../../../../shared/infrastructure/logger';
+import { type Clock, SystemClock } from '../../../../shared/domain/clock';
 import { InspectorEntity } from '../../domain/inspector.entity';
 import { UserEntity } from '../../../auth/domain/user.entity';
 import { InspectorEmailConflictError } from '../../domain/inspector.errors';
+import { geocodeInspectorBase } from '../services/geocode-inspector-base';
+import { INSPECTOR_EVENTS } from '../../domain/inspector-events';
 import { validatePasswordStrength } from '../../../auth/domain/password-policy';
 import {
   PasswordTooWeakError,
@@ -29,6 +36,8 @@ export interface CreateInspectorInput {
   regions?: string[];
   regionIds?: string[];
   serviceTypes?: ServiceTypeEntry[];
+  /** Mandatory base address (enforced by createInspectorSchema at the route). */
+  address?: InspectorBaseAddress;
   actor: AuthContext;
 }
 
@@ -42,6 +51,12 @@ export interface CreateInspectorOutput {
   paymentSettingsJson: PaymentSettings;
   regionIds: string[];
   serviceTypesJson: ServiceTypeEntry[];
+  address: Record<string, unknown> | null;
+  baseLat: number | null;
+  baseLng: number | null;
+  baseGeocodedAt: Date | null;
+  /** True when the address was saved but geocoding did not produce coordinates. */
+  baseGeocodeFailed: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,10 +68,18 @@ export class CreateInspectorUseCase {
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
     private readonly serviceRegionRepo?: IServiceRegionRepository,
+    // Optional and LAST so existing wirings and untyped test constructors keep
+    // compiling (same pattern as the X02 branch use case). A geocoding failure
+    // never fails the create.
+    private readonly geocodingService?: IGeocodingService,
+    private readonly eventBus?: DomainEventBus,
+    private readonly logger?: Logger,
+    private readonly clock: Clock = new SystemClock(),
   ) {}
 
   async execute(input: CreateInspectorInput): Promise<CreateInspectorOutput> {
     const { name, email, password, phone, paymentSettings, regionIds, serviceTypes, actor } = input;
+    const address = input.address ?? null;
 
     this.authorizationService.assertRoles(actor, ['AM', 'OP'], {
       action: 'inspector.create',
@@ -84,6 +107,24 @@ export class CreateInspectorUseCase {
 
     if (COMMON_PASSWORDS.has(password.toLowerCase())) {
       throw new PasswordTooCommonError();
+    }
+
+    // Geocode the base address BEFORE any write (L-F01-11): an unexpected error
+    // here leaves neither a User nor an Inspector row. A geocode failure is not an
+    // error — the address is saved without coordinates and baseGeocodeFailed = true.
+    let baseLat: number | null = null;
+    let baseLng: number | null = null;
+    let baseGeocodedAt: Date | null = null;
+    let baseGeocodeFailed = false;
+    if (address && this.geocodingService) {
+      const geo = await geocodeInspectorBase(this.geocodingService, address, this.logger, this.clock);
+      if ('lat' in geo) {
+        baseLat = geo.lat;
+        baseLng = geo.lng;
+        baseGeocodedAt = geo.geocodedAt;
+      } else {
+        baseGeocodeFailed = true;
+      }
     }
 
     const now = new Date();
@@ -126,7 +167,14 @@ export class CreateInspectorUseCase {
       serviceTypesJson: serviceTypes ?? [],
       blockedClientsJson: (input as any).blockedClients ?? [],
       fullName: (input as any).fullName ?? null,
-      address: (input as any).address ?? null,
+      address,
+      baseLat,
+      baseLng,
+      baseGeocodedAt,
+      appInstalledAt: null,
+      appLastSeenAt: null,
+      pushEnabled: null,
+      appVersion: null,
       abn: (input as any).abn ?? null,
       dateOfBirth: (input as any).dateOfBirth ? new Date((input as any).dateOfBirth) : null,
       insuranceFileKey: (input as any).insuranceFileKey ?? null,
@@ -201,8 +249,29 @@ export class CreateInspectorUseCase {
         paymentSettingsJson: inspector.paymentSettingsJson,
         regionIds: regionIds ?? [],
         serviceTypesJson: inspector.serviceTypesJson,
+        // Base-address audit WITHOUT raw coordinates (L-F01-10 / root §7.9).
+        address,
+        baseLocated: baseLat !== null,
+        baseGeocodedAt,
       },
     });
+
+    // Emit after the write, only when a base address was actually stored
+    // (create always stores one). A throwing subscriber must not fail the 201.
+    if (address !== null && this.eventBus) {
+      try {
+        await this.eventBus.emit({
+          type: INSPECTOR_EVENTS.BASE_CHANGED,
+          payload: { inspectorId: id, hadCoordinates: false, hasCoordinates: baseLat !== null },
+          occurredAt: new Date(),
+        });
+      } catch (err) {
+        this.logger?.warn(
+          { inspectorId: id, err: err instanceof Error ? err.message : String(err) },
+          'inspector.base_changed_emit_failed',
+        );
+      }
+    }
 
     return {
       id: inspector.id,
@@ -214,6 +283,11 @@ export class CreateInspectorUseCase {
       paymentSettingsJson: inspector.paymentSettingsJson,
       regionIds: regionIds ?? [],
       serviceTypesJson: inspector.serviceTypesJson,
+      address: inspector.address,
+      baseLat: inspector.baseLat,
+      baseLng: inspector.baseLng,
+      baseGeocodedAt: inspector.baseGeocodedAt,
+      baseGeocodeFailed,
       createdAt: inspector.createdAt,
       updatedAt: inspector.updatedAt,
     };

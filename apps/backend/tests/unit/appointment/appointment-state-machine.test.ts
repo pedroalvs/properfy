@@ -3,6 +3,7 @@ import {
   AppointmentStateMachine,
   TRANSITION_RULES,
 } from '../../../src/modules/appointment/domain/appointment-state-machine';
+import { VALID_TRANSITIONS } from '@properfy/shared';
 import type { AppointmentStatus, UserRole } from '@properfy/shared';
 
 const machine = new AppointmentStateMachine();
@@ -11,6 +12,19 @@ describe('AppointmentStateMachine', () => {
   describe('TRANSITION_RULES count', () => {
     it('defines exactly 15 transition rules', () => {
       expect(TRANSITION_RULES).toHaveLength(15);
+    });
+  });
+
+  describe('parity with shared VALID_TRANSITIONS', () => {
+    // The frontends build their action menus from VALID_TRANSITIONS. Any edge there
+    // without a backend rule is a button the API rejects with "Invalid transition".
+    it('every shared transition has a backend rule', () => {
+      const sharedEdges = Object.entries(VALID_TRANSITIONS).flatMap(([from, targets]) =>
+        targets.map((to) => `${from} → ${to}`),
+      );
+      const backendEdges = new Set(TRANSITION_RULES.map((r) => `${r.from} → ${r.to}`));
+
+      expect(sharedEdges.filter((edge) => !backendEdges.has(edge))).toEqual([]);
     });
   });
 

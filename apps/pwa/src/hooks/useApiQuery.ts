@@ -55,6 +55,56 @@ async function apiPost<T>(path: string, body?: unknown, headers?: Record<string,
   return data as T;
 }
 
+async function apiPut<T>(path: string, body?: unknown, headers?: Record<string, string>): Promise<T> {
+  let result: { data?: unknown; error?: unknown; response?: Response };
+  try {
+    result = await api.PUT(path as any, {
+      body: body as any,
+      headers,
+    });
+  } catch (err) {
+    throw toApiError(err);
+  }
+  const { data, error, response } = result;
+  if (error) throw withRetryAfter(toApiError(error, response?.status), response);
+  return data as T;
+}
+
+async function apiDelete<T>(path: string, headers?: Record<string, string>): Promise<T> {
+  let result: { data?: unknown; error?: unknown; response?: Response };
+  try {
+    result = await api.DELETE(path as any, { headers });
+  } catch (err) {
+    throw toApiError(err);
+  }
+  const { data, error, response } = result;
+  if (error) throw withRetryAfter(toApiError(error, response?.status), response);
+  return data as T;
+}
+
+/**
+ * GET a binary payload (e.g. a route sheet). Returns the blob plus the raw
+ * response so the caller can read `Content-Disposition` for the filename. On a
+ * non-2xx the error body is parsed with the usual envelope.
+ */
+async function apiGetBlob(
+  path: string,
+  params?: Record<string, string>,
+): Promise<{ blob: Blob; response: Response }> {
+  let result: { data?: unknown; error?: unknown; response?: Response };
+  try {
+    result = await api.GET(path as any, {
+      params: { query: params as any },
+      parseAs: 'blob',
+    });
+  } catch (err) {
+    throw toApiError(err);
+  }
+  const { data, error, response } = result;
+  if (error) throw withRetryAfter(toApiError(error, response?.status), response);
+  return { blob: data as Blob, response: response as Response };
+}
+
 export function useDetailQuery<T>(
   queryKey: unknown[],
   path: string,
@@ -80,4 +130,4 @@ export function useListQuery<T>(
   });
 }
 
-export { apiGet, apiPost };
+export { apiGet, apiPost, apiPut, apiDelete, apiGetBlob };

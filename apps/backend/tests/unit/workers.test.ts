@@ -111,6 +111,19 @@ describe('registerWorkers', () => {
       mockRejectUnconfirmedWorker,
       mockCancelEmptyGroupsWorker,
       mockFyWebhookDispatcher,
+      { execute: vi.fn().mockResolvedValue(undefined) } as any, // deliverInspectorNoticeUseCase
+      { execute: vi.fn().mockResolvedValue(undefined) } as any, // sweepUndeliveredInspectorNoticesUseCase
+      { execute: vi.fn().mockResolvedValue(undefined) } as any, // autoArchiveInspectorNoticesUseCase
+      { execute: vi.fn().mockResolvedValue(undefined) } as any, // sendCompletionRemindersUseCase
+      { execute: vi.fn().mockResolvedValue({ continuation: false }) } as any, // publishDayPlansUseCase
+      { execute: vi.fn().mockResolvedValue(undefined) } as any, // sendMorningEtaNoticesUseCase
+      { execute: vi.fn().mockResolvedValue(undefined) } as any, // evaluateTenantEtaUseCase
+      { execute: vi.fn().mockResolvedValue(undefined) } as any, // sweepTenantEtaDelaysUseCase
+      { get: vi.fn().mockResolvedValue({ enabled: false, channelMode: 'BOTH', morningHour: 7, morningCutoffHour: 9, delayThresholdMinutes: 20, smsBudgetSharePercent: 80 }) } as any, // tenantEtaSettingsReader
+      { execute: vi.fn().mockResolvedValue({ deletedPurged: 0, activePurged: 0, orphansPurged: 0 }) } as any, // propertyFileRetentionWorker
+      { execute: vi.fn().mockResolvedValue({ snapshotDate: '2026-12-02', inspectors: 0, scored: 0, insufficient: 0, durationMs: 1 }) } as any, // computeReliabilitySnapshotsUseCase
+      { execute: vi.fn().mockResolvedValue('UP_TO_DATE') } as any, // ensureTodaySnapshotUseCase (+ startup backfill)
+      { execute: vi.fn().mockResolvedValue(undefined) } as any, // runInspectorProgramDailyUseCase
       mockLogger,
     );
   }
@@ -122,8 +135,14 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(21);
+    expect(mockWork).toHaveBeenCalledTimes(33);
+    expect(mockWork).toHaveBeenCalledWith('inspector-program.daily', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('day-plan.publish', { teamSize: 1, teamConcurrency: 1 }, expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('tenant-eta.morning', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('tenant-eta.evaluate', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('tenant-eta.sweep-delays', { teamSize: 1, teamConcurrency: 1 }, expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('fy.webhook.deliver', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('inspector-notice.deliver', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.send', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.retry-poll', expect.any(Function));
@@ -144,10 +163,18 @@ describe('registerWorkers', () => {
     expect(mockWork).toHaveBeenCalledWith('appointment.reject-unconfirmed', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('service-group.cancel-empty', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('system.dlq-monitor', expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('reliability.compute-snapshots', { teamSize: 1, teamConcurrency: 1 }, expect.any(Function));
+    expect(mockWork).toHaveBeenCalledWith('reliability.ensure-today', expect.any(Function));
     // All recurring jobs are anchored to the platform timezone (Sydney).
     const sydneyTz = { tz: 'Australia/Sydney' };
-    expect(mockSchedule).toHaveBeenCalledTimes(15);
+    expect(mockSchedule).toHaveBeenCalledTimes(25);
+    expect(mockSchedule).toHaveBeenCalledWith('inspector-program.daily', '45 4 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('day-plan.publish', '30 * * * *', {}, expect.objectContaining(sydneyTz));
+    expect(mockSchedule).toHaveBeenCalledWith('tenant-eta.morning', '0 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('tenant-eta.sweep-delays', '*/30 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('notification.retry-poll', '*/5 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('inspector-notice.delivery-sweep', '*/5 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('inspector-notice.auto-archive', '45 3 * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('notification.sms-delivery-poll', '*/10 * * * *', {}, sydneyTz);
     // Per-agency civil-day jobs run as hourly ticks; the agency-local target
     // hour lives in the handler (TenantCronTick), not in the cron expression.
@@ -164,6 +191,8 @@ describe('registerWorkers', () => {
     expect(mockSchedule).toHaveBeenCalledWith('service-group.cancel-empty', '20 0 * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('appointment.import.sweep-abandoned', '0 * * * *', {}, sydneyTz);
     expect(mockSchedule).toHaveBeenCalledWith('system.dlq-monitor', '*/5 * * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('reliability.compute-snapshots', '15 4 * * *', {}, sydneyTz);
+    expect(mockSchedule).toHaveBeenCalledWith('reliability.ensure-today', '0 5-12 * * *', {}, sydneyTz);
     // The removed 45-day overdue auto-cancel feature: its persisted pg-boss schedule
     // is cleared on boot so no worker-less job keeps queuing.
     expect(mockUnschedule).toHaveBeenCalledWith('appointment.cancel-overdue');

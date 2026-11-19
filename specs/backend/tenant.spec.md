@@ -301,12 +301,15 @@ const CreateTenantInputSchema = z.object({
 
 ### 3.2 Update Tenant (`updateTenant`)
 
-**Actor:** AM (any tenant), CL_ADMIN (own tenant only, limited fields)
+**Actor:** AM (any tenant), OP (any tenant — F00, only `settings.mapWindowDays`), CL_ADMIN (own tenant only, limited fields)
 
 **Preconditions:**
 - Tenant exists and is not soft-deleted
 - CL_ADMIN can only update: `name`, `settings` (subset)
+- OP can only update `settings.mapWindowDays`, on any agency (F00); OP's JWT never carries a `tenantId`, so every other top-level field and settings key stays AM-only for OP
 - AM can update all fields
+
+**Empty-PATCH guard (F00, approved 2026-10-27):** if nothing remains to write after permission filtering (e.g. a settings object reduced to `{}`), the use case performs no update, writes no audit entry and emits no event — it returns the current tenant. The guard runs after the tenant is loaded, so a missing/soft-deleted target still returns `TENANT_NOT_FOUND`. Narrow by design: equal values on an allowed key still write and audit.
 
 **Input DTO:**
 
@@ -824,9 +827,11 @@ const DeactivateBranchInputSchema = z.object({
 ### 4.4 `PATCH /v1/tenants/:tenantId`
 
 **Auth:** Bearer token
-**Roles:** AM (all fields); CL_ADMIN (name, settings subset)
+**Roles:** AM (all fields, any tenant); OP (any tenant, only `settings.mapWindowDays` — F00); CL_ADMIN (name, settings subset)
 
 **Request body:** Partial tenant update (all fields optional).
+
+**Empty-PATCH guard (F00):** a PATCH that leaves nothing to write after permission filtering performs no update, no audit and no event, returning the current tenant (200).
 
 **Success response (200):** Updated full tenant object.
 
@@ -1007,6 +1012,7 @@ const DeactivateBranchInputSchema = z.object({
 | getTenant (any) | Yes | Yes | No | No | No |
 | getTenant (own) | Yes | Yes | Yes | Yes | No |
 | updateTenant (any) | Yes | No | No | No | No |
+| updateTenant (`settings.mapWindowDays`, any tenant — F00) | Yes | Yes | No | No | No |
 | updateTenant (own, limited) | Yes | No | Yes | No | No |
 | deactivateTenant | Yes | No | No | No | No |
 | createBranch (any tenant) | Yes | No | No | No | No |

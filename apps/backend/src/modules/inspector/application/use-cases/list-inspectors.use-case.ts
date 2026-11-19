@@ -7,6 +7,8 @@ import type {
 } from '../../domain/inspector.repository';
 import type { IServiceRegionRepository } from '../../../service-region/domain/service-region.repository';
 import type { IInspectorRatingReader, InspectorRatingAggregate } from '../../domain/inspector-rating.reader';
+import type { InspectorEntity } from '../../domain/inspector.entity';
+import { applyInspectorFieldVisibility } from '../inspector-field-visibility';
 
 export interface ListInspectorsInput {
   filters: InspectorFilters;
@@ -28,6 +30,17 @@ export interface ListInspectorsOutput {
      * never see individual ratings or comments through this endpoint.
      */
     rating: { average: number | null; responseCount: number; doneServicesCount: number };
+    // F01-1: base address + coordinates (AM/OP and the inspector itself) and app
+    // adoption (AM/OP only). Stripped per role by applyInspectorFieldVisibility,
+    // so each is optional on the wire.
+    address?: Record<string, unknown> | null;
+    baseLat?: number | null;
+    baseLng?: number | null;
+    baseGeocodedAt?: Date | null;
+    appInstalledAt?: Date | null;
+    appLastSeenAt?: Date | null;
+    pushEnabled?: boolean | null;
+    appVersion?: string | null;
     createdAt: Date;
     updatedAt: Date;
   }>;
@@ -60,6 +73,40 @@ export class ListInspectorsUseCase {
     };
   }
 
+  // Builds a list item with every field, then strips the ones the actor may not
+  // see (F01-1). AM/OP keep all (incl. address, L-F01-07); INSP keeps base,
+  // loses adoption; CL_* lose base and adoption.
+  private toItem(
+    i: InspectorEntity,
+    regionIds: string[],
+    aggregate: InspectorRatingAggregate | undefined,
+    role: string,
+  ): ListInspectorsOutput['data'][number] {
+    return applyInspectorFieldVisibility(
+      {
+        id: i.id,
+        name: i.name,
+        email: i.email,
+        phone: i.phone,
+        status: i.status,
+        regionIds,
+        serviceTypesJson: i.serviceTypesJson,
+        rating: ListInspectorsUseCase.toRating(aggregate),
+        address: i.address,
+        baseLat: i.baseLat,
+        baseLng: i.baseLng,
+        baseGeocodedAt: i.baseGeocodedAt,
+        appInstalledAt: i.appInstalledAt,
+        appLastSeenAt: i.appLastSeenAt,
+        pushEnabled: i.pushEnabled,
+        appVersion: i.appVersion,
+        createdAt: i.createdAt,
+        updatedAt: i.updatedAt,
+      },
+      role,
+    );
+  }
+
   async execute(input: ListInspectorsInput): Promise<ListInspectorsOutput> {
     const { pagination, actor } = input;
     let { filters } = input;
@@ -76,32 +123,20 @@ export class ListInspectorsUseCase {
       const regionIds = await this.serviceRegionRepo.getInspectorRegionIds(item.id);
       const ratings = await this.ratingsFor([item.id]);
       return {
-        data: [
-          {
-            id: item.id,
-            name: item.name,
-            email: item.email,
-            phone: item.phone,
-            status: item.status,
-            regionIds,
-            serviceTypesJson: item.serviceTypesJson,
-            rating: ListInspectorsUseCase.toRating(ratings.get(item.id)),
-            createdAt: item.createdAt,
-            updatedAt: item.updatedAt,
-          },
-        ],
+        data: [this.toItem(item, regionIds, ratings.get(item.id), actor.role)],
         total: 1,
         page: pagination.page,
         pageSize: pagination.pageSize,
       };
     }
 
-    // CL_ADMIN and CL_USER can only see eligible inspectors for their tenant
+    // CL_ADMIN and CL_USER can only see eligible inspectors for their tenant, and
+    // never the "No base address" filter (they cannot see base state, L-F01-07).
     if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
       if (!actor.tenantId) {
         throw new ForbiddenError('AUTH_FORBIDDEN', 'Insufficient permissions');
       }
-      filters = { ...filters, tenantId: actor.tenantId };
+      filters = { ...filters, tenantId: actor.tenantId, missingBaseAddress: undefined };
     }
 
     const [data, total] = await Promise.all([
@@ -116,18 +151,9 @@ export class ListInspectorsUseCase {
     ]);
 
     return {
-      data: data.map((i) => ({
-        id: i.id,
-        name: i.name,
-        email: i.email,
-        phone: i.phone,
-        status: i.status,
-        regionIds: regionIdsMap.get(i.id) ?? [],
-        serviceTypesJson: i.serviceTypesJson,
-        rating: ListInspectorsUseCase.toRating(ratingsMap.get(i.id)),
-        createdAt: i.createdAt,
-        updatedAt: i.updatedAt,
-      })),
+      data: data.map((i) =>
+        this.toItem(i, regionIdsMap.get(i.id) ?? [], ratingsMap.get(i.id), actor.role),
+      ),
       total,
       page: pagination.page,
       pageSize: pagination.pageSize,

@@ -32,6 +32,12 @@ export function TenantDetailPage() {
   const { user } = useAuth();
   const { tenant, isLoading, isError, refetch } = useTenantAdminDetail(id ?? null);
 
+  // Per-role Back target: /tenants is AuthGuard-denied for CL_ADMIN (it would bounce them with a
+  // permission toast), so CL_ADMIN falls back to /dashboard (L-X01-07). Used by both the header
+  // Back button and the not-found EmptyState.
+  const backTo = user?.role === 'CL_ADMIN' ? '/dashboard' : '/tenants';
+  const backLabel = user?.role === 'CL_ADMIN' ? 'Back to Dashboard' : 'Back to Agencies';
+
   const [activeTab, setActiveTab] = useState('overview');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
@@ -65,10 +71,6 @@ export function TenantDetailPage() {
     setDrawerOpen(false);
     refetch();
   }, [refetch]);
-
-  const handleBack = useCallback(() => {
-    navigate('/tenants');
-  }, [navigate]);
 
   const handleDeactivateClick = useCallback(() => {
     setShowDeactivateConfirm(true);
@@ -123,7 +125,7 @@ export function TenantDetailPage() {
         <EmptyState
           title="Agency not found"
           description="The agency you are looking for does not exist or you do not have access."
-          action={{ label: 'Back to Agencies', onClick: handleBack }}
+          action={{ label: backLabel, onClick: () => navigate(backTo) }}
         />
       </div>
     );
@@ -142,6 +144,7 @@ export function TenantDetailPage() {
     <div className="px-8 py-6">
       <PageHeader
         title={tenant.name}
+        backTo={backTo}
         primaryAction={{ label: 'Edit', icon: 'mdi-pencil-outline', onClick: handleEdit }}
         secondaryActions={secondaryActions}
       />

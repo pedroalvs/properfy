@@ -31,8 +31,55 @@ function parseNumberField(value: string): number | undefined {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
+export interface EditPayloadOptions {
+  /** The form values the drawer loaded the property with — used to send only
+   * coordinates the user actually changed. */
+  initial?: PropertyFormData;
+  /** The property's current geocoding status — only a MANUAL property may be
+   * unlocked by clearing both coordinate fields (sends latitude:null, longitude:null). */
+  geocodingStatus?: string;
+}
+
+/**
+ * Coordinate fields for an EDIT payload (X02-1 / dec. 18): send the pair only
+ * when a parsed value differs from the initial, send null/null only to unlock a
+ * MANUAL property, and never send coordinates that were not changed. An
+ * incomplete pair (one field empty) is omitted entirely.
+ */
+function editCoordinateFields(
+  data: PropertyFormData,
+  opts: EditPayloadOptions,
+): { latitude?: number | null; longitude?: number | null } {
+  const latStr = data.latitude.trim();
+  const lngStr = data.longitude.trim();
+  const initLat = opts.initial?.latitude.trim() ?? '';
+  const initLng = opts.initial?.longitude.trim() ?? '';
+
+  const bothFilled = latStr !== '' && lngStr !== '';
+  const bothEmpty = latStr === '' && lngStr === '';
+
+  if (bothFilled) {
+    const changed =
+      initLat === '' ||
+      initLng === '' ||
+      parseFloat(latStr) !== parseFloat(initLat) ||
+      parseFloat(lngStr) !== parseFloat(initLng);
+    return changed ? { latitude: parseFloat(latStr), longitude: parseFloat(lngStr) } : {};
+  }
+  if (bothEmpty && opts.geocodingStatus === 'MANUAL') {
+    return { latitude: null, longitude: null };
+  }
+  // non-MANUAL both-empty, or an incomplete pair: send nothing.
+  return {};
+}
+
 /** Map form data to the shape expected by the shared Zod schema. */
-function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit', tenantId?: string | null) {
+function toSchemaPayload(
+  data: PropertyFormData,
+  mode: 'create' | 'edit',
+  tenantId?: string | null,
+  editOptions?: EditPayloadOptions,
+) {
   if (mode === 'create') {
     return {
       ...(parseNumberField(data.privateAreaM2) !== undefined
@@ -87,14 +134,25 @@ function toSchemaPayload(data: PropertyFormData, mode: 'create' | 'edit', tenant
     notes: data.notes.trim() || null,
   };
 
-  if (data.latitude.trim()) {
-    payload.latitude = parseFloat(data.latitude.trim());
-  }
-  if (data.longitude.trim()) {
-    payload.longitude = parseFloat(data.longitude.trim());
+  if (editOptions) {
+    // Diff against the loaded values: only send coordinates the user changed.
+    Object.assign(payload, editCoordinateFields(data, editOptions));
+  } else {
+    // No diff context (e.g. validation): keep the legacy "send if non-empty".
+    if (data.latitude.trim()) payload.latitude = parseFloat(data.latitude.trim());
+    if (data.longitude.trim()) payload.longitude = parseFloat(data.longitude.trim());
   }
 
   return payload;
+}
+
+/** Build the edit PATCH payload with the coordinate diff applied — exported for tests. */
+export function buildPayload(
+  data: PropertyFormData,
+  initial: PropertyFormData,
+  geocodingStatus?: string,
+): Record<string, unknown> {
+  return toSchemaPayload(data, 'edit', undefined, { initial, geocodingStatus }) as Record<string, unknown>;
 }
 
 function isRequiredError(issue: { code?: string; message: string }): boolean {
@@ -121,7 +179,12 @@ export interface SaveResult {
 }
 
 export interface UsePropertySaveReturn {
-  save: (data: PropertyFormData, propertyId?: string, tenantIdOverride?: string) => Promise<SaveResult>;
+  save: (
+    data: PropertyFormData,
+    propertyId?: string,
+    tenantIdOverride?: string,
+    editOptions?: EditPayloadOptions,
+  ) => Promise<SaveResult>;
   isSaving: boolean;
   validate: (data: PropertyFormData, mode: 'create' | 'edit') => PropertyFormErrors;
 }
@@ -150,12 +213,12 @@ export function usePropertySave(): UsePropertySaveReturn {
     return errors;
   }, []);
 
-  const save = useCallback(async (data: PropertyFormData, propertyId?: string, tenantIdOverride?: string): Promise<SaveResult> => {
+  const save = useCallback(async (data: PropertyFormData, propertyId?: string, tenantIdOverride?: string, editOptions?: EditPayloadOptions): Promise<SaveResult> => {
     setIsSaving(true);
     try {
       let newId: string | undefined;
       if (propertyId) {
-        const payload = toSchemaPayload(data, 'edit');
+        const payload = toSchemaPayload(data, 'edit', undefined, editOptions ?? {});
         const { error } = await api.PATCH('/v1/properties/{propertyId}', {
           params: { path: { propertyId } },
           body: payload as UpdatePropertyBody,

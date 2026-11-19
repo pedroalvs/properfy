@@ -14,6 +14,7 @@ function makeEntity(overrides: Partial<ConstructorParameters<typeof ServiceTypeE
     flowType: 'STANDARD' as any,
     requiresRentalTenantConfirmation: true,
     status: 'ACTIVE' as any,
+    defaultDurationMinutes: 45,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -38,6 +39,7 @@ describe('CreateServiceTypeUseCase — name uniqueness', () => {
         name: 'Routine Inspection',
         flowType: 'STANDARD' as any,
         requiresRentalTenantConfirmation: true,
+        defaultDurationMinutes: 45,
         actor: AM_ACTOR,
       }),
     ).rejects.toThrow(ServiceTypeNameConflictError);
@@ -60,6 +62,7 @@ describe('CreateServiceTypeUseCase — name uniqueness', () => {
         name: 'routine inspection',
         flowType: 'STANDARD' as any,
         requiresRentalTenantConfirmation: true,
+        defaultDurationMinutes: 45,
         actor: AM_ACTOR,
       }),
     ).rejects.toThrow(ServiceTypeNameConflictError);
@@ -80,6 +83,7 @@ describe('CreateServiceTypeUseCase — name uniqueness', () => {
         name: 'New Name',
         flowType: 'STANDARD' as any,
         requiresRentalTenantConfirmation: true,
+        defaultDurationMinutes: 45,
         actor: AM_ACTOR,
       }),
     ).rejects.toThrow(ServiceTypeCodeConflictError);
@@ -101,6 +105,7 @@ describe('CreateServiceTypeUseCase — name uniqueness', () => {
       name: 'Brand New Type',
       flowType: 'STANDARD' as any,
       requiresRentalTenantConfirmation: true,
+      defaultDurationMinutes: 45,
       actor: AM_ACTOR,
     });
 

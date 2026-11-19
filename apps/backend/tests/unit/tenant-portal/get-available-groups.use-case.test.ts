@@ -173,4 +173,29 @@ describe('GetAvailableGroupsUseCase', () => {
     expect(result.groups).toEqual([]);
     expect(serviceGroupRepo.findPortalEligibleSlots).not.toHaveBeenCalled();
   });
+
+  it('offers no groups for an inspector-driven rejection (INSPECTOR_UNABLE)', async () => {
+    const appt = makeAppointment();
+    (appt as any).status = 'REJECTED';
+    (appt as any).rejectionReasonCode = 'INSPECTOR_UNABLE';
+    appointmentRepo.findById.mockResolvedValue({ appointment: appt, contact: null, restrictions: [] });
+
+    const result = await useCase.execute(makeInput());
+
+    expect(result.groups).toEqual([]);
+    // Short-circuits before ever consulting slots (L-F03-01, D20).
+    expect(serviceGroupRepo.findPortalEligibleSlots).not.toHaveBeenCalled();
+  });
+
+  it('still offers groups after a tenant decline (TENANT_DECLINED)', async () => {
+    const appt = makeAppointment();
+    (appt as any).status = 'REJECTED';
+    (appt as any).rejectionReasonCode = 'TENANT_DECLINED';
+    appointmentRepo.findById.mockResolvedValue({ appointment: appt, contact: null, restrictions: [] });
+
+    const result = await useCase.execute(makeInput());
+
+    expect(result.groups).toHaveLength(1);
+    expect(serviceGroupRepo.findPortalEligibleSlots).toHaveBeenCalled();
+  });
 });

@@ -34,8 +34,12 @@ export interface RequestInvoiceResult {
   periodEnd: string;
 }
 export interface InvoiceSnapshotLine {
+  /** `BONUS` lines have no appointment/address; they carry `description`. */
+  kind?: 'SERVICE' | 'BONUS';
+  entryId?: string;
+  description?: string;
   serviceDate: string;
-  appointmentCode: string;
+  appointmentCode: string | null;
   propertyAddress: string | null;
   serviceType: string | null;
   amount: number;

@@ -610,3 +610,58 @@ describe('ListAppointmentsUseCase', () => {
     });
   });
 });
+
+describe('ListAppointmentsUseCase inspectorIssue (F03)', () => {
+  function repo(): IAppointmentRepository {
+    return {
+      findById: vi.fn(),
+      findAll: vi.fn().mockResolvedValue([makeAppointmentListItem()]),
+      count: vi.fn().mockResolvedValue(1),
+      save: vi.fn(),
+      update: vi.fn(),
+      saveContact: vi.fn(),
+      updateContact: vi.fn(),
+      saveRestriction: vi.fn(),
+      deleteRestrictionsByAppointmentId: vi.fn(),
+      replaceRestrictions: vi.fn(),
+    } as unknown as IAppointmentRepository;
+  }
+
+  it('flattens the latest CANT_DO onto the row in a single batched query', async () => {
+    const appointmentRepo = repo();
+    const fieldEventRepo = {
+      findLatestCantDoByAppointmentIds: vi.fn().mockResolvedValue([
+        {
+          appointmentId: 'appt-1',
+          reasonCode: 'KEY_FAILED',
+          note: 'Lockbox code wrong',
+          inspectorId: 'insp-1',
+          inspectorName: 'Jane Doe',
+          occurredAt: new Date('2026-11-03T09:41:12.000Z'),
+        },
+      ]),
+    };
+    const useCase = new ListAppointmentsUseCase(
+      appointmentRepo,
+      new AuthorizationService({ log: vi.fn() } as any),
+      fieldEventRepo as never,
+    );
+    const result = await useCase.execute({ filters: {}, pagination: defaultPagination, actor: makeActor({ role: 'AM' }) });
+
+    expect(fieldEventRepo.findLatestCantDoByAppointmentIds).toHaveBeenCalledTimes(1);
+    expect(fieldEventRepo.findLatestCantDoByAppointmentIds).toHaveBeenCalledWith(['appt-1']);
+    expect(result.data[0]!.inspectorIssue).toMatchObject({ reason: 'KEY_FAILED', inspectorName: 'Jane Doe' });
+  });
+
+  it('leaves inspectorIssue null for a row with no CANT_DO', async () => {
+    const appointmentRepo = repo();
+    const fieldEventRepo = { findLatestCantDoByAppointmentIds: vi.fn().mockResolvedValue([]) };
+    const useCase = new ListAppointmentsUseCase(
+      appointmentRepo,
+      new AuthorizationService({ log: vi.fn() } as any),
+      fieldEventRepo as never,
+    );
+    const result = await useCase.execute({ filters: {}, pagination: defaultPagination, actor: makeActor({ role: 'AM' }) });
+    expect(result.data[0]!.inspectorIssue).toBeNull();
+  });
+});

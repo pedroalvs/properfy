@@ -82,6 +82,15 @@ fly secrets set WHATSAPP_API_URL="https://api.zenvia.com/v2"
 # database-backed credential that takes priority over this Fly secret when
 # present. If a token was ever saved there, update or remove it too —
 # otherwise the app keeps using the stored value regardless of this secret.
+#
+# PERMANENT GEOCODING (X02-1): every coordinate the app stores is requested in
+# permanent mode (permanent=true), as Mapbox terms require. The account/token
+# must be entitled to permanent geocoding. Symptom of a non-entitled account:
+# properties land in FAILED with geocoding_failure_code =
+# MAPBOX_PERMANENT_GEOCODING_UNAVAILABLE and branches save without coordinates
+# (a log line "Mapbox permanent geocoding unavailable ..."). Confirm entitlement
+# with the permanent-geocoding smoke in docs/ops/pre-deploy-smoke-checklist.md
+# (§5) — a 200 alone is not proof; the "Permanent Geocoding API" counter must rise.
 fly secrets set MAPBOX_ACCESS_TOKEN="sk.xxxxx"
 
 # Enable background job processing (pg-boss)

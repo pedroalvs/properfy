@@ -42,7 +42,7 @@ describe('RequestInvoicePage', () => {
     // Select the first period → preview loads.
     fireEvent.click(screen.getAllByTestId('period-option')[0]);
     await waitFor(() => expect(screen.getByTestId('request-invoice-preview')).toHaveTextContent(/1,?050/));
-    expect(screen.getByTestId('request-invoice-preview')).toHaveTextContent(/3 approved payouts/);
+    expect(screen.getByTestId('request-invoice-preview')).toHaveTextContent(/3 approved items/);
 
     // Request the invoice → success card.
     fireEvent.click(screen.getByRole('button', { name: /^Request Invoice$/ }));
@@ -58,7 +58,7 @@ describe('RequestInvoicePage', () => {
     await waitFor(() => expect(screen.getAllByTestId('period-option').length).toBeGreaterThan(0));
     fireEvent.click(screen.getAllByTestId('period-option')[0]);
     // Wait for the preview DATA (not just the skeleton) so the Request button is enabled.
-    await waitFor(() => expect(screen.getByTestId('request-invoice-preview')).toHaveTextContent(/3 approved payouts/));
+    await waitFor(() => expect(screen.getByTestId('request-invoice-preview')).toHaveTextContent(/3 approved items/));
     fireEvent.click(screen.getByRole('button', { name: /^Request Invoice$/ }));
 
     await waitFor(() => expect(screen.getByTestId('request-invoice-error')).toHaveTextContent(/No approved payouts/));

@@ -1,5 +1,5 @@
 import type { NotificationClass } from '../enums';
-import { formatCivilDate, formatWallTimeRange } from '../utils/format-display-date';
+import { formatCivilDate, formatWallTime, formatWallTimeRange } from '../utils/format-display-date';
 
 /** Path (relative to a web app base URL) at which the Properfy logo is served. */
 export const PROPERFY_LOGO_PATH = '/images/properfy-logo-red.png';
@@ -51,6 +51,14 @@ export const MANDATORY_TEMPLATE_CODES = [
   'REPORT_FAILED',
   'TENANT_PORTAL_LINK',
   'INSPECTION_SATISFACTION_SURVEY',
+  // F06 arrival-time notices. One code, two channel rows (EMAIL + SMS) like
+  // TENANT_PORTAL_LINK; never add an _SMS twin — see templateFamily() in
+  // notify-on-status-transition.handler.ts, whose family folding would cause
+  // cross-channel suppression. They are also kept out of
+  // STATUS_TRANSITION_TEMPLATE_CODES / RENTAL_TENANT_NOTICE_CODES (F06 D11).
+  'TENANT_ETA_MORNING',
+  'TENANT_ETA_ON_THE_WAY',
+  'TENANT_ETA_DELAY',
 ] as const;
 
 export type MandatoryTemplateCode = (typeof MANDATORY_TEMPLATE_CODES)[number];
@@ -63,11 +71,13 @@ export type MandatoryTemplateCode = (typeof MANDATORY_TEMPLATE_CODES)[number];
 export const PLATFORM_ONLY_TEMPLATE_CODES = [
   'PASSWORD_RESET',
   'INSPECTION_STUCK_ALERT',
+  'INSPECTOR_UNABLE_ALERT',
   'INSPECTOR_GROUP_ASSIGNED',
   'INSPECTOR_GROUP_UNASSIGNED',
   'INSPECTOR_GROUP_RESCHEDULED',
   'INSPECTOR_GROUP_JOBS_ADDED',
   'TENANT_NOTICE_FORWARDED_AGENCY',
+  'INSPECTOR_NOTICE_SMS',
 ] as const;
 
 export type PlatformOnlyTemplateCode = (typeof PLATFORM_ONLY_TEMPLATE_CODES)[number];
@@ -123,6 +133,7 @@ export const SYSTEM_TEMPLATE_CODES = [
   'REPORT_FAILED',
   'REGION_DEACTIVATED',
   'INSPECTION_STUCK_ALERT',
+  'INSPECTOR_UNABLE_ALERT',
 ] as const satisfies readonly (
   | MandatoryTemplateCode
   | PlatformOnlyTemplateCode
@@ -163,6 +174,9 @@ export const TEMPLATE_CODE_LABELS: Record<MandatoryTemplateCode, string> = {
   REPORT_FAILED: 'Report Failed',
   TENANT_PORTAL_LINK: 'Tenant Portal Link',
   INSPECTION_SATISFACTION_SURVEY: 'Satisfaction Survey',
+  TENANT_ETA_MORNING: 'Arrival Estimate – Morning',
+  TENANT_ETA_ON_THE_WAY: 'Inspector On The Way',
+  TENANT_ETA_DELAY: 'Inspector Running Late',
 };
 
 /**
@@ -173,11 +187,13 @@ export const TEMPLATE_CODE_LABELS: Record<MandatoryTemplateCode, string> = {
 export const PLATFORM_TEMPLATE_CODE_LABELS: Record<PlatformOnlyTemplateCode, string> = {
   PASSWORD_RESET: 'Password Reset',
   INSPECTION_STUCK_ALERT: 'Inspection Stuck Alert',
+  INSPECTOR_UNABLE_ALERT: 'Inspector Unable Alert',
   INSPECTOR_GROUP_ASSIGNED: 'Inspector Group Assigned',
   INSPECTOR_GROUP_UNASSIGNED: 'Inspector Group Unassigned',
   INSPECTOR_GROUP_RESCHEDULED: 'Inspector Group Rescheduled',
   INSPECTOR_GROUP_JOBS_ADDED: 'Inspector Group Jobs Added',
   TENANT_NOTICE_FORWARDED_AGENCY: 'Tenant Notice Forwarded to Agency',
+  INSPECTOR_NOTICE_SMS: 'Inspector Notice (SMS)',
 };
 
 /**
@@ -287,8 +303,14 @@ export const TEMPLATE_TARGETS: Record<
   REPORT_FAILED: 'USER_ACCOUNT',
   TENANT_PORTAL_LINK: 'RENTAL_TENANT',
   INSPECTION_SATISFACTION_SURVEY: 'RENTAL_TENANT',
+  // Dispatched by modules/tenant-eta (morning job, evaluate worker, delay sweep;
+  // email + SMS) — TASK-F06-2.
+  TENANT_ETA_MORNING: 'RENTAL_TENANT',
+  TENANT_ETA_ON_THE_WAY: 'RENTAL_TENANT',
+  TENANT_ETA_DELAY: 'RENTAL_TENANT',
   PASSWORD_RESET: 'USER_ACCOUNT',
   INSPECTION_STUCK_ALERT: 'PLATFORM_OPS',
+  INSPECTOR_UNABLE_ALERT: 'PLATFORM_OPS',
   INSPECTOR_GROUP_ASSIGNED: 'INSPECTOR',
   INSPECTOR_GROUP_UNASSIGNED: 'INSPECTOR',
   INSPECTOR_GROUP_RESCHEDULED: 'INSPECTOR',
@@ -297,6 +319,9 @@ export const TEMPLATE_TARGETS: Record<
   // message is suppressed, so a RENTAL_TENANT target here would suppress the mirror
   // too and forward it again, forever.
   TENANT_NOTICE_FORWARDED_AGENCY: 'PROPERTY_MANAGER',
+  // INSPECTOR — the critical-notice SMS fallback, sent to the inspector's own phone by
+  // deliver-inspector-notice.use-case.ts (INSPECTOR_NOTICE_SMS, via inspector.phone).
+  INSPECTOR_NOTICE_SMS: 'INSPECTOR',
 };
 
 /** Target for any template code; `undefined` for custom codes outside both catalogs. */
@@ -341,10 +366,16 @@ export const PROTECTED_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClas
   // here to keep them consent-bypassed (matches platform-notification-templates.ts).
   PASSWORD_RESET: 'TRANSACTIONAL',
   INSPECTION_STUCK_ALERT: 'TRANSACTIONAL',
+  INSPECTOR_UNABLE_ALERT: 'TRANSACTIONAL',
   INSPECTOR_GROUP_ASSIGNED: 'TRANSACTIONAL',
   INSPECTOR_GROUP_UNASSIGNED: 'TRANSACTIONAL',
   INSPECTOR_GROUP_RESCHEDULED: 'TRANSACTIONAL',
   INSPECTOR_GROUP_JOBS_ADDED: 'TRANSACTIONAL',
+  // Critical-notice SMS fallback. MUST be TRANSACTIONAL: it is sent with tenantId = null,
+  // so OPERATIONAL would make the consent lookup and daily budget resolve against a null
+  // tenant. Pinned here (and declared in platform-notification-templates.ts) so an upsert
+  // cannot silently reclassify it.
+  INSPECTOR_NOTICE_SMS: 'TRANSACTIONAL',
 };
 
 /** Protected code strings — used by UI to disable reclassification. */
@@ -369,6 +400,11 @@ export const DEFAULT_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClass>
   // request is not an appointment action the recipient must receive regardless
   // of opt-out, so it stays consent-checked.
   INSPECTION_SATISFACTION_SURVEY: 'OPERATIONAL',
+  // Consent-checked per channel by decision Q21; never protected — a protected
+  // (TRANSACTIONAL) class would ignore the tenant's opt-out, against F06 D2.
+  TENANT_ETA_MORNING: 'OPERATIONAL',
+  TENANT_ETA_ON_THE_WAY: 'OPERATIONAL',
+  TENANT_ETA_DELAY: 'OPERATIONAL',
 };
 
 export function isProtectedTemplateCode(templateCode: string): boolean {
@@ -506,7 +542,9 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
   // MissingRequiredVariableError and lose the notice entirely.
   INSPECTION_REJECTED_AGENCY: {
     required: ['propertyAddress', 'scheduledDate', 'appointmentCode'],
-    optional: ['rentalTenantName', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl', 'rejectionReason', 'rescheduleLink'],
+    // `rejectedByInspector` (F03, D26) switches the body to the "inspector couldn't
+    // complete it, ops will re-offer" copy; `inspectorName` names them when known.
+    optional: ['rentalTenantName', 'timeSlot', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl', 'rejectionReason', 'rescheduleLink', 'rejectedByInspector'],
   },
   INSPECTION_UNAVAILABILITY_REPORTED: {
     required: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode'],
@@ -552,6 +590,13 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
     required: [],
     optional: ['appointmentId', 'inspectorId', 'startedAt', 'hoursStuck', 'properfyLogoUrl'],
   },
+  // Ops alert when an inspector reports "Can't do this job". Payload is hand-built in
+  // notify-inspector-unable.service.ts (INSPECTOR_UNABLE_ALERT_PAYLOAD_KEYS); `fieldIssueNote`
+  // is empty when the inspector left no note. `properfyLogoUrl` comes from the system layout.
+  INSPECTOR_UNABLE_ALERT: {
+    required: [],
+    optional: ['appointmentId', 'inspectorName', 'fieldIssueReason', 'fieldIssueNote', 'properfyLogoUrl'],
+  },
   INSPECTOR_GROUP_ASSIGNED: {
     required: [],
     optional: ['inspectorName', 'groupCode', 'scheduledDate', 'timeWindow', 'jobCount', 'properfyLogoUrl'],
@@ -575,6 +620,30 @@ export const TEMPLATE_VARIABLES: Record<EditableTemplateCode, TemplateVariableSp
   TENANT_NOTICE_FORWARDED_AGENCY: {
     required: [],
     optional: ['suppressedTemplateLabel', 'suppressedChannel', 'rentalTenantName', 'propertyAddress', 'scheduledDate', 'timeSlot', 'appointmentCode', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'confirmationLink', 'properfyLogoUrl', 'agencyLogoUrl'],
+  },
+  // The whole body is a single operator-built blurb. `message` is REQUIRED so the editor
+  // blocks a save without `{{{message}}}` — the body would otherwise render empty and the
+  // send would fail EMPTY_SMS_BODY. Triple-stash in the seed because SMS text is unescaped.
+  INSPECTOR_NOTICE_SMS: {
+    required: ['message'],
+    optional: [],
+  },
+  // F06 arrival-time notices. etaFrom/etaTo are REQUIRED so the editor (and the
+  // server upsert) block a save without them, and the payload builder throws
+  // MissingRequiredVariableError rather than ever sending a notice without a
+  // time — the triggers always pass `eta`. `rentalTenantName` is optional (same
+  // reason as TENANT_PORTAL_LINK: the spec is per code and serves both channels).
+  TENANT_ETA_MORNING: {
+    required: ['etaFrom', 'etaTo'],
+    optional: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl'],
+  },
+  TENANT_ETA_ON_THE_WAY: {
+    required: ['etaFrom', 'etaTo'],
+    optional: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl'],
+  },
+  TENANT_ETA_DELAY: {
+    required: ['etaFrom', 'etaTo'],
+    optional: ['rentalTenantName', 'propertyAddress', 'scheduledDate', 'appointmentCode', 'inspectorName', 'branchName', 'agencyName', 'agencyPhone', 'serviceTypeName', 'properfyLogoUrl', 'agencyLogoUrl'],
   },
 };
 
@@ -618,6 +687,16 @@ export const ALLOWED_VARIABLES = [
   'inspectorId',
   'suppressedTemplateLabel',
   'suppressedChannel',
+  // Inspector notice SMS fallback — the whole operator-built blurb (F02-1).
+  'message',
+  // Inspector "Can't do this job" ops alert (INSPECTOR_UNABLE_ALERT).
+  'fieldIssueReason',
+  'fieldIssueNote',
+  // Agency rejection email: switches copy when the inspector reported can't-do (D26).
+  'rejectedByInspector',
+  // F06 arrival-time notices: the ±30-min estimate as wall-clock strings.
+  'etaFrom',
+  'etaTo',
 ] as const;
 
 export type AllowedVariable = (typeof ALLOWED_VARIABLES)[number];
@@ -675,4 +754,14 @@ export const SAMPLE_DATA: Record<AllowedVariable, string> = {
   inspectorId: 'e7d6c5b4-4321-4a98-87cd-000000000000',
   suppressedTemplateLabel: 'Inspection Notice',
   suppressedChannel: 'EMAIL',
+  message: 'Properfy: Road closure on Pacific Hwy. Allow extra travel time today.',
+  // INSPECTOR_UNABLE_ALERT: the humanized "Can't do this job" reason and the inspector's note.
+  fieldIssueReason: "Key didn't work",
+  fieldIssueNote: 'Lockbox code was wrong',
+  // INSPECTION_REJECTED_AGENCY: non-empty => inspector-driven rejection copy (D26).
+  rejectedByInspector: 'true',
+  // F06: derived by the same formatter the real send uses (formatWallTime), so
+  // the preview cannot drift from the dispatched text.
+  etaFrom: formatWallTime('10:15'),
+  etaTo: formatWallTime('11:15'),
 };

@@ -17,16 +17,16 @@ You MUST:
 
 ## 1. Tech stack
 
-- **Runtime:** Node.js
-- **Framework:** Fastify
+- **Runtime:** Node.js 24
+- **Framework:** Fastify 4
 - **Architecture:** Clean Architecture (monolith)
-- **ORM:** Prisma
+- **ORM:** Prisma 6
 - **Database:** PostgreSQL (Supabase as infrastructure)
 - **Connection pool:** PgBouncer
-- **Queue:** pg-boss (PostgreSQL-backed — no Redis required)
+- **Queue:** pg-boss 9 (PostgreSQL-backed — no Redis required)
 - **Auth:** Internal JWT (RS256 with `kid` rotation)
 - **Validation:** Zod
-- **Tests:** Vitest (unit/integration) + Supertest (API E2E)
+- **Tests:** Vitest (unit/integration) + Supertest (API) + testcontainers (real PostGIS, `test:integration:db`)
 - **Package manager:** pnpm
 - **Commits:** Conventional Commits
 
@@ -55,20 +55,26 @@ pnpm lint
 # Typecheck
 pnpm typecheck
 
-# Generate Prisma client
-pnpm prisma generate
+# Generate Prisma client (required before typecheck/tests)
+pnpm prisma:generate
 
-# Run migrations (dev)
-pnpm prisma migrate dev
+# Create/apply a migration (dev)
+pnpm prisma:migrate --name <migration_name>
 
-# Create migration
-pnpm prisma migrate dev --name <migration_name>
+# Validate the schema (CI also replays every migration twice on a fresh PostGIS DB)
+pnpm exec prisma validate
 
-# Validate migration (dry-run for CI)
-pnpm prisma migrate diff
+# Unit / route-integration tests (default suite; excludes tests/integration/db)
+pnpm test            # or test:unit / test:integration
+
+# Real-database integration tests (testcontainers, serial)
+pnpm test:integration:db
+
+# Regenerate the OpenAPI spec (then `pnpm --filter shared generate:types`, or `pnpm generate:api` from the root)
+pnpm generate:openapi
 
 # Seed database
-pnpm prisma db seed
+pnpm prisma:seed
 
 # Build
 pnpm build
@@ -89,38 +95,54 @@ apps/backend/
 │   │   │   ├── application/      # Use cases, DTOs, validators
 │   │   │   ├── infrastructure/   # Prisma repos, external services
 │   │   │   └── interfaces/       # Fastify routes, controllers
-│   │   ├── tenant/
-│   │   ├── user/
-│   │   ├── property/
+│   │   ├── app-credential/
 │   │   ├── appointment/
-│   │   ├── service-group/
-│   │   ├── marketplace/
-│   │   ├── rental-tenant-portal/
-│   │   ├── inspector-execution/
-│   │   ├── notification/
+│   │   ├── audit/
 │   │   ├── billing/
+│   │   ├── contact/
+│   │   ├── dashboard/
+│   │   ├── fy/                     # Fy agent integration (API keys, webhooks)
+│   │   ├── inspector/
+│   │   ├── inspector-notice/        # F02-1: notices + Web Push + SMS fallback (platform-scoped)
+│   │   ├── inspector-execution/
+│   │   ├── integration/            # Integrations Hub (provider config, dynamic providers)
+│   │   ├── notification/
+│   │   ├── pricing-rule/
+│   │   ├── property/
+│   │   ├── rental-tenant-portal/
 │   │   ├── report/
-│   │   └── audit/
+│   │   ├── satisfaction-survey/
+│   │   ├── service-group/          # includes the marketplace routes (marketplace.routes.ts)
+│   │   ├── service-region/
+│   │   ├── service-type/
+│   │   ├── tenant/
+│   │   └── user/
 │   ├── shared/
-│   │   ├── domain/               # Shared domain primitives
-│   │   ├── application/          # Shared use case utilities
-│   │   ├── infrastructure/       # Logger, queue, storage, auth middleware
-│   │   └── interfaces/           # Error handler, response helpers, plugins
+│   │   ├── domain/               # Errors, AuditService (audit.ts), requireTenantScope, idempotency, clock
+│   │   ├── application/          # Unit of work (runInTransaction), domain event bus, tenant cron tick
+│   │   ├── infrastructure/       # Prisma client, logger, pg-boss queue, metrics, circuit breaker, rate limiter
+│   │   └── interfaces/           # Error handler, auth/api-key middleware, role guard, response helpers
 │   └── main/
 │       ├── server.ts             # Fastify server setup
+│       ├── env.ts                # Zod-validated environment
 │       ├── routes.ts             # Route registration
 │       ├── plugins.ts            # Plugin registration
-│       └── container.ts          # Dependency injection setup
+│       ├── container.ts          # Dependency injection setup
+│       └── workers.ts            # pg-boss worker registration
 ├── prisma/
 │   ├── schema.prisma
-│   ├── migrations/
+│   ├── migrations/             # squashed to `20260806000000_v1_baseline`; new ones `YYYYMMDDhhmmss_name` (`prisma migrate dev`)
 │   └── seed.ts
 ├── tests/
 │   ├── unit/
-│   ├── integration/
-│   └── e2e/
+│   ├── integration/              # route-level tests (Supertest, in-memory/stubbed deps)
+│   │   └── db/                   # real PostGIS via testcontainers — excluded from `pnpm test`, run with `pnpm test:integration:db`
+│   ├── fixtures/
+│   └── helpers/
 └── ...
 ```
+
+`tests/` is outside the backend `tsconfig` include, so `pnpm typecheck` does not type-check tests; a broken test wiring shows up only when the test runs.
 
 **Convention per module (e.g., `appointment/`):**
 
@@ -176,9 +198,9 @@ When you add a new module, follow this same structure.
 
 ### JWT model
 
-- **Access token:** RS256 with `kid`, TTL 15 minutes.
+- **Access token:** RS256 with `kid`, TTL `JWT_ACCESS_TOKEN_TTL_MINUTES` (default and all environments: 60 minutes).
 - **Refresh token:** rotative, 10-day validity, stored in sessions table.
-- Claims: `userId`, `tenantId` (nullable for AM), `role`, `email`.
+- Claims: `sub` (user id), `tenant_id` (null for AM, OP and INSP), `role`, `branch_id`, `inspector_id`, `sid` (session id). Mapped to `AuthContext` (`userId`, `tenantId`, `role`, …).
 
 ### Roles
 
@@ -189,21 +211,25 @@ When you add a new module, follow this same structure.
 | Client Admin | `CL_ADMIN` | Own tenant |
 | Client User | `CL_USER` | Own tenant, configurable permissions |
 | Inspector | `INSP` | Own schedule |
+| Rental tenant | `TNT` | Portal token only |
+| System | `SYS` | Jobs and automatic transitions (cross-tenant) |
 
 ### Rules
 
 - 2FA mandatory for `AM` from first version.
 - Password policy: min 8 chars + uppercase + lowercase + number + special + blacklist.
 - Audit: login, failure, lock, revoke, refresh, password change.
-- Rate limiting on auth endpoints (see `infra-tecnologia-production-ready.md` for limits).
+- Rate limiting on auth endpoints: per-route `rateLimit` config in `auth/interfaces/auth.routes.ts` (see `docs/runbooks/auth-and-sessions.md`).
 
 ### Multi-tenant enforcement
 
 1. Extract `tenantId` from JWT in middleware.
 2. For tenant routes: **never** trust `tenantId` from request body/query – use JWT context.
 3. Every repository method must scope by `tenantId`.
-4. Super Admin (AM) can specify tenant explicitly when needed.
+4. Cross-tenant roles (`AM`, `OP`, `SYS`) may read without a tenant predicate or target a tenant explicitly; resolve this with `requireTenantScope(actor, action)`, which throws for pinned roles without a tenant and for `INSP`/`TNT` on tenant-dispatching paths.
 5. Never return or modify data of another tenant in tenant context.
+6. Platform-scoped entities (no `tenant_id`; list in the root `CLAUDE.md` §7.1) are guarded by role and `inspectorId`, never by an absent tenant filter. Add the scoping integration test in the same PR as the entity.
+7. Never return or audit the inspector's raw latitude/longitude to/for `CL_*` roles (root `CLAUDE.md` §7.9): expose distance, accuracy and flags only.
 
 ---
 
@@ -224,7 +250,7 @@ When you add a new module, follow this same structure.
 }
 ```
 
-- Error codes: `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409), `INTERNAL_ERROR` (500)
+- Error codes are domain-specific strings (e.g. `AUTH_FORBIDDEN`, `TENANT_SCOPE_REQUIRED`); the HTTP status comes from the error class in `shared/domain/errors.ts`: `ValidationError` 400, `UnauthorizedError` 401, `ForbiddenError` 403, `NotFoundError` 404, `ConflictError` 409, 422 (unprocessable), 429 (rate limit, with `retryAfter`), 503 (storage not configured), 500 otherwise.
 - `request_id` mandatory on every request and job (via middleware)
 
 ### Status transition endpoint
@@ -236,11 +262,176 @@ Body: { targetStatus, reason? }
 
 All state transitions go through this single endpoint.
 
+### Inspector field events (F03-2)
+
+Two inspector actions from the PWA, both `Idempotency-Key`-required and INSP-only:
+
+```text
+POST /v1/inspector/appointments/:appointmentId/cant-do    → 200  "Can't do this job"
+POST /v1/inspector/appointments/:appointmentId/late-notice → 201  "Running late"
+```
+
+- **cant-do** records an `InspectorFieldEvent` (`CANT_DO`) and, in the same transaction, runs `SCHEDULED → REJECTED` as **SYS** with reason code `INSPECTOR_UNABLE` (`ReportCantDoUseCase`); the existing reject side effects (unlink group, release inspector, `INSPECTION_REJECTED_AGENCY` email) run on commit. After commit it also audits (`inspector_field_event.cant_do`), alerts every active OP/AM by email (`INSPECTOR_UNABLE_ALERT` via `NotifyInspectorUnableService`) and emits `inspector_field_event.recorded.v1`. A check-in open at the time is marked `abandoned_at` (all execution readers then treat it as not started; a later `start` restarts the same row). `INSPECTOR_UNABLE` is **system-assigned only** — `SYSTEM_ONLY_REJECTION_CODES`, enforced in `execute-status-transition.use-case.ts`.
+- **late-notice** records a `LATE_NOTICE` event and returns a server-computed `estimatedArrivalAt = max(reference, effectiveNoticeAt) + minutesLate` (`ReportLateNoticeUseCase` + `domain/late-notice.ts`). `reference` is the published-plan stop start when one exists, else the booked window start, read through the `IPublishedStopStartReader` port — F03 registers `NullPublishedStopStartReader` (always window start); TASK-F04-2 wires the real adapter. Allowed only on the job's civil day (agency tz) and only before check-in. No transition, no notification.
+
+Field activity is read back through the appointment module:
+
+```text
+GET /v1/appointments/:appointmentId/field-activity  → 200  execution + field events
+```
+
+Same tenant scope as `GET /v1/appointments/:appointmentId`, but **INSP has no access (403)**. Agency roles (`CL_ADMIN`/`CL_USER`) never receive the inspector's raw lat/lng — `GetAppointmentFieldActivityUseCase` omits the coordinate keys for them (only distances/accuracy/flags remain). The appointment list/detail flatten the latest `CANT_DO` onto `inspectorIssue` (one batched `DISTINCT ON` query per page, no N+1) for AM/OP/CL only — `GetAppointmentUseCase` returns it as `null` for an INSP actor, since it carries another inspector's name/id (the list use case already excludes INSP from its roles). The inspector's own appointment detail (PWA) carries `lastFieldIssue` only when the latest `CANT_DO` is the actor's own (D28). The rental-tenant portal refuses "change time" for a `REJECTED` + `INSPECTOR_UNABLE` appointment (`isPortalChangeTimeBlocked`, `rental-tenant-portal/domain/portal-statuses.ts`) — only operations re-offer it.
+
+### Execution density map (F09-1)
+
+```text
+GET /v1/map/execution-density?fromDate&toDate[&tenantId][&inspectorId]  → 200  check-in density grid
+```
+
+Inspector **check-in** (`inspection_executions.start_latitude/longitude`) density aggregated into a fixed ~100 m grid (`EXECUTION_DENSITY_GRID_SCALE = 1000` cells/degree), in module `inspector-execution/` (route `execution-density.routes.ts`, container key `executionDensity`). **Tenant-scoped** — unlike the platform-scoped inspector entities — through the `appointments.tenant_id` join (`inspection_executions` has no `tenant_id`). AM/OP read platform-wide and may filter by `tenantId`/`inspectorId`; `CL_ADMIN`/`CL_USER` are pinned to their JWT tenant, have `tenantId` ignored and `inspectorId` rejected (403), and may only request the **7/30/90-day presets ending today-Sydney** (`isExecutionDensityPreset`; a non-preset is 400 `PERIOD_NOT_A_PRESET`). RBAC key `map.execution_density`; the role gate runs **before** `requireTenantScope` (which throws a 500-shaped error for INSP/TNT).
+
+Privacy rules (do not regress):
+
+- **Density never returns an individual coordinate.** Aggregation happens **in the SQL** (`PrismaExecutionDensityReader`); the port `ExecutionDensityReader` has no method returning raw rows/coordinates — do not add one or fetch-then-aggregate in memory. Each cell is the fixed **center** (`cellCenter`), never the mean. The response schema strips any undeclared cell key (second barrier).
+- **Cell index by integer scaling:** `FLOOR(start_latitude * ${scale}::int)::int` in `numeric`, never `/ 0.001` (a JS float binds `float8` and misplaces grid-line points). The TS mirror `toCellIndex` (decimal-string integer math) must stay exact against the SQL (tests G5a/D16).
+- **k-anonymity for CL:** cells with `< MIN_CELL_COUNT_CL (3)` check-ins are hidden (AM/OP use `MIN_CELL_COUNT_GLOBAL = 1`); the floor is chosen by **scope type** (pinned tenant → 3), applied in SQL `HAVING` and re-filtered in the use case. CL is restricted to the fixed presets because a per-query `HAVING` does not survive a window-difference attack; the residual risk (differencing the 7/30/90 presets reveals day-band aggregates, never a single day) is accepted and documented.
+- **The layer measures check-ins recorded, not services completed:** a `DONE → REJECTED` (`DONE_REJECTED`) appointment and a reopened one both **count** (a reopened one counts once, at the original `started_at` cell). Abandoned (`abandoned_at` set) and soft-deleted appointments are excluded; `(0,0)`/out-of-range coordinates count only in `excludedWithoutCoordinates`.
+
+No schema change, no migration (reads `abandoned_at` from F03-2). The web consumer is TASK-F09-2.
+
+### Live Day operations dashboard (F05-1, module `live-day/`)
+
+```text
+GET /v1/dashboard/live-day?date&includeGeometry&inspectorId   → 200  per-inspector operational read
+GET /v1/dashboard/locked-time?from&to                         → 200  01.13 confirmation rate
+GET|PUT /v1/inspectors/:inspectorId/alert-thresholds          → 200  per-inspector alert override (inspector.routes.ts)
+```
+
+The read model for the operations "Live Day" screen. **Cross-tenant AM/OP read (D14)** — no `tenant_id` predicate (precedent `PrismaInspectorWorkloadRepository`); documented exception to §5.6 / root §7.1, justified by "inspector is cross-tenant, AM/OP only" and proven by the scoping integration tests. Container key `liveDay`; routes `live-day/interfaces/live-day.routes.ts` (live-day + locked-time) and the two alert-threshold routes in `inspector/interfaces/inspector.routes.ts`. Per-user rate limit on all three (`keyGenerator` = sha256 of the `Authorization` header, IP fallback — `@fastify/rate-limit` runs it at `onRequest`, before auth; live-day 120/min, locked-time 30/min, alert-thresholds 30/min); the global per-IP limit still applies.
+
+- **One aggregated `$queryRaw` per endpoint, ZERO Mapbox (D13).** `PrismaLiveDayReadRepository.getDay` (Algorithm §1) and `getLockedTime` (§7) each run exactly one statement with no external call, in any mode. All derivation is pure and in memory: `filterT1Visible` (reuses the F04 `T1VisibilityService`), `derive-inspector-state`/`-stop-progress`, `resolve-last-known-point`, `compute-accumulated-delay`, `plan-freshness` (STALE via the F04 `computeDayPlanFingerprint`, D17 — the fingerprint input mirrors `loadCandidates`/`configuredOriginFor` exactly or every plan would read false-STALE), `to-eta-inputs` → the shared F06 `projectStopEta`, `derive-alerts` (7 types, §5), `resolve-effective-thresholds`, `build-route-geometry`. `$queryRaw` hazards handled: instants rendered as ISO-UTC text in SQL (`to_char … "Z"`), coords `::float8`, counts `::int`, `json_agg` snake_case camelised in the repo.
+- **Geometry is NEVER read from the DB (F04 Plan B).** PRs #072/#073/#074 dropped `day_plans.route_geometry`, so the Live Day route is ALWAYS an in-memory straight line (origin → coordinate-bearing stops), `routeApproximate` always true, built only when `includeGeometry=selected|all` requests it; the SQL is identical in all three modes (SC-003). `includeGeometry=all` over 60 inspectors → 400 `LIVE_DAY_TOO_MANY_ROUTES`; `selected` without `inspectorId` → 400 `LIVE_DAY_INSPECTOR_REQUIRED`; `date` after tomorrow → 400 `LIVE_DAY_DATE_TOO_FAR`.
+- **Plan infeasibility is an indicator, not an 8th alert** (`routeFeasible`/`routeViolations` from `day_plans.feasible`/`day_plan_stops.late_s`, L-F04-05). Roster (D19): an inspector with no T-1-visible live stop and no active `CANT_DO` is excluded. `live_day.read`/`locked_time.read` info logs carry `durationMs`/`bodyBytes`/`rows` and NEVER inspector coordinates or tokens, including on error paths.
+- **`inspectors.alert_overrides_json`** (`Json?`, platform-scoped, no `tenant_id`) holds the per-inspector `{ delayMinutes, notStartedMinutes }` override (each int 5–240 or null). Read/written through `IInspectorRepository.getAlertOverrides`/`setAlertOverrides`; the PUT last-write-wins, clears with both-null (DB NULL), is a no-op (no audit) when unchanged, and audits `inspector.alert_thresholds_updated` with `tenantId: null`. Platform default is the `liveDayAlerts` `PlatformSetting` key; OUT_OF_WINDOW reads the `fieldEvents.checkInWindowToleranceMinutes` tolerance (both via the F03 30 s cache). `GET /v1/dashboard/locked-time` denominator per D21 (tenant-driven `REJECTED` counted as not locked).
+
+### Reliability index metrics (F07-1, module `reliability/`)
+
+The pure compute engine for the inspector reliability index (03.4b / 03.5). **No HTTP route in F07-1** — the daily snapshot, recompute and AM/OP ranking API are TASK-F07-2; this task exposes only `container.reliability.metricsService` (`ReliabilityMetricsService`), consumed by the snapshot job and by F08. `computeMetric(metric, inspectorId, from, to)` and `computeAll(from, to, inspectorIds?)` work for **any** civil period (F07 uses the 30-day window; F08 reuses them per goal).
+
+- **Eight metrics, pure `domain/` evaluators** (one file each): `PUNCTUALITY` (`punctuality.ts`), `GEOFENCE` (`geofence-compliance.ts`), `NO_STUCK` (`no-stuck.ts`, `finished−started > 6 h` via the moved `STUCK_THRESHOLD_HOURS` in `inspector-execution/domain/stuck-execution.ts`), `SATISFACTION` (survey rating, `< minimumRatings` → `null`), `LATE_NOTICE` (`late-notice.ts`, advance-notice vs published ETA), `CANT_ATTEND` (attendance), `VOLUME` (`volume-reference.ts` median + `volume-prorata.ts`), `DONE_REJECTED` (`NOT_EXECUTED` only). Weight per service = `durationMinutes + 1 × plannedTravelMinutes` (`service-weight.ts`, `RELIABILITY_TRAVEL_FACTOR = 1`); score + renormalisation in `metrics.ts`/`score.ts`; failure details (≤ 80 chars, no address/coordinate) in `metric-failures.ts`.
+- **`inspector_id` is NULL after REJECTED/CANCELLED** (block 7c nulls it on every such transition), so a rejected/no-show service is **never** attributed from `appointments.inspector_id`. The reader attributes from, in order of case: a finished own `inspection_executions` row (EXECUTED), `appointments.inspector_id` for a current DONE without own execution (`DONE_WITHOUT_EXECUTION`), `inspector_field_events.inspector_id` (`CANT_ATTEND`), or `metadata_json->>'releasedInspectorId'` of the paired `appointment.status_transition` audit (later-rejected DONE and OP no-show). A DONE → REJECTED fact's code is read from `metadata_json->>'rejectionReasonCode'` of **its own paired transition** (nearest by `created_at`), never from `appointments.rejection_reason_code` (which a later re-rejection may overwrite); a legacy row without the key counts as "other code" (no fact).
+- **Platform-scoped, NO `tenant_id` (D9, documented exception to §5.6 / root §7.1):** the inspector is cross-tenant (precedents `Inspector`, global `ServiceRegion`, `DayPlan`, `PlatformSetting`). Isolation is by RBAC — `CL_ADMIN`/`CL_USER`/`INSP`/`TNT` get 403 before any read (enforced on the TASK-F07-2 API). `inspection_executions` carries no `tenant_id`; the reader joins `appointments.tenant_id` only to resolve the agency timezone, never to scope.
+- **Two new rejection codes (shared, L-F07-01/04), guarded in `execute-status-transition.use-case.ts`:** `INSPECTOR_NO_SHOW` (OP/AM, **only** `SCHEDULED → REJECTED`; not SYS, not CL) marks a `NO_SHOW_REJECTED` service that penalises **punctuality (NO_SHOW) and CANT_ATTEND (attendance)**; `NOT_EXECUTED` (AM, **only** `DONE → REJECTED`) is the **only** DONE → REJECTED code that penalises the inspector — it drives metric 8 (`DONE_REJECTED`); any other DONE → REJECTED code removes that DONE from the universe. `rejectionReasonCode ∉ allowedRejectionCodesFrom(status)` (or `INSPECTOR_NO_SHOW` with a SYS actor) → `RejectionCodeNotAllowedError` (422 `REJECTION_CODE_NOT_ALLOWED`). The guard also writes `metadata.rejectionReasonCode` on the transition audit; the 5 RBAC sources are unchanged.
+- **One fixed pass, privacy by construction.** `PrismaReliabilityFactsReader` loads the whole period in **7 `$queryRaw` statements regardless of inspector count** (`load` = 3 + 3; `loadCompletedCounts` = 1 for the median), and **never selects a lat/lng column** (D12) — distances/accuracies/radius come back as `float8`/`int`. New index `inspection_executions_finished_at_idx` (`@@index([finished_at])`, migration `20261109000000`, expand-only) backs the execution branch; no new `audit_logs` index (`(action)` and `(entity_type, entity_id)` suffice). Real-DB coverage: `tests/integration/db/reliability-facts.reader.db.test.ts`.
+
+### Reliability index snapshot & API (F07-2, module `reliability/`)
+
+The daily snapshot, AM/OP read API and recompute built on the F07-1 engine. New table **`inspector_reliability_snapshots`** (one row per inspector per civil day, **no `tenant_id`** — D9 exception to §5.6 / root §7.1; migration `20261110000000`, expand-only, ordered after F07-1; FK to `inspectors` no-cascade; `@@unique([inspector_id, snapshot_date])`, `@@index([snapshot_date, score DESC])`, two CHECK constraints on `score`/`status`). Stores `metrics_json` (F07-1 `ReliabilityMetricResult[8]`) + `settings_json` (`weights`, `minimumVolume`, `minimumRatings`, `toleranceMinutes`, `volumeReference`). Retained 400 days (`RELIABILITY_SNAPSHOT_RETENTION_DAYS`).
+
+- **Routes (AM/OP only, action `reliability.view`):** `GET /v1/dashboard/inspector-performance` (ranking) and `GET /v1/dashboard/inspector-performance/:inspectorId` (detail). The use cases `assertRoles` **before any read** (CL_ADMIN/CL_USER/INSP → 403 `FORBIDDEN` + `authorization.denied`, no repo access; TNT/no token → 401). Agencies never see the index (D4); INSP's own index is F08. `position` is the **platform-wide** competition ranking (R2). The response schema strips any undeclared key (no coordinate/email/phone reaches the client); failures are capped at 20 with location-free `detail`. `isStale = snapshotDate < today-Sydney`; `settingsUpdatedAt` = `platform_settings.updated_at` of `reliabilityIndex`.
+- **Jobs (`workers.ts`, Sydney tz):** `reliability.compute-snapshots` (`15 4 * * *`, `teamSize/teamConcurrency 1`) — one pass for all non-deleted inspectors inside one `$transaction` serialized by `pg_advisory_xact_lock(hashtext('reliability.compute-snapshots'))` (04:15 is after `audit.retention`/`day-plan` purge and outside the DST skip); `deleteMany`+`createMany` per day (idempotent); only a `SCHEDULED` run purges rows older than 400 days and all rows of soft-deleted inspectors. `reliability.ensure-today` (`0 5-12 * * *`, no `singletonKey`) + a boot backfill re-enqueue a missing/failed day and an overdue recompute. Both run through `registerWorkers` (two new positional args before `logger`; both worker test sites + `EXPECTED_SCHEDULES` updated).
+- **Recompute on save (03.A1):** a subscriber to the F03 `platform_setting.updated.v1` event enqueues `{ trigger: 'SETTINGS_CHANGED' }` only for key `reliabilityIndex`, with `startAfter = occurredAt + SETTINGS_RECOMPUTE_DELAY_SECONDS (35)` (covers the F03 30 s settings cache), `retryLimit 3`, **no `singletonKey`** (a dropped save would miss the recompute). This task never edits `update-platform-setting.use-case.ts` nor declares the event (R1). Settings are read **after** the lock.
+- **Alert logs (`error`):** `reliability.snapshots_failed { snapshotDate, trigger, reason, attempt }` (any failure; `reason 'TIMEOUT'` for a tx timeout) and `reliability.recompute_overdue { settingsUpdatedAt, computedAt }` (weights saved > 15 min with no recompute). `reliability.snapshots_computed` / `reliability.snapshots_purged` are info. The `dlq-monitor` threshold is unchanged (a single failed job is below it, so the log is the signal). **Exported for F08:** `container.reliability.indexReader` (`ReliabilityIndexReader.getCurrentIndexes`, platform-wide position; `snapshotDate` may be earlier than today). Real-DB coverage: `tests/integration/db/reliability-snapshots.db.test.ts`.
+
 ---
+
+### Inspector program — goals & rewards (F08-1, module `inspector-program/`)
+
+Backend + shared foundation for inspector goals and cash rewards (contract 03.6–03.9, 03.13; criteria 03.A4/03.A5). Consumed by TASK-F08-2/3/4/5/6.
+
+- **Platform-scoped, NO `tenant_id` (D12, documented exception to §5.6 / root §7.1):** `inspector_goals`, `reward_awards`, `goal_period_closures` (migration `20261111000000`, expand-only, after the F07 migrations; enums `GoalMetric`/`GoalComparator`/`RewardAwardStatus`; CHECK constraints live only in the migration SQL — scope-per-metric, comparator-per-metric, dates, positive values, `active = (deactivated_at IS NULL)`, `next_terms`, and `reward_awards_status_fields_chk` where a `VOID` may keep `paid_at` for the F08-6 void-after-paid). The inspector is cross-tenant (precedents `Inspector`, global `ServiceRegion`, `PlatformSetting`, `InspectorReliabilitySnapshot`). Isolation is by RBAC (AM/OP admin; INSP own data; CL_*/TNT → 403) and by `inspectorId`; no row stores an agency name, address or coordinate. Real-DB coverage: `tests/integration/db/inspector-program.repository.db.test.ts`.
+- **One daily job `inspector-program.daily` (`45 4 * * *` Sydney, `workers.ts`, kill switch `INSPECTOR_PROGRAM_JOBS_ENABLED !== 'false'`).** `RunInspectorProgramDailyUseCase` runs COMPUTE steps for `SCHEDULED`/`STARTUP` (`CloseGoalPeriodsUseCase` → then `ScheduleMessagesRunStep`) and MESSAGE steps for `MESSAGES` (registered by TASK-F08-4). The 04:45 run never sends messages; it **enqueues** the 08:00 run on the SAME queue via `IJobQueue.enqueue(..., { startAfter: messagesRunAt(now), singletonKey: 'inspector-program.messages:<today>' })` — never a second `boss.schedule` (pg-boss 9 keeps one schedule per name, L-F08-01). Boot enqueues a `STARTUP` catch-up (singletonKey `inspector-program.daily`).
+- **Closure (Algorithm B) is idempotent and definitive:** per `(goal, period)` one transaction inserts the `GoalPeriodClosure` (`createMany skipDuplicates`; `count 0` ⇒ already closed, skip), then one `PENDING` `RewardAward` per achiever with an **immutable goal snapshot** (`goal_title`/`metric`/`comparator`/`target`/`amount`/`scope_label` + `achieved_value`/`achieved_on`/`index_score_at_close`/`level_at_close`). One `computeAll` per `(periodStart, periodEnd, scopeKey)` group (never per inspector). `goalTermsForPeriod` supplies the terms in force; `next_*` terms are promoted (audit `inspector_goal.terms_applied`) once `today ≥ next_effective_from` and the goal is not mid-catch-up (L-F08-02). **DR2:** the closure uses the latest F07 snapshot ≤ today (`getCurrentIndexes`), stores it in `index_snapshot_date`, logs `warn inspector_program.index_snapshot_stale` when `< today`, and proceeds (null snapshot ⇒ null index/level/date); a late snapshot never re-closes a period. **DR4:** a later `NOT_EXECUTED` rejection never reopens a closed period.
+- **F07 engine extension (owned here, behaviour-preserving):** `ReliabilityMetricsService.computeMetric`/`computeAll` gain an optional `{ regionId?, serviceTypeId? }` scope and `InspectorReliabilityComputation.completedServiceDates`. The scope adds `$6`/`$7` casts to the facts reader's Q1/Q2/Q3 (region = PostGIS `ST_Intersects`, any region status; NULL params ⇒ F07's exact result + query count). The volume-reference median (`loadCompletedCounts`) is **never** scoped.
+- **Reward review (03.13).** A reward is a **system award (no human author)** so any AM/OP approves it, including whoever created the goal (DV2) — `approve` uses a `PENDING → APPROVED` CAS (`updateMany WHERE status='PENDING'`, 0 rows ⇒ re-read ⇒ 409), `void` a CAS. Both invoke `IRewardAwardApprovalHook` inside the transaction — the Q12 integration seam, now the real `BonusLedgerHook` (F08-6). There is **no manual reward payment** (`mark-paid`/`paidOn`); `PAID` is driven by the inspector invoice (F08-6, below).
+- **Inspector surface + performance messages (F08-4).** `GET /v1/inspector/program` (INSP only, local `requireLinkedInspector` with the inspector-execution codes/messages; AM/OP/CL_*/TNT → 403, unlinked INSP → 400; returned **directly**, no `{ data }` envelope) — `GetInspectorProgramUseCase` composes the standing, active-goal progress (`description` server-rendered via `describeGoal`, `openCashTotal` = current-period goals only), the recent awards (`IRecentRewardAwardReader`, latest 50; never exposes `void_reason`) and the **anonymous ranking**. The ranking (`domain/ranking-anonymiser.ts`, 03.A3) reads `ReliabilityIndexReader.getCurrentIndexes()` (whole-platform cohort, L-F08-07), orders by position then `sha256(snapshotDate:inspectorId)`, **drops the id before serialisation**, and empties `entries` below `RANKING_MINIMUM_COHORT = 5`. Three MESSAGE-phase steps (`application/steps/`) run **only** in the 08:00 `MESSAGES` run (never the 04:45 compute run): goal-reached (non-void awards from a 48 h scan — not `ctx.createdAwardIds` — grouped by `(inspector, periodEnd)` into one aggregated notice, dedupe `program-goals-reached:<id>:<periodEnd>`, copy via `domain/program-message-copy.ts`), level-change (reads only `findLatestSnapshotDate`/`findRowsByDate` for latest and latest-1, DR4; skips when `computeWeightsVersion` differs between the two days; 7-day guard via `IRecentProgramNoticeReader` over F02's `HasRecentSystemInspectorNoticeUseCase`, min-7-day spacing so exactly-7-days may send), and streak-risk. All publish `PERFORMANCE_MESSAGE` through F02 with `targetPath '/profile/challenges'`; each step swallows its own errors so one failure never stops the others. No new table/queue/schedule/worker.
+
+### Inspector goal bonus in the ledger & invoice (F08-6 — Q12)
+
+`INSPECTOR_BONUS` is the **only** `financial_entries` type with a **null `tenant_id`** (platform↔inspector leg; a biconditional CHECK `(entry_type='INSPECTOR_BONUS') = (tenant_id IS NULL)` keeps every other type tenant-scoped). The original entry is 1:1 with the reward (`reward_award_id UNIQUE`, `amount > 0`); a reversal carries `reference_entry_id` (→ original, `amount < 0`), never both — a partial unique index on `reference_entry_id` (WHERE `INSPECTOR_BONUS`) makes one reversal per original (raw `23505` → `BonusReversalAlreadyExistsError` 409). `reward_awards.inspector_invoice_id` (FK, set at invoice close) means "invoiced"; a CHECK requires it for `PAID`.
+
+- **Only the inspector-program creates/voids a bonus.** The reward approval mints the entry inside the CAS transaction via `BonusLedgerHook` → `IBonusEntryWriter` (inspector-program `domain/` port, implemented by `PrismaFinancialEntryRepository`; `initiated_by_user_id` null — PR #1229). Voiding a **not-yet-invoiced** reward voids the entry; an **invoiced/`PAID`** reward is **AM-only** (`inspector_program.awards.void_invoiced`; OP → 403 "Only an Admin Master can void an invoiced reward") and creates the negative reversal. The void use case re-reads the invoice link **inside its transaction** so a concurrent close takes the reversal branch (race-safe). Generic billing actions (`void`/`update`/`approve`/`cancel`/`refund`) on a bonus entry → 409 `BONUS_ENTRY_MANAGED_BY_REWARD`.
+- **Invoice sync** runs through `IRewardAwardInvoiceSync` (billing `domain/` port, implemented by `PrismaRewardAwardRepository`, injected as the last optional ctor arg): `assignNumberAndFreeze` links the period's approved rewards inside the freeze transaction (link-count ≠ frozen BONUS lines → rollback + 409 `INVOICE_LINES_CHANGED`); `markPaidInTransaction`/`reversePaymentInTransaction` (new CAS methods) set the rewards `PAID`/`APPROVED` atomically with the invoice write. `RequestInvoiceUseCase` rejects a period net total ≤ 0 with 422 `INVOICE_NON_POSITIVE_TOTAL`. The three invoice readers + `getInspectorEarningsSummary` include `INSPECTOR_BONUS`; `findApprovedPayoutLinesForSnapshot` reads bonus lines in a second query and interleaves by `effective_at`; `getSummary` reports `totalBonuses` (AM/OP). The PDF renders a BONUS line as Appointment "Bonus" + the description.
+- **Agency isolation (never regress):** agencies see no bonus on any surface — the `tenant_id`/`AGENCY_VISIBLE_ENTRY_TYPES` filters drop the tenantless rows; `GET /v1/financial/entries/:id` 404s a bonus for CL; the agency summary's `totalBonuses` is always 0; the agency-scoped FINANCIAL report excludes it. OP sees the platform bonus via `includePlatformBonus`; INSP sees its own payouts + bonuses. Proven by `tests/integration/db/financial-entries-bonus-isolation.db.test.ts` and `financial-entries-bonus.db.test.ts`.
+- **Standing (Algorithms D/E/F), `InspectorProgramStandingService`:** derives level (`resolveInspectorLevel`, no table), streak (`computeStreak`, smallest participated cycle), and on-demand partial progress (one `computeAll` per group; `countsSince`; `UPCOMING` within `UPCOMING_GOAL_LOOKAHEAD_DAYS = 7` without `computeAll`); `hasEarlyAccess` for TASK-F08-2.
+- **Routes** (all `preHandler: authenticate`, AM/OP only; CL_*/INSP/TNT → 403): `GET/POST /v1/inspector-program/goals`, `GET/PATCH /v1/inspector-program/goals/:goalId`, `GET /v1/inspector-program/periods` (`direction=upcoming|past`), `GET /v1/inspector-program/awards`, `GET /v1/inspector-program/summary`, `POST /v1/inspector-program/awards/:awardId/approve|void` (`Idempotency-Key`). Region delete (`DELETE /v1/service-regions/:id`) gains `409 SERVICE_REGION_HAS_ACTIVE_GOALS` via the `IRegionGoalUsageChecker` port (`IGoalRepository.countActiveByScopeRegionId`).
+- **Timezone (DR5):** periods, `starts_at`/`ends_at`/`next_effective_from`, `index_snapshot_date`, the job clock and the messages run are civil dates/times in `PLATFORM_TIMEZONE` (platform program); a service's count date is the agency-tz F07 P2 date (DR1); instants (`approved_at`/`voided_at`/`closed_at`) are UTC.
+
+### Marketplace early offer access (F08-2, in `service-group/`)
+
+Honours the `inspectorProgram.earlyAccess` platform setting (`enabled`/`hours` H/`minLevel` X/`enabledAt`) across the four inspector-facing offer paths. **No migration, no schema change**; reads `service_groups.published_at`, the F07 reliability snapshots, `inspector_regions`/`service_regions` and the inspectors. Consumes TASK-F08-1 (`InspectorProgramStandingService.hasEarlyAccess`, `minScoreForLevel`) and TASK-F07-2 (snapshots).
+
+- **One window, four paths.** `service-group/domain/early-access.ts` is the pure truth: `resolveEarlyAccessParams` → `EarlyAccessParams | null`, `isGroupInEarlyAccess(state, params)`, `offerOpensAt`, `formatOpensAt` (Sydney day+time via the ICU-stable shared `formatShortDayLabel`/`formatInstantTime`). The port `IOfferEarlyAccessPolicy` (service-group `domain/`) is implemented by `OfferEarlyAccessPolicy` (inspector-program `application/`) — same cross-module-port pattern as F08-1's `IRegionGoalUsageChecker`. The repo threads `earlyAccess: EarlyAccessParams | null` (last param) through `findPublishedForInspector`/`countPublishedForInspector`/`findPublishedOfferDetail` via a `Prisma.Sql` `earlyAccessExclusionSql` sibling to `inspectorEligibilitySql` (in the `WHERE`, so it applies before `LIMIT/OFFSET` and list/count/detail cannot diverge), plus `findEarlyAccessStateForGroup` for accept. Use cases resolve the policy **once** per request; `AcceptOfferUseCase` checks after `isGroupEligibleForInspector` and before `acceptOptimistic`, throwing `OfferEarlyAccessOnlyError` (403 `OFFER_EARLY_ACCESS_ONLY`, `details.opensAt`, Sydney message; not declared in OpenAPI — no route here declares 4xx) and logging `info marketplace.early_access_denied`.
+- **Start-safe (DV3):** off by default; the window applies to a group only when at least one **qualified-eligible** inspector exists for it (scored ≥ X in the latest snapshot AND region/type/denylist-eligible); never for groups scheduled today or D+1 (`protectedFrom = todaySydney + 2`); `published_at` reopens the window on each (re)publish; with no snapshot the policy returns null (nobody qualifies).
+- **(L-F08-08) server-owned `enabledAt`:** the window applies only to groups with `published_at ≥ enabledAt`. `enabledAt` is stamped by the backend when `earlyAccess.enabled` flips `false → true`, kept while on, cleared to null when off, via `prepareInspectorProgramSettingForSave` registered into `PLATFORM_SETTING_SAVE_HOOKS` **at the composition root** (`container.ts`; platform-settings never imports inspector-program; `UpdatePlatformSettingUseCase` untouched). A client-sent `enabledAt` is ignored; `enabled true`+`enabledAt null` → no window + `warn marketplace.early_access_missing_enabled_at`. Switching on never hides already-published offers; **increasing H is retroactive** (change it outside business hours). Setting changes are audited by F03 (03.A5); timezone per DR5 (instants UTC, `protectedFrom`/today-D+1 civil in `PLATFORM_TIMEZONE`). `priorityOfferHours` (per-agency, dead) is not reused.
+
+---
+
+### Reports — adding a `ReportType` (F08-5)
+
+The report generator (`report/`) runs the same request → pg-boss `report.generate` → XLSX → signed-download flow for every `ReportType`. **Adding a report type touches 12 places** — three are `Record<ReportType, …>` maps the compiler forces, the rest are easy to miss:
+
+| # | Place | File |
+|---|---|---|
+| 1 | Prisma enum + migration | `prisma/schema.prisma` `enum ReportType` + `…_report_type_<name>` (`ALTER TYPE … ADD VALUE`) |
+| 2 | Shared enum | `packages/shared/src/enums/misc.ts` |
+| 3 | Max period | `report/domain/report.constants.ts` `MAX_DATE_RANGE_MONTHS` (compiler-forced) |
+| 4 | Columns | `report.constants.ts` `REPORT_COLUMNS` + a `<NAME>_COLUMNS` list (compiler-forced) |
+| 5 | Agency allowlist | `report/application/report-access.ts` `AGENCY_REPORT_TYPES` — include only if agencies may run it |
+| 6 | Job switch | `report/application/use-cases/process-report-job.use-case.ts` `switch` |
+| 7 | Reader port | `report/domain/report-data-reader.ts` `IReportDataReader` |
+| 8 | Reader impl | `report/infrastructure/prisma-report-data-reader.ts` (Prisma only, no `$queryRaw`) |
+| 9 | Web chip map | `apps/web/src/lib/status-colors.ts` `REPORT_TYPE_MAP` (compiler-forced) |
+| 10 | Web token + api-types | `apps/web/src/styles/tokens.css` + `pnpm generate:api` (OpenAPI + `api-types.ts`) |
+| +1 | Request plumbing | `request-report.use-case.ts` (`dateAxisField`, any tenant forcing) |
+| +2 | Web dialog | `apps/web/src/features/reports/components/GenerateReportDialog.tsx` (offer/hide fields) |
+
+**`INSPECTOR_PROGRAM` (F08-5, 03.14):** operator-only (AM/OP; **not** in `AGENCY_REPORT_TYPES` → CL_* 403), platform-scoped — the request use case forces `tenant_id = NULL`/`agency_scoped = false` and `dateAxisField = 'period_end'` (ignoring any operator `filters.tenantId`), and the file lands under `reports/platform/INSPECTOR_PROGRAM/<id>.xlsx`. `getInspectorProgramRows` ranges on `goal_period_closures.period_end`, emits one row per reward (P9 order, reusing the inspector-program `compareAwardsForRanking`) plus a no-achievers row per empty closure (per-winner from `goalTermsForPeriod`) and a "Skipped (goal inactive)" row per `SKIPPED_INACTIVE` closure; it joins the bonus `financial_entry` (Ledger status), the `inspector_invoice` (Invoice, `formatInvoiceNumber`), and — for a void-after-paid reward — the reversal invoice via the `line_items_snapshot` `array_contains` filter (GIN-indexed). Instants render in the requester tz (DR5); civil dates in the suite's `dd/mm/yyyy`; no agency/coordinate/raw-id cell. Reader coverage lives in `tests/integration/report/prisma-report-data-reader.integration.test.ts` (real-DB harness, runs in the default `pnpm test`).
+
+### Property files & issues (F10-1, module `property-file/`)
+
+Backend + shared foundation for the property-centred file repository + issue log (contract C.1–C.9 + the "Issues" additive). One cohesive module owns both `PropertyFile` and `PropertyIssue` (issue photos *are* property files; the create-issue transaction spans both tables). Consumed by TASK-F10-2/3/4.
+
+```text
+POST   /v1/property-files/presign              AM/OP/CL_ADMIN (+ INSP for ISSUE photos on own T-1 appt)
+POST   /v1/property-files/confirm              (Idempotency-Key) headObject + file-type sniff + size
+GET    /v1/property-files?propertyId&appointmentId&type   list READY files + per-type counts
+GET    /v1/property-files/:id/download         5-min signed URL
+POST   /v1/property-files/:id/versions         AM/OP/CL_ADMIN — new version (23505 retry)
+DELETE /v1/property-files/:id                  AM/OP — soft delete
+POST   /v1/property-issues                     (Idempotency-Key) AM/OP/CL_ADMIN (STAFF) / INSP (INSPECTOR)
+GET    /v1/property-issues?propertyId&appointmentId       list issues + photos
+GET    /v1/property-issues/unseen-count        AM/OP/CL_ADMIN → { appointmentsWithUnseenIssues, propertiesWithUnseenIssues }
+POST   /v1/property-issues/:id/seen            AM/OP/CL_ADMIN — CAS mark-as-seen
+DELETE /v1/property-issues/:id                 AM/OP — soft delete issue + photos
+```
+
+- **Tenant-scoped** (NOT platform-scoped): `property_files`/`property_issues` carry `tenant_id` (D5). Cross-tenant access → **404**, never 403 (C.A2) via `requireTenantScope`/`assertTenantScope`. **OP is cross-tenant** (v1.3.0) — use `requireTenantScope`; do **not** copy the `get-property.use-case.ts` OP-pinning bug (left untouched, out of scope). `source` is server-derived from the role (R11); CL_USER is read-only.
+- **Presign → confirm (D9).** Presign validates the declared MIME (`allowedMimes`/`issueImageMimes`), builds the key via the shared grammar (`inspection-assets` bucket, D10 — no new bucket), stores a `PENDING` row. Confirm (requires `Idempotency-Key`, D24) does `headObject` + a **magic-byte sniff** — a new `IStorageService.getObjectBytes(bucket,key,maxBytes)` range-reads a prefix, `file-type` + `isDetectedMimeCompatible` (OOXML sniffs as `application/zip`) — + size ≤ `maxFileSizeMb`, sets `confirmed_at`, and flips to `READY` (C.A5). A **new ISSUE photo stays PENDING** until its issue is created (D20).
+- **D20 issue creation** runs one transaction: insert the issue + `linkPendingIssuePhotos` (`UPDATE … WHERE id = ANY(:ids) AND status='PENDING' AND type='ISSUE' AND issue_id IS NULL AND confirmed_at IS NOT NULL AND property_id=:p AND tenant_id=:t`). Every referenced photo must link or it is 409 + rollback (only **confirmed** photos link — C.A5). `cantDoEventId` (INSP, D18) is ownership-checked (own CANT_DO for the appointment).
+- **Mark-as-seen is a CAS** (D23): `UPDATE … WHERE seen_at IS NULL AND deleted_at IS NULL`; 0 rows ⇒ `{ alreadySeen: true }`, audited only when it flips. **INSP identity masking** (D28): the file/issue **list** reads null `createdByUserId`/`seenByUserId`/`cantDoEventId`/`uploadedByUserId` for INSP (content kept). INSP read access reuses the existing T-1 appointment-visibility predicate (`InspectorAppointmentVisibilityAdapter`).
+- **Audit:** `property_file.uploaded/.version_added/.deleted/.purged`, `property_issue.created/.seen/.deleted` (author, date, version — C.A4). Idempotency hash is **actor-bound**.
+- **Retention job** `property-file.retention` (daily 04:00 Sydney, `main/workers.ts`): (1) soft-deleted READY past `deletedRetentionDays`, (2) active past `retentionDays` (if set; purged issue photo leaves the issue, D27), (3) `PENDING` orphans > 24 h → `deleteObject` + `purged_at` + audit, per-row try/catch.
+- **Payload enrichment:** `GET /v1/appointments`/`/v1/properties` list rows gain `hasUnseenIssues` (D26; AM/OP/CL_ADMIN only, false for CL_USER/INSP) + a `withIssues` filter; `/:id` details gain `fileCounts`. Config is the `propertyFiles` PlatformSetting key; role-matrix gains `property_file.*`/`property_issue.*`.
+
+**Portal issue reporting (F10-4, module `rental-tenant-portal/`).** The rental tenant reports a property problem before confirming, through four **token-authenticated** routes (no JWT, no RBAC role — the `TNT` runtime actor), registered in `rental-tenant-portal.routes.ts`:
+
+```text
+POST /v1/rental-tenant-portal/:token/property-issues/presign        issue photo (12/token/hour, D21)
+POST /v1/rental-tenant-portal/:token/property-issues/confirm-upload  (Idempotency-Key) headObject + size + magic bytes + D25 key↔row
+POST /v1/rental-tenant-portal/:token/property-issues                 (Idempotency-Key) source=RENTAL_TENANT_PORTAL, createdByUserId=null
+GET  /v1/rental-tenant-portal/:token/property-issues                 own appointment's RENTAL_TENANT_PORTAL issues (read-only allowed)
+```
+
+- **New portal use cases** (`application/use-cases/presign|confirm|create|list-portal-issue*.use-case.ts`) reuse the F10-1 repository ports (`IPropertyFileRepository`/`IPropertyIssueRepository`), `IStorageService`, `IPlatformSettingsReader`, `IIdempotencyService`, the `isDetectedMimeCompatible` domain helper, `runInTransaction` and the shared storage-key grammar — the F10-1 use cases require a JWT `AuthContext` the token flow lacks, so this does **not** touch merged F10-1 code.
+- **Scope is the token's appointment only.** `IPropertyIssueRepository.findAppointmentScope(appointmentId)` → `{propertyId, tenantId}`; every write/read uses that, never client input. Cross-token/cross-tenant file or issue → **404** (C.A2); confirm also re-parses `storageKey` with `parsePortalIssueStorageKey` and asserts the embedded tenant/appointment match (D25). An appointment with no property → 422 `PORTAL_ISSUE_NO_PROPERTY`. Read-only (expired/superseded) token → writes refused (`PortalActionBlockedError`), list still served.
+- **Photo link is portal-scoped.** Create uses `IPropertyFileRepository.linkPendingPortalIssuePhotos` (not the shared `linkPendingIssuePhotos`), whose atomic `updateMany` WHERE additionally pins `appointment_id = <token appointment>` and `uploaded_by_user_id IS NULL` — so a token can never link another appointment's photo, nor a staff member's in-flight issue photo, on the same property+tenant (defense-in-depth beyond the `tenant_id`/`property_id` scope). The shared method keeps linking property-level (null-appointment) photos for the authenticated F10-1 flow, untouched.
+- **Rate limit (D21):** presign uses a per-route `config.rateLimit` of `{ max: 12, timeWindow: '1 hour', keyGenerator }` where `keyGenerator` = `tokenService.hashToken(params.token)` with IP fallback (precedent `inspector.routes.ts`/`inspector-notice.routes.ts`); confirm/create/list keep the generic `{ max: 30, timeWindow: '1 minute' }` per IP.
+- **Audit** `property_issue.created` with `actorType: 'ANONYMOUS'` (no actor id), resolved `tenantId`. **Privacy-reduced DTOs** (`application/portal-issue-mappers.ts`): the portal never returns reviewer identity / seen status / source / storage key; the presign response omits `storageKey`. **No schema change, no migration, no role-matrix change**; `openapi.json`/`api-types` regenerated for the four routes.
 
 ## 7. Data model
 
-See `projeto-consolidado/modelo-dados-executavel.md` for complete entity definitions.
+See `prisma/schema.prisma` for complete entity definitions.
 
 **Key conventions:**
 
@@ -251,41 +442,50 @@ See `projeto-consolidado/modelo-dados-executavel.md` for complete entity definit
 - Soft delete: `deleted_at` for operational/cadastral entities
 - Audit and financial entries are immutable
 
-**Core entities:**
+**Core entities** (authoritative list: `prisma/schema.prisma`):
 
-1. `Tenant` – agency account
-2. `Branch` – agency branch
-3. `User` – internal authenticated user
-4. `Inspector` – contractor
-5. `Property` – property linked to tenant
-6. `Appointment` – central business entity (state machine)
-7. `AppointmentContact` – tenant contact info
-8. `AppointmentRestriction` – scheduling constraints
-9. `ServiceType` – service catalog
-10. `ServicePriceRule` – pricing per client/type
-11. `ServiceGroup` – grouped inspections for marketplace
-12. `InspectorAvailabilitySlot` – inspector schedule
-13. `RentalTenantPortalToken` – portal access token
-14. `Notification` – sent notification record
-15. `InspectionExecution` – execution record with geolocation
-16. `InspectionAsset` – evidence files
-17. `FinancialEntry` – ledger entries
-18. `InspectorInvoice` – inspector payment closing
-19. `AuditLog` – audit trail
+- Tenancy and access: `Tenant`, `Branch`, `User`, `Session`, `ApiKey`, `IntegrationSetting`
+- Inspectors: `Inspector`, `InspectorAvailabilitySlot`, `ServiceRegion`, `InspectorRegion`
+- Catalog: `ServiceType`, `ServicePriceRule`, `Property`, `Contact`, `AppCredential`
+- Appointments: `Appointment` (state machine), `AppointmentContact`, `AppointmentRestriction`, `AppointmentConfirmationCycle`, `AppointmentImport`, `ServiceGroup`
+- Execution: `InspectionExecution` (start/finish with geolocation; `abandoned_at` for a post-check-in can't-do), `InspectorFieldEvent` (`CANT_DO` / `LATE_NOTICE`; has `tenant_id` of the appointment)
+- Rental tenant portal: `RentalTenantPortalToken`, `RentalTenantPortalActivity`, `SatisfactionSurvey`
+- Notifications: `Notification`, `NotificationAttempt`, `NotificationTemplate`, `NotificationConsent`
+- Finance: `FinancialEntry`, `InspectorInvoice`
+- Audit and compliance: `AuditLog` (+ archive, retention, legal hold), `DataSubjectErasureRequest`, `IdempotencyKey`, `Report`
 
 **Key enums:**
 
 - `appointment_status`: `DRAFT`, `AWAITING_INSPECTOR`, `SCHEDULED`, `REJECTED`, `CANCELLED`, `DONE`
 - `rental_tenant_confirmation_status`: `PENDING`, `CONFIRMED`, `UNAVAILABLE`, `NO_RESPONSE`
-- `notification_channel`: `EMAIL`, `SMS`, `WHATSAPP`
-- `notification_status`: `PENDING`, `SENT`, `DELIVERED`, `FAILED`
-- `financial_entry_type`: `TENANT_DEBIT`, `INSPECTOR_PAYOUT`, `REFUND`, `MANUAL_ADJUSTMENT`
+- `notification_channel`: `EMAIL`, `SMS`
+- `notification_status`: `PENDING`, `SENT`, `DELIVERED`, `FAILED`, `SKIPPED`, `SKIPPED_OPT_OUT`
+- `financial_entry_type`: `TENANT_DEBIT`, `INSPECTOR_PAYOUT`, `REFUND`, `MANUAL_ADJUSTMENT`, `INSPECTOR_BONUS` (Q12/F08-6 — the only type with a null `tenant_id`)
+- `InspectorFieldEventType`: `CANT_DO`, `LATE_NOTICE` (reason/late enums + labels in `packages/shared/src/enums/field-events.ts`)
+- `RejectionReasonCode` includes `INSPECTOR_UNABLE` (system-assigned only; `SYSTEM_ONLY_REJECTION_CODES`)
+
+### Inspector notices (F02-1, module `inspector-notice/`)
+
+`InspectorNotice`, `InspectorNoticeRecipient`, `InspectorPushSubscription` are **platform-scoped — no `tenant_id`** (the subject is the cross-tenant inspector; documented exception to §5.6 / root `CLAUDE.md` §7.1, with the scoping test in `tests/integration/db/inspector-notice.integration.test.ts`). Scope is by role (AM/OP publish/read across inspectors) and by JWT `inspectorId` (INSP box queries filter `inspector_id`).
+
+- **Routes:** AM/OP `POST|GET /v1/inspector-notices`, `GET /v1/inspector-notices/:id`, `POST /v1/inspector-notices/:id/archive`; INSP `GET /v1/inspectors/me/notices(+/unread-count,/:id,/:id/read)`, `POST /v1/inspectors/me/notices/read-all` (bulk mark-all-read: one `updateMany` scoped to the caller's own `inspector_id` over unread, non-archived rows → `{ count }`; idempotent, no audit — reads are telemetry), `GET /v1/inspectors/me/push-config`, `POST /v1/inspectors/me/push-subscriptions(+/unsubscribe)` (10/min rate-limited). No edit/delete of a published notice (archive only).
+- **Publish idempotency:** manual publish requires an `Idempotency-Key`, serialized with `pg_advisory_xact_lock` inside the tx (`repo.acquirePublishLock`) + `getWithHash`/`set(..., tx)`; audit + delivery enqueue run post-commit via `defer`.
+- **Delivery (`inspector-notice.deliver`):** Web Push via `IPushSender` (`WebPushSender` when VAPID set, else `DisabledPushSender`); critical-only SMS fallback through `CreateNotificationUseCase` with platform template `INSPECTOR_NOTICE_SMS` (TRANSACTIONAL, `tenantId=null`, deterministic id so retries don't duplicate). `inspectors.push_enabled` = "has an active subscription" (recomputed on every subscription write; the F01 heartbeat no longer writes it). Deactivating an inspector revokes its subscriptions.
+- **Internal contracts (no HTTP route):** `container.inspectorNotice.publishSystemInspectorNoticeUseCase` (F03/F04/F08; `critical` from the type, idempotent by `dedupeKey`, `targetPath` allowlisted by `INSPECTOR_NOTICE_TARGET_PATTERNS`) and `hasRecentSystemNoticeUseCase` (F08 7-day guard).
+- **Jobs & env:** `inspector-notice.deliver`; cron `inspector-notice.delivery-sweep` (`*/5 * * * *`, pauses 22:00–06:00 Sydney); cron `inspector-notice.auto-archive` (`45 3 * * *`). Env: `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` (optional; absent ⇒ SMS fallback only), `INSPECTOR_NOTICE_SMS_DAILY_CAP` (default 500, `none`=unlimited), `INSPECTOR_NOTICE_SYSTEM_RETENTION_DAYS` (default 30).
+
+### Configuration: platform vs. agency
+
+- **Platform-wide settings** (thresholds, radii, weights, onboarding values that apply to every agency or to inspectors) go into **`PlatformSetting`**: one row per key, value validated by the typed registry in `packages/shared` (`PLATFORM_SETTINGS_REGISTRY`), read through the `IPlatformSettingsReader` port with a short cache, written only by AM/OP via `/v1/platform-settings/:key` with an audit entry (`platform_setting.updated`, `tenantId: null`). Reused by F04–F10; a feature adds configuration by appending one new key to the registry, never by repurposing an existing one. A setting write emits `platform_setting.updated.v1` (subscribe to react) and runs any key hook registered in `PLATFORM_SETTING_SAVE_HOOKS` (register to derive a field on save); neither requires editing `UpdatePlatformSettingUseCase`. Never add an env var or a hard-coded constant for a value the operation must tune.
+- **Per-agency settings** stay in `tenants.settings_json`, validated by `tenantSettingsSchema` (`packages/shared/src/schemas/tenant.ts`); add new fields as optional so existing rows keep parsing. Example: `mapWindowDays` (1–90, default `MAP_WINDOW_DAYS_DEFAULT = 14`) — the default map period window.
+- **`PATCH /v1/tenants/:id` RBAC & the `mapWindowDays` exception** (`update-tenant.use-case.ts`): AM edits any field; a tenant-pinned `CL_ADMIN` edits only its own tenant; **`OP` is cross-tenant but may write only `settings.mapWindowDays`** — the use case keeps an `OP_EXTRA_SETTINGS_KEYS` allowlist and rejects any top-level field or non-allowlisted settings key from OP with `Forbidden` (the RBAC matrix stays coarse: `tenant.update` with the per-key scope enforced here, not in the matrix). `mapWindowDays` is re-validated against the shared schema shape before the write. **Empty-PATCH guard:** after `findById` (so a missing tenant still 404s), if permission filtering leaves nothing to change the use case returns the current tenant unchanged — no update, no audit entry, no event.
+- A per-inspector override, when a feature needs one, lives on the inspector record and falls back to the platform value.
 
 ---
 
 ## 8. State machine implementation
 
-See `projeto-consolidado/state-machine-executavel.md` for the full transition table.
+See `src/modules/appointment/domain/appointment-state-machine.ts` (`TRANSITION_RULES`) for the full transition table.
 
 **Implementation rules:**
 
@@ -342,7 +542,8 @@ because `tests/` is outside the backend `tsconfig` include.
 - Uses the same PostgreSQL database (Supabase). pg-boss manages its own `pgboss.*` schema tables.
 - Job naming convention: `domain.action` (e.g., `notification.send`, `import.process`, `finance.close`)
 - Internal events: versioned (e.g., `appointment.created.v1`)
-- Dedicated workers for: `notifications`, `imports`, `finance`
+- Workers: all `boss.work(...)` registrations live in `src/main/workers.ts` (one worker process per app instance), wrapped with `withJobMetrics`. Recurring jobs that run per agency use `shared/application/tenant-cron-tick.ts`. Adding a worker means a new positional arg to `registerWorkers` — update its call site in `server.ts` AND the mock list in `src/main/__tests__/workers.test.ts` (plus its `EXPECTED_SCHEDULES`).
+- F03 03.16 completion reminder: cron `inspection-execution.completion-reminder` (`*/15 * * * *`, Sydney) → `SendCompletionRemindersUseCase`. For each SCHEDULED job whose window closed today (agency tz) more than `fieldEvents.completionReminderMinutesAfterWindowEnd` ago without a check-out, it publishes a critical `COMPLETION_REMINDER` inspector notice through F02's `PublishSystemInspectorNoticeUseCase` (idempotent by `buildCompletionReminderDedupeKey`). Suppressed when the inspector is mid-job elsewhere; audited (`inspection.completion_reminder_sent`) only when F02 reports `created`. Body is locked-screen-safe (service code + address only).
 
 **pg-boss usage pattern:**
 ```typescript
@@ -388,12 +589,47 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 - Implement via adapter pattern (easy to swap providers)
 - Circuit breaker on external calls
 - Fallback: keep in `pending_retry` → DLQ on exhaustion
+- **SMS cost observability (F06-1):** every dispatched SMS logs `notification.sms_dispatched { notificationId, tenantId, templateCode, parts, encoding, length, truncated }` (no recipient, measured on the prepared body) and feeds `MetricsCollector.addSmsParts(templateCode, parts)` → `/metrics` `notification.smsPartsByTemplate` (L-F06-11). Email and provider-failure paths do neither.
+- **New rental-tenant template codes (F06-1):** a customizable tenant-facing code is **one code with two channel rows** (EMAIL + SMS) like `TENANT_PORTAL_LINK` — **never an `_SMS` twin** (the `templateFamily()` fold in `notify-on-status-transition.handler.ts` would cross-suppress). The `TENANT_ETA_{MORNING,ON_THE_WAY,DELAY}` seeds live in `platform-notification-templates.ts`; SMS bodies are GSM-7 only (no en dash / apostrophe).
+- **`UpsertNotificationTemplateUseCase` required-var guard (F06-1, L-F06-09):** a template whose code has `required` vars in the shared `TEMPLATE_VARIABLES` is rejected (`ValidationError` 400 `Missing required variables: …`, `field 'bodyHtml'`) when `subject + bodyHtml` omits one — the same `findTemplateVariableIssues` the web editor uses (only `missing` applied). So "never a notice without a time" holds for API-saved templates too.
+- **`TENANT_ETA_*` are pinned OPERATIONAL (F06-1 D2/Q21):** the upsert forces these codes to `OPERATIONAL` and rejects any other `notificationClass` (`ValidationError`, `field 'notificationClass'`). A `TRANSACTIONAL` class bypasses consent (`isBlockedByConsent` returns early), so without this pin an operator — including a `CL_ADMIN` editing its own override — could reclassify an arrival-notice template and defeat the tenant's opt-out.
+- **`CreateNotificationOutput.created` (F06-1):** `{ notificationId, created }` — `created: false` means the deterministic id already existed (no job enqueued), the dedupe signal F06-2's triggers rely on. No existing caller reads it.
+
+### Tenant arrival-notice prediction & consent opt-out (F06-1, module `tenant-eta/`)
+
+- **No sends, no migration** — this task only builds what TASK-F06-2 (triggers) and F05 consume. `domain/`: `computeEtaBand`/`formatEtaBand`/`wallTimeHHmm` (±30-min band, agency tz, GSM-7); `getTenantEtaNotificationId` (UUID v5, fixed namespace, dedupe by kind+appointment+date+channel); `ITenantEtaPlanReader` + `infrastructure/prisma-tenant-eta-plan.reader.ts` (`loadPlan`/`findPlanByInspectorDate`/`listSweepCandidates`, builds the shared `EtaPlanInput`/`EtaRealEvents` + a `stopMeta` confirmation map). Exposed as `container.tenantEta.planReader`.
+- **Cross-tenant read exception (D9, §5.6 / root §7.1):** the reader deliberately reads a whole inspector plan (stops of several agencies) with no `tenant_id` filter, only to compute times; **no HTTP route returns the plan**, and F06-2 creates each notification with the appointment's own `tenant_id`. The scoping proof is `tests/integration/db/tenant-eta-plan.reader.integration.test.ts` (two agencies coexist; reassigned/deleted stops drop out).
+- **`IInspectorFieldEventRepository.findLatestLateNoticeByAppointmentIds(ids, since)`** (DISTINCT ON, `type='LATE_NOTICE'`) feeds the predictor's D18 floor.
+- **Manual AM/OP opt-out (L-F06-03):** `RecordConsentOptOutUseCase` + `POST /v1/notifications/consents/opt-out` (AM/OP, `assertTenantScope` like `…/:consentId/override`) writes an `operator_override` opt-out (reuses the existing enum — **no migration**), storing the recipient as entered (SMS → E.164, unparseable rejected; email trimmed). **Compliance stance:** arrival-time notices are factual-service `OPERATIONAL` messages with **no "reply STOP" footer**; the manual opt-out is the stop mechanism. Idempotent.
+- **Consent EMAIL matching is case-insensitive (F06-2):** `PrismaNotificationConsentRepository` matches EMAIL recipients by a **literal `lower(trim())` equality done in memory** over the tenant+channel+class rows (`findByScope`, the `upsert` idempotency lookup, `listByRecipient`; opted-out preferred) — so an opt-out for `Ana@x.com` blocks a send to `ana@x.com`, and any pre-F06-2 mixed-case row keeps matching **without a data migration**. Phones (E.164) stay exact. Deliberately **not** Prisma `mode:'insensitive'` (ILIKE treats `_`/`%` in an email as wildcards → cross-recipient matches, `%` bulk disclosure, wrong-row re-opt-in). `upsert` updates by **primary key** when the entity's row already exists (OverrideConsentUseCase), never re-matching by recipient. Proof: `tests/integration/db/consent-email-case.integration.test.ts`.
+
+### Tenant arrival-notice triggers (F06-2, module `tenant-eta/application/`)
+
+- **No migration, no HTTP route, no `api-types` change.** Three trigger families funnel into one `TenantEtaNotifier` (`container.tenantEta.*`): the morning job, the on-demand `tenant-eta.evaluate` job (fed by domain-event subscribers), and the delay sweep. The notifier applies guards in a fixed order — `enabled` → before-morning-hour (D13) → agency `tenantEtaNoticesEnabled` (L-F06-06) → agency rental-tenant switch (D10) → flow type → tenant confirmation (L-F06-02) → ON_THE_WAY ≤ 60-min lead (L-F06-01) → recipients (D1/channelMode) → SMS budget reserve (D15) — then creates one row per channel via `CreateNotificationUseCase` with the F06-1 deterministic id, so a stop/day/channel is sent **at most once** (01.A7) even under a three-trigger race. SMS recipients are `toE164Au`-normalized so consent + send match. `payloadJson` carries `etaBandFromAt`/`serviceStartAt`/`planVersion`/`approximate` (not template vars; survive the scrub).
+- **Jobs (`main/workers.ts`, inline, Sydney tz):** `tenant-eta.morning` (`'0 * * * *'`) → enabled-gate → `tenantCronTick.runDue('tenant-eta.morning', morningHour, …)` → `SendMorningEtaNoticesUseCase` (per agency 07:00; cutoff 09:00 in the use case re-checked before each create — the mandatory hour-limit for a `>=`-claiming tick, since a late claim must not send); `tenant-eta.evaluate` (on-demand `boss.work`) → `EvaluateTenantEtaUseCase` (FINISH/CANT_DO next-stop ON_THE_WAY-or-DELAY + tail delays/early-change; LATE_NOTICE re-checks all pending; STALE re-enqueues ≤ 3 attempts then gives up); `tenant-eta.sweep-delays` (`'*/30 * * * *'`, `{teamSize:1,teamConcurrency:1}`) → `SweepTenantEtaDelaysUseCase` (`listSweepCandidates` → delays + early-changes + daily-volume warn). All three bump BOTH worker test sites (`tests/unit/workers.test.ts` counts + `src/main/__tests__/workers.test.ts` `EXPECTED_SCHEDULES`).
+- **Subscribers only enqueue a durable job, never rethrow** (`application/subscribers/`): on `STATUS_TRANSITION → DONE` with `metadata.source === 'INSPECTOR_FINISH'` (set by `FinishInspectionUseCase`; a manual OP/AM DONE has no source → `enqueue_skipped { MANUAL_DONE }`, L-F06-04), on `→ REJECTED` with `metadata.source === 'INSPECTOR_CANT_DO'` (D16), and on `INSPECTOR_FIELD_EVENTS.RECORDED` `LATE_NOTICE`. `occurredAt` comes from the event envelope.
+- **Dedupe is by exact code + appointment + agency-local day + channel** (never a `_SMS` family, D11); `alreadyNotified` counts since the stop's agency-local midnight (a `SKIPPED_OPT_OUT`/`FAILED` row counts). The SMS budget reserve (D15) stops arrival SMS at `floor(cap × smsBudgetSharePercent/100)` using the pipeline's UTC-day counter (emails keep going). Metric `MetricsCollector.tenantEtaNoticeCounts['{kind}|{channel}']`; warn `tenant_eta.daily_volume_high` above `TENANT_ETA_DAILY_SMS_WARN_THRESHOLD` (500). Nothing is sent until an AM/OP enables `tenantEtaNotices` (born off).
 
 ### Maps/Geocoding
 
 - Provider: Mapbox
-- Fallback: mark `pending_geocode` for manual correction
+- Fallback: `GeocodingStatus` `PENDING` → `SUCCESS`/`FAILED` via the `property.geocode` and `property.geocode-retry` jobs; `MANUAL` when the user types lat/lng.
 - `MAPBOX_ACCESS_TOKEN` is called server-to-server: it must have **no browser URL restriction**. It is a distinct credential from the frontend's `VITE_MAPBOX_TOKEN` (which is legitimately URL-restricted). A URL-restricted token used here fails every call with 403, since Mapbox's restriction checks the `Referer` header, which server-side requests never send.
+- **Every coordinate written to the database comes from permanent geocoding** (`permanent=true`, Mapbox terms). Temporary geocoding (the default mode, and the address autocomplete in `mapbox-address-lookup.service.ts`) is for display only and must never be persisted. Clients never send autocomplete coordinates (`createPropertySchema` strips them; the web branch/property forms do not post them); the backend geocodes the address in permanent mode. A latitude/longitude in an **update** body is user input: stored as `MANUAL` only when it differs from the stored pair at 7 decimal places, otherwise the current status is kept (null/null on a non-`MANUAL` property, and incomplete pairs, are ignored — never `MANUAL` without a coordinate). A stored coordinate is permanent iff `geocoded_permanently_at` is set. If the account rejects permanent mode (`MAPBOX_PERMANENT_GEOCODING_UNAVAILABLE`), store no coordinate, set `FAILED` with `geocoding_failure_code`, and do not re-enqueue (the retry sweep skips coded failures). The port `IGeocodingService.geocode(address, { mode })` defaults to `permanent`; `temporary` is display-only (autocomplete, connection test) and never persisted. An import-preview `found` verification carries `mode: 'permanent'`; a `found` without a mode (a pre-deploy preview) is committed as PENDING and re-geocoded. Branches geocode their address on save via the same port and store coordinates in `address_json` with a `branches.geocoded_permanently_at` marker. Shared helpers `formatGeocodingQuery`/`isSameGeocodingAddress` (`src/shared/domain/geocoding-address.ts`) and `geocodeWithTimeout`/`GEOCODE_SYNC_TIMEOUT_MS` (`src/modules/property/application/services/geocode-with-timeout.ts`) are the geocoding query/timeout contract reused by F01. **Legacy backfill (X02-2):** `src/scripts/regeocode-permanent.ts` re-geocodes legacy properties and branches in permanent mode, detects/restores false-`MANUAL` rows from the `property.updated` audit (two proofs: address unchanged in the transition + current pin within tolerance of a fresh permanent geocode), strips temporary coordinates from committed import `preview_json`, and bulk-resumes account-blocked rows (`--retry-failed-permanent`). It is **dry-run by default** and its execution is a gated OPS step (run only after X02-1 is deployed — see `docs/runbooks/regeocode-permanent.md`), never a recurring job. Its DB methods live on the script-scoped port `ILegacyRegeocodeRepository` (`modules/property/domain/legacy-regeocode.repository.ts`) implemented by `PrismaPropertyRepository` (reusing its `syncCoordinates`, so PostGIS stays consistent); every coordinate write is a compare-and-set on `updated_at`, and a `null` legacy result sets `geocoding_status = FAILED` + `geocoding_failure_code = 'LEGACY_PERMANENT_NO_RESULT'` while keeping the coordinate (an accepted residual). **F01-1 inspector base address:** `geocodeInspectorBase(geocoder, address, logger, clock)` (`modules/inspector/application/services/geocode-inspector-base.ts`) wraps that contract in permanent mode and never throws (`{lat,lng,geocodedAt}` or `{failed: 'no_results'|'error'|'timeout'|'permanent_unavailable'}`); the inspector create/OP-update/self-update use cases geocode the base **before** any write and a failure saves the address with null coordinates + `baseGeocodeFailed`. The geocoding port stays in `property/domain` (imported cross-module; not moved). The one-off `scripts/backfill-inspector-base-coords.ts` backfills existing addresses (dry-run offline; `--apply` CAS-writes, aborts if Mapbox unconfigured; `container.geocodingService` is exposed for it).
+
+### Routing
+
+- Provider: **Mapbox**, behind a routing port (`IRoutingService`) with a haversine stub for tests, wired through the Integrations Hub `mapbox` config like geocoding.
+- **Routing engine (F04-1, module `day-plan/`).** `IRoutingService` (`domain/routing.service.ts`) + `MapboxRoutingService`/`StubRoutingService` (`infrastructure/routing/`) + `DynamicRoutingService` (in `integration/infrastructure/dynamic-providers.ts`, resolves the `mapbox` token per call). A shared Postgres token bucket `routing_rate_limit_buckets` (**no `tenant_id`** — platform infra like `cron_job_runs`; one bucket per profile, atomic `UPDATE … RETURNING` with `clock_timestamp()` serializes the two Fly machines, `PostgresRoutingRateLimiter`) caps the per-token/per-environment Mapbox rate (D16/D17). Kill switch env `DAY_PLAN_ROUTING_PROVIDER=mapbox|stub` (default `mapbox`, validated at boot) forces the stub without stopping the publication job; `metrics.recordRoutingProviderCall` adds `routingProviderFailuresByCode` to `/metrics` (L-F04-09). `PlanRouteService.compute` (`application/services/`, `container.dayPlan.planRouteService`) orchestrates matrix → pure optimizer (`@properfy/shared` `route-planning`) → final per-leg Directions pass (`depart_at` ≥ now+60 s; <10 m legs skip Directions) → geometry; interactive mode falls back to the stub with `approximate`, strict (job) mode throws `RoutingDeferredError`. TASK-F04-2 persists the plan (minus routing results since Plan B) and consumes this service. **Plan B (072/074): `compute` results are never persisted** — the read path recomputes **geometry only** on demand via `recomputeRoutingForRecord` (`application/recompute-routing.ts`, PRESERVE_ORDER, interactive+non-strict) / `ComputeDayPlanUseCase.routingFor`. **Directions-only GET (PR-C 074):** `resolveMatrix`'s `needsProviderMatrix` is `OPTIMIZE || forceProviderMatrix`, so PRESERVE_ORDER (the GET geometry recompute) no longer calls the Mapbox Matrix (stub-seeded timeline, overwritten by the per-leg Directions pass). `PlanRouteService.previewOrder` passes `forceProviderMatrix: true` and evaluates a candidate order on a fresh matrix (0 Directions, `etaSource 'MATRIX'`) for the preview endpoint.
+- **19:30 publish job (F04-2, `day-plan/`).** `day-plan.publish` (`'30 * * * *'`, Sydney, singleton `teamSize/teamConcurrency 1` + `singletonKey`, `expireInMinutes 30`) is registered by `registerDayPlanPublishWorker` (`src/main/day-plan-publish.worker.ts`), not inline in `workers.ts`. The handler runs `tenantCronTick.runDue('day-plan.publish', 19, gate)` — the gate releases the `day-plan.publish` claim of any tenant whose T-1 (`appointment.reject-unconfirmed`) has not run yet via the read-only `ICronJobRunRepository.hasClaim` (TenantCronTick itself is unchanged) — then `PublishDayPlansUseCase.execute({ attempt, budgetMs: 25*60_000 })`. The due set is `repo.loadPublishDue()` (claims → `plan_date = local_date + 1`, pure `deriveDueInspectors`: every active agency claimed, not already published+notified). Processing is sequential: compute+`SCHEDULED_PUBLISH` publish, freeze published ETAs, send one critical `ROUTE_PUBLISHED` notice (F02, dedupe `route-published:{inspectorId}:{date}`). Attempts 1–2 defer on `RoutingDeferredError` (stop the batch, `continuation` → `boss.send({attempt+1}, startAfter 120)`); attempt 3 publishes approximate with an explicit reason. Kill switch env `DAY_PLAN_PUBLISH_ENABLED` (default `true`; `'false'` unschedules). `publish_completed` logs at `error` when approximate≠NO_PROVIDER or a deferral on attempt 3; `metrics.incrementDayPlansApproximate` adds `routing.dayPlansApproximateTotal` to `/metrics` (L-F04-09). `withJobMetrics` now lives in `src/main/with-job-metrics.ts` (shared by `workers.ts` and this worker).
+- **Route sheet, metric & purge (F04-2, `day-plan/`).** The route sheet (`GET /v1/inspector/day-plans/:date/sheet` INSP 20/min, `GET /v1/day-plans/:inspectorId/:date/sheet` AM/OP 20/min; `?format=pdf|xlsx`, `csv`→400) recomputes through the same read use case as the GET (so INSP gets the L-F04-01 no-routing STALE clear), then `DayPlanSheetRenderer` (`infrastructure/day-plan-sheet.renderer.ts`) renders XLSX (shared `ExcelJsXlsxGenerator.generate(cols, rows, { sheetName, preamble })`, worksheet "Route") or PDF (`PdfKitDayPlanSheetGenerator`, built-in Helvetica → no font assets). Both formats share `buildDayPlanSheetRows` so they never drift. INSP downloads are limited to the last 30 days (`DAY_PLAN_SHEET_TOO_OLD`, AM/OP unlimited); each delivered sheet writes a `day_plan.exported` audit with **no** personal data (`{ format, date, stops, actorRole }`); times carry a short tz suffix (`08:00 AWST`) only when agencies differ; the filename slug transliterates the inspector name (NFKD) with an `inspector` fallback (L-F04-10). The "Route ETA accuracy" metric (`GET /v1/day-plans/eta-accuracy?days=7..90` AM/OP 60/min, `GetRouteEtaAccuracyUseCase`) is the mean absolute error between each stop's **frozen published** start and the actual check-in over a `days`-long window ending today (Sydney), dropping outliers >180 min and classifying `INSUFFICIENT_DATA`/`OK`/`ABOVE_THRESHOLD` against a 10-min threshold / 30-sample floor; the repo query (`getEtaAccuracySamples`) owns the published-vs-latest / approximate / abandoned / status-join exclusions (L-F04-15, FR-014). Static `/v1/day-plans/eta-accuracy` is registered so Fastify prefers it over `/:inspectorId/:date`. **Plan B (072) removed the `day-plan.purge-route-data` job**; **PR-C (074) dropped the four dead columns** (`route_geometry`, `routing_matrix_json`, `leg_travel_json`, `geometry_purged_at`; migration `20261107000000_drop_day_plan_route_columns`) and removed the transitional PR-A cleanup (`ClearStoredRouteDataUseCase`, `repo.clearStoredRouteData()`, the worker invocation and the one-time `boss.unschedule('day-plan.purge-route-data')`). `published_*` are untouched (the metric still reads them).
+- **Plan B — no routing result persisted (072/073/074, `day-plan/`).** Routing results (geometry, matrix, per-leg durations) are **never written** to `day_plans`; **PR-C (074) dropped** the four dead columns and removed `routingInput` from the contract. `GET` responses recompute **geometry only** on demand via `recomputeRoutingForRecord` / `ComputeDayPlanUseCase.routingFor` (PRESERVE_ORDER, interactive+non-strict), **Directions-only** (no provider Matrix — `resolveMatrix` only calls Matrix for `OPTIMIZE` or when `forceProviderMatrix`); a degraded recompute (rate-limited/provider error) ORs `approximate`/`approximateReason` so the client never treats a stub line as real. Past-day GETs skip the recompute (geometry null); the AM/OP operator GET returns the stored record **without** calling Mapbox. `POST /v1/inspector/day-plans/:date/order/preview` (INSP, own `inspectorId`, 30/min, `PreviewDayPlanOrderUseCase` → `PlanRouteService.previewOrder` with `forceProviderMatrix: true`, `etaSource 'MATRIX'`, 0 Directions, persists nothing; 404 / 409 version-or-nothing-to-reorder / 400 `DAY_PLAN_ORDER_MISMATCH`) — **it serves a started day too**, reordering the not-started tail from the last executed stop (effective `LAST_STOP` origin), matching `PUT /order` (D18; F04-tarefas.md line 725/726). `PUT /order`/`recalculate`/`origin` recompute on demand. `routingInput`/`dayPlanRoutingInputSchema`/`toOptimizerInput`/`buildLegOverrides` are **removed** (PR-C); `DAY_PLAN_ALREADY_STARTED` now applies only to the **origin** endpoints (L-F04-07), not reorder/preview.
+- **Route-weights preview (F04-2b, `day-plan/`).** `POST /v1/day-plans/preview` (AM/OP, 10/min, `PreviewRouteWeightsUseCase`) is an AM/OP what-if on the platform `routeWeights`: it computes two variants — `current` (saved `routeWeights` via `IPlatformSettingsReader`) and `proposed` (request weights) — for one inspector on one upcoming day over a **single shared travel matrix** (`PlanRouteService.previewWeights`: **1 Matrix call, 0 Directions**, matrix-only ETAs with forward slack, `etaSource 'MATRIX'`), persisting nothing. RBAC is in the use case (`assertRoles(['AM','OP'])`, action `day_plan.preview_weights` — a freeform audit label, not a role-matrix key). Guard order role→date-range→inspector: `date` outside today..today+14 **in the actor's effective tz** (`AuthContext.timezone ?? PLATFORM_TIMEZONE`) → `422 DAY_PLAN_PREVIEW_DATE_OUT_OF_RANGE` before any routing; unknown inspector → `404 INSPECTOR_NOT_FOUND`. Origin = the inspector's geocoded base (→ none), never a saved override or `LAST_STOP`; executed stops excluded via `classifyStops`. Consumes the F04-2 shared contract (`previewRouteWeightsRequestSchema`/`routeWeightsPreviewResponseSchema`); no schema/migration. Static route — radix prefers it over `/:inspectorId/:date` (L-F04-14).
+- **Inspector onboarding slice (F04-2, 00.2).** `inspectors.onboarding_completed_at` (`DateTime?`, no `tenant_id`) is stamped once by the heartbeat: `inspectorAppStateSchema.onboardingCompleted` (`z.literal(true).optional()`) flows through `RecordInspectorAppStateUseCase` into the single `$executeRaw` of `recordAppState()` as `CASE WHEN $onboardingCompleted THEN COALESCE(onboarding_completed_at, $now) ELSE onboarding_completed_at END` (R-F01-02, never a separate write). `GET /v1/inspectors/me` and the AM/OP detail return `onboardingCompletedAt`; `applyInspectorFieldVisibility` strips it for CL_* (visible to AM/OP and the inspector itself, like the base-address group).
+- **Matrix** (`driving-traffic` up to 10 coordinates, `driving` above) is used **only to choose the stop order**. **Directions** (GA) computes the final ETAs and the geometry, **one call per leg with `depart_at`** = that leg's planned departure.
+- **No beta APIs:** no Matrix `depart_at`, no Optimization API v2.
+- **Server-side token only**, resolved per call from the Integrations Hub `mapbox` config (`IntegrationConfigResolver.getConfig('mapbox')`, stub when unset); `MAPBOX_ACCESS_TOKEN` is only the bootstrap default for that config, never read directly by adapters. Never expose it to the PWA — geometry reaches clients as GeoJSON from the backend.
+- **Google is a measured exit, not an option.** Google Route Optimization's terms forbid using its output with a non-Google map, so switching means replacing the routing adapter **and** both route maps (PWA route and web Live Day) with Google Maps. It happens only if the measured ETA error (planned stop time vs. actual start) averages above 10 minutes over 30 days. Do not mix providers.
 
 ### Storage
 
@@ -438,7 +674,7 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 - ORM: Prisma
 - Migrations: `prisma/migrations/`
 - Strategy: expand/contract (never breaking changes directly)
-- Apply migrations to `staging` first, validate, then promote to `prod`
+- Migrations run in each Fly app's `release_command` (`prisma migrate deploy`): DEV (from `develop`) first, then STAGING, then PROD. CI proves a fresh replay plus idempotence (`prisma-migrate-check`).
 
 **Rules:**
 
@@ -448,9 +684,9 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 - Seed: minimal for `dev` and `staging`; none in `prod`.
 - **Production notification templates**: after the first deploy to a new prod environment, run the one-shot seed script to create platform-default templates (`tenant_id = NULL`):
   ```bash
-  fly ssh console -a properfy-prod -C "cd /app && node apps/backend/dist/seed-platform-notification-templates.js"
+  fly ssh console -a properfy-api -C "cd /app && node apps/backend/dist/seed-platform-notification-templates.js"
   ```
-  The script is idempotent (upserts by `template_code + channel`) and lives at `src/scripts/seed-platform-notification-templates.ts`.
+  The script is idempotent (upserts by `template_code + channel`) and lives at `src/scripts/seed-platform-notification-templates.ts`. Production access only on explicit request.
 - Critical indexes: `tenant_id`, `status`, `scheduled_date`, `service_type_id`, `inspector_id`, `branch_id`
 
 ---
@@ -462,7 +698,7 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 - Integration tests: repositories, auth, queue, integrations (Vitest + Prisma test DB)
 - API E2E: critical flows (Supertest)
 - Mock external providers (SMS, email, maps) in tests. Never make real external calls.
-- Coverage: 70% global minimum, 80%+ for `auth`, `appointments`, `finance`
+- Coverage target (not enforced by CI today): 70% global, 80%+ for `auth`, `appointments`, `finance`
 
 **Critical E2E flows:**
 
@@ -481,7 +717,7 @@ await boss.schedule('notification.reminder', '0 8 * * *', {})
 - Secret rotation: every 6 months for critical keys.
 - Signed URLs for upload/download.
 - Rate limit: hybrid policy (edge + application rules per endpoint).
-- SAST and dependency scan mandatory in CI.
+- SAST and dependency scanning are **not wired into CI today** (no such job in `.github/workflows`). PRs get an automated review from CodeRabbit (`.coderabbit.yaml`). Do not claim a scan ran.
 
 ---
 
@@ -500,4 +736,4 @@ When you (Claude Code) implement or refactor backend code:
 9. **Idempotency on critical operations** – always check before implementing financial, notification or acceptance logic.
 10. **Audit critical actions** – status changes, financial operations, permission changes.
 
-For complete business rules, entity definitions and API contracts, consult `projeto-consolidado/`.
+For complete business rules, entity definitions and API contracts, see the root `CLAUDE.md`, `prisma/schema.prisma` and `packages/shared/openapi.json`.

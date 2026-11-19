@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
 import { AppointmentRestrictionEntity } from '../../../src/modules/appointment/domain/appointment-restriction.entity';
-import { startOfOverdueAgeCutoff } from '../../../src/shared/domain/timezone-date';
 
 describe('PrismaAppointmentRepository date filters', () => {
   const findMany = vi.fn();
@@ -488,18 +487,30 @@ describe('PrismaAppointmentRepository overdueOnly + status composition', () => {
   });
 
   it('uses a cutoff 45 civil days back, as a real Sydney-midnight instant', async () => {
-    const repo = new PrismaAppointmentRepository(prisma);
+    // Overdue is a CIVIL-day rule (root CLAUDE.md §9): the cutoff is the *instant* of
+    // Sydney midnight on (today − 45 civil days). It must not be asserted as an
+    // instant delta `(now − cutoff) / 24h ≥ 45`: across the Sydney spring-forward the
+    // [today−45, today] window is 45 civil days but only 45×24h − 1h of real time, so
+    // just after Sydney midnight that delta is legitimately ~44.98 — which is exactly
+    // the flake this test used to hit when CI ran around Sydney midnight in October.
+    //
+    // Pin the clock to that worst case to lock the regression in: 2026-10-29T13:30Z is
+    // 2026-10-30 00:30 in Sydney (DST, UTC+11), so today is 2026-10-30 and 45 civil
+    // days back is 2026-09-15. That date is before the 2026-10-04 spring-forward, so
+    // Sydney was still AEST (UTC+10): its midnight is 2026-09-14T14:00:00Z. The helper
+    // resolves the offset at the cutoff date, not at "now", which is what keeps this
+    // exact across the transition.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-29T13:30:00.000Z') });
+    try {
+      const repo = new PrismaAppointmentRepository(prisma);
 
-    await repo.findAll({ overdueOnly: true }, { page: 1, pageSize: 10, sortOrder: 'asc' });
+      await repo.findAll({ overdueOnly: true }, { page: 1, pageSize: 10, sortOrder: 'asc' });
 
-    const cutoff: Date = whereOf().created_at.lt;
-    // The repo delegates to the shared Sydney-midnight-45-days-back helper, so compare to
-    // it directly instead of deriving an age-in-days from Date.now(): across a Sydney DST
-    // boundary the 45-civil-day span is not 45×24h, so an age-in-days assertion flakes
-    // (seen at ~44.99 when "now" is just past Sydney midnight and the window crosses the
-    // spring-forward). The helper's own "45 civil days back at Sydney midnight" contract
-    // is covered by timezone-date.test.ts.
-    expect(cutoff.getTime()).toBe(startOfOverdueAgeCutoff().getTime());
+      const cutoff: Date = whereOf().created_at.lt;
+      expect(cutoff.toISOString()).toBe('2026-09-14T14:00:00.000Z');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('honours a Period range alongside overdueOnly', async () => {

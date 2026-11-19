@@ -6,6 +6,7 @@ import {
   formatWallTimeWindow,
   formatInstantDate,
   formatInstantDateTime,
+  formatInstantTime,
 } from './format-display-date';
 
 describe('formatCivilDate', () => {
@@ -333,6 +334,50 @@ describe('formatInstantDateTime', () => {
     it('returns an empty string for an invalid Date and echoes a bad string', () => {
       expect(formatInstantDateTime(new Date('nonsense'))).toBe('');
       expect(formatInstantDateTime('not-a-timestamp')).toBe('not-a-timestamp');
+    });
+  });
+});
+
+describe('formatInstantTime', () => {
+  it('formats an instant as zoned 12-hour wall time', () => {
+    // 2026-11-04T21:10Z in Sydney (AEDT, UTC+11) is 08:10 the next day.
+    expect(formatInstantTime('2026-11-04T21:10:00.000Z', 'Australia/Sydney')).toBe('8:10 am');
+  });
+
+  it('renders zoned midnight as 12:00 am', () => {
+    // 2026-07-27T14:00Z in Sydney (AEST, UTC+10) is 00:00 on the 28th.
+    expect(formatInstantTime('2026-07-27T14:00:00.000Z', 'Australia/Sydney')).toBe('12:00 am');
+  });
+
+  it('honours an explicit timezone', () => {
+    const iso = '2026-07-28T04:12:00.000Z';
+    expect(formatInstantTime(iso, 'UTC')).toBe('4:12 am');
+    expect(formatInstantTime(iso, 'Australia/Perth')).toBe('12:12 pm');
+  });
+
+  it('accepts a Date and a string for the same instant', () => {
+    const iso = '2026-11-04T21:10:00.000Z';
+    expect(formatInstantTime(new Date(iso), 'Australia/Sydney')).toBe(
+      formatInstantTime(iso, 'Australia/Sydney'),
+    );
+  });
+
+  describe('degenerate input', () => {
+    it('returns empty string for null/undefined/empty', () => {
+      expect(formatInstantTime(null)).toBe('');
+      expect(formatInstantTime(undefined)).toBe('');
+      expect(formatInstantTime('')).toBe('');
+    });
+
+    it('returns a malformed string intact, and empty for an invalid Date', () => {
+      expect(formatInstantTime('not-a-timestamp')).toBe('not-a-timestamp');
+      expect(formatInstantTime(new Date('nonsense'))).toBe('');
+    });
+
+    it('never leaks seconds', () => {
+      expect(formatInstantTime('2026-11-04T21:10:30.000Z', 'Australia/Sydney')).not.toMatch(
+        /\d:\d{2}:\d{2}/,
+      );
     });
   });
 });

@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import type { DashboardAnalyticsResponse } from '@properfy/shared';
@@ -144,41 +143,20 @@ describe('AnalyticsPage — revenue gating', () => {
   });
 });
 
-// With the sidebar entries removed, these header actions are the only way to
-// move between the dashboard screens — presence per role is load-bearing.
-describe('AnalyticsPage — header cross-navigation', () => {
-  it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('offers the Dashboard action to %s', (role) => {
+// Analytics is now a top-level sidebar screen: no in-header cross-navigation and no Back button.
+describe('AnalyticsPage — no header cluster navigation (X01)', () => {
+  // A1 — no Dashboard/Workload header buttons for any business role.
+  it.each(['AM', 'OP', 'CL_ADMIN', 'CL_USER'])('shows no Dashboard or Workload header button for %s', (role) => {
     mockRole = role;
     renderPage();
-    expect(screen.getAllByRole('button', { name: /dashboard/i }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByRole('button', { name: 'Dashboard' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Workload' })).not.toBeInTheDocument();
   });
 
-  it.each(['AM', 'OP'])('offers the Workload action to %s', (role) => {
-    mockRole = role;
+  // A2 — top-level screen, no Back button.
+  it('has no Back button', () => {
     renderPage();
-    expect(screen.getAllByRole('button', { name: /workload/i }).length).toBeGreaterThanOrEqual(1);
-  });
-
-  // /inspector-workload is AM/OP-only; showing the button to an agency role
-  // would bounce them back with a permission toast.
-  it.each(['CL_ADMIN', 'CL_USER'])('hides the Workload action from %s', (role) => {
-    mockRole = role;
-    renderPage();
-    expect(screen.queryByRole('button', { name: /workload/i })).not.toBeInTheDocument();
-  });
-
-  it('navigates to /dashboard when the Dashboard action is clicked', async () => {
-    const user = userEvent.setup();
-    renderPage();
-    await user.click(screen.getAllByRole('button', { name: /dashboard/i })[0]!);
-    expect(screen.getByTestId('location-display')).toHaveTextContent('/dashboard');
-  });
-
-  it('navigates to /inspector-workload when the Workload action is clicked', async () => {
-    const user = userEvent.setup();
-    renderPage();
-    await user.click(screen.getAllByRole('button', { name: /workload/i })[0]!);
-    expect(screen.getByTestId('location-display')).toHaveTextContent('/inspector-workload');
+    expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
   });
 });
 

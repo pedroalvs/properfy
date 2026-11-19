@@ -118,3 +118,45 @@ describe('inspectorEarningsSummaryQuerySchema', () => {
     expect(inspectorEarningsSummaryQuerySchema.safeParse({ months: 1.5 }).success).toBe(false);
   });
 });
+
+describe('startInspectionSchema / finishInspectionSchema — F03 capture fields', () => {
+  const coords = { latitude: -33.86, longitude: 151.2 };
+
+  for (const [name, schema] of [
+    ['startInspectionSchema', startInspectionSchema],
+    ['finishInspectionSchema', finishInspectionSchema],
+  ] as const) {
+    describe(name, () => {
+      it('accepts coordinates only (offline item queued before F03)', () => {
+        const result = schema.safeParse(coords);
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.accuracy).toBeUndefined();
+          expect(result.data.clientOccurredAt).toBeUndefined();
+        }
+      });
+
+      it('accepts valid accuracy values', () => {
+        expect(schema.safeParse({ ...coords, accuracy: 0 }).success).toBe(true);
+        expect(schema.safeParse({ ...coords, accuracy: 12.4 }).success).toBe(true);
+        expect(schema.safeParse({ ...coords, accuracy: 25000 }).success).toBe(true);
+      });
+
+      it('rejects invalid accuracy values', () => {
+        expect(schema.safeParse({ ...coords, accuracy: -1 }).success).toBe(false);
+        expect(schema.safeParse({ ...coords, accuracy: Infinity }).success).toBe(false);
+        expect(schema.safeParse({ ...coords, accuracy: 'x' }).success).toBe(false);
+      });
+
+      it('accepts ISO-8601 clientOccurredAt with offset or Z', () => {
+        expect(schema.safeParse({ ...coords, clientOccurredAt: '2026-11-03T09:41:12.000+11:00' }).success).toBe(true);
+        expect(schema.safeParse({ ...coords, clientOccurredAt: '2026-11-02T22:41:12Z' }).success).toBe(true);
+      });
+
+      it('rejects non-ISO clientOccurredAt', () => {
+        expect(schema.safeParse({ ...coords, clientOccurredAt: '2026-11-03 09:41' }).success).toBe(false);
+        expect(schema.safeParse({ ...coords, clientOccurredAt: 'yesterday' }).success).toBe(false);
+      });
+    });
+  }
+});

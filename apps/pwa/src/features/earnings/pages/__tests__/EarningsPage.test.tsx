@@ -134,9 +134,33 @@ describe('EarningsPage', () => {
     expect(mockGet).toHaveBeenCalledWith(
       '/v1/financial/entries',
       expect.objectContaining({
-        params: { query: expect.objectContaining({ fromDate: '2026-04-01', type: 'INSPECTOR_PAYOUT', pageSize: '20' }) },
+        params: { query: expect.objectContaining({ fromDate: '2026-04-01', pageSize: '20' }) },
       }),
     );
+  });
+
+  it('requests history without a type filter and renders bonus and bonus-reversal rows', async () => {
+    mockGet.mockImplementation(async (path: string) => {
+      if (path === '/v1/inspector/earnings/summary') return { data: summaryResponse };
+      return {
+        data: payoutsPage(1, 1, [
+          { id: 'b1', entryType: 'INSPECTOR_BONUS', amount: 30, currency: 'AUD', status: 'APPROVED', effectiveAt: '2026-03-10T10:00:00Z', description: 'Weekly ten goal' },
+          { id: 'b2', entryType: 'INSPECTOR_BONUS', amount: -30, currency: 'AUD', status: 'APPROVED', effectiveAt: '2026-03-11T10:00:00Z', description: 'Reversal: Weekly ten goal' },
+        ]),
+      };
+    });
+    renderWithProviders(<EarningsPage />);
+    await waitFor(() => expect(screen.getByText('Earnings')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: /history/i }));
+    const list = await screen.findByTestId('history-list');
+    expect(list).toHaveTextContent('Bonus reversal');
+    expect(list).toHaveTextContent('Weekly ten goal');
+    expect(list).toHaveTextContent(/[-\u2212]\$30\.00/);
+    const entryCalls = mockGet.mock.calls.filter(([p]) => p === '/v1/financial/entries');
+    expect(entryCalls.length).toBeGreaterThan(0);
+    for (const [, opts] of entryCalls) {
+      expect(opts?.params?.query).not.toHaveProperty('type');
+    }
   });
 
   it('loads the next page via the Load more button when more pages exist', async () => {

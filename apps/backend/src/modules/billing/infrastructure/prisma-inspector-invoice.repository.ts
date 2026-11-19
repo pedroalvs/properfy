@@ -222,6 +222,7 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
       issuedAt: Date;
       generatedByUserId: string;
     },
+    linkRewards?: (tx: Prisma.TransactionClient) => Promise<void>,
   ): Promise<number | null> {
     return this.prisma.$transaction(async (tx) => {
       const seqRows = await tx.$queryRaw<{ n: number }[]>`SELECT nextval('inspector_invoice_number_seq')::int AS n`;
@@ -244,7 +245,47 @@ export class PrismaInspectorInvoiceRepository implements IInspectorInvoiceReposi
           generated_by_user_id: params.generatedByUserId,
         },
       });
-      return result.count === 1 ? n : null;
+      if (result.count !== 1) return null;
+      // Q12 (F08-6): link the period's rewards inside the same transaction; a count mismatch
+      // throws (rolls the freeze back) so the snapshot and the reward links never diverge.
+      await linkRewards?.(tx);
+      return n;
+    });
+  }
+
+  async markPaidInTransaction(
+    invoiceId: string,
+    params: { paidAt: Date; paidByUserId: string; paymentReference: string | null },
+    afterPaid?: (tx: Prisma.TransactionClient) => Promise<void>,
+  ): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.inspectorInvoice.updateMany({
+        where: { id: invoiceId, status: 'CLOSED' },
+        data: {
+          status: 'PAID',
+          paid_at: params.paidAt,
+          paid_by_user_id: params.paidByUserId,
+          payment_reference: params.paymentReference,
+        },
+      });
+      if (result.count !== 1) return false;
+      await afterPaid?.(tx);
+      return true;
+    });
+  }
+
+  async reversePaymentInTransaction(
+    invoiceId: string,
+    afterReverted?: (tx: Prisma.TransactionClient) => Promise<void>,
+  ): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.inspectorInvoice.updateMany({
+        where: { id: invoiceId, status: 'PAID' },
+        data: { status: 'CLOSED', paid_at: null, paid_by_user_id: null, payment_reference: null },
+      });
+      if (result.count !== 1) return false;
+      await afterReverted?.(tx);
+      return true;
     });
   }
 

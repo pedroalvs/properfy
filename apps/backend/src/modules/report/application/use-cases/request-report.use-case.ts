@@ -47,7 +47,11 @@ export class RequestReportUseCase {
 
     // 3. Agency scope: AM/OP may target one agency or run cross-agency (null); an
     //    agency actor is pinned to its own tenant, whatever `filters.tenantId` said.
-    const effectiveTenantId: string | null = resolveReportTenantScope(auth, filters.tenantId);
+    //    INSPECTOR_PROGRAM is platform-scoped (the inspector program has no agency, D12):
+    //    it is operator-only (CL_* already rejected by assertReportTypeAllowed) and is
+    //    always forced to a null tenant, ignoring any `filters.tenantId` an operator sent.
+    const effectiveTenantId: string | null =
+      reportType === 'INSPECTOR_PROGRAM' ? null : resolveReportTenantScope(auth, filters.tenantId);
     const agencyScoped = isAgencyActor(auth);
 
     // 4. Per-user concurrent-report guard.
@@ -60,7 +64,12 @@ export class RequestReportUseCase {
     //    record of which real domain field the Period was applied to.
     const now = new Date();
     const reportId = randomUUID();
-    const dateAxisField = reportType === 'FINANCIAL' ? 'effective_at' : REPORT_DATE_AXIS_FIELD[filters.dateAxis];
+    const dateAxisField =
+      reportType === 'FINANCIAL'
+        ? 'effective_at'
+        : reportType === 'INSPECTOR_PROGRAM'
+          ? 'period_end'
+          : REPORT_DATE_AXIS_FIELD[filters.dateAxis];
     const filtersJson: Record<string, unknown> = { ...filters, dateAxisField };
     // Omit tenantId entirely for cross-agency runs (no stray `undefined` in the stored JSON).
     if (effectiveTenantId) filtersJson.tenantId = effectiveTenantId;

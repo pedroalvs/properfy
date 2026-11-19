@@ -20,6 +20,8 @@ export interface PropertyProps {
   lat: number | null;
   lng: number | null;
   geocodingStatus: GeocodingStatus;
+  geocodedPermanentlyAt?: Date | null;
+  geocodingFailureCode?: string | null;
   privateAreaM2?: number | null;
   totalAreaM2?: number | null;
   furnished?: boolean | null;
@@ -48,6 +50,8 @@ export class PropertyEntity extends BaseEntity {
   lat: number | null;
   lng: number | null;
   geocodingStatus: GeocodingStatus;
+  geocodedPermanentlyAt: Date | null;
+  geocodingFailureCode: string | null;
   readonly privateAreaM2: number | null;
   readonly totalAreaM2: number | null;
   readonly furnished: boolean | null;
@@ -74,6 +78,8 @@ export class PropertyEntity extends BaseEntity {
     this.lat = props.lat;
     this.lng = props.lng;
     this.geocodingStatus = props.geocodingStatus;
+    this.geocodedPermanentlyAt = props.geocodedPermanentlyAt ?? null;
+    this.geocodingFailureCode = props.geocodingFailureCode ?? null;
     this.privateAreaM2 = props.privateAreaM2 ?? null;
     this.totalAreaM2 = props.totalAreaM2 ?? null;
     this.furnished = props.furnished ?? null;
@@ -96,16 +102,26 @@ export class PropertyEntity extends BaseEntity {
    * Apply the outcome of a geocoding lookup to this entity. A coordinate result
    * sets SUCCESS; a null result (address not found) sets FAILED. Used by the
    * create flow to geocode synchronously before persisting.
+   *
+   * `options.permanent` stamps `geocodedPermanentlyAt` (the coordinate came from
+   * a permanent geocode, Mapbox terms) and clears any failure code. A SUCCESS
+   * must always be permanent in this codebase; the option is explicit so a
+   * future non-permanent caller cannot stamp the marker by accident.
    */
-  applyGeocodingResult(result: GeocodingResult | null): void {
+  applyGeocodingResult(result: GeocodingResult | null, options?: { permanent?: boolean }): void {
     if (result) {
       this.lat = result.lat;
       this.lng = result.lng;
       this.geocodingStatus = 'SUCCESS';
+      if (options?.permanent) {
+        this.geocodedPermanentlyAt = new Date();
+        this.geocodingFailureCode = null;
+      }
     } else {
       this.lat = null;
       this.lng = null;
       this.geocodingStatus = 'FAILED';
+      this.geocodedPermanentlyAt = null;
     }
   }
 

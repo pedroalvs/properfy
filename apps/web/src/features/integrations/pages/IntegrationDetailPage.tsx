@@ -4,7 +4,7 @@ import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { getErrorMessage } from '@/lib/api-error';
-import { useGoBack } from '@/hooks/useGoBack';
+import { BackButton } from '@/components/layout';
 import { useIntegrations } from '../hooks/useIntegrations';
 import { findProviderMetaBySlug } from '../providerMeta';
 import { IntegrationCard } from '../components/IntegrationCard';
@@ -12,7 +12,6 @@ import { IntegrationCard } from '../components/IntegrationCard';
 /** Own page of one outbound integration, at /integrations/<slug>. AM-only (guarded in the router). */
 export function IntegrationDetailPage() {
   const { provider: slug } = useParams();
-  const goBack = useGoBack('/integrations');
   const meta = findProviderMetaBySlug(slug);
   const { data: integrations, isLoading, isError, error, refetch } = useIntegrations();
 
@@ -20,14 +19,7 @@ export function IntegrationDetailPage() {
 
   return (
     <div className="space-y-4">
-      <button
-        type="button"
-        onClick={goBack}
-        className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-      >
-        <i className="mdi mdi-arrow-left" aria-hidden="true" />
-        Integrations
-      </button>
+      <BackButton to="/integrations" />
 
       {!meta && (
         <EmptyState

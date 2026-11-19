@@ -159,9 +159,27 @@ describe('PropertyDetailPage', () => {
     expect(screen.getByText('Property not found')).toBeInTheDocument();
   });
 
-  it('renders go back button', () => {
+  it('renders a Back button', () => {
     renderPage();
-    expect(screen.getByLabelText('Go back')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
+
+  it('renders exactly one header Back button in the loaded state', () => {
+    renderPage();
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+  });
+
+  it('renders a Back button in the loading state', () => {
+    renderPage('/properties/loading');
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
+
+  it('falls back to the properties list when Back is clicked with no in-app history', () => {
+    // Detail page is the initial router entry → location.key === 'default',
+    // so navigate(-1) has nowhere to go and the fallback route is shown.
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('property list')).toBeInTheDocument();
   });
 
   it('renders edit button', () => {

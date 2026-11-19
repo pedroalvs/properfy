@@ -25,7 +25,8 @@ export interface ListFinancialEntriesInput {
 
 export interface FinancialEntryOutputItem {
   id: string;
-  tenantId: string;
+  /** Null only for an INSPECTOR_BONUS entry (Q12). */
+  tenantId: string | null;
   appointmentId: string | null;
   inspectorId: string | null;
   entryType: string;
@@ -98,6 +99,9 @@ export class ListFinancialEntriesUseCase {
       // OP is tenant-scoped per CORRECTION-001 (2026-04-13). OP is the platform
       // operational team and sees all entry types (incl. INSPECTOR_PAYOUT).
       filters.tenantId = actor.tenantId!;
+      // Q12 (F08-6/DQ10): also surface the platform bonus (tenantless) so the role that
+      // reconciles rewards sees them in the ledger; never another agency's rows.
+      filters.includePlatformBonus = true;
       if (input.inspectorId) filters.inspectorId = input.inspectorId;
       if (input.type) filters.entryType = input.type as FinancialEntryFilters['entryType'];
       if (input.status) filters.status = input.status as FinancialEntryFilters['status'];
@@ -124,12 +128,20 @@ export class ListFinancialEntriesUseCase {
       if (input.status) filters.status = input.status as FinancialEntryFilters['status'];
       // Note: an inspectorId filter is intentionally NOT honored for agencies.
     } else if (actor.role === 'INSP') {
-      // Inspectors: forced inspectorId and entryType
+      // Inspectors: forced inspectorId; own payouts AND own bonuses (Q12). A `type` filter is
+      // restricted to those two types; anything else is refused.
       if (!actor.inspectorId) {
         throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
       }
       filters.inspectorId = actor.inspectorId;
-      filters.entryType = 'INSPECTOR_PAYOUT';
+      if (input.type) {
+        if (input.type !== 'INSPECTOR_PAYOUT' && input.type !== 'INSPECTOR_BONUS') {
+          throw new ForbiddenError('FORBIDDEN', 'Inspectors cannot view this entry type');
+        }
+        filters.entryType = input.type as FinancialEntryFilters['entryType'];
+      } else {
+        filters.entryTypeIn = ['INSPECTOR_PAYOUT', 'INSPECTOR_BONUS'];
+      }
       if (input.tenantId) filters.tenantId = input.tenantId;
       if (input.status) filters.status = input.status as FinancialEntryFilters['status'];
     } else {

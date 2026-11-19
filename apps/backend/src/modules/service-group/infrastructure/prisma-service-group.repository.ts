@@ -18,6 +18,7 @@ import type {
   PortalWindowReservation,
 } from '../domain/service-group.repository';
 import type { PropertyType, ServiceGroupStatus } from '@properfy/shared';
+import type { EarlyAccessParams, EarlyAccessGroupState } from '../domain/early-access';
 import {
   computeCentroid,
   isRentalTenantNotificationsEnabled,
@@ -662,6 +663,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     inspectorServiceTypes: string[],
     inspectorBlockedClients: string[],
     pagination: PaginationParams,
+    earlyAccess: EarlyAccessParams | null,
   ): Promise<MarketplaceOffer[]> {
     if (inspectorServiceTypes.length === 0) {
       return [];
@@ -676,6 +678,7 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
       inspectorBlockedClients,
       pagination.pageSize,
       offset,
+      earlyAccess,
     );
 
     if (eligibleIds.length === 0) return [];
@@ -757,35 +760,19 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     inspectorId: string,
     inspectorServiceTypes: string[],
     inspectorBlockedClients: string[],
+    earlyAccess: EarlyAccessParams | null,
   ): Promise<number> {
     if (inspectorServiceTypes.length === 0) {
       return 0;
     }
 
     const rows = await this.prisma.$queryRaw<[{ count: bigint }]>`
-      SELECT COUNT(DISTINCT sg.id) AS count
+      SELECT COUNT(*) AS count
       FROM service_groups sg
-      JOIN appointments a ON a.service_group_id = sg.id
-        AND a.deleted_at IS NULL
-      JOIN properties p ON p.id = a.property_id
-        AND p.deleted_at IS NULL
-        AND p.coordinates IS NOT NULL
-      -- Cross-tenant region match: region ownership is not a filter here; the
-      -- inspector->client denylist below is the isolation boundary.
-      JOIN service_regions sr ON sr.status = 'ACTIVE'
-        AND sr.geom IS NOT NULL
-        AND ST_Intersects(sr.geom, p.coordinates)
-      JOIN inspector_regions ir ON ir.region_id = sr.id
-        AND ir.inspector_id = ${inspectorId}
       WHERE sg.status = 'PUBLISHED'
         AND sg.scheduled_date >= CURRENT_DATE
-        AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
-        AND NOT EXISTS (
-          SELECT 1 FROM appointments ga
-          WHERE ga.service_group_id = sg.id
-            AND ga.deleted_at IS NULL
-            AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
-        )
+        AND ${this.inspectorEligibilitySql(inspectorId, inspectorServiceTypes, inspectorBlockedClients)}
+        ${this.earlyAccessExclusionSql(earlyAccess)}
     `;
 
     return Number(rows[0]?.count ?? 0);
@@ -796,37 +783,21 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     inspectorId: string,
     inspectorServiceTypes: string[],
     inspectorBlockedClients: string[],
+    earlyAccess: EarlyAccessParams | null,
   ): Promise<MarketplaceOfferDetail | null> {
     if (inspectorServiceTypes.length === 0) {
       return null;
     }
 
-    // Verify the inspector is eligible for this specific group via spatial join
+    // Verify the inspector is eligible for this specific group
     const eligibleRows = await this.prisma.$queryRaw<{ id: string }[]>`
-      SELECT DISTINCT sg.id
+      SELECT sg.id
       FROM service_groups sg
-      JOIN appointments a ON a.service_group_id = sg.id
-        AND a.deleted_at IS NULL
-      JOIN properties p ON p.id = a.property_id
-        AND p.deleted_at IS NULL
-        AND p.coordinates IS NOT NULL
-      -- Cross-tenant region match: region ownership is not a filter here; the
-      -- inspector->client denylist below is the isolation boundary.
-      JOIN service_regions sr ON sr.status = 'ACTIVE'
-        AND sr.geom IS NOT NULL
-        AND ST_Intersects(sr.geom, p.coordinates)
-      JOIN inspector_regions ir ON ir.region_id = sr.id
-        AND ir.inspector_id = ${inspectorId}
       WHERE sg.id = ${groupId}
         AND sg.status = 'PUBLISHED'
         AND sg.scheduled_date >= CURRENT_DATE
-        AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
-        AND NOT EXISTS (
-          SELECT 1 FROM appointments ga
-          WHERE ga.service_group_id = sg.id
-            AND ga.deleted_at IS NULL
-            AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
-        )
+        AND ${this.inspectorEligibilitySql(inspectorId, inspectorServiceTypes, inspectorBlockedClients)}
+        ${this.earlyAccessExclusionSql(earlyAccess)}
     `;
 
     if (eligibleRows.length === 0) return null;
@@ -954,54 +925,173 @@ export class PrismaServiceGroupRepository implements IServiceGroupRepository {
     };
   }
 
-  /**
-   * Use PostGIS spatial join to find eligible service group IDs for the inspector.
-   * Region matching is cross-tenant: any ACTIVE region whose polygon contains the
-   * property matches, regardless of which agency owns it (region tenant_id is not
-   * a matching filter). Client isolation is enforced by the per-appointment
-   * inspector->client denylist (NOT EXISTS below), which gates every offer.
-   */
+  /** One page of open offers the inspector is eligible for (see `inspectorEligibilitySql`). */
   private async findEligibleGroupIds(
     inspectorId: string,
     inspectorServiceTypes: string[],
     inspectorBlockedClients: string[],
     limit: number,
     offset: number,
+    earlyAccess: EarlyAccessParams | null,
   ): Promise<string[]> {
-    // GROUP BY (instead of SELECT DISTINCT) so ORDER BY can reference
-    // sg.scheduled_date — Postgres rejects "SELECT DISTINCT … ORDER BY <col not
-    // in select list>" with code 42P10. The id tiebreaker keeps pagination stable.
+    // The id tiebreaker keeps pagination stable. The early-access exclusion is in
+    // the WHERE so it is applied BEFORE LIMIT/OFFSET (a hidden group never consumes
+    // a page slot and the count stays in step with the list).
     const rows = await this.prisma.$queryRaw<{ id: string }[]>`
       SELECT sg.id
       FROM service_groups sg
-      JOIN appointments a ON a.service_group_id = sg.id
-        AND a.deleted_at IS NULL
-      JOIN properties p ON p.id = a.property_id
-        AND p.deleted_at IS NULL
-        AND p.coordinates IS NOT NULL
-      -- Cross-tenant region match: region ownership is not a filter here; the
-      -- inspector->client denylist below is the isolation boundary.
-      JOIN service_regions sr ON sr.status = 'ACTIVE'
-        AND sr.geom IS NOT NULL
-        AND ST_Intersects(sr.geom, p.coordinates)
-      JOIN inspector_regions ir ON ir.region_id = sr.id
-        AND ir.inspector_id = ${inspectorId}
       WHERE sg.status = 'PUBLISHED'
         AND sg.scheduled_date >= CURRENT_DATE
-        AND sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
-        AND NOT EXISTS (
-          SELECT 1 FROM appointments ga
-          WHERE ga.service_group_id = sg.id
-            AND ga.deleted_at IS NULL
-            AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
-        )
-      GROUP BY sg.id, sg.scheduled_date
+        AND ${this.inspectorEligibilitySql(inspectorId, inspectorServiceTypes, inspectorBlockedClients)}
+        ${this.earlyAccessExclusionSql(earlyAccess)}
       ORDER BY sg.scheduled_date ASC, sg.id ASC
       LIMIT ${limit}
       OFFSET ${offset}
     `;
 
     return rows.map((r) => r.id);
+  }
+
+  async isGroupEligibleForInspector(
+    groupId: string,
+    inspectorId: string,
+    inspectorServiceTypes: string[],
+    inspectorBlockedClients: string[],
+  ): Promise<boolean> {
+    if (inspectorServiceTypes.length === 0) return false;
+
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT sg.id
+      FROM service_groups sg
+      WHERE sg.id = ${groupId}
+        AND ${this.inspectorEligibilitySql(inspectorId, inspectorServiceTypes, inspectorBlockedClients)}
+    `;
+    return rows.length > 0;
+  }
+
+  /**
+   * Single source of truth for "may this inspector take this group": a boolean
+   * SQL fragment over a `service_groups sg` alias, shared by the offer list,
+   * count, detail and accept paths. It holds only the inspector-specific rules;
+   * the offer window (status, date) stays with each caller so this composes with
+   * further per-inspector gates.
+   *
+   *  - region: some live appointment's property lies inside an ACTIVE region the
+   *    inspector is linked to. Region ownership (`service_regions.tenant_id`,
+   *    NULL for global regions) is NOT a filter — matching is cross-tenant;
+   *  - service type: the group's type is one the inspector serves;
+   *  - denylist: no live appointment belongs to a client the inspector is
+   *    blocked from. This, not region ownership, is the tenant isolation boundary.
+   */
+  private inspectorEligibilitySql(
+    inspectorId: string,
+    inspectorServiceTypes: string[],
+    inspectorBlockedClients: string[],
+  ): Prisma.Sql {
+    return Prisma.sql`(
+      sg.service_type_id = ANY(${inspectorServiceTypes}::text[])
+      AND EXISTS (
+        SELECT 1
+        FROM appointments a
+        JOIN properties p ON p.id = a.property_id
+          AND p.deleted_at IS NULL
+          AND p.coordinates IS NOT NULL
+        JOIN service_regions sr ON sr.status = 'ACTIVE'
+          AND sr.geom IS NOT NULL
+          AND ST_Intersects(sr.geom, p.coordinates)
+        JOIN inspector_regions ir ON ir.region_id = sr.id
+          AND ir.inspector_id = ${inspectorId}
+        WHERE a.service_group_id = sg.id
+          AND a.deleted_at IS NULL
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM appointments ga
+        WHERE ga.service_group_id = sg.id
+          AND ga.deleted_at IS NULL
+          AND ga.tenant_id = ANY(${inspectorBlockedClients}::text[])
+      )
+    )`;
+  }
+
+  /**
+   * Boolean SQL over a `service_groups sg` alias: whether at least one ACTIVE
+   * inspector who scored ≥ `minScore` in the latest snapshot (`latestSnapshotDate`)
+   * is **eligible for this group** — same region (`ST_Intersects`) / service type /
+   * denylist rules the offer list uses, evaluated for every candidate inspector.
+   * This is the "qualified-eligible exists" test (DV3). Shared by the read-path
+   * exclusion and the accept-path state query so they cannot diverge.
+   */
+  private qualifiedEligibleExistsSql(earlyAccess: EarlyAccessParams): Prisma.Sql {
+    return Prisma.sql`EXISTS (
+      SELECT 1
+      FROM inspector_reliability_snapshots rs
+      JOIN inspectors qi ON qi.id = rs.inspector_id
+        AND qi.status = 'ACTIVE' AND qi.deleted_at IS NULL
+      WHERE rs.snapshot_date = ${earlyAccess.latestSnapshotDate}::date
+        AND rs.status = 'SCORED'
+        AND rs.score >= ${earlyAccess.minScore}::numeric
+        AND qi.service_types_json @> jsonb_build_array(jsonb_build_object('serviceTypeId', sg.service_type_id))
+        AND EXISTS (
+          SELECT 1
+          FROM appointments qa
+          JOIN properties qp ON qp.id = qa.property_id
+            AND qp.deleted_at IS NULL
+            AND qp.coordinates IS NOT NULL
+          JOIN service_regions qsr ON qsr.status = 'ACTIVE'
+            AND qsr.geom IS NOT NULL
+            AND ST_Intersects(qsr.geom, qp.coordinates)
+          JOIN inspector_regions qir ON qir.region_id = qsr.id AND qir.inspector_id = qi.id
+          WHERE qa.service_group_id = sg.id AND qa.deleted_at IS NULL
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM appointments qb
+          WHERE qb.service_group_id = sg.id AND qb.deleted_at IS NULL
+            AND jsonb_exists(qi.blocked_clients_json, qb.tenant_id)
+        )
+    )`;
+  }
+
+  /**
+   * The `AND NOT ( … in-window … )` fragment appended to the marketplace
+   * eligibility WHERE for the list/count/detail paths. `Prisma.empty` when early
+   * access does not apply, so the query is byte-for-byte today's query. A group is
+   * excluded (hidden from an under-level inspector) only while it is recently
+   * published (after the cutoff and after activation), scheduled for D+2 or later,
+   * and has at least one qualified-eligible inspector.
+   */
+  private earlyAccessExclusionSql(earlyAccess: EarlyAccessParams | null): Prisma.Sql {
+    if (!earlyAccess) return Prisma.empty;
+    return Prisma.sql`
+      AND NOT (
+            sg.published_at IS NOT NULL
+        AND sg.published_at > ${earlyAccess.cutoffUtc}::timestamp
+        AND sg.published_at >= ${earlyAccess.enabledAtUtc}::timestamp
+        AND sg.scheduled_date >= ${earlyAccess.protectedFrom}::date
+        AND ${this.qualifiedEligibleExistsSql(earlyAccess)}
+      )`;
+  }
+
+  async findEarlyAccessStateForGroup(
+    groupId: string,
+    earlyAccess: EarlyAccessParams,
+  ): Promise<EarlyAccessGroupState | null> {
+    const rows = await this.prisma.$queryRaw<
+      { published_at: Date | null; scheduled_date: string; has_qualified_eligible: boolean }[]
+    >`
+      SELECT
+        sg.published_at AS published_at,
+        to_char(sg.scheduled_date, 'YYYY-MM-DD') AS scheduled_date,
+        ${this.qualifiedEligibleExistsSql(earlyAccess)} AS has_qualified_eligible
+      FROM service_groups sg
+      WHERE sg.id = ${groupId}
+    `;
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      publishedAt: row.published_at,
+      scheduledDate: row.scheduled_date,
+      hasQualifiedEligible: row.has_qualified_eligible === true,
+    };
   }
 
   async findStatusById(id: string, tx?: Prisma.TransactionClient): Promise<string | null> {

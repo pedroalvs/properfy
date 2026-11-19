@@ -18,6 +18,12 @@ export interface FinancialEntryFilters {
    * entry-type allowlist yet still belongs to the platform↔inspector leg.
    */
   excludeInspectorScoped?: boolean;
+  /**
+   * Q12 (F08-6/DQ10): for an OP scoped to a tenant, also surface the platform bonus
+   * (`tenant_id IS NULL AND entry_type = 'INSPECTOR_BONUS'`) alongside the tenant's entries, so
+   * the role that reconciles rewards can see them in the ledger. Only honoured with `tenantId` set.
+   */
+  includePlatformBonus?: boolean;
   status?: FinancialEntryStatus;
   fromDate?: string;
   toDate?: string;
@@ -35,6 +41,8 @@ export interface FinancialEntrySummary {
   totalPayouts: number;
   totalAdjustments: number;
   totalRefunds: number;
+  /** Q12 (F08-6): approved inspector goal bonuses (incl. negative reversals). AM/OP only. */
+  totalBonuses: number;
   pendingCount: number;
   currency: string | null;
 }

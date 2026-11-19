@@ -16,6 +16,7 @@ import type { AuthContext } from '@properfy/shared';
 import { setupDbHarness, teardownDbHarness, seedLegacyDoneAppointment, type DbHarness } from './harness';
 import { FinishInspectionUseCase } from '../../../src/modules/inspector-execution/application/use-cases/finish-inspection.use-case';
 import { PrismaInspectionExecutionRepository } from '../../../src/modules/inspector-execution/infrastructure/prisma-inspection-execution.repository';
+import { PrismaInspectorFieldEventRepository } from '../../../src/modules/inspector-execution/infrastructure/prisma-inspector-field-event.repository';
 import type { ExecuteStatusTransitionUseCase } from '../../../src/modules/appointment/application/use-cases/execute-status-transition.use-case';
 import type { IAppointmentRepository } from '../../../src/modules/appointment/domain/appointment.repository';
 import type { IIdempotencyService } from '../../../src/modules/inspector-execution/domain/idempotency.service';
@@ -73,6 +74,15 @@ describe('FinishInspectionUseCase — transaction rollback (real DB, WI-4 / #119
 
     const auditService = { log: vi.fn() } as unknown as AuditService;
 
+    const platformSettingsReader = {
+      get: async () => ({
+        geofenceRadiusMeters: 300,
+        geofenceMode: 'FLAG' as const,
+        checkInWindowToleranceMinutes: 15,
+        completionReminderEnabled: true,
+        completionReminderMinutesAfterWindowEnd: 30,
+      }),
+    };
     const useCase = new FinishInspectionUseCase(
       executionRepo,
       idempotencyService,
@@ -81,6 +91,8 @@ describe('FinishInspectionUseCase — transaction rollback (real DB, WI-4 / #119
       auditService,
       new AuthorizationService(auditService),
       prisma,
+      platformSettingsReader as never,
+      new PrismaInspectorFieldEventRepository(prisma),
     );
 
     const actor: AuthContext = {

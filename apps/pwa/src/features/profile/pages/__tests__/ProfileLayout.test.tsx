@@ -22,6 +22,10 @@ function renderAt(path: string) {
       children: [
         { index: true, element: null },
         { path: 'account', element: <div data-testid="profile-account">account</div> },
+        {
+          path: 'announcements/:noticeId',
+          element: <div data-testid="profile-announcement-detail">detail</div>,
+        },
       ],
     },
   ];
@@ -44,6 +48,12 @@ describe('ProfileLayout', () => {
     renderAt('/profile/account');
     expect(screen.getByTestId('profile-master')).toBeInTheDocument();
     expect(screen.getByTestId('profile-account')).toBeInTheDocument();
+    expect(screen.getByTestId('two-pane-detail').className).toContain('md:w-[58%]');
+  });
+
+  it('treats a two-segment announcement detail as a selection (detail pane open)', () => {
+    renderAt('/profile/announcements/1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed');
+    expect(screen.getByTestId('profile-announcement-detail')).toBeInTheDocument();
     expect(screen.getByTestId('two-pane-detail').className).toContain('md:w-[58%]');
   });
 

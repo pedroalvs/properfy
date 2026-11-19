@@ -1,5 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { CancellationReasonCode, RejectionReasonCode, formatReasonCodeLabel } from '@properfy/shared';
+import {
+  CancellationReasonCode,
+  RejectionReasonCode,
+  SYSTEM_ONLY_REJECTION_CODES,
+  allowedRejectionCodesFrom,
+  formatReasonCodeLabel,
+  type AppointmentStatus,
+} from '@properfy/shared';
 import { cn } from '@properfy/frontend-standards';
 import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
@@ -21,10 +28,26 @@ const CANCELLATION_OPTIONS = Object.values(CancellationReasonCode)
   .filter((code) => !SYSTEM_ONLY_CANCELLATION_CODES.includes(code))
   .map((code) => ({ value: code, label: formatReasonCodeLabel(code) }));
 
-const REJECTION_OPTIONS = Object.values(RejectionReasonCode).map((code) => ({
-  value: code,
-  label: formatReasonCodeLabel(code),
-}));
+/**
+ * The rejection reason options for a given source status (F07-3). The shared
+ * `allowedRejectionCodesFrom` returns the general codes plus the origin-restricted
+ * ones valid from that status (`INSPECTOR_NO_SHOW` only from `SCHEDULED`,
+ * `NOT_EXECUTED` only from `DONE`); it does NOT drop the system-only codes, so we
+ * still filter `SYSTEM_ONLY_REJECTION_CODES` (`INSPECTOR_UNABLE`, assigned only by
+ * the system). With no source status (the dialog can be origin-blind), only the
+ * general codes appear — never one that would be a guaranteed wrong-origin 422.
+ */
+function rejectionOptionsFrom(currentStatus: string | undefined) {
+  return allowedRejectionCodesFrom((currentStatus ?? '') as AppointmentStatus)
+    .filter((code) => !SYSTEM_ONLY_REJECTION_CODES.includes(code))
+    .map((code) => ({ value: code, label: formatReasonCodeLabel(code) }));
+}
+
+/** Accountability codes whose choice carries a one-line reliability-score note (L-F07-01/04). */
+const RELIABILITY_HINTS: Partial<Record<string, string>> = {
+  [RejectionReasonCode.INSPECTOR_NO_SHOW]: "This counts against the inspector's reliability score.",
+  [RejectionReasonCode.NOT_EXECUTED]: "Only this reason counts against the inspector's reliability score.",
+};
 
 export interface StatusTransitionConfirmPayload {
   reason: string;
@@ -41,6 +64,18 @@ interface StatusTransitionDialogProps {
   message: string;
   variant: 'danger' | 'warning';
   targetStatus?: string;
+  /**
+   * The appointment's current status. Drives which rejection reasons are offered
+   * (`INSPECTOR_NO_SHOW` only from `SCHEDULED`, `NOT_EXECUTED` only from `DONE`,
+   * F07-3). Omitted for an origin-blind caller — only general codes appear then.
+   */
+  currentStatus?: string;
+  /**
+   * A server error to show inside the dialog without closing it — e.g. a
+   * `422 REJECTION_CODE_NOT_ALLOWED` when the appointment's status changed in
+   * another tab. The parent keeps `open` true and passes the message.
+   */
+  error?: string;
   /**
    * Whether the rental tenant has already been told this inspection exists.
    * Gates the "notify the tenant" checkbox: there is no point offering to tell
@@ -59,6 +94,8 @@ export function StatusTransitionDialog({
   message,
   variant,
   targetStatus,
+  currentStatus,
+  error,
   rentalTenantNotified = false,
   loading = false,
 }: StatusTransitionDialogProps) {
@@ -76,9 +113,11 @@ export function StatusTransitionDialog({
 
   const reasonCodeOptions = useMemo(() => {
     if (targetStatus === 'CANCELLED') return CANCELLATION_OPTIONS;
-    if (targetStatus === 'REJECTED') return REJECTION_OPTIONS;
+    if (targetStatus === 'REJECTED') return rejectionOptionsFrom(currentStatus);
     return null;
-  }, [targetStatus]);
+  }, [targetStatus, currentStatus]);
+
+  const reliabilityHint = targetStatus === 'REJECTED' ? RELIABILITY_HINTS[reasonCode] : undefined;
 
   const showNotifyRentalTenant = targetStatus === 'CANCELLED' && rentalTenantNotified;
 
@@ -140,6 +179,7 @@ export function StatusTransitionDialog({
             placeholder="Select a reason..."
             aria-label="Reason Code"
           />
+          {reliabilityHint && <p className="mt-1 text-xs text-text-secondary">{reliabilityHint}</p>}
         </FormField>
       )}
       {showFreeText && (
@@ -164,6 +204,11 @@ export function StatusTransitionDialog({
             cancel without contacting them. The agency is notified either way.
           </p>
         </div>
+      )}
+      {error && (
+        <p className="mt-4 rounded bg-error/10 px-3 py-2 text-sm text-error" role="alert">
+          {error}
+        </p>
       )}
     </Dialog>
   );

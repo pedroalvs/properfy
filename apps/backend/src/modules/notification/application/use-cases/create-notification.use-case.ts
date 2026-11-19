@@ -22,6 +22,12 @@ export interface CreateNotificationInput {
 
 export interface CreateNotificationOutput {
   notificationId: string;
+  /**
+   * Whether this call inserted the row. `false` means the deterministic
+   * `notificationId` already existed (idempotent no-op) and no `notification.send`
+   * job was enqueued — the dedupe signal F06's triggers rely on (TASK-F06-2).
+   */
+  created: boolean;
 }
 
 export class CreateNotificationUseCase {
@@ -94,7 +100,7 @@ export class CreateNotificationUseCase {
     });
     if (input.notificationId !== undefined) {
       const inserted = await this.notificationRepo.saveIfAbsent(notification);
-      if (!inserted) return { notificationId };
+      if (!inserted) return { notificationId, created: false };
     } else {
       await this.notificationRepo.save(notification);
     }
@@ -111,6 +117,6 @@ export class CreateNotificationUseCase {
       this.logger?.error({ notificationId, jobName, channel: input.channel, templateCode: input.templateCode, error: enqueueError }, 'notification.enqueue_failed');
       throw enqueueError;
     }
-    return { notificationId };
+    return { notificationId, created: true };
   }
 }

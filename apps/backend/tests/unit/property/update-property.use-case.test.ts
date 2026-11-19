@@ -60,10 +60,25 @@ describe('UpdatePropertyUseCase', () => {
   let propertyRepo: IPropertyRepository;
   let branchRepo: IBranchRepository;
   let auditService: AuditService;
+  let logger: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; debug: ReturnType<typeof vi.fn> };
   let useCase: UpdatePropertyUseCase;
+
+  /** The invariant: no update() call may ever write MANUAL with a null coordinate. */
+  function assertNoManualWithNullCoord() {
+    for (const call of vi.mocked(propertyRepo.update).mock.calls) {
+      const payload = call[2] as { geocodingStatus?: string; lat?: number | null; lng?: number | null };
+      if (payload.geocodingStatus === 'MANUAL') {
+        expect(payload.lat).not.toBeNull();
+        expect(payload.lng).not.toBeNull();
+        expect(payload.lat).toBeDefined();
+        expect(payload.lng).toBeDefined();
+      }
+    }
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
+    logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
     propertyRepo = {
       findById: vi.fn(),
       findByPropertyCode: vi.fn(),
@@ -83,7 +98,7 @@ describe('UpdatePropertyUseCase', () => {
       update: vi.fn(),
     };
     auditService = { log: vi.fn() } as unknown as AuditService;
-    useCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService);
+    useCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger as never);
   });
 
   it('should update property successfully', async () => {
@@ -459,7 +474,7 @@ describe('UpdatePropertyUseCase', () => {
       expect(sendJob).not.toHaveBeenCalled();
     });
 
-    it('should NOT reset status when coords cleared on non-MANUAL property', async () => {
+    it('ignores null/null coords on a non-MANUAL property (never MANUAL-without-coord, dec. 16)', async () => {
       vi.mocked(propertyRepo.findById).mockResolvedValue(
         makeProperty({ geocodingStatus: 'SUCCESS', lat: -33.87, lng: 151.21 }),
       );
@@ -470,9 +485,162 @@ describe('UpdatePropertyUseCase', () => {
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       });
 
-      // Non-MANUAL property: clearing coords sets MANUAL status (existing behavior)
-      expect(result.geocodingStatus).toBe('MANUAL');
+      // null/null on a non-MANUAL property is ignored: status/coords/marker untouched.
+      expect(result.geocodingStatus).toBe('SUCCESS');
+      expect(propertyRepo.update).toHaveBeenCalledWith(
+        'prop-1',
+        'tenant-1',
+        expect.not.objectContaining({ geocodingStatus: expect.any(String) }),
+      );
+      expect(logger.debug).toHaveBeenCalledWith(
+        { propertyId: 'prop-1', geocodingStatus: 'SUCCESS' },
+        'property.update_coordinates_null_ignored',
+      );
       expect(sendJob).not.toHaveBeenCalled();
+      assertNoManualWithNullCoord();
+    });
+  });
+
+  describe('coordinate equality & invariant (X02-1)', () => {
+    it('ignores coordinates equal to the stored pair: keeps SUCCESS, no lat/lng/status, no job', async () => {
+      vi.mocked(propertyRepo.findById).mockResolvedValue(
+        makeProperty({ geocodingStatus: 'SUCCESS', lat: -33.8688, lng: 151.2093 }),
+      );
+
+      const result = await useCase.execute({
+        propertyId: 'prop-1',
+        data: { latitude: -33.8688, longitude: 151.2093 },
+        actor: makeActor(),
+      });
+
+      expect(result.geocodingStatus).toBe('SUCCESS');
+      expect(result.latitude).toBe(-33.8688);
+      expect(propertyRepo.update).toHaveBeenCalledWith(
+        'prop-1',
+        'tenant-1',
+        expect.not.objectContaining({ geocodingStatus: expect.any(String) }),
+      );
+      const payload = vi.mocked(propertyRepo.update).mock.calls[0]![2] as Record<string, unknown>;
+      expect('lat' in payload).toBe(false);
+      expect('lng' in payload).toBe(false);
+      // audit after still reflects SUCCESS
+      const audit = vi.mocked(auditService.log).mock.calls[0]![0] as { after: { geocodingStatus: string } };
+      expect(audit.after.geocodingStatus).toBe('SUCCESS');
+      expect(sendJob).not.toHaveBeenCalled();
+      assertNoManualWithNullCoord();
+    });
+
+    it('treats coordinates equal at 7 decimal places as unchanged', async () => {
+      vi.mocked(propertyRepo.findById).mockResolvedValue(
+        makeProperty({ geocodingStatus: 'SUCCESS', lat: -33.8688, lng: 151.2093 }),
+      );
+
+      const result = await useCase.execute({
+        propertyId: 'prop-1',
+        data: { latitude: -33.86880004, longitude: 151.20930002 },
+        actor: makeActor(),
+      });
+
+      expect(result.geocodingStatus).toBe('SUCCESS');
+      const payload = vi.mocked(propertyRepo.update).mock.calls[0]![2] as Record<string, unknown>;
+      expect('geocodingStatus' in payload).toBe(false);
+      expect(sendJob).not.toHaveBeenCalled();
+    });
+
+    it('re-geocodes (PENDING + job) when equal coords are sent WITH an address change, without nulling coords', async () => {
+      vi.mocked(propertyRepo.findById).mockResolvedValue(
+        makeProperty({ geocodingStatus: 'SUCCESS', lat: -33.8688, lng: 151.2093 }),
+      );
+
+      const result = await useCase.execute({
+        propertyId: 'prop-1',
+        data: { latitude: -33.8688, longitude: 151.2093, street: '2 New St' },
+        actor: makeActor(),
+      });
+
+      expect(result.geocodingStatus).toBe('PENDING');
+      const payload = vi.mocked(propertyRepo.update).mock.calls[0]![2] as Record<string, unknown>;
+      expect(payload.geocodingStatus).toBe('PENDING');
+      expect(payload.geocodedPermanentlyAt).toBeNull();
+      expect('lat' in payload).toBe(false); // old coords kept until the worker runs
+      expect(sendJob).toHaveBeenCalledWith('property.geocode', { propertyId: 'prop-1' }, { retryLimit: 6, retryBackoff: true });
+      assertNoManualWithNullCoord();
+    });
+
+    it('re-geocodes on null/null + address change (PENDING + job), never MANUAL-without-coord', async () => {
+      vi.mocked(propertyRepo.findById).mockResolvedValue(
+        makeProperty({ geocodingStatus: 'SUCCESS', lat: -33.8688, lng: 151.2093 }),
+      );
+
+      const result = await useCase.execute({
+        propertyId: 'prop-1',
+        data: { latitude: null, longitude: null, street: '2 New St' },
+        actor: makeActor(),
+      });
+
+      expect(result.geocodingStatus).toBe('PENDING');
+      const payload = vi.mocked(propertyRepo.update).mock.calls[0]![2] as Record<string, unknown>;
+      expect(payload.geocodingStatus).toBe('PENDING');
+      expect(payload.geocodedPermanentlyAt).toBeNull();
+      expect(payload.geocodingFailureCode).toBeNull();
+      expect(sendJob).toHaveBeenCalled();
+      assertNoManualWithNullCoord();
+    });
+
+    it('ignores an incomplete coordinate pair (one present, other null) on a SUCCESS property', async () => {
+      vi.mocked(propertyRepo.findById).mockResolvedValue(
+        makeProperty({ geocodingStatus: 'SUCCESS', lat: -33.8688, lng: 151.2093 }),
+      );
+
+      const result = await useCase.execute({
+        propertyId: 'prop-1',
+        data: { latitude: -33.9, longitude: null },
+        actor: makeActor(),
+      });
+
+      expect(result.geocodingStatus).toBe('SUCCESS');
+      const payload = vi.mocked(propertyRepo.update).mock.calls[0]![2] as Record<string, unknown>;
+      expect('lat' in payload).toBe(false);
+      expect('geocodingStatus' in payload).toBe(false);
+      expect(sendJob).not.toHaveBeenCalled();
+      assertNoManualWithNullCoord();
+    });
+
+    it('ignores null/null on PENDING and FAILED properties too', async () => {
+      for (const status of ['PENDING', 'FAILED'] as const) {
+        vi.clearAllMocks();
+        vi.mocked(propertyRepo.findById).mockResolvedValue(
+          makeProperty({ geocodingStatus: status, lat: null, lng: null }),
+        );
+        const result = await useCase.execute({
+          propertyId: 'prop-1',
+          data: { latitude: null, longitude: null },
+          actor: makeActor(),
+        });
+        expect(result.geocodingStatus).toBe(status);
+        const payload = vi.mocked(propertyRepo.update).mock.calls[0]![2] as Record<string, unknown>;
+        expect('geocodingStatus' in payload).toBe(false);
+        expect(sendJob).not.toHaveBeenCalled();
+        assertNoManualWithNullCoord();
+      }
+    });
+
+    it('sets MANUAL + clears the marker when a different coordinate pair is provided', async () => {
+      vi.mocked(propertyRepo.findById).mockResolvedValue(
+        makeProperty({ geocodingStatus: 'SUCCESS', lat: -33.8688, lng: 151.2093 }),
+      );
+
+      const result = await useCase.execute({
+        propertyId: 'prop-1',
+        data: { latitude: -33.9, longitude: 151.3 },
+        actor: makeActor(),
+      });
+
+      expect(result.geocodingStatus).toBe('MANUAL');
+      const payload = vi.mocked(propertyRepo.update).mock.calls[0]![2] as Record<string, unknown>;
+      expect(payload).toMatchObject({ lat: -33.9, lng: 151.3, geocodingStatus: 'MANUAL', geocodedPermanentlyAt: null, geocodingFailureCode: null });
+      expect(sendJob).not.toHaveBeenCalled();
+      assertNoManualWithNullCoord();
     });
   });
 

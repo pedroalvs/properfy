@@ -8,6 +8,7 @@ import { registerPropertyRoutes } from '../modules/property/interfaces/property.
 import { registerServiceTypeRoutes } from '../modules/service-type/interfaces/service-type.routes';
 import { registerPricingRuleRoutes } from '../modules/pricing-rule/interfaces/pricing-rule.routes';
 import { registerInspectorRoutes } from '../modules/inspector/interfaces/inspector.routes';
+import { registerInspectorNoticeRoutes } from '../modules/inspector-notice/interfaces/inspector-notice.routes';
 import { registerAppointmentRoutes } from '../modules/appointment/interfaces/appointment.routes';
 import { registerServiceGroupRoutes } from '../modules/service-group/interfaces/service-group.routes';
 import { registerMarketplaceRoutes } from '../modules/service-group/interfaces/marketplace.routes';
@@ -16,6 +17,14 @@ import { registerAuditErasureRoutes } from '../modules/audit/interfaces/audit-er
 import { registerAuditRetentionRoutes } from '../modules/audit/interfaces/audit-retention.routes';
 import { registerRentalTenantPortalRoutes } from '../modules/rental-tenant-portal/interfaces/rental-tenant-portal.routes';
 import { registerInspectorExecutionRoutes } from '../modules/inspector-execution/interfaces/inspector-execution.routes';
+import { registerDayPlanRoutes } from '../modules/day-plan/interfaces/day-plan.routes';
+import { registerExecutionDensityRoutes } from '../modules/inspector-execution/interfaces/execution-density.routes';
+import { registerPropertyFileRoutes } from '../modules/property-file/interfaces/property-file.routes';
+import { registerPropertyIssueRoutes } from '../modules/property-file/interfaces/property-issue.routes';
+import { registerLiveDayRoutes } from '../modules/live-day/interfaces/live-day.routes';
+import { registerReliabilityRoutes } from '../modules/reliability/interfaces/reliability.routes';
+import { registerInspectorProgramRoutes } from '../modules/inspector-program/interfaces/inspector-program.routes';
+import { registerPlatformSettingsRoutes } from '../modules/platform-settings/interfaces/platform-settings.routes';
 import { registerBillingRoutes } from '../modules/billing/interfaces/billing.routes';
 import { registerReportRoutes } from '../modules/report/interfaces/report.routes';
 import { registerNotificationRoutes } from '../modules/notification/interfaces/notification.routes';
@@ -95,6 +104,7 @@ export async function registerRoutes(
   await registerServiceTypeRoutes(app, container.serviceType);
   await registerPricingRuleRoutes(app, container.pricingRule);
   await registerInspectorRoutes(app, container.inspector);
+  await registerInspectorNoticeRoutes(app, container.inspectorNotice);
   await registerAppointmentRoutes(app, container.appointment);
   await registerServiceGroupRoutes(app, container.serviceGroup);
   await registerMarketplaceRoutes(app, container.marketplace);
@@ -103,6 +113,14 @@ export async function registerRoutes(
   await registerAuditRetentionRoutes(app, container.auditRetention);
   await registerRentalTenantPortalRoutes(app, container.rentalTenantPortal);
   await registerInspectorExecutionRoutes(app, container.inspectorExecution);
+  await registerDayPlanRoutes(app, container.dayPlan);
+  await registerExecutionDensityRoutes(app, container.executionDensity);
+  await registerPropertyFileRoutes(app, container.propertyFile);
+  await registerPropertyIssueRoutes(app, container.propertyIssue);
+  await registerLiveDayRoutes(app, container.liveDay);
+  await registerReliabilityRoutes(app, container.reliability);
+  await registerInspectorProgramRoutes(app, container.inspectorProgram);
+  await registerPlatformSettingsRoutes(app, container.platformSettings);
   await registerBillingRoutes(app, container.billing);
   await registerReportRoutes(app, container.report);
   await registerNotificationRoutes(app, container.notification);

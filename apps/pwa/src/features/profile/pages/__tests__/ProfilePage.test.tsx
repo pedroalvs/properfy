@@ -24,11 +24,22 @@ vi.mock('../../hooks/useInspectorAvailabilityTemplate', () => ({
   useInspectorAvailabilityTemplate: () => mockUseAvailability(),
 }));
 
+const { unreadRef } = vi.hoisted(() => ({ unreadRef: { value: 0 } }));
+vi.mock('@/features/announcements/hooks/useUnreadNoticeCount', () => ({
+  useUnreadNoticeCount: () => ({ count: unreadRef.value }),
+}));
+
+const mockUseInspectorProgram = vi.fn();
+vi.mock('@/features/challenges/hooks/useInspectorProgram', () => ({
+  useInspectorProgram: () => mockUseInspectorProgram(),
+}));
+
 describe('ProfilePage (tiles)', () => {
   const logout = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    unreadRef.value = 0;
     mockUseAuth.mockReturnValue({
       user: {
         id: 'insp-1',
@@ -45,12 +56,33 @@ describe('ProfilePage (tiles)', () => {
     });
     mockUseInspectorMe.mockReturnValue({ data: undefined, isLoading: false, isError: false });
     mockUseAvailability.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    mockUseInspectorProgram.mockReturnValue({ data: undefined });
   });
 
   it('renders the identity header with name and an Active badge', () => {
     renderWithProviders(<ProfilePage />);
     expect(screen.getByRole('heading', { name: 'Inspector Jane' })).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
+  });
+
+  it('shows the base-address banner when the base has no coordinates', () => {
+    mockUseInspectorMe.mockReturnValue({
+      data: { data: { id: 'insp-1', address: null, baseLat: null } },
+      isLoading: false,
+      isError: false,
+    });
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByText('Add your base address')).toBeInTheDocument();
+  });
+
+  it('hides the base-address banner once the base is located', () => {
+    mockUseInspectorMe.mockReturnValue({
+      data: { data: { id: 'insp-1', address: { street: 'x' }, baseLat: -33.8 } },
+      isLoading: false,
+      isError: false,
+    });
+    renderWithProviders(<ProfilePage />);
+    expect(screen.queryByText('Add your base address')).not.toBeInTheDocument();
   });
 
   it('renders the four tiles pointing at the correct destinations', () => {
@@ -61,6 +93,22 @@ describe('ProfilePage (tiles)', () => {
     expect(screen.getByRole('link', { name: /^Availability/ })).toHaveAttribute('href', '/profile/availability');
     expect(screen.getByRole('link', { name: /^Documents/ })).toHaveAttribute('href', '/profile/documents');
     expect(screen.getByRole('link', { name: /^My account/ })).toHaveAttribute('href', '/profile/account');
+  });
+
+  it('shows the Challenges tile right after Earnings with the open bonus total (L-F08-09)', () => {
+    mockUseInspectorProgram.mockReturnValue({ data: { summary: { openCashTotal: 110, currency: 'AUD' } } });
+    renderWithProviders(<ProfilePage />);
+    const challenges = screen.getByTestId('profile-tile-challenges');
+    expect(challenges).toHaveAttribute('href', '/profile/challenges');
+    expect(screen.getByRole('link', { name: 'Challenges, Up to $110 in bonuses' })).toBeInTheDocument();
+    const earnings = screen.getByRole('link', { name: /^Earnings/ });
+    expect(earnings.compareDocumentPosition(challenges) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('falls back to a neutral Challenges label when there is no open bonus', () => {
+    mockUseInspectorProgram.mockReturnValue({ data: undefined });
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByRole('link', { name: 'Challenges, See your goals and ranking' })).toBeInTheDocument();
   });
 
   it('exposes the documents status in the tile accessible name', () => {
@@ -87,9 +135,11 @@ describe('ProfilePage (tiles)', () => {
     expect(screen.queryByText('Not set')).not.toBeInTheDocument();
   });
 
-  it('no longer surfaces App settings or Account details on the main screen', () => {
+  it('surfaces the App settings row linking to /profile/settings (F04-3 More hub)', () => {
     renderWithProviders(<ProfilePage />);
-    expect(screen.queryByRole('link', { name: 'App settings' })).not.toBeInTheDocument();
+    const appSettings = screen.getByRole('link', { name: 'App settings' });
+    expect(appSettings).toHaveAttribute('href', '/profile/settings');
+    // Account details stays off the main screen (reached via My account).
     expect(screen.queryByRole('link', { name: 'Account details' })).not.toBeInTheDocument();
   });
 
@@ -153,5 +203,28 @@ describe('ProfilePage (tiles)', () => {
     mockUseAuth.mockReturnValue({ user: null, logout });
     const { container } = renderWithProviders(<ProfilePage />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it('shows the Announcements tile with the unread count and a warning dot', () => {
+    unreadRef.value = 3;
+    renderWithProviders(<ProfilePage />);
+    const tile = screen.getByRole('link', { name: 'Announcements, 3 unread' });
+    expect(tile).toHaveAttribute('href', '/profile/announcements');
+    expect(screen.getByTestId('profile-tile-announcements-dot')).toBeInTheDocument();
+  });
+
+  it('shows the Announcements tile with no new announcements and no dot at zero', () => {
+    unreadRef.value = 0;
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByRole('link', { name: 'Announcements, No new announcements' })).toBeInTheDocument();
+    expect(screen.queryByTestId('profile-tile-announcements-dot')).not.toBeInTheDocument();
+  });
+
+  it('places the Announcements tile after My account in the DOM (survives future tiles)', () => {
+    unreadRef.value = 1;
+    renderWithProviders(<ProfilePage />);
+    const account = screen.getByRole('link', { name: /^My account/ });
+    const announcements = screen.getByTestId('profile-tile-announcements');
+    expect(account.compareDocumentPosition(announcements) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

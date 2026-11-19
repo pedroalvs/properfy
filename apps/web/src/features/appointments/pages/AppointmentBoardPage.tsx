@@ -165,6 +165,7 @@ export function AppointmentBoardPage() {
     <div className="flex h-full min-h-0 flex-col px-4 py-2 md:px-8 md:py-6">
       <PageHeader
         title="Service Dashboard"
+        backTo="/appointments"
         primaryAction={
           canCreate
             ? {

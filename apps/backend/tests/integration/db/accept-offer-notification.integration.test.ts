@@ -18,7 +18,11 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 import { setupDbHarness, teardownDbHarness, type DbHarness } from './harness';
-import { seedTenant } from '../service-region/helpers/service-region-fixtures';
+import {
+  seedTenant,
+  SYDNEY_POLYGON_GEOJSON,
+  POINT_INSIDE_SYDNEY,
+} from '../service-region/helpers/service-region-fixtures';
 import {
   DomainEventBus,
   SERVICE_GROUP_EVENTS,
@@ -58,7 +62,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await harness.prisma.$executeRawUnsafe(
-    `TRUNCATE TABLE notifications, rental_tenant_portal_tokens, appointment_contacts, appointments, service_groups, inspectors, properties, service_types, users, branches, tenants CASCADE`,
+    `TRUNCATE TABLE notifications, rental_tenant_portal_tokens, appointment_contacts, appointments, service_groups, inspector_regions, service_regions, inspectors, properties, service_types, users, branches, tenants CASCADE`,
   );
 });
 
@@ -95,6 +99,19 @@ async function seedInspector(prisma: PrismaClient, serviceTypeId: string): Promi
       blocked_clients_json: [],
     },
   });
+  // Accept re-checks marketplace eligibility, so the inspector must cover the
+  // properties' region (a global Sydney region; see seedProperty).
+  const geojson = JSON.stringify(SYDNEY_POLYGON_GEOJSON);
+  await prisma.$executeRaw`
+    WITH r AS (
+      INSERT INTO service_regions (id, tenant_id, name, geom, geojson, color, status, created_at, updated_at)
+      VALUES (gen_random_uuid(), NULL, 'Global Sydney', ST_SetSRID(ST_GeomFromGeoJSON(${geojson}), 4326),
+              ${geojson}::jsonb, '#3b82f6', 'ACTIVE'::"RegionStatus", NOW(), NOW())
+      RETURNING id
+    )
+    INSERT INTO inspector_regions (inspector_id, region_id, assigned_at)
+    SELECT ${inspector.id}, r.id, NOW() FROM r
+  `;
   return inspector.id;
 }
 
@@ -106,6 +123,11 @@ async function seedProperty(prisma: PrismaClient, tenantId: string, branchId: st
       geocoding_status: 'SUCCESS',
     },
   });
+  await prisma.$executeRaw`
+    UPDATE properties
+       SET coordinates = ST_SetSRID(ST_MakePoint(${POINT_INSIDE_SYDNEY.lng}, ${POINT_INSIDE_SYDNEY.lat}), 4326)
+     WHERE id = ${p.id}
+  `;
   return p.id;
 }
 

@@ -53,6 +53,19 @@ describe('InvoiceDetailPage', () => {
     expect(download).toBeEnabled();
   });
 
+  it('renders a BONUS line with its description and no address', () => {
+    mockUseMyInvoiceDetail.mockReturnValue(
+      detail({
+        lineItemsSnapshot: [
+          { kind: 'BONUS', entryId: 'fe-1', appointmentCode: null, description: 'Weekly ten goal', propertyAddress: null, serviceType: null, serviceDate: '2026-06-07', agencyName: null, branchName: null, amount: 30 },
+        ],
+      }),
+    );
+    renderWithProviders(<InvoiceDetailPage />);
+    expect(screen.getByText('Bonus')).toBeInTheDocument();
+    expect(screen.getByText('Weekly ten goal')).toBeInTheDocument();
+  });
+
   it('shows the rejection reason and no Download button for a VOID invoice', () => {
     mockUseMyInvoiceDetail.mockReturnValue(
       detail({ status: 'VOID', fileKey: null, notes: 'Wrong period', invoiceNumberDisplay: null, lineItemsSnapshot: [] }),

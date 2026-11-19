@@ -6,6 +6,7 @@ import {
   isWithheldForNonNotifyingFlow,
   FLOW_TYPE_NO_OCCUPANT_CODE,
   PROPERFY_LOGO_URL,
+  measureSms,
   type NotificationClass,
 } from '@properfy/shared';
 import { prepareSmsBody } from '../../domain/sms-content';
@@ -915,6 +916,22 @@ export class SendNotificationUseCase {
         });
         messageId = result.messageId;
         notification.providerName = 'mobile-message';
+        // Cost observability for every dispatched SMS (F06 L-F06-11), measured on
+        // the PREPARED body actually sent. No recipient in the log.
+        const measured = measureSms(prepared.body);
+        this.logger.info(
+          {
+            notificationId: notification.id,
+            tenantId: notification.tenantId,
+            templateCode: notification.templateCode,
+            parts: measured.parts,
+            encoding: measured.encoding,
+            length: measured.length,
+            truncated: prepared.truncated,
+          },
+          'notification.sms_dispatched',
+        );
+        this.metrics.addSmsParts(notification.templateCode, measured.parts);
       }
 
       notification.status = 'SENT';

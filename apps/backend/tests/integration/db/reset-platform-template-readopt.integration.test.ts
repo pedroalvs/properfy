@@ -84,7 +84,7 @@ describe('reset a platform default re-adopts the seed (real Postgres)', () => {
       templateCode: 'INSPECTION_CANCELLED',
       channel: 'EMAIL',
       subject: 'Operator custom subject',
-      bodyHtml: '<p>Operator custom copy for {{propertyAddress}}</p>',
+      bodyHtml: '<p>Operator custom copy for {{rentalTenantName}} at {{propertyAddress}} on {{scheduledDate}}</p>',
       isActive: true,
       actor: AM,
     });
@@ -108,7 +108,7 @@ describe('reset a platform default re-adopts the seed (real Postgres)', () => {
       templateCode: 'INSPECTION_CANCELLED',
       channel: 'EMAIL',
       subject: 'Operator custom subject',
-      bodyHtml: '<p>Operator custom copy for {{propertyAddress}}</p>',
+      bodyHtml: '<p>Operator custom copy for {{rentalTenantName}} at {{propertyAddress}} on {{scheduledDate}}</p>',
       isActive: true,
       actor: AM,
     });

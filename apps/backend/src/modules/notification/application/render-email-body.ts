@@ -37,7 +37,7 @@ export const LEGACY_IMAGE_PLACEHOLDER_REGEX = /\{\{image:[A-Za-z0-9_-]+\}\}/g;
  * Shared render pipeline for notification bodies.
  *
  * EMAIL: strip legacy image placeholders → Handlebars → sanitizeForRender → html-to-text.
- * SMS:   strip legacy image placeholders → Handlebars over the plain-text source only.
+ * SMS:   strip legacy image placeholders → Handlebars (no HTML-escaping) over the plain-text source only.
  *
  * Used by both SendNotificationUseCase and SendTestNotificationUseCase so the
  * test send is byte-identical to the real delivery on either channel.
@@ -64,7 +64,8 @@ export function renderEmailBody(
   if (renderedBodyHtml && htmlToText) {
     renderedBodyText = htmlToText.convert(renderedBodyHtml);
   } else {
-    renderedBodyText = templateRenderer.render(bodyTextSource, input.variables);
+    // SMS is plain text: escaping would deliver `Smith &amp; Sons` to the handset.
+    renderedBodyText = templateRenderer.render(bodyTextSource, input.variables, { escapeHtml: isEmail });
   }
 
   return { renderedSubject, renderedBodyHtml, renderedBodyText };

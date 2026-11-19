@@ -212,10 +212,10 @@ export function InvoiceDetailDrawer({
                         </thead>
                         <tbody>
                           {invoice.lineItemsSnapshot.map((line) => (
-                            <tr key={line.appointmentId} className="border-t border-black/5">
+                            <tr key={line.entryId ?? line.appointmentId ?? line.appointmentCode} className="border-t border-black/5">
                               <td className="py-1 pr-3">{formatCivilDate(line.serviceDate)}</td>
-                              <td className="py-1 pr-3">{line.appointmentCode}</td>
-                              <td className="py-1 pr-3">{line.propertyAddress ?? '—'}</td>
+                              <td className="py-1 pr-3">{line.kind === 'BONUS' ? 'Bonus' : line.appointmentCode}</td>
+                              <td className="py-1 pr-3">{line.kind === 'BONUS' ? (line.description ?? '—') : (line.propertyAddress ?? '—')}</td>
                               <td className="py-1 pr-3">{line.serviceType ?? '—'}</td>
                               <td className="py-1 pr-3">{line.agencyName ?? '—'}</td>
                               <td className="py-1 pr-3">{line.branchName ?? '—'}</td>

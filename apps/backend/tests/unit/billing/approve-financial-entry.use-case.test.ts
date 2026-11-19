@@ -3,6 +3,7 @@ import { ApproveFinancialEntryUseCase } from '../../../src/modules/billing/appli
 import { FinancialEntryEntity } from '../../../src/modules/billing/domain/financial-entry.entity';
 import {
   EntryNotFoundError,
+  BonusEntryManagedByRewardError,
   EntryNotPendingError,
   BillingIdempotencyPayloadMismatchError,
   BillingIdempotencyInProgressError,
@@ -311,5 +312,16 @@ describe('ApproveFinancialEntryUseCase', () => {
       ).rejects.toThrow(EntryNotPendingError);
       expect(financialEntryRepo.findByIdEnriched).not.toHaveBeenCalled();
     });
+  });
+
+  it('refuses an INSPECTOR_BONUS entry (409 BONUS_ENTRY_MANAGED_BY_REWARD, Q12)', async () => {
+    const sut = makeSut();
+    financialEntryRepo.findById.mockResolvedValue(
+      makePendingEntry({ entryType: 'INSPECTOR_BONUS', tenantId: null, inspectorId: 'insp-1', appointmentId: null }),
+    );
+    await expect(
+      sut.execute({ entryId: 'entry-1', idempotencyKey: 'idem-1', actor: amActor }),
+    ).rejects.toBeInstanceOf(BonusEntryManagedByRewardError);
+    expect(financialEntryRepo.approvePendingEntry).not.toHaveBeenCalled();
   });
 });

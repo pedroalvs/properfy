@@ -173,4 +173,29 @@ describe('MetricsCollector', () => {
     const snapshot = metrics.getSnapshot();
     expect(snapshot.http.activeRequests).toBe(0);
   });
+
+  it('tracks tenant-eta notice counts by kind and channel (F06-2 L-F06-11)', () => {
+    const { metrics } = metricsModule;
+
+    metrics.incrementTenantEtaNoticeCount('MORNING', 'EMAIL');
+    metrics.incrementTenantEtaNoticeCount('MORNING', 'SMS');
+    metrics.incrementTenantEtaNoticeCount('MORNING', 'SMS');
+    metrics.incrementTenantEtaNoticeCount('DELAY', 'SMS');
+
+    const snapshot = metrics.getSnapshot();
+    expect(snapshot.notification?.tenantEtaNoticeCounts).toEqual({
+      'MORNING|EMAIL': 1,
+      'MORNING|SMS': 2,
+      'DELAY|SMS': 1,
+    });
+  });
+
+  it('clears tenant-eta notice counts on reset', () => {
+    const { metrics } = metricsModule;
+
+    metrics.incrementTenantEtaNoticeCount('ON_THE_WAY', 'EMAIL');
+    metrics.reset();
+
+    expect(metrics.getSnapshot().notification?.tenantEtaNoticeCounts).toEqual({});
+  });
 });

@@ -1,21 +1,12 @@
-import { useGoBack } from '@/hooks/useGoBack';
+import { BackButton } from '@/components/layout';
 import { ApiKeysTab } from '../components/ApiKeysTab';
 import { ProviderLogo } from '../components/ProviderLogo';
 
 /** Own page of the Fy inbound integration (API keys), at /integrations/fy-api. AM-only (guarded in the router). */
 export function FyIntegrationPage() {
-  const goBack = useGoBack('/integrations?tab=api-keys');
-
   return (
     <div className="space-y-4">
-      <button
-        type="button"
-        onClick={goBack}
-        className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-      >
-        <i className="mdi mdi-arrow-left" aria-hidden="true" />
-        API Keys
-      </button>
+      <BackButton to="/integrations?tab=api-keys" />
 
       <section
         className="rounded bg-card-bg p-6 shadow-sm"

@@ -57,6 +57,12 @@ export class MetricsCollector {
   private notificationHandlerErrorCount = 0;
   private agencyForwardFailedCount = 0;
   private notificationMissingVariableCount = 0;
+  private routingProviderCalls = new Map<string, number>();
+  private routingMatrixElements = 0;
+  private routingProviderFailuresByCode = new Map<string, number>();
+  private dayPlansApproximateTotal = new Map<string, number>();
+  private smsPartsByTemplate = new Map<string, number>();
+  private tenantEtaNoticeCounts = new Map<string, number>();
 
   /** Register a function that returns the current JWT previous key days remaining. Called on each snapshot. */
   setJwtGaugeProvider(provider: () => number | null): void {
@@ -88,6 +94,60 @@ export class MetricsCollector {
   /** Increment the count of missing template variable occurrences. */
   incrementMissingVariableCount(count: number = 1): void {
     this.notificationMissingVariableCount += count;
+  }
+
+  /**
+   * Record one Mapbox routing provider call. `outcome` is 'OK' for a success or
+   * the failure's RoutingProviderError code; on a non-OK outcome the same code is
+   * also accumulated in the per-code failure counter (L-F04-09). `elements` is the
+   * Matrix element count (n²) for a matrix call; omitted/0 for directions.
+   */
+  recordRoutingProviderCall(entry: {
+    api: 'matrix' | 'directions';
+    outcome: string;
+    elements?: number;
+    code?: string;
+  }): void {
+    const key = `${entry.api}|${entry.outcome}`;
+    this.routingProviderCalls.set(key, (this.routingProviderCalls.get(key) ?? 0) + 1);
+    if (entry.elements && entry.elements > 0) {
+      this.routingMatrixElements += entry.elements;
+    }
+    if (entry.outcome !== 'OK') {
+      const code = entry.code ?? entry.outcome;
+      this.routingProviderFailuresByCode.set(
+        code,
+        (this.routingProviderFailuresByCode.get(code) ?? 0) + 1,
+      );
+    }
+  }
+
+  /**
+   * Count one day plan published with approximate travel times, keyed by its
+   * `approximateReason` (L-F04-09). Feeds `/metrics` so persistent provider
+   * failures (anything other than NO_PROVIDER) are visible without log scraping.
+   */
+  incrementDayPlansApproximate(reason: string): void {
+    this.dayPlansApproximateTotal.set(reason, (this.dayPlansApproximateTotal.get(reason) ?? 0) + 1);
+  }
+
+  /**
+   * Accumulate the SMS-segment cost of a dispatched message, keyed by template
+   * code (F06 L-F06-11). Per-machine, like the other counters. Feeds `/metrics`
+   * so the arrival-notice SMS cost is visible without log scraping.
+   */
+  addSmsParts(templateCode: string, parts: number): void {
+    this.smsPartsByTemplate.set(templateCode, (this.smsPartsByTemplate.get(templateCode) ?? 0) + parts);
+  }
+
+  /**
+   * Count one created tenant arrival notice, keyed by kind + channel (F06-2
+   * L-F06-11). Per-machine, like the other counters. Feeds `/metrics` so the
+   * arrival-notice volume is visible without log scraping.
+   */
+  incrementTenantEtaNoticeCount(kind: string, channel: string): void {
+    const key = `${kind}|${channel}`;
+    this.tenantEtaNoticeCounts.set(key, (this.tenantEtaNoticeCounts.get(key) ?? 0) + 1);
   }
 
   httpRequestStart(): () => number {
@@ -144,6 +204,12 @@ export class MetricsCollector {
     this.notificationHandlerErrorCount = 0;
     this.agencyForwardFailedCount = 0;
     this.notificationMissingVariableCount = 0;
+    this.routingProviderCalls.clear();
+    this.routingMatrixElements = 0;
+    this.routingProviderFailuresByCode.clear();
+    this.dayPlansApproximateTotal.clear();
+    this.smsPartsByTemplate.clear();
+    this.tenantEtaNoticeCounts.clear();
   }
 
   getSnapshot(): MetricsSnapshot {
@@ -224,6 +290,17 @@ export class MetricsCollector {
         handlerErrorCount: this.notificationHandlerErrorCount,
         agencyForwardFailedCount: this.agencyForwardFailedCount,
         missingVariableCount: this.notificationMissingVariableCount,
+        smsPartsByTemplate: Object.fromEntries(this.smsPartsByTemplate),
+        tenantEtaNoticeCounts: Object.fromEntries(this.tenantEtaNoticeCounts),
+      },
+      routing: {
+        providerCalls: Array.from(this.routingProviderCalls, ([key, count]) => {
+          const [api, outcome] = key.split('|');
+          return { api: api!, outcome: outcome!, count };
+        }),
+        matrixElements: this.routingMatrixElements,
+        providerFailuresByCode: Object.fromEntries(this.routingProviderFailuresByCode),
+        dayPlansApproximateTotal: Object.fromEntries(this.dayPlansApproximateTotal),
       },
     };
   }
@@ -290,6 +367,18 @@ export interface MetricsSnapshot {
     /** Withheld from the tenant AND not mirrored to the agency — nobody was told. */
     agencyForwardFailedCount: number;
     missingVariableCount: number;
+    /** Dispatched SMS segments, keyed by template code (F06 L-F06-11). */
+    smsPartsByTemplate: Record<string, number>;
+    /** Created tenant arrival notices, keyed by `{kind}|{channel}` (F06-2 L-F06-11). */
+    tenantEtaNoticeCounts: Record<string, number>;
+  };
+  routing?: {
+    providerCalls: Array<{ api: string; outcome: string; count: number }>;
+    matrixElements: number;
+    /** Per-RoutingProviderError-code failure counts (L-F04-09). */
+    providerFailuresByCode: Record<string, number>;
+    /** Day plans published approximate, keyed by approximateReason (L-F04-09, F04-2). */
+    dayPlansApproximateTotal: Record<string, number>;
   };
 }
 

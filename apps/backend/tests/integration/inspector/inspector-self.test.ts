@@ -7,6 +7,7 @@ import { makeInspContext, makeAmContext, makeClAdminContext } from '../../helper
 
 const mockGetInspectorExecute = vi.fn();
 const mockUpdateInspectorSelfProfileExecute = vi.fn();
+const mockRecordAppStateExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
 
@@ -22,6 +23,7 @@ vi.mock('../../../src/main/container', () => ({
     inspector: {
       getInspectorUseCase: { execute: mockGetInspectorExecute },
       updateInspectorSelfProfileUseCase: { execute: mockUpdateInspectorSelfProfileExecute },
+      recordInspectorAppStateUseCase: { execute: mockRecordAppStateExecute },
       jwtService: { verify: mockJwtVerify },
     },
     appointment: { jwtService: { verify: mockJwtVerify } },
@@ -148,5 +150,78 @@ describe('PATCH /v1/inspectors/me', () => {
       .send({ phone: '+61400111222' });
 
     expect(res.status).toBe(401);
+  });
+
+  it('accepts a base address and forwards it to the self-update use case (F01-1)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(makeInspContext(INSPECTOR_ID));
+    mockUpdateInspectorSelfProfileExecute.mockResolvedValueOnce({ inspectorId: INSPECTOR_ID, baseGeocodeFailed: false });
+    const address = { street: '1 George St', suburb: 'Sydney', city: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' };
+    const res = await supertest(app.server)
+      .patch('/v1/inspectors/me')
+      .set('Authorization', 'Bearer token')
+      .send({ address });
+    expect(res.status).toBe(200);
+    expect(mockUpdateInspectorSelfProfileExecute.mock.calls[0][0].data.address).toMatchObject({ state: 'NSW' });
+  });
+
+  it('rejects a non-AU state in the base address with 400 at address.state (F01-1)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(makeInspContext(INSPECTOR_ID));
+    const res = await supertest(app.server)
+      .patch('/v1/inspectors/me')
+      .set('Authorization', 'Bearer token')
+      .send({ address: { street: '1 George St', suburb: 'Sydney', city: 'Sydney', state: 'New South Wales', postcode: '2000', country: 'AU' } });
+    expect(res.status).toBe(400);
+    expect(mockUpdateInspectorSelfProfileExecute).not.toHaveBeenCalled();
+  });
+});
+
+describe('per-user rate limit on INSP self routes (L-F01-06)', () => {
+  const appState = { displayMode: 'standalone', pushPermission: 'granted', appVersion: '0.1.0' };
+
+  function inspCtx(userId: string) {
+    return { userId, tenantId: null, role: 'INSP', branchId: null, inspectorId: INSPECTOR_ID };
+  }
+
+  it('allows 10 app-state heartbeats per user per minute and 429s the 11th', async () => {
+    const userId = `rl-${Math.random().toString(36).slice(2)}`;
+    // mockReset (not clear) to drop any mockResolvedValueOnce still queued from a
+    // prior test — a stale context would key the first request to another user.
+    mockJwtVerify.mockReset();
+    mockJwtVerify.mockResolvedValue(inspCtx(userId));
+    mockRecordAppStateExecute.mockResolvedValue(undefined);
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 11; i++) {
+      const res = await supertest(app.server)
+        .post('/v1/inspectors/me/app-state')
+        .set('Authorization', 'Bearer token')
+        .send(appState);
+      statuses.push(res.status);
+    }
+    expect(statuses.slice(0, 10)).toEqual(Array(10).fill(204));
+    expect(statuses[10]).toBe(429);
+  });
+
+  it('keys the limit by user, not IP: two users behind one IP each keep their own budget', async () => {
+    const userA = `rl-a-${Math.random().toString(36).slice(2)}`;
+    const userB = `rl-b-${Math.random().toString(36).slice(2)}`;
+    mockRecordAppStateExecute.mockResolvedValue(undefined);
+    // mockReset first so no queued Once context leaks into the first request.
+    mockJwtVerify.mockReset();
+    // The bearer token selects which user's context authenticate resolves.
+    mockJwtVerify.mockImplementation(async (token: string) => inspCtx(token === 'A' ? userA : userB));
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      for (const token of ['A', 'B']) {
+        const res = await supertest(app.server)
+          .post('/v1/inspectors/me/app-state')
+          .set('Authorization', `Bearer ${token}`)
+          .send(appState);
+        statuses.push(res.status);
+      }
+    }
+    // 20 requests (10 per user) and not one 429 — the shared IP did not pool them.
+    expect(statuses.every((s) => s === 204)).toBe(true);
   });
 });

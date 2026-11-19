@@ -7,29 +7,29 @@ import mapboxgl from 'mapbox-gl';
 import { MapScreenLayout } from '@/components/map/MapScreenLayout';
 import { MapContainer } from '@/components/map/MapContainer';
 import { MapMarker, PIN_COLLISION_DIAMETER_PX } from '@/components/map/MapMarker';
+import { computeMarkerOffsets } from '@/components/map/marker-offsets';
 import { MapFloatingAction } from '@/components/map/MapFloatingAction';
 import { computeBounds, isSinglePointBounds, isPlottablePoint, type PointLike } from '@/lib/map-bounds';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-import type { ServiceGroupStatus, MarkerOffset } from '@properfy/shared';
-import { resolveCoincidentMarkerOffsets } from '@properfy/shared';
+import type { ServiceGroupStatus } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { useMapFilterPersistence } from '../hooks/useMapFilterPersistence';
 import { useAllPagesQuery, type ListParams } from '@/hooks/useApiQuery';
 import {
   AppointmentMapFilterPanel,
-  DEFAULT_APPOINTMENT_FILTERS,
-  DEFAULT_GROUP_FILTERS,
   type FilterMode,
-  type AppointmentModeFilters,
-  type GroupModeFilters,
 } from '../components/AppointmentMapFilterPanel';
+import { useMapPeriodWindow } from '../hooks/useMapPeriodWindow';
+import { MapWindowChip } from '@/components/map/MapWindowChip';
+import { formatWindowLabel } from '../lib/map-period-window';
 import { MapLassoSelect, type LassoPoint, type LassoState, type MapLassoSelectHandle } from '@/components/map/MapLassoSelect';
 import { MapFilterToggleButton } from '@/components/map/MapFilterToggleButton';
 import { MapListViewToggleButton } from '@/components/map/MapListViewToggleButton';
 import { MapLassoToggleButton } from '@/components/map/MapLassoToggleButton';
+import { ExecutionDensityControl } from '../components/ExecutionDensityControl';
 import { MapBulkActionModal } from '../components/MapBulkActionModal';
 import { MapAddToGroupSubModal } from '../components/MapAddToGroupSubModal';
 import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPanel';
@@ -284,30 +284,6 @@ export function resolveActiveLassoPoints(args: {
   return args.appointmentPoints;
 }
 
-/**
- * Pixel offsets that stop two pins at the *same address* being drawn on top of
- * each other, keyed by pin id.
- *
- * Only exactly-coincident pins are moved: those are the ones no zoom level can
- * separate, so one would stay invisible under the other forever. Pins that are
- * merely close keep their true position — a pin's job on this screen is to say
- * where the property is, and the operator separates crowded ones by zooming in.
- * Since coincidence does not depend on the camera, this is computed once per pin
- * set rather than on every camera move.
- */
-export function computeMarkerOffsets(
-  pins: Array<{ id: string; latitude: number; longitude: number }>,
-  diameter: number,
-): Map<string, MarkerOffset> {
-  // Sorted by id so the layout does not depend on list order. Coincident pins
-  // are laid out in input order, and the queries feeding this page sort by
-  // created_at with no unique tie-breaker — an unsorted input would let a
-  // refetch swap two markers' offsets and make the pins jump for no reason.
-  const ordered = [...pins].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const offsets = resolveCoincidentMarkerOffsets(ordered, diameter);
-  return new Map(ordered.map((p, index) => [p.id, offsets[index]!]));
-}
-
 export function AppointmentMapPage() {
 
   const queryClient = useQueryClient();
@@ -320,8 +296,19 @@ export function AppointmentMapPage() {
   // WEB-8: view-mode seed (?mode=groups, AM/OP only) + the sessionStorage-backed
   // filter-panel flag live in useMapFilterPersistence.
   const { mode, setMode, filtersOpen, toggleFilters } = useMapFilterPersistence({ isGlobalRole });
-  const [appointmentFilters, setAppointmentFilters] = useState<AppointmentModeFilters>(DEFAULT_APPOINTMENT_FILTERS);
-  const [groupFilters, setGroupFilters] = useState<GroupModeFilters>(DEFAULT_GROUP_FILTERS);
+  // F00 — the period window owns the two filter states and gates the first
+  // appointments request so it always carries today..today+N (see hook docs).
+  const {
+    appointmentFilters,
+    groupFilters,
+    onAppointmentFiltersChange,
+    onGroupFiltersChange,
+    appointmentWindowReady,
+    windowActive,
+    windowDays,
+    windowRange,
+    removeWindow,
+  } = useMapPeriodWindow();
   const [selectedItem, setSelectedItem] = useState<AppointmentMapItem | null>(null);
   const [selectedGroupItem, setSelectedGroupItem] = useState<ServiceGroupMapPin | null>(null);
   // Single-click group-pin PREVIEW (Groups mode): shows the group detail
@@ -408,7 +395,10 @@ export function AppointmentMapPage() {
     ['appointments-map'],
     '/v1/appointments',
     appointmentParams,
-    { enabled: true, placeholderData: keepPreviousData },
+    // F00 — hold the first request until the window has resolved, so it always
+    // carries today..today+N (never an unbounded fetch). For AM/OP with no agency
+    // filter the window is ready synchronously; for CL it waits on the agency GET.
+    { enabled: appointmentWindowReady, placeholderData: keepPreviousData },
   );
 
   const appointmentData = useMemo(
@@ -540,7 +530,12 @@ export function AppointmentMapPage() {
     });
 
   // Shared loading/error states
-  const isLoading = mode === 'appointments' ? appointmentsLoading : groupsLoading;
+  // While the appointments window is resolving (CL waiting on its agency GET) the
+  // query is disabled, so react-query reports not-loading; treat "window not ready"
+  // as loading so the panel shows a pending state instead of an empty map (M2b).
+  const isLoading = mode === 'appointments'
+    ? appointmentsLoading || !appointmentWindowReady
+    : groupsLoading;
   const isFetching = mode === 'appointments' ? appointmentsFetching : groupsFetching;
   const isError = mode === 'appointments' ? appointmentsError : groupsError;
   const errorMessage = mode === 'appointments'
@@ -1078,7 +1073,9 @@ export function AppointmentMapPage() {
           Filters{' '}
           <span className="font-normal text-text-muted">
             · {mode === 'appointments'
-              ? formatPinCountLabel('appointment', appointmentData.length, validAppointmentPins.length)
+              ? (appointmentWindowReady
+                  ? formatPinCountLabel('appointment', appointmentData.length, validAppointmentPins.length)
+                  : 'Loading…')
               : formatPinCountLabel('group', groupData.length, validGroupPins.length)}
           </span>
         </h2>
@@ -1120,15 +1117,19 @@ export function AppointmentMapPage() {
           mode={mode}
           onModeChange={setMode}
           appointmentFilters={appointmentFilters}
-          onAppointmentFiltersChange={setAppointmentFilters}
+          onAppointmentFiltersChange={onAppointmentFiltersChange}
           groupFilters={groupFilters}
-          onGroupFiltersChange={setGroupFilters}
+          onGroupFiltersChange={onGroupFiltersChange}
           serviceTypeOptions={serviceTypeOptions}
           branchOptions={branchOptions}
           tenantOptions={tenantOptions}
           inspectorOptions={inspectorOptions}
           actorRole={actorRole}
           onFilterSubmit={handleFilterSubmit}
+          windowActive={windowActive}
+          windowDays={windowDays}
+          windowRange={windowRange}
+          onRemoveWindow={removeWindow}
         />
       </div>
     </div>
@@ -1358,16 +1359,38 @@ export function AppointmentMapPage() {
             button is the canonical affordance; the external toggle was
             occluding the panel header text. */}
         {!filtersOpen && (
-          <div className="pointer-events-none absolute left-4 top-4 z-30 md:left-6 md:top-6">
+          <div className="pointer-events-none absolute left-4 top-4 z-30 flex items-center gap-2 md:left-6 md:top-6">
             <div className="pointer-events-auto">
               <MapFilterToggleButton open={filtersOpen} onToggle={toggleFilters} />
             </div>
+            {/* F00 — show the active window even with the panel closed, so the
+                window state is never hidden. AM/OP can remove it here too; CL sees
+                a static label. */}
+            {windowActive[mode] && (
+              <div className="pointer-events-auto">
+                <MapWindowChip
+                  label={formatWindowLabel(windowDays[mode])}
+                  removable={isGlobalRole}
+                  onRemove={isGlobalRole ? () => removeWindow(mode) : undefined}
+                />
+              </div>
+            )}
           </div>
         )}
 
         {/* C10 — top-right toolbar: lasso + List view in a horizontal row,
             offset left of the Mapbox zoom controls. */}
         <div className="pointer-events-none absolute right-14 top-4 z-30 flex items-center gap-2">
+          {mode === 'appointments' && (
+            <div className="pointer-events-auto">
+              <ExecutionDensityControl
+                map={mapInstance}
+                isGlobalRole={isGlobalRole}
+                tenantId={appointmentFilters.tenantId}
+                inspectorId={appointmentFilters.inspectorId}
+              />
+            </div>
+          )}
           {lassoAvailable && (
             <div className="pointer-events-auto">
               <MapLassoToggleButton active={lassoState !== 'idle'} onClick={handleLassoToggle} />

@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * ../../ goes from __tests__/ up through main/ to src/.
  */
 
+
 const mockBoss = {
   work: vi.fn().mockResolvedValue(undefined),
   schedule: vi.fn().mockResolvedValue(undefined),
@@ -75,6 +76,19 @@ async function callRegisterWorkers(logger: ReturnType<typeof makeLogger>) {
     makeWorkerMock() as any,   // rejectUnconfirmedWorker
     makeWorkerMock() as any,   // cancelEmptyGroupsWorker
     { deliver: vi.fn().mockResolvedValue(undefined) } as any, // fyWebhookDispatcher
+    makeWorkerMock() as any,   // deliverInspectorNoticeUseCase
+    makeWorkerMock() as any,   // sweepUndeliveredInspectorNoticesUseCase
+    makeWorkerMock() as any,   // autoArchiveInspectorNoticesUseCase
+    makeWorkerMock() as any,   // sendCompletionRemindersUseCase
+    makeWorkerMock() as any,   // publishDayPlansUseCase
+    makeWorkerMock() as any,   // sendMorningEtaNoticesUseCase
+    makeWorkerMock() as any,   // evaluateTenantEtaUseCase
+    makeWorkerMock() as any,   // sweepTenantEtaDelaysUseCase
+    { get: vi.fn().mockResolvedValue({ enabled: false, channelMode: 'BOTH', morningHour: 7, morningCutoffHour: 9, delayThresholdMinutes: 20, smsBudgetSharePercent: 80 }) } as any, // tenantEtaSettingsReader
+    makeWorkerMock() as any,   // propertyFileRetentionWorker
+    makeWorkerMock() as any,   // computeReliabilitySnapshotsUseCase
+    { execute: vi.fn().mockResolvedValue('UP_TO_DATE') } as any, // ensureTodaySnapshotUseCase (also the startup backfill)
+    makeWorkerMock() as any,   // runInspectorProgramDailyUseCase
     logger as any,
   );
 }
@@ -95,14 +109,26 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
     ['auth.cleanup-sessions', '0 2 * * *'],
     ['auth.check-key-expiry', '0 3 * * *'],
     ['report.expire-files', '0 3 * * *'],
+    ['property-file.retention', '0 4 * * *'],
     ['property.geocode-retry', '*/15 * * * *'],
     ['appointment.import.sweep-abandoned', '0 * * * *'],
     ['rental-tenant-portal.expire-tokens', '*/15 * * * *'],
     ['inspection-execution.notify-not-started', '0 * * * *'],
+    ['inspection-execution.completion-reminder', '*/15 * * * *'],
     ['audit.retention', '30 3 * * *'],
     ['appointment.reject-unconfirmed', '0 * * * *'],
     ['service-group.cancel-empty', '20 0 * * *'],
+    ['inspector-notice.delivery-sweep', '*/5 * * * *'],
+    ['inspector-notice.auto-archive', '45 3 * * *'],
+    // day-plan.publish carries extra send options (singletonKey, expireInMinutes), so it
+    // is asserted with objectContaining below rather than an exact { tz } match.
+    ['day-plan.publish', '30 * * * *'],
+    ['tenant-eta.morning', '0 * * * *'],
+    ['tenant-eta.sweep-delays', '*/30 * * * *'],
     ['system.dlq-monitor', '*/5 * * * *'],
+    ['reliability.compute-snapshots', '15 4 * * *'],
+    ['reliability.ensure-today', '0 5-12 * * *'],
+    ['inspector-program.daily', '45 4 * * *'],
   ];
 
   it('schedules every cron with the expected expression and tz Australia/Sydney', async () => {
@@ -110,7 +136,7 @@ describe('registerWorkers — cron schedules anchored to Australia/Sydney', () =
 
     expect(mockBoss.schedule).toHaveBeenCalledTimes(EXPECTED_SCHEDULES.length);
     for (const [name, cron] of EXPECTED_SCHEDULES) {
-      expect(mockBoss.schedule).toHaveBeenCalledWith(name, cron, {}, { tz: 'Australia/Sydney' });
+      expect(mockBoss.schedule).toHaveBeenCalledWith(name, cron, {}, expect.objectContaining({ tz: 'Australia/Sydney' }));
     }
   });
 

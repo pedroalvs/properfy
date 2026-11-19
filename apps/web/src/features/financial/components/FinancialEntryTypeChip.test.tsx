@@ -8,6 +8,7 @@ const TYPE_LABELS: Record<FinancialEntryType, string> = {
   INSPECTOR_PAYOUT: 'Inspector Payout',
   REFUND: 'Refund',
   MANUAL_ADJUSTMENT: 'Manual Adjustment',
+  INSPECTOR_BONUS: 'Bonus',
 };
 
 describe('FinancialEntryTypeChip', () => {

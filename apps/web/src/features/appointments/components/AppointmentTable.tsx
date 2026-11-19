@@ -283,6 +283,7 @@ export function AppointmentTable({
       pagination={pagination}
       defaultSort={{ key: 'scheduledDate', order: 'desc' }}
       keyExtractor={(row) => row.id}
+      rowClassName={(row) => (row.hasUnseenIssues ? 'border-l-4 border-l-warning' : undefined)}
     />
   );
 }

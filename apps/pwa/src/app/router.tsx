@@ -34,6 +34,16 @@ const AccessDeniedPage = lazyRetry(() =>
 const DeactivatedPage = lazyRetry(() =>
   import('@/features/auth/pages/DeactivatedPage').then((module) => ({ default: module.DeactivatedPage })),
 );
+const TodayLayout = lazyRetry(() =>
+  import('@/features/today/pages/TodayLayout').then((module) => ({
+    default: module.TodayLayout,
+  })),
+);
+const RoutePage = lazyRetry(() =>
+  import('@/features/day-plan/pages/RoutePage').then((module) => ({
+    default: module.RoutePage,
+  })),
+);
 const ScheduleLayout = lazyRetry(() =>
   import('@/features/schedule/pages/ScheduleLayout').then((module) => ({
     default: module.ScheduleLayout,
@@ -79,9 +89,24 @@ const ProfileSettingsPage = lazyRetry(() =>
     default: module.ProfileSettingsPage,
   })),
 );
+const AnnouncementsPage = lazyRetry(() =>
+  import('@/features/announcements/pages/AnnouncementsPage').then((module) => ({
+    default: module.AnnouncementsPage,
+  })),
+);
+const AnnouncementDetailPage = lazyRetry(() =>
+  import('@/features/announcements/pages/AnnouncementDetailPage').then((module) => ({
+    default: module.AnnouncementDetailPage,
+  })),
+);
 const EarningsPage = lazyRetry(() =>
   import('@/features/earnings/pages/EarningsPage').then((module) => ({
     default: module.EarningsPage,
+  })),
+);
+const ChallengesPage = lazyRetry(() =>
+  import('@/features/challenges/pages/ChallengesPage').then((module) => ({
+    default: module.ChallengesPage,
   })),
 );
 const RequestInvoicePage = lazyRetry(() =>
@@ -116,8 +141,7 @@ function lazyElement(Component: ComponentType) {
   );
 }
 
-export const router = createBrowserRouter(
-  [
+export const routes: Parameters<typeof createBrowserRouter>[0] = [
     {
       path: '/login',
       element: lazyElement(LoginPage),
@@ -147,7 +171,17 @@ export const router = createBrowserRouter(
             {
               element: <PwaLayout />,
               children: [
-                { index: true, element: <Navigate to="/schedule" replace /> },
+                { index: true, element: <Navigate to="/today" replace /> },
+                {
+                  path: 'today',
+                  element: lazyElement(TodayLayout),
+                  handle: { wide: true },
+                  children: [
+                    { index: true, element: null },
+                    { path: 'route', element: lazyElement(RoutePage) },
+                    { path: 'route/:date', element: lazyElement(RoutePage) },
+                  ],
+                },
                 {
                   path: 'schedule',
                   element: lazyElement(ScheduleLayout),
@@ -175,10 +209,13 @@ export const router = createBrowserRouter(
                   handle: { wide: true },
                   children: [
                     { index: true, element: null },
+                    { path: 'challenges', element: lazyElement(ChallengesPage) },
                     { path: 'availability', element: lazyElement(ProfileAvailabilityPage) },
                     { path: 'documents', element: lazyElement(ProfileDocumentsPage) },
                     { path: 'account', element: lazyElement(ProfileAccountPage) },
                     { path: 'settings', element: lazyElement(ProfileSettingsPage) },
+                    { path: 'announcements', element: lazyElement(AnnouncementsPage) },
+                    { path: 'announcements/:noticeId', element: lazyElement(AnnouncementDetailPage) },
                     { path: 'edit', element: <Navigate to="/profile/account" replace /> },
                   ],
                 },
@@ -191,12 +228,12 @@ export const router = createBrowserRouter(
     },
     {
       path: '*',
-      element: <Navigate to="/schedule" replace />,
+      element: <Navigate to="/today" replace />,
     },
-  ],
-  {
-    future: {
-      v7_relativeSplatPath: true,
-    },
+];
+
+export const router = createBrowserRouter(routes, {
+  future: {
+    v7_relativeSplatPath: true,
   },
-);
+});

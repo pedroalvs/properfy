@@ -20,6 +20,7 @@ export interface ListServiceTypesOutput {
     flowType: string;
     requiresRentalTenantConfirmation: boolean;
     status: string;
+    defaultDurationMinutes: number;
     createdAt: Date;
     updatedAt: Date;
   }>;
@@ -53,6 +54,7 @@ export class ListServiceTypesUseCase {
         flowType: st.flowType,
         requiresRentalTenantConfirmation: st.requiresRentalTenantConfirmation,
         status: st.status,
+        defaultDurationMinutes: st.defaultDurationMinutes,
         createdAt: st.createdAt,
         updatedAt: st.updatedAt,
       })),

@@ -7,12 +7,14 @@ import {
   getDefaultClass,
   getTemplateCodeLabel,
   getTemplateTarget,
+  measureSmsTemplate,
 } from '@properfy/shared';
 import {
   PLATFORM_TEMPLATES,
   resolvePlatformTemplateClass,
 } from '../../../src/modules/notification/domain/platform-notification-templates';
 import { STUCK_ALERT_PAYLOAD_KEYS } from '../../../src/modules/inspector-execution/infrastructure/workers/notify-stuck.worker';
+import { INSPECTOR_UNABLE_ALERT_PAYLOAD_KEYS } from '../../../src/modules/inspector-execution/application/services/notify-inspector-unable.service';
 import { SanitizeHtmlService } from '../../../src/modules/notification/infrastructure/sanitize-html.service';
 import { TemplateRendererService } from '../../../src/modules/notification/domain/template-renderer.service';
 
@@ -46,6 +48,36 @@ describe('PLATFORM_TEMPLATES seed data', () => {
   it('INSPECTION_STUCK_ALERT is TRANSACTIONAL so an internal ops alert can never be consent-blocked', () => {
     const entry = PLATFORM_TEMPLATES.find(
       (t) => t.code === 'INSPECTION_STUCK_ALERT' && t.channel === 'EMAIL',
+    )!;
+
+    expect(entry.notificationClass).toBe('TRANSACTIONAL');
+  });
+
+  it('includes an EMAIL template for INSPECTOR_UNABLE_ALERT', () => {
+    const entry = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'INSPECTOR_UNABLE_ALERT' && t.channel === 'EMAIL',
+    );
+
+    expect(entry).toBeDefined();
+    expect(entry!.subject).toBeTruthy();
+    expect(entry!.body).toBeTruthy();
+  });
+
+  it('INSPECTOR_UNABLE_ALERT only uses variables the alert service provides', () => {
+    const entry = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'INSPECTOR_UNABLE_ALERT' && t.channel === 'EMAIL',
+    )!;
+
+    const used = extractVariables(`${entry.subject ?? ''} ${entry.body}`);
+    expect(used.length).toBeGreaterThan(0);
+    for (const variable of used) {
+      expect(INSPECTOR_UNABLE_ALERT_PAYLOAD_KEYS).toContain(variable);
+    }
+  });
+
+  it('INSPECTOR_UNABLE_ALERT is TRANSACTIONAL so the ops alert can never be consent-blocked', () => {
+    const entry = PLATFORM_TEMPLATES.find(
+      (t) => t.code === 'INSPECTOR_UNABLE_ALERT' && t.channel === 'EMAIL',
     )!;
 
     expect(entry.notificationClass).toBe('TRANSACTIONAL');
@@ -116,6 +148,7 @@ describe('seeded notification class follows the shared catalogue', () => {
   // explicit seed entry now agrees with the catalogue rather than being the sole pin.
   it.each([
     'INSPECTION_STUCK_ALERT',
+    'INSPECTOR_UNABLE_ALERT',
     'PASSWORD_RESET',
     'INSPECTOR_GROUP_ASSIGNED',
     'INSPECTOR_GROUP_UNASSIGNED',
@@ -178,6 +211,9 @@ const APPOINTMENT_EMAIL_CODES = [
   'INSPECTION_CANCELLED_AGENCY',
   'INSPECTION_UNAVAILABILITY_REPORTED',
   'TENANT_PORTAL_LINK',
+  'TENANT_ETA_MORNING',
+  'TENANT_ETA_ON_THE_WAY',
+  'TENANT_ETA_DELAY',
 ] as const;
 
 describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
@@ -238,7 +274,12 @@ describe('PLATFORM_TEMPLATES appointment email HTML bodies', () => {
       const rendered = renderer.render(entry!.bodyHtml!, { ...SAMPLE_DATA });
       expect(rendered).not.toMatch(/\{\{/);
       const sanitized = sanitizer.sanitizeForRender(rendered);
-      expect(sanitized).toContain(SAMPLE_DATA.rentalTenantName);
+      // Most tenant emails greet by name; the F06 arrival-time bodies intentionally
+      // omit the greeting (the copy was reviewed without one), so only assert the
+      // name rendered when the body actually references it.
+      if (entry!.bodyHtml!.includes('{{rentalTenantName}}')) {
+        expect(sanitized).toContain(SAMPLE_DATA.rentalTenantName);
+      }
     });
   }
 
@@ -299,6 +340,7 @@ const SYSTEM_EMAIL_SAMPLES: Record<string, Record<string, string>> = {
   REPORT_READY: { userName: 'Admin User', reportType: 'Appointments', downloadLink: 'https://app.properfy.me/reports/1', properfyLogoUrl: PROPERFY_LOGO_URL },
   REPORT_FAILED: { userName: 'Admin User', reportType: 'Appointments', errorMessage: 'Server timeout', downloadLink: 'https://app.properfy.me/reports', properfyLogoUrl: PROPERFY_LOGO_URL },
   INSPECTION_STUCK_ALERT: { appointmentId: 'appt-1', inspectorId: 'insp-1', startedAt: '2026-07-23 09:00', hoursStuck: '5', properfyLogoUrl: PROPERFY_LOGO_URL },
+  INSPECTOR_UNABLE_ALERT: { appointmentId: 'appt-1', inspectorName: 'Jane Doe', fieldIssueReason: "Key didn't work", fieldIssueNote: 'Lockbox code wrong', properfyLogoUrl: PROPERFY_LOGO_URL },
 };
 
 describe('PLATFORM_TEMPLATES system email HTML bodies', () => {
@@ -356,6 +398,42 @@ describe('PLATFORM_TEMPLATES system email HTML bodies', () => {
   });
 });
 
+describe('INSPECTION_REJECTED_AGENCY inspector-driven copy (F03, D26)', () => {
+  const renderer = new TemplateRendererService();
+  const entry = PLATFORM_TEMPLATES.find(
+    (t) => t.code === 'INSPECTION_REJECTED_AGENCY' && t.channel === 'EMAIL',
+  )!;
+
+  const baseVars = {
+    appointmentCode: 'INS-0042',
+    propertyAddress: '12 King St, Newtown',
+    scheduledDate: '03/11/2026',
+    properfyLogoUrl: PROPERFY_LOGO_URL,
+  };
+
+  it('renders the inspector message and omits the tenant-availability copy when rejectedByInspector', () => {
+    const rendered = renderer.render(entry.bodyHtml!, {
+      ...baseVars,
+      rejectedByInspector: 'true',
+      inspectorName: 'Jane Doe',
+      rejectionReason: "Key didn't work — Lockbox code wrong",
+    });
+    expect(rendered).toContain(
+      "The inspector (Jane Doe) reported from the property that they couldn't complete this inspection",
+    );
+    expect(rendered).toContain("you don't need to do anything unless we contact you");
+    expect(rendered).not.toContain('Where the tenant told us when they are available');
+    expect(rendered).not.toMatch(/\{\{/);
+  });
+
+  it('keeps the standard rearrange copy when it is not an inspector rejection', () => {
+    const rendered = renderer.render(entry.bodyHtml!, { ...baseVars, rejectedByInspector: '' });
+    expect(rendered).toContain('Where the tenant told us when they are available');
+    expect(rendered).not.toContain('reported from the property');
+    expect(rendered).not.toMatch(/\{\{/);
+  });
+});
+
 describe('every seeded template is presentable on the templates list', () => {
   // The seeded catalog is larger than MANDATORY_TEMPLATE_CODES, and AM/OP see all of it.
   // These guards fail when a template is added to PLATFORM_TEMPLATES without also declaring
@@ -390,5 +468,76 @@ describe('legacy INSPECTION_NOTICE assertions', () => {
     expect(entry.bodyHtml).toContain('{{agencyPhone}}');
     expect(entry.bodyHtml).toContain('{{serviceTypeName}}');
     expect(entry.subject).toContain('{{propertyAddress}}');
+  });
+});
+
+describe('INSPECTOR_NOTICE_SMS platform template (F02-1)', () => {
+  const entry = PLATFORM_TEMPLATES.find(
+    (t) => t.code === 'INSPECTOR_NOTICE_SMS' && t.channel === 'SMS',
+  );
+
+  it('is seeded as an SMS template with the triple-stash message body', () => {
+    expect(entry).toBeDefined();
+    expect(entry!.subject).toBeNull();
+    expect(entry!.body).toBe('{{{message}}}');
+    expect(entry!.notificationClass).toBe('TRANSACTIONAL');
+  });
+
+  it('resolves to the protected TRANSACTIONAL class', () => {
+    expect(resolvePlatformTemplateClass(entry!)).toBe(getProtectedClass('INSPECTOR_NOTICE_SMS'));
+    expect(resolvePlatformTemplateClass(entry!)).toBe('TRANSACTIONAL');
+  });
+
+  it('renders the free operator text unescaped (no &amp;)', () => {
+    const renderer = new TemplateRendererService();
+    expect(renderer.render(entry!.body, { message: 'Tom & Jerry <test>' })).toBe('Tom & Jerry <test>');
+  });
+});
+
+describe('tenant arrival-time templates (F06)', () => {
+  const renderer = new TemplateRendererService();
+  const sanitizer = new SanitizeHtmlService();
+  const ETA_CODES = ['TENANT_ETA_MORNING', 'TENANT_ETA_ON_THE_WAY', 'TENANT_ETA_DELAY'] as const;
+
+  it('seeds exactly six TENANT_ETA_* rows (3 codes x EMAIL/SMS)', () => {
+    const rows = PLATFORM_TEMPLATES.filter((t) => t.code.startsWith('TENANT_ETA_'));
+    expect(rows).toHaveLength(6);
+    for (const code of ETA_CODES) {
+      expect(rows.filter((t) => t.code === code).map((t) => t.channel).sort()).toEqual(['EMAIL', 'SMS']);
+    }
+  });
+
+  it('every row resolves to OPERATIONAL', () => {
+    for (const t of PLATFORM_TEMPLATES.filter((t) => t.code.startsWith('TENANT_ETA_'))) {
+      expect(resolvePlatformTemplateClass(t), `${t.code} (${t.channel})`).toBe('OPERATIONAL');
+    }
+  });
+
+  it('uses no timeSlot or confirmationLink (D4, D12)', () => {
+    for (const t of PLATFORM_TEMPLATES.filter((t) => t.code.startsWith('TENANT_ETA_'))) {
+      const content = `${t.subject ?? ''} ${t.body} ${t.bodyHtml ?? ''}`;
+      expect(content).not.toContain('{{timeSlot}}');
+      expect(content).not.toContain('{{confirmationLink}}');
+    }
+  });
+
+  it('each SMS body is a single GSM-7 part with SAMPLE_DATA and has no en dash or apostrophe', () => {
+    for (const code of ETA_CODES) {
+      const sms = PLATFORM_TEMPLATES.find((t) => t.code === code && t.channel === 'SMS')!;
+      const measured = measureSmsTemplate(sms.body, SAMPLE_DATA);
+      expect(measured.encoding, `${code} encoding`).toBe('GSM-7');
+      expect(measured.parts, `${code} parts`).toBe(1);
+      expect(sms.body).not.toContain('–'); // en dash
+      expect(sms.body).not.toContain('’'); // curly apostrophe
+    }
+  });
+
+  it('on-the-way EMAIL never claims the previous visit finished (L-F06-08)', () => {
+    const entry = PLATFORM_TEMPLATES.find((t) => t.code === 'TENANT_ETA_ON_THE_WAY' && t.channel === 'EMAIL')!;
+    expect(entry.body).not.toContain('finished the previous visit');
+    expect(entry.bodyHtml).not.toContain('finished the previous visit');
+    expect(entry.body).toContain('is on the way');
+    const rendered = sanitizer.sanitizeForRender(renderer.render(entry.bodyHtml!, { ...SAMPLE_DATA }));
+    expect(rendered).toContain('is on the way');
   });
 });

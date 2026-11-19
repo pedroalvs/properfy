@@ -192,4 +192,56 @@ describe('GenerateReportDialog', () => {
     expect(screen.getByRole('option', { name: 'Financial' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Performance' })).toBeInTheDocument();
   });
+
+  // --- INSPECTOR_PROGRAM (F08-5): operator-only, platform-scoped ---
+  it('offers the Inspector program report type to operators', () => {
+    mockUseAuth.mockReturnValue({ user: { id: 'u-1', role: 'AM', tenantId: null } });
+
+    render(
+      <GenerateReportDialog open onClose={() => {}} onSubmit={vi.fn()} isSubmitting={false} />,
+    );
+
+    fireEvent.click(screen.getByLabelText('Report Type'));
+    expect(screen.getByRole('option', { name: 'Inspector program' })).toBeInTheDocument();
+  });
+
+  it('does not offer the Inspector program report type to agency roles', () => {
+    mockUseAuth.mockReturnValue({ user: { id: 'u-1', role: 'CL_ADMIN', tenantId: 'tenant-1' } });
+
+    render(
+      <GenerateReportDialog open onClose={() => {}} onSubmit={vi.fn()} isSubmitting={false} />,
+    );
+
+    fireEvent.click(screen.getByLabelText('Report Type'));
+    expect(screen.queryByRole('option', { name: 'Inspector program' })).not.toBeInTheDocument();
+  });
+
+  it('hides agency-oriented fields and submits only the date range for Inspector program', () => {
+    mockUseAuth.mockReturnValue({ user: { id: 'u-1', role: 'AM', tenantId: null } });
+
+    const onSubmit = vi.fn();
+    render(
+      <GenerateReportDialog open onClose={() => {}} onSubmit={onSubmit} isSubmitting={false} />,
+    );
+
+    // Pre-select an agency, then switch to Inspector program — the agency scope must be dropped.
+    selectOption('Agency', 'Agency One');
+    selectOption('Report Type', 'Inspector program');
+
+    expect(screen.queryByLabelText('Agency')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Branch')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Suburb')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Date Axis')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Status')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Group by property')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('From Date'), { target: { value: '2026-03-01' } });
+    fireEvent.change(screen.getByLabelText('To Date'), { target: { value: '2026-03-31' } });
+    fireEvent.click(screen.getByText('Generate'));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      reportType: 'INSPECTOR_PROGRAM',
+      filters: { fromDate: '2026-03-01', toDate: '2026-03-31', dateAxis: 'SCHEDULED', groupProperties: false },
+    });
+  });
 });

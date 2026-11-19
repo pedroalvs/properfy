@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useAuth';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
@@ -116,5 +116,43 @@ describe('ServiceGroupListPage', () => {
     // The dead ServiceGroupDetailDrawer was removed; the list only navigates to
     // the full detail page. No drawer/dialog surface should exist here.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('renders exactly one header Back button (P-a)', () => {
+    renderPage();
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+  });
+
+  it('Back on a direct entry falls back to the map (groups mode) (P-b)', () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+    });
+    function MapMarker() {
+      const location = useLocation();
+      return <div data-testid="map-fallback">search:{location.search}</div>;
+    }
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <SnackbarProvider>
+            <MemoryRouter
+              future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+              initialEntries={['/service-groups']}
+            >
+              <Routes>
+                <Route path="/service-groups" element={<ServiceGroupListPage />} />
+                <Route path="/map" element={<MapMarker />} />
+              </Routes>
+            </MemoryRouter>
+          </SnackbarProvider>
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+
+    const marker = screen.getByTestId('map-fallback');
+    expect(marker).toBeInTheDocument();
+    expect(marker).toHaveTextContent('search:?mode=groups');
   });
 });

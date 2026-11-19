@@ -151,7 +151,7 @@ describe('DispatchRemindersUseCase', () => {
       existsByAppointmentAndTemplate: vi.fn().mockResolvedValue(false),
     };
     mockCreateNotification = {
-      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1' }),
+      execute: vi.fn().mockResolvedValue({ notificationId: 'notif-1', created: true }),
     };
     useCase = new DispatchRemindersUseCase(
       mockAppointmentRepo as unknown as IAppointmentRepository,

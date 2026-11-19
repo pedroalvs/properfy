@@ -3,31 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { InProgressPanel } from '../InProgressPanel';
 
 describe('InProgressPanel', () => {
-  it('renders the in-progress panel with a finish button', () => {
-    render(<InProgressPanel startedAt={null} onFinish={vi.fn()} />);
-    expect(screen.getByTestId('in-progress-panel')).toBeInTheDocument();
-    expect(screen.getByTestId('proceed-to-finish-button')).toHaveTextContent('Check out & finish');
-  });
-
-  it('calls onFinish when the finish button is clicked', async () => {
+  it('offers a "Can\'t complete this job" link that opens the sheet (rejection after check-in)', async () => {
     const user = userEvent.setup();
-    const onFinish = vi.fn();
-    render(<InProgressPanel startedAt={null} onFinish={onFinish} />);
-    await user.click(screen.getByTestId('proceed-to-finish-button'));
-    expect(onFinish).toHaveBeenCalledOnce();
+    const onCantComplete = vi.fn();
+    render(<InProgressPanel startedAt="2026-03-18T09:00:00Z" onFinish={vi.fn()} onCantComplete={onCantComplete} />);
+
+    await user.click(screen.getByTestId('cant-complete-link'));
+    expect(onCantComplete).toHaveBeenCalledOnce();
   });
 
-  it('shows elapsed time when startedAt is provided', () => {
-    const startedAt = new Date(Date.now() - 65_000).toISOString();
-    render(<InProgressPanel startedAt={startedAt} onFinish={vi.fn()} />);
-    const elapsed = screen.getByTestId('elapsed-time');
-    expect(elapsed).toBeInTheDocument();
-    // 65s elapsed → at least "01:0x"
-    expect(elapsed).toHaveTextContent(/01:0\d/);
-  });
-
-  it('hides elapsed time when startedAt is null', () => {
-    render(<InProgressPanel startedAt={null} onFinish={vi.fn()} />);
-    expect(screen.queryByTestId('elapsed-time')).not.toBeInTheDocument();
+  it('omits the link when no handler is given', () => {
+    render(<InProgressPanel startedAt="2026-03-18T09:00:00Z" onFinish={vi.fn()} />);
+    expect(screen.queryByTestId('cant-complete-link')).not.toBeInTheDocument();
   });
 });

@@ -15,6 +15,7 @@ export interface GeocodeRetryResult {
   reenqueuedCount: number;
   pendingReenqueuedCount: number;
   failedGeocodingCount: number;
+  skippedCount: number;
 }
 
 export class GeocodeRetryWorker {
@@ -25,6 +26,13 @@ export class GeocodeRetryWorker {
 
   async execute(): Promise<GeocodeRetryResult> {
     const cutoff = new Date(Date.now() - COOL_OFF_HOURS * 60 * 60 * 1000);
+    // findFailedGeocoding already excludes rows carrying a geocoding_failure_code
+    // (e.g. the account lacks permanent geocoding) so they are never re-billed.
+    // Count and log how many were skipped for that reason.
+    const skippedCount = await this.propertyRepo.countBlockedFailedGeocoding();
+    if (skippedCount > 0) {
+      this.logger.info({ skippedCount }, 'Skipped FAILED properties blocked by a geocoding failure code');
+    }
     const failedProperties = await this.propertyRepo.findFailedGeocoding(cutoff);
 
     let reenqueuedCount = 0;
@@ -58,6 +66,6 @@ export class GeocodeRetryWorker {
     const failedGeocodingCount = await this.propertyRepo.countFailedGeocoding();
     metrics.setGeocodingFailedCount(failedGeocodingCount);
 
-    return { reenqueuedCount, pendingReenqueuedCount, failedGeocodingCount };
+    return { reenqueuedCount, pendingReenqueuedCount, failedGeocodingCount, skippedCount };
   }
 }

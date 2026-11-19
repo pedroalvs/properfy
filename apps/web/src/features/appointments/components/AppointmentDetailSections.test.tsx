@@ -340,3 +340,36 @@ describe('AppointmentDetailSections', () => {
     expect(screen.queryByText('Availability')).not.toBeInTheDocument();
   });
 });
+
+describe('AppointmentDetailSections — inspector couldn\'t complete card', () => {
+  const issue = {
+    reason: 'KEY_FAILED',
+    note: 'Lockbox jammed',
+    inspectorId: 'insp-1',
+    inspectorName: 'Jane Doe',
+    occurredAt: '2026-11-03T09:41:00+11:00',
+  };
+
+  it('renders the card when the appointment carries an inspector issue', () => {
+    render(
+      <AppointmentDetailSections
+        appointment={makeAppointment({ status: AppointmentStatus.REJECTED, inspectorIssue: issue })}
+      />,
+    );
+    expect(screen.getByText("Inspector couldn't complete")).toBeInTheDocument();
+  });
+
+  it('keeps the card after re-offer (status back to SCHEDULED, issue persisted)', () => {
+    render(
+      <AppointmentDetailSections
+        appointment={makeAppointment({ status: AppointmentStatus.SCHEDULED, inspectorIssue: issue })}
+      />,
+    );
+    expect(screen.getByText("Inspector couldn't complete")).toBeInTheDocument();
+  });
+
+  it('renders no card when there is no inspector issue', () => {
+    render(<AppointmentDetailSections appointment={makeAppointment({ inspectorIssue: null })} />);
+    expect(screen.queryByText("Inspector couldn't complete")).not.toBeInTheDocument();
+  });
+});

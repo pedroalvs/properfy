@@ -62,6 +62,14 @@ const envSchema = z.object({
   // Optional Mapbox
   MAPBOX_ACCESS_TOKEN: z.string().optional(),
 
+  // Day-plan routing provider kill switch (F04). 'stub' forces the haversine
+  // stub without stopping the publication job (L-F04-09).
+  DAY_PLAN_ROUTING_PROVIDER: z
+    .enum(['mapbox', 'stub'], {
+      errorMap: () => ({ message: "DAY_PLAN_ROUTING_PROVIDER must be 'mapbox' or 'stub'" }),
+    })
+    .default('mapbox'),
+
   // Optional TOTP encryption
   TOTP_ENCRYPTION_KEY: z.string().optional(),
 
@@ -106,6 +114,33 @@ const envSchema = z.object({
     .string()
     .regex(/^[a-z_][a-z0-9_]*$/, 'PGBOSS_SCHEMA must be a valid lowercase Postgres identifier')
     .optional(),
+
+  // F02-1: Web Push (VAPID). Distinct keys per environment; absent ⇒ push disabled and
+  // critical inspector notices fall back to SMS (safe degradation).
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z
+    .string()
+    .regex(/^(mailto:|https:)/, 'VAPID_SUBJECT must start with mailto: or https:')
+    .optional(),
+
+  // F02-1 (L-F02-01): daily platform cap on INSPECTOR_NOTICE_SMS. Absent ⇒ 500;
+  // '' or 'none' ⇒ unlimited (null); otherwise a non-negative integer.
+  INSPECTOR_NOTICE_SMS_DAILY_CAP: z.preprocess(
+    (val) => {
+      if (val === undefined) return 500;
+      if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (trimmed === '' || trimmed.toLowerCase() === 'none') return null;
+        return Number(trimmed);
+      }
+      return val;
+    },
+    z.union([z.number().int().min(0), z.null()]),
+  ),
+
+  // F02-1 (L-F02-06): days after which SYSTEM notices are auto-archived.
+  INSPECTOR_NOTICE_SYSTEM_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -177,6 +212,9 @@ export function validateEnv(source: Record<string, string | undefined> = process
     }
     if (!result.data.MAPBOX_ACCESS_TOKEN) {
       console.warn('[env] MAPBOX_ACCESS_TOKEN not set; geocoding relies on Integrations Hub settings (stub service until configured)');
+    }
+    if (!result.data.VAPID_PUBLIC_KEY || !result.data.VAPID_PRIVATE_KEY || !result.data.VAPID_SUBJECT) {
+      console.warn('[env] VAPID keys not configured; web push disabled and critical inspector notices fall back to SMS');
     }
 
     for (const [key, value] of [

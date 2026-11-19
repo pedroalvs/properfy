@@ -50,6 +50,8 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
     roles: ['AM', 'OP'],
   },
   'tenant.update': {
+    // OP: only settings.mapWindowDays, enforced in update-tenant.use-case.ts
+    // (OP_EXTRA_SETTINGS_KEYS); every other field is AM-only. No per-key scope here (F00).
     roles: ['AM', 'OP'],
   },
   'tenant.deactivate': {
@@ -287,6 +289,82 @@ export const ROLE_ACTION_MATRIX: Record<string, RoleMatrixEntry> = {
   },
   'audit.view': {
     roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
+
+  // ── Map ──────────────────────────────────────────────────────────────
+  // Activity-density layer on /map (F09). CL_ADMIN/CL_USER see only their own
+  // agency's aggregated check-ins; the inspectorId filter is AM/OP-only,
+  // enforced in the use case (CL passing inspectorId gets 403). No condition:
+  // the /map requires no permission flag.
+  'map.execution_density': {
+    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER'],
+  },
+
+  // ── Property Files & Issues (F10) ─────────────────────────────────────
+  // Base-role gate only; the use cases refine at runtime: cross-tenant reads
+  // return 404 (never 403), INSP is scoped to its own T-1-visible appointments,
+  // and `property_file.upload` for INSP is limited to ISSUE photos.
+  'property_file.read': {
+    roles: ['AM', 'OP', 'CL_ADMIN', 'CL_USER', 'INSP'],
+  },
+  'property_file.upload': {
+    // INSP may upload only ISSUE photos on its own, T-1-visible appointments
+    // (enforced in the presign use case); CL_USER cannot upload.
+    roles: ['AM', 'OP', 'CL_ADMIN', 'INSP'],
+  },
+  'property_file.version': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
+  'property_file.delete': {
+    roles: ['AM', 'OP'],
+  },
+  'property_issue.create': {
+    // source is server-derived from the role (INSPECTOR vs STAFF); the portal
+    // (RENTAL_TENANT_PORTAL) is token-authenticated in TASK-F10-4, not via this matrix.
+    roles: ['AM', 'OP', 'CL_ADMIN', 'INSP'],
+  },
+  'property_issue.mark_seen': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
+  'property_issue.delete': {
+    roles: ['AM', 'OP'],
+  },
+  'property_issue.unseen_count': {
+    roles: ['AM', 'OP', 'CL_ADMIN'],
+  },
+
+  // ── Reliability index (F07-2) ────────────────────────────────────────
+  // Platform-wide AM/OP read of the inspector reliability ranking/detail.
+  // Agencies never see the index (D4); INSP's own index is F08.
+  'reliability.view': {
+    roles: ['AM', 'OP'],
+  },
+
+  // ── Inspector Program (F08) ──────────────────────────────────────────
+  // Platform-scoped goals, rewards and closures (no tenant_id, D12). AM/OP
+  // manage goals and view/approve/void reward awards; INSP reads only its own
+  // program data (standing, challenges — TASK-F08-4). Agencies and the tenant
+  // portal never reach these surfaces (Q18/D8). There is no `awards.pay` action:
+  // the inspector invoice pays the bonus (Q12). Voiding a reward once its bonus is
+  // on a CLOSED/PAID invoice is AM-only (`awards.void_invoiced`, Q12/DL3) — it
+  // creates a negative reversal; voiding a not-yet-invoiced reward is AM/OP.
+  'inspector_program.goals.manage': {
+    roles: ['AM', 'OP'],
+  },
+  'inspector_program.awards.view': {
+    roles: ['AM', 'OP'],
+  },
+  'inspector_program.awards.approve': {
+    roles: ['AM', 'OP'],
+  },
+  'inspector_program.awards.void': {
+    roles: ['AM', 'OP'],
+  },
+  'inspector_program.awards.void_invoiced': {
+    roles: ['AM'],
+  },
+  'inspector_program.view_own': {
+    roles: ['INSP'],
   },
 } as const;
 

@@ -8,15 +8,24 @@ import type { IIdempotencyService } from '../../../../shared/domain/idempotency.
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { IInspectorRepository } from '../../../inspector/domain/inspector.repository';
 import type { IAvailabilitySlotRepository } from '../../../inspector/domain/availability-slot.repository';
+import type { IOfferEarlyAccessPolicy } from '../../domain/offer-early-access.policy';
+import { isGroupInEarlyAccess, offerOpensAt } from '../../domain/early-access';
 import {
   ServiceGroupNotFoundError,
   ServiceGroupInvalidStatusError,
   GroupAlreadyAcceptedError,
   InspectorIneligibleError,
+  InspectorRegionIneligibleError,
   InspectorServiceTypeIneligibleError,
   InspectorInactiveError,
   AppointmentsNotAwaitingInspectorError,
+  OfferEarlyAccessOnlyError,
 } from '../../domain/service-group.errors';
+
+/** Minimal logger port for the denied-accept info log (no PII). */
+interface AcceptOfferLogger {
+  info(obj: Record<string, unknown>, msg: string): void;
+}
 
 export interface AcceptOfferInput {
   groupId: string;
@@ -42,6 +51,8 @@ export class AcceptOfferUseCase {
     private readonly authorizationService: AuthorizationService,
     private readonly eventBus?: DomainEventBus,
     private readonly availabilitySlotRepo?: IAvailabilitySlotRepository,
+    private readonly earlyAccessPolicy?: IOfferEarlyAccessPolicy,
+    private readonly logger?: AcceptOfferLogger,
   ) {}
 
   async execute(input: AcceptOfferInput): Promise<AcceptOfferOutput> {
@@ -92,6 +103,36 @@ export class AcceptOfferUseCase {
     // is true, which would otherwise grant access to an empty group.
     if (tenantIds.length === 0 || !tenantIds.every((t) => inspector.isEligibleForTenant(t))) {
       throw new InspectorIneligibleError();
+    }
+
+    // The checks above give specific errors for service type and denylist; this
+    // one applies the full marketplace predicate the offer list uses, so a group
+    // the inspector cannot see (outside their regions) cannot be accepted either.
+    const eligible = await this.serviceGroupRepo.isGroupEligibleForInspector(
+      groupId,
+      inspectorId,
+      inspector.serviceTypesJson.map((s) => s.serviceTypeId),
+      inspector.blockedClientsJson,
+    );
+    if (!eligible) {
+      throw new InspectorRegionIneligibleError();
+    }
+
+    // Early-access gate (F08-2, 03.7): after the eligibility checks and before the
+    // optimistic accept. When the offer is still in its window and the inspector is
+    // below the required level, refuse with the "opens at" time — acceptOptimistic
+    // is never reached.
+    const earlyAccess = await this.earlyAccessPolicy?.resolve(inspectorId, new Date());
+    if (earlyAccess) {
+      const state = await this.serviceGroupRepo.findEarlyAccessStateForGroup(groupId, earlyAccess);
+      if (state && state.publishedAt && isGroupInEarlyAccess(state, earlyAccess)) {
+        const opensAt = offerOpensAt(state.publishedAt, earlyAccess);
+        this.logger?.info(
+          { groupId, inspectorId, opensAt: opensAt.toISOString() },
+          'marketplace.early_access_denied',
+        );
+        throw new OfferEarlyAccessOnlyError(opensAt);
+      }
     }
 
     const now = new Date();

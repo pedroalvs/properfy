@@ -622,7 +622,7 @@ describe('group Send portal link — real DB', () => {
       harness.prisma,
     );
     const tokenRepo = new PrismaRentalTenantPortalTokenRepository(harness.prisma);
-    const createNotification = { execute: vi.fn().mockResolvedValue({ notificationId: 'notification-1' }) };
+    const createNotification = { execute: vi.fn().mockResolvedValue({ notificationId: 'notification-1', created: true }) };
     const generatePortalToken = new GeneratePortalTokenUseCase(
       tokenRepo,
       new PrismaAppointmentRepository(harness.prisma),
@@ -721,7 +721,7 @@ describe('group Send portal link — real DB', () => {
       harness.prisma,
     );
     const tokenRepo = new PrismaRentalTenantPortalTokenRepository(harness.prisma);
-    const createNotification = { execute: vi.fn().mockResolvedValue({ notificationId: 'notification-1' }) };
+    const createNotification = { execute: vi.fn().mockResolvedValue({ notificationId: 'notification-1', created: true }) };
     const generatePortalToken = new GeneratePortalTokenUseCase(
       tokenRepo,
       new PrismaAppointmentRepository(harness.prisma),

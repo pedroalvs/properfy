@@ -24,6 +24,12 @@ vi.mock('@/services/api', () => ({
   api: { GET: (...args: unknown[]) => mockApiGet(...args) },
 }));
 
+// The AM/OP-only "Live Day alerts" section needs auth + query context and has its
+// own test; stub it to null here so these tests stay about the other sections.
+vi.mock('../InspectorAlertThresholdsSection', () => ({
+  InspectorAlertThresholdsSection: () => null,
+}));
+
 import { InspectorDetailSections } from '../InspectorDetailSections';
 import type { InspectorDetail } from '../../types';
 
@@ -51,6 +57,14 @@ const BASE_INSPECTOR: InspectorDetail = {
   policeCheckMetaJson: null,
   createdAt: new Date('2026-01-01').toISOString(),
   updatedAt: new Date('2026-01-01').toISOString(),
+  // F01-2 read-only fields.
+  address: { street: '1 George St', suburb: 'Sydney', city: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' },
+  baseLat: -33.8688,
+  baseGeocodedAt: new Date('2026-01-01').toISOString(),
+  appInstalledAt: new Date('2026-01-01').toISOString(),
+  appLastSeenAt: new Date('2026-01-01').toISOString(),
+  pushEnabled: true,
+  appVersion: '0.1.0+ab12cd3',
 };
 
 function renderSections(inspector: InspectorDetail = BASE_INSPECTOR) {

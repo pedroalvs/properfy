@@ -759,6 +759,8 @@ export interface paths {
                             smsFromName?: string;
                             /** @default true */
                             rentalTenantNotificationsEnabled?: boolean;
+                            /** @default true */
+                            tenantEtaNoticesEnabled?: boolean;
                             /** Format: uri */
                             logoUrl?: string;
                             primaryColor?: string;
@@ -818,6 +820,7 @@ export interface paths {
                             notificationDailyCapEmail?: number;
                             /** @default 100 */
                             notificationDailyCapSms?: number;
+                            mapWindowDays?: number;
                             customFields?: {
                                 [key: string]: unknown;
                             };
@@ -942,6 +945,8 @@ export interface paths {
                             smsFromName?: string;
                             /** @default true */
                             rentalTenantNotificationsEnabled?: boolean;
+                            /** @default true */
+                            tenantEtaNoticesEnabled?: boolean;
                             /** Format: uri */
                             logoUrl?: string;
                             primaryColor?: string;
@@ -1001,6 +1006,7 @@ export interface paths {
                             notificationDailyCapEmail?: number;
                             /** @default 100 */
                             notificationDailyCapSms?: number;
+                            mapWindowDays?: number;
                             customFields?: {
                                 [key: string]: unknown;
                             };
@@ -1268,8 +1274,6 @@ export interface paths {
                             postcode: string;
                             /** @default AU */
                             country?: string;
-                            latitude?: number;
-                            longitude?: number;
                         };
                         /** Format: email */
                         contactEmail?: string;
@@ -1441,8 +1445,6 @@ export interface paths {
                             postcode: string;
                             /** @default AU */
                             country?: string;
-                            latitude?: number;
-                            longitude?: number;
                         };
                         /** Format: email */
                         contactEmail?: string | null;
@@ -2459,6 +2461,7 @@ export interface paths {
                     type?: "APARTMENT" | "HOUSE";
                     search?: string;
                     hasCoordinates?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
+                    withIssues?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
                     nearLat?: number;
                     nearLng?: number;
                     nearRadiusKm?: number;
@@ -2516,6 +2519,14 @@ export interface paths {
                                 };
                                 createdAt: string;
                                 updatedAt: string;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             }[];
                             pagination: {
                                 page: number;
@@ -2621,6 +2632,14 @@ export interface paths {
                                 };
                                 createdAt: string;
                                 updatedAt: string;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             };
                         };
                     };
@@ -2743,6 +2762,14 @@ export interface paths {
                                 };
                                 createdAt: string;
                                 updatedAt: string;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             };
                         };
                     };
@@ -2868,6 +2895,14 @@ export interface paths {
                                 };
                                 createdAt: string;
                                 updatedAt: string;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             };
                         };
                     };
@@ -2949,6 +2984,7 @@ export interface paths {
                                 flowType: string;
                                 requiresRentalTenantConfirmation: boolean;
                                 status: string;
+                                defaultDurationMinutes: number;
                                 createdAt: string;
                                 updatedAt: string;
                             }[];
@@ -2979,6 +3015,7 @@ export interface paths {
                         /** @enum {string} */
                         flowType: "ROUTINE" | "INGOING" | "OUTGOING";
                         requiresRentalTenantConfirmation: boolean;
+                        defaultDurationMinutes: number;
                     };
                 };
             };
@@ -2998,6 +3035,7 @@ export interface paths {
                                 flowType: string;
                                 requiresRentalTenantConfirmation: boolean;
                                 status: string;
+                                defaultDurationMinutes: number;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3045,6 +3083,7 @@ export interface paths {
                                 flowType: string;
                                 requiresRentalTenantConfirmation: boolean;
                                 status: string;
+                                defaultDurationMinutes: number;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3076,6 +3115,7 @@ export interface paths {
                         requiresRentalTenantConfirmation?: boolean;
                         /** @enum {string} */
                         status?: "ACTIVE" | "INACTIVE";
+                        defaultDurationMinutes?: number;
                     };
                 };
             };
@@ -3095,6 +3135,7 @@ export interface paths {
                                 flowType: string;
                                 requiresRentalTenantConfirmation: boolean;
                                 status: string;
+                                defaultDurationMinutes: number;
                                 createdAt: string;
                                 updatedAt: string;
                             };
@@ -3377,6 +3418,7 @@ export interface paths {
                     region?: string;
                     serviceTypeId?: string;
                     tenantId?: string;
+                    missingBaseAddress?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
                 };
                 header?: never;
                 path?: never;
@@ -3404,6 +3446,15 @@ export interface paths {
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
+                                baseLat?: number | null;
+                                baseLng?: number | null;
+                                baseGeocodedAt?: (string) | null;
+                                baseGeocodeFailed?: boolean;
+                                appInstalledAt?: (string) | null;
+                                appLastSeenAt?: (string) | null;
+                                pushEnabled?: boolean | null;
+                                appVersion?: string | null;
+                                onboardingCompletedAt?: (string) | null;
                                 abn?: string | null;
                                 dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
@@ -3473,9 +3524,20 @@ export interface paths {
                         /** @default [] */
                         blockedClients?: string[];
                         fullName?: string;
-                        address?: {
-                            [key: string]: unknown;
-                        } | null;
+                        address: {
+                            street: string;
+                            number?: string;
+                            complement?: string;
+                            suburb: string;
+                            city: string;
+                            state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                            postcode: string;
+                            /**
+                             * @default AU
+                             * @enum {string}
+                             */
+                            country?: "AU";
+                        };
                         abn?: string;
                         /** Format: date */
                         dateOfBirth?: string;
@@ -3509,6 +3571,15 @@ export interface paths {
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
+                                baseLat?: number | null;
+                                baseLng?: number | null;
+                                baseGeocodedAt?: (string) | null;
+                                baseGeocodeFailed?: boolean;
+                                appInstalledAt?: (string) | null;
+                                appLastSeenAt?: (string) | null;
+                                pushEnabled?: boolean | null;
+                                appVersion?: string | null;
+                                onboardingCompletedAt?: (string) | null;
                                 abn?: string | null;
                                 dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
@@ -3575,6 +3646,15 @@ export interface paths {
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
+                                baseLat?: number | null;
+                                baseLng?: number | null;
+                                baseGeocodedAt?: (string) | null;
+                                baseGeocodeFailed?: boolean;
+                                appInstalledAt?: (string) | null;
+                                appLastSeenAt?: (string) | null;
+                                pushEnabled?: boolean | null;
+                                appVersion?: string | null;
+                                onboardingCompletedAt?: (string) | null;
                                 abn?: string | null;
                                 dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
@@ -3641,8 +3721,19 @@ export interface paths {
                         blockedClients?: string[];
                         fullName?: string | null;
                         address?: {
-                            [key: string]: unknown;
-                        } | null;
+                            street: string;
+                            number?: string;
+                            complement?: string;
+                            suburb: string;
+                            city: string;
+                            state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                            postcode: string;
+                            /**
+                             * @default AU
+                             * @enum {string}
+                             */
+                            country?: "AU";
+                        };
                         abn?: string | null;
                         /** Format: date */
                         dateOfBirth?: string | null;
@@ -3676,6 +3767,15 @@ export interface paths {
                                 blockedClients?: string[];
                                 fullName?: string | null;
                                 address?: unknown;
+                                baseLat?: number | null;
+                                baseLng?: number | null;
+                                baseGeocodedAt?: (string) | null;
+                                baseGeocodeFailed?: boolean;
+                                appInstalledAt?: (string) | null;
+                                appLastSeenAt?: (string) | null;
+                                pushEnabled?: boolean | null;
+                                appVersion?: string | null;
+                                onboardingCompletedAt?: (string) | null;
                                 abn?: string | null;
                                 dateOfBirth?: string | null;
                                 insuranceFileKey?: string | null;
@@ -4277,6 +4377,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspectors/{inspectorId}/alert-thresholds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                inspectorId: string;
+                                platformDefaults: {
+                                    delayMinutes: number;
+                                    notStartedMinutes: number;
+                                };
+                                override: {
+                                    delayMinutes: number | null;
+                                    notStartedMinutes: number | null;
+                                };
+                                effective: {
+                                    delayMinutes: number;
+                                    notStartedMinutes: number;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        delayMinutes: number | null;
+                        notStartedMinutes: number | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                inspectorId: string;
+                                platformDefaults: {
+                                    delayMinutes: number;
+                                    notStartedMinutes: number;
+                                };
+                                override: {
+                                    delayMinutes: number | null;
+                                    notStartedMinutes: number | null;
+                                };
+                                effective: {
+                                    delayMinutes: number;
+                                    notStartedMinutes: number;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/inspectors/me": {
         parameters: {
             query?: never;
@@ -4329,6 +4528,20 @@ export interface paths {
                         } & {
                             [key: string]: unknown;
                         };
+                        address?: {
+                            street: string;
+                            number?: string;
+                            complement?: string;
+                            suburb: string;
+                            city: string;
+                            state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                            postcode: string;
+                            /**
+                             * @default AU
+                             * @enum {string}
+                             */
+                            country?: "AU";
+                        };
                     };
                 };
             };
@@ -4342,6 +4555,51 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/v1/inspectors/me/app-state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        displayMode: "standalone" | "browser";
+                        /** @enum {string} */
+                        pushPermission: "granted" | "denied" | "default" | "unsupported";
+                        appVersion: string;
+                        /** @enum {boolean} */
+                        onboardingCompleted?: true;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/inspectors/{inspectorId}/photo/presign": {
@@ -4887,6 +5145,657 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspector-notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: string;
+                    sortOrder?: "asc" | "desc";
+                    status?: "active" | "archived" | "all";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                id: string;
+                                title: string;
+                                body: string;
+                                critical: boolean;
+                                audience: {
+                                    /** @enum {string} */
+                                    type: "ALL";
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SELECTED";
+                                    inspectorIds: string[];
+                                } | {
+                                    /** @enum {string} */
+                                    type: "REGION";
+                                    regionId: string;
+                                    regionName: string;
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SYSTEM";
+                                    /** @enum {string} */
+                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE";
+                                };
+                                author: {
+                                    /** @enum {string} */
+                                    type: "USER" | "SYSTEM";
+                                    name: string | null;
+                                };
+                                publishedAt: string;
+                                archivedAt: string | null;
+                                recipientCount: number;
+                                readCount: number;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        title: string;
+                        body: string;
+                        /** @default false */
+                        critical?: boolean;
+                        audience: {
+                            /** @enum {string} */
+                            type: "ALL";
+                        } | {
+                            /** @enum {string} */
+                            type: "SELECTED";
+                            inspectorIds: string[];
+                        } | {
+                            /** @enum {string} */
+                            type: "REGION";
+                            /** Format: uuid */
+                            regionId: string;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                id: string;
+                                title: string;
+                                body: string;
+                                critical: boolean;
+                                audience: {
+                                    /** @enum {string} */
+                                    type: "ALL";
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SELECTED";
+                                    inspectorIds: string[];
+                                } | {
+                                    /** @enum {string} */
+                                    type: "REGION";
+                                    regionId: string;
+                                    regionName: string;
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SYSTEM";
+                                    /** @enum {string} */
+                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE";
+                                };
+                                author: {
+                                    /** @enum {string} */
+                                    type: "USER" | "SYSTEM";
+                                    name: string | null;
+                                };
+                                publishedAt: string;
+                                archivedAt: string | null;
+                                recipientCount: number;
+                                readCount: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-notices/{noticeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    noticeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                id: string;
+                                title: string;
+                                body: string;
+                                critical: boolean;
+                                audience: {
+                                    /** @enum {string} */
+                                    type: "ALL";
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SELECTED";
+                                    inspectorIds: string[];
+                                } | {
+                                    /** @enum {string} */
+                                    type: "REGION";
+                                    regionId: string;
+                                    regionName: string;
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SYSTEM";
+                                    /** @enum {string} */
+                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE";
+                                };
+                                author: {
+                                    /** @enum {string} */
+                                    type: "USER" | "SYSTEM";
+                                    name: string | null;
+                                };
+                                publishedAt: string;
+                                archivedAt: string | null;
+                                recipientCount: number;
+                                readCount: number;
+                                recipients: {
+                                    inspectorId: string;
+                                    inspectorName: string;
+                                    readAt: string | null;
+                                    /** @enum {string} */
+                                    inspectorStatus: "ACTIVE" | "INACTIVE";
+                                    hasAppAccess: boolean;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-notices/{noticeId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    noticeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                id: string;
+                                title: string;
+                                body: string;
+                                critical: boolean;
+                                audience: {
+                                    /** @enum {string} */
+                                    type: "ALL";
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SELECTED";
+                                    inspectorIds: string[];
+                                } | {
+                                    /** @enum {string} */
+                                    type: "REGION";
+                                    regionId: string;
+                                    regionName: string;
+                                } | {
+                                    /** @enum {string} */
+                                    type: "SYSTEM";
+                                    /** @enum {string} */
+                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE";
+                                };
+                                author: {
+                                    /** @enum {string} */
+                                    type: "USER" | "SYSTEM";
+                                    name: string | null;
+                                };
+                                publishedAt: string;
+                                archivedAt: string | null;
+                                recipientCount: number;
+                                readCount: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: string;
+                    sortOrder?: "asc" | "desc";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                id: string;
+                                title: string;
+                                body: string;
+                                critical: boolean;
+                                publishedAt: string;
+                                readAt: string | null;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/notices/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                count: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/notices/{noticeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    noticeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                id: string;
+                                title: string;
+                                body: string;
+                                critical: boolean;
+                                publishedAt: string;
+                                readAt: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/notices/{noticeId}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    noticeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                noticeId: string;
+                                readAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/notices/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                count: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/push-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                vapidPublicKey: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/push-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        endpoint: string;
+                        expirationTime?: number | null;
+                        keys: {
+                            p256dh: string;
+                            auth: string;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspectors/me/push-subscriptions/unsubscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        endpoint: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/appointments": {
         parameters: {
             query?: never;
@@ -4921,6 +5830,7 @@ export interface paths {
                     hasRentalTenantNote?: boolean;
                     confirmationStatus?: "sent" | "not_sent";
                     serviceGroupId?: string;
+                    withIssues?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -4978,6 +5888,14 @@ export interface paths {
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
                                 rejectionReasonCode?: string | null;
+                                inspectorIssue?: {
+                                    reason: string;
+                                    note: string | null;
+                                    /** Format: uuid */
+                                    inspectorId?: string | null;
+                                    inspectorName: string | null;
+                                    occurredAt: string;
+                                } | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
@@ -5029,6 +5947,14 @@ export interface paths {
                                 serviceType?: unknown;
                                 inspector?: unknown;
                                 branch?: unknown;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             }[];
                             pagination: {
                                 page: number;
@@ -5184,6 +6110,14 @@ export interface paths {
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
                                 rejectionReasonCode?: string | null;
+                                inspectorIssue?: {
+                                    reason: string;
+                                    note: string | null;
+                                    /** Format: uuid */
+                                    inspectorId?: string | null;
+                                    inspectorName: string | null;
+                                    occurredAt: string;
+                                } | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
@@ -5235,6 +6169,14 @@ export interface paths {
                                 serviceType?: unknown;
                                 inspector?: unknown;
                                 branch?: unknown;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             };
                         };
                     };
@@ -5322,6 +6264,7 @@ export interface paths {
                     hasRentalTenantNote?: boolean;
                     confirmationStatus?: "sent" | "not_sent";
                     serviceGroupId?: string;
+                    withIssues?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -5422,6 +6365,14 @@ export interface paths {
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
                                 rejectionReasonCode?: string | null;
+                                inspectorIssue?: {
+                                    reason: string;
+                                    note: string | null;
+                                    /** Format: uuid */
+                                    inspectorId?: string | null;
+                                    inspectorName: string | null;
+                                    occurredAt: string;
+                                } | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
@@ -5473,6 +6424,14 @@ export interface paths {
                                 serviceType?: unknown;
                                 inspector?: unknown;
                                 branch?: unknown;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             };
                         };
                     };
@@ -5628,6 +6587,14 @@ export interface paths {
                                 reason?: string | null;
                                 cancellationReasonCode?: string | null;
                                 rejectionReasonCode?: string | null;
+                                inspectorIssue?: {
+                                    reason: string;
+                                    note: string | null;
+                                    /** Format: uuid */
+                                    inspectorId?: string | null;
+                                    inspectorName: string | null;
+                                    occurredAt: string;
+                                } | null;
                                 /** Format: uuid */
                                 createdByUserId: string;
                                 /** Format: uuid */
@@ -5679,12 +6646,96 @@ export interface paths {
                                 serviceType?: unknown;
                                 inspector?: unknown;
                                 branch?: unknown;
+                                hasUnseenIssues?: boolean;
+                                fileCounts?: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
                             };
                         };
                     };
                 };
             };
         };
+        trace?: never;
+    };
+    "/v1/appointments/{appointmentId}/field-activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                execution: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    inspectorName: string | null;
+                                    startedAt: string;
+                                    finishedAt: (string) | null;
+                                    abandonedAt: (string) | null;
+                                    startClientAt: (string) | null;
+                                    finishClientAt: (string) | null;
+                                    startDistanceMeters: number | null;
+                                    finishDistanceMeters: number | null;
+                                    startAccuracyMeters: number | null;
+                                    finishAccuracyMeters: number | null;
+                                    outOfRadius: boolean;
+                                    outOfWindow: boolean;
+                                    finishOutOfRadius: boolean;
+                                    geofenceRadiusMeters: number | null;
+                                    startLatitude?: number;
+                                    startLongitude?: number;
+                                    finishLatitude?: number | null;
+                                    finishLongitude?: number | null;
+                                } | null;
+                                events: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    type: string;
+                                    reason: string;
+                                    note: string | null;
+                                    minutesLate: number | null;
+                                    inspectorName: string | null;
+                                    occurredAt: string;
+                                    clientOccurredAt: (string) | null;
+                                    accuracyMeters: number | null;
+                                    latitude?: number | null;
+                                    longitude?: number | null;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/appointments/{appointmentId}/portal-link": {
@@ -5758,7 +6809,7 @@ export interface paths {
                         /** @enum {string} */
                         cancellationReasonCode?: "CLIENT_REQUEST" | "TENANT_UNAVAILABLE" | "SCHEDULING_CONFLICT" | "INSPECTOR_UNAVAILABLE" | "DUPLICATE" | "EXPIRED" | "OTHER";
                         /** @enum {string} */
-                        rejectionReasonCode?: "INVALID_ADDRESS" | "PROPERTY_INACCESSIBLE" | "SAFETY_CONCERN" | "INSUFFICIENT_INFO" | "SERVICE_NOT_AVAILABLE" | "TENANT_NO_RESPONSE" | "TENANT_DECLINED" | "OTHER";
+                        rejectionReasonCode?: "INVALID_ADDRESS" | "PROPERTY_INACCESSIBLE" | "SAFETY_CONCERN" | "INSUFFICIENT_INFO" | "SERVICE_NOT_AVAILABLE" | "TENANT_NO_RESPONSE" | "TENANT_DECLINED" | "INSPECTOR_UNABLE" | "INSPECTOR_NO_SHOW" | "NOT_EXECUTED" | "OTHER";
                         /** Format: uuid */
                         doneCheckedByUserId?: string;
                         /** Format: uuid */
@@ -6385,6 +7436,8 @@ export interface paths {
                                             status: "found";
                                             lat: number;
                                             lng: number;
+                                            /** @enum {string} */
+                                            mode?: "permanent";
                                         } | {
                                             /** @enum {string} */
                                             status: "not_found";
@@ -8854,6 +9907,204 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/rental-tenant-portal/{token}/property-issues/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        fileName: string;
+                        mime: string;
+                        sizeBytes?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            fileId: string;
+                            /** Format: uri */
+                            uploadUrl: string;
+                            expiresAt: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rental-tenant-portal/{token}/property-issues/confirm-upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        fileId: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            fileName: string;
+                            mime: string;
+                            /** @enum {string} */
+                            status: "PENDING" | "READY";
+                            createdAt: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rental-tenant-portal/{token}/property-issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            issues: {
+                                /** Format: uuid */
+                                id: string;
+                                reason: string;
+                                createdAt: string;
+                                photos: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    fileName: string;
+                                    mime: string;
+                                    /** @enum {string} */
+                                    status: "PENDING" | "READY";
+                                    createdAt: string;
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        reason: string;
+                        photoFileIds?: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            id: string;
+                            reason: string;
+                            createdAt: string;
+                            photos: {
+                                /** Format: uuid */
+                                id: string;
+                                fileName: string;
+                                mime: string;
+                                /** @enum {string} */
+                                status: "PENDING" | "READY";
+                                createdAt: string;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/appointments/{appointmentId}/portal-token": {
         parameters: {
             query?: never;
@@ -9293,6 +10544,22 @@ export interface paths {
                                     geolocationDistanceMeters: number | null;
                                     /** @enum {string} */
                                     status: "IN_PROGRESS" | "FINISHED";
+                                    startAccuracyMeters?: number | null;
+                                    finishAccuracyMeters?: number | null;
+                                    finishGeolocationDistanceMeters?: number | null;
+                                    outOfRadius?: boolean;
+                                    outOfWindow?: boolean;
+                                    finishOutOfRadius?: boolean;
+                                } | null;
+                                geofence?: {
+                                    radiusMeters: number;
+                                    /** @enum {string} */
+                                    mode: "FLAG" | "BLOCK";
+                                };
+                                lastFieldIssue?: {
+                                    reason: string;
+                                    note: string | null;
+                                    occurredAt: string;
                                 } | null;
                                 /** @default [] */
                                 apps: {
@@ -9390,6 +10657,9 @@ export interface paths {
                     "application/json": {
                         latitude: number;
                         longitude: number;
+                        accuracy?: number;
+                        /** Format: date-time */
+                        clientOccurredAt?: string;
                     };
                 };
             };
@@ -9412,6 +10682,18 @@ export interface paths {
                                 geolocationDistanceMeters: number | null;
                                 /** @enum {string} */
                                 status: "IN_PROGRESS";
+                                startAccuracyMeters?: number | null;
+                                outOfRadius?: boolean;
+                                outOfWindow?: boolean;
+                                geofence?: {
+                                    /** @enum {string} */
+                                    mode: "FLAG" | "BLOCK";
+                                    /** @enum {string} */
+                                    effectiveMode: "FLAG" | "BLOCK";
+                                    radiusMeters: number;
+                                    /** @enum {string|null} */
+                                    fallbackReason: "NO_PROPERTY_COORDINATES" | "NO_ACCURACY" | "POOR_ACCURACY" | null;
+                                };
                             };
                         };
                     };
@@ -9447,6 +10729,9 @@ export interface paths {
                     "application/json": {
                         latitude: number;
                         longitude: number;
+                        accuracy?: number;
+                        /** Format: date-time */
+                        clientOccurredAt?: string;
                     };
                 };
             };
@@ -9467,6 +10752,135 @@ export interface paths {
                                 finishedAt: string;
                                 /** @enum {string} */
                                 appointmentStatus: "DRAFT" | "AWAITING_INSPECTOR" | "SCHEDULED" | "DONE" | "CANCELLED" | "REJECTED";
+                                finishAccuracyMeters?: number | null;
+                                finishGeolocationDistanceMeters?: number | null;
+                                finishOutOfRadius?: boolean;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector/appointments/{appointmentId}/cant-do": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        reason: "NO_ANSWER" | "KEY_FAILED" | "TENANT_REFUSED" | "UNSAFE" | "SITE_ISSUE" | "CANT_ATTEND";
+                        note?: string;
+                        latitude?: number;
+                        longitude?: number;
+                        accuracy?: number;
+                        /** Format: date-time */
+                        clientOccurredAt?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                eventId: string;
+                                /** Format: uuid */
+                                appointmentId: string;
+                                /** @enum {string} */
+                                appointmentStatus: "REJECTED";
+                                occurredAt: string;
+                                executionAbandoned: boolean;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector/appointments/{appointmentId}/late-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    appointmentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        reason: "TRAFFIC" | "PREVIOUS_JOB_OVERRAN" | "PERSONAL" | "OTHER";
+                        minutesLate: number;
+                        latitude?: number;
+                        longitude?: number;
+                        accuracy?: number;
+                        /** Format: date-time */
+                        clientOccurredAt?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                eventId: string;
+                                /** Format: uuid */
+                                appointmentId: string;
+                                occurredAt: string;
+                                /** @enum {string} */
+                                reason: "TRAFFIC" | "PREVIOUS_JOB_OVERRAN" | "PERSONAL" | "OTHER";
+                                minutesLate: number;
+                                referenceAt: string;
+                                /** @enum {string} */
+                                referenceSource: "PUBLISHED_PLAN" | "WINDOW_START";
+                                estimatedArrivalAt: string;
                             };
                         };
                     };
@@ -9766,6 +11180,3635 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inspector/day-plans/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                inspectorName: string;
+                                date: string;
+                                timezone: string;
+                                /** @enum {string} */
+                                status: "DRAFT" | "PUBLISHED" | "STALE";
+                                version: number;
+                                publishedAt: (string) | null;
+                                computedAt: string;
+                                /** @enum {string} */
+                                lastTrigger: "SCHEDULED_PUBLISH" | "ON_OPEN" | "MANUAL_RECALC" | "REORDER" | "ORIGIN_CHANGE";
+                                approximate: boolean;
+                                /** @enum {string|null} */
+                                approximateReason: "NO_PROVIDER" | "RATE_LIMITED" | "PROVIDER_ERROR" | "DEADLINE" | "TOO_MANY_COORDINATES" | "NO_ROUTE" | null;
+                                /** @enum {string} */
+                                routingProvider: "MAPBOX" | "STUB";
+                                /** @enum {string|null} */
+                                matrixProfile: "driving-traffic" | "driving" | "haversine" | null;
+                                /** @enum {string} */
+                                optimizerMethod: "TRIVIAL" | "EXACT" | "HEURISTIC" | "INSERTION" | "FIXED";
+                                origin: {
+                                    /** @enum {string} */
+                                    source: "BASE" | "OVERRIDE" | "NONE" | "LAST_STOP";
+                                    label: string | null;
+                                    lat: number | null;
+                                    lng: number | null;
+                                };
+                                /** @enum {string|null} */
+                                originWarning: "NO_BASE" | "BASE_NOT_LOCATED" | null;
+                                originOverride: {
+                                    address: {
+                                        street: string;
+                                        number?: string;
+                                        complement?: string;
+                                        suburb: string;
+                                        city: string;
+                                        state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                                        postcode: string;
+                                        /**
+                                         * @default AU
+                                         * @enum {string}
+                                         */
+                                        country: "AU";
+                                    };
+                                    setAt: string;
+                                } | null;
+                                departureAt: (string) | null;
+                                finishEta: (string) | null;
+                                totals: {
+                                    driveS: number;
+                                    waitS: number;
+                                    serviceS: number;
+                                    lateS: number;
+                                    distanceM: number | null;
+                                };
+                                feasible: boolean;
+                                violations: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    lateS: number;
+                                }[];
+                                manualOrder: boolean;
+                                suggestedOrder: string[];
+                                stops: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    sequence: number;
+                                    appointmentCode: string;
+                                    agencyName: string;
+                                    /** @enum {string} */
+                                    appointmentStatus: "SCHEDULED" | "DONE";
+                                    /** @enum {string} */
+                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                    eta: (string) | null;
+                                    serviceStartAt: (string) | null;
+                                    serviceEndAt: (string) | null;
+                                    travelS: number;
+                                    distanceM: number | null;
+                                    waitS: number;
+                                    lateS: number;
+                                    windowStart: string;
+                                    windowEnd: string;
+                                    windowStartAt: string;
+                                    windowEndAt: string;
+                                    timezone: string;
+                                    durationMinutes: number;
+                                    manual: boolean;
+                                    executed: boolean;
+                                    approximate: boolean;
+                                    missingCoordinates: boolean;
+                                    lat: number | null;
+                                    lng: number | null;
+                                    propertyAddress: string;
+                                    suburb: string;
+                                    serviceTypeName: string;
+                                    keyRequired: boolean;
+                                    meetingLocation: string | null;
+                                    rentalTenantConfirmationStatus: string;
+                                    primaryContact: {
+                                        name: string;
+                                        phone: string | null;
+                                        /** @enum {string} */
+                                        role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                                    } | null;
+                                }[];
+                                geometry: {
+                                    /** @enum {string} */
+                                    type: "FeatureCollection";
+                                    features: {
+                                        /** @enum {string} */
+                                        type: "Feature";
+                                        geometry: {
+                                            /** @enum {string} */
+                                            type: "LineString";
+                                            coordinates: [
+                                                number,
+                                                number
+                                            ][];
+                                        };
+                                        properties: {
+                                            fromSequence: number;
+                                            toSequence: number;
+                                            approximate: boolean;
+                                        };
+                                    }[];
+                                } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector/day-plans/{date}/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                        basedOnVersion: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                inspectorName: string;
+                                date: string;
+                                timezone: string;
+                                /** @enum {string} */
+                                status: "DRAFT" | "PUBLISHED" | "STALE";
+                                version: number;
+                                publishedAt: (string) | null;
+                                computedAt: string;
+                                /** @enum {string} */
+                                lastTrigger: "SCHEDULED_PUBLISH" | "ON_OPEN" | "MANUAL_RECALC" | "REORDER" | "ORIGIN_CHANGE";
+                                approximate: boolean;
+                                /** @enum {string|null} */
+                                approximateReason: "NO_PROVIDER" | "RATE_LIMITED" | "PROVIDER_ERROR" | "DEADLINE" | "TOO_MANY_COORDINATES" | "NO_ROUTE" | null;
+                                /** @enum {string} */
+                                routingProvider: "MAPBOX" | "STUB";
+                                /** @enum {string|null} */
+                                matrixProfile: "driving-traffic" | "driving" | "haversine" | null;
+                                /** @enum {string} */
+                                optimizerMethod: "TRIVIAL" | "EXACT" | "HEURISTIC" | "INSERTION" | "FIXED";
+                                origin: {
+                                    /** @enum {string} */
+                                    source: "BASE" | "OVERRIDE" | "NONE" | "LAST_STOP";
+                                    label: string | null;
+                                    lat: number | null;
+                                    lng: number | null;
+                                };
+                                /** @enum {string|null} */
+                                originWarning: "NO_BASE" | "BASE_NOT_LOCATED" | null;
+                                originOverride: {
+                                    address: {
+                                        street: string;
+                                        number?: string;
+                                        complement?: string;
+                                        suburb: string;
+                                        city: string;
+                                        state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                                        postcode: string;
+                                        /**
+                                         * @default AU
+                                         * @enum {string}
+                                         */
+                                        country: "AU";
+                                    };
+                                    setAt: string;
+                                } | null;
+                                departureAt: (string) | null;
+                                finishEta: (string) | null;
+                                totals: {
+                                    driveS: number;
+                                    waitS: number;
+                                    serviceS: number;
+                                    lateS: number;
+                                    distanceM: number | null;
+                                };
+                                feasible: boolean;
+                                violations: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    lateS: number;
+                                }[];
+                                manualOrder: boolean;
+                                suggestedOrder: string[];
+                                stops: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    sequence: number;
+                                    appointmentCode: string;
+                                    agencyName: string;
+                                    /** @enum {string} */
+                                    appointmentStatus: "SCHEDULED" | "DONE";
+                                    /** @enum {string} */
+                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                    eta: (string) | null;
+                                    serviceStartAt: (string) | null;
+                                    serviceEndAt: (string) | null;
+                                    travelS: number;
+                                    distanceM: number | null;
+                                    waitS: number;
+                                    lateS: number;
+                                    windowStart: string;
+                                    windowEnd: string;
+                                    windowStartAt: string;
+                                    windowEndAt: string;
+                                    timezone: string;
+                                    durationMinutes: number;
+                                    manual: boolean;
+                                    executed: boolean;
+                                    approximate: boolean;
+                                    missingCoordinates: boolean;
+                                    lat: number | null;
+                                    lng: number | null;
+                                    propertyAddress: string;
+                                    suburb: string;
+                                    serviceTypeName: string;
+                                    keyRequired: boolean;
+                                    meetingLocation: string | null;
+                                    rentalTenantConfirmationStatus: string;
+                                    primaryContact: {
+                                        name: string;
+                                        phone: string | null;
+                                        /** @enum {string} */
+                                        role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                                    } | null;
+                                }[];
+                                geometry: {
+                                    /** @enum {string} */
+                                    type: "FeatureCollection";
+                                    features: {
+                                        /** @enum {string} */
+                                        type: "Feature";
+                                        geometry: {
+                                            /** @enum {string} */
+                                            type: "LineString";
+                                            coordinates: [
+                                                number,
+                                                number
+                                            ][];
+                                        };
+                                        properties: {
+                                            fromSequence: number;
+                                            toSequence: number;
+                                            approximate: boolean;
+                                        };
+                                    }[];
+                                } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector/day-plans/{date}/order/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        appointmentIds: string[];
+                        basedOnVersion: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** @enum {string} */
+                                etaSource: "MATRIX";
+                                approximate: boolean;
+                                /** @enum {string|null} */
+                                approximateReason: "NO_PROVIDER" | "RATE_LIMITED" | "PROVIDER_ERROR" | "DEADLINE" | "TOO_MANY_COORDINATES" | "NO_ROUTE" | null;
+                                departureAt: (string) | null;
+                                finishEta: (string) | null;
+                                totals: {
+                                    driveS: number;
+                                    waitS: number;
+                                    serviceS: number;
+                                    lateS: number;
+                                    distanceM: number | null;
+                                };
+                                feasible: boolean;
+                                violations: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    lateS: number;
+                                }[];
+                                stops: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    sequence: number;
+                                    eta: (string) | null;
+                                    travelS: number;
+                                    waitS: number;
+                                    lateS: number;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector/day-plans/{date}/origin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        address: {
+                            street: string;
+                            number?: string;
+                            complement?: string;
+                            suburb: string;
+                            city: string;
+                            state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                            postcode: string;
+                            /**
+                             * @default AU
+                             * @enum {string}
+                             */
+                            country?: "AU";
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                inspectorName: string;
+                                date: string;
+                                timezone: string;
+                                /** @enum {string} */
+                                status: "DRAFT" | "PUBLISHED" | "STALE";
+                                version: number;
+                                publishedAt: (string) | null;
+                                computedAt: string;
+                                /** @enum {string} */
+                                lastTrigger: "SCHEDULED_PUBLISH" | "ON_OPEN" | "MANUAL_RECALC" | "REORDER" | "ORIGIN_CHANGE";
+                                approximate: boolean;
+                                /** @enum {string|null} */
+                                approximateReason: "NO_PROVIDER" | "RATE_LIMITED" | "PROVIDER_ERROR" | "DEADLINE" | "TOO_MANY_COORDINATES" | "NO_ROUTE" | null;
+                                /** @enum {string} */
+                                routingProvider: "MAPBOX" | "STUB";
+                                /** @enum {string|null} */
+                                matrixProfile: "driving-traffic" | "driving" | "haversine" | null;
+                                /** @enum {string} */
+                                optimizerMethod: "TRIVIAL" | "EXACT" | "HEURISTIC" | "INSERTION" | "FIXED";
+                                origin: {
+                                    /** @enum {string} */
+                                    source: "BASE" | "OVERRIDE" | "NONE" | "LAST_STOP";
+                                    label: string | null;
+                                    lat: number | null;
+                                    lng: number | null;
+                                };
+                                /** @enum {string|null} */
+                                originWarning: "NO_BASE" | "BASE_NOT_LOCATED" | null;
+                                originOverride: {
+                                    address: {
+                                        street: string;
+                                        number?: string;
+                                        complement?: string;
+                                        suburb: string;
+                                        city: string;
+                                        state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                                        postcode: string;
+                                        /**
+                                         * @default AU
+                                         * @enum {string}
+                                         */
+                                        country: "AU";
+                                    };
+                                    setAt: string;
+                                } | null;
+                                departureAt: (string) | null;
+                                finishEta: (string) | null;
+                                totals: {
+                                    driveS: number;
+                                    waitS: number;
+                                    serviceS: number;
+                                    lateS: number;
+                                    distanceM: number | null;
+                                };
+                                feasible: boolean;
+                                violations: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    lateS: number;
+                                }[];
+                                manualOrder: boolean;
+                                suggestedOrder: string[];
+                                stops: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    sequence: number;
+                                    appointmentCode: string;
+                                    agencyName: string;
+                                    /** @enum {string} */
+                                    appointmentStatus: "SCHEDULED" | "DONE";
+                                    /** @enum {string} */
+                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                    eta: (string) | null;
+                                    serviceStartAt: (string) | null;
+                                    serviceEndAt: (string) | null;
+                                    travelS: number;
+                                    distanceM: number | null;
+                                    waitS: number;
+                                    lateS: number;
+                                    windowStart: string;
+                                    windowEnd: string;
+                                    windowStartAt: string;
+                                    windowEndAt: string;
+                                    timezone: string;
+                                    durationMinutes: number;
+                                    manual: boolean;
+                                    executed: boolean;
+                                    approximate: boolean;
+                                    missingCoordinates: boolean;
+                                    lat: number | null;
+                                    lng: number | null;
+                                    propertyAddress: string;
+                                    suburb: string;
+                                    serviceTypeName: string;
+                                    keyRequired: boolean;
+                                    meetingLocation: string | null;
+                                    rentalTenantConfirmationStatus: string;
+                                    primaryContact: {
+                                        name: string;
+                                        phone: string | null;
+                                        /** @enum {string} */
+                                        role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                                    } | null;
+                                }[];
+                                geometry: {
+                                    /** @enum {string} */
+                                    type: "FeatureCollection";
+                                    features: {
+                                        /** @enum {string} */
+                                        type: "Feature";
+                                        geometry: {
+                                            /** @enum {string} */
+                                            type: "LineString";
+                                            coordinates: [
+                                                number,
+                                                number
+                                            ][];
+                                        };
+                                        properties: {
+                                            fromSequence: number;
+                                            toSequence: number;
+                                            approximate: boolean;
+                                        };
+                                    }[];
+                                } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                inspectorName: string;
+                                date: string;
+                                timezone: string;
+                                /** @enum {string} */
+                                status: "DRAFT" | "PUBLISHED" | "STALE";
+                                version: number;
+                                publishedAt: (string) | null;
+                                computedAt: string;
+                                /** @enum {string} */
+                                lastTrigger: "SCHEDULED_PUBLISH" | "ON_OPEN" | "MANUAL_RECALC" | "REORDER" | "ORIGIN_CHANGE";
+                                approximate: boolean;
+                                /** @enum {string|null} */
+                                approximateReason: "NO_PROVIDER" | "RATE_LIMITED" | "PROVIDER_ERROR" | "DEADLINE" | "TOO_MANY_COORDINATES" | "NO_ROUTE" | null;
+                                /** @enum {string} */
+                                routingProvider: "MAPBOX" | "STUB";
+                                /** @enum {string|null} */
+                                matrixProfile: "driving-traffic" | "driving" | "haversine" | null;
+                                /** @enum {string} */
+                                optimizerMethod: "TRIVIAL" | "EXACT" | "HEURISTIC" | "INSERTION" | "FIXED";
+                                origin: {
+                                    /** @enum {string} */
+                                    source: "BASE" | "OVERRIDE" | "NONE" | "LAST_STOP";
+                                    label: string | null;
+                                    lat: number | null;
+                                    lng: number | null;
+                                };
+                                /** @enum {string|null} */
+                                originWarning: "NO_BASE" | "BASE_NOT_LOCATED" | null;
+                                originOverride: {
+                                    address: {
+                                        street: string;
+                                        number?: string;
+                                        complement?: string;
+                                        suburb: string;
+                                        city: string;
+                                        state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                                        postcode: string;
+                                        /**
+                                         * @default AU
+                                         * @enum {string}
+                                         */
+                                        country: "AU";
+                                    };
+                                    setAt: string;
+                                } | null;
+                                departureAt: (string) | null;
+                                finishEta: (string) | null;
+                                totals: {
+                                    driveS: number;
+                                    waitS: number;
+                                    serviceS: number;
+                                    lateS: number;
+                                    distanceM: number | null;
+                                };
+                                feasible: boolean;
+                                violations: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    lateS: number;
+                                }[];
+                                manualOrder: boolean;
+                                suggestedOrder: string[];
+                                stops: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    sequence: number;
+                                    appointmentCode: string;
+                                    agencyName: string;
+                                    /** @enum {string} */
+                                    appointmentStatus: "SCHEDULED" | "DONE";
+                                    /** @enum {string} */
+                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                    eta: (string) | null;
+                                    serviceStartAt: (string) | null;
+                                    serviceEndAt: (string) | null;
+                                    travelS: number;
+                                    distanceM: number | null;
+                                    waitS: number;
+                                    lateS: number;
+                                    windowStart: string;
+                                    windowEnd: string;
+                                    windowStartAt: string;
+                                    windowEndAt: string;
+                                    timezone: string;
+                                    durationMinutes: number;
+                                    manual: boolean;
+                                    executed: boolean;
+                                    approximate: boolean;
+                                    missingCoordinates: boolean;
+                                    lat: number | null;
+                                    lng: number | null;
+                                    propertyAddress: string;
+                                    suburb: string;
+                                    serviceTypeName: string;
+                                    keyRequired: boolean;
+                                    meetingLocation: string | null;
+                                    rentalTenantConfirmationStatus: string;
+                                    primaryContact: {
+                                        name: string;
+                                        phone: string | null;
+                                        /** @enum {string} */
+                                        role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                                    } | null;
+                                }[];
+                                geometry: {
+                                    /** @enum {string} */
+                                    type: "FeatureCollection";
+                                    features: {
+                                        /** @enum {string} */
+                                        type: "Feature";
+                                        geometry: {
+                                            /** @enum {string} */
+                                            type: "LineString";
+                                            coordinates: [
+                                                number,
+                                                number
+                                            ][];
+                                        };
+                                        properties: {
+                                            fromSequence: number;
+                                            toSequence: number;
+                                            approximate: boolean;
+                                        };
+                                    }[];
+                                } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector/day-plans/{date}/recalculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                inspectorName: string;
+                                date: string;
+                                timezone: string;
+                                /** @enum {string} */
+                                status: "DRAFT" | "PUBLISHED" | "STALE";
+                                version: number;
+                                publishedAt: (string) | null;
+                                computedAt: string;
+                                /** @enum {string} */
+                                lastTrigger: "SCHEDULED_PUBLISH" | "ON_OPEN" | "MANUAL_RECALC" | "REORDER" | "ORIGIN_CHANGE";
+                                approximate: boolean;
+                                /** @enum {string|null} */
+                                approximateReason: "NO_PROVIDER" | "RATE_LIMITED" | "PROVIDER_ERROR" | "DEADLINE" | "TOO_MANY_COORDINATES" | "NO_ROUTE" | null;
+                                /** @enum {string} */
+                                routingProvider: "MAPBOX" | "STUB";
+                                /** @enum {string|null} */
+                                matrixProfile: "driving-traffic" | "driving" | "haversine" | null;
+                                /** @enum {string} */
+                                optimizerMethod: "TRIVIAL" | "EXACT" | "HEURISTIC" | "INSERTION" | "FIXED";
+                                origin: {
+                                    /** @enum {string} */
+                                    source: "BASE" | "OVERRIDE" | "NONE" | "LAST_STOP";
+                                    label: string | null;
+                                    lat: number | null;
+                                    lng: number | null;
+                                };
+                                /** @enum {string|null} */
+                                originWarning: "NO_BASE" | "BASE_NOT_LOCATED" | null;
+                                originOverride: {
+                                    address: {
+                                        street: string;
+                                        number?: string;
+                                        complement?: string;
+                                        suburb: string;
+                                        city: string;
+                                        state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                                        postcode: string;
+                                        /**
+                                         * @default AU
+                                         * @enum {string}
+                                         */
+                                        country: "AU";
+                                    };
+                                    setAt: string;
+                                } | null;
+                                departureAt: (string) | null;
+                                finishEta: (string) | null;
+                                totals: {
+                                    driveS: number;
+                                    waitS: number;
+                                    serviceS: number;
+                                    lateS: number;
+                                    distanceM: number | null;
+                                };
+                                feasible: boolean;
+                                violations: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    lateS: number;
+                                }[];
+                                manualOrder: boolean;
+                                suggestedOrder: string[];
+                                stops: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    sequence: number;
+                                    appointmentCode: string;
+                                    agencyName: string;
+                                    /** @enum {string} */
+                                    appointmentStatus: "SCHEDULED" | "DONE";
+                                    /** @enum {string} */
+                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                    eta: (string) | null;
+                                    serviceStartAt: (string) | null;
+                                    serviceEndAt: (string) | null;
+                                    travelS: number;
+                                    distanceM: number | null;
+                                    waitS: number;
+                                    lateS: number;
+                                    windowStart: string;
+                                    windowEnd: string;
+                                    windowStartAt: string;
+                                    windowEndAt: string;
+                                    timezone: string;
+                                    durationMinutes: number;
+                                    manual: boolean;
+                                    executed: boolean;
+                                    approximate: boolean;
+                                    missingCoordinates: boolean;
+                                    lat: number | null;
+                                    lng: number | null;
+                                    propertyAddress: string;
+                                    suburb: string;
+                                    serviceTypeName: string;
+                                    keyRequired: boolean;
+                                    meetingLocation: string | null;
+                                    rentalTenantConfirmationStatus: string;
+                                    primaryContact: {
+                                        name: string;
+                                        phone: string | null;
+                                        /** @enum {string} */
+                                        role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                                    } | null;
+                                }[];
+                                geometry: {
+                                    /** @enum {string} */
+                                    type: "FeatureCollection";
+                                    features: {
+                                        /** @enum {string} */
+                                        type: "Feature";
+                                        geometry: {
+                                            /** @enum {string} */
+                                            type: "LineString";
+                                            coordinates: [
+                                                number,
+                                                number
+                                            ][];
+                                        };
+                                        properties: {
+                                            fromSequence: number;
+                                            toSequence: number;
+                                            approximate: boolean;
+                                        };
+                                    }[];
+                                } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/day-plans/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        inspectorId: string;
+                        date: string;
+                        weights: {
+                            travel: number;
+                            windowWait: number;
+                            baseProximity: number;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                current: {
+                                    weights: {
+                                        travel: number;
+                                        windowWait: number;
+                                        baseProximity: number;
+                                    };
+                                    /** @enum {string} */
+                                    etaSource: "MATRIX";
+                                    approximate: boolean;
+                                    departureAt: (string) | null;
+                                    finishEta: (string) | null;
+                                    totals: {
+                                        driveS: number;
+                                        waitS: number;
+                                        lateS: number;
+                                    };
+                                    feasible: boolean;
+                                    stops: {
+                                        /** Format: uuid */
+                                        appointmentId: string;
+                                        sequence: number;
+                                        appointmentCode: string;
+                                        suburb: string;
+                                        windowStart: string;
+                                        windowEnd: string;
+                                        timezone: string;
+                                        eta: string;
+                                        lateS: number;
+                                    }[];
+                                };
+                                proposed: {
+                                    weights: {
+                                        travel: number;
+                                        windowWait: number;
+                                        baseProximity: number;
+                                    };
+                                    /** @enum {string} */
+                                    etaSource: "MATRIX";
+                                    approximate: boolean;
+                                    departureAt: (string) | null;
+                                    finishEta: (string) | null;
+                                    totals: {
+                                        driveS: number;
+                                        waitS: number;
+                                        lateS: number;
+                                    };
+                                    feasible: boolean;
+                                    stops: {
+                                        /** Format: uuid */
+                                        appointmentId: string;
+                                        sequence: number;
+                                        appointmentCode: string;
+                                        suburb: string;
+                                        windowStart: string;
+                                        windowEnd: string;
+                                        timezone: string;
+                                        eta: string;
+                                        lateS: number;
+                                    }[];
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/day-plans/{inspectorId}/{date}/recalculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                inspectorName: string;
+                                date: string;
+                                timezone: string;
+                                /** @enum {string} */
+                                status: "DRAFT" | "PUBLISHED" | "STALE";
+                                version: number;
+                                publishedAt: (string) | null;
+                                computedAt: string;
+                                /** @enum {string} */
+                                lastTrigger: "SCHEDULED_PUBLISH" | "ON_OPEN" | "MANUAL_RECALC" | "REORDER" | "ORIGIN_CHANGE";
+                                approximate: boolean;
+                                /** @enum {string|null} */
+                                approximateReason: "NO_PROVIDER" | "RATE_LIMITED" | "PROVIDER_ERROR" | "DEADLINE" | "TOO_MANY_COORDINATES" | "NO_ROUTE" | null;
+                                /** @enum {string} */
+                                routingProvider: "MAPBOX" | "STUB";
+                                /** @enum {string|null} */
+                                matrixProfile: "driving-traffic" | "driving" | "haversine" | null;
+                                /** @enum {string} */
+                                optimizerMethod: "TRIVIAL" | "EXACT" | "HEURISTIC" | "INSERTION" | "FIXED";
+                                origin: {
+                                    /** @enum {string} */
+                                    source: "BASE" | "OVERRIDE" | "NONE" | "LAST_STOP";
+                                    label: string | null;
+                                    lat: number | null;
+                                    lng: number | null;
+                                };
+                                /** @enum {string|null} */
+                                originWarning: "NO_BASE" | "BASE_NOT_LOCATED" | null;
+                                originOverride: {
+                                    address: {
+                                        street: string;
+                                        number?: string;
+                                        complement?: string;
+                                        suburb: string;
+                                        city: string;
+                                        state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                                        postcode: string;
+                                        /**
+                                         * @default AU
+                                         * @enum {string}
+                                         */
+                                        country: "AU";
+                                    };
+                                    setAt: string;
+                                } | null;
+                                departureAt: (string) | null;
+                                finishEta: (string) | null;
+                                totals: {
+                                    driveS: number;
+                                    waitS: number;
+                                    serviceS: number;
+                                    lateS: number;
+                                    distanceM: number | null;
+                                };
+                                feasible: boolean;
+                                violations: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    lateS: number;
+                                }[];
+                                manualOrder: boolean;
+                                suggestedOrder: string[];
+                                stops: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    sequence: number;
+                                    appointmentCode: string;
+                                    agencyName: string;
+                                    /** @enum {string} */
+                                    appointmentStatus: "SCHEDULED" | "DONE";
+                                    /** @enum {string} */
+                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                    eta: (string) | null;
+                                    serviceStartAt: (string) | null;
+                                    serviceEndAt: (string) | null;
+                                    travelS: number;
+                                    distanceM: number | null;
+                                    waitS: number;
+                                    lateS: number;
+                                    windowStart: string;
+                                    windowEnd: string;
+                                    windowStartAt: string;
+                                    windowEndAt: string;
+                                    timezone: string;
+                                    durationMinutes: number;
+                                    manual: boolean;
+                                    executed: boolean;
+                                    approximate: boolean;
+                                    missingCoordinates: boolean;
+                                    lat: number | null;
+                                    lng: number | null;
+                                    propertyAddress: string;
+                                    suburb: string;
+                                    serviceTypeName: string;
+                                    keyRequired: boolean;
+                                    meetingLocation: string | null;
+                                    rentalTenantConfirmationStatus: string;
+                                    primaryContact: {
+                                        name: string;
+                                        phone: string | null;
+                                        /** @enum {string} */
+                                        role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                                    } | null;
+                                }[];
+                                geometry: {
+                                    /** @enum {string} */
+                                    type: "FeatureCollection";
+                                    features: {
+                                        /** @enum {string} */
+                                        type: "Feature";
+                                        geometry: {
+                                            /** @enum {string} */
+                                            type: "LineString";
+                                            coordinates: [
+                                                number,
+                                                number
+                                            ][];
+                                        };
+                                        properties: {
+                                            fromSequence: number;
+                                            toSequence: number;
+                                            approximate: boolean;
+                                        };
+                                    }[];
+                                } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/day-plans/{inspectorId}/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                inspectorName: string;
+                                date: string;
+                                timezone: string;
+                                /** @enum {string} */
+                                status: "DRAFT" | "PUBLISHED" | "STALE";
+                                version: number;
+                                publishedAt: (string) | null;
+                                computedAt: string;
+                                /** @enum {string} */
+                                lastTrigger: "SCHEDULED_PUBLISH" | "ON_OPEN" | "MANUAL_RECALC" | "REORDER" | "ORIGIN_CHANGE";
+                                approximate: boolean;
+                                /** @enum {string|null} */
+                                approximateReason: "NO_PROVIDER" | "RATE_LIMITED" | "PROVIDER_ERROR" | "DEADLINE" | "TOO_MANY_COORDINATES" | "NO_ROUTE" | null;
+                                /** @enum {string} */
+                                routingProvider: "MAPBOX" | "STUB";
+                                /** @enum {string|null} */
+                                matrixProfile: "driving-traffic" | "driving" | "haversine" | null;
+                                /** @enum {string} */
+                                optimizerMethod: "TRIVIAL" | "EXACT" | "HEURISTIC" | "INSERTION" | "FIXED";
+                                origin: {
+                                    /** @enum {string} */
+                                    source: "BASE" | "OVERRIDE" | "NONE" | "LAST_STOP";
+                                    label: string | null;
+                                    lat: number | null;
+                                    lng: number | null;
+                                };
+                                /** @enum {string|null} */
+                                originWarning: "NO_BASE" | "BASE_NOT_LOCATED" | null;
+                                originOverride: {
+                                    address: {
+                                        street: string;
+                                        number?: string;
+                                        complement?: string;
+                                        suburb: string;
+                                        city: string;
+                                        state: string & ("NSW" | "VIC" | "QLD" | "WA" | "SA" | "TAS" | "ACT" | "NT");
+                                        postcode: string;
+                                        /**
+                                         * @default AU
+                                         * @enum {string}
+                                         */
+                                        country: "AU";
+                                    };
+                                    setAt: string;
+                                } | null;
+                                departureAt: (string) | null;
+                                finishEta: (string) | null;
+                                totals: {
+                                    driveS: number;
+                                    waitS: number;
+                                    serviceS: number;
+                                    lateS: number;
+                                    distanceM: number | null;
+                                };
+                                feasible: boolean;
+                                violations: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    lateS: number;
+                                }[];
+                                manualOrder: boolean;
+                                suggestedOrder: string[];
+                                stops: {
+                                    /** Format: uuid */
+                                    appointmentId: string;
+                                    sequence: number;
+                                    appointmentCode: string;
+                                    agencyName: string;
+                                    /** @enum {string} */
+                                    appointmentStatus: "SCHEDULED" | "DONE";
+                                    /** @enum {string} */
+                                    executionStatus: "NOT_STARTED" | "IN_PROGRESS" | "FINISHED";
+                                    eta: (string) | null;
+                                    serviceStartAt: (string) | null;
+                                    serviceEndAt: (string) | null;
+                                    travelS: number;
+                                    distanceM: number | null;
+                                    waitS: number;
+                                    lateS: number;
+                                    windowStart: string;
+                                    windowEnd: string;
+                                    windowStartAt: string;
+                                    windowEndAt: string;
+                                    timezone: string;
+                                    durationMinutes: number;
+                                    manual: boolean;
+                                    executed: boolean;
+                                    approximate: boolean;
+                                    missingCoordinates: boolean;
+                                    lat: number | null;
+                                    lng: number | null;
+                                    propertyAddress: string;
+                                    suburb: string;
+                                    serviceTypeName: string;
+                                    keyRequired: boolean;
+                                    meetingLocation: string | null;
+                                    rentalTenantConfirmationStatus: string;
+                                    primaryContact: {
+                                        name: string;
+                                        phone: string | null;
+                                        /** @enum {string} */
+                                        role: "RENTAL_TENANT" | "RENTAL_TENANT_REPRESENTATIVE" | "HOUSEKEEPER" | "PROPERTY_MANAGER" | "BROKER" | "OTHER";
+                                    } | null;
+                                }[];
+                                geometry: {
+                                    /** @enum {string} */
+                                    type: "FeatureCollection";
+                                    features: {
+                                        /** @enum {string} */
+                                        type: "Feature";
+                                        geometry: {
+                                            /** @enum {string} */
+                                            type: "LineString";
+                                            coordinates: [
+                                                number,
+                                                number
+                                            ][];
+                                        };
+                                        properties: {
+                                            fromSequence: number;
+                                            toSequence: number;
+                                            approximate: boolean;
+                                        };
+                                    }[];
+                                } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector/day-plans/{date}/sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    format: "pdf" | "xlsx";
+                };
+                header?: never;
+                path: {
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/day-plans/{inspectorId}/{date}/sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    format: "pdf" | "xlsx";
+                };
+                header?: never;
+                path: {
+                    inspectorId: string;
+                    date: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/day-plans/eta-accuracy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    days?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                from: string;
+                                to: string;
+                                days: number;
+                                sampleSize: number;
+                                excludedOutliers: number;
+                                meanAbsoluteErrorMinutes: number | null;
+                                /** @enum {number} */
+                                thresholdMinutes: 10;
+                                /** @enum {number} */
+                                minSampleSize: 30;
+                                /** @enum {string} */
+                                status: "INSUFFICIENT_DATA" | "OK" | "ABOVE_THRESHOLD";
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/map/execution-density": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    fromDate: string;
+                    toDate: string;
+                    tenantId?: string;
+                    inspectorId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                fromDate: string;
+                                toDate: string;
+                                /** @enum {number} */
+                                gridSizeDegrees: 0.001;
+                                minCellCount: number;
+                                cells: {
+                                    lat: number;
+                                    lng: number;
+                                    count: number;
+                                }[];
+                                cellCount: number;
+                                totalExecutions: number;
+                                excludedWithoutCoordinates: number;
+                                truncated: boolean;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-files/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        propertyId: string;
+                        /** Format: uuid */
+                        appointmentId?: string;
+                        /** @enum {string} */
+                        type: "ISSUE" | "DOCUMENT" | "REPORT" | "OTHER";
+                        fileName: string;
+                        mime: string;
+                        sizeBytes?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                fileId: string;
+                                /** Format: uri */
+                                uploadUrl: string;
+                                storageKey: string;
+                                expiresAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-files/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        fileId: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                propertyId: string;
+                                /** Format: uuid */
+                                appointmentId: string | null;
+                                /** Format: uuid */
+                                issueId: string | null;
+                                /** @enum {string} */
+                                type: "ISSUE" | "DOCUMENT" | "REPORT" | "OTHER";
+                                /** Format: uuid */
+                                versionGroupId: string;
+                                version: number;
+                                fileName: string;
+                                mime: string;
+                                sizeBytes: number;
+                                /** @enum {string} */
+                                status: "PENDING" | "READY";
+                                /** Format: uuid */
+                                uploadedByUserId: string | null;
+                                createdAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    propertyId?: string;
+                    appointmentId?: string;
+                    type?: "ISSUE" | "DOCUMENT" | "REPORT" | "OTHER";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                files: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** Format: uuid */
+                                    propertyId: string;
+                                    /** Format: uuid */
+                                    appointmentId: string | null;
+                                    /** Format: uuid */
+                                    issueId: string | null;
+                                    /** @enum {string} */
+                                    type: "ISSUE" | "DOCUMENT" | "REPORT" | "OTHER";
+                                    /** Format: uuid */
+                                    versionGroupId: string;
+                                    version: number;
+                                    fileName: string;
+                                    mime: string;
+                                    sizeBytes: number;
+                                    /** @enum {string} */
+                                    status: "PENDING" | "READY";
+                                    /** Format: uuid */
+                                    uploadedByUserId: string | null;
+                                    createdAt: string;
+                                }[];
+                                counts: {
+                                    total: number;
+                                    issues: number;
+                                    documents: number;
+                                    reports: number;
+                                    other: number;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-files/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uri */
+                                url: string;
+                                expiresAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-files/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        fileName: string;
+                        mime: string;
+                        sizeBytes?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                fileId: string;
+                                /** Format: uri */
+                                uploadUrl: string;
+                                storageKey: string;
+                                expiresAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-files/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    propertyId?: string;
+                    appointmentId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                issues: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** Format: uuid */
+                                    propertyId: string;
+                                    /** Format: uuid */
+                                    appointmentId: string | null;
+                                    reason: string;
+                                    /** @enum {string} */
+                                    source: "INSPECTOR" | "STAFF" | "RENTAL_TENANT_PORTAL";
+                                    /** Format: uuid */
+                                    createdByUserId: string | null;
+                                    /** Format: uuid */
+                                    cantDoEventId: string | null;
+                                    seenAt: (string) | null;
+                                    /** Format: uuid */
+                                    seenByUserId: string | null;
+                                    createdAt: string;
+                                    photos: {
+                                        /** Format: uuid */
+                                        id: string;
+                                        /** Format: uuid */
+                                        propertyId: string;
+                                        /** Format: uuid */
+                                        appointmentId: string | null;
+                                        /** Format: uuid */
+                                        issueId: string | null;
+                                        /** @enum {string} */
+                                        type: "ISSUE" | "DOCUMENT" | "REPORT" | "OTHER";
+                                        /** Format: uuid */
+                                        versionGroupId: string;
+                                        version: number;
+                                        fileName: string;
+                                        mime: string;
+                                        sizeBytes: number;
+                                        /** @enum {string} */
+                                        status: "PENDING" | "READY";
+                                        /** Format: uuid */
+                                        uploadedByUserId: string | null;
+                                        createdAt: string;
+                                    }[];
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        propertyId: string;
+                        /** Format: uuid */
+                        appointmentId?: string;
+                        reason: string;
+                        photoFileIds?: string[];
+                        /** Format: uuid */
+                        cantDoEventId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                propertyId: string;
+                                /** Format: uuid */
+                                appointmentId: string | null;
+                                reason: string;
+                                /** @enum {string} */
+                                source: "INSPECTOR" | "STAFF" | "RENTAL_TENANT_PORTAL";
+                                /** Format: uuid */
+                                createdByUserId: string | null;
+                                /** Format: uuid */
+                                cantDoEventId: string | null;
+                                seenAt: (string) | null;
+                                /** Format: uuid */
+                                seenByUserId: string | null;
+                                createdAt: string;
+                                photos: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    /** Format: uuid */
+                                    propertyId: string;
+                                    /** Format: uuid */
+                                    appointmentId: string | null;
+                                    /** Format: uuid */
+                                    issueId: string | null;
+                                    /** @enum {string} */
+                                    type: "ISSUE" | "DOCUMENT" | "REPORT" | "OTHER";
+                                    /** Format: uuid */
+                                    versionGroupId: string;
+                                    version: number;
+                                    fileName: string;
+                                    mime: string;
+                                    sizeBytes: number;
+                                    /** @enum {string} */
+                                    status: "PENDING" | "READY";
+                                    /** Format: uuid */
+                                    uploadedByUserId: string | null;
+                                    createdAt: string;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-issues/unseen-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                appointmentsWithUnseenIssues: number;
+                                propertiesWithUnseenIssues: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-issues/{id}/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                seen: boolean;
+                                alreadySeen: boolean;
+                                seenAt: (string) | null;
+                                /** Format: uuid */
+                                seenByUserId: string | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/property-issues/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/live-day": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    date?: string;
+                    includeGeometry?: "none" | "selected" | "all";
+                    inspectorId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                date: string;
+                                today: string;
+                                timezone: string;
+                                isToday: boolean;
+                                generatedAt: string;
+                                thresholdsDefault: {
+                                    delayMinutes: number;
+                                    notStartedMinutes: number;
+                                };
+                                summary: {
+                                    inspectors: number;
+                                    notStarted: number;
+                                    atProperty: number;
+                                    inTransit: number;
+                                    doneForDay: number;
+                                    needsAttention: number;
+                                    stopsDone: number;
+                                    stopsTotal: number;
+                                };
+                                inspectors: {
+                                    /** Format: uuid */
+                                    inspectorId: string;
+                                    inspectorName: string;
+                                    /** @enum {string} */
+                                    state: "NOT_STARTED" | "AT_PROPERTY" | "IN_TRANSIT" | "DONE_FOR_DAY";
+                                    lastKnown: {
+                                        /** @enum {string} */
+                                        source: "CHECK_IN" | "CHECK_OUT" | "BASE" | "NONE";
+                                        lat: number | null;
+                                        lng: number | null;
+                                        at: (string) | null;
+                                        /** Format: uuid */
+                                        appointmentId: string | null;
+                                        label: string | null;
+                                    };
+                                    progress: {
+                                        done: number;
+                                        inProgress: number;
+                                        remaining: number;
+                                        total: number;
+                                    };
+                                    delayMinutes: number | null;
+                                    thresholds: {
+                                        delayMinutes: number;
+                                        /** @enum {string} */
+                                        delaySource: "PLATFORM" | "INSPECTOR";
+                                        notStartedMinutes: number;
+                                        /** @enum {string} */
+                                        notStartedSource: "PLATFORM" | "INSPECTOR";
+                                    };
+                                    alerts: {
+                                        /** @enum {string} */
+                                        type: "DELAY" | "NOT_STARTED" | "LATE_NOTICE" | "CANT_DO" | "GEOFENCE" | "OUT_OF_WINDOW" | "COMPLETION_REMINDER";
+                                        occurredAt: string;
+                                        /** Format: uuid */
+                                        appointmentId: string | null;
+                                        appointmentCode: string | null;
+                                        minutes: number | null;
+                                        estimatedArrivalAt: (string) | null;
+                                        thresholdMinutes: number | null;
+                                        /** @enum {string|null} */
+                                        thresholdSource: "PLATFORM" | "INSPECTOR" | null;
+                                        reason: string | null;
+                                        reasonLabel: string | null;
+                                        note: string | null;
+                                        /** @enum {string|null} */
+                                        phase: "START" | "FINISH" | null;
+                                        distanceMeters: number | null;
+                                        radiusMeters: number | null;
+                                    }[];
+                                    needsAttention: boolean;
+                                    /** Format: uuid */
+                                    dayPlanId: string | null;
+                                    /** @enum {string} */
+                                    planStatus: "DRAFT" | "PUBLISHED" | "STALE" | "NONE";
+                                    planVersion: number | null;
+                                    routeOutOfDate: boolean;
+                                    routeApproximate: boolean;
+                                    routeFeasible: boolean;
+                                    routeViolations: {
+                                        /** Format: uuid */
+                                        appointmentId: string;
+                                        appointmentCode: string;
+                                        sequence: number;
+                                        lateMinutes: number;
+                                    }[];
+                                    origin: {
+                                        lat: number;
+                                        lng: number;
+                                        label: string | null;
+                                    } | null;
+                                    geometryIncluded: boolean;
+                                    geometry: {
+                                        /** @enum {string} */
+                                        type: "FeatureCollection";
+                                        features: {
+                                            /** @enum {string} */
+                                            type: "Feature";
+                                            geometry: {
+                                                /** @enum {string} */
+                                                type: "LineString";
+                                                coordinates: [
+                                                    number,
+                                                    number
+                                                ][];
+                                            };
+                                            properties: {
+                                                fromSequence: number;
+                                                toSequence: number;
+                                                approximate: boolean;
+                                            };
+                                        }[];
+                                    } | null;
+                                    stops: {
+                                        /** Format: uuid */
+                                        appointmentId: string;
+                                        appointmentCode: string;
+                                        sequence: number | null;
+                                        inPlan: boolean;
+                                        /** @enum {string} */
+                                        progress: "DONE" | "CURRENT" | "OPEN" | "REMAINING";
+                                        agencyName: string;
+                                        propertyAddress: string;
+                                        suburb: string;
+                                        lat: number | null;
+                                        lng: number | null;
+                                        missingCoordinates: boolean;
+                                        windowStart: string;
+                                        windowEnd: string;
+                                        timezone: string;
+                                        startedAt: (string) | null;
+                                        finishedAt: (string) | null;
+                                        predictedStartAt: (string) | null;
+                                        publishedStartAt: (string) | null;
+                                        delayMinutes: number | null;
+                                    }[];
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/locked-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    from?: string;
+                    to?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                from: string;
+                                to: string;
+                                generatedAt: string;
+                                overall: {
+                                    confirmed: number;
+                                    required: number;
+                                    percent: number | null;
+                                };
+                                byAgency: {
+                                    /** Format: uuid */
+                                    tenantId: string;
+                                    agencyName: string;
+                                    confirmed: number;
+                                    required: number;
+                                    percent: number | null;
+                                }[];
+                                byRegion: {
+                                    /** Format: uuid */
+                                    regionId: string | null;
+                                    regionName: string;
+                                    agencyName: string | null;
+                                    confirmed: number;
+                                    required: number;
+                                    percent: number | null;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/inspector-performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                snapshotDate: string | null;
+                                windowFrom: string | null;
+                                windowTo: string | null;
+                                computedAt: (string) | null;
+                                isStale: boolean;
+                                settingsUpdatedAt: (string) | null;
+                                minimumVolume: number;
+                                volumeReference: number | null;
+                                /** @enum {string|null} */
+                                volumeReferenceSource: "MEDIAN" | "OVERRIDE" | null;
+                                ranked: {
+                                    position: number;
+                                    /** Format: uuid */
+                                    inspectorId: string;
+                                    inspectorName: string;
+                                    score: number;
+                                    volume: number;
+                                    completedCount: number;
+                                }[];
+                                notEnoughData: {
+                                    /** Format: uuid */
+                                    inspectorId: string;
+                                    inspectorName: string;
+                                    volume: number;
+                                    /** @enum {string} */
+                                    status: "INSUFFICIENT_VOLUME" | "NO_WEIGHTED_DATA";
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/inspector-performance/{inspectorId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    inspectorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                inspectorId: string;
+                                inspectorName: string;
+                                /** @enum {string} */
+                                inspectorStatus: "ACTIVE" | "INACTIVE";
+                                /** @enum {string} */
+                                status: "SCORED" | "INSUFFICIENT_VOLUME" | "NO_WEIGHTED_DATA" | "NOT_COMPUTED";
+                                snapshotDate: string | null;
+                                windowFrom: string | null;
+                                windowTo: string | null;
+                                computedAt: (string) | null;
+                                isStale: boolean;
+                                settingsUpdatedAt: (string) | null;
+                                score: number | null;
+                                position: number | null;
+                                rankedCount: number;
+                                volume: number;
+                                completedCount: number;
+                                minimumVolume: number;
+                                minimumRatings: number;
+                                volumeReference: number | null;
+                                /** @enum {string|null} */
+                                volumeReferenceSource: "MEDIAN" | "OVERRIDE" | null;
+                                metrics: {
+                                    /** @enum {string} */
+                                    metric: "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_ATTEND" | "VOLUME" | "DONE_REJECTED";
+                                    rate: number | null;
+                                    eligibleCount: number;
+                                    successCount: number | null;
+                                    averageRating: number | null;
+                                    volumeReference: number | null;
+                                    weightedSuccess: number;
+                                    weightedEligible: number;
+                                    volume: number;
+                                    activeDays: number | null;
+                                    failureCount: number;
+                                    failures: {
+                                        /** Format: uuid */
+                                        appointmentId: string;
+                                        serviceDate: string;
+                                        detail: string;
+                                    }[];
+                                    weight: number;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector/program": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            generatedAt: string;
+                            /** @enum {string} */
+                            timezone: "Australia/Sydney";
+                            summary: {
+                                openCashTotal: number;
+                                /** @enum {string} */
+                                currency: "AUD";
+                            };
+                            activeGoals: {
+                                /** Format: uuid */
+                                goalId: string;
+                                title: string;
+                                description: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                /** @enum {string} */
+                                periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                periodStart: string;
+                                periodEnd: string;
+                                daysLeft: number;
+                                rewardAmount: number;
+                                value: number | null;
+                                serviceCount: number;
+                                minimumServices: number | null;
+                                /** @enum {string} */
+                                state: "MET_SO_FAR" | "IN_PROGRESS" | "BELOW_TARGET" | "NOT_ENOUGH_SERVICES" | "NO_DATA" | "UPCOMING";
+                                startsOn: string | null;
+                                countsSince: string | null;
+                            }[];
+                            standing: {
+                                index: {
+                                    score: number | null;
+                                    /** @enum {string} */
+                                    status: "SCORED" | "INSUFFICIENT_VOLUME" | "NO_WEIGHTED_DATA" | "NOT_COMPUTED";
+                                    snapshotDate: string | null;
+                                };
+                                /** @enum {string|null} */
+                                level: "BRONZE" | "SILVER" | "GOLD" | null;
+                                streak: {
+                                    /** @enum {string|null} */
+                                    cycle: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY" | null;
+                                    count: number;
+                                    atRisk: boolean;
+                                };
+                            };
+                            awards: {
+                                goalTitle: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                periodStart: string;
+                                periodEnd: string;
+                                amount: number;
+                                achievedValue: number;
+                                /** @enum {string} */
+                                status: "PENDING" | "APPROVED" | "PAID" | "VOID";
+                                paidAt: (string) | null;
+                                voidedAt: (string) | null;
+                                inspectorNote: string | null;
+                            }[];
+                            ranking: {
+                                myPosition: number | null;
+                                myScore: number | null;
+                                totalRanked: number;
+                                /** @enum {string|null} */
+                                notRankedReason: "NOT_ENOUGH_DATA" | "NOT_COMPUTED" | null;
+                                cohortTooSmall: boolean;
+                                entries: {
+                                    position: number;
+                                    score: number;
+                                    /** @enum {string|null} */
+                                    level: "BRONZE" | "SILVER" | "GOLD" | null;
+                                    isMe: boolean;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-program/goals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    active?: boolean | "true" | "false" | "1" | "0" | 1 | 0;
+                    metric?: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                    period?: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                    page?: number;
+                    pageSize?: number;
+                    sortBy?: "createdAt" | "title" | "startsAt";
+                    sortOrder?: "asc" | "desc";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                title: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                /** @enum {string} */
+                                period: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                /** Format: uuid */
+                                scopeRegionId: string | null;
+                                /** Format: uuid */
+                                scopeServiceTypeId: string | null;
+                                /** Format: uuid */
+                                scopeInspectorId: string | null;
+                                scopeRegionName: string | null;
+                                scopeServiceTypeName: string | null;
+                                scopeInspectorName: string | null;
+                                rewardAmount: number;
+                                startsAt: string;
+                                endsAt: string | null;
+                                active: boolean;
+                                deactivatedAt: (string) | null;
+                                pendingChange: {
+                                    target: number;
+                                    rewardAmount: number;
+                                    effectiveFrom: string;
+                                } | null;
+                                resumesOn: string | null;
+                                minEndsAt: string;
+                                currentPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                lastClosedPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                scopeRegionDeleted: boolean;
+                                /** Format: uuid */
+                                createdByUserId: string;
+                                /** Format: uuid */
+                                updatedByUserId: string | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        title: string;
+                        /** @enum {string} */
+                        metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                        /** @enum {string} */
+                        comparator?: "GTE" | "LTE";
+                        /** @enum {string} */
+                        period: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                        /** Format: uuid */
+                        scopeRegionId?: string | null;
+                        /** Format: uuid */
+                        scopeServiceTypeId?: string | null;
+                        /** Format: uuid */
+                        scopeInspectorId?: string | null;
+                        target: number;
+                        rewardAmount: number;
+                        startsAt: string;
+                        endsAt?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                title: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                /** @enum {string} */
+                                period: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                /** Format: uuid */
+                                scopeRegionId: string | null;
+                                /** Format: uuid */
+                                scopeServiceTypeId: string | null;
+                                /** Format: uuid */
+                                scopeInspectorId: string | null;
+                                scopeRegionName: string | null;
+                                scopeServiceTypeName: string | null;
+                                scopeInspectorName: string | null;
+                                rewardAmount: number;
+                                startsAt: string;
+                                endsAt: string | null;
+                                active: boolean;
+                                deactivatedAt: (string) | null;
+                                pendingChange: {
+                                    target: number;
+                                    rewardAmount: number;
+                                    effectiveFrom: string;
+                                } | null;
+                                resumesOn: string | null;
+                                minEndsAt: string;
+                                currentPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                lastClosedPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                scopeRegionDeleted: boolean;
+                                /** Format: uuid */
+                                createdByUserId: string;
+                                /** Format: uuid */
+                                updatedByUserId: string | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-program/goals/{goalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    goalId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                title: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                /** @enum {string} */
+                                period: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                /** Format: uuid */
+                                scopeRegionId: string | null;
+                                /** Format: uuid */
+                                scopeServiceTypeId: string | null;
+                                /** Format: uuid */
+                                scopeInspectorId: string | null;
+                                scopeRegionName: string | null;
+                                scopeServiceTypeName: string | null;
+                                scopeInspectorName: string | null;
+                                rewardAmount: number;
+                                startsAt: string;
+                                endsAt: string | null;
+                                active: boolean;
+                                deactivatedAt: (string) | null;
+                                pendingChange: {
+                                    target: number;
+                                    rewardAmount: number;
+                                    effectiveFrom: string;
+                                } | null;
+                                resumesOn: string | null;
+                                minEndsAt: string;
+                                currentPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                lastClosedPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                scopeRegionDeleted: boolean;
+                                /** Format: uuid */
+                                createdByUserId: string;
+                                /** Format: uuid */
+                                updatedByUserId: string | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    goalId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        title?: string;
+                        target?: number;
+                        rewardAmount?: number;
+                        endsAt?: string | null;
+                        active?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                title: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                /** @enum {string} */
+                                period: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                /** Format: uuid */
+                                scopeRegionId: string | null;
+                                /** Format: uuid */
+                                scopeServiceTypeId: string | null;
+                                /** Format: uuid */
+                                scopeInspectorId: string | null;
+                                scopeRegionName: string | null;
+                                scopeServiceTypeName: string | null;
+                                scopeInspectorName: string | null;
+                                rewardAmount: number;
+                                startsAt: string;
+                                endsAt: string | null;
+                                active: boolean;
+                                deactivatedAt: (string) | null;
+                                pendingChange: {
+                                    target: number;
+                                    rewardAmount: number;
+                                    effectiveFrom: string;
+                                } | null;
+                                resumesOn: string | null;
+                                minEndsAt: string;
+                                currentPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                lastClosedPeriod: {
+                                    start: string;
+                                    end: string;
+                                } | null;
+                                scopeRegionDeleted: boolean;
+                                /** Format: uuid */
+                                createdByUserId: string;
+                                /** Format: uuid */
+                                updatedByUserId: string | null;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/v1/inspector-program/periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                    direction: "upcoming" | "past";
+                    count: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                start: string;
+                                end: string;
+                                /** @enum {string} */
+                                status: "CLOSED" | "IN_PROGRESS" | "UPCOMING";
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-program/awards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    status?: "PENDING" | "APPROVED" | "PAID" | "VOID";
+                    periodType?: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                    periodStart?: string;
+                    goalId?: string;
+                    inspectorId?: string;
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                goalId: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                /** @enum {string} */
+                                periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                periodStart: string;
+                                periodEnd: string;
+                                goalTitle: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                amount: number;
+                                scopeLabel: string | null;
+                                achievedValue: number;
+                                serviceCount: number;
+                                achievedOn: string;
+                                indexScoreAtClose: number | null;
+                                /** @enum {string|null} */
+                                levelAtClose: "BRONZE" | "SILVER" | "GOLD" | null;
+                                indexSnapshotDate: string | null;
+                                /** @enum {string} */
+                                status: "PENDING" | "APPROVED" | "PAID" | "VOID";
+                                /** Format: uuid */
+                                approvedByUserId: string | null;
+                                approvedByName: string | null;
+                                approvedAt: (string) | null;
+                                paidAt: (string) | null;
+                                /** Format: uuid */
+                                voidedByUserId: string | null;
+                                voidedByName: string | null;
+                                voidedAt: (string) | null;
+                                voidReason: string | null;
+                                inspectorNote: string | null;
+                                goal: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    title: string;
+                                };
+                                inspector: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    email: string;
+                                };
+                                /** Format: uuid */
+                                financialEntryId: string | null;
+                                invoice: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    invoiceNumberDisplay: string | null;
+                                    /** @enum {string} */
+                                    status: "PENDING_REVIEW" | "CLOSED" | "PAID" | "VOID";
+                                } | null;
+                                voidedAfterInvoicing: boolean;
+                                createdAt: string;
+                                updatedAt: string;
+                            }[];
+                            pagination: {
+                                page: number;
+                                pageSize: number;
+                                total: number;
+                                totalPages: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-program/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                    periodStart: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** @enum {string} */
+                                periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                periodStart: string;
+                                periodEnd: string;
+                                /** @enum {string} */
+                                status: "CLOSED" | "IN_PROGRESS" | "UPCOMING";
+                                totals: {
+                                    promised: number;
+                                    achieved: number;
+                                    approved: number;
+                                    paid: number;
+                                    pending: number;
+                                    voided: number;
+                                };
+                                goals: {
+                                    /** Format: uuid */
+                                    goalId: string;
+                                    title: string;
+                                    /** @enum {string} */
+                                    metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                    rewardAmount: number;
+                                    participants: number;
+                                    promised: number;
+                                    achievers: number;
+                                    achievedAmount: number;
+                                    closed: boolean;
+                                    skipped: boolean;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-program/awards/{awardId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    awardId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                goalId: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                /** @enum {string} */
+                                periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                periodStart: string;
+                                periodEnd: string;
+                                goalTitle: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                amount: number;
+                                scopeLabel: string | null;
+                                achievedValue: number;
+                                serviceCount: number;
+                                achievedOn: string;
+                                indexScoreAtClose: number | null;
+                                /** @enum {string|null} */
+                                levelAtClose: "BRONZE" | "SILVER" | "GOLD" | null;
+                                indexSnapshotDate: string | null;
+                                /** @enum {string} */
+                                status: "PENDING" | "APPROVED" | "PAID" | "VOID";
+                                /** Format: uuid */
+                                approvedByUserId: string | null;
+                                approvedByName: string | null;
+                                approvedAt: (string) | null;
+                                paidAt: (string) | null;
+                                /** Format: uuid */
+                                voidedByUserId: string | null;
+                                voidedByName: string | null;
+                                voidedAt: (string) | null;
+                                voidReason: string | null;
+                                inspectorNote: string | null;
+                                goal: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    title: string;
+                                };
+                                inspector: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    email: string;
+                                };
+                                /** Format: uuid */
+                                financialEntryId: string | null;
+                                invoice: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    invoiceNumberDisplay: string | null;
+                                    /** @enum {string} */
+                                    status: "PENDING_REVIEW" | "CLOSED" | "PAID" | "VOID";
+                                } | null;
+                                voidedAfterInvoicing: boolean;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inspector-program/awards/{awardId}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    awardId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        reason: string;
+                        inspectorNote?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                goalId: string;
+                                /** Format: uuid */
+                                inspectorId: string;
+                                /** @enum {string} */
+                                periodType: "WEEKLY" | "FORTNIGHTLY" | "MONTHLY";
+                                periodStart: string;
+                                periodEnd: string;
+                                goalTitle: string;
+                                /** @enum {string} */
+                                metric: "VOLUME" | "REGION_VOLUME" | "SERVICE_TYPE_VOLUME" | "INDEX_AT_LEAST" | "PUNCTUALITY" | "GEOFENCE" | "NO_STUCK" | "SATISFACTION" | "LATE_NOTICE" | "CANT_DO_MAX";
+                                /** @enum {string} */
+                                comparator: "GTE" | "LTE";
+                                target: number;
+                                amount: number;
+                                scopeLabel: string | null;
+                                achievedValue: number;
+                                serviceCount: number;
+                                achievedOn: string;
+                                indexScoreAtClose: number | null;
+                                /** @enum {string|null} */
+                                levelAtClose: "BRONZE" | "SILVER" | "GOLD" | null;
+                                indexSnapshotDate: string | null;
+                                /** @enum {string} */
+                                status: "PENDING" | "APPROVED" | "PAID" | "VOID";
+                                /** Format: uuid */
+                                approvedByUserId: string | null;
+                                approvedByName: string | null;
+                                approvedAt: (string) | null;
+                                paidAt: (string) | null;
+                                /** Format: uuid */
+                                voidedByUserId: string | null;
+                                voidedByName: string | null;
+                                voidedAt: (string) | null;
+                                voidReason: string | null;
+                                inspectorNote: string | null;
+                                goal: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    title: string;
+                                };
+                                inspector: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                    email: string;
+                                };
+                                /** Format: uuid */
+                                financialEntryId: string | null;
+                                invoice: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    invoiceNumberDisplay: string | null;
+                                    /** @enum {string} */
+                                    status: "PENDING_REVIEW" | "CLOSED" | "PAID" | "VOID";
+                                } | null;
+                                voidedAfterInvoicing: boolean;
+                                createdAt: string;
+                                updatedAt: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                settings: {
+                                    key: string;
+                                    section: string;
+                                    value: {
+                                        [key: string]: unknown;
+                                    };
+                                    defaults: {
+                                        [key: string]: unknown;
+                                    };
+                                    isDefault: boolean;
+                                    updatedAt: (string) | null;
+                                    updatedBy: {
+                                        /** Format: uuid */
+                                        id: string;
+                                        name: string;
+                                    } | null;
+                                }[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform-settings/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                key: string;
+                                section: string;
+                                value: {
+                                    [key: string]: unknown;
+                                };
+                                defaults: {
+                                    [key: string]: unknown;
+                                };
+                                isDefault: boolean;
+                                updatedAt: (string) | null;
+                                updatedBy: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        value: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                key: string;
+                                section: string;
+                                value: {
+                                    [key: string]: unknown;
+                                };
+                                defaults: {
+                                    [key: string]: unknown;
+                                };
+                                isDefault: boolean;
+                                updatedAt: (string) | null;
+                                updatedBy: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    name: string;
+                                } | null;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/financial/entries/summary": {
         parameters: {
             query?: never;
@@ -9798,6 +14841,7 @@ export interface paths {
                                 totalPayouts: number;
                                 totalAdjustments: number;
                                 totalRefunds: number;
+                                totalBonuses: number;
                                 pendingCount: number;
                                 currency: string | null;
                             };
@@ -9824,7 +14868,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    type?: "TENANT_DEBIT" | "INSPECTOR_PAYOUT" | "REFUND" | "MANUAL_ADJUSTMENT";
+                    type?: "TENANT_DEBIT" | "INSPECTOR_PAYOUT" | "REFUND" | "MANUAL_ADJUSTMENT" | "INSPECTOR_BONUS";
                     status?: "PENDING" | "APPROVED" | "CANCELLED" | "VOIDED";
                     inspectorId?: string;
                     tenantId?: string;
@@ -9853,7 +14897,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 /** Format: uuid */
@@ -9971,7 +15015,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 /** Format: uuid */
@@ -10040,7 +15084,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 /** Format: uuid */
@@ -10105,7 +15149,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 /** Format: uuid */
@@ -10231,7 +15275,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 /** Format: uuid */
@@ -10308,7 +15352,7 @@ export interface paths {
                                 /** Format: uuid */
                                 id: string;
                                 /** Format: uuid */
-                                tenantId: string;
+                                tenantId: string | null;
                                 /** Format: uuid */
                                 appointmentId: string | null;
                                 /** Format: uuid */
@@ -10391,10 +15435,15 @@ export interface paths {
                                 totalAmount: number;
                                 currency: string;
                                 lineItemsSnapshot?: {
+                                    /**
+                                     * @default SERVICE
+                                     * @enum {string}
+                                     */
+                                    kind: "SERVICE" | "BONUS";
                                     serviceDate: string;
                                     /** Format: uuid */
-                                    appointmentId: string;
-                                    appointmentCode: string;
+                                    appointmentId: string | null;
+                                    appointmentCode: string | null;
                                     propertyAddress: string | null;
                                     serviceType: string | null;
                                     amount: number;
@@ -10404,6 +15453,11 @@ export interface paths {
                                     /** Format: uuid */
                                     branchId: string | null;
                                     branchName: string | null;
+                                    /** Format: uuid */
+                                    entryId?: string;
+                                    /** Format: uuid */
+                                    rewardAwardId?: string | null;
+                                    description?: string | null;
                                 }[] | null;
                                 fileKey?: string | null;
                                 /** Format: uuid */
@@ -10476,10 +15530,15 @@ export interface paths {
                                 totalAmount: number;
                                 currency: string;
                                 lineItemsSnapshot?: {
+                                    /**
+                                     * @default SERVICE
+                                     * @enum {string}
+                                     */
+                                    kind: "SERVICE" | "BONUS";
                                     serviceDate: string;
                                     /** Format: uuid */
-                                    appointmentId: string;
-                                    appointmentCode: string;
+                                    appointmentId: string | null;
+                                    appointmentCode: string | null;
                                     propertyAddress: string | null;
                                     serviceType: string | null;
                                     amount: number;
@@ -10489,6 +15548,11 @@ export interface paths {
                                     /** Format: uuid */
                                     branchId: string | null;
                                     branchName: string | null;
+                                    /** Format: uuid */
+                                    entryId?: string;
+                                    /** Format: uuid */
+                                    rewardAwardId?: string | null;
+                                    description?: string | null;
                                 }[] | null;
                                 fileKey?: string | null;
                                 /** Format: uuid */
@@ -10906,7 +15970,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    reportType?: "APPOINTMENTS" | "FINANCIAL" | "PERFORMANCE" | "AGENCIES";
+                    reportType?: "APPOINTMENTS" | "FINANCIAL" | "PERFORMANCE" | "AGENCIES" | "INSPECTOR_PROGRAM";
                     status?: "PENDING" | "PROCESSING" | "READY" | "FAILED";
                     fromDate?: string;
                     toDate?: string;
@@ -10972,7 +16036,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** @enum {string} */
-                        reportType: "APPOINTMENTS" | "FINANCIAL" | "PERFORMANCE" | "AGENCIES";
+                        reportType: "APPOINTMENTS" | "FINANCIAL" | "PERFORMANCE" | "AGENCIES" | "INSPECTOR_PROGRAM";
                         filters: {
                             fromDate: string;
                             toDate: string;
@@ -11520,6 +16584,39 @@ export interface paths {
                 path: {
                     consentId: string;
                 };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/consents/opt-out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
                 cookie?: never;
             };
             requestBody?: never;

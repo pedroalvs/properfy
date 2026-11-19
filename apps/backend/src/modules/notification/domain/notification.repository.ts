@@ -82,4 +82,15 @@ export interface INotificationRepository {
     templateCodes: readonly string[],
   ): Promise<boolean>;
   countByTenantChannelSince(tenantId: string | null, channel: NotificationChannel, since: Date): Promise<number>;
+  /**
+   * Count notifications for a specific template + channel (optionally platform-scoped
+   * `tenantId = null`) since `since`, excluding skipped rows. Used by the inspector-notice
+   * SMS daily cap (F02-1), which the platform-TRANSACTIONAL path is otherwise exempt from.
+   */
+  countByTemplateChannelSince(
+    tenantId: string | null,
+    templateCode: string,
+    channel: NotificationChannel,
+    since: Date,
+  ): Promise<number>;
 }

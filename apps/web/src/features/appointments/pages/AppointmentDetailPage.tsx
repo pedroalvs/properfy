@@ -9,6 +9,7 @@ import {
   todayInTzDateString,
 } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { BackButton } from '@/components/layout';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -18,7 +19,6 @@ import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useGoBack } from '@/hooks/useGoBack';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
 import { toApiError } from '@/lib/api-error';
@@ -29,6 +29,7 @@ import { useAppointmentTransition } from '../hooks/useAppointmentTransition';
 import { getAvailableTransitions } from '../lib/transitions';
 import { isAppointmentScheduleEditable } from '../lib/editability';
 import { AppointmentDetailSections } from '../components/AppointmentDetailSections';
+import { AppointmentFieldActivitySection } from '../components/AppointmentFieldActivitySection';
 import { AppointmentContactTab } from '../components/AppointmentContactTab';
 import { AppointmentTimelineTab } from '../components/AppointmentTimelineTab';
 import { AppointmentNotificationsTab } from '../components/AppointmentNotificationsTab';
@@ -42,6 +43,7 @@ import { AppointmentPortalActivityTab } from '../components/AppointmentPortalAct
 import { AppointmentSatisfactionSection } from '../components/AppointmentSatisfactionSection';
 import { useDeleteAppointment } from '../hooks/useDeleteAppointment';
 import { useForceConfirmation } from '../hooks/useForceConfirmation';
+import { PropertyFilesPanel } from '@/features/property-files';
 
 const BASE_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -52,6 +54,7 @@ const NOTIFICATIONS_TAB = { id: 'notifications', label: 'Notifications' };
 const TIMELINE_TAB = { id: 'timeline', label: 'Timeline' };
 const FINANCIAL_TAB = { id: 'financial', label: 'Financial' };
 const PORTAL_ACTIVITY_TAB = { id: 'portal-activity', label: 'Portal Activity' };
+const FILES_TAB = { id: 'files', label: 'Files' };
 const CAN_EDIT_ROLES: string[] = [UserRole.AM, UserRole.OP, UserRole.CL_ADMIN];
 
 /** Shown on the disabled "Send Portal Link" button and on the 409 that backs it. */
@@ -71,7 +74,6 @@ function isPrivilegedRole(role: string): boolean {
 export function AppointmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const handleBack = useGoBack('/appointments');
   const { user } = useAuth();
   const { appointment, isLoading, isError, refetch } = useAppointmentDetail(id ?? null);
   const { crossCheckDone, isCrossChecking } = useAppointmentCrossCheck(id ?? null, refetch);
@@ -93,6 +95,7 @@ export function AppointmentDetailPage() {
   const { canPerform, hasClUserFlag } = usePermissions();
   const canUsePortalLink = canPerform('appointment.portal_link');
   const canViewPortalActivity = canPerform('appointment.portal_activity');
+  const canViewFiles = canPerform('property_file.read');
   const { showSuccess, showError } = useSnackbar();
   const [isGeneratingPortalToken, setIsGeneratingPortalToken] = useState(false);
   const [isCopyingPortalLink, setIsCopyingPortalLink] = useState(false);
@@ -100,6 +103,7 @@ export function AppointmentDetailPage() {
   const tabs = [
     ...BASE_TABS,
     ...(canViewPortalActivity ? [PORTAL_ACTIVITY_TAB] : []),
+    ...(canViewFiles ? [FILES_TAB] : []),
     ...(isPrivileged ? [NOTIFICATIONS_TAB] : []),
     ...(isPrivileged ? [TIMELINE_TAB] : []),
     ...(isPrivileged ? [FINANCIAL_TAB] : []),
@@ -303,12 +307,7 @@ export function AppointmentDetailPage() {
   if (isLoading) {
     return (
       <div>
-        <PageHeader
-          title="Loading..."
-          secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: handleBack },
-          ]}
-        />
+        <PageHeader title="Loading..." backTo="/appointments" />
         <div className="rounded bg-card-bg p-6 shadow-sm">
           <LoadingState rows={8} />
         </div>
@@ -319,12 +318,7 @@ export function AppointmentDetailPage() {
   if (isError || !appointment) {
     return (
       <div>
-        <PageHeader
-          title="Appointment"
-          secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: handleBack },
-          ]}
-        />
+        <PageHeader title="Appointment" backTo="/appointments" />
         <div className="rounded bg-card-bg p-6 shadow-sm">
           <ErrorState
             message="Failed to load appointment details"
@@ -339,13 +333,7 @@ export function AppointmentDetailPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleBack}
-            className="rounded p-1 text-text-secondary hover:bg-black/5"
-            aria-label="Go back"
-          >
-            <i className="mdi mdi-arrow-left text-xl" aria-hidden="true" />
-          </button>
+          <BackButton to="/appointments" />
           <h1 className="text-page-title-mobile text-secondary md:text-page-title">
             {appointment.appointmentCode}
           </h1>
@@ -470,6 +458,9 @@ export function AppointmentDetailPage() {
           {activeTab === 'overview' && (
             <>
               <AppointmentDetailSections appointment={appointment} />
+              <div className="mt-6">
+                <AppointmentFieldActivitySection appointmentId={appointment.id} />
+              </div>
               <AppointmentSatisfactionSection
                 appointmentId={appointment.id}
                 isDone={appointment.status === 'DONE'}
@@ -491,6 +482,15 @@ export function AppointmentDetailPage() {
           {activeTab === 'portal-activity' && canViewPortalActivity && (
             <AppointmentPortalActivityTab appointmentId={appointment.id} />
           )}
+          {activeTab === 'files' && canViewFiles && (
+            <PropertyFilesPanel
+              context={{
+                kind: 'appointment',
+                appointmentId: appointment.id,
+                propertyId: appointment.propertyId,
+              }}
+            />
+          )}
         </div>
 
         {transitions.length > 0 && (
@@ -498,6 +498,7 @@ export function AppointmentDetailPage() {
             <AppointmentTransitionActions
               transitions={transitions}
               onTransition={transition}
+              currentStatus={appointment.status}
               rentalTenantNotified={wasRentalTenantNotified(appointment)}
               loading={isTransitioning}
             />

@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import {
   confirmAppointmentPortalSchema,
@@ -16,6 +16,13 @@ import {
   submitSatisfactionSurveySchema,
   satisfactionSurveyResponseSchema,
   appointmentSurveyResponseSchema,
+  portalPresignIssuePhotoSchema,
+  portalPresignIssuePhotoResponseSchema,
+  portalConfirmIssuePhotoSchema,
+  portalIssuePhotoResponseSchema,
+  portalCreatePropertyIssueSchema,
+  portalPropertyIssueResponseSchema,
+  portalPropertyIssuesResponseSchema,
   paginationSchema,
   successResponseSchema,
 } from '@properfy/shared';
@@ -23,6 +30,11 @@ import { success } from '../../../shared/interfaces/response';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { createPortalTokenMiddleware } from './portal-token-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
+import { PortalActionBlockedError } from '../domain/rental-tenant-portal.errors';
+import type { PresignPortalIssuePhotoUseCase } from '../application/use-cases/presign-portal-issue-photo.use-case';
+import type { ConfirmPortalIssuePhotoUseCase } from '../application/use-cases/confirm-portal-issue-photo.use-case';
+import type { CreatePortalIssueUseCase } from '../application/use-cases/create-portal-issue.use-case';
+import type { ListPortalIssuesUseCase } from '../application/use-cases/list-portal-issues.use-case';
 import type { GetPortalDataUseCase } from '../application/use-cases/get-portal-data.use-case';
 import type { ConfirmAppointmentUseCase } from '../application/use-cases/confirm-appointment.use-case';
 import type { UpdateContactUseCase } from '../application/use-cases/update-contact.use-case';
@@ -48,6 +60,10 @@ export interface RentalTenantPortalRouteContainer {
   joinGroupUseCase: JoinGroupUseCase;
   submitSatisfactionSurveyUseCase: SubmitSatisfactionSurveyUseCase;
   getAppointmentSurveyUseCase: GetAppointmentSurveyUseCase;
+  presignPortalIssuePhotoUseCase: Pick<PresignPortalIssuePhotoUseCase, 'execute'>;
+  confirmPortalIssuePhotoUseCase: Pick<ConfirmPortalIssuePhotoUseCase, 'execute'>;
+  createPortalIssueUseCase: Pick<CreatePortalIssueUseCase, 'execute'>;
+  listPortalIssuesUseCase: Pick<ListPortalIssuesUseCase, 'execute'>;
   tokenRepo: IRentalTenantPortalTokenRepository;
   tokenService: TokenService;
   jwtService: JwtService;
@@ -55,6 +71,13 @@ export interface RentalTenantPortalRouteContainer {
 }
 
 const appointmentIdParam = z.object({ appointmentId: z.string().uuid() });
+const tokenParam = z.object({ token: z.string() });
+
+/** Extract the `Idempotency-Key` header for critical portal commands (D24). */
+function idempotencyKeyHeader(request: FastifyRequest): string | undefined {
+  const value = request.headers['idempotency-key'];
+  return typeof value === 'string' ? value : undefined;
+}
 
 // Concrete response shape of UpdateContactUseCase.execute — modelled on the code
 // (update-contact.use-case.ts), not the finding text. All three are nullable:
@@ -82,6 +105,22 @@ export async function registerRentalTenantPortalRoutes(
       return tenant?.isActive() ?? false;
     },
   );
+
+  // Per-token rate limit for issue-photo presigns (F10-4 D21): 12 presigns per
+  // token per hour, so one tenant cannot flood storage. The key is the hashed
+  // token (as stored in the DB), with an IP fallback for a missing token. This
+  // overrides the generic 30/min-per-IP limit on this one route; the other issue
+  // routes keep it. Route params are populated before the onRequest hook runs.
+  const presignIssuePhotoRateLimit = {
+    max: 12,
+    timeWindow: '1 hour',
+    keyGenerator: (request: FastifyRequest) => {
+      const token = (request.params as { token?: string }).token;
+      return token
+        ? `portal-issue-presign:${container.tokenService.hashToken(token)}`
+        : `portal-issue-presign:ip:${request.ip}`;
+    },
+  };
 
   // --- Portal routes (token-authenticated, no JWT) ---
 
@@ -298,6 +337,113 @@ export async function registerRentalTenantPortalRoutes(
         rentalTenantNote: parsed.data.rentalTenantNote,
         ipAddress,
         userAgent,
+      });
+      return reply.status(200).send(result);
+    },
+  );
+
+  // --- Portal property-issue routes (F10-4, token-authenticated) ---
+
+  // POST /v1/rental-tenant-portal/:token/property-issues/presign
+  app.post(
+    '/v1/rental-tenant-portal/:token/property-issues/presign',
+    {
+      preHandler: portalAuth,
+      config: { rateLimit: presignIssuePhotoRateLimit },
+      schema: {
+        params: tokenParam,
+        body: portalPresignIssuePhotoSchema,
+        response: { 201: portalPresignIssuePhotoResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const ctx = request.portalContext!;
+      if (ctx.isReadOnly) throw new PortalActionBlockedError();
+      const parsed = portalPresignIssuePhotoSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.presignPortalIssuePhotoUseCase.execute({
+        appointmentId: ctx.appointmentId,
+        input: parsed.data,
+      });
+      return reply.status(201).send(result);
+    },
+  );
+
+  // POST /v1/rental-tenant-portal/:token/property-issues/confirm-upload
+  app.post(
+    '/v1/rental-tenant-portal/:token/property-issues/confirm-upload',
+    {
+      preHandler: portalAuth,
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: {
+        params: tokenParam,
+        body: portalConfirmIssuePhotoSchema,
+        response: { 200: portalIssuePhotoResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const ctx = request.portalContext!;
+      if (ctx.isReadOnly) throw new PortalActionBlockedError();
+      const parsed = portalConfirmIssuePhotoSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.confirmPortalIssuePhotoUseCase.execute({
+        appointmentId: ctx.appointmentId,
+        fileId: parsed.data.fileId,
+        idempotencyKey: idempotencyKeyHeader(request),
+      });
+      return reply.status(200).send(result);
+    },
+  );
+
+  // POST /v1/rental-tenant-portal/:token/property-issues
+  app.post(
+    '/v1/rental-tenant-portal/:token/property-issues',
+    {
+      preHandler: portalAuth,
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: {
+        params: tokenParam,
+        body: portalCreatePropertyIssueSchema,
+        response: { 201: portalPropertyIssueResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const ctx = request.portalContext!;
+      if (ctx.isReadOnly) throw new PortalActionBlockedError();
+      const parsed = portalCreatePropertyIssueSchema.safeParse(request.body);
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.createPortalIssueUseCase.execute({
+        appointmentId: ctx.appointmentId,
+        input: parsed.data,
+        idempotencyKey: idempotencyKeyHeader(request),
+        requestId: request.id,
+      });
+      return reply.status(201).send(result);
+    },
+  );
+
+  // GET /v1/rental-tenant-portal/:token/property-issues
+  // The tenant's own submitted reports for this appointment (read-only allowed).
+  app.get(
+    '/v1/rental-tenant-portal/:token/property-issues',
+    {
+      preHandler: portalAuth,
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+      schema: {
+        params: tokenParam,
+        response: { 200: portalPropertyIssuesResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const ctx = request.portalContext!;
+      const result = await container.listPortalIssuesUseCase.execute({
+        appointmentId: ctx.appointmentId,
       });
       return reply.status(200).send(result);
     },

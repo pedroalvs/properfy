@@ -1,6 +1,7 @@
 import type { AuthContext, PropertyType } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import type { Logger } from '../../../../shared/infrastructure/logger';
 import type { IPropertyRepository } from '../../domain/property.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import {
@@ -70,7 +71,14 @@ export class UpdatePropertyUseCase {
     private readonly propertyRepo: IPropertyRepository,
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
+    private readonly logger?: Logger,
   ) {}
+
+  /** Compare an incoming coordinate against a stored one at 7 decimal places
+   * (the Decimal(10,7) column precision), normalizing Prisma Decimal→number drift. */
+  private sameCoordinate(incoming: number, stored: number | null): boolean {
+    return stored !== null && Number(incoming.toFixed(7)) === Number(stored.toFixed(7));
+  }
 
   async execute(input: UpdatePropertyInput): Promise<UpdatePropertyOutput> {
     const { propertyId, data, actor } = input;
@@ -173,27 +181,64 @@ export class UpdatePropertyUseCase {
       }
     }
 
-    // Manual coordinate unlock: clearing both coords on a MANUAL property resets to PENDING
-    const isManualCoordinateUnlock =
-      data.latitude === null &&
-      data.longitude === null &&
-      property.geocodingStatus === 'MANUAL';
+    // Coordinate handling (X02-1). Invariant: never write MANUAL with a null
+    // coordinate. A latitude/longitude in an update body is USER input — stored
+    // as MANUAL only when the pair differs from the stored pair; equal or
+    // null/incomplete pairs are ignored (the autocomplete form over-sends them).
+    const latProvided = data.latitude !== undefined;
+    const lngProvided = data.longitude !== undefined;
+    const bothNonNull =
+      latProvided && lngProvided && data.latitude !== null && data.longitude !== null;
+    const bothNull =
+      latProvided && lngProvided && data.latitude === null && data.longitude === null;
 
-    // Manual coordinate override: if lat/lng explicitly provided (non-null), set MANUAL status
-    if (
-      data.latitude !== undefined &&
-      data.longitude !== undefined &&
-      !isManualCoordinateUnlock
-    ) {
-      updateData.lat = data.latitude;
-      updateData.lng = data.longitude;
-      updateData.geocodingStatus = 'MANUAL';
-    } else if (isManualCoordinateUnlock) {
-      updateData.lat = null;
-      updateData.lng = null;
+    let manualSet = false;
+    let statusToPending = false;
+
+    if (bothNonNull) {
+      if (
+        this.sameCoordinate(data.latitude!, property.lat) &&
+        this.sameCoordinate(data.longitude!, property.lng)
+      ) {
+        // Unchanged coordinates (the form re-sent the stored pair): keep status,
+        // coordinates and marker as they are.
+        this.logger?.debug({ propertyId }, 'property.update_coordinates_unchanged_ignored');
+      } else {
+        updateData.lat = data.latitude;
+        updateData.lng = data.longitude;
+        updateData.geocodingStatus = 'MANUAL';
+        updateData.geocodedPermanentlyAt = null;
+        // A user coordinate supersedes any prior failure (e.g. a blocked FAILED):
+        // clear the code so no stale value lingers on a MANUAL row.
+        updateData.geocodingFailureCode = null;
+        manualSet = true;
+      }
+    } else if (bothNull) {
+      if (property.geocodingStatus === 'MANUAL') {
+        // Unlock a MANUAL property: clear the coordinates and re-geocode.
+        updateData.lat = null;
+        updateData.lng = null;
+        updateData.geocodingStatus = 'PENDING';
+        updateData.geocodedPermanentlyAt = null;
+        updateData.geocodingFailureCode = null;
+        statusToPending = true;
+      } else {
+        // null/null on a non-MANUAL property is ignored (never MANUAL-without-coord).
+        this.logger?.debug(
+          { propertyId, geocodingStatus: property.geocodingStatus },
+          'property.update_coordinates_null_ignored',
+        );
+      }
+    }
+    // An incomplete pair (one field present, the other absent or null) is ignored
+    // entirely — handled by falling through neither branch above.
+
+    // Address change re-geocodes (unless a MANUAL override was just set — it wins).
+    if (!manualSet && addressChanged) {
       updateData.geocodingStatus = 'PENDING';
-    } else if (addressChanged) {
-      updateData.geocodingStatus = 'PENDING';
+      updateData.geocodedPermanentlyAt = null;
+      updateData.geocodingFailureCode = null;
+      statusToPending = true;
     }
 
     const before = {
@@ -212,11 +257,9 @@ export class UpdatePropertyUseCase {
       updateData as Parameters<IPropertyRepository['update']>[2],
     );
 
-    // Enqueue geocoding job on address change (skip if manual coordinates provided)
-    // or on manual coordinate unlock (clearing coords on a MANUAL property)
-    if (isManualCoordinateUnlock) {
-      await sendJob('property.geocode', { propertyId }, { retryLimit: 6, retryBackoff: true });
-    } else if (addressChanged && !(data.latitude !== undefined && data.longitude !== undefined)) {
+    // Any transition to PENDING (unlock or address change without a MANUAL
+    // override) needs the async geocode job.
+    if (statusToPending) {
       await sendJob('property.geocode', { propertyId }, { retryLimit: 6, retryBackoff: true });
     }
 
@@ -264,8 +307,10 @@ export class UpdatePropertyUseCase {
       country: (updateData.country as string) ?? property.country,
       geocodingStatus:
         (updateData.geocodingStatus as string) ?? property.geocodingStatus,
-      latitude: data.latitude !== undefined ? (data.latitude ?? null) : (property.lat ?? null),
-      longitude: data.longitude !== undefined ? (data.longitude ?? null) : (property.lng ?? null),
+      // Reflect what was actually persisted, not the raw input: an ignored or
+      // unchanged pair keeps the stored coordinates.
+      latitude: updateData.lat !== undefined ? (updateData.lat as number | null) : (property.lat ?? null),
+      longitude: updateData.lng !== undefined ? (updateData.lng as number | null) : (property.lng ?? null),
       privateAreaM2:
         data.privateAreaM2 !== undefined ? data.privateAreaM2 : property.privateAreaM2,
       totalAreaM2: data.totalAreaM2 !== undefined ? data.totalAreaM2 : property.totalAreaM2,

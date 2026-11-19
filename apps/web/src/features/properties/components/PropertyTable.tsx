@@ -109,6 +109,7 @@ export function PropertyTable({
       pagination={pagination}
       defaultSort={{ key: 'propertyCode', order: 'asc' }}
       keyExtractor={(row) => row.id}
+      rowClassName={(row) => (row.hasUnseenIssues ? 'border-l-4 border-l-warning' : undefined)}
     />
   );
 }

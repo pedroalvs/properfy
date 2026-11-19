@@ -12,7 +12,18 @@ vi.mock('bcryptjs', () => ({
   },
 }));
 
+// The geocode step is unit-tested in geocode-inspector-base.test.ts. Here we mock
+// it so the create use case's ordering, audit, event and output can be asserted
+// without re-exercising the timeout/Mapbox machinery.
+vi.mock('../../../src/modules/inspector/application/services/geocode-inspector-base', () => ({
+  geocodeInspectorBase: vi.fn(),
+}));
+
 import { CreateInspectorUseCase } from '../../../src/modules/inspector/application/use-cases/create-inspector.use-case';
+import { geocodeInspectorBase } from '../../../src/modules/inspector/application/services/geocode-inspector-base';
+import type { IGeocodingService } from '../../../src/modules/property/domain/geocoding.service';
+import type { DomainEventBus } from '../../../src/shared/application/events/domain-event-bus';
+import { INSPECTOR_EVENTS } from '../../../src/modules/inspector/domain/inspector-events';
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
 import type { IUserManagementRepository } from '../../../src/modules/user/domain/user-management.repository';
 import type { IServiceRegionRepository } from '../../../src/modules/service-region/domain/service-region.repository';
@@ -47,6 +58,13 @@ function makeInspector(
     blockedClientsJson: [],
     fullName: null,
     address: null,
+    baseLat: null,
+    baseLng: null,
+    baseGeocodedAt: null,
+    appInstalledAt: null,
+    appLastSeenAt: null,
+    pushEnabled: null,
+    appVersion: null,
     abn: null,
     dateOfBirth: null,
     insuranceFileKey: null,
@@ -59,6 +77,15 @@ function makeInspector(
     ...overrides,
   });
 }
+
+const BASE_ADDRESS = {
+  street: '1 George St',
+  suburb: 'Sydney',
+  city: 'Sydney',
+  state: 'NSW' as const,
+  postcode: '2000',
+  country: 'AU' as const,
+};
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -87,6 +114,7 @@ describe('CreateInspectorUseCase', () => {
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
+      recordAppState: vi.fn(),
       findByRegionId: vi.fn(),
     };
     userManagementRepo = {
@@ -105,6 +133,7 @@ describe('CreateInspectorUseCase', () => {
     auditService = { log: vi.fn() } as unknown as AuditService;
     const authorizationService = new AuthorizationService(auditService);
     useCase = new CreateInspectorUseCase(inspectorRepo, userManagementRepo, auditService, authorizationService, undefined);
+    vi.mocked(geocodeInspectorBase).mockReset();
   });
 
   it('should create inspector for AM with auto-created user record', async () => {
@@ -403,6 +432,139 @@ describe('CreateInspectorUseCase', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('F01-1 base address geocoding, audit, event (TASK-F01-1)', () => {
+    let geocoder: IGeocodingService;
+    let eventBus: { emit: ReturnType<typeof vi.fn> } & Partial<DomainEventBus>;
+    let logger: { warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+    let geoUseCase: CreateInspectorUseCase;
+
+    beforeEach(() => {
+      vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(null);
+      vi.mocked(userManagementRepo.findByEmail).mockResolvedValue(null);
+      geocoder = { geocode: vi.fn() };
+      eventBus = { emit: vi.fn().mockResolvedValue(undefined) };
+      logger = { warn: vi.fn(), error: vi.fn() };
+      geoUseCase = new CreateInspectorUseCase(
+        inspectorRepo,
+        userManagementRepo,
+        auditService,
+        new AuthorizationService(auditService),
+        undefined,
+        geocoder,
+        eventBus as unknown as DomainEventBus,
+        logger as never,
+      );
+    });
+
+    function run(address: Record<string, unknown> = BASE_ADDRESS) {
+      return geoUseCase.execute({
+        name: 'John Inspector',
+        email: 'john@example.com',
+        password: VALID_PASSWORD,
+        address: address as never,
+        actor: makeActor(),
+      });
+    }
+
+    it('saves the geocoder coordinates on the inspector and returns baseGeocodeFailed=false', async () => {
+      vi.mocked(geocodeInspectorBase).mockResolvedValue({ lat: -33.86, lng: 151.2, geocodedAt: new Date('2026-10-30T00:00:00Z') });
+      const result = await run();
+      const saved = vi.mocked(inspectorRepo.save).mock.calls[0][0];
+      expect(saved.baseLat).toBe(-33.86);
+      expect(saved.baseLng).toBe(151.2);
+      expect(saved.baseGeocodedAt).toEqual(new Date('2026-10-30T00:00:00Z'));
+      expect(result.baseGeocodeFailed).toBe(false);
+      expect(result.baseLat).toBe(-33.86);
+    });
+
+    it('saves the address with null coordinates and baseGeocodeFailed=true on a geocode failure', async () => {
+      vi.mocked(geocodeInspectorBase).mockResolvedValue({ failed: 'no_results' });
+      const result = await run();
+      const saved = vi.mocked(inspectorRepo.save).mock.calls[0][0];
+      expect(saved.baseLat).toBeNull();
+      expect(saved.baseLng).toBeNull();
+      expect(saved.baseGeocodedAt).toBeNull();
+      expect(result.baseGeocodeFailed).toBe(true);
+    });
+
+    it('stores the geocoder coordinates, never a client-sent latitude/longitude', async () => {
+      vi.mocked(geocodeInspectorBase).mockResolvedValue({ lat: -33.86, lng: 151.2, geocodedAt: new Date() });
+      const result = await run({ ...BASE_ADDRESS, latitude: 1, longitude: 2 });
+      expect(result.baseLat).toBe(-33.86);
+      expect(result.baseLng).toBe(151.2);
+    });
+
+    it('audits inspector.created with address/baseLocated/baseGeocodedAt and NO raw coordinates', async () => {
+      const at = new Date('2026-10-30T00:00:00Z');
+      vi.mocked(geocodeInspectorBase).mockResolvedValue({ lat: -33.86, lng: 151.2, geocodedAt: at });
+      await run();
+      const call = vi.mocked(auditService.log).mock.calls.find((c) => c[0].action === 'inspector.created');
+      expect(call).toBeDefined();
+      const after = call![0].after as Record<string, unknown>;
+      expect(after.baseLocated).toBe(true);
+      expect(after.baseGeocodedAt).toEqual(at);
+      expect(after.address).toEqual(BASE_ADDRESS);
+      expect(after).not.toHaveProperty('baseLat');
+      expect(after).not.toHaveProperty('baseLng');
+    });
+
+    it('calls the geocode step before the user is saved (ordering guarantee)', async () => {
+      vi.mocked(geocodeInspectorBase).mockResolvedValue({ lat: 1, lng: 2, geocodedAt: new Date() });
+      await run();
+      const geoOrder = vi.mocked(geocodeInspectorBase).mock.invocationCallOrder[0];
+      const userSaveOrder = vi.mocked(userManagementRepo.save).mock.invocationCallOrder[0];
+      expect(geoOrder).toBeLessThan(userSaveOrder);
+    });
+
+    it('writes nothing when the geocode step throws unexpectedly (no orphan user)', async () => {
+      vi.mocked(geocodeInspectorBase).mockRejectedValue(new Error('unexpected bug'));
+      await expect(run()).rejects.toThrow('unexpected bug');
+      expect(userManagementRepo.save).not.toHaveBeenCalled();
+      expect(inspectorRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('does not call the geocode step when the email already conflicts', async () => {
+      vi.mocked(inspectorRepo.findByEmail).mockResolvedValue(makeInspector());
+      await expect(run()).rejects.toThrow(InspectorEmailConflictError);
+      expect(geocodeInspectorBase).not.toHaveBeenCalled();
+    });
+
+    it('emits BASE_CHANGED once after the save with hasCoordinates from the result', async () => {
+      vi.mocked(geocodeInspectorBase).mockResolvedValue({ lat: 1, lng: 2, geocodedAt: new Date() });
+      await run();
+      expect(eventBus.emit).toHaveBeenCalledTimes(1);
+      const evt = eventBus.emit.mock.calls[0][0];
+      expect(evt.type).toBe(INSPECTOR_EVENTS.BASE_CHANGED);
+      expect(evt.payload).toMatchObject({ hadCoordinates: false, hasCoordinates: true });
+
+      eventBus.emit.mockClear();
+      vi.mocked(geocodeInspectorBase).mockResolvedValue({ failed: 'error' });
+      await run();
+      expect(eventBus.emit.mock.calls[0][0].payload).toMatchObject({ hasCoordinates: false });
+    });
+
+    it('still returns 201 output when the event bus throws', async () => {
+      vi.mocked(geocodeInspectorBase).mockResolvedValue({ lat: 1, lng: 2, geocodedAt: new Date() });
+      eventBus.emit.mockRejectedValue(new Error('bus down'));
+      const result = await run();
+      expect(result.id).toBeDefined();
+      expect(logger.warn).toHaveBeenCalled();
+    });
+
+    it('rejects CL_ADMIN before geocoding even with the geocoder wired', async () => {
+      await expect(
+        geoUseCase.execute({
+          name: 'X',
+          email: 'x@example.com',
+          password: VALID_PASSWORD,
+          address: BASE_ADDRESS as never,
+          actor: makeActor({ role: 'CL_ADMIN', tenantId: 't1' }),
+        }),
+      ).rejects.toThrow(ForbiddenError);
+      expect(geocodeInspectorBase).not.toHaveBeenCalled();
     });
   });
 });

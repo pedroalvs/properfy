@@ -7,12 +7,42 @@ import {
   passwordFieldSchema,
   PASSWORD_REQUIREMENTS_MESSAGE,
 } from '@properfy/shared';
+import type { AuState } from '@properfy/shared';
 import { api } from '@/services/api';
 import type { InspectorFormData, InspectorFormErrors } from '../types';
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
 
 const REQUIRED_FIELDS: (keyof InspectorFormData)[] = ['name', 'email'];
+
+// F01-1: the base address is mandatory on create. number/complement are optional.
+const REQUIRED_ADDRESS_FIELDS: (keyof InspectorFormData)[] = [
+  'addressStreet',
+  'addressSuburb',
+  'addressCity',
+  'addressState',
+  'addressPostcode',
+];
+
+/**
+ * Builds the base-address payload from the flat form fields. Country is always
+ * 'AU'. On create every required field is present (validation gates it); on edit
+ * this is sent only when the operator filled the street.
+ */
+function buildBaseAddress(data: InspectorFormData) {
+  return {
+    street: data.addressStreet.trim(),
+    number: data.addressNumber.trim() || undefined,
+    complement: data.addressComplement.trim() || undefined,
+    suburb: data.addressSuburb.trim(),
+    city: data.addressCity.trim(),
+    // The SelectInput only offers AU_STATES values; cast to the contract's literal
+    // union (empty is blocked by required validation on create). Backend re-validates.
+    state: data.addressState.trim() as AuState,
+    postcode: data.addressPostcode.trim(),
+    country: 'AU' as const,
+  };
+}
 
 /**
  * createInspectorSchema with `password` removed, for the structural parse below.
@@ -91,6 +121,12 @@ export function useInspectorSave(): UseInspectorSaveReturn {
 
     Object.assign(errors, validateRequired(data, REQUIRED_FIELDS));
 
+    // F01-1: base address is mandatory on create (never removable, so edit does
+    // not force it — an omitted address keeps the stored one).
+    if (_mode === 'create') {
+      Object.assign(errors, validateRequired(data, REQUIRED_ADDRESS_FIELDS));
+    }
+
     const emailError = validateEmail(data.email);
     if (emailError) errors.email = emailError;
 
@@ -140,6 +176,11 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         blockedClients: data.blockedClients,
       };
 
+      // Base address: always sent on create (required); on edit sent only when the
+      // operator filled the street, since the base can be changed but not removed.
+      const baseAddress = buildBaseAddress(data);
+      const editAddress = data.addressStreet.trim() ? baseAddress : undefined;
+
       type ApiErrorEnvelope = { error?: { code?: string; message?: string } };
       let apiError: ApiErrorEnvelope | undefined;
       if (inspectorId) {
@@ -167,12 +208,13 @@ export function useInspectorSave(): UseInspectorSaveReturn {
             insuranceExpiresAt: data.insuranceExpiresAt || null,
             policeCheckFileKey: data.policeCheckFileKey?.trim() || null,
             policeCheckExpiresAt: data.policeCheckExpiresAt || null,
+            ...(editAddress ? { address: editAddress } : {}),
           },
         });
         apiError = error as ApiErrorEnvelope | undefined;
       } else {
         const { error } = await api.POST('/v1/inspectors', {
-          body: { ...sharedFields, password: data.password },
+          body: { ...sharedFields, password: data.password, address: baseAddress },
         });
         apiError = error as ApiErrorEnvelope | undefined;
       }

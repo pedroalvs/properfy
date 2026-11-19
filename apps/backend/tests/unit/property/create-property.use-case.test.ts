@@ -12,6 +12,7 @@ import { BranchNotFoundError } from '../../../src/modules/tenant/domain/tenant.e
 import { ForbiddenError, ValidationError } from '../../../src/shared/domain/errors';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
 import { sendJob } from '../../../src/shared/infrastructure/queue';
+import { MapboxPermanentGeocodingUnavailableError } from '../../../src/modules/property/domain/geocoding.service';
 
 vi.mock('../../../src/shared/infrastructure/queue', () => ({
   sendJob: vi.fn().mockResolvedValue('job-id'),
@@ -483,14 +484,17 @@ describe('CreatePropertyUseCase', () => {
 
       const result = await uc.execute(baseInput);
 
-      expect(geocodingService.geocode).toHaveBeenCalledWith('1 Sync St, Sydney, NSW, 2000, AU');
+      expect(geocodingService.geocode).toHaveBeenCalledWith('1 Sync St, Sydney, NSW, 2000, AU', {
+        mode: 'permanent',
+      });
       expect(result.geocodingStatus).toBe('SUCCESS');
       expect(result.latitude).toBe(-33.86);
       expect(result.longitude).toBe(151.2);
-      // Saved entity already carries the coordinates — no async round-trip needed.
+      // Saved entity already carries the coordinates + permanent marker — no async round-trip needed.
       const saved = vi.mocked(propertyRepo.save).mock.calls[0]![0];
       expect(saved.geocodingStatus).toBe('SUCCESS');
       expect(saved.lat).toBe(-33.86);
+      expect(saved.geocodedPermanentlyAt).toBeInstanceOf(Date);
       // Happy path must NOT touch the queue.
       expect(sendJob).not.toHaveBeenCalled();
     });
@@ -508,7 +512,32 @@ describe('CreatePropertyUseCase', () => {
 
       expect(result.geocodingStatus).toBe('FAILED');
       expect(result.latitude).toBeNull();
+      const saved = vi.mocked(propertyRepo.save).mock.calls[0]![0];
+      expect(saved.geocodedPermanentlyAt).toBeNull();
       expect(sendJob).not.toHaveBeenCalled();
+    });
+
+    it('falls back to PENDING and enqueues a job when the account lacks permanent geocoding', async () => {
+      vi.mocked(propertyRepo.findByPropertyCode).mockResolvedValue(null);
+      const geocodingService = makeGeocodingService();
+      geocodingService.geocode.mockRejectedValue(new MapboxPermanentGeocodingUnavailableError());
+      const uc = new CreatePropertyUseCase(
+        propertyRepo, branchRepo, auditService, undefined, undefined, makeLogger(),
+        geocodingService as never,
+      );
+
+      const result = await uc.execute(baseInput);
+
+      // The worker, not create, records the FAILED + failure code; create keeps PENDING.
+      expect(result.geocodingStatus).toBe('PENDING');
+      expect(result.latitude).toBeNull();
+      const saved = vi.mocked(propertyRepo.save).mock.calls[0]![0];
+      expect(saved.geocodedPermanentlyAt).toBeNull();
+      expect(sendJob).toHaveBeenCalledWith(
+        'property.geocode',
+        { propertyId: result.id },
+        { retryLimit: 6, retryBackoff: true },
+      );
     });
 
     it('falls back to PENDING and enqueues an async job when geocoding throws', async () => {

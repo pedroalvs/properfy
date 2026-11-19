@@ -9,12 +9,17 @@ type TransitionBody = NonNullable<
 >['content']['application/json'];
 
 export interface UseAppointmentTransitionReturn {
+  /**
+   * Runs the transition. Resolves to `null` on success, or the error message on
+   * failure (e.g. a `422 REJECTION_CODE_NOT_ALLOWED`) so a caller that keeps a
+   * dialog open can show the message inline; the snackbar still fires either way.
+   */
   transition: (
     targetStatus: AppointmentStatus,
     reason?: string,
     reasonCode?: string,
     notifyRentalTenant?: boolean,
-  ) => void;
+  ) => Promise<string | null>;
   isTransitioning: boolean;
 }
 
@@ -48,13 +53,13 @@ export function useAppointmentTransition(
     },
   });
 
-  const transition = (
+  const transition = async (
     targetStatus: AppointmentStatus,
     reason?: string,
     reasonCode?: string,
     notifyRentalTenant?: boolean,
-  ) => {
-    if (!appointmentId) return;
+  ): Promise<string | null> => {
+    if (!appointmentId) return null;
     const body: TransitionBody = { targetStatus, reason };
     if (reasonCode) {
       // reasonCode arrives as a plain string from the UI selects; the backend
@@ -66,18 +71,16 @@ export function useAppointmentTransition(
     if (targetStatus === 'CANCELLED' && notifyRentalTenant !== undefined) {
       body.notifyRentalTenant = notifyRentalTenant;
     }
-    mutation.mutate(
-      body,
-      {
-        onSuccess: () => {
-          showSuccess('Transition completed');
-          onSuccess?.();
-        },
-        onError: (err: Error) => {
-          showError(err.message || 'Transition failed');
-        },
-      },
-    );
+    try {
+      await mutation.mutateAsync(body);
+      showSuccess('Transition completed');
+      onSuccess?.();
+      return null;
+    } catch (err) {
+      const message = (err as Error).message || 'Transition failed';
+      showError(message);
+      return message;
+    }
   };
 
   return {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { TopBar } from '@/components/shell/TopBar';
 import { LoadingState } from '@/components/feedback/LoadingState';
@@ -13,18 +13,17 @@ import { FailedSyncBanner } from '../components/FailedSyncBanner';
 import { LeaveWarningModal } from '../components/LeaveWarningModal';
 import { SyncConfirmModal } from '../components/SyncConfirmModal';
 import { PastTimeConfirmModal } from '../components/PastTimeConfirmModal';
-import { useLocalExecutionState } from '../hooks/useLocalExecutionState';
-import { useStartInspection } from '../hooks/useStartInspection';
-import { useFinishInspection } from '../hooks/useFinishInspection';
+import { CantDoSheet } from '@/features/field-events/components/CantDoSheet';
+import { useExecutionActions } from '../hooks/useExecutionActions';
 import { useInspectorAppointment } from '@/features/schedule/hooks/useInspectorAppointment';
+import { useCivilToday } from '@/features/today/hooks/useCivilToday';
+import { useDayPlan } from '@/features/day-plan/hooks/useDayPlan';
+import { nextStopAfter, isLastActiveStop } from '@/features/day-plan/lib/day-plan-view';
 import { useSnackbar } from '@/hooks/useSnackbar';
-import { canTransition } from '../lib/execution-state-machine';
 import { isPastScheduledEnd } from '../lib/isPastScheduledEnd';
 import { useEffectiveTimezone } from '@/hooks/useEffectiveTimezone';
 import { getErrorMessage } from '@/lib/api-error';
 import type { CapturedLocation } from '../types';
-
-type FinishConfirmStep = 'SYNC' | 'PAST_TIME' | null;
 
 export function ExecutionPage() {
   const { appointmentId: appointmentIdParam } = useParams<{ appointmentId: string }>();
@@ -32,14 +31,45 @@ export function ExecutionPage() {
   const appointmentId = appointmentIdParam!;
 
   const { data: aptData, isLoading: aptLoading, isError: aptError, error: aptLoadError, refetch: refetchAppointment, jobDetails } = useInspectorAppointment(appointmentId);
-  const { state, updateState, clearState, isRestored } = useLocalExecutionState(appointmentId);
-  const startMutation = useStartInspection();
-  const finishMutation = useFinishInspection();
+  const {
+    state,
+    clearState,
+    isRestored,
+    checkIn,
+    proceedToFinish,
+    requestCheckOut,
+    retry,
+    confirmStep,
+    confirmSync,
+    confirmPastTime,
+    cancelConfirm,
+    isStarting,
+    isSubmitting,
+  } = useExecutionActions(appointmentId);
   const { showInfo, showError } = useSnackbar();
   const effectiveTimezone = useEffectiveTimezone();
+
+  // After the inspection is done, surface the next stop in today's route so the
+  // inspector flows straight into the next job. The day plan is read only in the DONE
+  // phase (it may already be warm from the Today screen) and never written here.
+  const today = useCivilToday();
+  const isDone = state.phase === 'DONE';
+  const { data: dayPlan } = useDayPlan(today, { enabled: isDone });
+  const nextStop = useMemo(
+    () => (dayPlan ? nextStopAfter(dayPlan, appointmentId) : null),
+    [dayPlan, appointmentId],
+  );
+  const isLastOfDay = useMemo(
+    () => (dayPlan ? isLastActiveStop(dayPlan, appointmentId) : false),
+    [dayPlan, appointmentId],
+  );
   const resumeBannerShown = useRef(false);
-  const [confirmStep, setConfirmStep] = useState<FinishConfirmStep>(null);
-  const [pendingLocation, setPendingLocation] = useState<CapturedLocation | null>(null);
+  const [startError, setStartError] = useState<string | null>(null);
+  const [cantDoOpen, setCantDoOpen] = useState(false);
+  // Set after a confirmed "Can't do this job" so the navigation blocker releases
+  // before we leave (the local IN_PROGRESS draft is cleared, but the blocker is
+  // disabled synchronously here so the redirect to /schedule is not trapped).
+  const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
     if (isRestored && !resumeBannerShown.current && state.phase !== 'PRE_START' && state.phase !== 'DONE') {
@@ -50,7 +80,13 @@ export function ExecutionPage() {
 
   const isInProgress =
     state.phase === 'IN_PROGRESS' || state.phase === 'FINISHING' || state.phase === 'SUBMITTING';
-  const blocker = useBlocker(isInProgress);
+  const blocker = useBlocker(isInProgress && !exiting);
+
+  // Leave once the "Can't do" cleanup has released the blocker (runs after the
+  // re-render where `exiting` is true, so React Router does not block it).
+  useEffect(() => {
+    if (exiting) navigate('/schedule', { replace: true });
+  }, [exiting, navigate]);
 
   if (aptLoading || !isRestored) {
     return (
@@ -86,24 +122,15 @@ export function ExecutionPage() {
     ? [appointment.appointmentCode, appointment.propertyAddress, appointment.timeSlotStart].filter(Boolean).join(' · ')
     : undefined;
 
-  const handleStart = async (location: CapturedLocation) => {
-    if (!canTransition(state.phase, 'IN_PROGRESS')) return;
-
-    try {
-      await startMutation.mutateAsync({ appointmentId, location });
-      updateState({
-        phase: 'IN_PROGRESS',
-        startLocation: location,
-        startedAt: location.capturedAt,
-      });
-    } catch (err) {
-      showError(err instanceof Error ? err.message : 'Unable to start inspection');
-    }
-  };
-
-  const handleProceedToFinish = () => {
-    if (!canTransition(state.phase, 'FINISHING')) return;
-    updateState({ phase: 'FINISHING' });
+  const handleStart = (location: CapturedLocation) => {
+    setStartError(null);
+    checkIn(location).catch((err) => {
+      const message = err instanceof Error ? err.message : 'Unable to start inspection';
+      // Keep the panel in PRE_START and surface the server message (e.g. a BLOCK
+      // 422) both inline and as a toast.
+      setStartError(message);
+      showError(message);
+    });
   };
 
   const appointmentPastEnd = isPastScheduledEnd(
@@ -114,73 +141,12 @@ export function ExecutionPage() {
   const hasInspectionAppLink = Boolean(jobDetails?.inspectionAppLink);
 
   const handleSubmitRequest = (location: CapturedLocation) => {
-    if (hasInspectionAppLink) {
-      setPendingLocation(location);
-      setConfirmStep('SYNC');
-      return;
-    }
-    if (appointmentPastEnd) {
-      setPendingLocation(location);
-      setConfirmStep('PAST_TIME');
-      return;
-    }
-    handleSubmit(location);
-  };
-
-  const clearConfirmation = () => {
-    setConfirmStep(null);
-    setPendingLocation(null);
-  };
-
-  const handleSyncConfirmed = () => {
-    if (appointmentPastEnd) {
-      setConfirmStep('PAST_TIME');
-      return;
-    }
-    const location = pendingLocation;
-    clearConfirmation();
-    if (location) handleSubmit(location);
+    requestCheckOut(location, { hasInspectionAppLink, isPastScheduledEnd: appointmentPastEnd });
   };
 
   const handleSyncDeclined = () => {
-    clearConfirmation();
+    cancelConfirm();
     showInfo('Sync the inspection in the Inspection App before completing.');
-  };
-
-  const handlePastTimeConfirmed = () => {
-    const location = pendingLocation;
-    clearConfirmation();
-    if (location) handleSubmit(location);
-  };
-
-  const handleSubmit = async (location: CapturedLocation) => {
-    if (!canTransition(state.phase, 'SUBMITTING')) return;
-    updateState({ phase: 'SUBMITTING', finishLocation: location });
-
-    try {
-      const result = await finishMutation.mutateAsync({
-        appointmentId,
-        location,
-      });
-      const queuedOffline = result.queued;
-      updateState({
-        phase: 'DONE',
-        pendingSync: queuedOffline,
-        errorMessage: null,
-      });
-    } catch (err) {
-      updateState({
-        phase: 'ERROR',
-        pendingSync: false,
-        errorMessage: err instanceof Error ? err.message : 'Submission failed',
-      });
-    }
-  };
-
-  const handleRetry = () => {
-    if (state.finishLocation && canTransition(state.phase, 'SUBMITTING')) {
-      handleSubmit(state.finishLocation);
-    }
   };
 
   const handleSaveExit = () => {
@@ -207,23 +173,27 @@ export function ExecutionPage() {
           propertyLatitude={appointment?.propertyLatitude}
           propertyLongitude={appointment?.propertyLongitude}
           onStart={handleStart}
-          isStarting={startMutation.isPending}
+          isStarting={isStarting}
+          radiusMeters={appointment?.geofence?.radiusMeters}
+          errorMessage={startError}
         />
       )}
 
       {state.phase === 'IN_PROGRESS' && (
         <InProgressPanel
           startedAt={state.startedAt}
-          onFinish={handleProceedToFinish}
+          onFinish={proceedToFinish}
+          onCantComplete={() => setCantDoOpen(true)}
         />
       )}
 
       {state.phase === 'FINISHING' && (
         <FinishingPanel
           onSubmit={handleSubmitRequest}
-          isSubmitting={finishMutation.isPending}
+          isSubmitting={isSubmitting}
           propertyLatitude={appointment?.propertyLatitude}
           propertyLongitude={appointment?.propertyLongitude}
+          radiusMeters={appointment?.geofence?.radiusMeters}
         />
       )}
 
@@ -232,6 +202,8 @@ export function ExecutionPage() {
       {state.phase === 'DONE' && (
         <DonePanel
           pendingSync={state.pendingSync}
+          nextStop={nextStop}
+          allDone={isLastOfDay}
           onBack={() => {
             if (!state.pendingSync) {
               clearState();
@@ -243,18 +215,18 @@ export function ExecutionPage() {
       {state.phase === 'ERROR' && (
         <ErrorPanel
           message={state.errorMessage ?? 'An error occurred'}
-          onRetry={handleRetry}
+          onRetry={retry}
           onSaveExit={handleSaveExit}
         />
       )}
       </div>
 
       {state.phase === 'FINISHING' && confirmStep === 'SYNC' && (
-        <SyncConfirmModal onConfirm={handleSyncConfirmed} onCancel={handleSyncDeclined} />
+        <SyncConfirmModal onConfirm={confirmSync} onCancel={handleSyncDeclined} />
       )}
 
       {state.phase === 'FINISHING' && confirmStep === 'PAST_TIME' && (
-        <PastTimeConfirmModal onConfirm={handlePastTimeConfirmed} onCancel={clearConfirmation} />
+        <PastTimeConfirmModal onConfirm={confirmPastTime} onCancel={cancelConfirm} />
       )}
 
       {blocker.state === 'blocked' && (
@@ -263,6 +235,18 @@ export function ExecutionPage() {
           onLeave={() => blocker.proceed()}
         />
       )}
+
+      <CantDoSheet
+        open={cantDoOpen}
+        onOpenChange={setCantDoOpen}
+        appointmentId={appointmentId}
+        appointmentCode={appointment.appointmentCode ?? ''}
+        propertyAddress={appointment.propertyAddress ?? ''}
+        onReported={() => {
+          clearState();
+          setExiting(true);
+        }}
+      />
     </div>
   );
 }

@@ -18,6 +18,7 @@ const invoiceRepo = {
   count: vi.fn(),
   save: vi.fn(),
   update: vi.fn(),
+  markPaidInTransaction: vi.fn().mockResolvedValue(true),
   getReconciliationAggregates: vi.fn(),
 };
 
@@ -100,7 +101,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
 
     expect(result.processed).toHaveLength(3);
     expect(result.skipped).toHaveLength(0);
-    expect(invoiceRepo.update).toHaveBeenCalledTimes(3);
+    expect(invoiceRepo.markPaidInTransaction).toHaveBeenCalledTimes(3);
     expect(auditService.log).toHaveBeenCalledTimes(3);
   });
 
@@ -119,7 +120,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
 
     expect(result.processed.map((p) => p.id)).toEqual(['inv-1', 'inv-3']);
     expect(result.skipped).toEqual([{ id: 'inv-2', reason: 'ALREADY_PAID' }]);
-    expect(invoiceRepo.update).toHaveBeenCalledTimes(2);
+    expect(invoiceRepo.markPaidInTransaction).toHaveBeenCalledTimes(2);
     expect(auditService.log).toHaveBeenCalledTimes(2);
   });
 
@@ -166,7 +167,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
 
     expect(result.processed).toHaveLength(0);
     expect(result.skipped).toHaveLength(2);
-    expect(invoiceRepo.update).not.toHaveBeenCalled();
+    expect(invoiceRepo.markPaidInTransaction).not.toHaveBeenCalled();
     expect(auditService.log).not.toHaveBeenCalled();
   });
 
@@ -208,7 +209,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
       idempotencyKey: 'idem-1', actor: opActor,
     });
 
-    const updateCalls = (invoiceRepo.update as any).mock.calls;
+    const updateCalls = (invoiceRepo.markPaidInTransaction as any).mock.calls;
     expect(updateCalls).toHaveLength(2);
     for (const call of updateCalls) {
       expect(call[1]).toMatchObject({
@@ -252,7 +253,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
 
       expect(result).toEqual(cachedResult);
       expect(invoiceRepo.findManyByIds).not.toHaveBeenCalled();
-      expect(invoiceRepo.update).not.toHaveBeenCalled();
+      expect(invoiceRepo.markPaidInTransaction).not.toHaveBeenCalled();
       expect(auditService.log).not.toHaveBeenCalled();
     });
 
@@ -266,7 +267,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
       await expect(
         sut.execute({ invoiceIds: ['inv-1'], idempotencyKey: 'idem-1', actor: opActor }),
       ).rejects.toThrow(BillingIdempotencyPayloadMismatchError);
-      expect(invoiceRepo.update).not.toHaveBeenCalled();
+      expect(invoiceRepo.markPaidInTransaction).not.toHaveBeenCalled();
     });
 
     it('throws a conflict when a request with the same key and payload is already in progress', async () => {
@@ -279,7 +280,7 @@ describe('BatchMarkInvoicesPaidUseCase', () => {
       await expect(
         sut.execute({ invoiceIds: ['inv-1'], idempotencyKey: 'idem-1', actor: opActor }),
       ).rejects.toThrow(BillingIdempotencyInProgressError);
-      expect(invoiceRepo.update).not.toHaveBeenCalled();
+      expect(invoiceRepo.markPaidInTransaction).not.toHaveBeenCalled();
     });
   });
 });

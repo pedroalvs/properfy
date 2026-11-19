@@ -31,6 +31,7 @@ export interface IBranchRepository {
       addressJson: Record<string, unknown> | null;
       contactEmail: string | null;
       status: string;
+      geocodedPermanentlyAt: Date | null;
       deletedAt: Date | null;
     }>,
   ): Promise<void>;

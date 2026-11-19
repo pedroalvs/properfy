@@ -24,6 +24,13 @@ function makeInspector(
     blockedClientsJson: [],
     fullName: 'John Michael Inspector',
     address: null,
+    baseLat: null,
+    baseLng: null,
+    baseGeocodedAt: null,
+    appInstalledAt: null,
+    appLastSeenAt: null,
+    pushEnabled: null,
+    appVersion: null,
     abn: null,
     dateOfBirth: null,
     insuranceFileKey: null,
@@ -39,6 +46,15 @@ function makeInspector(
     ...overrides,
   });
 }
+
+const BASE_ADDRESS = {
+  street: '1 George St',
+  suburb: 'Sydney',
+  city: 'Sydney',
+  state: 'NSW' as const,
+  postcode: '2000',
+  country: 'AU' as const,
+};
 
 function makeInspActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -66,6 +82,7 @@ describe('UpdateInspectorSelfProfileUseCase', () => {
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
+      recordAppState: vi.fn(),
       findByRegionId: vi.fn(),
     } as unknown as IInspectorRepository;
     auditService = { log: vi.fn() } as unknown as AuditService;
@@ -201,5 +218,72 @@ describe('UpdateInspectorSelfProfileUseCase', () => {
         entityId: INSPECTOR_ID,
       }),
     );
+  });
+
+  describe('F01-1 base address (TASK-F01-1)', () => {
+    let geocoder: { geocode: ReturnType<typeof vi.fn> };
+    let eventBus: { emit: ReturnType<typeof vi.fn> };
+    let geoUseCase: UpdateInspectorSelfProfileUseCase;
+
+    beforeEach(() => {
+      geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.86, lng: 151.2 }) };
+      eventBus = { emit: vi.fn().mockResolvedValue(undefined) };
+      geoUseCase = new UpdateInspectorSelfProfileUseCase(
+        inspectorRepo,
+        auditService,
+        geocoder as never,
+        eventBus as never,
+        { warn: vi.fn() } as never,
+      );
+    });
+
+    it('geocodes the new base, audits without coordinates and emits BASE_CHANGED', async () => {
+      const result = await geoUseCase.execute({
+        inspectorId: INSPECTOR_ID,
+        data: { address: BASE_ADDRESS },
+        actor: makeInspActor(),
+      });
+      const d = vi.mocked(inspectorRepo.update).mock.calls[0][1] as Record<string, unknown>;
+      expect(d.baseLat).toBe(-33.86);
+      expect(result.baseGeocodeFailed).toBe(false);
+      const call = vi.mocked(auditService.log).mock.calls[0][0];
+      const after = call.after as Record<string, unknown>;
+      expect(after.baseLocated).toBe(true);
+      expect(after).not.toHaveProperty('baseLat');
+      expect(eventBus.emit).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects another inspector with AUTH_FORBIDDEN', async () => {
+      await expect(
+        geoUseCase.execute({
+          inspectorId: INSPECTOR_ID,
+          data: { address: BASE_ADDRESS },
+          actor: makeInspActor({ inspectorId: 'other' }),
+        }),
+      ).rejects.toMatchObject({ code: 'AUTH_FORBIDDEN' });
+    });
+
+    it('reports baseGeocodeFailed on a geocode failure', async () => {
+      geocoder.geocode.mockResolvedValue(null);
+      const result = await geoUseCase.execute({
+        inspectorId: INSPECTOR_ID,
+        data: { address: BASE_ADDRESS },
+        actor: makeInspActor(),
+      });
+      expect(result.baseGeocodeFailed).toBe(true);
+    });
+
+    it('leaves the base untouched when only the phone changes', async () => {
+      await geoUseCase.execute({
+        inspectorId: INSPECTOR_ID,
+        data: { phone: '+61499999999' },
+        actor: makeInspActor(),
+      });
+      const d = vi.mocked(inspectorRepo.update).mock.calls[0][1] as Record<string, unknown>;
+      expect(d).not.toHaveProperty('address');
+      expect(d).not.toHaveProperty('baseLat');
+      expect(geocoder.geocode).not.toHaveBeenCalled();
+      expect(eventBus.emit).not.toHaveBeenCalled();
+    });
   });
 });

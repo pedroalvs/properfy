@@ -47,6 +47,7 @@ export function mapInspectorAppointmentDetail(
 
   return {
     id: detail.id,
+    propertyId: detail.propertyId,
     appointmentCode: detail.appointmentCode,
     propertyAddress: detail.propertyAddress,
     suburb: detail.suburb,
@@ -79,6 +80,9 @@ export function mapInspectorAppointmentDetail(
     isOverdue: detail.isOverdue ?? false,
     agencyName: detail.agencyName,
     apps: detail.apps ?? [],
+    geofence: detail.geofence,
+    lastFieldIssue: detail.lastFieldIssue ?? null,
+    publishedServiceStartAt: detail.publishedServiceStartAt ?? null,
   };
 }
 

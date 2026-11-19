@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const listFinancialEntriesQuerySchema = z.object({
-  type: z.enum(['TENANT_DEBIT', 'INSPECTOR_PAYOUT', 'REFUND', 'MANUAL_ADJUSTMENT']).optional(),
+  type: z.enum(['TENANT_DEBIT', 'INSPECTOR_PAYOUT', 'REFUND', 'MANUAL_ADJUSTMENT', 'INSPECTOR_BONUS']).optional(),
   status: z.enum(['PENDING', 'APPROVED', 'CANCELLED', 'VOIDED']).optional(),
   inspectorId: z.string().uuid().optional(),
   tenantId: z.string().uuid().optional(),

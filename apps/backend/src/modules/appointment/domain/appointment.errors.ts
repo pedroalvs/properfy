@@ -1,4 +1,4 @@
-import { APPOINTMENT_STATUS_LABELS, type AppointmentStatus } from '@properfy/shared';
+import { APPOINTMENT_STATUS_LABELS, type AppointmentStatus, type RejectionReasonCode } from '@properfy/shared';
 import { NotFoundError, ForbiddenError, DomainError, ConflictError } from '../../../shared/domain/errors';
 
 /**
@@ -33,6 +33,38 @@ export class AppointmentInvalidTransitionError extends DomainError {
 export class AppointmentTransitionNotPermittedError extends ForbiddenError {
   constructor() {
     super('APPOINTMENT_TRANSITION_NOT_PERMITTED', 'Role not permitted for this transition');
+  }
+}
+
+/**
+ * The rejection reason code is not valid from the appointment's current status
+ * (F07-1): `INSPECTOR_NO_SHOW` only from `SCHEDULED` (and never by the system
+ * actor), `NOT_EXECUTED` only from `DONE`. 422 so the client can correct the code.
+ */
+export class RejectionCodeNotAllowedError extends DomainError {
+  constructor(fromStatus: AppointmentStatus, rejectionReasonCode: RejectionReasonCode) {
+    super(
+      'REJECTION_CODE_NOT_ALLOWED',
+      "This rejection reason can't be used from the current status",
+      422,
+      { fromStatus, rejectionReasonCode },
+    );
+  }
+}
+
+/**
+ * Compare-and-swap guard: the transition write ran `updateMany` with an
+ * `expectedStatus` predicate and matched no row, meaning the appointment's
+ * status changed between the guard reads and the write (a concurrent finish /
+ * can't-do / operator action). Raised by the repository so the caller rolls back
+ * cleanly instead of silently no-op'ing.
+ */
+export class AppointmentStatusChangedError extends ConflictError {
+  constructor() {
+    super(
+      'APPOINTMENT_STATUS_CHANGED',
+      'This appointment was changed by someone else. Reload and try again.',
+    );
   }
 }
 

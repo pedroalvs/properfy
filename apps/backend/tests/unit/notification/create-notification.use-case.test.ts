@@ -107,12 +107,18 @@ describe('CreateNotificationUseCase', () => {
 
     const result = await useCase.execute({ ...baseInput, notificationId });
 
-    expect(result).toEqual({ notificationId });
+    expect(result).toEqual({ notificationId, created: true });
     expect(mockRepo.save).not.toHaveBeenCalled();
     expect(mockRepo.saveIfAbsent).toHaveBeenCalledOnce();
     expect(mockRepo.saveIfAbsent).toHaveBeenCalledWith(
       expect.objectContaining({ id: notificationId }),
     );
+    expect(mockJobQueue.enqueue).toHaveBeenCalledOnce();
+  });
+
+  it('reports created: true for a freshly generated ID', async () => {
+    const result = await useCase.execute(baseInput);
+    expect(result.created).toBe(true);
     expect(mockJobQueue.enqueue).toHaveBeenCalledOnce();
   });
 
@@ -122,7 +128,7 @@ describe('CreateNotificationUseCase', () => {
 
     const result = await useCase.execute({ ...baseInput, notificationId });
 
-    expect(result).toEqual({ notificationId });
+    expect(result).toEqual({ notificationId, created: false });
     expect(mockRepo.save).not.toHaveBeenCalled();
     expect(mockRepo.saveIfAbsent).toHaveBeenCalledOnce();
     expect(mockJobQueue.enqueue).not.toHaveBeenCalled();

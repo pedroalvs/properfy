@@ -1,17 +1,36 @@
 import { useState, useCallback } from 'react';
-import type { ServiceTypeFlowType } from '@properfy/shared';
+import {
+  SERVICE_TYPE_DURATION_MIN_MINUTES,
+  SERVICE_TYPE_DURATION_MAX_MINUTES,
+  type ServiceTypeFlowType,
+} from '@properfy/shared';
 import { api } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
-import { getErrorMessage } from '@/lib/api-error';
+import { getErrorMessage, getFieldErrors } from '@/lib/api-error';
 import type { ServiceTypeFormData, ServiceTypeFormErrors } from '../types';
 
 const REQUIRED_FIELD_MESSAGE = 'Required field';
+const DURATION_REQUIRED_MESSAGE = 'Enter the duration in minutes';
+const DURATION_WHOLE_MESSAGE = 'Enter whole minutes';
+const DURATION_RANGE_MESSAGE = `Enter a duration between ${SERVICE_TYPE_DURATION_MIN_MINUTES} and ${SERVICE_TYPE_DURATION_MAX_MINUTES} minutes`;
 
 const REQUIRED_FIELDS: (keyof ServiceTypeFormData)[] = [
   'code',
   'name',
   'flowType',
 ];
+
+/** Validate the duration input string (5..480, whole minutes). */
+function validateDuration(raw: string): string | undefined {
+  const trimmed = raw.trim();
+  if (!trimmed) return DURATION_REQUIRED_MESSAGE;
+  if (!/^-?\d+$/.test(trimmed)) return DURATION_WHOLE_MESSAGE;
+  const value = Number(trimmed);
+  if (value < SERVICE_TYPE_DURATION_MIN_MINUTES || value > SERVICE_TYPE_DURATION_MAX_MINUTES) {
+    return DURATION_RANGE_MESSAGE;
+  }
+  return undefined;
+}
 
 function validateRequired(data: ServiceTypeFormData, fields: (keyof ServiceTypeFormData)[]): ServiceTypeFormErrors {
   const errors: ServiceTypeFormErrors = {};
@@ -21,12 +40,16 @@ function validateRequired(data: ServiceTypeFormData, fields: (keyof ServiceTypeF
       errors[field] = REQUIRED_FIELD_MESSAGE;
     }
   }
+  const durationError = validateDuration(data.defaultDurationMinutes);
+  if (durationError) errors.defaultDurationMinutes = durationError;
   return errors;
 }
 
 export interface SaveResult {
   success: boolean;
   error?: string;
+  /** Per-field messages mapped from a server validation error (e.g. duration). */
+  fieldErrors?: ServiceTypeFormErrors;
 }
 
 export interface UseServiceTypeSaveReturn {
@@ -48,6 +71,7 @@ export function useServiceTypeSave(): UseServiceTypeSaveReturn {
     try {
       // Constrained to the enum by the form's SelectInput options — narrow, not `as any`.
       const flowType = data.flowType as ServiceTypeFlowType;
+      const defaultDurationMinutes = Number(data.defaultDurationMinutes);
       if (serviceTypeId) {
         // Update never carries `code` (immutable); the old `as any` body wrongly sent it.
         const { error } = await api.PATCH('/v1/service-types/{serviceTypeId}', {
@@ -56,9 +80,10 @@ export function useServiceTypeSave(): UseServiceTypeSaveReturn {
             name: data.name,
             flowType,
             requiresRentalTenantConfirmation: data.requiresRentalTenantConfirmation,
+            defaultDurationMinutes,
           },
         });
-        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
+        if (error) throw error;
       } else {
         const { error } = await api.POST('/v1/service-types', {
           body: {
@@ -66,15 +91,18 @@ export function useServiceTypeSave(): UseServiceTypeSaveReturn {
             name: data.name,
             flowType,
             requiresRentalTenantConfirmation: data.requiresRentalTenantConfirmation,
+            defaultDurationMinutes,
           },
         });
-        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
+        if (error) throw error;
       }
       queryClient.invalidateQueries({ queryKey: ['service-types'] });
       return { success: true };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save';
-      return { success: false, error: message };
+      const message = getErrorMessage(err, 'Failed to save');
+      const serverFields = getFieldErrors(err);
+      const fieldErrors = Object.keys(serverFields).length > 0 ? (serverFields as ServiceTypeFormErrors) : undefined;
+      return { success: false, error: message, fieldErrors };
     } finally {
       setIsSaving(false);
     }

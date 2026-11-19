@@ -11,6 +11,7 @@ export interface PayoutEntry {
   currency: string;
   status: string;
   effectiveAt: string;
+  description?: string | null;
 }
 
 export interface PaginatedPayouts {
@@ -47,7 +48,8 @@ export interface PayoutHistoryFilters {
 }
 
 /**
- * Paginated payout history for the History tab. Date filters are applied
+ * Paginated payout + bonus history for the History tab (the backend scopes an INSP caller to
+ * its own INSPECTOR_PAYOUT and INSPECTOR_BONUS entries). Date filters are applied
  * server-side; pages are appended via infinite scroll. keepPreviousData avoids
  * a content flash while a new filter window loads.
  */
@@ -57,7 +59,6 @@ export function useInspectorPayoutHistory(filters: PayoutHistoryFilters) {
     queryKey: ['inspector-payouts', user?.id, filters.fromDate ?? '', filters.toDate ?? ''],
     queryFn: ({ pageParam }) =>
       apiGet<PaginatedPayouts>('/v1/financial/entries', {
-        type: 'INSPECTOR_PAYOUT',
         page: String(pageParam),
         pageSize: '20',
         sortBy: 'effectiveAt',

@@ -17,5 +17,5 @@
     }
   },
   "include": ["src", "vitest.setup.ts", "vite.config.ts"],
-  "exclude": ["src/**/__tests__/**", "src/**/*.test.*"]
+  "exclude": ["src/**/__tests__/**", "src/**/*.test.*", "src/sw.ts", "src/sw/**"]
 }

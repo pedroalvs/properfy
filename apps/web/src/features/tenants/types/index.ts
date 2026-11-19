@@ -1,3 +1,4 @@
+import { MAP_WINDOW_DAYS_DEFAULT } from '@properfy/shared';
 import type { AddressLookupSuggestion } from '@/lib/address';
 
 // ─── Tenant Admin Types ───────────────────────────────────────────────────
@@ -38,6 +39,17 @@ export interface TenantAdminFormData {
    * channel; withheld messages are emailed to the branch contact instead.
    */
   rentalTenantNotificationsEnabled: boolean;
+  /**
+   * When false, this agency's rental tenants get no arrival-time notices (F06);
+   * ignored when `rentalTenantNotificationsEnabled` is false. Absent = on.
+   */
+  tenantEtaNoticesEnabled: boolean;
+  /**
+   * Days ahead of today the appointment map shows by default (F00). Held as the
+   * raw input string so the drawer can validate "1–90 integer" before saving;
+   * converted to a number in the PATCH payload. Edit mode only.
+   */
+  mapWindowDays: string;
 }
 
 export type TenantAdminFormErrors = Partial<Record<keyof TenantAdminFormData, string>>;
@@ -50,6 +62,8 @@ export const EMPTY_TENANT_ADMIN_FORM: TenantAdminFormData = {
   appointmentCodePrefix: '',
   notes: '',
   rentalTenantNotificationsEnabled: true,
+  tenantEtaNoticesEnabled: true,
+  mapWindowDays: String(MAP_WINDOW_DAYS_DEFAULT),
 };
 
 export interface TenantAdminFiltersState {

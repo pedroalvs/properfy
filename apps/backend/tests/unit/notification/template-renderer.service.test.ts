@@ -10,6 +10,25 @@ describe('TemplateRendererService', () => {
   const service = new TemplateRendererService();
 
   describe('render()', () => {
+    it('HTML-escapes variable values by default', () => {
+      expect(service.render('Hi {{name}}', { name: 'Smith & Sons <Pty> "Ltd"' })).toBe(
+        'Hi Smith &amp; Sons &lt;Pty&gt; &quot;Ltd&quot;',
+      );
+    });
+
+    it('renders variable values verbatim with escapeHtml: false', () => {
+      expect(
+        service.render('Hi {{name}}', { name: 'Smith & Sons <Pty> "Ltd"' }, { escapeHtml: false }),
+      ).toBe('Hi Smith & Sons <Pty> "Ltd"');
+    });
+
+    it('does not share a compiled template between escaping modes', () => {
+      const tpl = 'Mode check {{name}}';
+      expect(service.render(tpl, { name: '&' }, { escapeHtml: false })).toBe('Mode check &');
+      expect(service.render(tpl, { name: '&' })).toBe('Mode check &amp;');
+      expect(service.render(tpl, { name: '&' }, { escapeHtml: false })).toBe('Mode check &');
+    });
+
     it('should replace known variables', () => {
       const result = service.render('Hello {{name}}, your appointment is on {{date}}.', {
         name: 'John',

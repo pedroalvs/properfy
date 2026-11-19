@@ -11,6 +11,7 @@ describe('createServiceTypeSchema', () => {
     name: 'Routine Inspection',
     flowType: 'ROUTINE' as const,
     requiresRentalTenantConfirmation: true,
+    defaultDurationMinutes: 45,
   };
 
   it('should accept valid input with requiresRentalTenantConfirmation=true', () => {
@@ -103,5 +104,44 @@ describe('listServiceTypesQuerySchema', () => {
   it('should reject invalid status', () => {
     const result = listServiceTypesQuerySchema.safeParse({ status: 'DELETED' });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('defaultDurationMinutes (F04 TASK-F04-5 — required on create)', () => {
+  const base = {
+    code: 'ST1',
+    name: 'Routine',
+    flowType: 'ROUTINE' as const,
+    requiresRentalTenantConfirmation: true,
+  };
+
+  it('createServiceTypeSchema accepts 5, 45, 480', () => {
+    for (const v of [5, 45, 480]) {
+      const r = createServiceTypeSchema.safeParse({ ...base, defaultDurationMinutes: v });
+      expect(r.success).toBe(true);
+      if (r.success) expect(r.data.defaultDurationMinutes).toBe(v);
+    }
+  });
+
+  it('createServiceTypeSchema rejects 4, 481, 45.5, "45", null', () => {
+    for (const v of [4, 481, 45.5, '45', null]) {
+      const r = createServiceTypeSchema.safeParse({ ...base, defaultDurationMinutes: v });
+      expect(r.success).toBe(false);
+    }
+  });
+
+  it('createServiceTypeSchema rejects a missing value (required, no transitional default — TASK-F04-5)', () => {
+    const r = createServiceTypeSchema.safeParse(base);
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.path[0] === 'defaultDurationMinutes')).toBe(true);
+    }
+  });
+
+  it('updateServiceTypeSchema treats it as optional with the same bounds', () => {
+    expect(updateServiceTypeSchema.safeParse({}).success).toBe(true);
+    expect(updateServiceTypeSchema.safeParse({ defaultDurationMinutes: 60 }).success).toBe(true);
+    expect(updateServiceTypeSchema.safeParse({ defaultDurationMinutes: 4 }).success).toBe(false);
+    expect(updateServiceTypeSchema.safeParse({ defaultDurationMinutes: 481 }).success).toBe(false);
   });
 });

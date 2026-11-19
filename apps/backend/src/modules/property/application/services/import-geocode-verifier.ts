@@ -1,5 +1,10 @@
 import type { GeocodeVerification } from '@properfy/shared';
-import type { IGeocodingService } from '../../domain/geocoding.service';
+import {
+  type IGeocodingService,
+  MapboxPermanentGeocodingUnavailableError,
+} from '../../domain/geocoding.service';
+import type { Logger } from '../../../../shared/infrastructure/logger';
+import { geocodeWithTimeout } from './geocode-with-timeout';
 
 export interface GeocodeVerifierOptions {
   /** Per-address race against the provider — same bound as the synchronous
@@ -38,6 +43,7 @@ export class ImportGeocodeVerifier {
   constructor(
     private readonly geocoding: IGeocodingService,
     opts?: GeocodeVerifierOptions,
+    private readonly logger?: Logger,
   ) {
     this.opts = { ...DEFAULTS, ...opts };
   }
@@ -53,10 +59,22 @@ export class ImportGeocodeVerifier {
     }
 
     let next = 0;
+    // When the account lacks permanent geocoding, short-circuit the whole batch:
+    // one Mapbox call fails, the rest are marked unverified WITHOUT calling Mapbox.
+    let permanentUnavailable = false;
+    let permanentCode = '';
+    let permanentRemaining = 0;
+    // Generic errors/timeouts are aggregated into a single warn per batch.
+    let failedCount = 0;
+
     const runWorker = async (): Promise<void> => {
       while (next < queue.length) {
         const [key, address] = queue[next]!;
         next += 1;
+        if (permanentUnavailable) {
+          result.set(key, UNVERIFIED);
+          continue;
+        }
         // Each lookup's race window is also capped by the remaining overall
         // budget, so a lookup dispatched near the deadline can't overrun the
         // batch by a full per-address timeout.
@@ -65,7 +83,29 @@ export class ImportGeocodeVerifier {
           result.set(key, UNVERIFIED);
           continue;
         }
-        result.set(key, await this.verifyOne(address, Math.min(this.opts.perAddressTimeoutMs, remainingMs)));
+        try {
+          const coords = await geocodeWithTimeout(this.geocoding, address, {
+            timeoutMs: Math.min(this.opts.perAddressTimeoutMs, remainingMs),
+          });
+          result.set(
+            key,
+            coords === null
+              ? { status: 'not_found', lat: null, lng: null }
+              : { status: 'found', lat: coords.lat, lng: coords.lng, mode: 'permanent' },
+          );
+        } catch (err) {
+          result.set(key, UNVERIFIED);
+          if (err instanceof MapboxPermanentGeocodingUnavailableError) {
+            if (!permanentUnavailable) {
+              permanentUnavailable = true;
+              permanentCode = err.code;
+              // Keys not yet dispatched to Mapbox — they will all be short-circuited.
+              permanentRemaining = queue.length - next;
+            }
+          } else {
+            failedCount += 1;
+          }
+        }
       }
     };
 
@@ -74,29 +114,16 @@ export class ImportGeocodeVerifier {
       () => runWorker(),
     );
     await Promise.all(workers);
-    return result;
-  }
 
-  private async verifyOne(address: string, timeoutMs: number): Promise<GeocodeVerification> {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(
-        () => reject(new Error('geocode verification timed out')),
-        timeoutMs,
+    if (permanentUnavailable) {
+      this.logger?.error(
+        { code: permanentCode, remaining: permanentRemaining },
+        'import.geocode_verify_permanent_unavailable',
       );
-    });
-    const lookup = this.geocoding.geocode(address);
-    // If the timeout wins, the lookup may still settle later — swallow its
-    // rejection so it never surfaces as an unhandled rejection.
-    lookup.catch(() => {});
-    try {
-      const coords = await Promise.race([lookup, timeout]);
-      if (coords === null) return { status: 'not_found', lat: null, lng: null };
-      return { status: 'found', lat: coords.lat, lng: coords.lng };
-    } catch {
-      return UNVERIFIED;
-    } finally {
-      if (timer) clearTimeout(timer);
+    } else if (failedCount > 0) {
+      this.logger?.warn({ failedCount }, 'import.geocode_verify_failed');
     }
+
+    return result;
   }
 }

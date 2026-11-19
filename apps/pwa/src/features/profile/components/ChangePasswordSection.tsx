@@ -86,7 +86,9 @@ export function ChangePasswordSection() {
       setTimeout(() => {
         setExpanded(false);
         setSuccess(false);
-        logout();
+        // Keep the push subscription: the same inspector logs back in on this
+        // device, and the next load resyncs it (D5/L-F02-11).
+        logout({ keepPushSubscription: true });
       }, TIMING.flashMessage);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to change password');

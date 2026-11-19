@@ -11,6 +11,7 @@ const mockUpdateInspectorExecute = vi.fn();
 const mockCreateAvailabilitySlotExecute = vi.fn();
 const mockListAvailabilitySlotsExecute = vi.fn();
 const mockUpdateAvailabilitySlotExecute = vi.fn();
+const mockRecordAppStateExecute = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockAuditLog = vi.fn();
 
@@ -31,6 +32,7 @@ vi.mock('../../../src/main/container', () => ({
       createAvailabilitySlotUseCase: { execute: mockCreateAvailabilitySlotExecute },
       listAvailabilitySlotsUseCase: { execute: mockListAvailabilitySlotsExecute },
       updateAvailabilitySlotUseCase: { execute: mockUpdateAvailabilitySlotExecute },
+      recordInspectorAppStateUseCase: { execute: mockRecordAppStateExecute },
       jwtService: { verify: mockJwtVerify },
     },
     appointment: { jwtService: { verify: mockJwtVerify } },
@@ -99,7 +101,12 @@ describe('POST /v1/inspectors', () => {
     const res = await supertest(app.server)
       .post('/v1/inspectors')
       .set('Authorization', 'Bearer valid-token')
-      .send({ name: 'John Inspector', email: 'john@inspect.com', password: 'Insp@2026x' });
+      .send({
+        name: 'John Inspector',
+        email: 'john@inspect.com',
+        password: 'Insp@2026x',
+        address: { street: '1 George St', suburb: 'Sydney', city: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' },
+      });
 
     expect(res.status).toBe(201);
     expect(res.body.data).toHaveProperty('id');
@@ -277,5 +284,47 @@ describe('PATCH /v1/inspectors/:inspectorId/availability-slots/:slotId', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.endTime).toBe('14:00');
     expect(res.body.data.capacity).toBe(2);
+  });
+});
+
+describe('POST /v1/inspectors/me/app-state (F01-1 heartbeat)', () => {
+  const inspContext = { userId: 'insp-user', tenantId: null, role: 'INSP', branchId: null, inspectorId: INSPECTOR_ID };
+  const opContext = { userId: 'op-1', tenantId: null, role: 'OP', branchId: null, inspectorId: null };
+  const validBody = { displayMode: 'standalone', pushPermission: 'granted', appVersion: '0.1.0' };
+
+  it('returns 204 for an INSP heartbeat and routes to the app-state use case, not :inspectorId', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    mockRecordAppStateExecute.mockResolvedValueOnce(undefined);
+    const res = await supertest(app.server)
+      .post('/v1/inspectors/me/app-state')
+      .set('Authorization', 'Bearer valid-token')
+      .send(validBody);
+    expect(res.status).toBe(204);
+    expect(mockRecordAppStateExecute).toHaveBeenCalledOnce();
+    // The static /me/app-state route won, so no :inspectorId handler (get/update) ran.
+    expect(mockGetInspectorExecute).not.toHaveBeenCalled();
+    expect(mockUpdateInspectorExecute).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 for an invalid body', async () => {
+    mockJwtVerify.mockResolvedValueOnce(inspContext);
+    const res = await supertest(app.server)
+      .post('/v1/inspectors/me/app-state')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ displayMode: 'fullscreen', pushPermission: 'granted', appVersion: 'x' });
+    expect(res.status).toBe(400);
+    expect(mockRecordAppStateExecute).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 INSP_ONLY for an OP actor (use case guard)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(opContext);
+    const { ForbiddenError } = await import('../../../src/shared/domain/errors');
+    mockRecordAppStateExecute.mockRejectedValueOnce(new ForbiddenError('INSP_ONLY', 'This endpoint is only accessible to inspectors'));
+    const res = await supertest(app.server)
+      .post('/v1/inspectors/me/app-state')
+      .set('Authorization', 'Bearer valid-token')
+      .send(validBody);
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('INSP_ONLY');
   });
 });

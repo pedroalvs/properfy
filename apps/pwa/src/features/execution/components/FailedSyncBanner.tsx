@@ -20,13 +20,18 @@ export function FailedSyncBanner() {
           <span className="flex-1 text-[13px] font-medium">
             A queued inspection sync failed: {action.lastError ?? 'Unknown error'}
           </span>
-          <Button
-            variant="outlined"
-            onClick={() => retryAction(action.id)}
-            className="h-8 min-h-0 shrink-0 px-3 text-[13px]"
-          >
-            Retry
-          </Button>
+          {/* A permanent failure (e.g. a geofence/assignment rejection, F03) is not
+              retryable — re-sending it cannot succeed; the inspector checks in again
+              when they are at the property. */}
+          {!action.permanent && (
+            <Button
+              variant="outlined"
+              onClick={() => retryAction(action.id)}
+              className="h-8 min-h-0 shrink-0 px-3 text-[13px]"
+            >
+              Retry
+            </Button>
+          )}
         </Alert>
       ))}
     </div>

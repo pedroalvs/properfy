@@ -1,4 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import {
+  SERVICE_TYPE_DURATION_MIN_MINUTES,
+  SERVICE_TYPE_DURATION_MAX_MINUTES,
+} from '@properfy/shared';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
@@ -10,6 +14,7 @@ import { FormField } from '@/components/forms/FormField';
 import { FormActions } from '@/components/forms/FormActions';
 import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
+import { NumberInput } from '@/components/forms/NumberInput';
 import { Checkbox } from '@/components/forms/Checkbox';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useServiceTypeDetail } from '../hooks/useServiceTypeDetail';
@@ -22,6 +27,9 @@ const FLOW_TYPE_OPTIONS = [
   { value: 'INGOING', label: 'Ingoing' },
   { value: 'OUTGOING', label: 'Outgoing' },
 ];
+
+const DURATION_FIELD_ID = 'service-type-duration';
+const DURATION_HELP_ID = 'service-type-duration-help';
 
 interface ServiceTypeFormDrawerProps {
   open: boolean;
@@ -55,6 +63,7 @@ export function ServiceTypeFormDrawer({
         name: serviceType.name,
         flowType: serviceType.flowType,
         requiresRentalTenantConfirmation: serviceType.requiresRentalTenantConfirmation,
+        defaultDurationMinutes: String(serviceType.defaultDurationMinutes),
       };
       setForm(data);
       setInitialData(data);
@@ -98,6 +107,10 @@ export function ServiceTypeFormDrawer({
     if (result.success) {
       showSuccess(isEditMode ? 'Service type updated successfully' : 'Service type created successfully');
       onSaved();
+    } else if (result.fieldErrors && Object.keys(result.fieldErrors).length > 0) {
+      // A server validation error (e.g. a stale bundle sending an out-of-range
+      // duration) is shown on the offending field rather than as a snackbar.
+      setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
     } else {
       showError(result.error ?? 'Failed to save');
     }
@@ -175,6 +188,27 @@ export function ServiceTypeFormDrawer({
                         error={!!errors.flowType}
                         aria-label="Flow Type"
                       />
+                    </FormField>
+                    <FormField
+                      label="Estimated duration (min)"
+                      required
+                      htmlFor={DURATION_FIELD_ID}
+                      error={errors.defaultDurationMinutes}
+                    >
+                      <NumberInput
+                        id={DURATION_FIELD_ID}
+                        value={form.defaultDurationMinutes}
+                        onChange={(v) => updateField('defaultDurationMinutes', v)}
+                        min={SERVICE_TYPE_DURATION_MIN_MINUTES}
+                        max={SERVICE_TYPE_DURATION_MAX_MINUTES}
+                        step={1}
+                        error={!!errors.defaultDurationMinutes}
+                        aria-label="Estimated duration (min)"
+                        aria-describedby={DURATION_HELP_ID}
+                      />
+                      <p id={DURATION_HELP_ID} className="mt-1 text-xs text-text-muted">
+                        Time the inspector spends at each stop. Used to plan the day route.
+                      </p>
                     </FormField>
                   </FormSection>
 

@@ -285,6 +285,13 @@ describe('SendTestNotificationUseCase', () => {
     expect(vi.mocked(templateRenderer.render).mock.calls[0][0]).toBe('Hi {{rentalTenantName}}, inspection on {{scheduledDate}}');
   });
 
+  it('SMS path renders bodyText without HTML-escaping (plain text)', async () => {
+    vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(makeSmsTemplate());
+    vi.mocked(templateRenderer.render).mockReset().mockReturnValue('Hi John Smith, inspection on 2026-04-15');
+    await useCase.execute({ templateCode: 'INSPECTION_NOTICE_SMS', channel: 'SMS', recipient: '+61412345678', actor: makeActor() });
+    expect(vi.mocked(templateRenderer.render).mock.calls[0][2]).toEqual({ escapeHtml: false });
+  });
+
   it('SMS path calls smsProvider.send with recipient and rendered bodyText', async () => {
     vi.mocked(templateRepo.findByTenantCodeChannel).mockResolvedValue(makeSmsTemplate());
     vi.mocked(templateRenderer.render).mockReset().mockReturnValue('Hi John Smith, inspection on 2026-04-15');

@@ -125,4 +125,79 @@ describe('MapMarker', () => {
       expect(screen.getByTestId('map-marker')).not.toHaveAttribute('data-icon');
     });
   });
+
+  // TASK-F05-2 — Live Day pins: the head colour encodes inspector STATE, a
+  // separate outline encodes the inspector's own colour, a red badge flags
+  // "needs attention", and the circle variant can show a stop sequence number
+  // or a done check. All additive — the existing variants above stay green.
+  describe('F05-2 additions', () => {
+    it('colours the teardrop head and tail with headColor on the icon variant', () => {
+      const { container } = render(
+        <MapMarker longitude={0} latitude={0} icon="mdi-car" headColor="#0B628E" label="Jane" />,
+      );
+      expect(container.querySelector('[data-testid="pin-head"]')).toHaveAttribute(
+        'data-head-color',
+        '#0B628E',
+      );
+      expect(container.querySelector('[data-testid="pin-tail"]')).toHaveAttribute(
+        'data-head-color',
+        '#0B628E',
+      );
+    });
+
+    it('keeps the default near-black head when headColor is absent', () => {
+      const { container } = render(
+        <MapMarker longitude={0} latitude={0} icon="mdi-car" label="Jane" />,
+      );
+      expect(container.querySelector('[data-testid="pin-head"]')).toHaveAttribute(
+        'data-head-color',
+        '#1A1A1A',
+      );
+    });
+
+    it('draws a 3px outline ring on the head with outlineColor', () => {
+      const { container } = render(
+        <MapMarker longitude={0} latitude={0} icon="mdi-car" headColor="#0B628E" outlineColor="#A51D1D" label="Jane" />,
+      );
+      const head = container.querySelector('[data-testid="pin-head"]') as HTMLElement;
+      expect(head).toHaveAttribute('data-outline-color', '#A51D1D');
+      expect(head.style.boxShadow).toContain('#A51D1D');
+    });
+
+    it('renders a red attention badge on the head when badge is set', () => {
+      const { container } = render(
+        <MapMarker longitude={0} latitude={0} icon="mdi-car" headColor="#0B628E" badge label="Jane" />,
+      );
+      const badge = container.querySelector('[data-testid="pin-badge"]');
+      expect(badge).toBeInTheDocument();
+      expect(badge).toHaveAttribute('aria-hidden', 'true');
+    });
+
+    it('renders innerText instead of the map-marker glyph on the circle variant', () => {
+      const { container } = render(<MapMarker longitude={0} latitude={0} color="#156537" innerText="3" />);
+      expect(container.querySelector('.mdi-map-marker')).not.toBeInTheDocument();
+      expect(screen.getByText('3')).toBeInTheDocument();
+    });
+
+    it('renders innerIcon instead of the map-marker glyph on the circle variant', () => {
+      const { container } = render(
+        <MapMarker longitude={0} latitude={0} color="#156537" innerIcon="mdi-check-bold" />,
+      );
+      expect(container.querySelector('.mdi-map-marker')).not.toBeInTheDocument();
+      expect(container.querySelector('.mdi-check-bold')).toBeInTheDocument();
+    });
+
+    it('keeps aria-label equal to label on the icon variant', () => {
+      render(<MapMarker longitude={0} latitude={0} icon="mdi-car" headColor="#0B628E" label="Jane Doe" />);
+      expect(screen.getByRole('button', { name: 'Jane Doe' })).toBeInTheDocument();
+    });
+
+    it('uses ariaLabel for the accessible name while keeping the visible label', () => {
+      render(
+        <MapMarker longitude={0} latitude={0} icon="mdi-car" headColor="#0B628E" label="Jane" ariaLabel="Jane — At a property, 1 of 3 done" />,
+      );
+      expect(screen.getByRole('button', { name: 'Jane — At a property, 1 of 3 done' })).toBeInTheDocument();
+      expect(screen.getByText('Jane')).toBeInTheDocument();
+    });
+  });
 });

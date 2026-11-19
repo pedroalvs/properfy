@@ -148,6 +148,9 @@ export async function registerBillingRoutes(
               totalPayouts: z.number(),
               totalAdjustments: z.number(),
               totalRefunds: z.number(),
+              // Q12 (F08-6): AM/OP only; always 0 for an agency (the agency-scoped query excludes
+              // the platform bonus), so it never discloses a bonus to an agency.
+              totalBonuses: z.number(),
               pendingCount: z.number(),
               currency: z.string().length(3).nullable(),
             }),

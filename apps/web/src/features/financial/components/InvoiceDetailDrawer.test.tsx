@@ -91,6 +91,33 @@ describe('InvoiceDetailDrawer', () => {
     expect(screen.getByText('Download')).toBeInTheDocument();
   });
 
+  it('renders a BONUS snapshot line with "Bonus" and its description', () => {
+    mockUseInvoiceDetail.mockReturnValue({
+      invoice: {
+        id: 'inv-02', inspectorId: 'insp-01', periodStart: '2026-03-01', periodEnd: '2026-03-15',
+        invoiceNumber: null, invoiceNumberDisplay: null, periodType: 'FORTNIGHTLY', totalAmount: 130,
+        currency: 'AUD', status: 'CLOSED', fileKey: 'invoices/inv-02.pdf', issuedAt: '2026-03-16T10:00:00Z',
+        paidAt: null, paidByUserId: null, paymentReference: null, notes: null,
+        createdAt: '2026-03-16T10:00:00Z', updatedAt: '2026-03-16T10:00:00Z',
+        lineItemsSnapshot: [
+          { kind: 'SERVICE', serviceDate: '2026-03-03', appointmentId: 'ap-1', appointmentCode: 'ABC-0001', propertyAddress: '1 Test St', serviceType: 'Routine', amount: 100, agencyId: null, agencyName: 'Agency One', branchId: null, branchName: null },
+          { kind: 'BONUS', entryId: 'fe-1', rewardAwardId: 'ra-1', description: 'Weekly ten goal', serviceDate: '2026-03-07', appointmentId: null, appointmentCode: null, propertyAddress: null, serviceType: null, amount: 30, agencyId: null, agencyName: null, branchId: null, branchName: null },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    render(
+      <InvoiceDetailDrawer invoiceId="inv-02" open={true} onClose={vi.fn()} resolveInspectorLabel={() => 'Diego'} />,
+      { wrapper: createQueryWrapper() },
+    );
+    expect(screen.getByText('ABC-0001')).toBeInTheDocument();
+    expect(screen.getByText('Bonus')).toBeInTheDocument();
+    expect(screen.getByText('Weekly ten goal')).toBeInTheDocument();
+    expect(screen.getByText('$30.00')).toBeInTheDocument();
+  });
+
   it('disables download for a PENDING_REVIEW invoice (not yet issued)', () => {
     mockUseInvoiceDetail.mockReturnValue({
       invoice: {

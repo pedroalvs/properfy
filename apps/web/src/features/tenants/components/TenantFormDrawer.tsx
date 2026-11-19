@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { isRentalTenantNotificationsEnabled } from '@properfy/shared';
+import { isRentalTenantNotificationsEnabled, isTenantEtaNoticesEnabled } from '@properfy/shared';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
@@ -13,6 +13,8 @@ import { SelectInput } from '@/components/forms/SelectInput';
 import { TimezoneSelect } from '@/components/forms/TimezoneSelect';
 import { Textarea } from '@/components/forms/Textarea';
 import { Checkbox } from '@/components/forms/Checkbox';
+import { formInput, formInputContainer, formInputContainerError } from '@/components/forms/form-styles';
+import { resolveMapWindowDays } from '@/features/appointments/lib/map-period-window';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTenantAdminDetail } from '../hooks/useTenantAdminDetail';
@@ -47,10 +49,17 @@ export function TenantFormDrawer({
   );
   const { save, isSaving, validate } = useTenantAdminSave();
   const { showSuccess, showError } = useSnackbar();
-  // Only AM can change agency settings (update-tenant.use-case restricts settings
-  // to AM; OP cannot PATCH tenants), so hide the notifications toggle for non-AM users.
+  // Edit-mode agency settings split by role (F00): AM edits the general settings
+  // (and the map window); OP may edit ONLY the map window, so for OP the drawer
+  // hides every general section and the save sends a map-window-only patch.
   const { hasRole } = usePermissions();
   const isAdminMaster = hasRole('AM');
+  // AM precedence: the AM test mock reports every role, so derive OP from !AM.
+  const isOperator = !isAdminMaster && hasRole('OP');
+  // OP only ever sees the drawer in edit mode, where it is restricted to the map window.
+  const isMapOnly = isEditMode && isOperator;
+  const showGeneralSections = !isEditMode || !isOperator;
+  const showMapSection = isEditMode && (isAdminMaster || isOperator);
 
   const [form, setForm] = useState<TenantAdminFormData>(EMPTY_TENANT_ADMIN_FORM);
   const [initialData, setInitialData] = useState<TenantAdminFormData>(EMPTY_TENANT_ADMIN_FORM);
@@ -69,6 +78,10 @@ export function TenantFormDrawer({
         // Read uses settingsJson (the GET response key). The shared predicate keeps
         // mixed-version conflicts fail-closed while missing/absent stays enabled.
         rentalTenantNotificationsEnabled: isRentalTenantNotificationsEnabled(tenant.settingsJson),
+        // Absent/true = on (F06 L-F06-06), same fail-open read as the switch above.
+        tenantEtaNoticesEnabled: isTenantEtaNoticesEnabled(tenant.settingsJson),
+        // Tolerant read: absent/invalid falls back to the platform default (14).
+        mapWindowDays: String(resolveMapWindowDays(tenant.settingsJson)),
       };
       setForm(data);
       setInitialData(data);
@@ -102,13 +115,19 @@ export function TenantFormDrawer({
   );
 
   const handleSubmit = useCallback(async () => {
-    const validationErrors = validate(form, { isCreate: !isEditMode });
+    const validationErrors = validate(form, {
+      isCreate: !isEditMode,
+      validateMapWindow: showMapSection,
+      mapWindowOnly: isMapOnly,
+    });
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
 
-    const result = await save(form, tenantId ?? undefined);
+    // OP sends a map-only patch; AM edit adds the window to the full save.
+    const mapWindow = isMapOnly ? 'only' : isAdminMaster && isEditMode ? 'include' : undefined;
+    const result = await save(form, tenantId ?? undefined, mapWindow ? { mapWindow } : undefined);
     if (result.success) {
       showSuccess(isEditMode ? 'Agency updated successfully' : 'Agency created successfully');
       onSaved();
@@ -122,7 +141,7 @@ export function TenantFormDrawer({
         showError(result.error ?? 'Failed to save');
       }
     }
-  }, [isEditMode, form, validate, save, tenantId, showSuccess, showError, onSaved]);
+  }, [isEditMode, form, validate, save, tenantId, showSuccess, showError, onSaved, showMapSection, isMapOnly, isAdminMaster]);
 
   const handleClose = useCallback(() => {
     if (isDirty) {
@@ -158,6 +177,8 @@ export function TenantFormDrawer({
             <>
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 <div className="flex flex-col gap-6">
+                  {showGeneralSections && (
+                  <>
                   <FormSection title="Agency Information" columns={2}>
                     <FormField label="Name" required error={errors.name}>
                       <TextInput
@@ -237,6 +258,50 @@ export function TenantFormDrawer({
                         channel. Each withheld message is emailed to the branch contact instead,
                         and &quot;Send Portal Link&quot; is disabled.
                       </p>
+                      <div className="mt-4">
+                        <Checkbox
+                          checked={form.tenantEtaNoticesEnabled}
+                          onChange={(v) => updateField('tenantEtaNoticesEnabled', v)}
+                          disabled={!form.rentalTenantNotificationsEnabled}
+                          label="Send arrival-time notices to tenants (morning, on the way, running late)"
+                        />
+                        <p className="mt-1 text-sm text-text-secondary">
+                          {form.rentalTenantNotificationsEnabled
+                            ? 'Turn off if this agency tells its tenants the arrival time itself. Other tenant notifications keep going.'
+                            : 'Turned off because tenant notifications are off for this agency.'}
+                        </p>
+                      </div>
+                    </FormSection>
+                  )}
+                  </>
+                  )}
+
+                  {showMapSection && (
+                    <FormSection title="Map">
+                      <FormField label="Map window (days)" error={errors.mapWindowDays}>
+                        <div
+                          className={
+                            errors.mapWindowDays ? formInputContainerError : formInputContainer
+                          }
+                        >
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            max={90}
+                            step={1}
+                            className={formInput}
+                            value={form.mapWindowDays}
+                            onChange={(e) => updateField('mapWindowDays', e.target.value)}
+                            aria-label="Map window (days)"
+                            aria-describedby="map-window-days-help"
+                          />
+                        </div>
+                        <p id="map-window-days-help" className="mt-1 text-xs text-text-muted">
+                          Days ahead of today the map shows by default (1–90). Default: 14 (today
+                          through 14 days ahead).
+                        </p>
+                      </FormField>
                     </FormSection>
                   )}
                 </div>
@@ -247,7 +312,12 @@ export function TenantFormDrawer({
                   <Button variant="secondary" onClick={handleClose}>
                     Cancel
                   </Button>
-                  <Button variant="primary" loading={isSaving} onClick={handleSubmit}>
+                  <Button
+                    variant="primary"
+                    loading={isSaving}
+                    disabled={isEditMode ? !isDirty || isSaving : undefined}
+                    onClick={handleSubmit}
+                  >
                     {isEditMode ? 'Save' : 'Create Agency'}
                   </Button>
                 </FormActions>

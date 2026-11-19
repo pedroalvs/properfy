@@ -1,4 +1,4 @@
-import { type AuthContext, type AvailableSlotSchema, isAppointmentOverdue } from '@properfy/shared';
+import { type AuthContext, type AvailableSlotSchema, type InspectorIssue, isAppointmentOverdue } from '@properfy/shared';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type {
   IAppointmentRepository,
@@ -6,8 +6,11 @@ import type {
   PaginationParams,
   AppointmentListItem,
 } from '../../domain/appointment.repository';
+import type { IInspectorFieldEventRepository } from '../../../inspector-execution/domain/inspector-field-event.repository';
+import type { IPropertyIssueIndicatorReader } from '../../../property-file/domain/property-issue.repository';
 import { AppointmentCodeFormatter } from '../../domain/appointment-code.formatter';
 import { APPOINTMENT_LIST_ROLES, resolveAppointmentListTenantScope } from '../appointment-list-scope';
+import { toInspectorIssue } from './get-appointment.use-case';
 
 export interface ListAppointmentsInput {
   filters: {
@@ -31,6 +34,7 @@ export interface ListAppointmentsInput {
     hasRentalTenantNote?: boolean;
     confirmationStatus?: string;
     serviceGroupId?: string;
+    withIssues?: boolean;
   };
   pagination: PaginationParams;
   actor: AuthContext;
@@ -99,6 +103,11 @@ export interface ListAppointmentsOutput {
     longitude: number | null;
     /** Property total area in m²; null when the property has no recorded area. */
     propertyTotalAreaM2: number | null;
+    /** Latest "Can't do this job" report, flattened onto the row; null when none (F03). */
+    inspectorIssue: InspectorIssue | null;
+    /** An unseen, non-deleted property issue is linked to this appointment (F10 D26);
+     *  always false for CL_USER (they cannot mark as seen). */
+    hasUnseenIssues: boolean;
   }>;
   total: number;
   page: number;
@@ -109,6 +118,8 @@ export class ListAppointmentsUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly authorizationService: AuthorizationService,
+    private readonly fieldEventRepo?: IInspectorFieldEventRepository,
+    private readonly issueIndicatorReader?: IPropertyIssueIndicatorReader,
   ) {}
 
   async execute(input: ListAppointmentsInput): Promise<ListAppointmentsOutput> {
@@ -152,12 +163,40 @@ export class ListAppointmentsUseCase {
       hasRentalTenantNote: filters.hasRentalTenantNote,
       confirmationStatus: filters.confirmationStatus,
       serviceGroupId: filters.serviceGroupId,
+      withIssues: filters.withIssues,
     };
 
     const [data, total] = await Promise.all([
       this.appointmentRepo.findAll(repoFilters, pagination),
       this.appointmentRepo.count(repoFilters),
     ]);
+
+    // One batched query for the whole page (DISTINCT ON), merged in memory — no
+    // N+1. Empty page or no field-event repo wired → no query, empty map (F03).
+    const latestCantDoByAppointment = new Map<string, InspectorIssue>();
+    if (this.fieldEventRepo && data.length > 0) {
+      const latest = await this.fieldEventRepo.findLatestCantDoByAppointmentIds(
+        data.map((item) => item.appointment.id),
+      );
+      for (const row of latest) {
+        const issue = toInspectorIssue(row);
+        if (issue) latestCantDoByAppointment.set(row.appointmentId, issue);
+      }
+    }
+
+    // One batched query for the page's unseen-issue indicator (F10 D26). Only
+    // AM/OP/CL_ADMIN see it; CL_USER always gets false. `tenantId` is undefined
+    // for the cross-tenant roles and the pinned tenant for CL_ADMIN.
+    const appointmentsWithUnseenIssues = new Set<string>();
+    const canSeeUnseenIssues =
+      actor.role === 'AM' || actor.role === 'OP' || actor.role === 'CL_ADMIN';
+    if (canSeeUnseenIssues && this.issueIndicatorReader && data.length > 0) {
+      const withUnseen = await this.issueIndicatorReader.findAppointmentsWithUnseenIssues(
+        data.map((item) => item.appointment.id),
+        tenantId,
+      );
+      for (const id of withUnseen) appointmentsWithUnseenIssues.add(id);
+    }
 
     return {
       data: data.map((item: AppointmentListItem) => {
@@ -219,6 +258,8 @@ export class ListAppointmentsUseCase {
         latitude: item.propertyLatitude,
         longitude: item.propertyLongitude,
         propertyTotalAreaM2: item.propertyTotalAreaM2 ?? null,
+        inspectorIssue: latestCantDoByAppointment.get(item.appointment.id) ?? null,
+        hasUnseenIssues: appointmentsWithUnseenIssues.has(item.appointment.id),
       };
       }),
       total,

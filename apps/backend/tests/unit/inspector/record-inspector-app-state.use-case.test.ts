@@ -1,0 +1,116 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { RecordInspectorAppStateUseCase } from '../../../src/modules/inspector/application/use-cases/record-inspector-app-state.use-case';
+import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
+import { InspectorNotFoundError } from '../../../src/modules/inspector/domain/inspector.errors';
+import { ForbiddenError } from '../../../src/shared/domain/errors';
+import type { AuthContext, InspectorAppStateInput } from '@properfy/shared';
+
+const FIXED = new Date('2026-10-30T00:00:00.000Z');
+
+function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
+  return {
+    userId: 'user-insp-1',
+    tenantId: null,
+    role: 'INSP',
+    branchId: null,
+    inspectorId: 'inspector-1',
+    ...overrides,
+  };
+}
+
+describe('RecordInspectorAppStateUseCase', () => {
+  let inspectorRepo: Pick<IInspectorRepository, 'recordAppState' | 'findById'>;
+  let useCase: RecordInspectorAppStateUseCase;
+
+  beforeEach(() => {
+    inspectorRepo = {
+      recordAppState: vi.fn().mockResolvedValue(1),
+      findById: vi.fn(),
+    };
+    useCase = new RecordInspectorAppStateUseCase(
+      inspectorRepo as IInspectorRepository,
+      { now: () => FIXED },
+    );
+  });
+
+  function run(input: InspectorAppStateInput, actor = makeActor()) {
+    return useCase.execute({ actor, input });
+  }
+
+  it('records a first standalone heartbeat without touching push_enabled (F02-1 D10)', async () => {
+    await run({ displayMode: 'standalone', pushPermission: 'granted', appVersion: '0.1.0' });
+    expect(inspectorRepo.recordAppState).toHaveBeenCalledTimes(1);
+    expect(inspectorRepo.recordAppState).toHaveBeenCalledWith({
+      id: 'inspector-1',
+      now: FIXED,
+      displayMode: 'standalone',
+      appVersion: '0.1.0',
+      onboardingCompleted: false,
+    });
+    // push_enabled is no longer part of the heartbeat contract.
+    expect(inspectorRepo.recordAppState.mock.calls[0][0]).not.toHaveProperty('pushEnabled');
+    // Heartbeat never reads before writing.
+    expect(inspectorRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('forwards onboardingCompleted: true in the single call, without findById (R-F01-02)', async () => {
+    await run({
+      displayMode: 'standalone',
+      pushPermission: 'granted',
+      appVersion: '0.1.0',
+      onboardingCompleted: true,
+    });
+    expect(inspectorRepo.recordAppState).toHaveBeenCalledTimes(1);
+    expect(inspectorRepo.recordAppState).toHaveBeenCalledWith({
+      id: 'inspector-1',
+      now: FIXED,
+      displayMode: 'standalone',
+      appVersion: '0.1.0',
+      onboardingCompleted: true,
+    });
+    expect(inspectorRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('defaults onboardingCompleted to false when the key is absent', async () => {
+    await run({ displayMode: 'browser', pushPermission: 'denied', appVersion: 'dev' });
+    expect(inspectorRepo.recordAppState).toHaveBeenCalledWith(
+      expect.objectContaining({ onboardingCompleted: false }),
+    );
+  });
+
+  it('forwards standalone for a second heartbeat (install COALESCE is the repo/db job)', async () => {
+    await run({ displayMode: 'standalone', pushPermission: 'granted', appVersion: '0.2.0' });
+    expect(inspectorRepo.recordAppState).toHaveBeenCalledWith(
+      expect.objectContaining({ displayMode: 'standalone', appVersion: '0.2.0' }),
+    );
+  });
+
+  it.each([
+    ['browser', 'default'],
+    ['browser', 'denied'],
+    ['browser', 'unsupported'],
+  ] as const)('never writes push_enabled for %s/%s', async (displayMode, pushPermission) => {
+    await run({ displayMode, pushPermission, appVersion: 'dev' });
+    expect(inspectorRepo.recordAppState).toHaveBeenCalledWith(
+      expect.objectContaining({ displayMode }),
+    );
+    expect(inspectorRepo.recordAppState.mock.calls[0][0]).not.toHaveProperty('pushEnabled');
+  });
+
+  it('rejects an OP actor with INSP_ONLY and records nothing', async () => {
+    await expect(
+      run({ displayMode: 'standalone', pushPermission: 'granted', appVersion: '1' }, makeActor({ role: 'OP', inspectorId: null })),
+    ).rejects.toMatchObject({ code: 'INSP_ONLY' });
+    await expect(
+      run({ displayMode: 'standalone', pushPermission: 'granted', appVersion: '1' }, makeActor({ role: 'OP', inspectorId: null })),
+    ).rejects.toThrow(ForbiddenError);
+    expect(inspectorRepo.recordAppState).not.toHaveBeenCalled();
+  });
+
+  it('maps affected=0 (soft-deleted/missing) to InspectorNotFoundError', async () => {
+    vi.mocked(inspectorRepo.recordAppState).mockResolvedValue(0);
+    await expect(
+      run({ displayMode: 'standalone', pushPermission: 'granted', appVersion: '1' }),
+    ).rejects.toThrow(InspectorNotFoundError);
+  });
+});

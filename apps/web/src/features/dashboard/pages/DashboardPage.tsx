@@ -1,4 +1,4 @@
-import { PLATFORM_TIMEZONE, UserRole, addCivilDays, todayInTzDateString } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, addCivilDays, todayInTzDateString } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { ErrorState } from '@/components/feedback/ErrorState';
@@ -34,27 +34,13 @@ export function computeTomorrowLabel(): string {
 export function DashboardPage() {
   const navigate = useNavigate();
   const { stats, isLoading, isError, refetch } = useDashboardStats();
-  const { hasRole, canPerform } = usePermissions();
+  const { canPerform } = usePermissions();
   const tomorrowLabel = computeTomorrowLabel();
 
-  // /dashboard is unguarded and INSP lands here, but the sibling screens are
-  // guarded: /analytics to the four business roles, /inspector-workload to
-  // AM/OP only. Offering a button past someone's guard would bounce them
-  // straight back with a permission toast, so each action mirrors its route.
-  const canViewAnalytics = hasRole(UserRole.AM, UserRole.OP, UserRole.CL_ADMIN, UserRole.CL_USER);
-  const canViewWorkload = hasRole(UserRole.AM, UserRole.OP);
   // Mirrors AppointmentListPage's `canCreate` guard: the create drawer only opens
   // for `appointment.create` holders, so hide the shortcut from anyone else (INSP
   // lands on /dashboard too) rather than navigating to a param that gets dropped.
   const canCreateAppointment = canPerform('appointment.create');
-  const secondaryActions = [
-    ...(canViewAnalytics
-      ? [{ label: 'Analytics', icon: 'mdi-chart-line', onClick: () => navigate('/analytics') }]
-      : []),
-    ...(canViewWorkload
-      ? [{ label: 'Workload', icon: 'mdi-account-clock-outline', onClick: () => navigate('/inspector-workload') }]
-      : []),
-  ];
 
   return (
     <div>
@@ -73,7 +59,6 @@ export function DashboardPage() {
               }
             : undefined
         }
-        secondaryActions={secondaryActions.length > 0 ? secondaryActions : undefined}
       />
 
       <IntegrationWarnings />

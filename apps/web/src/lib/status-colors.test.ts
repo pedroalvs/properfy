@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, RentalTenantConfirmationStatus, ReportType, ReportStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus } from '@properfy/shared';
-import { APPOINTMENT_STATUS_MAP, getStatusStyle, PROPERTY_TYPE_MAP, INSPECTOR_STATUS_MAP, SERVICE_GROUP_STATUS_MAP, USER_ROLE_MAP, USER_STATUS_MAP, FINANCIAL_ENTRY_TYPE_MAP, FINANCIAL_ENTRY_STATUS_MAP, RENTAL_TENANT_CONFIRMATION_STATUS_MAP, REPORT_TYPE_MAP, REPORT_STATUS_MAP, FLOW_TYPE_MAP, SERVICE_TYPE_STATUS_MAP, SLOT_STATUS_MAP } from './status-colors';
+import { AppointmentStatus, PropertyType, InspectorStatus, ServiceGroupStatus, UserRole, UserStatus, FinancialEntryType, FinancialEntryStatus, RentalTenantConfirmationStatus, ReportType, ReportStatus, ServiceTypeFlowType, ServiceTypeStatus, AvailabilitySlotStatus, RewardAwardStatus, REWARD_AWARD_STATUS_LABELS } from '@properfy/shared';
+import { APPOINTMENT_STATUS_MAP, getStatusStyle, PROPERTY_TYPE_MAP, INSPECTOR_STATUS_MAP, SERVICE_GROUP_STATUS_MAP, USER_ROLE_MAP, USER_STATUS_MAP, FINANCIAL_ENTRY_TYPE_MAP, FINANCIAL_ENTRY_STATUS_MAP, RENTAL_TENANT_CONFIRMATION_STATUS_MAP, REPORT_TYPE_MAP, REPORT_STATUS_MAP, FLOW_TYPE_MAP, SERVICE_TYPE_STATUS_MAP, SLOT_STATUS_MAP, REWARD_AWARD_STATUS_MAP } from './status-colors';
 
 describe('APPOINTMENT_STATUS_MAP', () => {
   const allStatuses: AppointmentStatus[] = [
@@ -196,10 +196,11 @@ describe('FINANCIAL_ENTRY_TYPE_MAP', () => {
     FinancialEntryType.INSPECTOR_PAYOUT,
     FinancialEntryType.REFUND,
     FinancialEntryType.MANUAL_ADJUSTMENT,
+    FinancialEntryType.INSPECTOR_BONUS,
   ];
 
-  it('maps all 4 financial entry types', () => {
-    expect(Object.keys(FINANCIAL_ENTRY_TYPE_MAP)).toHaveLength(4);
+  it('maps all 5 financial entry types', () => {
+    expect(Object.keys(FINANCIAL_ENTRY_TYPE_MAP)).toHaveLength(5);
     for (const type of allTypes) {
       expect(FINANCIAL_ENTRY_TYPE_MAP[type]).toBeDefined();
     }
@@ -285,10 +286,11 @@ describe('REPORT_TYPE_MAP', () => {
     ReportType.FINANCIAL,
     ReportType.PERFORMANCE,
     ReportType.AGENCIES,
+    ReportType.INSPECTOR_PROGRAM,
   ];
 
-  it('maps all 4 report types', () => {
-    expect(Object.keys(REPORT_TYPE_MAP)).toHaveLength(4);
+  it('maps all 5 report types', () => {
+    expect(Object.keys(REPORT_TYPE_MAP)).toHaveLength(5);
     for (const type of allTypes) {
       expect(REPORT_TYPE_MAP[type]).toBeDefined();
     }
@@ -306,6 +308,7 @@ describe('REPORT_TYPE_MAP', () => {
     expect(REPORT_TYPE_MAP[ReportType.FINANCIAL].label).toBe('Financial');
     expect(REPORT_TYPE_MAP[ReportType.PERFORMANCE].label).toBe('Performance');
     expect(REPORT_TYPE_MAP[ReportType.AGENCIES].label).toBe('Agencies');
+    expect(REPORT_TYPE_MAP[ReportType.INSPECTOR_PROGRAM].label).toBe('Inspector program');
   });
 });
 
@@ -418,5 +421,34 @@ describe('SLOT_STATUS_MAP', () => {
     expect(SLOT_STATUS_MAP[AvailabilitySlotStatus.AVAILABLE].label).toBe('Available');
     expect(SLOT_STATUS_MAP[AvailabilitySlotStatus.BOOKED].label).toBe('Booked');
     expect(SLOT_STATUS_MAP[AvailabilitySlotStatus.CANCELLED].label).toBe('Cancelled');
+  });
+});
+
+describe('REWARD_AWARD_STATUS_MAP', () => {
+  const allStatuses: RewardAwardStatus[] = [
+    RewardAwardStatus.PENDING,
+    RewardAwardStatus.APPROVED,
+    RewardAwardStatus.PAID,
+    RewardAwardStatus.VOID,
+  ];
+
+  it('maps all 4 reward-award statuses', () => {
+    expect(Object.keys(REWARD_AWARD_STATUS_MAP)).toHaveLength(4);
+    for (const status of allStatuses) {
+      expect(REWARD_AWARD_STATUS_MAP[status]).toBeDefined();
+    }
+  });
+
+  it.each(allStatuses)('status %s has bg, text, and label', (status) => {
+    const style = REWARD_AWARD_STATUS_MAP[status];
+    expect(style.bg).toBeTruthy();
+    expect(style.text).toBeTruthy();
+    expect(style.label).toBeTruthy();
+  });
+
+  it('reuses the shared labels (PENDING renders "Pending review")', () => {
+    expect(REWARD_AWARD_STATUS_MAP[RewardAwardStatus.PENDING].label).toBe(REWARD_AWARD_STATUS_LABELS.PENDING);
+    expect(REWARD_AWARD_STATUS_MAP[RewardAwardStatus.PENDING].label).toBe('Pending review');
+    expect(REWARD_AWARD_STATUS_MAP[RewardAwardStatus.VOID].label).toBe('Voided');
   });
 });

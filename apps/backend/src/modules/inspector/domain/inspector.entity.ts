@@ -22,6 +22,20 @@ export interface InspectorProps {
   // Feedback Round item 6: profile extension
   fullName: string | null;
   address: Record<string, unknown> | null;
+  // F01-1: base-address coordinates (permanent geocoding). Null = not located;
+  // the pair and baseGeocodedAt are always written/cleared together.
+  baseLat: number | null;
+  baseLng: number | null;
+  baseGeocodedAt: Date | null;
+  // F01-1: app-state heartbeat (contract 00.10).
+  appInstalledAt: Date | null;
+  appLastSeenAt: Date | null;
+  pushEnabled: boolean | null;
+  appVersion: string | null;
+  // F04-2 (00.2): in-app tour completion stamp (null = not yet). Optional in
+  // props (defaults null) so the many existing entity fixtures stay valid; the
+  // repository always maps it.
+  onboardingCompletedAt?: Date | null;
   abn: string | null;
   dateOfBirth: Date | null;
   insuranceFileKey: string | null;
@@ -51,6 +65,14 @@ export class InspectorEntity extends BaseEntity {
   readonly blockedClientsJson: string[];
   readonly fullName: string | null;
   readonly address: Record<string, unknown> | null;
+  readonly baseLat: number | null;
+  readonly baseLng: number | null;
+  readonly baseGeocodedAt: Date | null;
+  readonly appInstalledAt: Date | null;
+  readonly appLastSeenAt: Date | null;
+  readonly pushEnabled: boolean | null;
+  readonly appVersion: string | null;
+  readonly onboardingCompletedAt: Date | null;
   readonly abn: string | null;
   readonly dateOfBirth: Date | null;
   readonly insuranceFileKey: string | null;
@@ -76,6 +98,14 @@ export class InspectorEntity extends BaseEntity {
     this.blockedClientsJson = props.blockedClientsJson;
     this.fullName = props.fullName;
     this.address = props.address;
+    this.baseLat = props.baseLat;
+    this.baseLng = props.baseLng;
+    this.baseGeocodedAt = props.baseGeocodedAt;
+    this.appInstalledAt = props.appInstalledAt;
+    this.appLastSeenAt = props.appLastSeenAt;
+    this.pushEnabled = props.pushEnabled;
+    this.appVersion = props.appVersion;
+    this.onboardingCompletedAt = props.onboardingCompletedAt ?? null;
     this.abn = props.abn;
     this.dateOfBirth = props.dateOfBirth;
     this.insuranceFileKey = props.insuranceFileKey;

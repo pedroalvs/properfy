@@ -50,3 +50,14 @@ export class ServiceRegionStillActiveError extends ConflictError {
     );
   }
 }
+
+/** A region cannot be deleted while active inspector-program goals use it (F08-1). */
+export class ServiceRegionHasActiveGoalsError extends ConflictError {
+  constructor(activeGoalCount: number) {
+    super(
+      'SERVICE_REGION_HAS_ACTIVE_GOALS',
+      `This region is used by ${activeGoalCount} active goals. Deactivate them first.`,
+      { activeGoalCount },
+    );
+  }
+}

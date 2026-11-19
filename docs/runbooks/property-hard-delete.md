@@ -25,12 +25,11 @@ Delete in this exact order to respect foreign key constraints:
 SELECT id, tenant_id, property_code, status, deleted_at
 FROM properties WHERE id = '<PROPERTY_ID>';
 
--- 2. Remove inspection execution assets
-DELETE FROM inspection_assets WHERE inspection_execution_id IN (
-  SELECT id FROM inspection_executions WHERE appointment_id IN (
-    SELECT id FROM appointments WHERE property_id = '<PROPERTY_ID>'
-  )
-);
+-- 2. Remove property files & issues (F10; files before the issues they
+--    reference). Note: purge the storage objects under
+--    files/<TENANT_ID>/<PROPERTY_ID>/ from the inspection-assets bucket out of band.
+DELETE FROM property_files WHERE property_id = '<PROPERTY_ID>';
+DELETE FROM property_issues WHERE property_id = '<PROPERTY_ID>';
 
 -- 3. Remove inspection executions
 DELETE FROM inspection_executions WHERE appointment_id IN (

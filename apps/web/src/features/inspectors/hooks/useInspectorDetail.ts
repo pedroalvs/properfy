@@ -53,6 +53,15 @@ export function useInspectorDetail(id: string | null): UseInspectorDetailReturn 
       blockedClients: raw.blockedClients ?? [],
       insuranceMetaJson: raw.insuranceMetaJson as InspectorDetail['insuranceMetaJson'],
       policeCheckMetaJson: raw.policeCheckMetaJson as InspectorDetail['policeCheckMetaJson'],
+      // F01-1 base address (AM/OP + inspector only; CL_* never receive it).
+      address: raw.address,
+      // F01-2 read-only base location + app-adoption fields. undefined → null.
+      baseLat: raw.baseLat ?? null,
+      baseGeocodedAt: raw.baseGeocodedAt ?? null,
+      appInstalledAt: raw.appInstalledAt ?? null,
+      appLastSeenAt: raw.appLastSeenAt ?? null,
+      pushEnabled: raw.pushEnabled ?? null,
+      appVersion: raw.appVersion ?? null,
     };
   }, [raw]);
 

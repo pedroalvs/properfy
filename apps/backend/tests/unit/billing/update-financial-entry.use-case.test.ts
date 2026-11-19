@@ -4,6 +4,7 @@ import type { IFinancialEntryRepository } from '../../../src/modules/billing/dom
 import { FinancialEntryEntity, type FinancialEntryProps } from '../../../src/modules/billing/domain/financial-entry.entity';
 import {
   EntryNotFoundError,
+  BonusEntryManagedByRewardError,
   EntryNotEditableError,
   BillingIdempotencyPayloadMismatchError,
   BillingIdempotencyInProgressError,
@@ -303,5 +304,16 @@ describe('UpdateFinancialEntryUseCase', () => {
       await expect(useCase.execute(baseInput())).rejects.toThrow('db down');
       expect(idempotencyService.release).toHaveBeenCalledWith('idem-1', 'update-entry', expect.any(String), 'token-1');
     });
+  });
+
+  it('refuses an INSPECTOR_BONUS entry (409 BONUS_ENTRY_MANAGED_BY_REWARD, Q12)', async () => {
+    const { useCase, financialEntryRepo } = sut;
+    vi.mocked(financialEntryRepo.findById).mockResolvedValue(
+      makeEntry({ entryType: 'INSPECTOR_BONUS', tenantId: null, inspectorId: 'insp-1', appointmentId: null }),
+    );
+    await expect(
+      useCase.execute(baseInput()),
+    ).rejects.toBeInstanceOf(BonusEntryManagedByRewardError);
+    expect(financialEntryRepo.updateManualAdjustmentFields).not.toHaveBeenCalled();
   });
 });

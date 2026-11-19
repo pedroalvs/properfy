@@ -11,6 +11,7 @@ type InspectorApiRecord =
 const FILTER_SCHEMA = {
   search: { type: 'string' as const, default: '' },
   status: { type: 'string' as const, default: '' },
+  missingBaseAddress: { type: 'boolean' as const, default: false },
 } satisfies FilterSchema;
 
 export interface UseInspectorListReturn {
@@ -44,6 +45,7 @@ export function useInspectorList(): UseInspectorListReturn {
       pageSize,
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.search ? { search: filters.search } : {}),
+      ...(filters.missingBaseAddress ? { missingBaseAddress: true } : {}),
     },
   );
 
@@ -79,6 +81,15 @@ export function useInspectorList(): UseInspectorListReturn {
         completedCount: item.rating?.doneServicesCount ?? 0,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
+        // F01-2 read fields. `address` is returned to AM/OP for the badge tooltip
+        // (L-F01-07). undefined (pre-deploy API) → null so components see one case.
+        address: item.address,
+        baseLat: item.baseLat ?? null,
+        baseGeocodedAt: item.baseGeocodedAt ?? null,
+        appInstalledAt: item.appInstalledAt ?? null,
+        appLastSeenAt: item.appLastSeenAt ?? null,
+        pushEnabled: item.pushEnabled ?? null,
+        appVersion: item.appVersion ?? null,
       };
     });
   }, [query.data?.data]);

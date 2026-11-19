@@ -156,6 +156,11 @@ export function AppointmentFilters({
         value={filters.overdueOnly}
         onChange={(overdueOnly) => onFiltersChange({ ...filters, overdueOnly })}
       />
+      <FilterBoolean
+        label="With issues"
+        value={filters.withIssues}
+        onChange={(withIssues) => onFiltersChange({ ...filters, withIssues })}
+      />
     </FilterBar>
   );
 }

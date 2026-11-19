@@ -141,16 +141,17 @@ export function AppointmentImportPage() {
 
   return (
     <div>
-      <PageHeader title="Import Appointments" />
+      <PageHeader
+        title="Import Appointments"
+        backTo="/appointments"
+        // During the commit the Back click is ignored (the button stays enabled); otherwise it
+        // navigates like any other header Back (L-X01-06).
+        onBack={(goBack) => {
+          if (!isCommitting) goBack();
+        }}
+      />
 
-      <div className="mb-4 flex items-center justify-between">
-        <Link
-          to="/appointments"
-          className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-primary)] hover:underline"
-        >
-          <i className="mdi mdi-arrow-left" aria-hidden="true" />
-          Back to Appointments
-        </Link>
+      <div className="mb-4 flex items-center justify-end">
         <a
           href="/templates/appointments-import-template.csv"
           download="appointments-import-template.csv"
@@ -250,7 +251,7 @@ export function AppointmentImportPage() {
 
             <div className="flex items-center justify-between pt-2">
               <Button variant="outlined" onClick={handleBackFromPreview}>
-                Back
+                Previous step
               </Button>
               <Button
                 onClick={handleNextFromPreview}
@@ -293,7 +294,7 @@ export function AppointmentImportPage() {
 
             <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-4">
               <Button variant="outlined" onClick={handleBackFromConfirm} disabled={isCommitting}>
-                Back
+                Previous step
               </Button>
               <Button
                 onClick={handleStartImport}

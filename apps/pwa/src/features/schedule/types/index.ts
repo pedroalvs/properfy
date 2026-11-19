@@ -3,6 +3,7 @@ import type {
   AppointmentApp,
   AppointmentCustomField,
   AppointmentStatus,
+  GeofenceMode,
   InspectorContactChannel,
   InspectorTenantContact,
   PropertyType,
@@ -13,8 +14,31 @@ import type {
   inspectorScheduleMonthResponseSchema,
 } from '@properfy/shared';
 
+/** Geofence radius + mode the server applies at check-in (F03, TASK-F03-1). */
+export interface InspectorGeofence {
+  radiusMeters: number;
+  mode: GeofenceMode;
+}
+
+/**
+ * The requesting inspector's own last "Can't do this job" on this appointment
+ * (F03, L-F03-09). `reason` is a plain string (not the enum) so a future reason
+ * value from the server never breaks rendering.
+ */
+export interface InspectorLastFieldIssue {
+  reason: string;
+  note: string | null;
+  occurredAt: string;
+}
+
 export interface InspectorAppointment {
   id: string;
+  /**
+   * The property this appointment belongs to (detail endpoint only — the list
+   * payloads don't carry it). Used by the Files section (F10-3); optional because
+   * this type is shared by the detail and the schedule-list mappers.
+   */
+  propertyId?: string;
   appointmentCode: string;
   propertyAddress: string;
   suburb: string;
@@ -52,6 +76,15 @@ export interface InspectorAppointment {
   agencyName?: string;
   /** App credentials linked to this appointment (live reference). */
   apps: AppointmentApp[];
+  /** Geofence radius + mode in force (F03); drives the check-in distance warning. */
+  geofence?: InspectorGeofence;
+  /** The inspector's own last "Can't do this job" on this appointment (F03, L-F03-09). */
+  lastFieldIssue?: InspectorLastFieldIssue | null;
+  /**
+   * Published-plan stop start (F04). Absent until F04 ships — the "Running late"
+   * reference then falls back to `timeSlotStart`. Read defensively (optional).
+   */
+  publishedServiceStartAt?: string | null;
 }
 
 export interface InspectorScheduleDayResponse {
@@ -101,6 +134,7 @@ export interface JobDetails {
 export interface InspectorAppointmentDetailResponse {
   data: {
     id: string;
+    propertyId: string;
     appointmentCode: string;
     status: AppointmentStatus;
     scheduledDate: string;
@@ -139,6 +173,9 @@ export interface InspectorAppointmentDetailResponse {
     agencyName?: string;
     apps?: AppointmentApp[];
     jobDetails?: JobDetails;
+    geofence?: InspectorGeofence;
+    lastFieldIssue?: InspectorLastFieldIssue | null;
+    publishedServiceStartAt?: string | null;
   };
 }
 

@@ -1,8 +1,9 @@
 import { StrictMode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
 vi.mock('@/config/env', () => ({
@@ -116,9 +117,9 @@ describe('PropertyCreatePage', () => {
     expect(screen.getByText('New Property')).toBeInTheDocument();
   });
 
-  it('renders back button', () => {
+  it('renders exactly one header Back button', () => {
     renderPage();
-    expect(screen.getByText('Back')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
   });
 
   it('renders form sections', () => {
@@ -258,7 +259,7 @@ describe('PropertyCreatePage', () => {
     renderPage('/properties/new?tenantId=tenant-1&branchId=branch-9');
     await waitFor(() => expect(screen.getByText('Branch Nine')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByText('Back'));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
 
     expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
   });
@@ -290,5 +291,71 @@ describe('PropertyCreatePage', () => {
     );
 
     await waitFor(() => expect(screen.getByText('Agency One')).toBeInTheDocument());
+  });
+});
+
+function LocationProbe() {
+  const loc = useLocation();
+  return <div data-testid="loc">{`${loc.pathname}${loc.search}`}</div>;
+}
+
+function PropertiesStub() {
+  const navigate = useNavigate();
+  return (
+    <div>
+      <span>properties list</span>
+      <button type="button" onClick={() => navigate('/properties/new')}>
+        open create
+      </button>
+    </div>
+  );
+}
+
+function renderWithRoutes(initialEntries: string[]) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <SnackbarProvider>
+        <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }} initialEntries={initialEntries}>
+          <Routes>
+            <Route path="/properties" element={<PropertiesStub />} />
+            <Route path="/properties/new" element={<><PropertyCreatePage /><LocationProbe /></>} />
+          </Routes>
+        </MemoryRouter>
+      </SnackbarProvider>
+    </QueryClientProvider>,
+  );
+}
+
+describe('PropertyCreatePage — Back navigation (X01)', () => {
+  // P-b — direct entry with a clean form → Back → fallback /properties.
+  it('navigates to /properties on a direct entry with a clean form', async () => {
+    const user = userEvent.setup();
+    renderWithRoutes(['/properties/new']);
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('properties list')).toBeInTheDocument();
+  });
+
+  // P-c — in-app history → Back returns to the previous screen.
+  it('returns to the previous screen when history exists', async () => {
+    const user = userEvent.setup();
+    renderWithRoutes(['/properties']);
+    await user.click(screen.getByRole('button', { name: 'open create' }));
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('properties list')).toBeInTheDocument();
+  });
+
+  // Dirty form → Back opens the discard dialog and does not navigate; Discard then navigates.
+  it('opens the discard dialog on a dirty form and navigates only on Discard', async () => {
+    const user = userEvent.setup();
+    renderWithRoutes(['/properties/new']);
+    await user.type(screen.getAllByRole('textbox')[0]!, 'Dirty');
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('Discard changes?')).toBeInTheDocument();
+    expect(screen.getByTestId('loc')).toHaveTextContent('/properties/new');
+    await user.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(screen.getByText('properties list')).toBeInTheDocument();
   });
 });

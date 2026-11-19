@@ -8,6 +8,8 @@ export interface ServiceType {
   flowType: ServiceTypeFlowType;
   requiresRentalTenantConfirmation: boolean;
   status: ServiceTypeStatus;
+  // F04-5: per-stop service duration used by the day-route planner.
+  defaultDurationMinutes: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -17,6 +19,8 @@ export interface ServiceTypeFormData {
   name: string;
   flowType: string;
   requiresRentalTenantConfirmation: boolean;
+  // Raw input string; converted to a number on save (F04-5).
+  defaultDurationMinutes: string;
 }
 
 export type ServiceTypeFormErrors = Partial<Record<keyof ServiceTypeFormData, string>>;
@@ -36,4 +40,5 @@ export const EMPTY_SERVICE_TYPE_FORM: ServiceTypeFormData = {
   name: '',
   flowType: '',
   requiresRentalTenantConfirmation: true,
+  defaultDurationMinutes: '',
 };

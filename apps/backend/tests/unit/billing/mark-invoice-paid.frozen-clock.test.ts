@@ -60,6 +60,7 @@ describe('MarkInvoicePaidUseCase — frozen clock grace windows', () => {
     invoiceRepo = {
       findById: vi.fn().mockResolvedValue(makeInvoice()),
       update: vi.fn().mockResolvedValue(undefined),
+      markPaidInTransaction: vi.fn().mockResolvedValue(true),
     };
     idempotencyService.tryAcquire.mockResolvedValue({ status: 'acquired', ownerToken: 'token-1' });
     idempotencyService.complete.mockResolvedValue(true);

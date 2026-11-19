@@ -1,7 +1,10 @@
-import { type AuthContext, type AppointmentApp, type AppointmentCustomField, type AvailableSlot, type PropertyType, isAppointmentOverdue } from '@properfy/shared';
+import { type AuthContext, type AppointmentApp, type AppointmentCustomField, type AvailableSlot, type PropertyType, type InspectorIssue, type FileCounts, isAppointmentOverdue } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IAppointmentRepository, AppointmentWithRelations } from '../../domain/appointment.repository';
+import type { IInspectorFieldEventRepository } from '../../../inspector-execution/domain/inspector-field-event.repository';
+import type { IPropertyFileCountReader } from '../../../property-file/domain/property-file.repository';
+import type { LatestCantDo } from '../../../inspector-execution/domain/inspector-field-event.entity';
 import type { IAppCredentialRepository } from '../../../app-credential/domain/app-credential.repository';
 import { toAppointmentApp } from '../../../app-credential/application/appointment-app.mapper';
 import {
@@ -110,9 +113,30 @@ export interface GetAppointmentOutput {
   hasActivePortalToken: boolean;
   /** App credentials linked to this appointment (live reference). */
   apps: AppointmentApp[];
+  /** Latest "Can't do this job" report, flattened onto the detail; null when none (F03). */
+  inspectorIssue: InspectorIssue | null;
+  /** Per-type counts of non-deleted READY property files on this appointment (F10 C.9). */
+  fileCounts: FileCounts;
 }
 
-function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): GetAppointmentOutput {
+/** Map the latest CANT_DO projection to the `inspectorIssue` wire shape (F03). */
+export function toInspectorIssue(latest: LatestCantDo | null): InspectorIssue | null {
+  if (!latest) return null;
+  return {
+    reason: latest.reasonCode,
+    note: latest.note,
+    inspectorId: latest.inspectorId,
+    inspectorName: latest.inspectorName,
+    occurredAt: latest.occurredAt.toISOString(),
+  };
+}
+
+function mapToOutput(
+  found: AppointmentWithRelations,
+  apps: AppointmentApp[],
+  inspectorIssue: InspectorIssue | null,
+  fileCounts: FileCounts,
+): GetAppointmentOutput {
   const { appointment, contact, restrictions } = found;
   const prefix = found.tenantAppointmentCodePrefix ?? 'INS';
   const padded = String(appointment.appointmentNumber).padStart(4, '0');
@@ -208,14 +232,26 @@ function mapToOutput(found: AppointmentWithRelations, apps: AppointmentApp[]): G
         .find((slots) => slots?.length) ?? null,
     hasActivePortalToken: found.hasActivePortalToken,
     apps,
+    inspectorIssue,
+    fileCounts,
   };
 }
+
+const EMPTY_FILE_COUNTS: FileCounts = {
+  total: 0,
+  issues: 0,
+  documents: 0,
+  reports: 0,
+  other: 0,
+};
 
 export class GetAppointmentUseCase {
   constructor(
     private readonly appointmentRepo: IAppointmentRepository,
     private readonly authorizationService: AuthorizationService,
     private readonly appCredentialRepo?: IAppCredentialRepository,
+    private readonly fieldEventRepo?: IInspectorFieldEventRepository,
+    private readonly fileCountReader?: IPropertyFileCountReader,
   ) {}
 
   async execute(input: GetAppointmentInput): Promise<GetAppointmentOutput> {
@@ -267,6 +303,22 @@ export class GetAppointmentUseCase {
         ).map(toAppointmentApp)
       : [];
 
-    return mapToOutput(found, apps);
+    // `inspectorIssue` carries another person's name/id, so it is for the
+    // operation and the agency only. An inspector must never learn a peer
+    // inspector's identity through their own appointment view — they see only
+    // their OWN last report, via `lastFieldIssue` on the inspector detail (D28).
+    const latestCantDo =
+      this.fieldEventRepo && actor.role !== 'INSP'
+        ? await this.fieldEventRepo.findLatestCantDoByAppointmentId(found.appointment.id)
+        : null;
+
+    const fileCounts = this.fileCountReader
+      ? await this.fileCountReader.countsByAppointment(
+          found.appointment.id,
+          found.appointment.tenantId,
+        )
+      : EMPTY_FILE_COUNTS;
+
+    return mapToOutput(found, apps, toInspectorIssue(latestCantDo), fileCounts);
   }
 }

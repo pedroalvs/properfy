@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { GOAL_METRIC_LABELS, REWARD_AWARD_STATUS_LABELS, describeGoal } from '@properfy/shared';
 import { setupDbHarness, teardownDbHarness, type DbHarness } from '../db/harness';
 import { PrismaReportDataReader } from '../../../src/modules/report/infrastructure/prisma-report-data-reader';
+import { INSPECTOR_PROGRAM_COLUMNS } from '../../../src/modules/report/domain/report.constants';
 import type { ReportDataFilters } from '../../../src/modules/report/domain/report-data-reader';
 
 /**
@@ -410,5 +412,259 @@ describe('getPerformanceRows', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].inspectorName).toBe('Ivy');
     expect(rows[0]).not.toHaveProperty('inspectorEmail');
+  });
+});
+
+/**
+ * Inspector Program report (F08-5, 03.14). Platform-scoped: one row per reward
+ * (P9 order), one "No achievers" row per empty closure, one "Skipped (goal
+ * inactive)" row per SKIPPED_INACTIVE closure; out-of-range closures excluded.
+ * Covers the Q12 bonus ledger/invoice columns and the L-F08-13 scope fallback.
+ */
+describe('getInspectorProgramRows (INSPECTOR_PROGRAM report)', () => {
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
+  const programFilters: ReportDataFilters = {
+    fromDate: '2026-03-01',
+    toDate: '2026-03-31',
+    dateAxis: 'SCHEDULED',
+    timezone: 'Australia/Sydney',
+  };
+
+  let programRows: Record<string, unknown>[];
+  const row = (inspectorName: string) => {
+    const found = programRows.find((r) => r.inspector === inspectorName);
+    if (!found) throw new Error(`no program row for inspector ${inspectorName}`);
+    return found;
+  };
+
+  beforeAll(async () => {
+    const prisma = harness.prisma;
+    const rnd = () => Math.random().toString(36).slice(2, 10);
+
+    const amUser = await prisma.user.create({
+      data: { role: 'AM', name: 'Program Admin', email: `am-${rnd()}@t.local`, password_hash: 'x'.repeat(20), status: 'ACTIVE' },
+    });
+
+    // Eight inspectors: I1..I7 for the achievers closure, I8 for the out-of-range one.
+    const inspectorIds: Record<string, string> = {};
+    for (const label of ['I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7', 'I8']) {
+      const insp = await prisma.inspector.create({ data: { name: label, email: `${label.toLowerCase()}-${rnd()}@t.local`, status: 'ACTIVE' } });
+      inspectorIds[label] = insp.id;
+    }
+
+    // Unique name: the suite already seeds a 'Routine' service type (case-insensitive unique).
+    // The report reads the frozen `scope_label` snapshot, never this row's name, so the goal's
+    // scope FK can point at a differently-named type while the closures still label it 'Routine'.
+    const serviceType = await prisma.serviceType.create({
+      data: { code: `ST-${rnd()}`, name: `Routine ${rnd()}`, flow_type: 'ROUTINE', requires_rental_tenant_confirmation: true, status: 'ACTIVE' },
+    });
+
+    const goalV = await prisma.inspectorGoal.create({
+      data: { title: 'Volume 10', metric: 'VOLUME', comparator: 'GTE', target: '10', period: 'WEEKLY', reward_amount: '30.00', starts_at: d('2026-03-02'), created_by_user_id: amUser.id },
+    });
+    // A SERVICE_TYPE_VOLUME goal exercises the scope-label columns + describeGoal fallback (L-F08-13).
+    const goalR = await prisma.inspectorGoal.create({
+      data: { title: 'Service type 9', metric: 'SERVICE_TYPE_VOLUME', comparator: 'GTE', target: '9', period: 'WEEKLY', reward_amount: '50.00', starts_at: d('2026-03-02'), scope_service_type_id: serviceType.id, created_by_user_id: amUser.id },
+    });
+
+    const closure = (data: Record<string, unknown>) =>
+      prisma.goalPeriodClosure.create({ data: { participant_ids: [], closed_at: d('2026-03-09'), ...data } as never });
+
+    // Goal V closures.
+    await closure({ goal_id: goalV.id, period_type: 'WEEKLY', period_start: d('2026-03-02'), period_end: d('2026-03-08'), participants_count: 7, achievers_count: 7, promised_amount: '210.00', trigger: 'SCHEDULED' });
+    await closure({ goal_id: goalV.id, period_type: 'WEEKLY', period_start: d('2026-03-09'), period_end: d('2026-03-15'), participants_count: 3, achievers_count: 0, promised_amount: '90.00', trigger: 'SCHEDULED' });
+    // Out of range (period_end before the window) — must not appear.
+    await closure({ goal_id: goalV.id, period_type: 'WEEKLY', period_start: d('2026-02-16'), period_end: d('2026-02-22'), participants_count: 1, achievers_count: 1, promised_amount: '30.00', trigger: 'SCHEDULED' });
+    // Goal R: a skipped-inactive period (scope captured) and a no-achievers period with a deleted scope.
+    await closure({ goal_id: goalR.id, period_type: 'WEEKLY', period_start: d('2026-03-02'), period_end: d('2026-03-08'), participants_count: 0, achievers_count: 0, promised_amount: '0.00', trigger: 'SKIPPED_INACTIVE', scope_label: 'Routine' });
+    await closure({ goal_id: goalR.id, period_type: 'WEEKLY', period_start: d('2026-03-09'), period_end: d('2026-03-15'), participants_count: 2, achievers_count: 0, promised_amount: '100.00', trigger: 'SCHEDULED', scope_label: null });
+
+    // Invoices the awards link to (the "invoiced" marker).
+    const inv = (num: number, status: 'CLOSED' | 'PAID', inspector: string, paidAt?: string) =>
+      prisma.inspectorInvoice.create({
+        data: { invoice_number: num, inspector_id: inspectorIds[inspector], period_start: d('2026-03-02'), period_end: d('2026-03-08'), period_type: 'WEEKLY', status, currency: 'AUD', total_amount: '30.00', ...(paidAt ? { paid_at: d(paidAt) } : {}) },
+      });
+    const invoice42 = await inv(42, 'PAID', 'I1', '2026-03-20');
+    const invoice43 = await inv(43, 'PAID', 'I6', '2026-03-20');
+    const invoice99 = await inv(99, 'CLOSED', 'I2');
+    const invoice100 = await inv(100, 'CLOSED', 'I7');
+
+    // Awards of the achievers closure — distinct achieved_value so P9 order is deterministic (desc).
+    const award = (data: Record<string, unknown>) =>
+      prisma.rewardAward.create({
+        data: {
+          goal_id: goalV.id,
+          period_type: 'WEEKLY',
+          period_start: d('2026-03-02'),
+          period_end: d('2026-03-08'),
+          goal_title: 'Volume 10',
+          metric: 'VOLUME',
+          comparator: 'GTE',
+          target: '10',
+          amount: '30.00',
+          service_count: 12,
+          achieved_on: d('2026-03-05'),
+          ...data,
+        } as never,
+      });
+
+    const aPaid = await award({ inspector_id: inspectorIds.I1, achieved_value: '20', index_score_at_close: '90.0', level_at_close: 'GOLD', status: 'PAID', approved_by_user_id: amUser.id, approved_at: d('2026-03-09'), paid_at: d('2026-03-20'), inspector_invoice_id: invoice42.id });
+    const aApprInv = await award({ inspector_id: inspectorIds.I2, achieved_value: '19', status: 'APPROVED', approved_by_user_id: amUser.id, approved_at: d('2026-03-09'), inspector_invoice_id: invoice99.id });
+    const aApprUn = await award({ inspector_id: inspectorIds.I3, achieved_value: '18', status: 'APPROVED', approved_by_user_id: amUser.id, approved_at: d('2026-03-09') });
+    await award({ inspector_id: inspectorIds.I4, achieved_value: '17', status: 'PENDING' });
+    const aVoidPre = await award({ inspector_id: inspectorIds.I5, achieved_value: '16', status: 'VOID', voided_by_user_id: amUser.id, voided_at: d('2026-03-10'), void_reason: 'Agency rejected the job', inspector_note: 'Sorry about that' });
+    const aVoidRev = await award({ inspector_id: inspectorIds.I6, achieved_value: '15', status: 'VOID', approved_by_user_id: amUser.id, approved_at: d('2026-03-09'), paid_at: d('2026-03-20'), voided_by_user_id: amUser.id, voided_at: d('2026-03-22'), void_reason: 'Done in error', inspector_invoice_id: invoice43.id });
+    const aVoidUnrev = await award({ inspector_id: inspectorIds.I7, achieved_value: '14', status: 'VOID', approved_by_user_id: amUser.id, approved_at: d('2026-03-09'), paid_at: d('2026-03-20'), voided_by_user_id: amUser.id, voided_at: d('2026-03-22'), void_reason: 'Done in error', inspector_invoice_id: invoice100.id });
+    // Award of the out-of-range closure (must be excluded by period_end).
+    await award({ inspector_id: inspectorIds.I8, achieved_value: '50', status: 'APPROVED', approved_by_user_id: amUser.id, approved_at: d('2026-02-23'), period_start: d('2026-02-16'), period_end: d('2026-02-22') });
+
+    // Bonus ledger: original entry (1:1 with the reward) + reversal (reference_entry_id → original).
+    // INSPECTOR_BONUS entries carry inspector_id, null tenant_id and no appointment (F08-6 shape CHECK).
+    const bonus = (data: Record<string, unknown>) =>
+      prisma.financialEntry.create({
+        data: { entry_type: 'INSPECTOR_BONUS', tenant_id: null, currency: 'AUD', description: 'Inspector goal bonus', effective_at: d('2026-03-09'), ...data } as never,
+      });
+    await bonus({ reward_award_id: aPaid.id, inspector_id: inspectorIds.I1, amount: '30.00', status: 'APPROVED' });
+    await bonus({ reward_award_id: aApprInv.id, inspector_id: inspectorIds.I2, amount: '30.00', status: 'APPROVED' });
+    await bonus({ reward_award_id: aApprUn.id, inspector_id: inspectorIds.I3, amount: '30.00', status: 'APPROVED' });
+    // I5 void-before-invoicing: the bonus entry was voided in the same transaction (F08-6).
+    await bonus({ reward_award_id: aVoidPre.id, inspector_id: inspectorIds.I5, amount: '30.00', status: 'VOIDED' });
+
+    // aVoidRev: original (invoiced) stays APPROVED; a negative reversal lands on invoice 57 (CLOSED).
+    const origRev = await bonus({ reward_award_id: aVoidRev.id, inspector_id: inspectorIds.I6, amount: '30.00', status: 'APPROVED' });
+    const reversalRev = await bonus({ reference_entry_id: origRev.id, inspector_id: inspectorIds.I6, amount: '-30.00', status: 'APPROVED' });
+    await prisma.inspectorInvoice.create({
+      data: {
+        invoice_number: 57, inspector_id: inspectorIds.I6, period_start: d('2026-03-09'), period_end: d('2026-03-15'), period_type: 'WEEKLY', status: 'CLOSED', currency: 'AUD', total_amount: '0.00',
+        line_items_snapshot: [
+          { kind: 'BONUS', serviceDate: '2026-03-09', appointmentId: null, appointmentCode: null, propertyAddress: null, serviceType: null, amount: -30, agencyId: null, agencyName: null, branchId: null, branchName: null, entryId: reversalRev.id, rewardAwardId: null, description: 'Bonus reversal' },
+        ],
+      },
+    });
+
+    // aVoidUnrev: original (invoiced) stays APPROVED; a reversal exists but is NOT on any invoice yet.
+    const origUnrev = await bonus({ reward_award_id: aVoidUnrev.id, inspector_id: inspectorIds.I7, amount: '30.00', status: 'APPROVED' });
+    await bonus({ reference_entry_id: origUnrev.id, inspector_id: inspectorIds.I7, amount: '-30.00', status: 'APPROVED' });
+
+    programRows = await reader.getInspectorProgramRows(programFilters);
+  }, 180_000);
+
+  it('emits one row per reward plus a no-achievers and a skipped row, excluding out-of-range closures', () => {
+    // 7 achiever rows + 1 no-achievers (goalV) + 1 skipped (goalR) + 1 no-achievers deleted-scope (goalR) = 10.
+    expect(programRows).toHaveLength(10);
+    // The out-of-range inspector never appears.
+    expect(programRows.find((r) => r.inspector === 'I8')).toBeUndefined();
+  });
+
+  it('orders a closure\'s awards by value descending (P9)', () => {
+    const achievers = programRows.filter((r) => ['I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7'].includes(r.inspector as string));
+    expect(achievers.map((r) => r.inspector)).toEqual(['I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7']);
+  });
+
+  it('renders civil dates as dd/mm/yyyy and an instant (approved at) in the requester timezone', () => {
+    const r = row('I1');
+    expect(r.periodStart).toBe('02/03/2026');
+    expect(r.periodEnd).toBe('08/03/2026');
+    expect(r.achievedOn).toBe('05/03/2026');
+    expect(typeof r.approvedAt).toBe('string');
+    expect((r.approvedAt as string).length).toBeGreaterThan(0);
+  });
+
+  it('shows the invoice, ledger status and paid-at for a PAID reward', () => {
+    const r = row('I1');
+    expect(r.status).toBe(REWARD_AWARD_STATUS_LABELS.PAID);
+    // The Metric column renders the human label, never the raw enum code (award-row path).
+    expect(r.metric).toBe(GOAL_METRIC_LABELS.VOLUME);
+    expect(r.invoice).toBe('PINV-000042');
+    expect(r.ledgerStatus).toBe('Approved');
+    expect((r.paidAt as string).length).toBeGreaterThan(0);
+    expect(r.voidedAfterInvoicing).toBe('No');
+    expect(r.indexAtClose).toBe(90);
+    expect(r.levelAtClose).toBe('GOLD');
+  });
+
+  it('shows an invoice for an APPROVED invoiced reward and none for an un-invoiced one', () => {
+    expect(row('I2').invoice).toBe('PINV-000099');
+    expect(row('I2').ledgerStatus).toBe('Approved');
+    expect(row('I3').invoice).toBe('');
+    expect(row('I3').ledgerStatus).toBe('Approved');
+  });
+
+  it('leaves ledger/invoice columns empty for a PENDING reward', () => {
+    const r = row('I4');
+    expect(r.status).toBe(REWARD_AWARD_STATUS_LABELS.PENDING);
+    expect(r.ledgerStatus).toBe('');
+    expect(r.invoice).toBe('');
+    expect(r.paidAt).toBe('');
+    expect(r.reversalInvoice).toBe('');
+    expect(r.voidedAfterInvoicing).toBe('No');
+  });
+
+  it('shows a void reason, inspector note and Voided ledger for a pre-invoice void', () => {
+    const r = row('I5');
+    expect(r.status).toBe(REWARD_AWARD_STATUS_LABELS.VOID);
+    expect(r.ledgerStatus).toBe('Voided');
+    expect(r.voidReason).toBe('Agency rejected the job');
+    expect(r.inspectorNote).toBe('Sorry about that');
+    expect(r.voidedAfterInvoicing).toBe('No');
+    expect(r.reversalInvoice).toBe('');
+  });
+
+  it('marks a void-after-paid reward and resolves its reversal invoice', () => {
+    const r = row('I6');
+    expect(r.voidedAfterInvoicing).toBe('Yes');
+    expect((r.paidAt as string).length).toBeGreaterThan(0);
+    expect(r.invoice).toBe('PINV-000043');
+    expect(r.reversalInvoice).toBe('PINV-000057');
+  });
+
+  it('leaves the reversal invoice empty until the reversal is itself invoiced', () => {
+    const r = row('I7');
+    expect(r.voidedAfterInvoicing).toBe('Yes');
+    expect(r.invoice).toBe('PINV-000100');
+    expect(r.reversalInvoice).toBe('');
+  });
+
+  it('emits a no-achievers row with the in-force per-winner amount and empty inspector columns', () => {
+    const noAch = programRows.find((r) => r.status === 'No achievers' && r.goal === 'Volume 10');
+    expect(noAch).toBeDefined();
+    expect(noAch!.participants).toBe(3);
+    expect(noAch!.achievers).toBe(0);
+    expect(noAch!.promised).toBe(90);
+    expect(noAch!.perWinner).toBe(30);
+    expect(noAch!.inspector).toBe('');
+    expect(noAch!.amount).toBe('');
+  });
+
+  it('emits a skipped-inactive row carrying the frozen scope label', () => {
+    const skipped = programRows.find((r) => r.status === 'Skipped (goal inactive)');
+    expect(skipped).toBeDefined();
+    expect(skipped!.participants).toBe(0);
+    expect(skipped!.promised).toBe(0);
+    expect(skipped!.scope).toBe('Routine');
+    // The Metric column renders the human label, never the raw enum code (closure-row path).
+    expect(skipped!.metric).toBe(GOAL_METRIC_LABELS.SERVICE_TYPE_VOLUME);
+    expect(skipped!.goalDescription).toBe(describeGoal({ metric: 'SERVICE_TYPE_VOLUME', target: 9, scopeLabel: 'Routine' }));
+  });
+
+  it('uses the deleted-scope fallback when a scoped closure has no scope label', () => {
+    const deleted = programRows.find((r) => r.status === 'No achievers' && r.goal === 'Service type 9');
+    expect(deleted).toBeDefined();
+    expect(deleted!.scope).toBe('');
+    expect(deleted!.goalDescription).toBe(describeGoal({ metric: 'SERVICE_TYPE_VOLUME', target: 9, scopeLabel: null }));
+    expect(deleted!.goalDescription).toContain('deleted service type');
+  });
+
+  it('exposes exactly the declared columns — no coordinate column — and never a raw id value', () => {
+    const expectedKeys = INSPECTOR_PROGRAM_COLUMNS.map((c) => c.key).sort();
+    // The fixed column set contains no latitude/longitude key (proves no coordinate leak).
+    expect(expectedKeys.some((k) => /latitude|longitude/i.test(k))).toBe(false);
+    for (const r of programRows) {
+      expect(Object.keys(r).sort()).toEqual(expectedKeys);
+      for (const value of Object.values(r)) {
+        if (typeof value === 'string') expect(value).not.toMatch(UUID_RE);
+      }
+    }
   });
 });

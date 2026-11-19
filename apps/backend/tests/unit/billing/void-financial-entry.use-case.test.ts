@@ -5,6 +5,7 @@ import { FinancialEntryEntity, type FinancialEntryProps } from '../../../src/mod
 import {
   EntryNotFoundError,
   EntryNotApprovedError,
+  BonusEntryManagedByRewardError,
   BillingIdempotencyPayloadMismatchError,
   BillingIdempotencyInProgressError,
 } from '../../../src/modules/billing/domain/billing.errors';
@@ -125,6 +126,17 @@ describe('VoidFinancialEntryUseCase', () => {
         reason: 'Entry was created in error',
       }),
     );
+  });
+
+  it('refuses an INSPECTOR_BONUS entry (409 BONUS_ENTRY_MANAGED_BY_REWARD, Q12)', async () => {
+    const { useCase, financialEntryRepo } = sut;
+    vi.mocked(financialEntryRepo.findById).mockResolvedValue(
+      makeEntry({ entryType: 'INSPECTOR_BONUS', tenantId: null, inspectorId: 'insp-1', appointmentId: null }),
+    );
+    await expect(
+      useCase.execute({ entryId: 'entry-1', reason: 'x', idempotencyKey: 'idem-1', actor: makeActor({ role: 'AM' }) }),
+    ).rejects.toBeInstanceOf(BonusEntryManagedByRewardError);
+    expect(financialEntryRepo.voidEntry).not.toHaveBeenCalled();
   });
 
   it('should reject PENDING entry (cannot void non-APPROVED)', async () => {

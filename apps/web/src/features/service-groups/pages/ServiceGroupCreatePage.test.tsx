@@ -254,21 +254,40 @@ describe('ServiceGroupCreatePage', () => {
     expect(screen.getByRole('button', { name: 'Create Group' })).toBeInTheDocument();
   });
 
-  it('goes back to step 1 from step 2', () => {
+  it('returns to step 1 via "Previous step" without navigating or confirming', () => {
     renderPage();
     selectAgency();
     selectServiceType();
     selectAppointments(5);
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    // "Back" appears in both page header and form actions; click the form action one
-    const backButtons = screen.getAllByRole('button', { name: 'Back' });
-    fireEvent.click(backButtons[backButtons.length - 1]!);
+    // Step 2: the wizard step-back control is "Previous step"; the header keeps a single "Back".
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Previous step' }));
     expect(screen.getByLabelText('Service Type')).toBeInTheDocument();
+    expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
   });
 
-  it('shows Back button in page header', () => {
+  // P-a — exactly one header Back button on step 1 (step 1's own action is "Cancel").
+  it('renders exactly one header Back button on step 1', () => {
     renderPage();
-    expect(screen.getByText('Back')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+  });
+
+  // P-b — direct entry with a clean form → header Back falls back to /service-groups.
+  it('header Back on a direct entry falls back to /service-groups', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('list page')).toBeInTheDocument();
+  });
+
+  // Dirty form → header Back opens the discard confirmation instead of navigating.
+  it('header Back opens the discard confirmation when the form is dirty', () => {
+    renderPage();
+    selectAgency();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('Discard changes?')).toBeInTheDocument();
+    expect(screen.queryByText('list page')).not.toBeInTheDocument();
   });
 
   it('requires agency selection before loading eligible appointments for AM', () => {

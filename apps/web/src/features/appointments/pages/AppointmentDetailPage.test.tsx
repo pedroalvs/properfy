@@ -62,6 +62,21 @@ vi.mock('@/hooks/useAuth', () => ({
 
 const mockRefetch = vi.fn();
 
+// The overview tab mounts AppointmentFieldActivitySection, whose real hook would
+// fire an extra api.GET('/v1/appointments/:id/field-activity') on mount. Left
+// unmocked that call pollutes the `mockResolvedValueOnce` queue the Copy Portal
+// Link tests depend on (project_vitest_mockonce_queue_pollution). The section's
+// own behaviour is covered by AppointmentFieldActivitySection.test.tsx, so the
+// page test stubs the hook to a quiet empty state.
+vi.mock('../hooks/useAppointmentFieldActivity', () => ({
+  useAppointmentFieldActivity: () => ({
+    fieldActivity: null,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+}));
+
 vi.mock('../hooks/useAppointmentDetail', () => ({
   useAppointmentDetail: (id: string | null) => {
     if (!id) return { appointment: null, isLoading: false, isError: false, refetch: mockRefetch };
@@ -353,23 +368,33 @@ describe('AppointmentDetailPage', () => {
     expect(screen.getByText('Failed to load appointment details')).toBeInTheDocument();
   });
 
-  it('renders go back button', () => {
+  it('renders a Back button', () => {
     renderPage();
-    expect(screen.getByLabelText('Go back')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 
-  it('falls back to the appointments list when back is clicked with no in-app history', () => {
+  it('renders exactly one header Back button in the loaded state', () => {
+    renderPage();
+    expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+  });
+
+  it('renders a Back button in the loading state', () => {
+    renderPage('/appointments/loading');
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
+
+  it('falls back to the appointments list when Back is clicked with no in-app history', () => {
     // Detail page is the initial router entry → location.key === 'default',
     // mimicking a tab opened via window.open where navigate(-1) has nowhere to go.
     renderPage();
-    fireEvent.click(screen.getByLabelText('Go back'));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByText('appointment list')).toBeInTheDocument();
   });
 
   it('navigates back to the prior page when in-app history exists', () => {
     renderPage('/appointments'); // start on the list
     fireEvent.click(screen.getByText('open detail')); // push → detail, key !== 'default'
-    fireEvent.click(screen.getByLabelText('Go back')); // navigate(-1)
+    fireEvent.click(screen.getByRole('button', { name: 'Back' })); // navigate(-1)
     expect(screen.getByText('appointment list')).toBeInTheDocument();
   });
 

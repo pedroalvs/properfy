@@ -190,6 +190,9 @@ model Tenant {
   app_credentials        AppCredential[]
   satisfaction_surveys   SatisfactionSurvey[]
   cron_job_runs          CronJobRun[]
+  inspector_field_events InspectorFieldEvent[]
+  property_files         PropertyFile[]
+  property_issues        PropertyIssue[]
 
   @@index([status])
   @@map("tenants")
@@ -211,16 +214,34 @@ model CronJobRun {
   @@map("cron_job_runs")
 }
 
+// Shared Mapbox call budget (F04, D16/D17). Platform infrastructure — one bucket
+// per profile, one Mapbox token per environment — so NO tenant_id (precedent:
+// cron_job_runs, IntegrationSetting). The token bucket is refilled with the
+// DATABASE clock in a single atomic UPDATE whose row lock serializes the Fly
+// machines; see PostgresRoutingRateLimiter.
+model RoutingRateLimitBucket {
+  bucket            String   @id @db.VarChar(50)
+  tokens            Decimal  @db.Decimal(10, 4)
+  capacity          Int
+  refill_per_minute Int
+  refilled_at       DateTime @default(now())
+
+  @@map("routing_rate_limit_buckets")
+}
+
 model Branch {
-  id            String       @id @default(uuid())
-  tenant_id     String
-  name          String       @db.VarChar(200)
-  address_json  Json?
-  contact_email String?      @db.VarChar(254)
-  status        BranchStatus @default(ACTIVE)
-  created_at    DateTime     @default(now())
-  updated_at    DateTime     @updatedAt
-  deleted_at    DateTime?
+  id                      String       @id @default(uuid())
+  tenant_id               String
+  name                    String       @db.VarChar(200)
+  address_json            Json?
+  contact_email           String?      @db.VarChar(254)
+  status                  BranchStatus @default(ACTIVE)
+  // Set when address_json.latitude/longitude were written from a PERMANENT
+  // geocode (Mapbox terms). NULL means no coordinate or legacy temporary.
+  geocoded_permanently_at DateTime?
+  created_at              DateTime     @default(now())
+  updated_at              DateTime     @updatedAt
+  deleted_at              DateTime?
 
   tenant              Tenant              @relation(fields: [tenant_id], references: [id])
   users               User[]
@@ -269,25 +290,32 @@ model User {
   updated_at         DateTime   @updatedAt
   deleted_at         DateTime?
 
-  sessions                  Session[]
-  password_reset_tokens     PasswordResetToken[]
-  password_history          PasswordHistory[]
-  tenant                    Tenant?               @relation(fields: [tenant_id], references: [id])
-  branch                    Branch?               @relation(fields: [branch_id], references: [id])
-  inspector                 Inspector?
-  created_appointments      Appointment[]         @relation("AppointmentCreatedBy")
-  done_marked_appointments  Appointment[]         @relation("AppointmentDoneMarkedBy")
-  done_checked_appointments Appointment[]         @relation("AppointmentDoneCheckedBy")
-  created_service_groups    ServiceGroup[]        @relation("ServiceGroupCreatedBy")
-  initiated_entries         FinancialEntry[]      @relation("EntryInitiator")
-  approved_entries          FinancialEntry[]      @relation("EntryApprover")
-  voided_entries            FinancialEntry[]      @relation("EntryVoider")
-  generated_invoices        InspectorInvoice[]    @relation("InspectorInvoiceGeneratedBy")
-  paid_invoices             InspectorInvoice[]    @relation("InspectorInvoicePaidBy")
-  consent_changes           NotificationConsent[] @relation("NotificationConsentChangedBy")
-  requested_reports         Report[]
-  created_imports           AppointmentImport[]   @relation("importCreatedBy")
-  created_service_regions   ServiceRegion[]       @relation("ServiceRegionCreatedBy")
+  sessions                   Session[]
+  password_reset_tokens      PasswordResetToken[]
+  password_history           PasswordHistory[]
+  tenant                     Tenant?               @relation(fields: [tenant_id], references: [id])
+  branch                     Branch?               @relation(fields: [branch_id], references: [id])
+  inspector                  Inspector?
+  created_appointments       Appointment[]         @relation("AppointmentCreatedBy")
+  done_marked_appointments   Appointment[]         @relation("AppointmentDoneMarkedBy")
+  done_checked_appointments  Appointment[]         @relation("AppointmentDoneCheckedBy")
+  created_service_groups     ServiceGroup[]        @relation("ServiceGroupCreatedBy")
+  initiated_entries          FinancialEntry[]      @relation("EntryInitiator")
+  approved_entries           FinancialEntry[]      @relation("EntryApprover")
+  voided_entries             FinancialEntry[]      @relation("EntryVoider")
+  generated_invoices         InspectorInvoice[]    @relation("InspectorInvoiceGeneratedBy")
+  paid_invoices              InspectorInvoice[]    @relation("InspectorInvoicePaidBy")
+  consent_changes            NotificationConsent[] @relation("NotificationConsentChangedBy")
+  requested_reports          Report[]
+  created_imports            AppointmentImport[]   @relation("importCreatedBy")
+  created_service_regions    ServiceRegion[]       @relation("ServiceRegionCreatedBy")
+  platform_settings_updated  PlatformSetting[]     @relation("PlatformSettingUpdatedBy")
+  authored_inspector_notices InspectorNotice[]     @relation("InspectorNoticeAuthor")
+  computed_day_plans         DayPlan[]             @relation("DayPlanComputedBy")
+  created_inspector_goals    InspectorGoal[]       @relation("InspectorGoalCreatedBy")
+  updated_inspector_goals    InspectorGoal[]       @relation("InspectorGoalUpdatedBy")
+  approved_reward_awards     RewardAward[]         @relation("RewardAwardApprovedBy")
+  voided_reward_awards       RewardAward[]         @relation("RewardAwardVoidedBy")
 
   @@index([tenant_id])
   @@index([tenant_id, role])
@@ -350,23 +378,23 @@ model PasswordHistory {
 }
 
 model Property {
-  id                     String          @id @default(uuid())
-  tenant_id              String
-  branch_id              String?
-  property_code          String          @db.VarChar(50)
+  id                      String          @id @default(uuid())
+  tenant_id               String
+  branch_id               String?
+  property_code           String          @db.VarChar(50)
   // Per-tenant sequential number backing the generated property_code
   // (PREFIX-PROP-0001). Nullable: rows created by the import worker (which
   // still carries client-supplied codes) don't receive one.
-  property_number        Int?
-  type                   PropertyType
+  property_number         Int?
+  type                    PropertyType
   // Free-text unit identifier, only meaningful for APARTMENT properties.
-  apartment_number       String?         @db.VarChar(50)
-  street                 String          @db.VarChar(300)
-  address_line_2         String?         @db.VarChar(200)
-  suburb                 String          @db.VarChar(100)
-  postcode               String          @db.VarChar(20)
-  state                  String          @db.VarChar(100)
-  country                String          @default("AU") @db.VarChar(100)
+  apartment_number        String?         @db.VarChar(50)
+  street                  String          @db.VarChar(300)
+  address_line_2          String?         @db.VarChar(200)
+  suburb                  String          @db.VarChar(100)
+  postcode                String          @db.VarChar(20)
+  state                   String          @db.VarChar(100)
+  country                 String          @default("AU") @db.VarChar(100)
   // Deterministic normalized-address key — trim + collapse-whitespace +
   // lowercase join of street|address_line_2(''-coalesced)|suburb|state|postcode.
   // ALWAYS recomputed by a BEFORE INSERT/UPDATE trigger (see migration
@@ -382,28 +410,37 @@ model Property {
   // `properties_normalized_address_active_unique` partial unique index
   // (WHERE deleted_at IS NULL), the DB-level guarantee behind the "perfect
   // address match" property-reuse rule.
-  normalized_address_key String          @default("") @db.VarChar(750)
+  normalized_address_key  String          @default("") @db.VarChar(750)
   // lat/lng are the display/transport coordinate; `coordinates` (PostGIS, below)
   // is the spatial source used for ST_Intersects/ST_DWithin. Both are kept in
   // sync app-side by prisma-property.repository.ts (syncCoordinates).
-  lat                    Decimal?        @db.Decimal(10, 7)
-  lng                    Decimal?        @db.Decimal(10, 7)
-  geocoding_status       GeocodingStatus @default(PENDING)
-  private_area_m2        Decimal?        @db.Decimal(10, 2)
-  total_area_m2          Decimal?        @db.Decimal(10, 2)
-  furnished              Boolean?
-  linen_provided         Boolean?
-  rent_amount            Decimal?        @db.Decimal(12, 2)
-  notes                  String?         @db.Text
-  rules_json             Json            @default("{}")
-  created_at             DateTime        @default(now())
-  updated_at             DateTime        @updatedAt
-  deleted_at             DateTime?
+  lat                     Decimal?        @db.Decimal(10, 7)
+  lng                     Decimal?        @db.Decimal(10, 7)
+  geocoding_status        GeocodingStatus @default(PENDING)
+  // Set when lat/lng were written from a PERMANENT geocode (Mapbox terms). NULL
+  // means: no coordinate, MANUAL, or legacy temporary. Feeds the X02-2 backfill
+  // idempotency and the F03 geofence-BLOCK audit.
+  geocoded_permanently_at DateTime?
+  // Reason a FAILED geocode is NOT auto-retried by the sweep. Values:
+  // MAPBOX_PERMANENT_GEOCODING_UNAVAILABLE (X02-1), LEGACY_PERMANENT_NO_RESULT (X02-2).
+  geocoding_failure_code  String?         @db.VarChar(64)
+  private_area_m2         Decimal?        @db.Decimal(10, 2)
+  total_area_m2           Decimal?        @db.Decimal(10, 2)
+  furnished               Boolean?
+  linen_provided          Boolean?
+  rent_amount             Decimal?        @db.Decimal(12, 2)
+  notes                   String?         @db.Text
+  rules_json              Json            @default("{}")
+  created_at              DateTime        @default(now())
+  updated_at              DateTime        @updatedAt
+  deleted_at              DateTime?
 
-  coordinates  Unsupported("GEOMETRY(Point, 4326)")?
-  tenant       Tenant                                @relation(fields: [tenant_id], references: [id])
-  branch       Branch?                               @relation(fields: [branch_id], references: [id])
-  appointments Appointment[]
+  coordinates     Unsupported("GEOMETRY(Point, 4326)")?
+  tenant          Tenant                                @relation(fields: [tenant_id], references: [id])
+  branch          Branch?                               @relation(fields: [branch_id], references: [id])
+  appointments    Appointment[]
+  property_files  PropertyFile[]
+  property_issues PropertyIssue[]
 
   @@unique([tenant_id, property_code])
   @@unique([tenant_id, property_number])
@@ -425,12 +462,17 @@ model ServiceType {
   flow_type                           ServiceTypeFlowType
   requires_rental_tenant_confirmation Boolean             @default(true)
   status                              ServiceTypeStatus   @default(ACTIVE)
+  // Expected minutes at each stop of this type; the day-plan optimizer adds it to
+  // travel. NOT NULL with a constant default (pure-expand). SQL CHECK 5-480 lives
+  // only in the migration (Prisma does not model CHECK, so it does not drift).
+  default_duration_minutes            Int                 @default(45)
   created_at                          DateTime            @default(now())
   updated_at                          DateTime            @updatedAt
 
-  price_rules    ServicePriceRule[]
-  appointments   Appointment[]
-  service_groups ServiceGroup[]
+  price_rules     ServicePriceRule[]
+  appointments    Appointment[]
+  service_groups  ServiceGroup[]
+  inspector_goals InspectorGoal[]
 
   // Uniqueness enforced case-insensitively via migration index lower(name).
   // Prisma does not support functional indexes in schema, so the constraint
@@ -481,6 +523,20 @@ model Inspector {
   // Feedback Round item 6: profile extension fields
   full_name                  String?            @db.VarChar(300)
   address                    Json?
+  // F01-1: base address geocoded in permanent mode. Coordinates and the geocode
+  // timestamp are written and cleared together (repository invariant); null = not located.
+  base_lat                   Decimal?           @db.Decimal(10, 7)
+  base_lng                   Decimal?           @db.Decimal(10, 7)
+  base_geocoded_at           DateTime?
+  // F01-1: app-state heartbeat (contract 00.10). installed = first standalone, never overwritten.
+  app_installed_at           DateTime?
+  app_last_seen_at           DateTime?
+  push_enabled               Boolean?
+  app_version                String?            @db.VarChar(40)
+  // F04-2 (tour, 00.2): set once by the app-state heartbeat; null = not completed/skipped.
+  onboarding_completed_at    DateTime?
+  // F05 per-inspector Live Day alert overrides; null = platform defaults. No tenant_id (D14, inspector is cross-tenant).
+  alert_overrides_json       Json?
   abn                        String?            @db.VarChar(20)
   date_of_birth              DateTime?          @db.Date
   insurance_file_key         String?
@@ -495,21 +551,107 @@ model Inspector {
   updated_at                 DateTime           @updatedAt
   deleted_at                 DateTime?
 
-  user                    User?                       @relation(fields: [user_id], references: [id])
+  user                    User?                          @relation(fields: [user_id], references: [id])
   availability_slots      InspectorAvailabilitySlot[]
   appointments            Appointment[]
   assigned_service_groups ServiceGroup[]
   executions              InspectionExecution[]
+  field_events            InspectorFieldEvent[]
   financial_entries       FinancialEntry[]
   invoices                InspectorInvoice[]
   inspector_regions       InspectorRegion[]
   satisfaction_surveys    SatisfactionSurvey[]
+  notice_recipients       InspectorNoticeRecipient[]
+  push_subscriptions      InspectorPushSubscription[]
+  day_plans               DayPlan[]
+  reliability_snapshots   InspectorReliabilitySnapshot[]
+  reward_awards           RewardAward[]
+  scoped_goals            InspectorGoal[]                @relation("InspectorGoalScope")
 
   @@index([status])
   @@index([user_id])
   @@index([insurance_expires_at])
   @@index([police_check_expires_at])
   @@map("inspectors")
+}
+
+// -----------------------------------------------------------------------------
+// Inspector notices (F02-1) — platform-scoped (NO tenant_id). The subject is the
+// inspector, who is cross-tenant (precedent: Inspector, global ServiceRegion,
+// IntegrationSetting). Documented exception to root CLAUDE.md §7.1 / constitution §II;
+// scope is enforced by role (AM/OP) and by the JWT inspectorId (INSP).
+// -----------------------------------------------------------------------------
+
+model InspectorNotice {
+  id                    String    @id @default(uuid())
+  title                 String    @db.VarChar(120)
+  body                  String    @db.Text
+  critical              Boolean   @default(false)
+  // {type:'ALL'} | {type:'SELECTED',inspectorIds} | {type:'REGION',regionId,regionName} | {type:'SYSTEM',systemType}
+  audience_json         Json
+  // One of SYSTEM_INSPECTOR_NOTICE_TYPES; null = manual (AM/OP) notice.
+  system_type           String?   @db.VarChar(40)
+  // Idempotency of system notices (§7.7). Null on manual notices.
+  dedupe_key            String?   @db.VarChar(200)
+  // Allowlisted tap target (system notices only); null ⇒ /profile/announcements/<id>.
+  target_path           String?   @db.VarChar(200)
+  // FK users.id; null = system-generated notice.
+  author_user_id        String?
+  published_at          DateTime  @default(now())
+  archived_at           DateTime?
+  // First delivery-job run (null after 2 min ⇒ lost enqueue).
+  delivery_started_at   DateTime?
+  // Delivery-job end (all processed or archive stop); started >= 20 min ago & still null with pending ⇒ incomplete.
+  delivery_completed_at DateTime?
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  author     User?                      @relation("InspectorNoticeAuthor", fields: [author_user_id], references: [id], onDelete: Restrict)
+  recipients InspectorNoticeRecipient[]
+
+  @@unique([dedupe_key])
+  @@index([published_at])
+  @@index([archived_at])
+  @@map("inspector_notices")
+}
+
+model InspectorNoticeRecipient {
+  notice_id             String
+  inspector_id          String
+  // First open; never overwritten.
+  read_at               DateTime?
+  // Delivery checkpoint (push/SMS decided); makes retry idempotent. Not a delivery receipt.
+  delivery_processed_at DateTime?
+  created_at            DateTime  @default(now())
+
+  notice    InspectorNotice @relation(fields: [notice_id], references: [id], onDelete: Restrict)
+  inspector Inspector       @relation(fields: [inspector_id], references: [id], onDelete: Restrict)
+
+  @@id([notice_id, inspector_id])
+  @@index([inspector_id, read_at])
+  @@map("inspector_notice_recipients")
+}
+
+model InspectorPushSubscription {
+  id             String    @id @default(uuid())
+  inspector_id   String
+  // https push-service URL; identifies the device/browser.
+  endpoint       String    @db.VarChar(2048)
+  p256dh         String    @db.VarChar(255)
+  auth           String    @db.VarChar(255)
+  revoked_at     DateTime?
+  // GONE(404/410) | UNSUBSCRIBED | REJECTED(401/403) | FAILED(5 consecutive) | DEACTIVATED
+  revoked_reason String?   @db.VarChar(20)
+  // Consecutive FAILED sends; SENT and upsert reset it; >= 5 revokes.
+  failure_count  Int       @default(0)
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  inspector Inspector @relation(fields: [inspector_id], references: [id], onDelete: Cascade)
+
+  @@unique([endpoint])
+  @@index([inspector_id, revoked_at])
+  @@map("inspector_push_subscriptions")
 }
 
 model InspectorAvailabilitySlot {
@@ -592,15 +734,19 @@ model Appointment {
   active_confirmation_cycle AppointmentConfirmationCycle?  @relation("ActiveCycle", fields: [active_confirmation_cycle_id], references: [id], onDelete: SetNull)
   confirmation_cycles       AppointmentConfirmationCycle[]
 
-  contacts          AppointmentContact[]
-  app_credentials   AppointmentAppCredential[]
-  restrictions      AppointmentRestriction[]
-  portal_tokens     RentalTenantPortalToken[]
-  portal_activities RentalTenantPortalActivity[]
-  execution         InspectionExecution?
-  financial_entries FinancialEntry[]
-  notifications     Notification[]
+  contacts            AppointmentContact[]
+  app_credentials     AppointmentAppCredential[]
+  restrictions        AppointmentRestriction[]
+  portal_tokens       RentalTenantPortalToken[]
+  portal_activities   RentalTenantPortalActivity[]
+  execution           InspectionExecution?
+  field_events        InspectorFieldEvent[]
+  financial_entries   FinancialEntry[]
+  notifications       Notification[]
   satisfaction_survey SatisfactionSurvey?
+  day_plan_stops      DayPlanStop[]
+  property_files      PropertyFile[]
+  property_issues     PropertyIssue[]
 
   @@index([tenant_id, status])
   @@index([tenant_id, branch_id])
@@ -1022,6 +1168,7 @@ enum FinancialEntryType {
   INSPECTOR_PAYOUT
   REFUND
   MANUAL_ADJUSTMENT
+  INSPECTOR_BONUS // Q12 (F08-6): inspector goal bonus; tenant_id is NULL only for this type (CHECK)
 }
 
 enum FinancialEntryStatus {
@@ -1179,26 +1326,178 @@ model SatisfactionSurvey {
 }
 
 model InspectionExecution {
-  id                          String    @id @default(uuid())
-  appointment_id              String    @unique
-  inspector_id                String
-  started_at                  DateTime
-  finished_at                 DateTime?
-  resumed_at                  DateTime?
-  start_latitude              Decimal   @db.Decimal(10, 7)
-  start_longitude             Decimal   @db.Decimal(10, 7)
-  finish_latitude             Decimal?  @db.Decimal(10, 7)
-  finish_longitude            Decimal?  @db.Decimal(10, 7)
-  geolocation_distance_meters Decimal?  @db.Decimal(10, 2)
-  created_at                  DateTime  @default(now())
-  updated_at                  DateTime  @updatedAt
+  id                                 String    @id @default(uuid())
+  appointment_id                     String    @unique
+  inspector_id                       String
+  started_at                         DateTime
+  finished_at                        DateTime?
+  resumed_at                         DateTime?
+  start_latitude                     Decimal   @db.Decimal(10, 7)
+  start_longitude                    Decimal   @db.Decimal(10, 7)
+  finish_latitude                    Decimal?  @db.Decimal(10, 7)
+  finish_longitude                   Decimal?  @db.Decimal(10, 7)
+  geolocation_distance_meters        Decimal?  @db.Decimal(10, 2)
+  // F03 capture + geofence fields (expand-only; nullable/defaulted).
+  start_accuracy_m                   Decimal?  @db.Decimal(10, 2)
+  finish_accuracy_m                  Decimal?  @db.Decimal(10, 2)
+  start_client_at                    DateTime?
+  finish_client_at                   DateTime?
+  finish_geolocation_distance_meters Decimal?  @db.Decimal(10, 2)
+  out_of_radius                      Boolean   @default(false)
+  out_of_window                      Boolean   @default(false)
+  finish_out_of_radius               Boolean   @default(false)
+  // Snapshot of the radius applied at check-in; written on every post-F03 start.
+  // NULL means exclusively "execution created before F03".
+  geofence_radius_m                  Int?
+  // Set when the inspector reports "Can't do this job" after checking in (F03).
+  // A non-null value means the check-in was abandoned: every execution reader
+  // treats the row as "not started", and a later start restarts the same row.
+  abandoned_at                       DateTime?
+  created_at                         DateTime  @default(now())
+  updated_at                         DateTime  @updatedAt
 
   appointment Appointment @relation(fields: [appointment_id], references: [id])
   inspector   Inspector   @relation(fields: [inspector_id], references: [id])
 
   @@index([inspector_id])
   @@index([started_at])
+  @@index([finished_at])
+  @@index([out_of_radius, started_at])
+  @@index([out_of_window, started_at])
   @@map("inspection_executions")
+}
+
+enum InspectorFieldEventType {
+  CANT_DO
+  LATE_NOTICE
+}
+
+// Immutable record that an inspector reported something from the field (F03):
+// "Can't do this job" (CANT_DO) or "Running late" (LATE_NOTICE). Carries the
+// appointment's tenant_id (agency-scoped — NOT a platform-scoped exception).
+model InspectorFieldEvent {
+  id                 String                  @id @default(uuid())
+  appointment_id     String
+  inspector_id       String
+  tenant_id          String // appointment's tenant — scope + reports
+  type               InspectorFieldEventType
+  reason_code        String                  @db.VarChar(50) // FieldIssueReason | LateNoticeReason (validated in shared Zod)
+  note               String?                 @db.Text // CANT_DO only, <= 500 chars (Zod); LATE_NOTICE has no note
+  minutes            Int? // LATE_NOTICE only (5..240)
+  latitude           Decimal?                @db.Decimal(10, 7)
+  longitude          Decimal?                @db.Decimal(10, 7)
+  accuracy_m         Decimal?                @db.Decimal(10, 2)
+  client_occurred_at DateTime?
+  created_at         DateTime                @default(now())
+
+  appointment Appointment @relation(fields: [appointment_id], references: [id])
+  inspector   Inspector   @relation(fields: [inspector_id], references: [id])
+  tenant      Tenant      @relation(fields: [tenant_id], references: [id])
+
+  property_issues PropertyIssue[]
+
+  @@index([appointment_id, type, created_at(sort: Desc)])
+  @@index([inspector_id, created_at])
+  @@index([tenant_id, created_at])
+  @@index([type, created_at])
+  @@map("inspector_field_events")
+}
+
+// ── Property files & issues (F10) ───────────────────────────────────────────
+// Tenant-scoped entities (they carry tenant_id) — NOT a platform exception. An
+// issue groups a reason + photos; photos are PropertyFile rows of type=ISSUE.
+
+enum PropertyFileType {
+  ISSUE
+  DOCUMENT
+  REPORT
+  OTHER
+}
+
+enum PropertyFileStatus {
+  PENDING
+  READY
+}
+
+enum PropertyIssueSource {
+  INSPECTOR
+  STAFF
+  RENTAL_TENANT_PORTAL
+}
+
+// A reported problem at a property (reason + optional photos). Belongs to a
+// property and tenant, optionally to an appointment of that property.
+model PropertyIssue {
+  id                 String              @id @default(uuid())
+  tenant_id          String
+  property_id        String
+  appointment_id     String?
+  reason             String              @db.Text // 1..1000 chars (Zod + CHECK)
+  source             PropertyIssueSource
+  created_by_user_id String? // null for the rental tenant; actor column, no FK (house convention)
+  cant_do_event_id   String? // F03-2 "Can't do" event when the issue was created from it
+  seen_at            DateTime?
+  seen_by_user_id    String?
+  deleted_at         DateTime?
+  deleted_by_user_id String?
+  created_at         DateTime            @default(now())
+  updated_at         DateTime            @updatedAt
+
+  tenant        Tenant               @relation(fields: [tenant_id], references: [id])
+  property      Property             @relation(fields: [property_id], references: [id])
+  appointment   Appointment?         @relation(fields: [appointment_id], references: [id])
+  cant_do_event InspectorFieldEvent? @relation(fields: [cant_do_event_id], references: [id])
+  photos        PropertyFile[]
+
+  // Partial indexes (unseen-issue indicators — D26) live in migration SQL; Prisma
+  // cannot express them and the drift check will not drop raw partial indexes.
+  @@index([property_id])
+  @@index([appointment_id])
+  @@map("property_issues")
+}
+
+// A stored file attached to a property (and optionally an appointment). One of
+// four types; only ISSUE files carry an issue_id (when READY). Versioned by
+// (version_group_id, version).
+model PropertyFile {
+  id                  String             @id @default(uuid())
+  tenant_id           String
+  property_id         String
+  appointment_id      String?
+  issue_id            String? // required for a READY ISSUE photo; relaxed-null while PENDING (D20)
+  type                PropertyFileType
+  version_group_id    String
+  version             Int                @default(1)
+  file_name           String
+  mime                String
+  size_bytes          BigInt
+  storage_key         String
+  status              PropertyFileStatus @default(PENDING)
+  // Set at confirm once headObject + size + magic-byte checks pass (F10). An
+  // issue photo stays PENDING until its issue is created, so this (not status)
+  // is what proves a photo was validated before it is linked to an issue (D20).
+  confirmed_at        DateTime?
+  uploaded_by_user_id String? // actor column, no FK (house convention)
+  deleted_at          DateTime?
+  deleted_by_user_id  String?
+  purged_at           DateTime?
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @updatedAt
+
+  tenant      Tenant         @relation(fields: [tenant_id], references: [id])
+  property    Property       @relation(fields: [property_id], references: [id])
+  appointment Appointment?   @relation(fields: [appointment_id], references: [id])
+  issue       PropertyIssue? @relation(fields: [issue_id], references: [id])
+
+  // The relaxed CHECK (issue_id_matches_type, D20) and the two retention partial
+  // indexes (PENDING orphans; soft-deleted-not-purged) are added in migration SQL
+  // (Prisma cannot express a CHECK or a partial index; the drift check keeps them).
+  @@unique([version_group_id, version], map: "property_files_version_group_version_unique")
+  @@unique([storage_key], map: "property_files_storage_key_unique")
+  @@index([property_id, type])
+  @@index([appointment_id, type])
+  @@index([issue_id])
+  @@map("property_files")
 }
 
 model IdempotencyKey {
@@ -1217,7 +1516,9 @@ model IdempotencyKey {
 
 model FinancialEntry {
   id                   String               @id @default(uuid())
-  tenant_id            String
+  // Q12 (F08-6): NULL only for an INSPECTOR_BONUS entry (platform↔inspector leg);
+  // a biconditional CHECK in the migration keeps every other type tenant-scoped.
+  tenant_id            String?
   appointment_id       String?
   inspector_id         String?
   entry_type           FinancialEntryType
@@ -1230,11 +1531,15 @@ model FinancialEntry {
   approved_by_user_id  String?
   approved_at          DateTime?
   reference_entry_id   String?
+  // Q12 (F08-6): the original bonus entry is 1:1 with its reward (unique). A reversal
+  // carries reference_entry_id instead (→ the original), never reward_award_id.
+  reward_award_id      String?              @unique
   reason               String?
   created_at           DateTime             @default(now())
   updated_at           DateTime             @updatedAt
 
-  tenant            Tenant       @relation(fields: [tenant_id], references: [id])
+  tenant            Tenant?      @relation(fields: [tenant_id], references: [id])
+  rewardAward       RewardAward? @relation(fields: [reward_award_id], references: [id], onDelete: Restrict)
   appointment       Appointment? @relation(fields: [appointment_id], references: [id])
   inspector         Inspector?   @relation(fields: [inspector_id], references: [id])
   initiatedBy       User?        @relation("EntryInitiator", fields: [initiated_by_user_id], references: [id])
@@ -1281,9 +1586,10 @@ model InspectorInvoice {
   created_at              DateTime               @default(now())
   updated_at              DateTime               @updatedAt
 
-  inspector   Inspector @relation(fields: [inspector_id], references: [id])
-  generatedBy User?     @relation("InspectorInvoiceGeneratedBy", fields: [generated_by_user_id], references: [id])
-  paidBy      User?     @relation("InspectorInvoicePaidBy", fields: [paid_by_user_id], references: [id])
+  inspector    Inspector     @relation(fields: [inspector_id], references: [id])
+  generatedBy  User?         @relation("InspectorInvoiceGeneratedBy", fields: [generated_by_user_id], references: [id])
+  paidBy       User?         @relation("InspectorInvoicePaidBy", fields: [paid_by_user_id], references: [id])
+  reward_awards RewardAward[] // Q12 (F08-6): rewards whose bonus line this invoice carries
 
   // Uniqueness on (inspector_id, period_start, period_end) is enforced by a SQL-managed PARTIAL
   // unique index over ACTIVE statuses only ("inspector_invoices_active_period_unique",
@@ -1335,23 +1641,23 @@ model Notification {
 }
 
 model NotificationTemplate {
-  id                 String              @id @default(uuid())
-  tenant_id          String?
-  template_code      String              @db.VarChar(100)
-  channel            NotificationChannel
-  subject            String?             @db.VarChar(255)
-  body_html          String?             @db.Text
-  body_text          String              @db.Text
-  variables_json     Json
-  is_active          Boolean             @default(true)
-  notification_class NotificationClass   @default(OPERATIONAL)
+  id                  String              @id @default(uuid())
+  tenant_id           String?
+  template_code       String              @db.VarChar(100)
+  channel             NotificationChannel
+  subject             String?             @db.VarChar(255)
+  body_html           String?             @db.Text
+  body_text           String              @db.Text
+  variables_json      Json
+  is_active           Boolean             @default(true)
+  notification_class  NotificationClass   @default(OPERATIONAL)
   /// SHA-256 of the seed content this row was last written with (platform rows
   /// only). Startup sync refreshes a row from the code catalog only while its
   /// current content still matches this hash — a human edit breaks the match
   /// and protects the row. NULL = unknown provenance, never auto-refreshed.
-  seeded_content_hash String?            @db.VarChar(64)
-  created_at         DateTime            @default(now())
-  updated_at         DateTime            @updatedAt
+  seeded_content_hash String?             @db.VarChar(64)
+  created_at          DateTime            @default(now())
+  updated_at          DateTime            @updatedAt
 
   tenant Tenant? @relation(fields: [tenant_id], references: [id])
 
@@ -1382,6 +1688,7 @@ enum ReportType {
   FINANCIAL
   PERFORMANCE
   AGENCIES
+  INSPECTOR_PROGRAM
 }
 
 enum ReportStatus {
@@ -1493,6 +1800,7 @@ model ServiceRegion {
   created_by        User?             @relation("ServiceRegionCreatedBy", fields: [created_by_user_id], references: [id])
   inspector_regions InspectorRegion[]
   service_groups    ServiceGroup[]
+  inspector_goals   InspectorGoal[]
 
   @@unique([tenant_id, name])
   @@index([tenant_id])
@@ -1555,6 +1863,23 @@ model IntegrationSetting {
   @@map("integration_settings")
 }
 
+/// Platform-wide configuration (F03 B6). Deliberately has NO tenant_id: it
+/// configures cross-tenant behaviour (inspectors are cross-tenant). Exception to
+/// CLAUDE.md §7.1, same precedent as IntegrationSetting / global ServiceRegion.
+/// Absence of a row means "use the registry defaults" — nothing is seeded.
+model PlatformSetting {
+  id            String   @id @default(uuid())
+  key           String   @unique @db.VarChar(100)
+  value_json    Json
+  updated_by_id String?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  updated_by User? @relation("PlatformSettingUpdatedBy", fields: [updated_by_id], references: [id], onDelete: SetNull)
+
+  @@map("platform_settings")
+}
+
 model ApiKey {
   id            String    @id @default(uuid())
   name          String    @db.VarChar(200)
@@ -1570,4 +1895,314 @@ model ApiKey {
 
   @@index([revoked_at])
   @@map("api_keys")
+}
+
+// -----------------------------------------------------------------------------
+// Day plans (F04-2) — platform-scoped (NO tenant_id). A plan belongs to an
+// inspector (cross-tenant) and aggregates stops from several agencies, so a
+// single tenant_id cannot represent it. Documented exception to root CLAUDE.md
+// §7.1 / constitution §II (precedent: Inspector, global ServiceRegion,
+// IntegrationSetting, RoutingRateLimitBucket). Isolation is enforced by role
+// (AM/OP read any inspector), by the JWT inspectorId (INSP → own only), and by
+// re-joining stops to live appointments with status IN (SCHEDULED, DONE).
+// Scoping test: tests/integration/db/day-plan.integration.test.ts.
+// -----------------------------------------------------------------------------
+
+enum DayPlanStatus {
+  DRAFT
+  PUBLISHED
+  STALE
+}
+
+enum DayPlanComputeTrigger {
+  SCHEDULED_PUBLISH
+  ON_OPEN
+  MANUAL_RECALC
+  REORDER
+  ORIGIN_CHANGE
+}
+
+enum DayPlanOriginSource {
+  BASE
+  OVERRIDE
+  NONE
+  LAST_STOP
+}
+
+enum RoutingProvider {
+  MAPBOX
+  STUB
+}
+
+model DayPlan {
+  id                     String                @id @default(uuid())
+  inspector_id           String
+  plan_date              DateTime              @db.Date
+  // Inspector effective timezone used for labels, "today" and the publication window.
+  timezone               String                @db.VarChar(64)
+  status                 DayPlanStatus
+  // Optimistic CAS: +1 per compute and on the transition to STALE (repeat marks do not increment).
+  version                Int                   @default(1)
+  input_fingerprint      String                @db.VarChar(64)
+  published_at           DateTime?
+  notified_at            DateTime?
+  computed_at            DateTime
+  computed_by_user_id    String?
+  last_trigger           DayPlanComputeTrigger
+  stale_at               DateTime?
+  // First reason since the last compute (zeroed on recompute).
+  stale_reason           String?               @db.VarChar(50)
+  origin_source          DayPlanOriginSource
+  origin_lat             Decimal?              @db.Decimal(10, 7)
+  origin_lng             Decimal?              @db.Decimal(10, 7)
+  origin_override_json   Json?
+  origin_override_lat    Decimal?              @db.Decimal(10, 7)
+  origin_override_lng    Decimal?              @db.Decimal(10, 7)
+  origin_override_set_at DateTime?
+  departure_at           DateTime?
+  finish_eta             DateTime?
+  total_drive_s          Int                   @default(0)
+  total_wait_s           Int                   @default(0)
+  total_service_s        Int                   @default(0)
+  total_late_s           Int                   @default(0)
+  total_distance_m       Int?
+  feasible               Boolean               @default(true)
+  manual_order           Boolean               @default(false)
+  suggested_order_json   Json
+  weights_json           Json
+  optimizer_method       String                @db.VarChar(20)
+  routing_provider       RoutingProvider
+  matrix_profile         String?               @db.VarChar(30)
+  approximate            Boolean               @default(false)
+  approximate_reason     String?               @db.VarChar(30)
+  created_at             DateTime              @default(now())
+  updated_at             DateTime              @updatedAt
+
+  inspector   Inspector     @relation(fields: [inspector_id], references: [id])
+  computed_by User?         @relation("DayPlanComputedBy", fields: [computed_by_user_id], references: [id], onDelete: SetNull)
+  stops       DayPlanStop[]
+
+  @@unique([inspector_id, plan_date])
+  @@index([plan_date, status])
+  @@map("day_plans")
+}
+
+model DayPlanStop {
+  id                         String    @id @default(uuid())
+  day_plan_id                String
+  appointment_id             String
+  // 1-based within the plan; the executed prefix comes first.
+  sequence                   Int
+  eta                        DateTime?
+  service_start_at           DateTime?
+  service_end_at             DateTime?
+  // Frozen at publication; never overwritten by later recomputes (the metric reads these).
+  published_eta              DateTime?
+  published_service_start_at DateTime?
+  published_predicted_at     DateTime?
+  published_approximate      Boolean?
+  travel_s                   Int       @default(0)
+  distance_m                 Int?
+  wait_s                     Int       @default(0)
+  late_s                     Int       @default(0)
+  window_start_at            DateTime
+  window_end_at              DateTime
+  window_timezone            String    @db.VarChar(64)
+  duration_minutes           Int
+  lat                        Decimal?  @db.Decimal(10, 7)
+  lng                        Decimal?  @db.Decimal(10, 7)
+  manual                     Boolean   @default(false)
+  // Record of the execution state AT compute time; the API always derives `executed` from live state (D18).
+  executed                   Boolean   @default(false)
+  approximate                Boolean   @default(false)
+  missing_coordinates        Boolean   @default(false)
+  created_at                 DateTime  @default(now())
+
+  day_plan    DayPlan     @relation(fields: [day_plan_id], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+
+  @@unique([day_plan_id, sequence])
+  @@unique([day_plan_id, appointment_id])
+  @@index([appointment_id])
+  @@map("day_plan_stops")
+}
+
+// -----------------------------------------------------------------------------
+// Reliability index snapshot (F07-2)
+// -----------------------------------------------------------------------------
+// One computed reliability record per inspector per civil day, frozen from the
+// F07-1 engine over a 30-day window. Platform-scoped — NO `tenant_id` (the
+// inspector is cross-tenant; documented exception to root CLAUDE.md §7.1 / this
+// workspace §5.6, D9). Isolation is by RBAC (reliability.view → AM/OP only);
+// the row stores no agency name, address or coordinate. Retained 400 days.
+model InspectorReliabilitySnapshot {
+  id              String   @id @default(uuid())
+  inspector_id    String
+  snapshot_date   DateTime @db.Date // civil date (Sydney) of the compute
+  window_days     Int      @default(30)
+  window_from     DateTime @db.Date // snapshot_date − 30
+  window_to       DateTime @db.Date // snapshot_date − 1
+  status          String   @db.VarChar(30) // SCORED | INSUFFICIENT_VOLUME | NO_WEIGHTED_DATA
+  score           Decimal? @db.Decimal(4, 1) // 0.0–100.0; NULL when status ≠ SCORED
+  volume          Int
+  completed_count Int
+  metrics_json    Json // ReliabilityMetricResult[8] (shared shape)
+  settings_json   Json // { weights, minimumVolume, minimumRatings, toleranceMinutes, volumeReference }
+  trigger         String   @db.VarChar(30) // SCHEDULED | SETTINGS_CHANGED | BACKFILL
+  computed_at     DateTime
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  inspector Inspector @relation(fields: [inspector_id], references: [id])
+
+  @@unique([inspector_id, snapshot_date])
+  @@index([snapshot_date, score(sort: Desc)])
+  @@map("inspector_reliability_snapshots")
+}
+
+// -----------------------------------------------------------------------------
+// Inspector program — goals & rewards (F08). InspectorGoal, RewardAward and
+// GoalPeriodClosure are platform-scoped — NO `tenant_id`: the subject is the
+// cross-tenant inspector and the program is one platform program (documented
+// exception to root CLAUDE.md §7.1 / constitution §II / this workspace §5.6, D12;
+// precedents: Inspector, global ServiceRegion, PlatformSetting,
+// InspectorReliabilitySnapshot). Isolation is by RBAC (AM/OP admin, INSP own
+// data) and by inspectorId; no row stores an agency name, address or coordinate.
+// CHECK constraints live only in the migration SQL (Prisma does not model CHECK,
+// so they never drift). Period type reuses BillingPeriodType.
+// -----------------------------------------------------------------------------
+
+enum GoalMetric {
+  VOLUME
+  REGION_VOLUME
+  SERVICE_TYPE_VOLUME
+  INDEX_AT_LEAST
+  PUNCTUALITY
+  GEOFENCE
+  NO_STUCK
+  SATISFACTION
+  LATE_NOTICE
+  CANT_DO_MAX
+}
+
+enum GoalComparator {
+  GTE
+  LTE
+}
+
+enum RewardAwardStatus {
+  PENDING
+  APPROVED
+  PAID
+  VOID
+}
+
+model InspectorGoal {
+  id                    String            @id @default(uuid())
+  title                 String            @db.VarChar(120)
+  metric                GoalMetric
+  comparator            GoalComparator // fixed per metric (P1)
+  target                Decimal           @db.Decimal(8, 2) // volume: integer; rate: %; index: points
+  period                BillingPeriodType
+  scope_region_id       String? // SetNull if the region is deleted (only inactive goals reach there)
+  scope_service_type_id String?
+  scope_inspector_id    String?
+  reward_amount         Decimal           @db.Decimal(10, 2) // AUD cash bonus (DV1)
+  starts_at             DateTime          @db.Date // first day of a period (P5)
+  ends_at               DateTime?         @db.Date // last day of a period; null = open-ended
+  active                Boolean           @default(true)
+  deactivated_at        DateTime? // L-F08-02: instant of deactivation; null when active
+  next_target           Decimal?          @db.Decimal(8, 2) // L-F08-02: pending terms, effective from
+  next_reward_amount    Decimal?          @db.Decimal(10, 2) // next_effective_from (first day of next period)
+  next_effective_from   DateTime?         @db.Date
+  created_by_user_id    String
+  updated_by_user_id    String?
+  created_at            DateTime          @default(now())
+  updated_at            DateTime          @updatedAt
+
+  scope_region       ServiceRegion?      @relation(fields: [scope_region_id], references: [id], onDelete: SetNull)
+  scope_service_type ServiceType?        @relation(fields: [scope_service_type_id], references: [id], onDelete: Restrict)
+  scope_inspector    Inspector?          @relation("InspectorGoalScope", fields: [scope_inspector_id], references: [id], onDelete: Restrict)
+  created_by         User                @relation("InspectorGoalCreatedBy", fields: [created_by_user_id], references: [id])
+  updated_by         User?               @relation("InspectorGoalUpdatedBy", fields: [updated_by_user_id], references: [id])
+  awards             RewardAward[]
+  closures           GoalPeriodClosure[]
+
+  @@index([active, period])
+  @@index([scope_region_id])
+  @@index([scope_inspector_id])
+  @@map("inspector_goals")
+}
+
+model RewardAward {
+  id                   String            @id @default(uuid())
+  goal_id              String
+  inspector_id         String
+  period_type          BillingPeriodType
+  period_start         DateTime          @db.Date
+  period_end           DateTime          @db.Date
+  // Goal snapshot at close (immutable)
+  goal_title           String            @db.VarChar(120)
+  metric               GoalMetric
+  comparator           GoalComparator
+  target               Decimal           @db.Decimal(8, 2)
+  amount               Decimal           @db.Decimal(10, 2)
+  scope_label          String?           @db.VarChar(200) // L-F08-13: region/type/inspector name at close
+  // Result
+  achieved_value       Decimal           @db.Decimal(8, 2)
+  service_count        Int
+  achieved_on          DateTime          @db.Date
+  index_score_at_close Decimal?          @db.Decimal(4, 1)
+  level_at_close       String?           @db.VarChar(10)
+  index_snapshot_date  DateTime?         @db.Date // DR2: F07 snapshot used (may be < period_end + 1)
+  // Lifecycle (system award: no human author, DV2)
+  status               RewardAwardStatus @default(PENDING)
+  approved_by_user_id  String?
+  approved_at          DateTime?
+  paid_at              DateTime? // Q12: filled by TASK-F08-6 with the invoice paid_at; null until then
+  voided_by_user_id    String?
+  voided_at            DateTime?
+  void_reason          String?           @db.VarChar(500) // internal (AM/OP, report), L-F08-05
+  inspector_note       String?           @db.VarChar(200) // L-F08-05: only void text shown in the app
+  // Q12 (F08-6/DQ11): set when the invoice carrying the bonus closes (CLOSED). "Invoiced"
+  // = not null; a CHECK requires it non-null once the reward is PAID.
+  inspector_invoice_id String?
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @updatedAt
+
+  goal             InspectorGoal     @relation(fields: [goal_id], references: [id], onDelete: Restrict)
+  inspector        Inspector         @relation(fields: [inspector_id], references: [id], onDelete: Restrict)
+  approved_by      User?             @relation("RewardAwardApprovedBy", fields: [approved_by_user_id], references: [id])
+  voided_by        User?             @relation("RewardAwardVoidedBy", fields: [voided_by_user_id], references: [id])
+  inspector_invoice InspectorInvoice? @relation(fields: [inspector_invoice_id], references: [id], onDelete: Restrict)
+  financial_entry  FinancialEntry?   // Q12 (F08-6): the 1:1 original bonus ledger entry
+
+  @@unique([goal_id, inspector_id, period_start])
+  @@index([status, period_end])
+  @@index([inspector_id, period_end])
+  @@index([period_type, period_start])
+  @@index([inspector_invoice_id])
+  @@map("reward_awards")
+}
+
+model GoalPeriodClosure {
+  id                  String            @id @default(uuid())
+  goal_id             String
+  period_type         BillingPeriodType
+  period_start        DateTime          @db.Date
+  period_end          DateTime          @db.Date
+  participant_ids     String[] // P3/P11
+  participants_count  Int
+  achievers_count     Int
+  promised_amount     Decimal           @db.Decimal(12, 2) // reward_amount × participants (P10); 0 in SKIPPED_INACTIVE
+  scope_label         String?           @db.VarChar(200) // L-F08-13
+  index_snapshot_date DateTime?         @db.Date // DR2: F07 snapshot read at close; null without snapshot or SKIPPED_INACTIVE
+  trigger             String            @db.VarChar(20) // SCHEDULED | STARTUP | SKIPPED_INACTIVE (L-F08-02)
+  closed_at           DateTime
+
+  goal InspectorGoal @relation(fields: [goal_id], references: [id], onDelete: Restrict)
+
+  @@unique([goal_id, period_start])
+  @@index([period_type, period_start])
+  @@map("goal_period_closures")
 }

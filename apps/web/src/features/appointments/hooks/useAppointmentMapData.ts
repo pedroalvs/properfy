@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { AvailableSlot } from '@properfy/shared';
+import type { AvailableSlot, InspectorIssue } from '@properfy/shared';
 import { usePaginatedQuery, type ListParams } from '@/hooks/useApiQuery';
 
 export interface AppointmentMapItem {
@@ -31,6 +31,10 @@ export interface AppointmentMapItem {
   /** Populated when status = REJECTED — surfaces in the detail panel red banner (T-C5-5). */
   rejectionReasonCode?: string | null;
   reason?: string | null;
+  /** Inspector id on the row — lets the compact issue card mark "(current inspector)" (F03-4). */
+  inspectorId?: string | null;
+  /** Latest "Can't do this job" field event (F03-2); drives the compact inspector-issue card. */
+  inspectorIssue?: InspectorIssue | null;
   /** True when the tenant left a note via the portal. */
   hasRentalTenantNote?: boolean;
   /** Tenant note text — shown as tooltip on the note icon in the bulk modal. */

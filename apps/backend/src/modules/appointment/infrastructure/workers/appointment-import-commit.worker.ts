@@ -213,7 +213,7 @@ export class AppointmentImportCommitWorker {
     }
 
     try {
-      const propertyId = await this.resolveOrCreateProperty(row, tenantId, branchId, codePrefix, createdPropertyIds, geocodeCache);
+      const propertyId = await this.resolveOrCreateProperty(row, tenantId, branchId, codePrefix, importId, createdPropertyIds, geocodeCache);
 
       // A contact is not required to import — `contacts` defaults to `[]` in
       // CreateAppointmentUseCase, which creates the appointment with no
@@ -271,9 +271,11 @@ export class AppointmentImportCommitWorker {
    * match, or creating one directly via the repository (bypassing
    * `CreatePropertyUseCase`'s synchronous ~4s Mapbox geocode). The preview's
    * geocode verification is reused so an address is never geocoded twice:
-   * `found` persists SUCCESS with coordinates (no job), `not_found` persists
-   * FAILED (no job — the geocode-retry sweep is the safety net), and only
-   * `unverified`/missing falls back to PENDING + the async `property.geocode`
+   * `found` WITH `mode: 'permanent'` persists SUCCESS with coordinates + marker
+   * (no job), `not_found` persists FAILED (no job — the geocode-retry sweep is
+   * the safety net), and `unverified`/missing — INCLUDING a `found` from a
+   * pre-deploy preview that carries no `mode` (so was geocoded temporarily and
+   * must not be stored) — falls back to PENDING + the async `property.geocode`
    * job. Tracks intra-batch creation so two rows sharing a new address
    * create exactly one property. */
   private async resolveOrCreateProperty(
@@ -281,6 +283,7 @@ export class AppointmentImportCommitWorker {
     tenantId: string,
     branchId: string,
     codePrefix: string | null,
+    importId: string,
     createdPropertyIds: Map<string, string>,
     geocodeCache: Map<string, GeocodeVerification>,
   ): Promise<string> {
@@ -302,7 +305,20 @@ export class AppointmentImportCommitWorker {
     if (alreadyCreated) return alreadyCreated;
 
     const verification = geocodeCache.get(key) ?? null;
-    const found = verification?.status === 'found' && verification.lat !== null && verification.lng !== null;
+    // A stored coordinate must come from permanent geocoding. A `found` without
+    // `mode: 'permanent'` is a pre-deploy preview (geocoded temporarily) — treat
+    // it as unverified so the property goes PENDING and the worker re-geocodes it.
+    const found =
+      verification?.status === 'found' &&
+      verification.lat !== null &&
+      verification.lng !== null &&
+      verification.mode === 'permanent';
+    if (verification?.status === 'found' && !found) {
+      this.logger.info(
+        { importId, normalizedAddressKey: key },
+        'Legacy preview verification treated as unverified',
+      );
+    }
     const geocodingStatus = found ? 'SUCCESS' : verification?.status === 'not_found' ? 'FAILED' : 'PENDING';
 
     const now = new Date();
@@ -327,6 +343,7 @@ export class AppointmentImportCommitWorker {
       lat: found ? verification!.lat : null,
       lng: found ? verification!.lng : null,
       geocodingStatus,
+      geocodedPermanentlyAt: found ? now : null,
       notes: null,
       rulesJson: {},
       createdAt: now,

@@ -1,10 +1,25 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { createTestQueryClient } from '@/test-utils';
 import { PwaLayout } from '../PwaLayout';
+
+const mockHeartbeat = vi.fn();
+vi.mock('@/app/useAppStateHeartbeat', () => ({
+  useAppStateHeartbeat: () => mockHeartbeat(),
+}));
+
+// PwaLayout now wires push resync and the from-push read; those hooks have their
+// own suites, so stub them here to keep this focused on the layout frame.
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
+vi.mock('@/features/push/hooks/useBrowserPushDeps', () => ({ useBrowserPushDeps: () => ({}) }));
+vi.mock('@/features/push/hooks/usePushSubscriptionSync', () => ({ usePushSubscriptionSync: vi.fn() }));
+vi.mock('@/app/useNoticeOpenedFromPush', () => ({ useNoticeOpenedFromPush: vi.fn() }));
+vi.mock('@/features/announcements/hooks/useUnreadNoticeCount', () => ({
+  useUnreadNoticeCount: () => ({ count: 0 }),
+}));
 
 /**
  * PwaLayout reads `useMatches()`, which React Router only supports under a data router — it throws
@@ -26,6 +41,15 @@ function renderLayout(child: RouteObject = { index: true, element: <div>Child co
 }
 
 describe('PwaLayout', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('invokes the app-state heartbeat once per mount', () => {
+    renderLayout();
+    expect(mockHeartbeat).toHaveBeenCalledTimes(1);
+  });
+
   it('renders bottom nav bar', () => {
     renderLayout();
     expect(screen.getByTestId('bottom-nav')).toBeInTheDocument();
@@ -77,5 +101,35 @@ describe('PwaLayout', () => {
     expect(main.className).toContain('max-w-screen-sm');
     expect(main.className).toContain('md:max-w-screen-lg');
     expect(main.getAttribute('data-wide')).toBe('true');
+  });
+
+  it('invalidates the day plan on an inspector-notice:received SW message (F04-3)', () => {
+    const listeners = new Set<(e: MessageEvent) => void>();
+    const fakeSw = {
+      addEventListener: (_type: string, cb: (e: MessageEvent) => void) => listeners.add(cb),
+      removeEventListener: (_type: string, cb: (e: MessageEvent) => void) => listeners.delete(cb),
+    };
+    Object.defineProperty(navigator, 'serviceWorker', { value: fakeSw, configurable: true });
+    try {
+      const client = createTestQueryClient();
+      const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
+      const router = createMemoryRouter(
+        [{ element: <PwaLayout />, children: [{ index: true, element: <div /> }] }],
+        { future: { v7_relativeSplatPath: true } },
+      );
+      render(
+        <QueryClientProvider client={client}>
+          <SnackbarProvider>
+            <RouterProvider router={router} future={{ v7_startTransition: true }} />
+          </SnackbarProvider>
+        </QueryClientProvider>,
+      );
+      listeners.forEach((cb) =>
+        cb(new MessageEvent('message', { data: { type: 'inspector-notice:received' } })),
+      );
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['inspector', 'day-plan'] });
+    } finally {
+      delete (navigator as unknown as { serviceWorker?: unknown }).serviceWorker;
+    }
   });
 });

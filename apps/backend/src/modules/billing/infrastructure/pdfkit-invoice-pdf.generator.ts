@@ -79,14 +79,16 @@ export class PdfKitInvoicePdfGenerator implements IInvoicePdfGenerator {
     // Rows — redraw the header whenever a row spills onto a continuation page.
     doc.font('Helvetica').fontSize(9);
     for (const line of data.lines) {
+      // Q12 (F08-6): a BONUS line has no appointment — show "Bonus" and the description.
+      const isBonus = line.kind === 'BONUS';
       const cells: Record<string, string> = {
         // Snapshot lines are frozen as YYYY-MM-DD; render them in the display shape.
         serviceDate: formatCivilDate(line.serviceDate),
-        appointmentCode: line.appointmentCode,
-        propertyAddress: line.propertyAddress ?? '-',
-        serviceType: line.serviceType ?? '-',
-        agencyName: line.agencyName ?? '-',
-        branchName: line.branchName ?? '-',
+        appointmentCode: isBonus ? 'Bonus' : (line.appointmentCode ?? '-'),
+        propertyAddress: isBonus ? (line.description ?? '-') : (line.propertyAddress ?? '-'),
+        serviceType: isBonus ? '-' : (line.serviceType ?? '-'),
+        agencyName: isBonus ? '-' : (line.agencyName ?? '-'),
+        branchName: isBonus ? '-' : (line.branchName ?? '-'),
         amount: this.money(line.amount, data.currency),
       };
       // Tallest cell so multi-line addresses don't overlap.

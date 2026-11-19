@@ -95,7 +95,8 @@ Each action in the platform has a defined set of roles that may perform it. The 
 | Deactivate user | Yes | Yes | No | No | No | |
 | Reset user password | Yes | Yes | No | No | No | |
 | **Tenant Management** | | | | | | |
-| Create/update tenant | Yes | No | No | No | No | AM-only governance |
+| Create tenant | Yes | No | No | No | No | AM-only governance |
+| Update tenant | Yes | Cond. | No | No | No | AM: all fields, any tenant. OP: only `settings.mapWindowDays`, on any agency (F00); every other field stays AM-only for OP |
 | Deactivate tenant | Yes | No | No | No | No | AM-only governance |
 | **Property Management** | | | | | | |
 | Create/update property | Yes | Yes | Yes | Flag | No | CL_USER: via permission flag |

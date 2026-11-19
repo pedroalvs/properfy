@@ -25,10 +25,11 @@ const REPORT_TYPE_OPTIONS = Object.entries(REPORT_TYPE_MAP).map(([value, config]
   label: config.label,
 }));
 
-// Agencies compares agencies against one another, so it is operator-only — the
-// backend rejects it for a tenant-scoped actor regardless of what the UI offers.
+// Operator-only report types, hidden from agency actors (the backend rejects them
+// for a tenant-scoped actor regardless of what the UI offers): AGENCIES compares
+// agencies against one another, and INSPECTOR_PROGRAM (F08-5) is platform-scoped.
 const AGENCY_REPORT_TYPE_OPTIONS = REPORT_TYPE_OPTIONS.filter(
-  (o) => o.value !== ReportType.AGENCIES,
+  (o) => o.value !== ReportType.AGENCIES && o.value !== ReportType.INSPECTOR_PROGRAM,
 );
 
 const DATE_AXIS_OPTIONS = [
@@ -81,6 +82,9 @@ export function GenerateReportDialog({
 
   const isAppointments = reportType === ReportType.APPOINTMENTS;
   const isFinancial = reportType === ReportType.FINANCIAL;
+  // INSPECTOR_PROGRAM (F08-5) is platform-wide and ranges on the goal period, not an
+  // appointment axis — so every agency-oriented filter is hidden and only the date range is sent.
+  const isInspectorProgram = reportType === ReportType.INSPECTOR_PROGRAM;
 
   const { options: tenantOptions } = useFormOptions<{ id: string; name: string }>(
     ['reports', 'tenant-options'],
@@ -151,11 +155,13 @@ export function GenerateReportDialog({
     const filters: ReportFilters = {
       fromDate,
       toDate,
-      dateAxis: isFinancial ? ReportDateAxis.SCHEDULED : (dateAxis as ReportDateAxis),
+      dateAxis: isFinancial || isInspectorProgram ? ReportDateAxis.SCHEDULED : (dateAxis as ReportDateAxis),
       groupProperties: isAppointments ? groupProperties : false,
-      ...(isGlobalRole && tenantId ? { tenantId } : {}),
-      ...(branchId ? { branchId } : {}),
-      ...(suburb.trim() ? { suburb: suburb.trim() } : {}),
+      // Inspector program is platform-wide: never carry an agency/branch/suburb/status filter,
+      // even if one was selected before the type was switched.
+      ...(isGlobalRole && tenantId && !isInspectorProgram ? { tenantId } : {}),
+      ...(branchId && !isInspectorProgram ? { branchId } : {}),
+      ...(suburb.trim() && !isInspectorProgram ? { suburb: suburb.trim() } : {}),
       ...(isAppointments && status ? { status: status as AppointmentStatus } : {}),
     };
 
@@ -174,6 +180,7 @@ export function GenerateReportDialog({
     groupProperties,
     isAppointments,
     isFinancial,
+    isInspectorProgram,
     onSubmit,
   ]);
 
@@ -185,7 +192,7 @@ export function GenerateReportDialog({
   return (
     <Dialog open={open} onClose={handleClose} title="Generate Report">
       <div className="flex flex-col gap-4 p-6">
-        {isGlobalRole && (
+        {isGlobalRole && !isInspectorProgram && (
           <FormField label="Agency" error={errors.tenantId}>
             <SelectInput
               value={tenantId}
@@ -216,7 +223,7 @@ export function GenerateReportDialog({
           />
         </FormField>
 
-        {!isFinancial && (
+        {!isFinancial && !isInspectorProgram && (
           <FormField label="Date Axis">
             <SelectInput
               value={dateAxis}
@@ -251,26 +258,30 @@ export function GenerateReportDialog({
           />
         </FormField>
 
-        <FormField label="Suburb">
-          <TextInput
-            value={suburb}
-            onChange={setSuburb}
-            placeholder="Filter by suburb"
-            maxLength={120}
-            aria-label="Suburb"
-          />
-        </FormField>
+        {!isInspectorProgram && (
+          <FormField label="Suburb">
+            <TextInput
+              value={suburb}
+              onChange={setSuburb}
+              placeholder="Filter by suburb"
+              maxLength={120}
+              aria-label="Suburb"
+            />
+          </FormField>
+        )}
 
-        <FormField label="Branch">
-          <SelectInput
-            value={branchId}
-            onChange={setBranchId}
-            options={branchOptionsWithAll}
-            disabled={!branchScopeTenantId}
-            placeholder={branchScopeTenantId ? 'All branches' : 'Select an agency first'}
-            aria-label="Branch"
-          />
-        </FormField>
+        {!isInspectorProgram && (
+          <FormField label="Branch">
+            <SelectInput
+              value={branchId}
+              onChange={setBranchId}
+              options={branchOptionsWithAll}
+              disabled={!branchScopeTenantId}
+              placeholder={branchScopeTenantId ? 'All branches' : 'Select an agency first'}
+              aria-label="Branch"
+            />
+          </FormField>
+        )}
 
         {isAppointments && (
           <FormField label="Status">

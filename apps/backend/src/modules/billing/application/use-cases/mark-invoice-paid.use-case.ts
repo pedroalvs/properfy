@@ -8,6 +8,7 @@ import {
   BillingIdempotencyPayloadMismatchError,
   BillingIdempotencyInProgressError,
 } from '../../domain/billing.errors';
+import type { IRewardAwardInvoiceSync } from '../../domain/reward-award-invoice-sync.port';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IIdempotencyService } from '../../../../shared/domain/idempotency.service';
@@ -68,6 +69,8 @@ export class MarkInvoicePaidUseCase {
     private readonly authorizationService: AuthorizationService,
     private readonly idempotencyService: IIdempotencyService,
     private readonly clock: Clock = new SystemClock(),
+    // Q12 (F08-6): optional; when present, the invoice's rewards go PAID in the same transaction.
+    private readonly invoiceSync?: IRewardAwardInvoiceSync,
   ) {}
 
   async execute(input: MarkInvoicePaidInput): Promise<MarkInvoicePaidOutput> {
@@ -147,16 +150,19 @@ export class MarkInvoicePaidUseCase {
       paymentReference: invoice.paymentReference,
     };
 
-    // 5. Transition entity state
+    // 5. Transition entity state (for the audit before/after; the write is the CAS below)
     invoice.markPaid(paidAt, actor.userId, paymentReference);
 
-    // 6. Persist
-    await this.invoiceRepo.update(invoiceId, {
-      status: 'PAID',
-      paidAt,
-      paidByUserId: actor.userId,
-      paymentReference,
-    });
+    // 6. Persist CLOSED → PAID and mark the invoice's rewards PAID in the SAME transaction (Q12).
+    const transitioned = await this.invoiceRepo.markPaidInTransaction(
+      invoiceId,
+      { paidAt, paidByUserId: actor.userId, paymentReference },
+      this.invoiceSync ? (tx) => this.invoiceSync!.markPaidForInvoice(tx, invoiceId, paidAt) : undefined,
+    );
+    if (!transitioned) {
+      // Lost a race (another operator paid/voided it between the load and the CAS).
+      throw new InvoiceNotClosedError();
+    }
 
     // 7. Audit log (FR-019)
     this.auditService.log({

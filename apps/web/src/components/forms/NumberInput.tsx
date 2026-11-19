@@ -16,6 +16,7 @@ interface NumberInputProps {
   step?: number;
   id?: string;
   'aria-label'?: string;
+  'aria-describedby'?: string;
 }
 
 export function NumberInput({
@@ -26,6 +27,7 @@ export function NumberInput({
   error,
   id,
   'aria-label': ariaLabel,
+  'aria-describedby': ariaDescribedBy,
 }: NumberInputProps) {
   const containerClass = disabled
     ? formInputContainerDisabled
@@ -52,6 +54,7 @@ export function NumberInput({
         placeholder={placeholder}
         disabled={disabled}
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
       />
     </div>
   );

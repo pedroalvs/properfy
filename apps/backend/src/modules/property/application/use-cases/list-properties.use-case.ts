@@ -5,6 +5,7 @@ import type {
   PropertyFilters,
   PaginationParams,
 } from '../../domain/property.repository';
+import type { IPropertyIssueIndicatorReader } from '../../../property-file/domain/property-issue.repository';
 
 export interface ListPropertiesInput {
   filters: {
@@ -13,6 +14,7 @@ export interface ListPropertiesInput {
     type?: string;
     search?: string;
     hasCoordinates?: boolean;
+    withIssues?: boolean;
     nearLat?: number;
     nearLng?: number;
     nearRadiusKm?: number;
@@ -48,6 +50,8 @@ export interface ListPropertiesOutput {
     notes: string | null;
     createdAt: Date;
     updatedAt: Date;
+    /** Any unseen, non-deleted issue of this property (F10 D26); false for CL_USER. */
+    hasUnseenIssues: boolean;
   }>;
   total: number;
   page: number;
@@ -55,7 +59,10 @@ export interface ListPropertiesOutput {
 }
 
 export class ListPropertiesUseCase {
-  constructor(private readonly propertyRepo: IPropertyRepository) {}
+  constructor(
+    private readonly propertyRepo: IPropertyRepository,
+    private readonly issueIndicatorReader?: IPropertyIssueIndicatorReader,
+  ) {}
 
   async execute(input: ListPropertiesInput): Promise<ListPropertiesOutput> {
     const { filters, pagination, actor } = input;
@@ -73,6 +80,7 @@ export class ListPropertiesUseCase {
       type: filters.type,
       search: filters.search,
       hasCoordinates: filters.hasCoordinates,
+      withIssues: filters.withIssues,
       nearLocation,
     };
 
@@ -80,6 +88,19 @@ export class ListPropertiesUseCase {
       this.propertyRepo.findAllWithBranch(repoFilters, pagination),
       this.propertyRepo.count(repoFilters),
     ]);
+
+    // Batched unseen-issue indicator (F10 D26): any unseen issue of the property.
+    // AM/OP/CL_ADMIN only; CL_USER always false. `tenantId` scopes CL_ADMIN.
+    const propertiesWithUnseenIssues = new Set<string>();
+    const canSeeUnseenIssues =
+      actor.role === 'AM' || actor.role === 'OP' || actor.role === 'CL_ADMIN';
+    if (canSeeUnseenIssues && this.issueIndicatorReader && data.length > 0) {
+      const withUnseen = await this.issueIndicatorReader.findPropertiesWithUnseenIssues(
+        data.map((item) => item.property.id),
+        tenantId,
+      );
+      for (const id of withUnseen) propertiesWithUnseenIssues.add(id);
+    }
 
     return {
       data: data.map((item) => ({
@@ -108,6 +129,7 @@ export class ListPropertiesUseCase {
         notes: item.property.notes,
         createdAt: item.property.createdAt,
         updatedAt: item.property.updatedAt,
+        hasUnseenIssues: propertiesWithUnseenIssues.has(item.property.id),
       })),
       total,
       page: pagination.page,

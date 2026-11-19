@@ -4,6 +4,7 @@ import { cn } from '@properfy/frontend-standards';
 import { Sidebar } from './Sidebar';
 import { MobileDrawer } from './MobileDrawer';
 import { OfflineBanner } from '@/components/feedback/OfflineBanner';
+import { useUnseenIssueCount } from '@/features/property-files/hooks/useUnseenIssueCount';
 
 /**
  * Routes opt into full-height mode with `handle: { fullHeight: true }`.
@@ -28,6 +29,13 @@ export function AppShell() {
   const fullHeight = matches.some(
     (match) => (match.handle as FullHeightHandle | undefined)?.fullHeight === true,
   );
+  // F10: unseen-issue counts for the sidebar dots, fetched once here (AppShell is
+  // always inside QueryProvider) and passed to both Sidebar instances.
+  const { appointmentsWithUnseenIssues, propertiesWithUnseenIssues } = useUnseenIssueCount();
+  const unseenCounts = {
+    appointments: appointmentsWithUnseenIssues,
+    properties: propertiesWithUnseenIssues,
+  };
 
   return (
     <div
@@ -38,12 +46,12 @@ export function AppShell() {
     >
       {/* Sidebar — hidden on mobile */}
       <div className="hidden md:block">
-        <Sidebar />
+        <Sidebar unseenCounts={unseenCounts} />
       </div>
 
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <Sidebar mobile onNavigate={() => setDrawerOpen(false)} />
+        <Sidebar mobile onNavigate={() => setDrawerOpen(false)} unseenCounts={unseenCounts} />
       </MobileDrawer>
 
       <div className="min-w-0 flex-1 md:ml-sidebar">

@@ -64,6 +64,7 @@ const WALL_TIME_RE = /^(\d{1,2}):(\d{2})(?::\d{2})?$/;
  */
 const civilPartsFormatters = new Map<string, Intl.DateTimeFormat>();
 const wallTimeFormatters = new Map<string, Intl.DateTimeFormat>();
+const shortDayLabelFormatters = new Map<string, Intl.DateTimeFormat>();
 
 /**
  * Builds a formatter, falling back to `PLATFORM_TIMEZONE` if the zone is not a
@@ -96,6 +97,19 @@ function civilPartsFormatter(timeZone: string): Intl.DateTimeFormat {
       'en-CA',
     );
     civilPartsFormatters.set(timeZone, formatter);
+  }
+  return formatter;
+}
+
+function shortDayLabelFormatter(timeZone: string): Intl.DateTimeFormat {
+  let formatter = shortDayLabelFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = buildFormatter(
+      timeZone,
+      { weekday: 'short', day: 'numeric', month: 'short' },
+      'en-AU',
+    );
+    shortDayLabelFormatters.set(timeZone, formatter);
   }
   return formatter;
 }
@@ -268,6 +282,30 @@ export function formatInstantDate(
 }
 
 /**
+ * Formats the calendar day an **instant** falls on, in `timeZone`, as a short
+ * day label `Thu 5 Nov` (weekday, day, month — single spaces, no comma).
+ *
+ * The label is assembled from `formatToParts`, so it is **stable across ICU /
+ * Node versions**: the default `Intl` short-date pattern inserts a locale
+ * separator that differs between builds (`'Thu, 5 Nov'` on one, `'Thu 5 Nov'`
+ * on another), which would make any hard-coded assertion — and any lock-screen
+ * notice body embedding the label — version-dependent. Used by the day-plan
+ * `ROUTE_PUBLISHED` / `ROUTE_CHANGED` notices.
+ */
+export function formatShortDayLabel(
+  value: string | Date | null | undefined,
+  timeZone: string = PLATFORM_TIMEZONE,
+): string {
+  if (value == null || value === '') return '';
+
+  const date = toInstant(value);
+  if (!date) return value instanceof Date ? '' : value;
+
+  const parts = partsOf(shortDayLabelFormatter(timeZone), date);
+  return `${parts.weekday} ${parts.day} ${parts.month}`;
+}
+
+/**
  * Formats an **instant** as `28/07/2026, 2:12 pm` in `timeZone`.
  *
  * @see formatInstantDate for the zoned-input requirement.
@@ -289,4 +327,32 @@ export function formatInstantDateTime(
   const wallTime = `${hour}:${timeParts.minute ?? '00'}`;
 
   return `${dateParts.day}/${dateParts.month}/${dateParts.year}, ${formatWallTime(wallTime)}`;
+}
+
+/**
+ * Formats the wall time an **instant** falls on, in `timeZone`, as `8:10 am`.
+ *
+ * Used by the PWA day plan to render a stop's `eta`/`serviceStartAt` (per-stop
+ * `stop.timezone`) and the plan's `finishEta` (`plan.timezone`). There is no
+ * civil-date variant of this: callers that need the day use `formatInstantDate`.
+ *
+ * @see formatInstantDate for the zoned-input requirement. A malformed string is
+ * returned intact (never a half-formatted time); `null`/`''` → `''`.
+ */
+export function formatInstantTime(
+  value: string | Date | null | undefined,
+  timeZone: string = PLATFORM_TIMEZONE,
+): string {
+  if (value == null || value === '') return '';
+
+  const date = toInstant(value);
+  if (!date) return value instanceof Date ? '' : value;
+
+  const timeParts = partsOf(wallTimeFormatter(timeZone), date);
+
+  // Belt-and-braces: h23 yields 00..23, but older ICU could emit '24' for midnight.
+  const hour = timeParts.hour === '24' ? '00' : (timeParts.hour ?? '00');
+  const wallTime = `${hour}:${timeParts.minute ?? '00'}`;
+
+  return formatWallTime(wallTime);
 }

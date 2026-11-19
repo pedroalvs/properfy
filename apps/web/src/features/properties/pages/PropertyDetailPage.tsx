@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { GeocodingStatus } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { BackButton } from '@/components/layout';
 import { TabsNav } from '@/components/layout/TabsNav';
 import { LoadingState } from '@/components/feedback/LoadingState';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -9,29 +10,39 @@ import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { Button } from '@/components/ui/Button';
 import { MapboxPreview } from '@/components/map/MapboxPreview';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useActionMutation } from '@/hooks/useApiQuery';
-import { useGoBack } from '@/hooks/useGoBack';
 import { usePropertyDetail } from '../hooks/usePropertyDetail';
 import { PropertyTypeChip } from '../components/PropertyTypeChip';
 import { PropertyDetailSections } from '../components/PropertyDetailSections';
 import { PropertyAppointmentsTab } from '../components/PropertyAppointmentsTab';
 import { PropertyFormDrawer } from '../components/PropertyFormDrawer';
-
-const TABS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'appointments', label: 'Appointments' },
-];
+import { PropertyFilesPanel, isSubtab } from '@/features/property-files';
 
 export function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const handleBack = useGoBack('/properties');
   const { user } = useAuth();
+  const { canPerform } = usePermissions();
   const { showSuccess, showError } = useSnackbar();
   const { property, isLoading, isError, isGeocodingTimeout, refetch } = usePropertyDetail(id ?? null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [searchParams] = useSearchParams();
+  const canViewFiles = canPerform('property_file.read');
+  // Deep-link from an appointment's "View all property files" lands on ?tab=files&sub=<subtab>.
+  const requestedTab = searchParams.get('tab');
+  const requestedSub = searchParams.get('sub');
+  const [activeTab, setActiveTab] = useState(() =>
+    requestedTab === 'files' && canViewFiles ? 'files' : 'overview',
+  );
+  const initialSubtab = isSubtab(requestedSub ?? '') ? (requestedSub as 'issues' | 'documents' | 'reports' | 'other') : undefined;
   const [showEdit, setShowEdit] = useState(false);
+
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'appointments', label: 'Appointments' },
+    ...(canViewFiles ? [{ id: 'files', label: 'Files' }] : []),
+  ];
 
   const canRetryGeocode = user?.role === 'AM' || user?.role === 'OP';
 
@@ -59,12 +70,7 @@ export function PropertyDetailPage() {
   if (isLoading) {
     return (
       <div>
-        <PageHeader
-          title="Loading..."
-          secondaryActions={[
-            { label: 'Back', icon: 'mdi-arrow-left', onClick: handleBack },
-          ]}
-        />
+        <PageHeader title="Loading..." backTo="/properties" />
         <div className="rounded bg-card-bg p-6 shadow-sm">
           <LoadingState rows={8} />
         </div>
@@ -88,13 +94,7 @@ export function PropertyDetailPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleBack}
-            className="rounded p-1 text-text-secondary hover:bg-black/5"
-            aria-label="Go back"
-          >
-            <i className="mdi mdi-arrow-left text-xl" aria-hidden="true" />
-          </button>
+          <BackButton to="/properties" />
           <h1 className="text-page-title-mobile text-secondary md:text-page-title">
             {property.propertyCode}
           </h1>
@@ -110,7 +110,7 @@ export function PropertyDetailPage() {
       </div>
 
       <div className="rounded bg-card-bg shadow-sm">
-        <TabsNav tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
+        <TabsNav tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
         <div className="p-6">
           {activeTab === 'overview' && (
@@ -161,6 +161,12 @@ export function PropertyDetailPage() {
           )}
           {activeTab === 'appointments' && (
             <PropertyAppointmentsTab propertyId={property.id} />
+          )}
+          {activeTab === 'files' && canViewFiles && (
+            <PropertyFilesPanel
+              context={{ kind: 'property', propertyId: property.id }}
+              initialSubtab={initialSubtab}
+            />
           )}
         </div>
       </div>

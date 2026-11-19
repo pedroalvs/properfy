@@ -51,7 +51,7 @@ Create a new real-estate agency tenant in `PENDING` status.
 List tenants with pagination, status filter, and text search.
 
 - **Auth**: required
-- **Allowed roles**: `AM` only — product decision (the all-tenants list view is reserved for AM). OP is cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003 and reads any tenant via `GET /v1/tenants/:tenantId`. Superseded phrasing: "OP cannot list all tenants; OP sees their own tenant via `GET /v1/tenants/:tenantId`".
+- **Allowed roles**: `AM`, `OP` (any tenant) — `list-tenants.use-case.ts` asserts `['AM', 'OP']` and applies no tenant predicate. OP is cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003. Superseded phrasing: "AM only; OP cannot list all tenants".
 
 **Query params** (`listTenantsQuerySchema`)
 
@@ -96,7 +96,7 @@ List tenants with pagination, status filter, and text search.
 Read a single tenant.
 
 - **Auth**: required
-- **Allowed roles**: `AM` (any tenant); `OP`, `CL_ADMIN`, `CL_USER` (own tenant only)
+- **Allowed roles**: `AM`, `OP` (any tenant); `CL_ADMIN`, `CL_USER` (own tenant only)
 
 **Path params**
 
@@ -131,8 +131,10 @@ Read a single tenant.
 Update tenant profile and settings.
 
 - **Auth**: required
-- **Allowed roles**: `AM` (all fields, any tenant); `OP` (own tenant, only `name` and `settings` — `implementation decision`, see FR-007b); `CL_ADMIN` (own tenant, only `name` and `settings`)
+- **Allowed roles**: `AM` (all fields, any tenant); `OP` (any tenant, only `settings.mapWindowDays` — F00; OP's JWT never carries a `tenantId`, so every other top-level field and every other settings key stays AM-only for OP); `CL_ADMIN` (own tenant, only `name` and `settings`)
 - **Audit**: yes (`tenant.updated`)
+- **Empty-PATCH guard** (F00, approved 2026-10-27): a PATCH that leaves nothing to write after permission filtering performs no update, writes no audit entry and emits no event — it returns the current tenant (200). The guard runs after the tenant is loaded, so a missing/soft-deleted target still returns `TENANT_NOT_FOUND`. It is narrow by design: equal values on an allowed key still write and audit.
+- **Rollback**: revert the PR. No migration is involved — existing `settings.mapWindowDays` values simply go inert under the passthrough settings schema.
 
 **Request body** (`updateTenantSchema`, all fields optional)
 
@@ -157,7 +159,7 @@ Update tenant profile and settings.
 Deactivate a tenant. Blocked if any of its appointments are open (status `DRAFT`, `AWAITING_INSPECTOR`, or `SCHEDULED`).
 
 - **Auth**: required
-- **Allowed roles**: `AM` (any tenant); `OP` (own tenant only)
+- **Allowed roles**: `AM`, `OP` (any tenant) — `deactivate-tenant.use-case.ts` asserts `['AM', 'OP']`; OP is cross-tenant per CLAUDE.md §6 / `specs/DECISIONS.md` DEC-003
 - **Audit**: yes (`tenant.deactivated`, carries `reason`)
 
 **Path params**

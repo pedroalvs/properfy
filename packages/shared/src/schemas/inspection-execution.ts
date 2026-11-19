@@ -19,9 +19,19 @@ export type InspectorScheduleQuery = z.infer<typeof inspectorScheduleQuerySchema
 export const inspectorScheduleMonthQuerySchema = z.object({}).strict();
 export type InspectorScheduleMonthQuery = z.infer<typeof inspectorScheduleMonthQuerySchema>;
 
+// Optional capture fields added by F03 (TASK-F03-1). Both are optional so items
+// queued offline before F03 (coordinates only) still validate after deploy.
+// `accuracy`: GeolocationCoordinates.accuracy in metres. `clientOccurredAt`: the
+// device clock at the moment of the tap (ISO-8601 with offset).
+const clientGeoExtras = {
+  accuracy: z.number().nonnegative().finite().optional(),
+  clientOccurredAt: z.string().datetime({ offset: true }).optional(),
+};
+
 export const startInspectionSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
+  ...clientGeoExtras,
 });
 
 export type StartInspectionInput = z.infer<typeof startInspectionSchema>;
@@ -29,6 +39,7 @@ export type StartInspectionInput = z.infer<typeof startInspectionSchema>;
 export const finishInspectionSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
+  ...clientGeoExtras,
 });
 
 export type FinishInspectionInput = z.infer<typeof finishInspectionSchema>;

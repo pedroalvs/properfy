@@ -382,7 +382,7 @@ describe('Matrix: inspector.create (POST /v1/inspectors) — AM, OP only', () =>
   const inspectorStub = { id: INSPECTOR_ID, name: 'New Inspector', email: 'new@inspector.com', phone: '+61400000002', status: 'ACTIVE', paymentSettingsJson: null, serviceTypesJson: null,regionIds: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   // Password included because Fastify validates the body before the auth
   // preHandler, so omitting it would 400 ahead of the asserted 403s.
-  const payload = { name: 'New Inspector', email: 'new@inspector.com', phone: '+61400000002', password: 'Insp@2026x' };
+  const payload = { name: 'New Inspector', email: 'new@inspector.com', phone: '+61400000002', password: 'Insp@2026x', address: { street: '1 George St', suburb: 'Sydney', city: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' } };
 
   it('AM → 201', async () => {
     mockJwtVerify.mockResolvedValue(makeAmContext());

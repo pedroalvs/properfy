@@ -42,7 +42,7 @@ All IDs are UUID v4. All timestamps are `timestamptz`. Column names follow `snak
    - [tenant_portal_activities](#tenant_portal_activities)
 9. [Inspector Execution](#9-inspector-execution)
    - [inspection_executions](#inspection_executions)
-   - [inspection_assets](#inspection_assets)
+   - [property_files / property_issues (F10)](#property_files--property_issues-f10)
 10. [Billing & Finance](#10-billing--finance)
     - [financial_entries](#financial_entries)
     - [inspector_invoices](#inspector_invoices)
@@ -615,23 +615,57 @@ Record of an inspector executing an inspection in the field.
 
 ---
 
-### inspection_assets
+### property_files / property_issues (F10)
 
-Evidence files (photos, documents, signatures) uploaded during inspection.
+> **Correction (F10-1):** the previously documented `inspection_assets` table
+> **never existed** in the schema (it was documented but never migrated). The
+> property-centred file repository shipped instead as the two tenant-scoped
+> tables below. See `apps/backend/prisma/schema.prisma` for the authoritative
+> definition.
+
+#### property_issues
+
+A reported problem at a property (reason + optional photos). Belongs to a
+property and tenant, optionally to an appointment of that property.
 
 | Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
 | `id` | uuid | no | generated | Primary key |
-| `appointment_id` | uuid | no | — | FK → appointments |
-| `inspection_execution_id` | uuid | no | — | FK → inspection_executions |
-| `storage_key` | text | no | — | Supabase Storage object key. Globally unique. |
-| `mime_type` | text | no | — | File MIME type |
-| `size_bytes` | int | yes | — | File size |
-| `kind` | InspectionAssetKind | no | — | `PHOTO` / `DOCUMENT` / `SIGNATURE` |
-| `status` | InspectionAssetStatus | no | `PENDING` | `PENDING` / `UPLOADED` / `UPLOAD_FAILED` |
-| `uploaded_by` | text | no | — | User who uploaded |
-| `upload_expires_at` | timestamptz | yes | — | Presigned URL expiry |
-| `created_at` | timestamptz | no | `now()` | |
+| `tenant_id` | uuid | no | — | FK → tenants (agency scope) |
+| `property_id` | uuid | no | — | FK → properties |
+| `appointment_id` | uuid | yes | — | FK → appointments (same property + tenant) |
+| `reason` | text | no | — | 1–1000 chars |
+| `source` | PropertyIssueSource | no | — | `INSPECTOR` / `STAFF` / `RENTAL_TENANT_PORTAL` |
+| `created_by_user_id` | uuid | yes | — | Author (null for the rental tenant) |
+| `cant_do_event_id` | uuid | yes | — | FK → inspector_field_events (F03 "Can't do") |
+| `seen_at` / `seen_by_user_id` | timestamptz / uuid | yes | — | Mark-as-seen (CAS) |
+| `deleted_at` / `deleted_by_user_id` | timestamptz / uuid | yes | — | Soft delete |
+| `created_at` / `updated_at` | timestamptz | no | `now()` | |
+
+Partial indexes (migration SQL) back the unseen-issue indicators: `(tenant_id, appointment_id)`, `(tenant_id, property_id) WHERE appointment_id IS NULL`, and `(tenant_id, property_id)` — all `WHERE seen_at IS NULL AND deleted_at IS NULL`.
+
+#### property_files
+
+A stored file of one of four types; only `ISSUE` files are issue photos.
+
+| Column | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| `id` | uuid | no | generated | Primary key |
+| `tenant_id` | uuid | no | — | FK → tenants |
+| `property_id` | uuid | no | — | FK → properties |
+| `appointment_id` | uuid | yes | — | FK → appointments |
+| `issue_id` | uuid | yes | — | FK → property_issues (required for a READY ISSUE photo) |
+| `type` | PropertyFileType | no | — | `ISSUE` / `DOCUMENT` / `REPORT` / `OTHER` |
+| `version_group_id` / `version` | uuid / int | no | — | `UNIQUE(version_group_id, version)` |
+| `file_name` / `mime` / `size_bytes` | text / text / bigint | no | — | Metadata |
+| `storage_key` | text | no | — | `inspection-assets` bucket; `UNIQUE` |
+| `status` | PropertyFileStatus | no | `PENDING` | `PENDING` / `READY` |
+| `confirmed_at` | timestamptz | yes | — | Set when confirm validation (size + magic bytes) passed |
+| `uploaded_by_user_id` | uuid | yes | — | Uploader (null for the rental tenant) |
+| `deleted_at` / `deleted_by_user_id` / `purged_at` | timestamptz | yes | — | Soft delete + storage purge |
+| `created_at` / `updated_at` | timestamptz | no | `now()` | |
+
+Relaxed CHECK `issue_id_matches_type` (D20): `status = 'PENDING' OR (type = 'ISSUE' AND issue_id IS NOT NULL) OR (type <> 'ISSUE' AND issue_id IS NULL)`. Partial indexes back the by-type listings and the retention sweeps (PENDING orphans; soft-deleted-not-purged).
 
 ---
 
@@ -1105,7 +1139,9 @@ Appointment 1──* AppointmentContact (junction)
 Appointment 1──* AppointmentRestriction
 Appointment 1──* TenantPortalToken
 Appointment 1──1 InspectionExecution
-Appointment 1──* InspectionAsset
+Property 1──* PropertyFile (optionally also linked to an Appointment)
+Property 1──* PropertyIssue (optionally also linked to an Appointment)
+PropertyIssue 1──* PropertyFile (issue photos)
 Appointment 1──* FinancialEntry
 Appointment 1──* Notification
 

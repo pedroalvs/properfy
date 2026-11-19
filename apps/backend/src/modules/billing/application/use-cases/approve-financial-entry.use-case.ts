@@ -3,6 +3,7 @@ import type { IFinancialEntryRepository } from '../../domain/financial-entry.rep
 import {
   EntryNotFoundError,
   EntryNotPendingError,
+  BonusEntryManagedByRewardError,
   BillingIdempotencyPayloadMismatchError,
   BillingIdempotencyInProgressError,
 } from '../../domain/billing.errors';
@@ -66,6 +67,10 @@ export class ApproveFinancialEntryUseCase {
       if (!entry) {
         throw new EntryNotFoundError();
       }
+      // Q12 (F08-6/DQ12): a bonus entry is managed only through the reward lifecycle.
+      if (entry.entryType === 'INSPECTOR_BONUS') {
+        throw new BonusEntryManagedByRewardError();
+      }
 
       // 3. Check status is PENDING
       if (!entry.canBeApproved()) {
@@ -84,7 +89,8 @@ export class ApproveFinancialEntryUseCase {
       // backstop that closes the TOCTOU window — a concurrent edit that re-binds the
       // maker to the approver (keeping status=PENDING) now makes it match zero rows.
       const approvedAt = new Date();
-      const affected = await this.financialEntryRepo.approvePendingEntry(entryId, entry.tenantId, actor.userId, approvedAt);
+      // tenantId is non-null here: an INSPECTOR_BONUS (the only tenantless type) is refused above.
+      const affected = await this.financialEntryRepo.approvePendingEntry(entryId, entry.tenantId!, actor.userId, approvedAt);
       if (affected === 0) {
         // Lost the race between the pre-check and the commit. Re-read to emit the
         // precise, audited error: a still-PENDING row that the guard refused means
@@ -114,7 +120,7 @@ export class ApproveFinancialEntryUseCase {
       });
 
       // 7. Return full enriched entity so the route response schema is satisfied
-      const enriched = await this.financialEntryRepo.findByIdEnriched(entryId, entry.tenantId);
+      const enriched = await this.financialEntryRepo.findByIdEnriched(entryId, entry.tenantId!);
       if (!enriched) {
         throw new EntryNotFoundError();
       }

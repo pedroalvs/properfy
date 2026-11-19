@@ -23,10 +23,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    # Node 24 is the forward-compat probe (HOL-11): its cell reports data but
-    # never blocks — only the Node 20 column gates a PR.
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
+    # Node 24-only after the hard cutover (HOL-11): Node 24 is the sole
+    # supported runtime and every job gates on it.
     steps:
       - uses: actions/checkout@v4
         with:
@@ -118,8 +117,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -137,8 +135,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -158,8 +155,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
     # Hard gate. A prior "cumulative web-suite OOM" was misdiagnosed as a
     # suite-wide map/GL teardown leak and worked around with an 8-shard
     # matrix + `continue-on-error` (one shard always OOMed, non-blocking).
@@ -191,8 +187,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -249,18 +244,72 @@ jobs:
           path: apps/web/playwright-report/
           retention-days: 7
 
+  test-pwa-e2e:
+    name: E2E pwa (Playwright mobile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Kill switch (L-X03-01). There is no required merge check on any branch; the
+    # deploy workflows require the whole CI run to be green, so this job blocks
+    # deploys from day one. If WebKit flakes systematically on develop, an admin
+    # sets the repository variable PWA_E2E_ADVISORY=true (no PR), opens an issue and
+    # removes it after the fix. With the variable set the job shows green and only
+    # the step goes red (runbook: apps/pwa/CLAUDE.md §10).
+    continue-on-error: ${{ vars.PWA_E2E_ADVISORY == 'true' }}
+    # The PWA suite stubs every API call (tests/e2e/support/api.ts), so it needs no
+    # backend or database. It was broken 56/56 for weeks with nobody noticing
+    # because it was never wired into CI (X03). Both workspace packages resolve only
+    # to their compiled dist/, so both builds are mandatory here.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+        with:
+          build-shared: "true"
+          build-frontend-standards: "true"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          # Distinct key from the web job: this one also holds WebKit.
+          key: playwright-pwa-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Chromium + WebKit
+        # Dev decision 2026-10-28: all 4 projects run in CI. Chromium: Mobile Chrome
+        # + Foldable. WebKit: Mobile Safari + iPad. --with-deps always runs (system
+        # libs are not cached, only the browser binaries).
+        run: pnpm --filter pwa exec playwright install --with-deps chromium webkit
+
+      - name: E2E
+        # CI=true (set by Actions) turns on retries: 2, workers: 1, the
+        # on-first-retry trace, failOnFlakyTests and the JSON reporter
+        # (test-results/e2e.json) in playwright.config.ts.
+        run: pnpm --filter pwa test:e2e
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pwa-playwright-report
+          path: |
+            apps/pwa/playwright-report/
+            apps/pwa/test-results/
+          retention-days: 7
+
   build:
     name: Build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
     # All `needs` jobs are hard gates. (test-web was restored to a blocking
     # check once the single-file web-suite OOM was fixed.) `needs` waits for
-    # every matrix cell of each listed job; the Node 24 cells are
-    # continue-on-error (always success), so build still gates on Node 20.
+    # every matrix cell of each listed job. The pipeline is Node 24-only after
+    # the hard cutover, so `build` gates on Node 24.
     needs: [lint-typecheck, test-shared, test-backend, test-web, test-pwa]
     steps:
       - uses: actions/checkout@v4
@@ -328,8 +377,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
     services:
       postgres:
         image: postgis/postgis:16-3.4-alpine
@@ -380,11 +428,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 24]
-    # The Node 24 cell is the non-required forward-compat probe (HOL-11): it is
-    # the riskiest surface for the bump (testcontainers + Prisma under real SQL),
-    # so its result is data, not a gate.
-    continue-on-error: ${{ matrix.node == 24 }}
+        node: [24]
+    # Integration is the riskiest surface for the Node 24 cutover (HOL-11):
+    # testcontainers + Prisma under real SQL. It is now a hard gate on Node 24
+    # like every other job.
     steps:
       - uses: actions/checkout@v4
         with:

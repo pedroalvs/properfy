@@ -7,6 +7,7 @@ export const MAX_DATE_RANGE_MONTHS: Record<ReportType, number> = {
   FINANCIAL: 12,
   PERFORMANCE: 12,
   AGENCIES: 12,
+  INSPECTOR_PROGRAM: 12,
 };
 
 /** Maximum concurrent (PENDING/PROCESSING) reports a single user may have queued. */
@@ -100,11 +101,52 @@ export const PERFORMANCE_AGENCY_COLUMNS: ReportColumn[] = PERFORMANCE_COLUMNS.fi
   (c) => c.key !== 'inspectorEmail',
 );
 
+/**
+ * Inspector program (F08-5, 03.14) — operator-only, platform-scoped. One row per
+ * reward of each closed goal period in range, plus no-achievers and skipped-inactive
+ * rows. Columns carry the goal snapshot, the result, the index at close and the Q12
+ * bonus ledger/invoice facts. No agency, address, coordinate or raw id column.
+ */
+export const INSPECTOR_PROGRAM_COLUMNS: ReportColumn[] = [
+  { key: 'periodType', label: 'Period type', width: 14 },
+  { key: 'periodStart', label: 'Period start', width: 14 },
+  { key: 'periodEnd', label: 'Period end', width: 14 },
+  { key: 'goal', label: 'Goal', width: 28 },
+  { key: 'goalDescription', label: 'Goal description', width: 40 },
+  { key: 'metric', label: 'Metric', width: 18 },
+  { key: 'target', label: 'Target', width: 10 },
+  { key: 'scope', label: 'Scope', width: 24 },
+  { key: 'perWinner', label: 'Per winner (AUD)', width: 16 },
+  { key: 'participants', label: 'Participants', width: 12 },
+  { key: 'achievers', label: 'Achievers', width: 12 },
+  { key: 'promised', label: 'Promised (AUD)', width: 16 },
+  { key: 'inspector', label: 'Inspector', width: 25 },
+  { key: 'inspectorEmail', label: 'Inspector email', width: 30 },
+  { key: 'result', label: 'Result', width: 14 },
+  { key: 'jobsInPeriod', label: 'Jobs in period', width: 14 },
+  { key: 'achievedOn', label: 'Achieved on', width: 14 },
+  { key: 'indexAtClose', label: 'Index at close', width: 14 },
+  { key: 'levelAtClose', label: 'Level at close', width: 14 },
+  { key: 'status', label: 'Status', width: 20 },
+  { key: 'amount', label: 'Amount (AUD)', width: 14 },
+  { key: 'approvedBy', label: 'Approved by', width: 25 },
+  { key: 'approvedAt', label: 'Approved at', width: 20 },
+  { key: 'ledgerStatus', label: 'Ledger status', width: 14 },
+  { key: 'invoice', label: 'Invoice', width: 16 },
+  { key: 'paidAt', label: 'Paid at', width: 20 },
+  { key: 'voidedAt', label: 'Voided at', width: 20 },
+  { key: 'voidReason', label: 'Void reason', width: 40 },
+  { key: 'inspectorNote', label: 'Inspector note', width: 30 },
+  { key: 'voidedAfterInvoicing', label: 'Voided after invoicing', width: 20 },
+  { key: 'reversalInvoice', label: 'Reversal invoice', width: 16 },
+];
+
 export const REPORT_COLUMNS: Record<ReportType, ReportColumn[]> = {
   APPOINTMENTS: APPOINTMENTS_COLUMNS,
   FINANCIAL: FINANCIAL_COLUMNS,
   PERFORMANCE: PERFORMANCE_COLUMNS,
   AGENCIES: AGENCIES_COLUMNS,
+  INSPECTOR_PROGRAM: INSPECTOR_PROGRAM_COLUMNS,
 };
 
 /**

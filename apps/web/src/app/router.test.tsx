@@ -72,3 +72,18 @@ describe('PortalRedirect', () => {
     expect(screen.getByTestId('pathname')).toHaveTextContent(`/portal/${legacyToken}`);
   });
 });
+
+// Inspector notices (F02) — AM/OP only; the route AuthGuard mirrors the Sidebar child's roles.
+describe('inspector-notices route guards', () => {
+  it.each(['/inspector-notices', '/inspector-notices/11111111-1111-4111-8111-111111111111'])(
+    'guards %s to AM and OP only',
+    (pathname) => {
+      const element = routeElementFor(pathname) as React.ReactElement<{ roles: string[] }>;
+      const roles = element.props.roles;
+      expect(roles).toEqual(expect.arrayContaining(['AM', 'OP']));
+      expect(roles).not.toContain('CL_ADMIN');
+      expect(roles).not.toContain('CL_USER');
+      expect(roles).not.toContain('INSP');
+    },
+  );
+});

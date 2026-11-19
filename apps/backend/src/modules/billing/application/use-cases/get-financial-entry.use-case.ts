@@ -42,7 +42,9 @@ export class GetFinancialEntryUseCase {
       if (!actor.inspectorId) {
         throw new ForbiddenError('INSPECTOR_NOT_LINKED', 'Inspector profile not linked to user account');
       }
-      if (entry.inspectorId !== actor.inspectorId || entry.entryType !== 'INSPECTOR_PAYOUT') {
+      // Q12 (F08-6): an inspector sees their own payouts AND their own bonuses.
+      const isOwnLegType = entry.entryType === 'INSPECTOR_PAYOUT' || entry.entryType === 'INSPECTOR_BONUS';
+      if (entry.inspectorId !== actor.inspectorId || !isOwnLegType) {
         throw new EntryNotFoundError();
       }
     } else if (actor.role !== 'AM' && actor.role !== 'OP') {

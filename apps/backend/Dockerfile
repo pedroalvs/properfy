@@ -1,5 +1,5 @@
 # ─── Build stage ─────────────────────────────────────────────────────────────
-FROM node:20-slim AS builder
+FROM node:24-bookworm-slim AS builder
 
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/* && \
     corepack enable && corepack prepare pnpm@9 --activate
@@ -31,7 +31,7 @@ RUN cd apps/backend && npx prisma generate
 RUN pnpm --filter backend build
 
 # ─── Production stage ────────────────────────────────────────────────────────
-FROM node:20-slim
+FROM node:24-bookworm-slim
 
 RUN apt-get update -y && apt-get install -y openssl wget && rm -rf /var/lib/apt/lists/* && \
     npm install -g prisma@6.19.3 && \

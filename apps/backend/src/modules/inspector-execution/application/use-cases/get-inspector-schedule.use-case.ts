@@ -322,7 +322,8 @@ export class GetInspectorScheduleUseCase {
     const appt = item.appointment;
     const exec = executionMap.get(appt.id);
     let executionStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'FINISHED' = 'NOT_STARTED';
-    if (exec) {
+    // An abandoned check-in reads as NOT_STARTED so the re-offered job is actionable again.
+    if (exec && !exec.isAbandoned()) {
       executionStatus = exec.isFinished() ? 'FINISHED' : 'IN_PROGRESS';
     }
 

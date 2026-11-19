@@ -4,10 +4,11 @@ import { StatusChip } from '@/components/ui/StatusChip';
 import { APPOINTMENT_STATUS_MAP } from '@/lib/status-colors';
 import { formatCivilDate, formatInstantDate, formatWallTimeRange } from '@/lib/format-date';
 import { cn } from '@properfy/frontend-standards';
-import type { AppointmentStatus } from '@properfy/shared';
+import { formatReasonCodeLabel, type AppointmentStatus } from '@properfy/shared';
 import type { AppointmentMapItem } from '../hooks/useAppointmentMapData';
 import { useAppointmentDetail } from '../hooks/useAppointmentDetail';
 import { AppointmentCodePill } from './AppointmentCodePill';
+import { InspectorIssueCard } from './InspectorIssueCard';
 import { SecretValue } from '@/components/ui/SecretValue';
 import { ConfirmationChannelIcons } from './ConfirmationChannelIcons';
 import { TenantAvailabilitySlots } from './TenantAvailabilitySlots';
@@ -144,6 +145,11 @@ export function AppointmentMapDetailPanel({
   // Inspector is only assigned from SCHEDULED onwards — shown under the agency
   // when present. Same marker-then-detail fallback as clientName.
   const inspectorName = detail?.inspectorName ?? appointment.inspectorName ?? null;
+  // Last "Can't do this job" event (F03). Prefer the detail once loaded, falling
+  // back to the marker row so the card shows immediately on pin click. Persists
+  // after re-offer, so it is not gated on the REJECTED status.
+  const inspectorIssue = detail?.inspectorIssue ?? appointment.inspectorIssue ?? null;
+  const currentInspectorId = detail?.inspectorId ?? appointment.inspectorId ?? null;
 
   return (
     <div
@@ -188,14 +194,30 @@ export function AppointmentMapDetailPanel({
           <div className="min-w-0 text-sm text-red-900">
             <p className="font-medium">Rejected</p>
             {(detail?.rejectionReasonCode ?? appointment.rejectionReasonCode) && (
-              <span className="mr-1 inline-block rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-red-700">
-                {detail?.rejectionReasonCode ?? appointment.rejectionReasonCode}
+              <span className="mr-1 inline-block rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold tracking-wide text-red-700">
+                {formatReasonCodeLabel(detail?.rejectionReasonCode ?? appointment.rejectionReasonCode)}
               </span>
             )}
             {(detail?.reason ?? appointment.reason) && (
               <p className="mt-0.5 text-xs text-red-800">{detail?.reason ?? appointment.reason}</p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* "Inspector couldn't complete" compact card — below the REJECTED banner,
+          or at the top when the appointment was already re-offered (the card
+          persists). Inline content only: it never opens its own modal, since a
+          modal launched from inside the Mapbox popup is killed by the popup's
+          outside-click handling. */}
+      {inspectorIssue && (
+        <div className="border-b border-border-subtle px-3 py-2">
+          <InspectorIssueCard
+            issue={inspectorIssue}
+            currentInspectorId={currentInspectorId}
+            variant="compact"
+            data-testid="map-detail-inspector-issue"
+          />
         </div>
       )}
 

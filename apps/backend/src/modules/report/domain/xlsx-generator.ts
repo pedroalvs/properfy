@@ -4,6 +4,15 @@ export interface ReportColumn {
   width?: number;
 }
 
+export interface XlsxGenerateOptions {
+  sheetName?: string;
+  preamble?: string[][];
+}
+
 export interface IXlsxGenerator {
-  generate(columns: ReportColumn[], rows: Record<string, unknown>[]): Promise<Buffer>;
+  generate(
+    columns: ReportColumn[],
+    rows: Record<string, unknown>[],
+    opts?: XlsxGenerateOptions,
+  ): Promise<Buffer>;
 }

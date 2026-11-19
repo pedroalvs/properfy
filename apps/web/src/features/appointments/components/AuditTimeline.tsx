@@ -1,6 +1,15 @@
 import { cn } from '@properfy/frontend-standards';
+import { TRANSITION_SOURCE_INSPECTOR_CANT_DO } from '@properfy/shared';
 import { formatInstantDateTime } from '@/lib/format-date';
 import type { AuditLogEntry } from '../hooks/useAppointmentAuditLog';
+
+/**
+ * `metadata.source` value written by TASK-F06-2's inspector check-out. The
+ * constant does not exist on this branch yet (F06-2 adds
+ * `TRANSITION_SOURCE_INSPECTOR_FINISH` to the shared file), so the badge matches
+ * the literal — forward-compatible and inert until F06-2 lands (D31, L-F06-04).
+ */
+const TRANSITION_SOURCE_INSPECTOR_FINISH = 'INSPECTOR_FINISH';
 
 interface AuditTimelineProps {
   entries: AuditLogEntry[];
@@ -21,6 +30,11 @@ const ACTION_LABELS: Record<string, string> = {
   'rental_tenant_portal.group_joined': 'Tenant Joined Group',
   'inspection.started': 'Inspection Started',
   'inspection.finished': 'Inspection Finished',
+  'inspection.geolocation_mismatch': 'Location Mismatch',
+  'inspection.check_in_blocked': 'Check-in Blocked (Outside Geofence)',
+  'inspection.completion_reminder_sent': 'Completion Reminder Sent',
+  'inspector_field_event.cant_do': "Inspector Couldn't Complete",
+  'inspector_field_event.late_notice': 'Inspector Running Late',
   'notification.send_failed': 'Notification Failed to Send',
   'notification.dispatch_failed': 'Notification Dispatch Failed',
   'fy.note_added': 'Note Added via Fy',
@@ -41,6 +55,11 @@ const ACTION_STYLES: Record<string, { icon: string; color: string }> = {
   'rental_tenant_portal.group_joined': { icon: 'mdi-account-group', color: 'border-success' },
   'inspection.started': { icon: 'mdi-play-circle', color: 'border-success' },
   'inspection.finished': { icon: 'mdi-flag-checkered', color: 'border-success' },
+  'inspection.geolocation_mismatch': { icon: 'mdi-map-marker-alert', color: 'border-warning' },
+  'inspection.check_in_blocked': { icon: 'mdi-map-marker-off', color: 'border-error' },
+  'inspection.completion_reminder_sent': { icon: 'mdi-bell-ring', color: 'border-info' },
+  'inspector_field_event.cant_do': { icon: 'mdi-account-alert', color: 'border-error' },
+  'inspector_field_event.late_notice': { icon: 'mdi-clock-alert-outline', color: 'border-warning' },
   'notification.send_failed': { icon: 'mdi-email-alert', color: 'border-error' },
   'notification.dispatch_failed': { icon: 'mdi-bell-alert', color: 'border-error' },
   'fy.note_added': { icon: 'mdi-message-text', color: 'border-info' },
@@ -116,6 +135,16 @@ function getMetadataBadges(metadataJson: unknown): string[] {
   const badges: string[] = [];
   if (meta['pendingOperatorCrossCheck']) badges.push('Pending Cross-check');
   if (meta['requiresFinancialReview']) badges.push('Requires Financial Review');
+  // Attribute a SYSTEM transition to the inspector who triggered it (D2/D31):
+  // compare metadata.source against the shared constants, never actorType.
+  if (meta['source'] === TRANSITION_SOURCE_INSPECTOR_CANT_DO) {
+    badges.push('Initiated by inspector');
+  }
+  // Check-out marker: the finish phase of a geolocation mismatch, or F06-2's
+  // inspector check-out transition source (inert until F06-2 writes it).
+  if (meta['phase'] === 'FINISH' || meta['source'] === TRANSITION_SOURCE_INSPECTOR_FINISH) {
+    badges.push('Check-out');
+  }
   return badges;
 }
 

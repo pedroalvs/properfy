@@ -15,6 +15,7 @@ export interface GetServiceTypeOutput {
   flowType: string;
   requiresRentalTenantConfirmation: boolean;
   status: string;
+  defaultDurationMinutes: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +44,7 @@ export class GetServiceTypeUseCase {
       flowType: serviceType.flowType,
       requiresRentalTenantConfirmation: serviceType.requiresRentalTenantConfirmation,
       status: serviceType.status,
+      defaultDurationMinutes: serviceType.defaultDurationMinutes,
       createdAt: serviceType.createdAt,
       updatedAt: serviceType.updatedAt,
     };

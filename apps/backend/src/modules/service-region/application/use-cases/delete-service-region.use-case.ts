@@ -2,10 +2,12 @@ import type { AuthContext } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IServiceRegionRepository } from '../../domain/service-region.repository';
+import type { IRegionGoalUsageChecker } from '../../domain/region-goal-usage.checker';
 import {
   ServiceRegionNotFoundError,
   ServiceRegionStillActiveError,
   ServiceRegionHasPublishedGroupsError,
+  ServiceRegionHasActiveGoalsError,
 } from '../../domain/service-region.errors';
 
 export interface DeleteServiceRegionInput {
@@ -18,6 +20,9 @@ export class DeleteServiceRegionUseCase {
     private readonly regionRepo: IServiceRegionRepository,
     private readonly auditService: AuditService,
     private readonly authorizationService: AuthorizationService,
+    // Optional: when inspector-program is wired, block deletion of a region still
+    // used by an active goal (F08-1, FR-028). Checked last, after the existing guards.
+    private readonly regionGoalUsageChecker?: IRegionGoalUsageChecker,
   ) {}
 
   async execute(input: DeleteServiceRegionInput): Promise<void> {
@@ -37,6 +42,13 @@ export class DeleteServiceRegionUseCase {
     const publishedGroupCount = await this.regionRepo.countPublishedGroupsByRegionId(regionId);
     if (publishedGroupCount > 0) {
       throw new ServiceRegionHasPublishedGroupsError();
+    }
+
+    if (this.regionGoalUsageChecker) {
+      const activeGoalCount = await this.regionGoalUsageChecker.countActiveGoalsUsingRegion(regionId);
+      if (activeGoalCount > 0) {
+        throw new ServiceRegionHasActiveGoalsError(activeGoalCount);
+      }
     }
 
     await this.regionRepo.delete(regionId, region.tenantId);

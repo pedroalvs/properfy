@@ -13,6 +13,16 @@ const INSP_ACTOR = {
 
 const TX = { __tx: true };
 
+const platformSettingsStub = {
+  get: vi.fn().mockResolvedValue({
+    geofenceRadiusMeters: 300,
+    geofenceMode: 'FLAG',
+    checkInWindowToleranceMinutes: 15,
+    completionReminderEnabled: true,
+    completionReminderMinutesAfterWindowEnd: 30,
+  }),
+} as never;
+
 /** Mirrors join-group.use-case.test.ts: a $transaction stub that runs the callback
  * against a sentinel tx and marks commit only if the callback resolves. */
 function buildPrismaStub() {
@@ -34,9 +44,11 @@ function buildUseCase(overrides: {
       inspectorId: 'insp-1',
       startedAt: new Date('2026-03-23T10:00:00.000Z'),
       isFinished: () => false,
+      isAbandoned: () => false,
     }),
     update: vi.fn(),
   };
+  const fieldEventRepo = { lockAppointmentForFieldEvent: vi.fn() };
   const appointmentRepo = overrides.appointmentRepo ?? {
     findById: vi.fn().mockResolvedValue({
       appointment: { tenantId: 'tenant-1', serviceTypeId: null },
@@ -60,6 +72,8 @@ function buildUseCase(overrides: {
     auditService,
     new AuthorizationService(auditService),
     (overrides.prisma ?? buildPrismaStub()) as never,
+    platformSettingsStub,
+    fieldEventRepo as never,
   );
 }
 
@@ -72,6 +86,7 @@ describe('FinishInspectionUseCase', () => {
         inspectorId: 'insp-2',
         startedAt: new Date('2026-03-23T10:00:00.000Z'),
         isFinished: () => false,
+        isAbandoned: () => false,
       }),
     };
 
@@ -83,6 +98,9 @@ describe('FinishInspectionUseCase', () => {
       { findById: vi.fn().mockResolvedValue({ appointment: { tenantId: 'tenant-1' } }) } as never,
       auditService,
       new AuthorizationService(auditService),
+      undefined,
+      platformSettingsStub,
+      { lockAppointmentForFieldEvent: vi.fn() } as never,
     );
 
     await expect(
@@ -120,6 +138,7 @@ describe('FinishInspectionUseCase', () => {
         inspectorId: 'insp-1',
         startedAt: new Date('2026-03-23T10:00:00.000Z'),
         isFinished: () => false,
+        isAbandoned: () => false,
       }),
       update,
     };
@@ -137,6 +156,10 @@ describe('FinishInspectionUseCase', () => {
       finishedAt: expect.any(Date),
       finishLatitude: -12.97,
       finishLongitude: -38.5,
+      finishAccuracyMeters: null,
+      finishClientAt: null,
+      finishGeolocationDistanceMeters: null,
+      finishOutOfRadius: false,
     }, TX);
   });
 
@@ -149,6 +172,7 @@ describe('FinishInspectionUseCase', () => {
         inspectorId: 'insp-1',
         startedAt: new Date('2026-03-23T10:00:00.000Z'),
         isFinished: () => false,
+        isAbandoned: () => false,
       }),
       update,
     };
@@ -173,6 +197,8 @@ describe('FinishInspectionUseCase', () => {
       auditService,
       new AuthorizationService(auditService),
       prisma as never,
+      platformSettingsStub,
+      { lockAppointmentForFieldEvent: vi.fn() } as never,
     );
 
     await expect(
@@ -190,5 +216,30 @@ describe('FinishInspectionUseCase', () => {
     // asserts the composition: both writes go through the same tx handle.
     expect(update).toHaveBeenCalledWith('exec-1', expect.any(Object), TX);
     expect(idempotencyService.set).not.toHaveBeenCalled();
+  });
+
+  it('treats an abandoned execution as not started (404)', async () => {
+    const executionRepo = {
+      findByAppointmentId: vi.fn().mockResolvedValue({
+        id: 'exec-1',
+        appointmentId: 'apt-1',
+        inspectorId: 'insp-1',
+        startedAt: new Date('2026-03-23T10:00:00.000Z'),
+        isFinished: () => false,
+        isAbandoned: () => true,
+      }),
+      update: vi.fn(),
+    };
+    const useCase = buildUseCase({ executionRepo });
+    await expect(
+      useCase.execute({
+        appointmentId: 'apt-1',
+        latitude: -12.97,
+        longitude: -38.5,
+        idempotencyKey: 'idem-6',
+        actor: INSP_ACTOR,
+      }),
+    ).rejects.toMatchObject({ code: 'EXECUTION_NOT_STARTED' });
+    expect(executionRepo.update).not.toHaveBeenCalled();
   });
 });

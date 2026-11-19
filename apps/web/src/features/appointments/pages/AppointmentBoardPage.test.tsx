@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
 import { api } from '@/services/api';
 import { AppointmentBoardPage } from './AppointmentBoardPage';
 import { DEFAULT_FILTERS } from '../types';
@@ -515,5 +516,42 @@ describe('AppointmentBoardPage', () => {
 
     // PageHeader renders a desktop + mobile pair for its actions.
     expect(screen.getAllByRole('button', { name: 'List' }).length).toBeGreaterThan(0);
+  });
+
+  describe('Back navigation', () => {
+    // P-a: a single header Back button, and the cross-navigation entries stay.
+    it('renders one Back button while keeping List and Map View', () => {
+      renderBoard();
+
+      expect(screen.getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+      expect(screen.getByRole('button', { name: 'List' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Map View' })).toBeInTheDocument();
+    });
+
+    // P-b: opened directly (single history entry), Back falls back to /appointments.
+    it('falls back to /appointments when opened directly', async () => {
+      const user = userEvent.setup();
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false, gcTime: 0 } },
+      });
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+            initialEntries={['/appointments/board']}
+          >
+            <Routes>
+              <Route path="/appointments/board" element={<AppointmentBoardPage />} />
+              <Route path="/appointments" element={<div data-testid="list-route">List</div>} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+
+      expect(await screen.findByTestId('list-route')).toBeInTheDocument();
+    });
   });
 });

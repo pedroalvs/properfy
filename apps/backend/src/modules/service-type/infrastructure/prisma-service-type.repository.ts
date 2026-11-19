@@ -19,6 +19,7 @@ function mapToEntity(row: {
   flow_type: string;
   requires_rental_tenant_confirmation: boolean;
   status: string;
+  default_duration_minutes: number;
   created_at: Date;
   updated_at: Date;
 }): ServiceTypeEntity {
@@ -29,6 +30,7 @@ function mapToEntity(row: {
     flowType: row.flow_type as ServiceTypeFlowType,
     requiresRentalTenantConfirmation: row.requires_rental_tenant_confirmation,
     status: row.status as ServiceTypeStatus,
+    defaultDurationMinutes: row.default_duration_minutes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
@@ -98,6 +100,7 @@ export class PrismaServiceTypeRepository implements IServiceTypeRepository {
         flow_type: serviceType.flowType as PrismaServiceTypeFlowType,
         requires_rental_tenant_confirmation: serviceType.requiresRentalTenantConfirmation,
         status: serviceType.status as PrismaServiceTypeStatus,
+        default_duration_minutes: serviceType.defaultDurationMinutes,
       },
     });
   }
@@ -109,6 +112,7 @@ export class PrismaServiceTypeRepository implements IServiceTypeRepository {
       flowType: string;
       requiresRentalTenantConfirmation: boolean;
       status: string;
+      defaultDurationMinutes: number;
     }>,
   ): Promise<ServiceTypeEntity> {
     const updateData: Record<string, unknown> = {};
@@ -119,6 +123,8 @@ export class PrismaServiceTypeRepository implements IServiceTypeRepository {
       updateData['requires_rental_tenant_confirmation'] =
         data.requiresRentalTenantConfirmation;
     if (data.status !== undefined) updateData['status'] = data.status;
+    if (data.defaultDurationMinutes !== undefined)
+      updateData['default_duration_minutes'] = data.defaultDurationMinutes;
     const row = await this.prisma.serviceType.update({ where: { id }, data: updateData });
     return mapToEntity(row);
   }

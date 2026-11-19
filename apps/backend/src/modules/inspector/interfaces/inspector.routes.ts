@@ -15,10 +15,13 @@ import {
   successResponseSchema,
   paginatedResponseSchema,
   inspectorSelfUpdateSchema,
+  inspectorAppStateSchema,
   availabilityTemplateSchema,
   inspectorAvailabilityResponseSchema,
   inspectorSurveyItemSchema,
   paginationSchema,
+  updateInspectorAlertThresholdsSchema,
+  inspectorAlertThresholdsResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ForbiddenError, ValidationError } from '../../../shared/domain/errors';
@@ -37,12 +40,15 @@ import type { ResetInspectorPasswordUseCase } from '../application/use-cases/res
 import type { GenerateInspectorPhotoUploadUrlUseCase } from '../application/use-cases/generate-inspector-photo-upload-url.use-case';
 import type { ConfirmInspectorPhotoUploadUseCase } from '../application/use-cases/confirm-inspector-photo-upload.use-case';
 import type { UpdateInspectorSelfProfileUseCase } from '../application/use-cases/update-inspector-self-profile.use-case';
+import type { RecordInspectorAppStateUseCase } from '../application/use-cases/record-inspector-app-state.use-case';
 import type { GenerateInspectorDocumentUploadUrlUseCase } from '../application/use-cases/generate-inspector-document-upload-url.use-case';
 import type { ConfirmInspectorDocumentUploadUseCase } from '../application/use-cases/confirm-inspector-document-upload.use-case';
 import type { GetInspectorDocumentDownloadUrlUseCase } from '../application/use-cases/get-inspector-document-download-url.use-case';
 import type { GetInspectorAvailabilityTemplateUseCase } from '../application/use-cases/get-inspector-availability-template.use-case';
 import type { UpdateInspectorAvailabilityTemplateUseCase } from '../application/use-cases/update-inspector-availability-template.use-case';
 import type { GetInspectorAvailabilityTemplateForOperatorUseCase } from '../application/use-cases/get-inspector-availability-template-for-operator.use-case';
+import type { GetInspectorAlertThresholdsUseCase } from '../application/use-cases/get-inspector-alert-thresholds.use-case';
+import type { UpdateInspectorAlertThresholdsUseCase } from '../application/use-cases/update-inspector-alert-thresholds.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface InspectorRouteContainer {
@@ -60,12 +66,15 @@ export interface InspectorRouteContainer {
   generateInspectorPhotoUploadUrlUseCase: GenerateInspectorPhotoUploadUrlUseCase;
   confirmInspectorPhotoUploadUseCase: ConfirmInspectorPhotoUploadUseCase;
   updateInspectorSelfProfileUseCase: UpdateInspectorSelfProfileUseCase;
+  recordInspectorAppStateUseCase: RecordInspectorAppStateUseCase;
   generateInspectorDocumentUploadUrlUseCase: GenerateInspectorDocumentUploadUrlUseCase;
   confirmInspectorDocumentUploadUseCase: ConfirmInspectorDocumentUploadUseCase;
   getInspectorDocumentDownloadUrlUseCase: GetInspectorDocumentDownloadUrlUseCase;
   getInspectorAvailabilityTemplateUseCase: GetInspectorAvailabilityTemplateUseCase;
   updateInspectorAvailabilityTemplateUseCase: UpdateInspectorAvailabilityTemplateUseCase;
   getInspectorAvailabilityTemplateForOperatorUseCase: GetInspectorAvailabilityTemplateForOperatorUseCase;
+  getInspectorAlertThresholdsUseCase: Pick<GetInspectorAlertThresholdsUseCase, 'execute'>;
+  updateInspectorAlertThresholdsUseCase: Pick<UpdateInspectorAlertThresholdsUseCase, 'execute'>;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
   slotRepo: { findByIdAny(id: string): Promise<{ inspectorId: string } | null> };
@@ -622,6 +631,75 @@ export async function registerInspectorRoutes(
     },
   );
 
+  // Per-user rate limit for the AM/OP alert-thresholds config (D-R4). The key generator
+  // runs before auth, so it verifies the JWT signature and keys on the authenticated
+  // `userId` (IP fallback for a missing/invalid token) — keying on an unverified header
+  // would let an attacker vary it to mint fresh buckets. Global per-IP limit still applies.
+  const alertThresholdsRateLimit = {
+    max: 30,
+    timeWindow: '1 minute',
+    keyGenerator: async (request: { headers: Record<string, unknown>; ip: string }) => {
+      const header = request.headers.authorization;
+      const value = Array.isArray(header) ? (header[0] as string) : (header as string | undefined);
+      const token = value?.startsWith('Bearer ') ? value.slice(7).trim() : undefined;
+      if (!token) return request.ip;
+      try {
+        const ctx = await container.jwtService.verify(token);
+        return `u:${ctx.userId}`;
+      } catch {
+        return request.ip;
+      }
+    },
+  };
+
+  // GET /v1/inspectors/:inspectorId/alert-thresholds — AM/OP (F05-1, platform-scoped)
+  app.get(
+    '/v1/inspectors/:inspectorId/alert-thresholds',
+    {
+      preHandler: authenticate,
+      config: { rateLimit: alertThresholdsRateLimit },
+      schema: {
+        params: z.object({ inspectorId: z.string().uuid() }),
+        response: { 200: successResponseSchema(inspectorAlertThresholdsResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = inspectorIdParam.safeParse(request.params);
+      if (!params.success) throw new ValidationError('Invalid inspector ID', params.error.errors);
+      const result = await container.getInspectorAlertThresholdsUseCase.execute({
+        inspectorId: params.data.inspectorId,
+        actor: request.authContext!,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // PUT /v1/inspectors/:inspectorId/alert-thresholds — AM/OP set/clear the override
+  app.put(
+    '/v1/inspectors/:inspectorId/alert-thresholds',
+    {
+      preHandler: authenticate,
+      config: { rateLimit: alertThresholdsRateLimit },
+      schema: {
+        params: z.object({ inspectorId: z.string().uuid() }),
+        body: updateInspectorAlertThresholdsSchema,
+        response: { 200: successResponseSchema(inspectorAlertThresholdsResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = inspectorIdParam.safeParse(request.params);
+      if (!params.success) throw new ValidationError('Invalid inspector ID', params.error.errors);
+      const parsed = updateInspectorAlertThresholdsSchema.safeParse(request.body);
+      if (!parsed.success) throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      const result = await container.updateInspectorAlertThresholdsUseCase.execute({
+        inspectorId: params.data.inspectorId,
+        actor: request.authContext!,
+        input: parsed.data,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
   // GET /v1/inspectors/me — INSP self-fetch
   app.get(
     '/v1/inspectors/me',
@@ -639,12 +717,25 @@ export async function registerInspectorRoutes(
     },
   );
 
+  // Per-user rate limit (L-F01-06). The global limiter is per IP, and several
+  // inspectors can share an office IP. `hook: 'preHandler'` appends the limiter
+  // after `authenticate` (also a preHandler), so the key sees `authContext`;
+  // without it the key silently falls back to the IP. 10/min per user.
+  const perUserRateLimit = {
+    max: 10,
+    timeWindow: '1 minute',
+    hook: 'preHandler' as const,
+    keyGenerator: (request: { authContext?: { userId?: string }; ip: string }) =>
+      request.authContext?.userId ?? request.ip,
+  };
+
   // PATCH /v1/inspectors/me — INSP self-update
   app.patch(
     '/v1/inspectors/me',
     {
       preHandler: authenticate,
       schema: { body: inspectorSelfUpdateSchema },
+      config: { rateLimit: perUserRateLimit },
     },
     async (request, reply) => {
       const actor = request.authContext!;
@@ -659,6 +750,27 @@ export async function registerInspectorRoutes(
         actor,
       });
       return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/inspectors/me/app-state — INSP app-state heartbeat (contract 00.10).
+  // Static path: find-my-way gives it precedence over `/:inspectorId/...`.
+  app.post(
+    '/v1/inspectors/me/app-state',
+    {
+      preHandler: authenticate,
+      schema: { body: inspectorAppStateSchema },
+      config: { rateLimit: perUserRateLimit },
+    },
+    async (request, reply) => {
+      const parsed = inspectorAppStateSchema.safeParse(request.body);
+      if (!parsed.success) throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      await container.recordInspectorAppStateUseCase.execute({
+        actor: request.authContext!,
+        input: parsed.data,
+        requestId: request.id,
+      });
+      return reply.status(204).send();
     },
   );
 

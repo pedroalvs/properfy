@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import type { InspectorInvoiceEntity } from './inspector-invoice.entity';
 import type { InspectorInvoiceStatus, InvoiceSnapshotLine } from '@properfy/shared';
 
@@ -89,7 +90,31 @@ export interface IInspectorInvoiceRepository {
       issuedAt: Date;
       generatedByUserId: string;
     },
+    /**
+     * Q12 (F08-6): runs inside the freeze transaction, after the PENDING_REVIEW → CLOSED update
+     * succeeds, to link the period's approved rewards to this invoice. Throwing (e.g.
+     * `InvoiceLinesChangedError` on a count mismatch) rolls the whole freeze back.
+     */
+    linkRewards?: (tx: Prisma.TransactionClient) => Promise<void>,
   ): Promise<number | null>;
+  /**
+   * Q12 (F08-6): atomically CAS CLOSED → PAID and run `afterPaid` inside the same transaction
+   * (to mark the invoice's rewards PAID). Returns true iff this call performed the transition.
+   */
+  markPaidInTransaction(
+    invoiceId: string,
+    params: { paidAt: Date; paidByUserId: string; paymentReference: string | null },
+    afterPaid?: (tx: Prisma.TransactionClient) => Promise<void>,
+  ): Promise<boolean>;
+  /**
+   * Q12 (F08-6): atomically CAS PAID → CLOSED (clearing the payment fields) and run `afterReverted`
+   * inside the same transaction (to return the invoice's rewards to APPROVED). Returns true iff this
+   * call performed the transition.
+   */
+  reversePaymentInTransaction(
+    invoiceId: string,
+    afterReverted?: (tx: Prisma.TransactionClient) => Promise<void>,
+  ): Promise<boolean>;
   /**
    * Atomically transitions PENDING_REVIEW → VOID with the reason via a conditional update, so a
    * concurrent approval cannot be silently overwritten. Returns true iff this call performed the

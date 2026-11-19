@@ -1,5 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Prisma } from '@prisma/client';
 import { PrismaServiceGroupRepository, deriveOfferPayoutFrom } from './prisma-service-group.repository';
+
+/**
+ * Re-assembles a mocked `$queryRaw` tagged-template call into the final SQL
+ * text and flat bind values, nested `Prisma.sql` fragments included (the
+ * marketplace eligibility predicate is one).
+ */
+function renderRaw(call: unknown[]): { text: string; values: unknown[] } {
+  const [strings, ...values] = call as [string[], ...unknown[]];
+  const sql = Prisma.sql(strings, ...values);
+  return { text: sql.sql, values: sql.values };
+}
 
 describe('deriveOfferPayoutFrom', () => {
   const appts = (...amounts: Array<number | null>) => amounts.map((a) => ({ payout_amount: a }));
@@ -56,14 +68,13 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       'inspector-1',
       ['st-1'],
       ['tenant-1'],
-      { page: 1, pageSize: 20, sortOrder: 'asc' },
+      { page: 1, pageSize: 20, sortOrder: 'asc' }, null,
     );
 
     // Should call raw SQL for eligible IDs
     expect(queryRaw).toHaveBeenCalledTimes(1);
-    const rawCall = queryRaw.mock.calls[0][0];
-    // Verify the SQL template contains ST_Intersects and key join conditions
-    const sqlText = rawCall.map((s: unknown) => String(s)).join('');
+    // Verify the SQL contains ST_Intersects and key join conditions
+    const sqlText = renderRaw(queryRaw.mock.calls[0]).text;
     expect(sqlText).toContain('ST_Intersects');
     expect(sqlText).not.toContain('sr.tenant_id'); // cross-tenant: region ownership is not a match filter
     expect(sqlText).toContain('inspector_regions');
@@ -103,7 +114,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       page: 1,
       pageSize: 20,
       sortOrder: 'asc',
-    });
+    }, null);
 
     // Without this filter the list counted deleted appointments and summed
     // their payouts, so an offer card advertised more work and more money than
@@ -129,7 +140,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       page: 1,
       pageSize: 20,
       sortOrder: 'asc',
-    });
+    }, null);
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -172,8 +183,8 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       page: 1,
       pageSize: 20,
       sortOrder: 'asc',
-    });
-    await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], []);
+    }, null);
+    await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], [], null);
 
     const expectedOrder = expect.objectContaining({
       include: expect.objectContaining({
@@ -232,7 +243,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       page: 1,
       pageSize: 20,
       sortOrder: 'asc',
-    });
+    }, null);
 
     expect(result[0]!.properties).toEqual([
       { street: '10 Main St', suburb: 'Bondi NSW', propertyType: 'APARTMENT' },
@@ -288,7 +299,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       page: 1,
       pageSize: 20,
       sortOrder: 'asc',
-    });
+    }, null);
 
     expect(result[0]!.properties).toEqual([
       { street: '10 Main St', suburb: 'Bondi NSW', propertyType: 'APARTMENT' },
@@ -311,7 +322,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       'inspector-1',
       ['st-1'],
       ['tenant-1'],
-      { page: 1, pageSize: 20, sortOrder: 'asc' },
+      { page: 1, pageSize: 20, sortOrder: 'asc' }, null,
     );
 
     expect(result).toEqual([]);
@@ -330,13 +341,13 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     const result = await repo.countPublishedForInspector(
       'inspector-1',
       ['st-1'],
-      ['tenant-1'],
+      ['tenant-1'], null,
     );
 
     expect(result).toBe(5);
-    const rawCall = queryRaw.mock.calls[0][0];
-    const sqlText = rawCall.map((s: unknown) => String(s)).join('');
-    expect(sqlText).toContain('COUNT(DISTINCT sg.id)');
+    // The region match is an EXISTS, so there is no join fan-out to de-duplicate.
+    const sqlText = renderRaw(queryRaw.mock.calls[0]).text;
+    expect(sqlText).toContain('COUNT(*)');
     expect(sqlText).toContain('ST_Intersects');
     expect(sqlText).not.toContain('sr.tenant_id'); // cross-tenant: region ownership is not a match filter
   });
@@ -353,7 +364,7 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
     const result = await repo.countPublishedForInspector(
       'inspector-1',
       [],
-      ['tenant-1'],
+      ['tenant-1'], null,
     );
 
     expect(result).toBe(0);
@@ -376,10 +387,10 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
         page: 1,
         pageSize: 20,
         sortOrder: 'asc',
-      }),
+      }, null),
     ).resolves.toEqual([]);
     await expect(
-      repo.countPublishedForInspector('inspector-1', [], ['tenant-1']),
+      repo.countPublishedForInspector('inspector-1', [], ['tenant-1'], null),
     ).resolves.toBe(0);
     expect(prisma.$queryRaw).not.toHaveBeenCalled();
     expect(prisma.serviceGroup.findMany).not.toHaveBeenCalled();
@@ -403,14 +414,14 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
         page: 1,
         pageSize: 20,
         sortOrder: 'asc',
-      }),
+      }, null),
     ).resolves.toEqual([]);
     expect(queryRaw).toHaveBeenCalled();
 
     queryRaw.mockClear();
     queryRaw.mockResolvedValueOnce([{ count: BigInt(0) }]);
     await expect(
-      repo.countPublishedForInspector('inspector-1', ['st-1'], []),
+      repo.countPublishedForInspector('inspector-1', ['st-1'], [], null),
     ).resolves.toBe(0);
     expect(queryRaw).toHaveBeenCalled();
   });
@@ -424,18 +435,15 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
 
     const repo = new PrismaServiceGroupRepository(prisma as any);
 
-    await repo.countPublishedForInspector('inspector-1', ['st-1'], ['blocked-tenant-1', 'blocked-tenant-2']);
+    await repo.countPublishedForInspector('inspector-1', ['st-1'], ['blocked-tenant-1', 'blocked-tenant-2'], null);
 
     expect(queryRaw).toHaveBeenCalledTimes(1);
-    // Tagged template strings array is the first arg; assert the SQL contains the denylist clause.
-    const sqlParts = queryRaw.mock.calls[0][0] as string[];
-    const sqlText = sqlParts.join('');
+    const { text: sqlText, values: params } = renderRaw(queryRaw.mock.calls[0]);
     // Groups are tenant-agnostic: the denylist is appointment-based (exclude the
     // group if it contains an appointment of any blocked agency).
     expect(sqlText).toMatch(/NOT EXISTS\s*\(\s*SELECT 1 FROM appointments ga/);
     expect(sqlText).toMatch(/ga\.tenant_id = ANY/);
     // The blocked array must be among the interpolated params.
-    const params = queryRaw.mock.calls[0].slice(1);
     expect(params).toContainEqual(['blocked-tenant-1', 'blocked-tenant-2']);
   });
 
@@ -452,14 +460,13 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
       'inspector-1',
       ['st-1'],
       ['tenant-1'],
-      { page: 3, pageSize: 10, sortOrder: 'asc' },
+      { page: 3, pageSize: 10, sortOrder: 'asc' }, null,
     );
 
     // Page 3, pageSize 10 => offset 20, limit 10
     // The raw query should have been called with the inspectorId, service types, client eligibility, limit, offset
     expect(queryRaw).toHaveBeenCalledTimes(1);
-    // The tagged template params are accessible via the second arg onwards
-    const params = queryRaw.mock.calls[0].slice(1);
+    const params = renderRaw(queryRaw.mock.calls[0]).values;
     // params should include: inspectorId, serviceTypes, clientEligibility, limit (10), offset (20)
     expect(params).toContain('inspector-1');
     expect(params).toContain(10);
@@ -475,14 +482,44 @@ describe('PrismaServiceGroupRepository marketplace filters', () => {
 
     const repo = new PrismaServiceGroupRepository(prisma as any);
 
-    await repo.countPublishedForInspector('inspector-1', ['st-1'], ['tenant-1']);
+    await repo.countPublishedForInspector('inspector-1', ['st-1'], ['tenant-1'], null);
 
-    const rawCall = queryRaw.mock.calls[0][0];
-    const sqlText = rawCall.map((s: unknown) => String(s)).join('');
+    const sqlText = renderRaw(queryRaw.mock.calls[0]).text;
     // Cross-tenant: region ownership (sr.tenant_id) is NOT a matching filter at all.
     expect(sqlText).not.toContain('sr.tenant_id');
     // Isolation is preserved by the per-appointment inspector->client denylist.
     expect(sqlText).toContain('ga.tenant_id = ANY');
+  });
+
+  it('isGroupEligibleForInspector applies the same eligibility predicate as the offer list, scoped to one group', async () => {
+    const queryRaw = vi.fn().mockResolvedValue([]);
+    const repo = new PrismaServiceGroupRepository({ $queryRaw: queryRaw, serviceGroup: { findMany: vi.fn() } } as any);
+
+    await repo.findPublishedForInspector('inspector-1', ['st-1'], ['tenant-1'], { page: 1, pageSize: 20, sortOrder: 'asc' }, null);
+    const eligible = await repo.isGroupEligibleForInspector('sg-1', 'inspector-1', ['st-1'], ['tenant-1']);
+
+    expect(eligible).toBe(false);
+    const list = renderRaw(queryRaw.mock.calls[0]);
+    const accept = renderRaw(queryRaw.mock.calls[1]);
+    const predicate = (repo as any).inspectorEligibilitySql('inspector-1', ['st-1'], ['tenant-1']) as Prisma.Sql;
+    // Placeholder numbers shift with the fragment's position, so compare without them.
+    const unnumbered = (text: string) => text.replace(/\$\d+/g, '?');
+    expect(predicate.text).toContain('ST_Intersects');
+    expect(unnumbered(list.text)).toContain(unnumbered(predicate.text));
+    expect(unnumbered(accept.text)).toContain(unnumbered(predicate.text));
+    expect(accept.text).toContain('sg.id =');
+    expect(accept.values).toEqual(expect.arrayContaining(['sg-1', 'inspector-1', ['st-1'], ['tenant-1']]));
+    // Status/date are the caller's concern, not part of eligibility.
+    expect(accept.text).not.toContain('PUBLISHED');
+  });
+
+  it('isGroupEligibleForInspector is true when the group matches, and short-circuits with no service types', async () => {
+    const queryRaw = vi.fn().mockResolvedValue([{ id: 'sg-1' }]);
+    const repo = new PrismaServiceGroupRepository({ $queryRaw: queryRaw } as any);
+
+    await expect(repo.isGroupEligibleForInspector('sg-1', 'inspector-1', ['st-1'], [])).resolves.toBe(true);
+    await expect(repo.isGroupEligibleForInspector('sg-1', 'inspector-1', [], [])).resolves.toBe(false);
+    expect(queryRaw).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -522,7 +559,7 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
       page: 1,
       pageSize: 20,
       sortOrder: 'asc',
-    });
+    }, null);
 
   it('selects property coordinates in the offers list query', async () => {
     const { findMany, repo } = repoReturning([]);
@@ -712,7 +749,7 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
       serviceGroup: { findUnique },
     } as any);
 
-    const detail = await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], []);
+    const detail = await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], [], null);
 
     expect(detail?.suburbs).toEqual(['Harris Park']);
     expect(detail?.addresses).toEqual(['1 Main St, Harris Park']);
@@ -782,7 +819,7 @@ describe('PrismaServiceGroupRepository offer centroid', () => {
       serviceGroup: { findUnique },
     } as any);
 
-    const detail = await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], []);
+    const detail = await repo.findPublishedOfferDetail('sg-1', 'inspector-1', ['st-1'], [], null);
 
     // Same projection contract as the list query above — the detail centroid
     // runs through the same soft-delete filter.

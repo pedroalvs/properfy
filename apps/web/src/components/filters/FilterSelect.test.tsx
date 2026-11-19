@@ -14,6 +14,11 @@ describe('FilterSelect', () => {
     expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
+  it('renders label always even when value is empty and closed', () => {
+    render(<FilterSelect label="Status" value="" onChange={() => {}} options={options} />);
+    expect(screen.getByText('Status')).toBeInTheDocument();
+  });
+
   it('opens dropdown on click', async () => {
     const user = userEvent.setup();
     render(<FilterSelect label="Status" value="" onChange={() => {}} options={options} />);

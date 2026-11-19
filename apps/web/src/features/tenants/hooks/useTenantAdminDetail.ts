@@ -9,11 +9,16 @@ export interface UseTenantAdminDetailReturn {
   refetch: () => void;
 }
 
-export function useTenantAdminDetail(id: string | null): UseTenantAdminDetailReturn {
+export function useTenantAdminDetail(
+  id: string | null,
+  // F00: the map observer passes { retry: false } so a failed agency GET falls back to
+  // 14/Sydney on the first response; the drawer calls without options (default retry).
+  options?: { retry?: false },
+): UseTenantAdminDetailReturn {
   const { data: response, isLoading, isError, refetch } = useDetailQuery<TenantAdminDetail>(
     ['tenant-admins', id],
     `/v1/tenants/${id}`,
-    { enabled: !!id },
+    { enabled: !!id, ...options },
   );
 
   // PR #961 bug class: TenantFormDrawer's populate effect depends on this reference —

@@ -20,7 +20,14 @@ function makeInspector(
     serviceTypesJson: [{ serviceTypeId: 'service-1', certified: false }],
     blockedClientsJson: [],
     fullName: null,
-    address: null,
+    address: { street: '1 George St', suburb: 'Sydney', city: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' },
+    baseLat: -33.86,
+    baseLng: 151.2,
+    baseGeocodedAt: new Date('2026-10-30T00:00:00Z'),
+    appInstalledAt: new Date('2026-10-30T00:00:00Z'),
+    appLastSeenAt: new Date('2026-10-30T00:00:00Z'),
+    pushEnabled: true,
+    appVersion: '0.1.0',
     abn: null,
     dateOfBirth: null,
     insuranceFileKey: null,
@@ -33,6 +40,9 @@ function makeInspector(
     ...overrides,
   });
 }
+
+const BASE_KEYS = ['address', 'baseLat', 'baseLng', 'baseGeocodedAt'] as const;
+const ADOPTION_KEYS = ['appInstalledAt', 'appLastSeenAt', 'pushEnabled', 'appVersion'] as const;
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
@@ -59,6 +69,7 @@ describe('GetInspectorUseCase', () => {
       count: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
+      recordAppState: vi.fn(),
       linkUserId: vi.fn(),
       findByRegionId: vi.fn(),
     };
@@ -158,5 +169,35 @@ describe('GetInspectorUseCase', () => {
         actor: makeActor({ role: 'INSP', inspectorId: null }),
       }),
     ).rejects.toThrow(ForbiddenError);
+  });
+
+  describe('F01-1 field visibility (TASK-F01-1, D7)', () => {
+    beforeEach(() => {
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(makeInspector());
+    });
+
+    it.each(['AM', 'OP'] as const)('exposes base + adoption to %s', async (role) => {
+      const result = await useCase.execute({ inspectorId: 'inspector-1', actor: makeActor({ role }) }) as Record<string, unknown>;
+      for (const k of [...BASE_KEYS, ...ADOPTION_KEYS]) expect(result).toHaveProperty(k);
+    });
+
+    it('exposes base but not adoption to the inspector itself', async () => {
+      const result = await useCase.execute({
+        inspectorId: 'inspector-1',
+        actor: makeActor({ role: 'INSP', inspectorId: 'inspector-1' }),
+      }) as Record<string, unknown>;
+      for (const k of BASE_KEYS) expect(result).toHaveProperty(k);
+      for (const k of ADOPTION_KEYS) expect(result).not.toHaveProperty(k);
+    });
+
+    it.each(['CL_ADMIN', 'CL_USER'] as const)('hides base + adoption from %s', async (role) => {
+      const result = await useCase.execute({
+        inspectorId: 'inspector-1',
+        actor: makeActor({ role, tenantId: 'tenant-1' }),
+      }) as Record<string, unknown>;
+      for (const k of [...BASE_KEYS, ...ADOPTION_KEYS]) expect(result).not.toHaveProperty(k);
+      // Non-restricted fields still present.
+      expect(result.id).toBe('inspector-1');
+    });
   });
 });

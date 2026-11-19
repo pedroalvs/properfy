@@ -42,6 +42,22 @@ describe('FinancialTable', () => {
     expect(screen.getByText('Imobiliária Centro')).toBeInTheDocument();
   });
 
+  it('shows the description in the Inspection column and "—" for Agency on an INSPECTOR_BONUS row', () => {
+    const entry = makeEntry({
+      entryType: FinancialEntryType.INSPECTOR_BONUS,
+      tenantId: null,
+      appointmentCode: null,
+      description: 'Weekly ten goal',
+      relatedEntityName: 'Jane Doe',
+      amount: 30,
+    });
+    render(<FinancialTable data={[entry]} />);
+    expect(screen.getByText('Weekly ten goal')).toBeInTheDocument();
+    expect(screen.getByText('Bonus')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
+  });
+
   it('renders FinancialEntryTypeChip for type', () => {
     const entry = makeEntry({ entryType: FinancialEntryType.REFUND });
     render(<FinancialTable data={[entry]} />);

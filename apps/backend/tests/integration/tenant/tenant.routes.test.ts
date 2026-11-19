@@ -277,6 +277,43 @@ describe('PATCH /v1/tenants/:tenantId', () => {
 
     expect(res.status).toBe(400);
   });
+
+  // F00 — mapWindowDays route validation (R1–R3) + happy path (R4).
+  it.each([
+    ['R1 zero', 0],
+    ['R2 over max', 91],
+    ['R3 string', '14'],
+  ])('rejects settings.mapWindowDays %s with 400 VALIDATION_ERROR', async (_label, value) => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    const res = await supertest(app.server)
+      .patch(`/v1/tenants/${TENANT_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ settings: { mapWindowDays: value } });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('R4: accepts settings.mapWindowDays 30 → 200 with the stored value', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockUpdateTenantExecute.mockResolvedValueOnce({
+      id: TENANT_ID,
+      name: 'Acme Realty',
+      legalName: 'Acme Realty Pty Ltd',
+      status: 'ACTIVE',
+      timezone: 'Australia/Sydney',
+      currency: 'AUD',
+      appointmentCodePrefix: null,
+      settingsJson: { mapWindowDays: 30 },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    const res = await supertest(app.server)
+      .patch(`/v1/tenants/${TENANT_ID}`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ settings: { mapWindowDays: 30 } });
+    expect(res.status).toBe(200);
+    expect(res.body.data.settingsJson.mapWindowDays).toBe(30);
+  });
 });
 
 describe('POST /v1/tenants/:tenantId/deactivate', () => {
@@ -345,6 +382,45 @@ describe('POST /v1/tenants/:tenantId/branches', () => {
       .send({});
 
     expect(res.status).toBe(400);
+  });
+
+  it('strips client-supplied latitude/longitude from the branch address (X02-1)', async () => {
+    mockJwtVerify.mockResolvedValueOnce(amContext);
+    mockCreateBranchExecute.mockResolvedValueOnce({
+      id: BRANCH_ID,
+      tenantId: TENANT_ID,
+      name: 'Geo Branch',
+      addressJson: { street: '1 Main St', suburb: 'Parramatta', city: 'Parramatta', state: 'NSW', postcode: '2150', country: 'AU' },
+      contactEmail: null,
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const res = await supertest(app.server)
+      .post(`/v1/tenants/${TENANT_ID}/branches`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        name: 'Geo Branch',
+        address: {
+          street: '1 Main St',
+          suburb: 'Parramatta',
+          city: 'Parramatta',
+          state: 'NSW',
+          postcode: '2150',
+          country: 'AU',
+          latitude: -33.8,
+          longitude: 151.2,
+        },
+      });
+
+    expect(res.status).toBe(201);
+    // Zod strips the coordinates before the use case runs.
+    const input = mockCreateBranchExecute.mock.calls[0]![0] as { address?: Record<string, unknown> };
+    expect(input.address && 'latitude' in input.address).toBe(false);
+    expect(input.address && 'longitude' in input.address).toBe(false);
+    // And the response never echoes a client coordinate.
+    expect(res.body.data.addressJson?.latitude).toBeUndefined();
   });
 });
 

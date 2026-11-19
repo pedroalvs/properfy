@@ -57,15 +57,16 @@ describe('RentalTenantPortalAction', () => {
 });
 
 describe('ReportType', () => {
-  it('should have the 4 scoped report type values', () => {
+  it('should have the 5 scoped report type values', () => {
     expect(ReportType.APPOINTMENTS).toBe('APPOINTMENTS');
     expect(ReportType.FINANCIAL).toBe('FINANCIAL');
     expect(ReportType.PERFORMANCE).toBe('PERFORMANCE');
     expect(ReportType.AGENCIES).toBe('AGENCIES');
+    expect(ReportType.INSPECTOR_PROGRAM).toBe('INSPECTOR_PROGRAM');
   });
 
-  it('should have exactly 4 types', () => {
-    expect(Object.keys(ReportType)).toHaveLength(4);
+  it('should have exactly 5 types', () => {
+    expect(Object.keys(ReportType)).toHaveLength(5);
   });
 
   it('should not carry the removed legacy split/confirmation types', () => {

@@ -83,7 +83,7 @@ describe('NotifyStuckInspectionsWorker', () => {
         status: 'SCHEDULED',
       },
     });
-    createNotificationUseCase.execute.mockResolvedValue({ notificationId: 'notif-1' });
+    createNotificationUseCase.execute.mockResolvedValue({ notificationId: 'notif-1', created: true });
 
     const worker = makeWorker();
     const result = await worker.execute();
@@ -103,7 +103,7 @@ describe('NotifyStuckInspectionsWorker', () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: { tenantId: 'tenant-1', status: 'SCHEDULED' },
     });
-    createNotificationUseCase.execute.mockResolvedValue({ notificationId: 'notif-1' });
+    createNotificationUseCase.execute.mockResolvedValue({ notificationId: 'notif-1', created: true });
 
     const worker = makeWorker();
     const result = await worker.execute();
@@ -129,7 +129,7 @@ describe('NotifyStuckInspectionsWorker', () => {
     appointmentRepo.findById.mockResolvedValue({
       appointment: { tenantId: 'tenant-1', status: 'SCHEDULED' },
     });
-    createNotificationUseCase.execute.mockResolvedValue({ notificationId: 'notif-1' });
+    createNotificationUseCase.execute.mockResolvedValue({ notificationId: 'notif-1', created: true });
 
     const worker = makeWorker();
     const result = await worker.execute();
@@ -160,7 +160,7 @@ describe('NotifyStuckInspectionsWorker', () => {
     });
     createNotificationUseCase.execute
       .mockRejectedValueOnce(new Error('queue down'))
-      .mockResolvedValueOnce({ notificationId: 'notif-1' });
+      .mockResolvedValueOnce({ notificationId: 'notif-1', created: true });
 
     const worker = makeWorker();
     const result = await worker.execute();
@@ -251,7 +251,7 @@ describe('NotifyStuckInspectionsWorker', () => {
         status: 'SCHEDULED',
       },
     });
-    createNotificationUseCase.execute.mockResolvedValue({ notificationId: 'notif-1' });
+    createNotificationUseCase.execute.mockResolvedValue({ notificationId: 'notif-1', created: true });
 
     const before = Date.now();
     const worker = makeWorker();
@@ -293,7 +293,7 @@ describe('NotifyStuckInspectionsWorker', () => {
         status: 'SCHEDULED',
       },
     });
-    createNotificationUseCase.execute.mockResolvedValue({ notificationId: 'notif-1' });
+    createNotificationUseCase.execute.mockResolvedValue({ notificationId: 'notif-1', created: true });
 
     const worker = makeWorker();
     const result = await worker.execute();

@@ -6,11 +6,18 @@ import { useJoinGroup } from './usePortalData';
 interface UseJoinGroupFlowOptions {
   onJoined: () => void;
   onSlotUnavailable: () => void;
+  /**
+   * The appointment was deactivated (e.g. the inspector rejected it) between
+   * opening the picker and joining — the backend answers 409
+   * PORTAL_APPOINTMENT_INACTIVE. Reload the portal data so the new banner shows
+   * (F03 L-F03-01).
+   */
+  onAppointmentInactive?: () => void;
 }
 
 export function useJoinGroupFlow(
   token: string,
-  { onJoined, onSlotUnavailable }: UseJoinGroupFlowOptions,
+  { onJoined, onSlotUnavailable, onAppointmentInactive }: UseJoinGroupFlowOptions,
 ) {
   const joinGroupMutation = useJoinGroup(token);
   const [selectedSlot, setSelectedSlot] = useState<AvailableGroup | null>(null);
@@ -60,9 +67,19 @@ export function useJoinGroupFlow(
         return;
       }
 
+      // The appointment was deactivated under the tenant (e.g. the inspector
+      // rejected it). Surface the existing message and reload the portal so the
+      // "will not go ahead" banner replaces the picker (L-F03-01).
+      if (apiError?.code === 'PORTAL_APPOINTMENT_INACTIVE') {
+        setSelectedSlot(null);
+        setJoinErrorMessage('This appointment is no longer active.');
+        onAppointmentInactive?.();
+        return;
+      }
+
       setJoinErrorMessage('We could not join this time slot. Please try again.');
     }
-  }, [clearSelection, joinGroupMutation, onJoined, onSlotUnavailable, selectedSlot]);
+  }, [clearSelection, joinGroupMutation, onJoined, onSlotUnavailable, onAppointmentInactive, selectedSlot]);
 
   return {
     selectedSlot,

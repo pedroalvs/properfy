@@ -8,6 +8,7 @@ export interface BranchProps {
   addressJson: Record<string, unknown> | null;
   contactEmail: string | null;
   status: BranchStatus;
+  geocodedPermanentlyAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -19,6 +20,7 @@ export class BranchEntity extends BaseEntity {
   readonly addressJson: Record<string, unknown> | null;
   readonly contactEmail: string | null;
   status: BranchStatus;
+  readonly geocodedPermanentlyAt: Date | null;
   readonly deletedAt: Date | null;
 
   constructor(props: BranchProps) {
@@ -28,6 +30,7 @@ export class BranchEntity extends BaseEntity {
     this.addressJson = props.addressJson;
     this.contactEmail = props.contactEmail;
     this.status = props.status;
+    this.geocodedPermanentlyAt = props.geocodedPermanentlyAt ?? null;
     this.deletedAt = props.deletedAt;
   }
 

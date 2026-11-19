@@ -8,6 +8,13 @@ import type {
   PaginationParams,
   PropertyWithBranch,
 } from '../domain/property.repository';
+import type {
+  ILegacyRegeocodeRepository,
+  ImportPreviewRow,
+  LegacyBranchCandidate,
+  LegacyCoordinateCandidate,
+  ManualWithTransitionAudit,
+} from '../domain/legacy-regeocode.repository';
 import type { PropertyType, GeocodingStatus } from '@properfy/shared';
 import { PropertyCodeConflictError, PropertyAddressConflictError } from '../domain/property.errors';
 
@@ -58,6 +65,8 @@ function mapToEntity(row: {
   lat: unknown;
   lng: unknown;
   geocoding_status: string;
+  geocoded_permanently_at?: Date | null;
+  geocoding_failure_code?: string | null;
   private_area_m2?: unknown;
   total_area_m2?: unknown;
   furnished?: boolean | null;
@@ -86,6 +95,8 @@ function mapToEntity(row: {
     lat: row.lat ? Number(row.lat) : null,
     lng: row.lng ? Number(row.lng) : null,
     geocodingStatus: row.geocoding_status as GeocodingStatus,
+    geocodedPermanentlyAt: row.geocoded_permanently_at ?? null,
+    geocodingFailureCode: row.geocoding_failure_code ?? null,
     privateAreaM2: row.private_area_m2 != null ? Number(row.private_area_m2) : null,
     totalAreaM2: row.total_area_m2 != null ? Number(row.total_area_m2) : null,
     furnished: row.furnished ?? null,
@@ -99,7 +110,9 @@ function mapToEntity(row: {
   });
 }
 
-export class PrismaPropertyRepository implements IPropertyRepository {
+export class PrismaPropertyRepository
+  implements IPropertyRepository, ILegacyRegeocodeRepository
+{
   constructor(private readonly prisma: PrismaClient) {}
 
   async findById(
@@ -272,6 +285,8 @@ export class PrismaPropertyRepository implements IPropertyRepository {
           lat: property.lat,
           lng: property.lng,
           geocoding_status: property.geocodingStatus as PrismaGeocodingStatus,
+          geocoded_permanently_at: property.geocodedPermanentlyAt,
+          geocoding_failure_code: property.geocodingFailureCode,
           private_area_m2: property.privateAreaM2,
           total_area_m2: property.totalAreaM2,
           furnished: property.furnished,
@@ -305,6 +320,8 @@ export class PrismaPropertyRepository implements IPropertyRepository {
       lat: number | null;
       lng: number | null;
       geocodingStatus: string;
+      geocodedPermanentlyAt: Date | null;
+      geocodingFailureCode: string | null;
       privateAreaM2: number | null;
       totalAreaM2: number | null;
       furnished: boolean | null;
@@ -333,6 +350,10 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     if (data.lng !== undefined) updateData['lng'] = data.lng;
     if (data.geocodingStatus !== undefined)
       updateData['geocoding_status'] = data.geocodingStatus;
+    if (data.geocodedPermanentlyAt !== undefined)
+      updateData['geocoded_permanently_at'] = data.geocodedPermanentlyAt;
+    if (data.geocodingFailureCode !== undefined)
+      updateData['geocoding_failure_code'] = data.geocodingFailureCode;
     if (data.privateAreaM2 !== undefined) updateData['private_area_m2'] = data.privateAreaM2;
     if (data.totalAreaM2 !== undefined) updateData['total_area_m2'] = data.totalAreaM2;
     if (data.furnished !== undefined) updateData['furnished'] = data.furnished;
@@ -372,6 +393,10 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     const rows = await this.prisma.property.findMany({
       where: {
         geocoding_status: 'FAILED',
+        // Never re-enqueue a FAILED that carries a failure code: those are
+        // blocked (e.g. the account lacks permanent geocoding), so retrying
+        // would re-pay a billable request per property per day forever.
+        geocoding_failure_code: null,
         updated_at: { lt: updatedBefore },
         deleted_at: null,
       },
@@ -402,6 +427,16 @@ export class PrismaPropertyRepository implements IPropertyRepository {
     });
   }
 
+  async countBlockedFailedGeocoding(): Promise<number> {
+    return this.prisma.property.count({
+      where: {
+        geocoding_status: 'FAILED',
+        geocoding_failure_code: { not: null },
+        deleted_at: null,
+      },
+    });
+  }
+
   private buildWhere(filters: PropertyFilters) {
     const where: Record<string, unknown> = { deleted_at: null };
     if (filters.tenantId) where['tenant_id'] = filters.tenantId;
@@ -423,6 +458,10 @@ export class PrismaPropertyRepository implements IPropertyRepository {
           ],
         },
       ];
+    }
+    // F10 "With issues": only properties with a non-deleted property issue.
+    if (filters.withIssues) {
+      where['property_issues'] = { some: { deleted_at: null } };
     }
     return where;
   }
@@ -571,5 +610,389 @@ export class PrismaPropertyRepository implements IPropertyRepository {
         WHERE id = ${propertyId}
       `;
     }
+  }
+
+  // --- ILegacyRegeocodeRepository (TASK-X02-2, scripts/regeocode-permanent.ts) ---
+
+  async findLegacyCoordinateCandidates(
+    cursor: string | null,
+    limit: number,
+    tenantId?: string | null,
+  ): Promise<LegacyCoordinateCandidate[]> {
+    const rows = await this.prisma.property.findMany({
+      where: {
+        deleted_at: null,
+        lat: { not: null },
+        geocoding_status: { not: 'MANUAL' as PrismaGeocodingStatus },
+        geocoded_permanently_at: null,
+        OR: [
+          { geocoding_failure_code: null },
+          { geocoding_failure_code: { not: 'LEGACY_PERMANENT_NO_RESULT' } },
+        ],
+        ...(tenantId ? { tenant_id: tenantId } : {}),
+        ...(cursor ? { id: { gt: cursor } } : {}),
+      },
+      select: {
+        id: true, tenant_id: true, property_code: true, lat: true, lng: true,
+        street: true, address_line_2: true, suburb: true, state: true, postcode: true,
+        country: true, updated_at: true,
+      },
+      orderBy: { id: 'asc' },
+      take: limit,
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      tenantId: r.tenant_id,
+      propertyCode: r.property_code,
+      lat: Number(r.lat),
+      lng: Number(r.lng),
+      street: r.street,
+      addressLine2: r.address_line_2,
+      suburb: r.suburb,
+      state: r.state,
+      postcode: r.postcode,
+      country: r.country,
+      updatedAt: r.updated_at,
+    }));
+  }
+
+  async findLegacyBranchCandidates(
+    cursor: string | null,
+    limit: number,
+    tenantId?: string | null,
+  ): Promise<LegacyBranchCandidate[]> {
+    const conditions = [
+      'deleted_at IS NULL',
+      'geocoded_permanently_at IS NULL',
+      "address_json ? 'latitude'",
+    ];
+    const params: unknown[] = [];
+    let i = 1;
+    if (tenantId) {
+      conditions.push(`tenant_id = $${i++}`);
+      params.push(tenantId);
+    }
+    if (cursor) {
+      conditions.push(`id > $${i++}`);
+      params.push(cursor);
+    }
+    params.push(limit);
+    const sql = `
+      SELECT id, tenant_id, name, address_json, updated_at
+      FROM branches
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY id ASC
+      LIMIT $${i}
+    `;
+    const rows: Array<{
+      id: string; tenant_id: string; name: string;
+      address_json: Record<string, unknown> | null; updated_at: Date;
+    }> = await this.prisma.$queryRawUnsafe(sql, ...params);
+    return rows.map((r) => ({
+      id: r.id,
+      tenantId: r.tenant_id,
+      name: r.name,
+      addressJson: r.address_json ?? {},
+      updatedAt: r.updated_at,
+    }));
+  }
+
+  async findManualWithTransitionAudit(
+    cursor: string | null,
+    limit: number,
+    tenantId?: string | null,
+  ): Promise<ManualWithTransitionAudit[]> {
+    const params: unknown[] = [];
+    let i = 1;
+    const tenantParam = tenantId ? `$${i++}` : null;
+    if (tenantId) params.push(tenantId);
+    const cursorParam = cursor ? `$${i++}` : null;
+    if (cursor) params.push(cursor);
+    params.push(limit);
+    const limitParam = `$${i}`;
+    const sql = `
+      WITH manual_props AS (
+        SELECT id, tenant_id, property_code, lat, lng, updated_at,
+               street, address_line_2, suburb, state, postcode, country
+        FROM properties
+        WHERE geocoding_status = 'MANUAL' AND lat IS NOT NULL AND lng IS NOT NULL
+          AND deleted_at IS NULL
+          ${tenantParam ? `AND tenant_id = ${tenantParam}` : ''}
+          ${cursorParam ? `AND id > ${cursorParam}` : ''}
+        ORDER BY id ASC
+        LIMIT ${limitParam}
+      ), transitions AS (
+        SELECT DISTINCT ON (a.entity_id)
+               a.entity_id, a.id AS audit_log_id, a.created_at, a.redaction_status,
+               a.before_json, a.after_json
+        FROM audit_logs a
+        JOIN manual_props m ON a.entity_id = m.id
+        WHERE a.entity_type = 'Property'
+          AND a.action = 'property.updated'
+          AND a.after_json->>'geocodingStatus' = 'MANUAL'
+          AND COALESCE(a.before_json->>'geocodingStatus', '') <> 'MANUAL'
+        ORDER BY a.entity_id, a.created_at DESC
+      )
+      SELECT mp.id, mp.tenant_id, mp.property_code, mp.lat, mp.lng, mp.updated_at,
+             mp.street, mp.address_line_2, mp.suburb, mp.state, mp.postcode, mp.country,
+             t.audit_log_id, t.created_at AS transitioned_at, t.redaction_status,
+             t.before_json, t.after_json
+      FROM manual_props mp
+      LEFT JOIN transitions t ON t.entity_id = mp.id
+      ORDER BY mp.id ASC
+    `;
+    const rows: Array<{
+      id: string; tenant_id: string; property_code: string; lat: unknown; lng: unknown;
+      updated_at: Date; street: string; address_line_2: string | null; suburb: string;
+      state: string; postcode: string; country: string;
+      audit_log_id: string | null; transitioned_at: Date | null; redaction_status: string | null;
+      before_json: Record<string, unknown> | null; after_json: Record<string, unknown> | null;
+    }> = await this.prisma.$queryRawUnsafe(sql, ...params);
+    return rows.map((r) => ({
+      id: r.id,
+      tenantId: r.tenant_id,
+      propertyCode: r.property_code,
+      lat: Number(r.lat),
+      lng: Number(r.lng),
+      street: r.street,
+      addressLine2: r.address_line_2,
+      suburb: r.suburb,
+      state: r.state,
+      postcode: r.postcode,
+      country: r.country,
+      updatedAt: r.updated_at,
+      auditLogId: r.audit_log_id,
+      transitionedAt: r.transitioned_at,
+      redactionStatus: r.redaction_status,
+      beforeJson: r.before_json,
+      afterJson: r.after_json,
+    }));
+  }
+
+  async findAddressChangesAfter(
+    transitionedAtById: Record<string, Date>,
+    tenantId?: string | null,
+  ): Promise<Record<string, boolean>> {
+    const ids = Object.keys(transitionedAtById);
+    const result: Record<string, boolean> = {};
+    for (const id of ids) result[id] = false;
+    if (ids.length === 0) return result;
+
+    const rows = await this.prisma.auditLog.findMany({
+      where: {
+        entity_type: 'Property',
+        action: 'property.updated',
+        entity_id: { in: ids },
+        ...(tenantId ? { tenant_id: tenantId } : {}),
+      },
+      select: { entity_id: true, created_at: true, before_json: true, after_json: true },
+    });
+
+    const norm = (v: unknown): string => (typeof v === 'string' ? v.trim().toLowerCase() : '');
+    const addressDiffers = (
+      before: Record<string, unknown> | null,
+      after: Record<string, unknown> | null,
+    ): boolean => {
+      if (!before || !after) return false;
+      return (
+        norm(before['street']) !== norm(after['street']) ||
+        norm(before['suburb']) !== norm(after['suburb']) ||
+        norm(before['state']) !== norm(after['state']) ||
+        norm(before['country']) !== norm(after['country'])
+      );
+    };
+
+    for (const row of rows) {
+      const entityId = row.entity_id;
+      if (!entityId) continue;
+      const cutoff = transitionedAtById[entityId];
+      if (!cutoff || row.created_at <= cutoff) continue;
+      if (
+        addressDiffers(
+          row.before_json as Record<string, unknown> | null,
+          row.after_json as Record<string, unknown> | null,
+        )
+      ) {
+        result[entityId] = true;
+      }
+    }
+    return result;
+  }
+
+  async findImportPreviewsToStrip(
+    cursor: string | null,
+    limit: number,
+    tenantId?: string | null,
+  ): Promise<ImportPreviewRow[]> {
+    const conditions = [
+      "status <> 'PREVIEW'",
+      "status <> 'PROCESSING'",
+      'preview_json IS NOT NULL',
+    ];
+    const params: unknown[] = [];
+    let i = 1;
+    if (tenantId) {
+      conditions.push(`tenant_id = $${i++}`);
+      params.push(tenantId);
+    }
+    if (cursor) {
+      conditions.push(`id > $${i++}`);
+      params.push(cursor);
+    }
+    params.push(limit);
+    const sql = `
+      SELECT id, tenant_id, preview_json
+      FROM appointment_imports
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY id ASC
+      LIMIT $${i}
+    `;
+    const rows: Array<{ id: string; tenant_id: string; preview_json: unknown }> =
+      await this.prisma.$queryRawUnsafe(sql, ...params);
+    return rows.map((r) => ({ id: r.id, tenantId: r.tenant_id, previewJson: r.preview_json }));
+  }
+
+  async findAccountBlockedProperties(
+    cursor: string | null,
+    limit: number,
+    tenantId?: string | null,
+  ): Promise<Array<{ id: string; tenantId: string }>> {
+    const rows = await this.prisma.property.findMany({
+      where: {
+        deleted_at: null,
+        geocoding_status: 'FAILED' as PrismaGeocodingStatus,
+        geocoding_failure_code: 'MAPBOX_PERMANENT_GEOCODING_UNAVAILABLE',
+        ...(tenantId ? { tenant_id: tenantId } : {}),
+        ...(cursor ? { id: { gt: cursor } } : {}),
+      },
+      select: { id: true, tenant_id: true },
+      orderBy: { id: 'asc' },
+      take: limit,
+    });
+    return rows.map((r) => ({ id: r.id, tenantId: r.tenant_id }));
+  }
+
+  async applyPermanentBackfill(
+    id: string,
+    tenantId: string,
+    expected: { lat: number; lng: number; updatedAt: Date },
+    next: { lat: number; lng: number },
+  ): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const res = await tx.property.updateMany({
+        where: {
+          id,
+          tenant_id: tenantId,
+          lat: expected.lat,
+          lng: expected.lng,
+          updated_at: expected.updatedAt,
+          geocoding_status: { not: 'MANUAL' as PrismaGeocodingStatus },
+          geocoded_permanently_at: null,
+        },
+        data: {
+          lat: next.lat,
+          lng: next.lng,
+          geocoding_status: 'SUCCESS' as PrismaGeocodingStatus,
+          geocoded_permanently_at: new Date(),
+          geocoding_failure_code: null,
+        },
+      });
+      if (res.count === 0) return false;
+      await tx.$executeRaw`
+        UPDATE properties
+        SET coordinates = ST_SetSRID(ST_MakePoint(${next.lng}::float, ${next.lat}::float), 4326)
+        WHERE id = ${id}
+      `;
+      return true;
+    });
+  }
+
+  async markLegacyNoResult(
+    id: string,
+    tenantId: string,
+    expected: { lat: number; lng: number; updatedAt: Date },
+  ): Promise<boolean> {
+    const res = await this.prisma.property.updateMany({
+      where: {
+        id,
+        tenant_id: tenantId,
+        lat: expected.lat,
+        lng: expected.lng,
+        updated_at: expected.updatedAt,
+        geocoding_status: { not: 'MANUAL' as PrismaGeocodingStatus },
+        geocoded_permanently_at: null,
+      },
+      data: {
+        geocoding_status: 'FAILED' as PrismaGeocodingStatus,
+        geocoding_failure_code: 'LEGACY_PERMANENT_NO_RESULT',
+      },
+    });
+    return res.count > 0;
+  }
+
+  async restoreFalseManual(
+    id: string,
+    tenantId: string,
+    expected: { lat: number; lng: number; updatedAt: Date },
+    next: { lat: number; lng: number },
+  ): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const res = await tx.property.updateMany({
+        where: {
+          id,
+          tenant_id: tenantId,
+          geocoding_status: 'MANUAL' as PrismaGeocodingStatus,
+          lat: expected.lat,
+          lng: expected.lng,
+          updated_at: expected.updatedAt,
+        },
+        data: {
+          lat: next.lat,
+          lng: next.lng,
+          geocoding_status: 'SUCCESS' as PrismaGeocodingStatus,
+          geocoded_permanently_at: new Date(),
+          geocoding_failure_code: null,
+        },
+      });
+      if (res.count === 0) return false;
+      await tx.$executeRaw`
+        UPDATE properties
+        SET coordinates = ST_SetSRID(ST_MakePoint(${next.lng}::float, ${next.lat}::float), 4326)
+        WHERE id = ${id}
+      `;
+      return true;
+    });
+  }
+
+  async backfillBranchCoordinates(
+    id: string,
+    tenantId: string,
+    expected: { updatedAt: Date },
+    next: { latitude: number; longitude: number },
+  ): Promise<boolean> {
+    const affected = await this.prisma.$executeRaw`
+      UPDATE branches
+      SET address_json = address_json || jsonb_build_object('latitude', ${next.latitude}::float, 'longitude', ${next.longitude}::float),
+          geocoded_permanently_at = now(),
+          updated_at = now()
+      WHERE id = ${id}
+        AND tenant_id = ${tenantId}
+        AND geocoded_permanently_at IS NULL
+        AND updated_at = ${expected.updatedAt}
+    `;
+    return affected > 0;
+  }
+
+  async replaceImportPreview(id: string, tenantId: string, previewJson: unknown): Promise<void> {
+    // Tenant-scoped like every other write in this port (updateMany so a wrong
+    // tenant simply matches nothing rather than throwing).
+    await this.prisma.appointmentImport.updateMany({
+      where: { id, tenant_id: tenantId },
+      data: { preview_json: previewJson as Prisma.InputJsonValue },
+    });
+  }
+
+  async requeueAccountBlocked(id: string, tenantId: string): Promise<void> {
+    await this.update(id, tenantId, { geocodingStatus: 'PENDING', geocodingFailureCode: null });
   }
 }

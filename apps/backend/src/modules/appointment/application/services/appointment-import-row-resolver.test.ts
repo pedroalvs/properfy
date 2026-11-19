@@ -42,7 +42,8 @@ function buildServiceType(overrides: Partial<ConstructorParameters<typeof Servic
   const now = new Date();
   return new ServiceTypeEntity({
     id: 'st-1', code: 'ROUTINE', name: 'Routine Inspection', flowType: 'ROUTINE',
-    requiresRentalTenantConfirmation: true, status: 'ACTIVE', createdAt: now, updatedAt: now,
+    requiresRentalTenantConfirmation: true, status: 'ACTIVE', defaultDurationMinutes: 45,
+    createdAt: now, updatedAt: now,
     ...overrides,
   });
 }
