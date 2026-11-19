@@ -5,7 +5,12 @@ import { renderWithProviders } from '@/test-utils';
 import { AnnouncementsPage } from '../AnnouncementsPage';
 
 const useMyNoticesMock = vi.fn();
+const markAllMutate = vi.fn();
+const useMarkAllNoticesReadMock = vi.fn(() => ({ mutate: markAllMutate, isPending: false }));
 vi.mock('../../hooks/useMyNotices', () => ({ useMyNotices: () => useMyNoticesMock() }));
+vi.mock('../../hooks/useMarkAllNoticesRead', () => ({
+  useMarkAllNoticesRead: () => useMarkAllNoticesReadMock(),
+}));
 vi.mock('@/hooks/useEffectiveTimezone', () => ({ useEffectiveTimezone: () => 'Australia/Sydney' }));
 
 const NOTICES = [
@@ -40,8 +45,14 @@ function base(partial: Record<string, unknown>) {
   };
 }
 
+const ALL_READ = NOTICES.map((n) => ({ ...n, readAt: '2026-11-01T00:00:00Z' }));
+
 describe('AnnouncementsPage', () => {
-  beforeEach(() => useMyNoticesMock.mockReset());
+  beforeEach(() => {
+    useMyNoticesMock.mockReset();
+    markAllMutate.mockReset();
+    useMarkAllNoticesReadMock.mockReturnValue({ mutate: markAllMutate, isPending: false });
+  });
 
   it('renders the notices in a list with unread marking and a critical chip', () => {
     useMyNoticesMock.mockReturnValue(base({ data: { pages: [{ data: NOTICES }] } }));
@@ -77,6 +88,27 @@ describe('AnnouncementsPage', () => {
     useMyNoticesMock.mockReturnValue(base({ isLoading: true }));
     renderWithProviders(<AnnouncementsPage />);
     expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('shows "Mark all read" when there are unread notices and marks all read on click', async () => {
+    useMyNoticesMock.mockReturnValue(base({ data: { pages: [{ data: NOTICES }] } }));
+    renderWithProviders(<AnnouncementsPage />);
+    const button = screen.getByRole('button', { name: 'Mark all read' });
+    await userEvent.click(button);
+    expect(markAllMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides "Mark all read" when every notice is already read', () => {
+    useMyNoticesMock.mockReturnValue(base({ data: { pages: [{ data: ALL_READ }] } }));
+    renderWithProviders(<AnnouncementsPage />);
+    expect(screen.queryByRole('button', { name: 'Mark all read' })).not.toBeInTheDocument();
+  });
+
+  it('disables "Mark all read" while the mutation is pending', () => {
+    useMarkAllNoticesReadMock.mockReturnValue({ mutate: markAllMutate, isPending: true });
+    useMyNoticesMock.mockReturnValue(base({ data: { pages: [{ data: NOTICES }] } }));
+    renderWithProviders(<AnnouncementsPage />);
+    expect(screen.getByRole('button', { name: 'Mark all read' })).toBeDisabled();
   });
 
   it('loads more pages when there is a next page', async () => {

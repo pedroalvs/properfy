@@ -226,6 +226,16 @@ export class PrismaInspectorNoticeRepository implements IInspectorNoticeReposito
     return after?.read_at ?? now;
   }
 
+  async markAllMineRead(inspectorId: string, now: Date): Promise<number> {
+    // One update, scoped to this inspector's own recipient rows; first read wins
+    // (only still-unread rows on non-archived notices flip). Returns the flipped count.
+    const result = await this.prisma.inspectorNoticeRecipient.updateMany({
+      where: { inspector_id: inspectorId, read_at: null, notice: { archived_at: null } },
+      data: { read_at: now },
+    });
+    return result.count;
+  }
+
   async markDeliveryStarted(noticeId: string, now: Date): Promise<void> {
     await this.prisma.$executeRaw`
       UPDATE "inspector_notices"

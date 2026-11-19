@@ -109,6 +109,11 @@ export interface IInspectorNoticeRepository {
   countMyUnread(inspectorId: string): Promise<number>;
   /** First read wins (COALESCE). Returns the readAt, or null when not a visible recipient. */
   markRead(inspectorId: string, noticeId: string, now: Date): Promise<Date | null>;
+  /**
+   * Mark every still-unread notice of this inspector (non-archived) read in one update.
+   * Scoped to the caller's own `inspector_id`; returns how many rows flipped (0 when none unread).
+   */
+  markAllMineRead(inspectorId: string, now: Date): Promise<number>;
 
   // Delivery
   markDeliveryStarted(noticeId: string, now: Date): Promise<void>;

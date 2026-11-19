@@ -295,6 +295,49 @@ describe('inspector-notice DB integration', () => {
     expect(await noticeRepo.markRead(inspectorB, notice.id, new Date())).toBeNull();
   });
 
+  it('markAllMineRead flips only the caller’s unread, non-archived notices (cross-inspector isolation)', async () => {
+    const { publish, noticeRepo, prisma } = buildDeps(new DisabledPushSender());
+    const inspectorA = await seedInspector();
+    const inspectorB = await seedInspector();
+
+    // Two active notices to both inspectors, plus one that gets archived.
+    const n1 = await publish.execute({
+      body: { title: 'All-read 1', body: 'b', critical: false, audience: { type: 'SELECTED', inspectorIds: [inspectorA, inspectorB] } },
+      idempotencyKey: `allread-1-${seq}`,
+      actorUserId: 'AUTHOR',
+    });
+    const n2 = await publish.execute({
+      body: { title: 'All-read 2', body: 'b', critical: false, audience: { type: 'SELECTED', inspectorIds: [inspectorA, inspectorB] } },
+      idempotencyKey: `allread-2-${seq}`,
+      actorUserId: 'AUTHOR',
+    });
+    const archived = await publish.execute({
+      body: { title: 'All-read archived', body: 'b', critical: false, audience: { type: 'SELECTED', inspectorIds: [inspectorA] } },
+      idempotencyKey: `allread-arch-${seq}`,
+      actorUserId: 'AUTHOR',
+    });
+    await noticeRepo.archiveIfActive(archived.id, new Date());
+
+    // A marks all read: exactly the two active, still-unread rows flip (not the archived one).
+    expect(await noticeRepo.markAllMineRead(inspectorA, new Date())).toBe(2);
+    expect(await noticeRepo.countMyUnread(inspectorA)).toBe(0);
+
+    // B is untouched — isolation by inspector_id.
+    expect(await noticeRepo.countMyUnread(inspectorB)).toBe(2);
+    expect((await noticeRepo.getMine(inspectorB, n1.id))!.readAt).toBeNull();
+    expect((await noticeRepo.getMine(inspectorB, n2.id))!.readAt).toBeNull();
+
+    // Idempotent: a second call for A flips nothing.
+    expect(await noticeRepo.markAllMineRead(inspectorA, new Date())).toBe(0);
+
+    // The archived notice's recipient row for A stays unread (archived is out of the inbox).
+    const archivedRec = await prisma.inspectorNoticeRecipient.findUnique({
+      where: { notice_id_inspector_id: { notice_id: archived.id, inspector_id: inspectorA } },
+      select: { read_at: true },
+    });
+    expect(archivedRec!.read_at).toBeNull();
+  });
+
   it('countByTemplateChannelSince counts only the template since the cutoff', async () => {
     const { notificationRepo, prisma } = buildDeps(new DisabledPushSender());
     const since = new Date(Date.now() - 3600_000);

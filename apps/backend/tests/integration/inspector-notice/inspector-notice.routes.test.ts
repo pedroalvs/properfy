@@ -13,6 +13,7 @@ const archive = vi.fn();
 const listMy = vi.fn();
 const getMy = vi.fn();
 const markRead = vi.fn();
+const markAllRead = vi.fn();
 const unread = vi.fn();
 const pushConfig = vi.fn();
 const upsert = vi.fn();
@@ -30,6 +31,7 @@ vi.mock('../../../src/main/container', () => ({
         listMyInspectorNoticesUseCase: { execute: listMy },
         getMyInspectorNoticeUseCase: { execute: getMy },
         markInspectorNoticeReadUseCase: { execute: markRead },
+        markAllMyInspectorNoticesReadUseCase: { execute: markAllRead },
         countMyUnreadInspectorNoticesUseCase: { execute: unread },
         getPushConfigUseCase: { execute: pushConfig },
         upsertPushSubscriptionUseCase: { execute: upsert },
@@ -87,6 +89,7 @@ beforeEach(() => {
   listMy.mockResolvedValue({ data: [MY], total: 1 });
   getMy.mockResolvedValue(MY);
   markRead.mockResolvedValue({ noticeId: NOTICE_ID, readAt: '2026-11-10T01:00:00.000Z' });
+  markAllRead.mockResolvedValue({ count: 4 });
   unread.mockResolvedValue({ count: 2 });
   pushConfig.mockResolvedValue({ vapidPublicKey: 'BKEY' });
   upsert.mockResolvedValue(undefined);
@@ -172,6 +175,23 @@ describe('inspector box routes resolve to the box use cases (static beats :inspe
     const res = await supertest(app.server).post(`/v1/inspectors/me/notices/${NOTICE_ID}/read`).set('Authorization', 'Bearer t');
     expect(res.status).toBe(200);
     expect(res.body.data).toMatchObject({ noticeId: NOTICE_ID });
+  });
+
+  it('POST read-all marks all of the caller’s notices read and returns {count}', async () => {
+    authAs('INSP', { inspectorId: 'insp-1' });
+    const res = await supertest(app.server).post('/v1/inspectors/me/notices/read-all').set('Authorization', 'Bearer t');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ count: 4 });
+    // Scoped to the caller's own inspectorId — the use case receives it from the JWT.
+    expect(markAllRead).toHaveBeenCalledWith('insp-1');
+  });
+
+  it('POST read-all is INSP-only: AM → 403 INSP_ONLY, no use-case call', async () => {
+    authAs('AM');
+    const res = await supertest(app.server).post('/v1/inspectors/me/notices/read-all').set('Authorization', 'Bearer t');
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('INSP_ONLY');
+    expect(markAllRead).not.toHaveBeenCalled();
   });
 });
 

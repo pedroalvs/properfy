@@ -26,6 +26,7 @@ import type { GetInspectorNoticeUseCase } from '../application/use-cases/get-ins
 import type { ListMyInspectorNoticesUseCase } from '../application/use-cases/list-my-inspector-notices.use-case';
 import type { GetMyInspectorNoticeUseCase } from '../application/use-cases/get-my-inspector-notice.use-case';
 import type { MarkInspectorNoticeReadUseCase } from '../application/use-cases/mark-inspector-notice-read.use-case';
+import type { MarkAllMyInspectorNoticesReadUseCase } from '../application/use-cases/mark-all-my-inspector-notices-read.use-case';
 import type { CountMyUnreadInspectorNoticesUseCase } from '../application/use-cases/count-my-unread-inspector-notices.use-case';
 import type { GetPushConfigUseCase } from '../application/use-cases/get-push-config.use-case';
 import type { UpsertPushSubscriptionUseCase } from '../application/use-cases/upsert-push-subscription.use-case';
@@ -39,6 +40,7 @@ export interface InspectorNoticeRouteContainer {
   listMyInspectorNoticesUseCase: ListMyInspectorNoticesUseCase;
   getMyInspectorNoticeUseCase: GetMyInspectorNoticeUseCase;
   markInspectorNoticeReadUseCase: MarkInspectorNoticeReadUseCase;
+  markAllMyInspectorNoticesReadUseCase: MarkAllMyInspectorNoticesReadUseCase;
   countMyUnreadInspectorNoticesUseCase: CountMyUnreadInspectorNoticesUseCase;
   getPushConfigUseCase: GetPushConfigUseCase;
   upsertPushSubscriptionUseCase: UpsertPushSubscriptionUseCase;
@@ -49,6 +51,7 @@ export interface InspectorNoticeRouteContainer {
 
 const noticeIdParam = z.object({ noticeId: z.string().uuid() });
 const readResponseSchema = z.object({ noticeId: z.string(), readAt: z.string() });
+const readAllResponseSchema = z.object({ count: z.number().int() });
 const unreadCountResponseSchema = z.object({ count: z.number().int() });
 
 function idempotencyKey(request: FastifyRequest): string | undefined {
@@ -233,6 +236,19 @@ export async function registerInspectorNoticeRoutes(
       const inspectorId = requireInspectorId(request);
       const { noticeId } = request.params as z.infer<typeof noticeIdParam>;
       const result = await container.markInspectorNoticeReadUseCase.execute(inspectorId, noticeId);
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  app.post(
+    '/v1/inspectors/me/notices/read-all',
+    {
+      preHandler: authenticate,
+      schema: { response: { 200: successResponseSchema(readAllResponseSchema) } },
+    },
+    async (request, reply) => {
+      const inspectorId = requireInspectorId(request);
+      const result = await container.markAllMyInspectorNoticesReadUseCase.execute(inspectorId);
       return reply.status(200).send(success(result));
     },
   );
