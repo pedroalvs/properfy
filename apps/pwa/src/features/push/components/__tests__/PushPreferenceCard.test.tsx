@@ -2,32 +2,41 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PushPreferenceCard } from '../PushPreferenceCard';
+import { PushControlContext, type PushControlValue } from '../../context/PushControlProvider';
 import type { PushState, PushError } from '../../hooks/usePushSubscription';
-
-vi.mock('../../hooks/useBrowserPushDeps', () => ({ useBrowserPushDeps: () => ({}) }));
 
 const enable = vi.fn();
 const disable = vi.fn();
-const sub = vi.fn();
-vi.mock('../../hooks/usePushSubscription', () => ({
-  usePushSubscription: () => sub(),
-}));
 
-function set(state: PushState, error: PushError = null) {
-  sub.mockReturnValue({ state, error, enable, disable });
+function renderCard(state: PushState, error: PushError = null) {
+  const value: PushControlValue = {
+    state,
+    error,
+    optedOut: false,
+    enable,
+    disable,
+    requestEnable: vi.fn(),
+    declinePersistently: vi.fn(),
+    isEnableModalOpen: false,
+    openEnableModal: vi.fn(),
+    closeEnableModal: vi.fn(),
+  };
+  return render(
+    <PushControlContext.Provider value={value}>
+      <PushPreferenceCard />
+    </PushControlContext.Provider>,
+  );
 }
 
 describe('PushPreferenceCard', () => {
   beforeEach(() => {
     enable.mockReset();
     disable.mockReset();
-    sub.mockReset();
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
   });
 
   it('names the switch "Push notifications" and reflects the on state', () => {
-    set('on');
-    render(<PushPreferenceCard />);
+    renderCard('on');
     const toggle = screen.getByRole('switch', { name: 'Push notifications' });
     expect(toggle).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('status')).toHaveTextContent(
@@ -36,8 +45,7 @@ describe('PushPreferenceCard', () => {
   });
 
   it('shows the off copy and an unchecked, enabled switch', () => {
-    set('off');
-    render(<PushPreferenceCard />);
+    renderCard('off');
     const toggle = screen.getByRole('switch');
     expect(toggle).toHaveAttribute('aria-checked', 'false');
     expect(toggle).not.toBeDisabled();
@@ -54,36 +62,31 @@ describe('PushPreferenceCard', () => {
     ['enabling', 'Turning on…'],
     ['disabling', 'Turning off…'],
   ])('renders %s copy with a disabled switch', (state, text) => {
-    set(state);
-    render(<PushPreferenceCard />);
+    renderCard(state);
     expect(screen.getByRole('switch')).toBeDisabled();
     expect(screen.getByRole('status')).toHaveTextContent(text);
   });
 
   it('shows a skeleton and no switch while loading', () => {
-    set('loading');
-    render(<PushPreferenceCard />);
+    renderCard('loading');
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 
   it('calls enable when toggled on from off', async () => {
-    set('off');
-    render(<PushPreferenceCard />);
+    renderCard('off');
     await userEvent.click(screen.getByRole('switch'));
     expect(enable).toHaveBeenCalled();
   });
 
   it('calls disable when toggled off from on', async () => {
-    set('on');
-    render(<PushPreferenceCard />);
+    renderCard('on');
     await userEvent.click(screen.getByRole('switch'));
     expect(disable).toHaveBeenCalled();
   });
 
   it('shows an offline alert and does not enable when offline', async () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-    set('off');
-    render(<PushPreferenceCard />);
+    renderCard('off');
     await userEvent.click(screen.getByRole('switch'));
     expect(enable).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent(
@@ -92,8 +95,7 @@ describe('PushPreferenceCard', () => {
   });
 
   it('shows the save-failed alert', () => {
-    set('off', 'save-failed');
-    render(<PushPreferenceCard />);
+    renderCard('off', 'save-failed');
     expect(screen.getByRole('alert')).toHaveTextContent(
       "Couldn't turn on push notifications. Try again.",
     );

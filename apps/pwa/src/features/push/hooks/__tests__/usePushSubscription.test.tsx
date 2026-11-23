@@ -25,6 +25,8 @@ function makeDeps(overrides: Partial<PushDeps> = {}): PushDeps {
     subscribe: vi.fn().mockResolvedValue(fakeSub(new Uint8Array([1, 2, 3]).buffer)),
     saveSubscription: vi.fn().mockResolvedValue(undefined),
     removeSubscription: vi.fn().mockResolvedValue(undefined),
+    getOptOut: () => false,
+    setOptOut: vi.fn(),
     ...overrides,
   };
 }
@@ -133,6 +135,27 @@ describe('usePushSubscription — enable/disable', () => {
     const r = await settle(deps);
     await act(async () => { await r.current.disable(); });
     expect(sub.unsubscribe).toHaveBeenCalled();
+    expect(r.current.state).toBe('off');
+  });
+});
+
+describe('usePushSubscription — opt-out store (R2)', () => {
+  it('clears the opt-out before subscribing on enable', async () => {
+    const setOptOut = vi.fn();
+    const deps = makeDeps({ setOptOut, requestPermission: vi.fn().mockResolvedValue('granted') });
+    const r = await settle(deps);
+    await act(async () => { await r.current.enable(); });
+    expect(setOptOut).toHaveBeenCalledWith(false);
+    expect(r.current.state).toBe('on');
+  });
+
+  it('persists the opt-out on disable', async () => {
+    const setOptOut = vi.fn();
+    const sub = fakeSub(new Uint8Array([1, 2, 3]).buffer);
+    const deps = makeDeps({ setOptOut, getSubscription: vi.fn().mockResolvedValue(sub) });
+    const r = await settle(deps);
+    await act(async () => { await r.current.disable(); });
+    expect(setOptOut).toHaveBeenCalledWith(true);
     expect(r.current.state).toBe('off');
   });
 });

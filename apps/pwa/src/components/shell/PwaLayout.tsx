@@ -9,6 +9,8 @@ import { useAppStateHeartbeat } from '@/app/useAppStateHeartbeat';
 import { useAuth } from '@/hooks/useAuth';
 import { useBrowserPushDeps } from '@/features/push/hooks/useBrowserPushDeps';
 import { usePushSubscriptionSync } from '@/features/push/hooks/usePushSubscriptionSync';
+import { PushControlProvider } from '@/features/push/context/PushControlProvider';
+import { EnablePushModal } from '@/features/push/components/EnablePushModal';
 import { useNoticeOpenedFromPush } from '@/app/useNoticeOpenedFromPush';
 
 /** A route opts into the wide (2-column) shell by exporting `handle: { wide: true }`. */
@@ -59,19 +61,23 @@ export function PwaLayout() {
   }, [navigate, queryClient]);
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-background" data-testid="pwa-layout">
-      <OfflineBanner />
-      <main
-        className={cn(
-          'mx-auto flex w-full flex-1 pb-nav-clear',
-          isWide ? 'max-w-screen-sm md:max-w-screen-lg' : 'max-w-screen-sm',
-        )}
-        data-wide={isWide ? 'true' : undefined}
-      >
-        <Outlet />
-      </main>
-      <BottomNavBar />
-      <AppTourHost />
-    </div>
+    <PushControlProvider>
+      <div className="flex min-h-[100dvh] flex-col bg-background" data-testid="pwa-layout">
+        <OfflineBanner />
+        <main
+          className={cn(
+            'mx-auto flex w-full flex-1 pb-nav-clear',
+            isWide ? 'max-w-screen-sm md:max-w-screen-lg' : 'max-w-screen-sm',
+          )}
+          data-wide={isWide ? 'true' : undefined}
+        >
+          <Outlet />
+        </main>
+        <BottomNavBar />
+        <AppTourHost />
+        {/* App-wide "turn push on" modal (R3), opened by the TopBar PushStatusIndicator. */}
+        <EnablePushModal />
+      </div>
+    </PushControlProvider>
   );
 }

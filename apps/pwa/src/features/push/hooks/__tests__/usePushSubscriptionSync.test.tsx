@@ -21,6 +21,7 @@ function makeDeps(overrides: Partial<PushSyncDeps> = {}): PushSyncDeps {
     getSubscription: vi.fn().mockResolvedValue(fakeSub(new Uint8Array([1, 2, 3]).buffer)),
     subscribe: vi.fn().mockResolvedValue(fakeSub(new Uint8Array([1, 2, 3]).buffer)),
     saveSubscription: vi.fn().mockResolvedValue(undefined),
+    getOptOut: () => false,
     ...overrides,
   };
 }
@@ -39,10 +40,36 @@ describe('usePushSubscriptionSync', () => {
     await waitFor(() => expect(deps.saveSubscription).toHaveBeenCalledTimes(1));
   });
 
-  it('does not POST when there is no local subscription', async () => {
-    const deps = makeDeps({ getSubscription: vi.fn().mockResolvedValue(null) });
+  it('auto-subscribes from scratch when granted, not opted out, and no local subscription (R1)', async () => {
+    const fresh = fakeSub(new Uint8Array([1, 2, 3]).buffer);
+    const deps = makeDeps({
+      getSubscription: vi.fn().mockResolvedValue(null),
+      subscribe: vi.fn().mockResolvedValue(fresh),
+    });
+    renderHook(() => usePushSubscriptionSync('u1', deps));
+    await waitFor(() => expect(deps.subscribe).toHaveBeenCalledWith(new Uint8Array([1, 2, 3])));
+    expect(deps.saveSubscription).toHaveBeenCalledWith(fresh);
+  });
+
+  it('does NOT auto-subscribe when the device opted out (R2)', async () => {
+    const deps = makeDeps({
+      getSubscription: vi.fn().mockResolvedValue(null),
+      getOptOut: () => true,
+    });
     renderHook(() => usePushSubscriptionSync('u1', deps));
     await new Promise((r) => setTimeout(r, 10));
+    expect(deps.subscribe).not.toHaveBeenCalled();
+    expect(deps.saveSubscription).not.toHaveBeenCalled();
+  });
+
+  it('does NOT auto-subscribe when there is no server VAPID key', async () => {
+    const deps = makeDeps({
+      getSubscription: vi.fn().mockResolvedValue(null),
+      vapidPublicKey: null,
+    });
+    renderHook(() => usePushSubscriptionSync('u1', deps));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(deps.subscribe).not.toHaveBeenCalled();
     expect(deps.saveSubscription).not.toHaveBeenCalled();
   });
 

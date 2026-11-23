@@ -17,6 +17,12 @@ vi.mock('@/app/useInstallPrompt', () => ({
   getIsStandalone: () => false,
 }));
 
+// The notifications step body reads the push control context; stub it so the tour
+// can render that step without a real provider (its own suite covers the behaviour).
+vi.mock('@/features/push/context/PushControlProvider', () => ({
+  usePushControl: () => ({ state: 'off', requestEnable: vi.fn() }),
+}));
+
 const ANCHORS = [
   'nav-today',
   'today-next',
@@ -94,17 +100,17 @@ describe('AppTour', () => {
     expect(root.hasAttribute('inert')).toBe(true);
   });
 
-  it('shows the step counter in a polite live region (9 in a browser)', async () => {
+  it('shows the step counter in a polite live region (10 in a browser)', async () => {
     mountAnchors(ANCHORS);
     render(<Harness steps={browserSteps()} onFinish={vi.fn()} />);
-    const counter = await screen.findByText('Step 1 of 9');
+    const counter = await screen.findByText('Step 1 of 10');
     expect(counter).toHaveAttribute('aria-live', 'polite');
   });
 
-  it('shows 8 steps in standalone', async () => {
+  it('shows 9 steps in standalone', async () => {
     mountAnchors(ANCHORS);
     render(<Harness steps={standaloneSteps()} onFinish={vi.fn()} />);
-    expect(await screen.findByText('Step 1 of 8')).toBeInTheDocument();
+    expect(await screen.findByText('Step 1 of 9')).toBeInTheDocument();
   });
 
   it('advances with Next and disables Back on the first step', async () => {
@@ -126,7 +132,8 @@ describe('AppTour', () => {
     const onFinish = vi.fn();
     render(<Harness steps={standaloneSteps()} onFinish={onFinish} />);
     await screen.findByRole('dialog', { name: 'Today' });
-    for (let i = 0; i < 7; i++) {
+    // 9 standalone steps → 8 advances to reach the last (the notifications step).
+    for (let i = 0; i < 8; i++) {
       fireEvent.click(screen.getByRole('button', { name: /Next|Done/ }));
     }
     const done = await screen.findByRole('button', { name: 'Done' });
@@ -177,42 +184,50 @@ describe('AppTour', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     // The absent step 4 settles after the ~500ms wait and is skipped → "Your route".
     await screen.findByRole('dialog', { name: 'Your route' }, { timeout: 2000 });
-    expect(screen.getByText('Step 4 of 8')).toBeInTheDocument();
+    expect(screen.getByText('Step 4 of 9')).toBeInTheDocument();
   });
 
-  it('shows only the install step when every target is absent', async () => {
+  it('shows the notifications then install steps when every target is absent', async () => {
     vi.useFakeTimers();
     try {
       // No anchors mounted at all.
       const onFinish = vi.fn();
       render(<Harness steps={browserSteps()} onFinish={onFinish} />);
-      // Each absent step settles after its own 500ms wait; advance step-by-step so
+      // Each absent target settles after its own 500ms wait; advance step-by-step so
       // the next step's timeout is scheduled before the next advance.
-      for (let i = 0; i < 9; i++) {
+      for (let i = 0; i < 10; i++) {
         await act(async () => {
           await vi.advanceTimersByTimeAsync(600);
         });
       }
+      // The non-target notifications + install steps are never skipped.
+      expect(screen.getByRole('dialog', { name: 'Notifications' })).toBeInTheDocument();
+      expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
+      act(() => {
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+      });
       expect(screen.getByRole('dialog', { name: 'Install Properfy' })).toBeInTheDocument();
-      expect(screen.getByText('Step 1 of 1')).toBeInTheDocument();
+      expect(screen.getByText('Step 2 of 2')).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it('completes without rendering when standalone and all targets are absent', async () => {
+  it('shows only the notifications step when standalone and all targets are absent', async () => {
     vi.useFakeTimers();
     try {
       const onFinish = vi.fn();
       render(<Harness steps={standaloneSteps()} onFinish={onFinish} />);
-      for (let i = 0; i < 9; i++) {
+      for (let i = 0; i < 10; i++) {
         await act(async () => {
           await vi.advanceTimersByTimeAsync(600);
         });
       }
-      expect(onFinish).toHaveBeenCalledTimes(1);
-    expect(onFinish).toHaveBeenCalledWith('completed');
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      // The notifications step is the only non-target step in standalone; it is
+      // shown (not skipped), so the tour does not auto-complete.
+      expect(screen.getByRole('dialog', { name: 'Notifications' })).toBeInTheDocument();
+      expect(screen.getByText('Step 1 of 1')).toBeInTheDocument();
+      expect(onFinish).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
@@ -228,12 +243,26 @@ describe('AppTour', () => {
     expect(screen.getByRole('dialog', { name: 'Today' })).toBeInTheDocument();
   });
 
+  it('renders the notifications step body with the enable button (R4)', async () => {
+    mountAnchors(ANCHORS);
+    render(<Harness steps={browserSteps()} onFinish={vi.fn()} />);
+    await screen.findByRole('dialog', { name: 'Today' });
+    // 8 advances reach the notifications step (index 8).
+    for (let i = 0; i < 8; i++) {
+      fireEvent.click(screen.getByRole('button', { name: /Next|Done/ }));
+    }
+    expect(await screen.findByRole('dialog', { name: 'Notifications' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Turn on notifications' })).toBeInTheDocument();
+    expect(screen.getByText('Step 9 of 10')).toBeInTheDocument();
+  });
+
   describe('install step', () => {
     async function gotoInstall() {
       mountAnchors(ANCHORS);
       render(<Harness steps={browserSteps()} onFinish={vi.fn()} />);
       await screen.findByRole('dialog', { name: 'Today' });
-      for (let i = 0; i < 8; i++) {
+      // 10 browser steps → 9 advances to reach install (8 targets + notifications first).
+      for (let i = 0; i < 9; i++) {
         fireEvent.click(screen.getByRole('button', { name: /Next|Done/ }));
       }
       return screen.findByRole('dialog', { name: 'Install Properfy' });

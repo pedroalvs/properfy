@@ -16,12 +16,27 @@ vi.mock('@/app/useInstallPrompt', () => ({
   InstallPromptProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-// The push control's effects are covered in its own suite; here we only verify
-// it fills the reserved slot above the install card.
-vi.mock('@/features/push/hooks/useBrowserPushDeps', () => ({ useBrowserPushDeps: () => ({}) }));
-vi.mock('@/features/push/hooks/usePushSubscription', () => ({
-  usePushSubscription: () => ({ state: 'off', error: null, enable: vi.fn(), disable: vi.fn() }),
-}));
+// The push control's effects are covered in its own suite; here we only verify the
+// card fills the reserved slot above the install card, so stub the context it reads.
+vi.mock('@/features/push/context/PushControlProvider', async () => {
+  const React = await import('react');
+  return {
+    PushControlContext: React.createContext(null),
+    PushControlProvider: ({ children }: { children: React.ReactNode }) => children,
+    usePushControl: () => ({
+      state: 'off',
+      error: null,
+      optedOut: false,
+      enable: vi.fn(),
+      disable: vi.fn(),
+      requestEnable: vi.fn(),
+      declinePersistently: vi.fn(),
+      isEnableModalOpen: false,
+      openEnableModal: vi.fn(),
+      closeEnableModal: vi.fn(),
+    }),
+  };
+});
 
 describe('ProfileSettingsPage', () => {
   beforeEach(() => {
