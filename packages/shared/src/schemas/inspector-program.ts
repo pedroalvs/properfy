@@ -409,6 +409,10 @@ const inspectorProgramStandingSchema = z.object({
     score: z.number().nullable(),
     status: reliabilityDetailStatusSchema,
     snapshotDate: civilDateStrNullable(),
+    // Reliability-index minimum volume ("Minimum services to be ranked", the
+    // `reliabilityIndex` platform setting). Drives the Challenges copy on the PWA
+    // (StandingCards + RankingTab). Always >= 1 (never configurable to 0/null).
+    minimumVolume: z.number().int().min(1),
   }),
   level: z.nativeEnum(InspectorLevel).nullable(),
   streak: z.object({

@@ -33,10 +33,13 @@ const realUseCase = new GetInspectorProgramUseCase(
     findRecentNonVoidByCreatedAt: async () => [],
   },
   {
-    get: (async () => ({
-      levels: { silverMinScore: 60, goldMinScore: 85 },
-      earlyAccess: { enabled: false, hours: 12, minLevel: 'GOLD', enabledAt: null },
-    })) as never,
+    get: (async (key: string) => {
+      if (key === 'reliabilityIndex') return { minimumVolume: 10 };
+      return {
+        levels: { silverMinScore: 60, goldMinScore: 85 },
+        earlyAccess: { enabled: false, hours: 12, minLevel: 'GOLD', enabledAt: null },
+      };
+    }) as never,
   },
   { now: () => new Date('2026-11-08T21:00:00.000Z') },
 );

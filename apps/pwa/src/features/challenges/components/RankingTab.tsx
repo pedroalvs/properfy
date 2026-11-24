@@ -1,6 +1,6 @@
 import { cn } from '@properfy/frontend-standards';
 import { INSPECTOR_LEVEL_LABELS, type InspectorProgramResponse } from '@properfy/shared';
-import { RANKING_FOOTER } from '../lib/challenge-copy';
+import { RANKING_FOOTER, jobsLabel } from '../lib/challenge-copy';
 
 type Ranking = InspectorProgramResponse['ranking'];
 
@@ -9,7 +9,7 @@ function Footer() {
 }
 
 /** The anonymous leaderboard (03.A3): own position + others' scores, never a name/id. */
-export function RankingTab({ ranking }: { ranking: Ranking }) {
+export function RankingTab({ ranking, minimumVolume }: { ranking: Ranking; minimumVolume: number }) {
   const { myPosition, myScore, totalRanked, cohortTooSmall, entries } = ranking;
 
   if (myPosition === null) {
@@ -17,7 +17,9 @@ export function RankingTab({ ranking }: { ranking: Ranking }) {
       <div className="flex flex-col gap-3">
         <div className="rounded-card border border-border bg-card p-4 shadow-sm">
           <p className="text-lg font-extrabold text-foreground">You're not ranked yet</p>
-          <p className="text-sm text-muted-foreground">You'll appear once you have 10 jobs in the last 30 days.</p>
+          <p className="text-sm text-muted-foreground">
+            You'll appear once you have {jobsLabel(minimumVolume)} in the last 30 days.
+          </p>
         </div>
         <Footer />
       </div>
