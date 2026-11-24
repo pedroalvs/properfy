@@ -3,8 +3,9 @@ import { FormSection } from '@/components/forms/FormSection';
 import { DetailRow } from '@/components/data/DetailRow';
 import { formatCivilDate, formatInstantDateTime, formatWallTimeRange , formatWallTimeWindow } from '@/lib/format-date';
 import { AppointmentStatusChip } from '@/features/appointments/components/AppointmentStatusChip';
+import { RentalTenantConfirmationChip } from '@/features/appointments/components/RentalTenantConfirmationChip';
 import { ServiceGroupStatusChip } from './ServiceGroupStatusChip';
-import type { AppointmentStatus } from '@properfy/shared';
+import type { AppointmentStatus, RentalTenantConfirmationStatus } from '@properfy/shared';
 import type { ServiceGroupDetail } from '../types';
 
 interface ServiceGroupDetailSectionsProps {
@@ -76,6 +77,11 @@ export function ServiceGroupDetailSections({ serviceGroup }: ServiceGroupDetailS
                     <span className="text-xs text-text-muted hidden sm:inline">
                       {formatWallTimeRange(apt.timeSlotStart, apt.timeSlotEnd)}
                     </span>
+                  )}
+                  {apt.rentalTenantConfirmationStatus && (
+                    <RentalTenantConfirmationChip
+                      status={apt.rentalTenantConfirmationStatus as RentalTenantConfirmationStatus}
+                    />
                   )}
                   <AppointmentStatusChip status={apt.status as AppointmentStatus} />
                   <i className="mdi mdi-chevron-right text-lg text-text-muted" aria-hidden="true" />

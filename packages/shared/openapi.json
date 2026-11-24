@@ -21104,7 +21104,8 @@
                     "type": "string",
                     "enum": [
                       "RESEND",
-                      "NOTIFY_ONLY"
+                      "NOTIFY_ONLY",
+                      "FORCE_CONFIRM"
                     ]
                   }
                 },
@@ -21174,7 +21175,8 @@
                               "type": "string",
                               "enum": [
                                 "RESEND",
-                                "NOTIFY_ONLY"
+                                "NOTIFY_ONLY",
+                                "FORCE_CONFIRM"
                               ]
                             }
                           },

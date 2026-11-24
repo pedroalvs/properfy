@@ -123,9 +123,10 @@ export class RejectUnconfirmedAppointmentsUseCase {
             rentalTenantConfirmationStatus: 'NO_RESPONSE',
             serviceGroupId: null,
             // Match the manual reject invariant: a rejected appointment keeps no
-            // inspector. Usually a no-op here (unconfirmed routine appointments
-            // selected by the sweep sit in AWAITING_INSPECTOR with none), but it
-            // keeps "rejected => no inspector" airtight across every reject path.
+            // inspector. This sweep DOES reject accepted SCHEDULED jobs (which carry
+            // an assigned inspector — that inspector is notified below), so nulling
+            // the inspector here actively releases them; for an AWAITING_INSPECTOR
+            // member it is a no-op. Either way "rejected => no inspector" holds.
             inspectorId: null,
           }, tx);
           if (this.cycleService) {

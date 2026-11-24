@@ -276,8 +276,12 @@ export type SendGroupPortalLinksResponse = z.infer<typeof sendGroupPortalLinksRe
  * so the choice is required and recorded in the audit log.
  * - RESEND: reset the confirmation to PENDING and send a fresh portal link.
  * - NOTIFY_ONLY: keep the confirmation, realign its cycle, just inform the tenant.
+ * - FORCE_CONFIRM: like NOTIFY_ONLY, but ALSO force-confirm every unconfirmed member
+ *   on the tenant's behalf (done before the move, in the same request, so no
+ *   "moved but still unconfirmed" state can persist). Used when the move lands
+ *   members at T-1/T-0 where the daily sweep would otherwise auto-cancel them.
  */
-export const groupConfirmationStrategySchema = z.enum(['RESEND', 'NOTIFY_ONLY']);
+export const groupConfirmationStrategySchema = z.enum(['RESEND', 'NOTIFY_ONLY', 'FORCE_CONFIRM']);
 export type GroupConfirmationStrategy = z.infer<typeof groupConfirmationStrategySchema>;
 
 export const changeGroupScheduleRequestSchema = z

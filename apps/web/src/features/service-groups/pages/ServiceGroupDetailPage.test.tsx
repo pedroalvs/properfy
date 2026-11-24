@@ -31,6 +31,17 @@ vi.mock('@/lib/auth-storage', () => ({
   },
 }));
 
+// The reschedule modal reads usePermissions (force-confirm capability). This page
+// test renders it for real without an AuthProvider, so stub the hook.
+vi.mock('@/hooks/usePermissions', () => ({
+  usePermissions: () => ({
+    role: 'OP',
+    hasRole: () => true,
+    canPerform: () => true,
+    hasClUserFlag: () => true,
+  }),
+}));
+
 // Not mocked: the formatters are pure and deterministic (no locale or runtime
 // timezone dependence), so exercising the real ones gives genuine coverage of
 // what the user sees rather than an identity pass-through.

@@ -262,6 +262,12 @@ Body: { targetStatus, reason? }
 
 All state transitions go through this single endpoint.
 
+### Group date-change force-confirm (PR2)
+
+`POST /v1/service-groups/:groupId/schedule` accepts `confirmationStrategy: 'FORCE_CONFIRM'` (alongside `RESEND`/`NOTIFY_ONLY`) — the **atomic** "confirm on the tenants' behalf & move". `ChangeGroupScheduleUseCase` force-confirms every unconfirmed member **before** the move (then moves with `NOTIFY_ONLY` semantics), so a confirm failure aborts the move and **no "moved but still unconfirmed" state can persist** (the limbo the 19:00 sweep would auto-cancel). There is **no separate force-confirm route** — it is one request.
+
+The force-confirm itself is `ForceConfirmGroupUseCase` (`service-group/application/use-cases/`, an **internal collaborator**, no HTTP route): it moves every unconfirmed, non-terminal member to `CONFIRMED` via `ConfirmationCycleService.confirm(..., 'OPERATOR_FORCED', null)` (same fallback-to-direct-write + one `appointment.force_manual_confirmation` audit per member as the per-appointment `POST /v1/appointments/:id/force-confirmation`). Same RBAC gate (`AM`/`OP`/`CL_ADMIN`, or `CL_USER` with `force_confirmation`), tenant-pinned `CL_*` confirm **only their own agency's** members (groups are cross-tenant); idempotent (already-`CONFIRMED`/terminal skipped). In practice `…/schedule` is AM/OP-only, so only AM/OP reach `FORCE_CONFIRM`.
+
 ### Inspector field events (F03-2)
 
 Two inspector actions from the PWA, both `Idempotency-Key`-required and INSP-only:

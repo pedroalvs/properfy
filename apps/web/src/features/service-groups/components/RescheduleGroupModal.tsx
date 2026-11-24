@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   currentTimeInTzHHmm,
   todayInTzDateString,
+  addCivilDays,
   isTimeStartInPastForDate,
   PLATFORM_TIMEZONE,
   ServiceGroupStatus,
@@ -14,6 +15,7 @@ import { FormField } from '@/components/forms/FormField';
 import { TimeWindowPicker } from './TimeWindowPicker';
 import { AppointmentCodePill } from '@/features/appointments/components/AppointmentCodePill';
 import { useRescheduleServiceGroup } from '../hooks/useRescheduleServiceGroup';
+import { usePermissions } from '@/hooks/usePermissions';
 import type { ServiceGroupDetail } from '../types';
 import { DateInput } from '@/components/forms/DateInput';
 import { formatWallTimeRange } from '@/lib/format-date';
@@ -102,8 +104,30 @@ export function RescheduleGroupModal({
     );
   }, [appointments, dateChanged, windowChanged, clamped]);
 
-  const requiresConfirmationChoice =
-    alreadyConfirmed.length > 0 && serviceGroup.status !== ServiceGroupStatus.DRAFT;
+  const notDraft = serviceGroup.status !== ServiceGroupStatus.DRAFT;
+  const requiresConfirmationChoice = alreadyConfirmed.length > 0 && notDraft;
+
+  // Members the move affects (date change moves all; a window change only clamps
+  // those that fall outside it) that are NOT yet confirmed.
+  const unconfirmedAffected = useMemo(() => {
+    if (!dateChanged && !windowChanged) return [];
+    const affectedIds = new Set(dateChanged ? appointments.map((a) => a.id) : clamped.map((a) => a.id));
+    return appointments.filter(
+      (a) => affectedIds.has(a.id) && a.rentalTenantConfirmationStatus !== 'CONFIRMED',
+    );
+  }, [appointments, dateChanged, windowChanged, clamped]);
+
+  // Force-confirm is offered only when the move puts unconfirmed members at T-1/T-0
+  // (today or tomorrow in the platform tz) — exactly when the daily sweep would
+  // auto-cancel them — and the operator is allowed to confirm on a tenant's behalf.
+  const { canPerform, hasClUserFlag } = usePermissions();
+  const canForceConfirm = canPerform('appointment.force_confirmation') && hasClUserFlag('force_confirmation');
+  const tomorrow = addCivilDays(today, 1);
+  const landsWithinT1 = dateChanged && (scheduledDate === today || scheduledDate === tomorrow);
+  const offersForceConfirm =
+    notDraft && landsWithinT1 && unconfirmedAffected.length > 0 && canForceConfirm;
+
+  const requiresChoice = requiresConfirmationChoice || offersForceConfirm;
 
   const { reschedule, isRescheduling } = useRescheduleServiceGroup(serviceGroup.id, () => {
     onSaved();
@@ -115,7 +139,7 @@ export function RescheduleGroupModal({
     (dateChanged || windowChanged) &&
     timeRangeOrdered &&
     !isRescheduling &&
-    (!requiresConfirmationChoice || confirmationStrategy !== null);
+    (!requiresChoice || confirmationStrategy !== null);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -132,12 +156,15 @@ export function RescheduleGroupModal({
       return;
     }
     setError(null);
+
     reschedule({
       ...(dateChanged ? { scheduledDate } : {}),
       ...(windowChanged ? { timeWindow: newWindow } : {}),
-      // Nothing to decide when no confirmation is at stake; the API still
-      // requires the field, so send the non-destructive option.
-      confirmationStrategy: requiresConfirmationChoice ? confirmationStrategy! : 'NOTIFY_ONLY',
+      // One atomic call. FORCE_CONFIRM tells the backend to force-confirm the
+      // unconfirmed members (before the move, same request) then move with
+      // NOTIFY_ONLY semantics. Nothing to decide when no confirmation is at stake;
+      // the API still requires the field, so send the non-destructive option.
+      confirmationStrategy: requiresChoice && confirmationStrategy ? confirmationStrategy : 'NOTIFY_ONLY',
     });
   };
 
@@ -239,44 +266,87 @@ export function RescheduleGroupModal({
           </div>
         )}
 
-        {requiresConfirmationChoice && (
+        {requiresChoice && (
           <fieldset
             className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
             data-testid="reschedule-group-confirmation-choice"
           >
             <legend className="px-1 font-semibold">Tenant confirmations</legend>
-            <p className="mb-2">
-              The tenant already confirmed the current schedule for:{' '}
-              {alreadyConfirmed.map((a) => (
-                <AppointmentCodePill key={a.id} code={a.propertyCode ?? `#${a.appointmentNumber}`} />
-              ))}
-            </p>
+
+            {requiresConfirmationChoice && (
+              <p className="mb-2">
+                The tenant already confirmed the current schedule for:{' '}
+                {alreadyConfirmed.map((a) => (
+                  <AppointmentCodePill key={a.id} code={a.propertyCode ?? `#${a.appointmentNumber}`} />
+                ))}
+              </p>
+            )}
+
+            {offersForceConfirm && (
+              <p className="mb-2" data-testid="reschedule-group-force-confirm-warning">
+                This date is {scheduledDate === today ? 'today' : 'tomorrow'} and{' '}
+                {unconfirmedAffected.length} appointment(s) are still unconfirmed. Unconfirmed routine
+                jobs are automatically cancelled the evening before, so choose how to handle them:
+              </p>
+            )}
+
+            {offersForceConfirm && (
+              <label className="flex items-start gap-2 py-1">
+                <input
+                  type="radio"
+                  name="confirmationStrategy"
+                  data-testid="reschedule-choice-force-confirm"
+                  className="mt-0.5 accent-primary"
+                  checked={confirmationStrategy === 'FORCE_CONFIRM'}
+                  onChange={() => setConfirmationStrategy('FORCE_CONFIRM')}
+                />
+                <span>
+                  <strong>Confirm on the tenants' behalf &amp; move</strong> — mark the unconfirmed
+                  appointment(s) as confirmed so they are kept and the inspector can start them.
+                </span>
+              </label>
+            )}
+
             <label className="flex items-start gap-2 py-1">
               <input
                 type="radio"
                 name="confirmationStrategy"
+                data-testid="reschedule-choice-resend"
                 className="mt-0.5 accent-primary"
                 checked={confirmationStrategy === 'RESEND'}
                 onChange={() => setConfirmationStrategy('RESEND')}
               />
               <span>
-                <strong>Resend confirmation</strong> — these go back to Pending and the tenant gets
-                a new confirmation link.
+                {offersForceConfirm && !requiresConfirmationChoice ? (
+                  <>
+                    <strong>Move &amp; re-request confirmation</strong> — these go back to Pending and
+                    the tenant gets a new confirmation link.
+                  </>
+                ) : (
+                  <>
+                    <strong>Resend confirmation</strong> — these go back to Pending and the tenant gets
+                    a new confirmation link.
+                  </>
+                )}
               </span>
             </label>
-            <label className="flex items-start gap-2 py-1">
-              <input
-                type="radio"
-                name="confirmationStrategy"
-                className="mt-0.5 accent-primary"
-                checked={confirmationStrategy === 'NOTIFY_ONLY'}
-                onChange={() => setConfirmationStrategy('NOTIFY_ONLY')}
-              />
-              <span>
-                <strong>Notify only</strong> — the existing confirmation is kept and the tenant is
-                told the new time.
-              </span>
-            </label>
+
+            {requiresConfirmationChoice && (
+              <label className="flex items-start gap-2 py-1">
+                <input
+                  type="radio"
+                  name="confirmationStrategy"
+                  data-testid="reschedule-choice-notify-only"
+                  className="mt-0.5 accent-primary"
+                  checked={confirmationStrategy === 'NOTIFY_ONLY'}
+                  onChange={() => setConfirmationStrategy('NOTIFY_ONLY')}
+                />
+                <span>
+                  <strong>Notify only</strong> — the existing confirmation is kept and the tenant is
+                  told the new time.
+                </span>
+              </label>
+            )}
           </fieldset>
         )}
       </div>
