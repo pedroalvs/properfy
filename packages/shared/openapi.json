@@ -911,17 +911,6 @@
                         "type": "boolean",
                         "default": false
                       },
-                      "priorityOfferHours": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 168,
-                        "default": 24
-                      },
-                      "inspectorOfferRadiusKm": {
-                        "type": "number",
-                        "minimum": 0,
-                        "default": 2
-                      },
                       "clUserPermissions": {
                         "type": "array",
                         "items": {
@@ -1573,17 +1562,6 @@
                       "allowClientUserManagement": {
                         "type": "boolean",
                         "default": false
-                      },
-                      "priorityOfferHours": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 168,
-                        "default": 24
-                      },
-                      "inspectorOfferRadiusKm": {
-                        "type": "number",
-                        "minimum": 0,
-                        "default": 2
                       },
                       "clUserPermissions": {
                         "type": "array",
