@@ -581,6 +581,20 @@ Interruptores "Early offer access" e "Send arrival notices to rental tenants" li
 
 ---
 
+## I — Plano de execução e decisões complementares (24/11)
+
+O plano de execução por ondas e PRs está em `fase2-etapa1/plano-execucao-pos-validacao.md` (escrito pelo agente planejador, no formato do executor). Ao escrevê-lo apareceram lacunas; o Pedro decidiu em 24/11, aceitando as recomendações:
+
+- **Aviso "rota alterada" (`ROUTE_CHANGED`):** sai junto com a rota de recalcular da operação (C-2), porque ficaria sem nada que o dispare e o anexo não o pede.
+- **D-13:** o aviso "Your route for tomorrow is ready" só sai para o plano do dia seguinte, e só com o plano publicado.
+- **D-12:** alerta "não iniciado" e barra de atraso acumulado corrigidos juntos; a métrica de precisão fica como está.
+- **E-5:** para o inspetor já logado no web basta descartar a sessão no navegador.
+- **Observações menores do teste (H-4):** não executar agora; vão para o estacionamento.
+- **Roteiro de homologação (C-1):** em inglês, em documento.
+- **DEV:** "Minimum services to be ranked" volta a 10 depois dos testes pendentes.
+
+---
+
 ## Ainda em discussão (não executar)
 
 Nada. Todas as seções da nota (A a G) e os defeitos do teste estão decididos.

@@ -311,6 +311,22 @@ Se o F08-f mostrar erro genérico, levar ao Pedro (não corrigir por conta próp
 
 ---
 
+### Decisões do Pedro em 24/11/2026 (recomendações aceitas)
+
+| # | Tema | Decisão | Efeito |
+|---|---|---|---|
+| 1 | Aviso `ROUTE_CHANGED` (C-2 / PR-13) | **Sai junto** com a rota de recalcular da operação: tipo, texto em `day-plan-notices.ts` e o que só servia a ele. O anexo não pede esse aviso. `ROUTE_PUBLISHED` fica | PR-13 liberado |
+| 2 | D-13 (a) / PR-06 | O aviso "Your route for tomorrow is ready" **só sai para o plano do dia seguinte**; e só quando o plano está publicado | PR-06 liberado |
+| 3 | D-12 / PR-05 | Alerta "não iniciado" **e** atraso acumulado/barra passam a usar o horário atual da parada. A métrica de precisão continua com o horário congelado na publicação | PR-05 liberado |
+| 4 | E-5 / PR-15 | Inspetor já logado no web: basta descartar a sessão no navegador; o servidor não muda | Só falta o portão de design |
+| 5 | H-4 observações menores | Não executar agora; vão para `fase2-etapa1/estacionamento.md` (no DOC-1) | Nenhum PR |
+| 6 | C-1 / DOC-2 roteiro de homologação | Em inglês, em documento | — |
+| 7 | "Minimum services to be ranked" em DEV | Volta a 10 depois dos testes pendentes (P1) e do reteste do PR-04 | Operação em DEV |
+
+Continuam abertos: portões de design (PR-04, 09, 10, 11, 12, 14, 15, 16), regra do D-05 (PR-18), contagem em staging/produção (PR-17), diagnóstico do D-03 (PR-12).
+
+---
+
 ## 7. Rastreabilidade
 
 | Origem (smoke) | O que é | Resolve |
