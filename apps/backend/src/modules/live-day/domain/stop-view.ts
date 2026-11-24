@@ -27,11 +27,23 @@ export function windowEndInstant(row: LiveDayStopRow): Date {
   return zonedWallTimeToUtc(row.scheduledDate, row.timeSlotEnd, row.tenantTimezone);
 }
 
-/** Planned baseline (§5): published ?? service_start ?? window start. Never the projected time. */
+/**
+ * Baseline for the not-started alert and the accumulated / per-stop delay (D-12).
+ *
+ * It is the stop's CURRENT booking window start — `scheduled_date` + `time_slot_start`
+ * in the agency timezone, read from the live appointment columns — so a reschedule
+ * moves it. It deliberately ignores `published_service_start_at`, `service_start_at`
+ * and the stored `day_plan_stops.window_start_at`: all three freeze at plan compute
+ * time and are NOT rewritten on reschedule (marking the plan STALE only bumps the
+ * plan status), so a stop rescheduled from 17:00 to 13:00 would otherwise keep
+ * alerting/measuring against the frozen 17:00.
+ *
+ * The frozen `published_service_start_at` stays the source of the Route ETA-accuracy
+ * metric (`get-route-eta-accuracy.use-case.ts`, L-F04-15); that metric lives in the
+ * day-plan module and never reads this function.
+ */
 export function baselineInstant(row: LiveDayStopRow): Date {
-  if (row.publishedServiceStartAt) return new Date(row.publishedServiceStartAt);
-  if (row.serviceStartAt) return new Date(row.serviceStartAt);
-  return windowStartInstant(row);
+  return zonedWallTimeToUtc(row.scheduledDate, row.timeSlotStart, row.tenantTimezone);
 }
 
 function toClassifiable(row: LiveDayStopRow): ClassifiableStop {

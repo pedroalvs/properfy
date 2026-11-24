@@ -52,8 +52,18 @@ describe('deriveAlerts — DELAY', () => {
 });
 
 describe('deriveAlerts — NOT_STARTED (per stop)', () => {
-  const notStarted = (baseline: string) =>
-    makeStopRow({ appointmentId: 'A', publishedServiceStartAt: baseline, windowStartAt: baseline, startedAt: null });
+  // The baseline is the stop's current booking window start (D-12). The helper maps
+  // an instant to UTC wall-clock booking columns so the baseline reads as that instant.
+  const notStarted = (baseline: string) => {
+    const d = new Date(baseline);
+    return makeStopRow({
+      appointmentId: 'A',
+      tenantTimezone: 'UTC',
+      scheduledDate: d.toISOString().slice(0, 10),
+      timeSlotStart: d.toISOString().slice(11, 16),
+      startedAt: null,
+    });
+  };
 
   it('fires strictly above the threshold', () => {
     const [a] = run({ visible: [notStarted('2026-11-05T01:29:00Z')], now: new Date('2026-11-05T02:00:00Z') });
@@ -64,11 +74,34 @@ describe('deriveAlerts — NOT_STARTED (per stop)', () => {
       'NOT_STARTED',
     );
   });
+  it('uses the current window, not the frozen published time, after a reschedule (D-12)', () => {
+    // Published for 17:00, rescheduled to 13:00-13:15; the stored stop windows stay
+    // frozen at 17:00. With threshold 5 and now 13:21 (Sydney), the stop is 21 min
+    // overdue against the current window. Against the frozen 17:00 no alert would fire.
+    const stop = makeStopRow({
+      appointmentId: 'A',
+      tenantTimezone: 'Australia/Sydney',
+      scheduledDate: '2026-11-05',
+      timeSlotStart: '13:00',
+      timeSlotEnd: '13:15',
+      publishedServiceStartAt: '2026-11-05T06:00:00Z', // frozen 17:00
+      serviceStartAt: '2026-11-05T06:00:00Z',
+      windowStartAt: '2026-11-05T06:00:00Z',
+      startedAt: null,
+    });
+    const [a] = run({
+      visible: [stop],
+      now: new Date('2026-11-05T02:21:00Z'),
+      thresholds: { ...THRESHOLDS, notStartedMinutes: 5 },
+    });
+    expect(a).toMatchObject({ type: 'NOT_STARTED', minutes: 21, appointmentId: 'A', thresholdMinutes: 5 });
+  });
   it('measures to window end on a past day', () => {
     const stop = makeStopRow({
       appointmentId: 'A',
-      publishedServiceStartAt: '2026-11-04T23:00:00Z',
-      windowStartAt: '2026-11-04T23:00:00Z',
+      tenantTimezone: 'UTC',
+      scheduledDate: '2026-11-04',
+      timeSlotStart: '23:00',
       windowEndAt: '2026-11-05T06:00:00Z',
       startedAt: null,
     });
