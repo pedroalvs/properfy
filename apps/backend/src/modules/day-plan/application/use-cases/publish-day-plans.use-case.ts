@@ -1,3 +1,4 @@
+import { addCivilDays } from '@properfy/shared';
 import type { Clock } from '../../../../shared/domain/clock';
 import type { AuditService } from '../../../../shared/domain/audit';
 import type { Logger } from '../../../../shared/infrastructure/logger';
@@ -130,8 +131,15 @@ export class PublishDayPlansUseCase {
           }
         }
 
-        if (record.notifiedAt === null) {
-          const todayCivil = civilDateInTimezone(computeNow, record.timezone);
+        // Decision #2 (option 1): the route-ready notice ("Your route for tomorrow
+        // is ready") is sent only for the genuine next-day plan, and only once the
+        // plan is actually PUBLISHED. A DRAFT (publication window still closed) or a
+        // same-day plan the inspector opened via ON_OPEN — which a lingering publish
+        // claim can still pull into the due set — never gets the "tomorrow" notice;
+        // notifiedAt stays null so it is not falsely marked as announced.
+        const todayCivil = civilDateInTimezone(computeNow, record.timezone);
+        const isNextDayPlan = entry.date === addCivilDays(todayCivil, 1);
+        if (record.notifiedAt === null && record.status === 'PUBLISHED' && isNextDayPlan) {
           const candidates = await this.reader.loadCandidates(entry.inspectorId, entry.date, todayCivil);
           const { title, body } = this.buildNotice(record, candidates);
           await this.notices.execute({
@@ -145,7 +153,8 @@ export class PublishDayPlansUseCase {
           await this.repo.markNotified(record.id);
           notified += 1;
         } else if (!newlyPublished) {
-          // Already published and notified before this run — nothing to do.
+          // Already published (and either notified, DRAFT, or not a next-day plan) —
+          // nothing to do this run.
           skipped += 1;
         }
       } catch (err) {
