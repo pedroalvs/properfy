@@ -40,7 +40,14 @@ export function formatAddressLabel(address: unknown): string | null {
   const formattedAddress = readString(record, 'formattedAddress');
   if (formattedAddress) return formattedAddress;
 
-  const street = readString(record, 'street');
+  // The inspector base address keeps the house number in a separate `number`
+  // field (no `formattedAddress`); prepend it so the label reads "1 Martin
+  // Place". Addresses captured via the Mapbox lookup carry `formattedAddress`
+  // (returned above) with the number already inside the street, so they are
+  // untouched.
+  const streetName = readString(record, 'street');
+  const streetNumber = readString(record, 'number');
+  const street = streetName ? [streetNumber, streetName].filter(Boolean).join(' ') : null;
   const suburb = readString(record, 'suburb') ?? readString(record, 'city');
   const state = readString(record, 'state');
   const postcode = readString(record, 'postcode');
