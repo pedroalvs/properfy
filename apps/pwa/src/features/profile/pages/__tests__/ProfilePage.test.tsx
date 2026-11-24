@@ -143,6 +143,11 @@ describe('ProfilePage (tiles)', () => {
     expect(screen.queryByRole('link', { name: 'Account details' })).not.toBeInTheDocument();
   });
 
+  it('shows the build version footer matching App settings (single-build version)', () => {
+    renderWithProviders(<ProfilePage />);
+    expect(screen.getByText(`Properfy Inspector v${__APP_VERSION__}`)).toBeInTheDocument();
+  });
+
   it('shows the rating from the inspector record in the header', () => {
     mockUseInspectorMe.mockReturnValue({
       data: { data: { rating: { average: 4.8, responseCount: 12, doneServicesCount: 132 } } },

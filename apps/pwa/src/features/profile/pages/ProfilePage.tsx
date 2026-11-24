@@ -145,7 +145,7 @@ export function ProfilePage() {
           />
         </MenuList>
 
-        <p className="text-center text-xs text-muted-foreground">Properfy Inspector v1.0</p>
+        <p className="text-center text-xs text-muted-foreground">Properfy Inspector v{__APP_VERSION__}</p>
       </div>
     </div>
   );
