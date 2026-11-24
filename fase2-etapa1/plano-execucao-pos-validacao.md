@@ -335,9 +335,10 @@ Se o F08-f mostrar erro genérico, levar ao Pedro (não corrigir por conta próp
 | 15 | PR-05 ajuste da base do alerta | Base do alerta "não iniciado" e do atraso = horário previsto no plano quando cai dentro da janela atual do agendamento; senão o início da janela atual; nunca o horário congelado na publicação | PR de follow-up na fila de backend |
 | 17 | PR-18 endereço rural (substitui a parte 3 da decisão 12) | **Endereço rural é falha**: sem tratamento especial para localidade ou cidade; só resultado do tipo endereço com relevância ≥ 0,8 é sucesso; o resto fica FAILED e pede pino manual. Base: consulta real ao Mapbox em 24/11 (rural só com localidade → "cidade", 0,67; rural com número → endereço em outra cidade a ~150 km, 0,67; rua urbana inexistente → CEP, 0,52; caso do D-05 → endereço em outro lugar, 0,38; endereço bom → 0,89). Limiar com margem curta: medir pelo dry-run do regeocode antes de produção | PR-18 totalmente liberado |
 | 18 | Ritmo da execução | PRs independentes em paralelo; reteste do Batedor em duas pernas (a primeira já com 14 correções em DEV); contagem do PR-17 tratada pelo Pedro com o agente "Abaco" | — |
+| 19 | PR-17 contagem (24/11, só leitura, pelo Pedro com o agente "Abaco") | Staging: 17 imobiliárias, 7 com as chaves gravadas, **0 fora do padrão**. Produção: 11 imobiliárias, 11 com as chaves gravadas, **0 fora do padrão** | Trava do PR-17 liberada; chaves gravadas ficam inertes, sem migração |
 | 16 | D-03 versão "+dev" | Causa: o workflow de `main` não tem `APP_BUILD_SHA`. Corrige-se sozinho na promoção `develop → staging → main`; sem alteração direta em `main` por enquanto | Nenhum PR |
 
-Continuam abertos: capturas de tela do PR-16, verificação da parte (3) do PR-18, contagem em staging/produção (PR-17; consultas na nota Maestri "PR-17 e PR-18 — para o Pedro"), diagnóstico do D-03 (PR-12).
+Continuam abertos: capturas de tela do PR-16, verificação da parte (3) do PR-18, diagnóstico do D-03 (PR-12).
 
 ---
 
