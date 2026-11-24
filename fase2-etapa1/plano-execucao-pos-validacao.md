@@ -96,6 +96,8 @@ Conflitos esperados e como tratar:
 
 ### PR-04 — `fix(pwa): use configured minimum services in challenges copy`
 
+> **Escopo revisado (Pedro, 24/11/2026).** O número **não** vem de `minimumServices` (mínimo de uma meta, fixo em 10 no backend — outro conceito) e sim de `reliabilityIndex.minimumVolume` (campo "Minimum services to be ranked"), que não estava no contrato de `GET /v1/inspector/program`. Aprovado: expor **só** `minimumVolume` em `standing.index.minimumVolume` (backend `get-inspector-program.use-case.ts` lê a configuração; `packages/shared` ganha o campo `z.number().int().min(1)`; PWA usa o número nos dois textos, com o singular "1 job"; `pnpm generate:api`). **Workspaces:** backend + shared + pwa. **Flags:** + `ROTA/SCHEMA`, + `ARQ. COMPARTILHADO`. **Dependências:** PR-13 (série de api-types). O campo é obrigatório (mínimo 1), nunca nulo → a frase fica **sempre visível**; "esconder quando não há mínimo" não se aplica. Os itens abaixo valem no que não contrariam este bloco.
+
 - **Origem:** H-1 / D-07. **Anexo:** 03.10 / 03.15 / **03.A3**. **Flags:** `DEFEITO`, `MUDANÇA-DE-TELA` (mínima).
 - **Portão de design — mostrar ao Pedro:** os dois textos com o número vindo da configuração: "Based on your last 30 days. You need {n} jobs for a score." e "You'll appear once you have {n} jobs in the last 30 days." (e o singular para n = 1, "1 job"). Sem outra mudança.
 - **Workspaces:** pwa. **Dependências:** nenhuma.
@@ -248,7 +250,7 @@ Conflitos esperados e como tratar:
 - **Passos 2–4:** teste provando que ler uma imobiliária com as duas chaves gravadas continua funcionando (nenhuma migração; chaves ficam inertes); remover os campos de `packages/shared/src/schemas/tenant.ts` (linhas ~53–54) e os testes (`packages/shared/src/schemas/tenant.test.ts` ~450 e ~555, `apps/backend/tests/unit/tenant/update-tenant.use-case.test.ts` ~327/~344); `pnpm generate:api`. Não reaproveitar os nomes: janela = `inspectorProgram.earlyAccess`; alcance = regiões do inspetor.
 - **Aceite:** `git grep -nE "priorityOfferHours|inspectorOfferRadiusKm" -- apps packages ':!*.md'` vazio; gates shared + backend (+ db) + lint/typecheck web e pwa.
 
-### PR-18 (bloqueado) — `fix(backend): treat low-relevance geocoding results as failed`
+### PR-18 (liberado em 24/11 — ver decisão 12 em §6) — `fix(backend): treat low-relevance geocoding results as failed`
 
 - **Origem:** H-2 / D-05. **Anexo:** X02 (fundação; sem item do anexo). **Flags:** `DEFEITO`; status de geocodificação muda em tela (FAILED em vez de SUCCESS).
 - **Trava (decidida):** **levar ao Pedro a proposta de regra antes** (ex.: limiar de relevância/`match_code` do Mapbox, o que fazer com resultado só de cidade/código postal, se vira FAILED ou aviso). Sem aprovação, não implementar.
@@ -322,8 +324,26 @@ Se o F08-f mostrar erro genérico, levar ao Pedro (não corrigir por conta próp
 | 5 | H-4 observações menores | Não executar agora; vão para `fase2-etapa1/estacionamento.md` (no DOC-1) | Nenhum PR |
 | 6 | C-1 / DOC-2 roteiro de homologação | Em inglês, em documento | — |
 | 7 | "Minimum services to be ranked" em DEV | Volta a 10 depois dos testes pendentes (P1) e do reteste do PR-04 | Operação em DEV |
+| 8 | Portões de design (PR-04, 09, 10, 11, 12, 14) | Textos aprovados como propostos. PR-10: duas mensagens separadas (tipo de arquivo / tamanho). PR-04: ver o bloco "Escopo revisado" do PR-04 | Seis PRs mergeiam no verde |
+| 9 | PR-15 modal do inspetor | Título "Inspectors use the Properfy app"; corpo "Your account doesn't have access to this website. Open the Properfy Inspector app to see your offers and schedule."; botão "Open the app"; fechar volta ao login limpo. Captura de tela ao Pedro **antes** do merge | PR-15 liberado até a captura |
+| 10 | PR-15 endereço do app (variável de build por ambiente, nunca fixo no código) | DEV `https://pwa-properfy.pedroalvs.com` · staging `https://pwa-properfy.autolabs.tech` · produção `https://pwa.properfy.me` (`app.properfy.me` é o portal web) | OPS-5 com valores definidos |
+| 11 | PR-16 Consent Lookup | Item "Consent Lookup" em "Configuration", depois de "Notification Templates"; seletor "Agency" obrigatório. Captura de tela ao Pedro **antes** do merge | PR-16 liberado até a captura |
+| 12 | PR-18 regra de geocodificação (D-05) | (1) FAILED quando o resultado não é do tipo endereço, ou é endereço com relevância < 0,8; reusa FAILED com código `LOW_RELEVANCE`, sem enum nem migração. (2) Limiar 0,8. (3) **Endereço rural não é falha:** resultado no nível de localidade é válido; níveis mais largos (cidade, CEP, região) continuam FAILED. (4) Mesma regra no endereço-base do inspetor | PR-18 liberado, no fim da fila de backend. **Parte (3) em verificação:** na Austrália o subúrbio pode vir como localidade e reabrir o defeito em endereço urbano; o executor consulta endereços reais e devolve o resultado antes de implementar essa parte |
 
-Continuam abertos: portões de design (PR-04, 09, 10, 11, 12, 14, 15, 16), regra do D-05 (PR-18), contagem em staging/produção (PR-17), diagnóstico do D-03 (PR-12).
+Continuam abertos: capturas de tela do PR-15 e do PR-16, verificação da parte (3) do PR-18, contagem em staging/produção (PR-17; consultas na nota Maestri "PR-17 e PR-18 — para o Pedro"), diagnóstico do D-03 (PR-12).
+
+---
+
+## 6-B. Validação das entregas (coordenador "Claude Code #3")
+
+Cada entrega passa por duas conferências: leitura do diff contra a decisão do Pedro, e reteste em tela pelo Batedor com a onda em DEV.
+
+| PR | Entrega | Leitura do diff | Reteste em tela |
+|---|---|---|---|
+| PR-02 | #1375 (c58fd6f3), 24/11 | ✅ Corrige a causa (estado local não zerava ao trocar de parada no mesmo cartão); teste que reproduz o caso do cartão reaproveitado; só PWA, 4 arquivos; CI verde; CLAUDE.md do PWA atualizado. Sem mudança fora do defeito | ⏳ com a onda em DEV (D-02 / 00.A3) |
+| PR-07 | #1376 (0018471f), 24/11 | ✅ CL pedindo arquivos ou issues de imóvel/agendamento de outra imobiliária (ou inexistente) → 404, nos dois endpoints de listagem; AM/OP e inspetor inalterados; sem mudança de contrato; testes unitários e de banco real; CI verde. Observação: AM/OP com identificador inexistente continuam recebendo lista vazia (fora do critério C.A2) | ⏳ com a onda em DEV (D-15 / C.A2) |
+| PR-01 | #1377 (807f12b7), 24/11 | ✅ Sai o selo de prioridade morto do cartão de oferta (contagem, tipos e dados de teste); 9 arquivos, todos em `apps/pwa/src/features/offers`, 5 linhas a mais e 95 a menos; nenhuma ocorrência restante de `priorityExpiresAt`/`priorityMode`/`priority-countdown` em `origin/develop`; backend, shared e contrato intocados; CI verde | ⏳ com a onda em DEV (B1) |
+| PR-03 | #1378 (635d3f39), 24/11 — convertido de PWA para backend | ✅ Ao salvar ordem manual, a sugestão do otimizador é preservada; "Reset to suggested" e mudança no conjunto de paradas geram sugestão nova; 3 arquivos, sem mudança de contrato; testes dos dois casos; CI verde. **Ponto a retestar:** num recálculo automático que mantém a ordem (plano desatualizado por outro motivo, sem mudança no conjunto), a sugestão passa a ser a ordem atual — conferir em tela se o texto "Same finish time as suggested" volta nesse caso | ⏳ com a onda em DEV (D-06 / 01.A2) |
 
 ---
 
