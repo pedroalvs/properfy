@@ -17,8 +17,6 @@ const baseOffer: MarketplaceOffer = {
   groupSize: 3,
   scheduledDate: '2026-03-20',
   timeWindow: '09:00-11:00',
-  priorityMode: 'STANDARD',
-  priorityExpiresAt: null,
   suburbs: ['Brunswick', 'Fitzroy'],
   payoutEstimate: null,
   appointmentCount: 3,
@@ -185,12 +183,6 @@ describe('OfferCard', () => {
     expect(screen.getByTestId('property-type-icon-fallback')).toBeInTheDocument();
   });
 
-  it('renders no countdown when priorityExpiresAt is absent from the payload', () => {
-    const { priorityExpiresAt: _omitted, ...withoutExpiry } = baseOffer;
-    render(<OfferCard offer={withoutExpiry} state="IDLE" onAccept={onAccept} />);
-    expect(screen.queryByTestId('priority-countdown')).toBeNull();
-  });
-
   it('shows Accept button for IDLE state', () => {
     render(<OfferCard offer={baseOffer} state="IDLE" onAccept={onAccept} />);
     expect(screen.getByTestId('accept-button')).toBeInTheDocument();
@@ -271,18 +263,5 @@ describe('OfferCard', () => {
     });
 
     expect(card.className).toContain('opacity-40');
-  });
-
-  it('shows priority countdown when priorityExpiresAt is set', () => {
-    vi.useRealTimers();
-    const future = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
-    render(
-      <OfferCard
-        offer={{ ...baseOffer, priorityExpiresAt: future }}
-        state="IDLE"
-        onAccept={onAccept}
-      />,
-    );
-    expect(screen.getByTestId('priority-countdown')).toBeInTheDocument();
   });
 });
