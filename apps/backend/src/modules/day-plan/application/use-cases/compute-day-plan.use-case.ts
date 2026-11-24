@@ -145,6 +145,9 @@ export class ComputeDayPlanUseCase {
 
     // --- Fingerprint (uses the CONFIGURED origin, never LAST_STOP) ---
     const fingerprint = fingerprintForCandidates(candidates, configured);
+    // The stored optimizer suggestion stays valid until the origin or the stop set
+    // changes; this flag drives whether we recompute it (and pay a provider matrix).
+    const fingerprintChanged = !existing || existing.inputFingerprint !== fingerprint;
 
     // --- Routing of the reorderable tail ---
     const mode = this.resolveMode(input, existing);
@@ -165,6 +168,9 @@ export class ComputeDayPlanUseCase {
       earliestDepartureAt,
       weights: weights as RouteWeights,
       mode,
+      // Recompute the PRESERVE_ORDER suggestion on the provider matrix only when the
+      // origin or stop set changed — never on a no-change reopen (0 Matrix there).
+      forceProviderMatrix: mode.kind === 'PRESERVE_ORDER' && fingerprintChanged,
       interactive: input.trigger !== 'SCHEDULED_PUBLISH',
       strict: input.trigger === 'SCHEDULED_PUBLISH' && (input.attempt ?? 1) < 3,
       now,
@@ -195,10 +201,18 @@ export class ComputeDayPlanUseCase {
     // "suggested" baseline, so the app can still show "+N min vs. suggested" after
     // a save instead of comparing the order against itself (D-06). The save path
     // validates that the id set is unchanged, so the prior suggestion stays valid.
-    // OPTIMIZE yields a fresh suggestion; PRESERVE_ORDER (auto-recompute, e.g. a
-    // changed stop set) regenerates it for the current set via `result.order`.
+    // OPTIMIZE yields a fresh suggestion. PRESERVE_ORDER (auto-recompute) recomputes
+    // a provider-quality suggestion when the origin or stop set changed — so an
+    // ORIGIN_CHANGE no longer collapses "suggested" onto the manual order (D-06) —
+    // but keeps the stored suggestion on a no-change reopen (never degrades it).
     const suggestedOrder =
-      mode.kind === 'FIXED_ORDER' ? (existing?.suggestedOrder ?? result.order) : (result.optimizedOrder ?? result.order);
+      mode.kind === 'FIXED_ORDER'
+        ? (existing?.suggestedOrder ?? result.order)
+        : mode.kind === 'PRESERVE_ORDER'
+          ? fingerprintChanged
+            ? (result.optimizedOrder ?? result.order)
+            : (existing?.suggestedOrder ?? result.optimizedOrder ?? result.order)
+          : (result.optimizedOrder ?? result.order);
     const manualOrder =
       mode.kind === 'FIXED_ORDER' ? true : mode.kind === 'PRESERVE_ORDER' ? (existing?.manualOrder ?? false) : false;
 
