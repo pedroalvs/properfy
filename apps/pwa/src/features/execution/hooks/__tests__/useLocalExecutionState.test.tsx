@@ -78,4 +78,39 @@ describe('useLocalExecutionState', () => {
     });
     expect(mockSave).not.toHaveBeenCalled();
   });
+
+  // Regression (PR-02): when the appointment id changes to one with no saved row,
+  // the hook must reset to the default state. The Today screen reuses the single
+  // Next card in place as the plan advances, so a leaked DONE/IN_PROGRESS state
+  // from the previous stop would hide the next stop's "Check in" button.
+  it('resets to the default state when the appointment id changes to one without a saved row', async () => {
+    mockGet.mockImplementation((id: string) =>
+      Promise.resolve(
+        id === 'apt-1'
+          ? {
+              appointmentId: 'apt-1',
+              phase: 'DONE',
+              pendingSync: false,
+              startLocation: null,
+              finishLocation: null,
+              startedAt: null,
+              errorMessage: null,
+              lastSavedAt: null,
+            }
+          : undefined,
+      ),
+    );
+
+    const { result, rerender } = renderHook(({ id }) => useLocalExecutionState(id), {
+      initialProps: { id: 'apt-1' },
+    });
+
+    await waitFor(() => expect(result.current.state.phase).toBe('DONE'));
+
+    rerender({ id: 'apt-2' });
+
+    await waitFor(() => expect(result.current.state.appointmentId).toBe('apt-2'));
+    expect(result.current.isRestored).toBe(true);
+    expect(result.current.state.phase).toBe('PRE_START');
+  });
 });
