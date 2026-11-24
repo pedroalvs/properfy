@@ -60,4 +60,38 @@ describe('PropertyScopeService.resolveReadListScope', () => {
     const no = build(null);
     await expect(no.scope.resolveReadListScope(makeActor('INSP'), { appointmentId: APPT_A })).rejects.toMatchObject({ statusCode: 404 });
   });
+
+  // C.A2: a tenant-pinned actor listing another agency's (or a missing) target
+  // gets 404, matching the detail route — not a silent empty list.
+  it('CL 404s a target owned by another tenant', async () => {
+    const { scope } = build();
+    await expect(
+      scope.resolveReadListScope(makeActor('CL_ADMIN'), { propertyId: PROPERTY_A }, async () => TENANT_B),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    await expect(
+      scope.resolveReadListScope(makeActor('CL_USER'), { appointmentId: APPT_A }, async () => TENANT_B),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('CL 404s a missing target', async () => {
+    const { scope } = build();
+    await expect(
+      scope.resolveReadListScope(makeActor('CL_ADMIN'), { propertyId: PROPERTY_A }, async () => null),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('CL passes for a target in its own tenant', async () => {
+    const { scope } = build();
+    expect(
+      await scope.resolveReadListScope(makeActor('CL_ADMIN'), { propertyId: PROPERTY_A }, async () => TENANT_A),
+    ).toEqual({ tenantId: TENANT_A });
+  });
+
+  it('AM/OP never consult the resolver and stay cross-tenant', async () => {
+    const { scope } = build();
+    const resolver = vi.fn(async () => TENANT_B);
+    expect(await scope.resolveReadListScope(makeActor('AM'), { propertyId: PROPERTY_A }, resolver)).toEqual({});
+    expect(await scope.resolveReadListScope(makeActor('OP'), { propertyId: PROPERTY_A }, resolver)).toEqual({});
+    expect(resolver).not.toHaveBeenCalled();
+  });
 });

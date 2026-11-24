@@ -4,10 +4,11 @@ import { ListPropertyIssuesUseCase } from '../../../src/modules/property-file/ap
 import { CountUnseenPropertyIssuesUseCase } from '../../../src/modules/property-file/application/use-cases/count-unseen-property-issues.use-case';
 import type { IPropertyFileRepository } from '../../../src/modules/property-file/domain/property-file.repository';
 import type { IPropertyIssueRepository, IPropertyIssueIndicatorReader } from '../../../src/modules/property-file/domain/property-issue.repository';
-import type { PropertyScopeService } from '../../../src/modules/property-file/application/property-scope.service';
+import { PropertyScopeService } from '../../../src/modules/property-file/application/property-scope.service';
+import type { IInspectorAppointmentVisibility } from '../../../src/modules/property-file/domain/inspector-appointment-visibility';
 import type { PropertyFileEntity } from '../../../src/modules/property-file/domain/property-file.entity';
 import type { PropertyIssueEntity } from '../../../src/modules/property-file/domain/property-issue.entity';
-import { makeActor, makeAuthorizationService, TENANT_A, PROPERTY_A, APPT_A } from './_helpers';
+import { makeActor, makeAuthorizationService, TENANT_A, TENANT_B, PROPERTY_A, APPT_A } from './_helpers';
 
 const photo: PropertyFileEntity = {
   id: 'p1', tenantId: TENANT_A, propertyId: PROPERTY_A, appointmentId: APPT_A, issueId: 'i1',
@@ -56,6 +57,82 @@ describe('ListPropertyIssuesUseCase — INSP identity masking (D28)', () => {
     const uc = new ListPropertyIssuesUseCase(issueRepo, fileRepo, scopeAm);
     const res = await uc.execute({ actor: makeActor('AM'), query: { appointmentId: APPT_A } });
     expect(res.issues[0]!.createdByUserId).toBe('peer-user');
+  });
+});
+
+// C.A2: listing another agency's (or a missing) target 404s — it must not fall
+// back to a silent empty list. A real PropertyScopeService proves the full chain
+// (use case → scope → tenant resolver → repo).
+function realScope(): PropertyScopeService {
+  const visibility = { resolveForInspector: vi.fn(async () => null) } as unknown as IInspectorAppointmentVisibility;
+  return new PropertyScopeService(visibility);
+}
+
+describe('ListPropertyFilesUseCase — cross-tenant target 404 (C.A2)', () => {
+  it('a CL of another agency 404s a foreign property (not an empty list)', async () => {
+    const listReadyByProperty = vi.fn();
+    const fileRepo = {
+      findPropertyTenantId: vi.fn(async () => TENANT_B),
+      listReadyByProperty,
+      countsByProperty: vi.fn(),
+    } as unknown as IPropertyFileRepository;
+    const uc = new ListPropertyFilesUseCase(fileRepo, realScope());
+    await expect(
+      uc.execute({ actor: makeActor('CL_ADMIN'), query: { propertyId: PROPERTY_A } }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(listReadyByProperty).not.toHaveBeenCalled();
+  });
+
+  it('a CL of another agency 404s a foreign appointment', async () => {
+    const fileRepo = {
+      findAppointmentTenantId: vi.fn(async () => TENANT_B),
+      listReadyByAppointment: vi.fn(),
+      countsByAppointment: vi.fn(),
+    } as unknown as IPropertyFileRepository;
+    const uc = new ListPropertyFilesUseCase(fileRepo, realScope());
+    await expect(
+      uc.execute({ actor: makeActor('CL_ADMIN'), query: { appointmentId: APPT_A } }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('a CL of the owning agency reads the list (200)', async () => {
+    const fileRepo = {
+      findPropertyTenantId: vi.fn(async () => TENANT_A),
+      listReadyByProperty: vi.fn(async () => []),
+      countsByProperty: vi.fn(async () => ({ total: 0, issues: 0, documents: 0, reports: 0, other: 0 })),
+    } as unknown as IPropertyFileRepository;
+    const uc = new ListPropertyFilesUseCase(fileRepo, realScope());
+    const res = await uc.execute({ actor: makeActor('CL_ADMIN'), query: { propertyId: PROPERTY_A } });
+    expect(res.files).toEqual([]);
+  });
+
+  it('OP reads cross-tenant without consulting the tenant resolver', async () => {
+    const findPropertyTenantId = vi.fn(async () => TENANT_B);
+    const fileRepo = {
+      findPropertyTenantId,
+      listReadyByProperty: vi.fn(async () => []),
+      countsByProperty: vi.fn(async () => ({ total: 0, issues: 0, documents: 0, reports: 0, other: 0 })),
+    } as unknown as IPropertyFileRepository;
+    const uc = new ListPropertyFilesUseCase(fileRepo, realScope());
+    const res = await uc.execute({ actor: makeActor('OP'), query: { propertyId: PROPERTY_A } });
+    expect(res.files).toEqual([]);
+    expect(findPropertyTenantId).not.toHaveBeenCalled();
+  });
+});
+
+describe('ListPropertyIssuesUseCase — cross-tenant target 404 (C.A2)', () => {
+  it('a CL of another agency 404s a foreign property (not an empty list)', async () => {
+    const listByProperty = vi.fn();
+    const issueRepo = { listByProperty } as unknown as IPropertyIssueRepository;
+    const fileRepo = {
+      findPropertyTenantId: vi.fn(async () => TENANT_B),
+      listReadyPhotosByIssueIds: vi.fn(async () => []),
+    } as unknown as IPropertyFileRepository;
+    const uc = new ListPropertyIssuesUseCase(issueRepo, fileRepo, realScope());
+    await expect(
+      uc.execute({ actor: makeActor('CL_ADMIN'), query: { propertyId: PROPERTY_A } }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(listByProperty).not.toHaveBeenCalled();
   });
 });
 

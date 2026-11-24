@@ -22,6 +22,8 @@ export interface IPropertyFileRepository {
   findById(id: string, tx?: Prisma.TransactionClient): Promise<PropertyFileEntity | null>;
   /** The tenant that owns a property (the file/issue tenant), or null if absent. */
   findPropertyTenantId(propertyId: string, tx?: Prisma.TransactionClient): Promise<string | null>;
+  /** The tenant that owns an appointment, or null if absent (cross-tenant list check, C.A2). */
+  findAppointmentTenantId(appointmentId: string, tx?: Prisma.TransactionClient): Promise<string | null>;
   listReadyByProperty(
     propertyId: string,
     filter?: PropertyFileListFilter,
