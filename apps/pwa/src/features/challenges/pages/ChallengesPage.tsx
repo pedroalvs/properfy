@@ -55,7 +55,7 @@ export function ChallengesPage() {
             <Segmented<ChallengeTab> value={tab} options={TAB_OPTIONS} onChange={selectTab} aria-label="Challenges tabs" />
             {tab === 'active' && <ActiveGoalsTab program={data} />}
             {tab === 'results' && <MyResultsTab program={data} />}
-            {tab === 'ranking' && <RankingTab ranking={data.ranking} />}
+            {tab === 'ranking' && <RankingTab ranking={data.ranking} minimumVolume={data.standing.index.minimumVolume} />}
           </>
         ) : null}
       </div>

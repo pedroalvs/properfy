@@ -19,6 +19,11 @@ export const BONUS_FOOTER =
 export const RANKING_FOOTER =
   'Ranked against all active inspectors on the platform. Other inspectors are shown without names. Updated daily.';
 
+/** `1 job` / `{n} jobs` for a job count (e.g. the reliability-index minimum volume). */
+export function jobsLabel(count: number): string {
+  return `${count} ${count === 1 ? 'job' : 'jobs'}`;
+}
+
 /** AUD amount with no cents when whole: `$60`, `$60.50`. */
 export function formatBonus(amount: number): string {
   return Number.isInteger(amount) ? `$${amount}` : `$${amount.toFixed(2)}`;
