@@ -1,14 +1,17 @@
 import type { PropertyFileResponse } from '@properfy/shared';
 import { api } from '@/services/api';
-import { toApiError } from '@/lib/api-error';
+import { ApiError, toApiError } from '@/lib/api-error';
 
 /** No upload-timeout convention in the codebase — 60s, matching useInspectorDocumentUpload. */
 export const UPLOAD_TIMEOUT_MS = 60_000;
 
 /**
  * PUT the raw bytes to a presigned URL with `Content-Type` = the declared mime
- * and a 60s abort. Throws a plain Error ("Upload timed out"/"Upload failed") —
- * the signed URL is storage-direct, so there is no API error envelope here.
+ * and a 60s abort. On a non-2xx storage response, throws an `ApiError` carrying
+ * the storage status so the caller can tell a rejected type (415) from a rejected
+ * size (413) and explain it (C.A5) — see `resolveFileErrorMessage`. A timeout
+ * throws a plain "Upload timed out"; the signed URL is storage-direct, so there
+ * is no API error envelope.
  */
 export async function putToSignedUrl(
   uploadUrl: string,
@@ -31,7 +34,7 @@ export async function putToSignedUrl(
   } finally {
     clearTimeout(timeoutId);
   }
-  if (!res.ok) throw new Error('Upload failed');
+  if (!res.ok) throw new ApiError(res.status, 'Upload failed');
 }
 
 /**
