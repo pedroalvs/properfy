@@ -298,7 +298,7 @@ export class GetLiveDayUseCase {
   }
 }
 
-/** Per-stop delay: minutes from the planned baseline to the actual check-in (null if not started). */
+/** Per-stop delay: minutes from the current booking window start (`baselineInstant`, D-12 — reschedule-aware) to the actual check-in (null if not started). */
 function perStopDelay(stop: LiveDayStopRow): number | null {
   if (stop.startedAt === null || stop.abandonedAt !== null) return null;
   const diffMs = new Date(stop.startedAt).getTime() - baselineInstant(stop).getTime();
