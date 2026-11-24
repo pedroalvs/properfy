@@ -14,8 +14,6 @@ export interface PushSyncDeps {
   getSubscription: () => Promise<PushSubscription | null>;
   subscribe: (applicationServerKey: Uint8Array) => Promise<PushSubscription>;
   saveSubscription: (subscription: PushSubscription) => Promise<void>;
-  /** Per-device opt-out (R2). An opted-out device is never auto-subscribed. */
-  getOptOut: () => boolean;
 }
 
 async function resync(deps: PushSyncDeps): Promise<void> {
@@ -23,16 +21,12 @@ async function resync(deps: PushSyncDeps): Promise<void> {
   if (deps.getPermission() !== 'granted') return;
   try {
     const sub = await deps.getSubscription();
+    // Never subscribe from scratch here: the R1 default-on auto-subscribe lives in
+    // `usePushSubscription` (the single state source) so the UI reflects it on the
+    // same load. The resync only keeps an EXISTING subscription registered and
+    // handles a VAPID rotation.
+    if (!sub) return;
     const serverKey = deps.vapidPublicKey ? urlBase64ToUint8Array(deps.vapidPublicKey) : null;
-    if (!sub) {
-      // R1 default-on: the OS permission is already granted, so no user gesture is
-      // needed. Subscribe from scratch unless this device opted out or the server
-      // has no VAPID key to subscribe with.
-      if (deps.getOptOut() || !serverKey) return;
-      const fresh = await deps.subscribe(serverKey);
-      await deps.saveSubscription(fresh);
-      return;
-    }
     const localKey = sub.options.applicationServerKey;
     // Server VAPID key rotated (and we can compare): re-subscribe with the new
     // key, then POST the fresh subscription. Without a server key (config failed
@@ -50,13 +44,13 @@ async function resync(deps: PushSyncDeps): Promise<void> {
 }
 
 /**
- * Keeps this device's push subscription registered with the server on every
- * authenticated app load (mounted in `PwaLayout`) and whenever the service
- * worker reports `push-subscription-changed`. Push is default-on (R1): when the
- * OS permission is already granted and the device has not opted out, it
- * subscribes from scratch (no gesture needed) as well as re-POSTing an existing
- * subscription and re-subscribing on a VAPID rotation (L-F02-04). An opted-out
- * device is never auto-subscribed. At most one POST per load per `userId`.
+ * Keeps this device's EXISTING push subscription registered with the server on
+ * every authenticated app load (mounted in `PwaLayout`) and whenever the service
+ * worker reports `push-subscription-changed`: it re-POSTs the current subscription
+ * and re-subscribes on a VAPID rotation (L-F02-04). It never subscribes from
+ * scratch — the R1 default-on auto-subscribe lives in `usePushSubscription` (the
+ * single state source) so the UI reflects it immediately. At most one POST per
+ * load per `userId`.
  */
 export function usePushSubscriptionSync(userId: string | null, deps: PushSyncDeps): void {
   const depsRef = useRef(deps);

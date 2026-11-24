@@ -95,6 +95,23 @@ export function usePushSubscription(deps: PushDeps): UsePushSubscriptionResult {
         const sub = await d.getSubscription();
         if (cancelled) return;
         if (!sub) {
+          // R1 default-on: when the OS permission is already granted and the device
+          // has not opted out, subscribe from scratch (no gesture needed) and resolve
+          // to 'on' on this same load. This hook is the single source of truth — the
+          // resync no longer subscribes from scratch — so the indicator/toggle reflect
+          // the active subscription immediately instead of showing 'off' until reload.
+          if (d.getPermission() === 'granted' && !d.getOptOut()) {
+            try {
+              const fresh = await d.subscribe(urlBase64ToUint8Array(vapidKey));
+              await d.saveSubscription(fresh);
+              if (!cancelled) setState('on');
+            } catch {
+              // Automatic subscribe failed silently; the inspector can retry via the
+              // toggle or the top-bar indicator. No loud error for a background op.
+              if (!cancelled) setState('off');
+            }
+            return;
+          }
           setState('off');
           return;
         }

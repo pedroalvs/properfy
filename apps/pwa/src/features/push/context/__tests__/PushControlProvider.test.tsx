@@ -4,8 +4,13 @@ import userEvent from '@testing-library/user-event';
 
 const enable = vi.fn().mockResolvedValue(undefined);
 const disable = vi.fn().mockResolvedValue(undefined);
-const setOptOut = vi.fn();
-const getOptOut = vi.fn(() => false);
+// Stateful opt-out store so `optedOut` (derived live via getOptOut on each render)
+// reflects what setOptOut wrote.
+let optedOutStore = false;
+const setOptOut = vi.fn((v: boolean) => {
+  optedOutStore = v;
+});
+const getOptOut = vi.fn(() => optedOutStore);
 
 vi.mock('../../hooks/useBrowserPushDeps', () => ({
   useBrowserPushDeps: () => ({ getOptOut, setOptOut }),
@@ -44,7 +49,8 @@ describe('PushControlProvider', () => {
     enable.mockClear();
     disable.mockClear();
     setOptOut.mockClear();
-    getOptOut.mockReturnValue(false);
+    getOptOut.mockClear();
+    optedOutStore = false;
   });
 
   it('exposes the subscription state and starts with the modal closed', () => {

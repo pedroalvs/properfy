@@ -30,15 +30,20 @@ const PushControlContext = createContext<PushControlValue | null>(null);
 export function PushControlProvider({ children }: { children: ReactNode }) {
   const deps = useBrowserPushDeps();
   const { state, error, enable, disable } = usePushSubscription(deps);
-  const [optedOut, setOptedOut] = useState<boolean>(() => deps.getOptOut());
   const [isEnableModalOpen, setEnableModalOpen] = useState(false);
+
+  // Derived live from the store on every render rather than kept in local state:
+  // every opt-out mutation (the settings toggle's enable/disable, the modal's Turn
+  // on / Not now) changes `state` or the modal flag and so re-renders the provider,
+  // re-reading the persisted value — so `optedOut` never drifts from `localStorage`.
+  const optedOut = deps.getOptOut();
 
   const openEnableModal = useCallback(() => setEnableModalOpen(true), []);
   const closeEnableModal = useCallback(() => setEnableModalOpen(false), []);
 
   const requestEnable = useCallback(async () => {
-    setOptedOut(false);
     try {
+      // `enable()` clears the opt-out in the store (then re-render picks it up).
       await enable();
     } finally {
       setEnableModalOpen(false);
@@ -47,7 +52,6 @@ export function PushControlProvider({ children }: { children: ReactNode }) {
 
   const declinePersistently = useCallback(() => {
     deps.setOptOut(true);
-    setOptedOut(true);
     setEnableModalOpen(false);
   }, [deps]);
 
