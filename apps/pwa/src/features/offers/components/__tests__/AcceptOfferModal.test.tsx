@@ -12,8 +12,6 @@ const offer: MarketplaceOffer = {
   groupSize: 3,
   scheduledDate: '2026-08-14',
   timeWindow: '09:00-13:00',
-  priorityMode: 'STANDARD',
-  priorityExpiresAt: null,
   suburbs: ['Harris Park'],
   payoutEstimate: 240,
   appointmentCount: 3,

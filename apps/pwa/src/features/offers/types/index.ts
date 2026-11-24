@@ -3,15 +3,11 @@ import type { MarketplaceOffer as MarketplaceOfferResponse } from '@properfy/sha
 export type OfferAcceptState = 'IDLE' | 'CONFIRMING' | 'ACCEPTING' | 'ACCEPTED' | 'CONFLICT' | 'GONE' | 'ERROR';
 
 /**
- * The list-endpoint contract plus two fields the UI reads but the backend does
- * not send yet (the priority countdown is rendered only when they are present).
- * Everything else is inherited so the shape cannot drift from the response
- * schema — `properties`, in particular, arrives with the rest of the contract.
+ * The marketplace list-endpoint contract, re-exported under the feature's own
+ * name so the shape cannot drift from the shared response schema — `properties`,
+ * in particular, arrives with the rest of the contract.
  */
-export interface MarketplaceOffer extends MarketplaceOfferResponse {
-  priorityMode?: string;
-  priorityExpiresAt?: string | null;
-}
+export type MarketplaceOffer = MarketplaceOfferResponse;
 
 // Offer-detail shapes derive from the shared Zod response schema (single source
 // of truth); the per-appointment `tenantName` supports cross-agency groups.
