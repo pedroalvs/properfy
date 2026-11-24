@@ -11,7 +11,6 @@ import {
   paginatedResponseSchema,
   listConsentsQuerySchema,
   overrideConsentSchema,
-  recordConsentOptOutSchema,
   testSendEmailRequestSchema,
   testSendSmsRequestSchema,
   testSendRequestSchema,
@@ -27,7 +26,6 @@ import { success, paginated } from '../../../shared/interfaces/response';
 import type { SendNotificationUseCase } from '../application/use-cases/send-notification.use-case';
 import type { ListConsentsByRecipientUseCase } from '../application/use-cases/list-consents-by-recipient.use-case';
 import type { OverrideConsentUseCase } from '../application/use-cases/override-consent.use-case';
-import type { RecordConsentOptOutUseCase } from '../application/use-cases/record-consent-opt-out.use-case';
 import type { RetryNotificationUseCase } from '../application/use-cases/retry-notification.use-case';
 import type { HandleProviderWebhookUseCase } from '../application/use-cases/handle-provider-webhook.use-case';
 import type { ListNotificationsUseCase } from '../application/use-cases/list-notifications.use-case';
@@ -80,7 +78,6 @@ export interface NotificationRouteContainer {
   dispatchEscalationsUseCase: DispatchEscalationsUseCase;
   listConsentsByRecipientUseCase: ListConsentsByRecipientUseCase;
   overrideConsentUseCase: OverrideConsentUseCase;
-  recordConsentOptOutUseCase: RecordConsentOptOutUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
   webhookSignatureValidator: WebhookSignatureValidator;
@@ -311,26 +308,6 @@ export async function registerNotificationRoutes(
       }
       const result = await container.overrideConsentUseCase.execute({
         consentId: params.data.consentId,
-        reason: body.data.reason,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // F06 L-F06-03: POST /v1/notifications/consents/opt-out — manual AM/OP opt-out
-  app.post(
-    '/v1/notifications/consents/opt-out',
-    { preHandler: authenticate },
-    async (request, reply) => {
-      const body = recordConsentOptOutSchema.safeParse(request.body);
-      if (!body.success) {
-        throw new ValidationError('Request payload is invalid', body.error.errors);
-      }
-      const result = await container.recordConsentOptOutUseCase.execute({
-        tenantId: body.data.tenantId,
-        recipient: body.data.recipient,
-        channel: body.data.channel,
         reason: body.data.reason,
         actor: request.authContext!,
       });
