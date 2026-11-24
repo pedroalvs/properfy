@@ -13429,6 +13429,7 @@ export interface paths {
                                     /** @enum {string} */
                                     status: "SCORED" | "INSUFFICIENT_VOLUME" | "NO_WEIGHTED_DATA" | "NOT_COMPUTED";
                                     snapshotDate: string | null;
+                                    minimumVolume: number;
                                 };
                                 /** @enum {string|null} */
                                 level: "BRONZE" | "SILVER" | "GOLD" | null;

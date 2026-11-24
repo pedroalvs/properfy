@@ -33265,12 +33265,17 @@
                             "snapshotDate": {
                               "type": "string",
                               "nullable": true
+                            },
+                            "minimumVolume": {
+                              "type": "integer",
+                              "minimum": 1
                             }
                           },
                           "required": [
                             "score",
                             "status",
-                            "snapshotDate"
+                            "snapshotDate",
+                            "minimumVolume"
                           ],
                           "additionalProperties": false
                         },
