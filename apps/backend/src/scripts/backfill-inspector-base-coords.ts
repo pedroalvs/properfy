@@ -39,7 +39,9 @@ export interface BackfillIncompatible {
 
 export interface BackfillFailure {
   inspectorId: string;
-  reason: 'error' | 'timeout';
+  // 'coarse_result' / 'low_relevance' are PR-18 rule-A rejections (non-address
+  // or low-confidence); the row is recorded as a non-fatal failure.
+  reason: 'error' | 'timeout' | 'coarse_result' | 'low_relevance';
 }
 
 export interface BackfillReport {

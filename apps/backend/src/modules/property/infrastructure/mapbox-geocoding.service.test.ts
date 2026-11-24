@@ -22,7 +22,9 @@ function stubFetch(results: FetchResult | FetchResult[]): { urls: string[] } {
 }
 
 const OK = (body: unknown): FetchResult => ({ ok: true, status: 200, body });
-const FOUND = OK({ features: [{ center: [151.2, -33.8] }] });
+const FOUND = OK({
+  features: [{ center: [151.2, -33.8], relevance: 0.95, place_type: ['address'] }],
+});
 
 describe('MapboxGeocodingService', () => {
   beforeEach(() => {
@@ -32,15 +34,22 @@ describe('MapboxGeocodingService', () => {
     vi.unstubAllGlobals();
   });
 
-  it('1. sends permanent=true & limit=1 and maps center [lng,lat] → {lat,lng}', async () => {
+  it('1. sends permanent=true & limit=1 and maps center [lng,lat] → {lat,lng} with relevance + placeType', async () => {
     const { urls } = stubFetch(FOUND);
     const svc = new MapboxGeocodingService('tok');
     const result = await svc.geocode('A');
-    expect(result).toEqual({ lat: -33.8, lng: 151.2 });
+    expect(result).toEqual({ lat: -33.8, lng: 151.2, relevance: 0.95, placeType: 'address' });
     expect(urls).toHaveLength(1);
     expect(urls[0]).toContain('permanent=true');
     expect(urls[0]).toContain('limit=1');
     expect(urls[0]).toContain('/geocoding/v5/mapbox.places/A.json');
+  });
+
+  it('1b. carries the most specific place_type (first element) and relevance of a coarse result', async () => {
+    stubFetch(OK({ features: [{ center: [151.2, -33.8], relevance: 0.6, place_type: ['postcode'] }] }));
+    const svc = new MapboxGeocodingService('tok');
+    const result = await svc.geocode('A');
+    expect(result).toEqual({ lat: -33.8, lng: 151.2, relevance: 0.6, placeType: 'postcode' });
   });
 
   it('2. explicit permanent mode behaves like the default', async () => {

@@ -9,7 +9,7 @@ import type { IPropertyRepository } from '../../domain/property.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
 import type { IBranchRepository } from '../../../tenant/domain/branch.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
-import type { IGeocodingService } from '../../domain/geocoding.service';
+import type { IGeocodingService, GeocodingResult } from '../../domain/geocoding.service';
 import { geocodeWithTimeout, GEOCODE_SYNC_TIMEOUT_MS } from '../services/geocode-with-timeout';
 import { PropertyEntity } from '../../domain/property.entity';
 import { PropertyCodeFormatter } from '../../domain/property-code.formatter';
@@ -186,7 +186,7 @@ export class CreatePropertyUseCase {
     // attempts) so the property has coordinates the instant creation returns.
     // On timeout or transient error we keep PENDING and let the async worker
     // finish it. `undefined` = keep PENDING; null/coords = terminal outcome.
-    let geocodeOutcome: { lat: number; lng: number } | null | undefined;
+    let geocodeOutcome: GeocodingResult | null | undefined;
     if (this.geocodingService) {
       try {
         // Permanent mode (default): only permanently geocoded coordinates may be

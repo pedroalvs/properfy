@@ -45,11 +45,23 @@ export class MapboxGeocodingService implements IGeocodingService {
         throw new Error(`Mapbox geocoding failed with status ${response.status}`);
       }
 
-      const data = (await response.json()) as { features?: Array<{ center?: [number, number] }> };
+      const data = (await response.json()) as {
+        features?: Array<{ center?: [number, number]; relevance?: number; place_type?: string[] }>;
+      };
       const feature = data.features?.[0];
       if (!feature?.center) return { kind: 'result', result: null };
-      // Mapbox returns [longitude, latitude]
-      return { kind: 'result', result: { lng: feature.center[0], lat: feature.center[1] } };
+      // Mapbox returns [longitude, latitude]. Carry relevance and the most
+      // specific place type (place_type[0]) so the consumer can apply rule A
+      // (PR-18): wide levels and low-relevance addresses are treated as FAILED.
+      return {
+        kind: 'result',
+        result: {
+          lng: feature.center[0],
+          lat: feature.center[1],
+          relevance: feature.relevance,
+          placeType: feature.place_type?.[0],
+        },
+      };
     });
 
     if (outcome.kind === 'account-error') {
