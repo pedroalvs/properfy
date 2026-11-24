@@ -44,6 +44,15 @@ export default defineConfig({
     //   fly ssh console -a properfy-api -C \
     //     "cd /app && node apps/backend/dist/provision-admin.js --email <admin-email>"
     'provision-admin': 'src/scripts/provision-admin.ts',
+    // Legacy permanent re-geocoding one-off (TASK-X02-2). Bundled so OPS can run
+    // it in-container without exporting DB credentials or pulling tsx into prod.
+    // Dry run by default; pass --apply to write. Run via (DEV shown; prod uses
+    // -a properfy-api):
+    //   fly ssh console -a properfy-api-dev -C "cd /app && node apps/backend/dist/regeocode-permanent.js"
+    // The emitted filename MUST stay `regeocode-permanent.js` - the script's
+    // isDirectInvocation only runs main() when argv[1] ends with that name.
+    // See docs/runbooks/regeocode-permanent.md.
+    'regeocode-permanent': 'src/scripts/regeocode-permanent.ts',
   },
   format: ['esm'],
   target: 'node24',

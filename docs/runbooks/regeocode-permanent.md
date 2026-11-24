@@ -8,13 +8,24 @@
 ## Invocation
 
 ```bash
-# local / dev
+# local checkout (runs the TypeScript source via tsx)
 pnpm --filter backend tsx --env-file .env src/scripts/regeocode-permanent.ts [options]
-# prod
-fly ssh console -a properfy-api -C "cd /app && node apps/backend/dist/scripts/regeocode-permanent.js [options]"
+# inside a deployed machine (runs the bundled artifact) — DEV shown; staging/prod
+# use -a properfy-api-staging / -a properfy-api. The script is bundled by tsup to
+# dist/regeocode-permanent.js (dist ROOT, not dist/scripts/).
+fly ssh console -a properfy-api-dev -C "cd /app && node apps/backend/dist/regeocode-permanent.js [options]"
 ```
 
+> The in-container artifact is `apps/backend/dist/regeocode-permanent.js` (emitted by the `regeocode-permanent` entry in `apps/backend/tsup.config.ts`). It is only present once that entry is built & shipped — a build without it leaves OPS with no artifact to run.
+
 Options: `--apply`, `--entities=properties,branches,false-manual`, `--false-manual-tolerance-m=5`, `--strip-import-previews`, `--retry-failed-permanent`, `--tenant=<uuid>`, `--limit=<n>` (per phase), `--rate=120`, `--move-threshold-m=25`. Exit codes: `0` ok, `1` account error / Mapbox not configured / unexpected, `2` bad argument or incompatible combination. See `specs/044-x02-2-legacy-regeocode/contracts/cli-regeocode-permanent.md`.
+
+**Verify the bundle before an OPS run** (no DB, no Mapbox — arg-parse only exits before any DB/Mapbox access):
+
+```bash
+pnpm --filter backend build
+node apps/backend/dist/regeocode-permanent.js --rate=0   # prints an arg error, exits 2 → the artifact bundled & boots
+```
 
 ## Cost
 
