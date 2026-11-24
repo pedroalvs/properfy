@@ -73,7 +73,6 @@ export const NAV_ITEMS: NavItem[] = [
       { icon: 'mdi-shield-account-outline', label: 'Users', to: '/users', roles: [UserRole.AM, UserRole.OP] },
     ],
   },
-  { icon: 'mdi-store-outline', label: 'Marketplace', to: '/marketplace', roles: [UserRole.INSP] },
   { icon: 'mdi-calendar-clock-outline', label: 'Availability', to: '/availability-slots', roles: [UserRole.AM, UserRole.OP] },
   { icon: 'mdi-bank-outline', label: 'Financial', to: '/financial', roles: [UserRole.AM, UserRole.OP] },
   // 031 — Agency financial surface: CL_ADMIN always; CL_USER gated by `view_financials`.

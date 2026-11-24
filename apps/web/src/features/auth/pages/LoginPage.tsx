@@ -10,6 +10,7 @@ import { AuthPasswordField } from '../components/AuthPasswordField';
 import { AuthAlert } from '../components/AuthAlert';
 import { AuthSubmitButton } from '../components/AuthSubmitButton';
 import { AuthTextLink } from '../components/AuthTextLink';
+import { InspectorAppRedirectModal } from '../components/InspectorAppRedirectModal';
 
 function getLoginErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
@@ -38,7 +39,15 @@ function getLoginErrorMessage(error: unknown): string {
 }
 
 export function LoginPage() {
-  const { login, isAuthenticated, isLoading: authLoading, user, pendingTotpSetup } = useAuth();
+  const {
+    login,
+    isAuthenticated,
+    isLoading: authLoading,
+    user,
+    pendingTotpSetup,
+    inspectorBlocked,
+    dismissInspectorBlock,
+  } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -64,6 +73,17 @@ export function LoginPage() {
     }
     navigate(consumePostLoginRedirect() ?? '/', { replace: true });
   }, [pendingTotpSetup, isAuthenticated, requiresTotp, user, navigate]);
+
+  const handleInspectorBlockClose = useCallback(() => {
+    // "Clean login screen" (Pedro, decision 3): clear both fields too, not just
+    // the alert/modal — so no entered email/password lingers after close.
+    setEmail('');
+    setPassword('');
+    setTotpCode('');
+    setRequiresTotp(false);
+    setError(null);
+    dismissInspectorBlock();
+  }, [dismissInspectorBlock]);
 
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
@@ -113,7 +133,15 @@ export function LoginPage() {
 
   return (
     <AuthLayout title="We are Properfy" subtitle="Welcome. Please log in." logoAsTitle>
-      {error && <AuthAlert>{error}</AuthAlert>}
+      {inspectorBlocked ? (
+        <AuthAlert>
+          Your account doesn&apos;t have access to this website. Inspectors use the Properfy app.
+        </AuthAlert>
+      ) : (
+        error && <AuthAlert>{error}</AuthAlert>
+      )}
+
+      <InspectorAppRedirectModal open={inspectorBlocked} onClose={handleInspectorBlockClose} />
 
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
         <AuthField
