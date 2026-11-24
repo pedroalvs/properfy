@@ -13,7 +13,6 @@ import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { dayPlanPreviewDateOutOfRange, inspectorNotFound } from '../../../src/modules/day-plan/domain/day-plan.errors';
 
 const mockPreviewExecute = vi.fn();
-const mockOperatorRead = vi.fn();
 const mockJwtVerify = vi.fn();
 const mockTenantFindById = vi.fn();
 
@@ -22,7 +21,6 @@ vi.mock('../../../src/main/container', () => ({
     createMockContainer({
       dayPlan: {
         previewRouteWeightsUseCase: { execute: mockPreviewExecute },
-        getDayPlanForOperatorUseCase: { execute: mockOperatorRead },
         jwtService: { verify: mockJwtVerify },
         tenantRepo: { findById: mockTenantFindById },
       },
@@ -78,7 +76,6 @@ afterAll(async () => { await app.close(); });
 beforeEach(() => {
   mockJwtVerify.mockReset();
   mockPreviewExecute.mockReset();
-  mockOperatorRead.mockReset();
   mockTenantFindById.mockReset().mockResolvedValue({ isActive: () => true });
 });
 
@@ -157,13 +154,13 @@ describe('POST /v1/day-plans/preview', () => {
     expect(res.body.error.code).toBe('INSPECTOR_NOT_FOUND');
   });
 
-  it('does not route a POST /preview to the parametric read handler (no collision)', async () => {
+  it('routes POST /v1/day-plans/preview to the preview handler', async () => {
     mockJwtVerify.mockResolvedValueOnce(amContext);
     mockPreviewExecute.mockResolvedValueOnce({ current: variant(), proposed: variant() });
     const res = await supertest(app.server)
       .post('/v1/day-plans/preview').set('Authorization', 'Bearer t').send(VALID_BODY);
     expect(res.status).toBe(200);
-    expect(mockOperatorRead).not.toHaveBeenCalled();
+    expect(mockPreviewExecute).toHaveBeenCalled();
   });
 });
 

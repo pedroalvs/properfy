@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AuthContext, DayPlanResponse } from '@properfy/shared';
 import { GetDayPlanSheetUseCase } from '../get-day-plan-sheet.use-case';
 import type { GetMyDayPlanUseCase } from '../get-my-day-plan.use-case';
-import type { GetDayPlanForOperatorUseCase } from '../get-day-plan-for-operator.use-case';
 import type { DayPlanSheetRenderer } from '../../../infrastructure/day-plan-sheet.renderer';
 import type { AuditService } from '../../../../../shared/domain/audit';
 
@@ -28,19 +27,16 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
 
 describe('GetDayPlanSheetUseCase', () => {
   let getMyDayPlan: { execute: ReturnType<typeof vi.fn> };
-  let getForOperator: { execute: ReturnType<typeof vi.fn> };
   let renderer: { render: ReturnType<typeof vi.fn> };
   let audit: { log: ReturnType<typeof vi.fn> };
   let useCase: GetDayPlanSheetUseCase;
 
   beforeEach(() => {
     getMyDayPlan = { execute: vi.fn().mockResolvedValue(PLAN) };
-    getForOperator = { execute: vi.fn().mockResolvedValue(PLAN) };
     renderer = { render: vi.fn().mockResolvedValue(Buffer.from('%PDF-data')) };
     audit = { log: vi.fn() };
     useCase = new GetDayPlanSheetUseCase(
       getMyDayPlan as unknown as GetMyDayPlanUseCase,
-      getForOperator as unknown as GetDayPlanForOperatorUseCase,
       renderer as unknown as DayPlanSheetRenderer,
       audit as unknown as AuditService,
       { now: () => FIXED },
@@ -53,7 +49,6 @@ describe('GetDayPlanSheetUseCase', () => {
     expect(getMyDayPlan.execute).toHaveBeenCalledWith(
       expect.objectContaining({ inspectorId: 'insp-1', date: '2026-11-05' }),
     );
-    expect(getForOperator.execute).not.toHaveBeenCalled();
     expect(renderer.render).toHaveBeenCalledWith(PLAN, 'pdf');
     expect(result.contentType).toBe('application/pdf');
     expect(result.filename).toBe('route-jane-smith-2026-11-05.pdf');
@@ -86,26 +81,24 @@ describe('GetDayPlanSheetUseCase', () => {
     expect(audit.log).not.toHaveBeenCalled();
   });
 
-  it('renders the AM/OP XLSX via the operator read with no date limit', async () => {
+  it('renders the inspector XLSX via the own-plan read', async () => {
     const result = await useCase.execute({
-      actor: makeActor({ role: 'OP', inspectorId: null, userId: 'op-1' }),
-      date: '2020-01-01',
+      actor: makeActor(),
+      date: '2026-11-05',
       format: 'xlsx',
-      inspectorId: 'insp-9',
     });
 
-    expect(getForOperator.execute).toHaveBeenCalledWith(
-      expect.objectContaining({ inspectorId: 'insp-9', date: '2020-01-01' }),
+    expect(getMyDayPlan.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ inspectorId: 'insp-1', date: '2026-11-05' }),
     );
-    expect(getMyDayPlan.execute).not.toHaveBeenCalled();
     expect(renderer.render).toHaveBeenCalledWith(PLAN, 'xlsx');
     expect(result.contentType).toBe(
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
-    expect(result.filename).toBe('route-jane-smith-2020-01-01.xlsx');
+    expect(result.filename).toBe('route-jane-smith-2026-11-05.xlsx');
     expect(audit.log).toHaveBeenCalledWith(
       expect.objectContaining({
-        metadata: { format: 'xlsx', date: '2020-01-01', stops: 3, actorRole: 'OP' },
+        metadata: { format: 'xlsx', date: '2026-11-05', stops: 3, actorRole: 'INSP' },
       }),
     );
   });

@@ -65,9 +65,9 @@ export class PreviewRouteWeightsUseCase {
     if (!inspector) throw inspectorNotFound();
 
     // Candidate T-1 visibility is an inspector/agency concern, so it uses the
-    // INSPECTOR's today (the DayPlan tz exception, matching GetDayPlanForOperator),
-    // not the actor's. Earliest departure is clamped to `now` only when the plan
-    // date is the inspector's today, so a same-day preview never emits past ETAs.
+    // INSPECTOR's today (the DayPlan tz exception), not the actor's. Earliest
+    // departure is clamped to `now` only when the plan date is the inspector's
+    // today, so a same-day preview never emits past ETAs.
     const inspectorToday = civilDateInTimezone(now, inspector.timezone);
     const candidates = await this.reader.loadCandidates(input.inspectorId, input.date, inspectorToday);
     const classifiable: ClassifiableStop[] = candidates.map((c) => ({

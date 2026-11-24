@@ -7,7 +7,10 @@
 /** System-generated notice types. F04 raises ROUTE_*; F03 raises COMPLETION_REMINDER; F08 raises PERFORMANCE_MESSAGE; the T-1 sweep raises APPOINTMENT_AUTO_REJECTED. */
 export const SYSTEM_INSPECTOR_NOTICE_TYPES = [
   'ROUTE_PUBLISHED', // F04 – critical (D1)
-  'ROUTE_CHANGED', // F04 – critical (D1)
+  // F04 – critical (D1). No longer emitted (the operator recalculate route that raised it
+  // was removed in PR-13); kept so historical `inspector_notices` rows with this
+  // `audience.systemType` still parse through the AM/OP list/detail response schema.
+  'ROUTE_CHANGED',
   'COMPLETION_REMINDER', // F03 – critical (D1)
   'PERFORMANCE_MESSAGE', // F08 – never critical (D1)
   'APPOINTMENT_AUTO_REJECTED', // T-1 unconfirmed sweep – not critical (in-app + push, no SMS blast)
