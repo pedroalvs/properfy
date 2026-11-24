@@ -35,9 +35,9 @@
 | X02 | ✅ pronto para spec — fora do contrato, conformidade Mapbox, antes das features de mapa |
 | X03 | ✅ pronto para spec — fora do contrato, E2E do PWA, antes da F04-3b |
 | F07 | ✅ decisões fechadas (2026-10-27) |
-| F08 | ✅ decisões fechadas (2026-10-27). ⚠️ Q12 (bônus fora do financeiro) aguarda confirmação do cliente |
+| F08 | ✅ decisões fechadas. Q12 decidida pelo cliente (2026-10-30): **bônus no financeiro, aditivo +3,5** |
 | F09 | ✅ decisões fechadas (2026-10-27) |
-| F10 | ⏸️ em espera: a parte de imagens e arquivos será revista após uma validação do cliente; as decisões atuais são provisórias |
+| F10 | ✅ decisões fechadas com o cliente (2026-10-30): arquivos centrados no imóvel + **aditivo de issues** (7,0 dias) |
 
 ## Mapa de features
 
@@ -53,16 +53,16 @@ Esforço em **dias-dev**: 1 dev full-stack, incluindo TDD, revisão e PR, mas **
 | [F05 · Dia ao Vivo (operação)](F05-dia-ao-vivo.md) | 01.8 (+ rotas em tempo real da D), 01.9, 01.11, 01.13, limites de alerta | M | 12,25 | F03, F04, X01 |
 | [F06 · Avisos de horário ao inquilino](F06-avisos-horario-inquilino.md) | 01.10, 01.12, 01.12-B | M | 8,625 | F04 |
 | [F07 · Índice de confiabilidade](F07-indice-confiabilidade.md) | 03.4, 03.5, 03.11, 03.12 | A | 8,625 | F03, F04, X01 |
-| [F08 · Metas e recompensas](F08-metas-recompensas.md) | 03.6–03.10, 03.13–03.15, 03.17 | A | 16,125 | F07, F02, X01 |
+| [F08 · Metas e recompensas](F08-metas-recompensas.md) | 03.6–03.10, 03.13–03.15, 03.17 | A | 19,125 (15,625 + 3,5 aditivo; sem o "marcar pago" manual) | F07, F02, X01 |
 | [F09 · Densidade no mapa](F09-densidade-mapa.md) | D.1–D.4 | M | 3,4 | F03 |
-| [F10 · Anexos e mídias](F10-anexos-midias.md) | C.1–C.9 + fotos do inquilino | M/A | 10,0 | – |
+| [F10 · Arquivos do imóvel e issues](F10-anexos-midias.md) | C.1–C.9 + **aditivo Issues** | M/A | 13,5 (6,5 C + 7,0 aditivo) | F03-1, F03-2, X01 |
 | [X00 · Revisão dos CLAUDE.md](X00-claude-md.md) — **fora do contrato**, antes de tudo | – | B | 1,25 | – |
 | [X01 · Navegação do web](X01-navegacao-web.md) — **fora do contrato** (pedido do dev) | – | B | 2,25 | – |
 | [X02 · Geocodificação permanente](X02-geocodificacao-permanente.md) — **fora do contrato** (conformidade Mapbox) | – | B/M | 4,75 | – |
 | [X03 · Recuperar E2E do PWA](X03-e2e-pwa.md) — **fora do contrato** (decisão do dev para provar o tour) | – | M | 3,0 | – |
-| **Total de desenvolvimento** | | | **128,4** (117,15 do contrato, incluindo a F10 em espera com 10,0, + 11,25 dos itens X00–X03) | |
-| Homologação e ajustes (~15%) | | | ~19 | |
-| **Total estimado** | | | **~148 dias-dev** (±20%; homologação ~15%) | |
+| **Total de desenvolvimento** | | | **134,9** (113,15 do contrato + 10,5 dos aditivos — issues 7,0 e bônus no financeiro 3,5 — + 11,25 dos itens X00–X03) | |
+| Homologação e ajustes (~15%) | | | ~20 | |
+| **Total estimado** | | | **~155 dias-dev** (±20%; homologação ~15%) | |
 
 O código `01.12-B` segue a recomendação Q4. O "cancelamento" (Q1) foi decidido como liberação automática via REJECTED (ver F03).
 
@@ -71,7 +71,7 @@ O código `01.12-B` segue a recomendação Q4. O "cancelamento" (Q1) foi decidid
 ```
 Onda 0  X00 (CLAUDE.md atualizados antes de qualquer implementação)
 Onda 1  X02 → X01 ─ F00 ─ F01     (X02 primeiro: conformidade antes das features de mapa)
-        F10 ⏸️  independente, mas só começa depois da validação do cliente
+        F10     depois de F03-1/F03-2 e X01 (arquivos + aditivo de issues)
 Onda 2  F02 → F03          X03 (E2E do PWA) em paralelo, antes da F04-3b
 Onda 3  F04
 Onda 4  F05 ─ F06 ─ F09
@@ -85,7 +85,7 @@ F01 ─> F02 ─> F03 ─┬─> F04 ─┬─> F05
                    │        ├─> F06
                    │        └─> F07 ─> F08 (também usa F02)
                    └─> F09
-F00, F10: independentes
+F00: independente · F10: depois de F03 e X01
 ```
 
 **Por que esta ordem:**
@@ -152,7 +152,7 @@ Os valores e números do design são de exemplo.
 | Evento de campo (`InspectorFieldEvent`) + flags da execução | F03 | F05, F07, F09 |
 | `PlatformSetting` (config de plataforma auditada) | F03 | F04, F05, F07, F08, F10 |
 | Duração por tipo de serviço + `DayPlan` | F04 | F05, F06, F07 |
-| `Attachment` | F10 | – |
+| `PropertyFile` + `PropertyIssue` | F10 | – |
 
 **Regra multi-tenant:** `DayPlan`, `InspectorNotice`, `PlatformSetting`, snapshots do índice, metas e prêmios **não têm `tenant_id`**, porque o inspetor é cross-tenant (precedente: `Inspector`, `ServiceRegion` global, `IntegrationSetting`). Cada spec precisa registrar essa exceção ao §7.1 do CLAUDE.md. `Attachment` e o endpoint de densidade **são** escopados por tenant.
 
@@ -177,7 +177,7 @@ Cada feature é quebrada em `tarefas/<ID>-tarefas.md`. **1 tarefa = 1 PR**, e ca
 | 3 | F04: ✅ quebrada (Partes A e B), revisada e ajustada (2026-10-28) |
 | 4 | F05, F06, F09 + X03: ✅ quebradas, revisadas e ajustadas (2026-10-28) |
 | 5 | F07, F08: ✅ quebradas, revisadas e ajustadas (2026-10-28) |
-| ⏸️ | F10 (aguardando o cliente) |
+| ✅ | F10: decisões fechadas com o cliente (2026-10-30); falta a quebra em tarefas |
 
 ## Revisão de lacunas (2026-10-28/29)
 

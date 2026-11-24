@@ -3,29 +3,33 @@
 | | |
 |---|---|
 | **Feature** | F08 · Metas e recompensas (contrato 03.6, 03.7, 03.8, 03.9, 03.10, 03.13, 03.14, 03.15, 03.17; critérios **03.A3, 03.A4, 03.A5**) |
-| **Total** | **16,125 dias** (plano 14,0 + 2,0 das lacunas L-F08-01…14 aplicadas em 2026-10-29 + 0,125 da reconciliação entre tarefas de 2026-10-29 — `index_snapshot_date`, DR2; distribuição abaixo) |
-| **Tarefas / PRs** | 5, na ordem da "Quebra em PRs" do plano: backend de metas + prêmios + job → prioridade de oferta → web (metas, rewards) → PWA Challenges + mensagens → relatório |
+| **Total** | **19,125 dias** (plano 14,0 + 2,0 das lacunas L-F08-01…14 aplicadas em 2026-10-29 + 0,125 da reconciliação entre tarefas de 2026-10-29 — `index_snapshot_date`, DR2 + **3,5 do aditivo Q12 (TASK-F08-6, 2026-10-30)** − 0,5 do pagamento manual retirado das TASK-F08-1/3; distribuição abaixo) |
+| **Tarefas / PRs** | 6: as 5 da "Quebra em PRs" do plano (backend de metas + prêmios + job → prioridade de oferta → web (metas, rewards) → PWA Challenges + mensagens → relatório) + a TASK-F08-6 do aditivo Q12 (bônus no ledger e na fatura do inspetor) |
 | **Depende de** | **F07** (TASK-F07-1: `ReliabilityMetricsService.computeMetric`/`computeAll` → `ReliabilityComputationBatch`, `computeReliabilityScore`, leitor de fatos; TASK-F07-2: snapshots com `settings_json`, `ReliabilityIndexReader.getCurrentIndexes`, job `reliability.compute-snapshots` 04:15; TASK-F07-3: página "Inspector performance"); **F02** (TASK-F02-1: `PublishSystemInspectorNoticeUseCase`, tipo `PERFORMANCE_MESSAGE`, allowlist de destinos); **F03** (TASK-F03-1: `PlatformSetting`; TASK-F03-4: página "Platform settings"); **X01** (grupo Dashboard, `BackButton`/`backTo`); **F04** (TASK-F04-3: aba More = hub `/profile`; TASK-F04-3b: passo 8 do tour) |
 | **Bloqueia** | – |
-| **Código verificado em** | `origin/develop` @ `042a9674` (snapshot read-only, 2026-10-27). O que F02, F03, F04, F07 e X01 entregam é tratado como existente (Onda 5). |
-| **Decisões** | Do plano: **2026-10-27** (`F08-metas-recompensas.md`; `decisoes.md` Q12 ⚠️ **assumida, aguardando o cliente**, Q13, Q18). Do dev: **2026-10-28** (DV1–DV6 abaixo). Premissas desta quebra: P1–P11 (2026-10-28). Lacunas: **2026-10-29** (L-F08-01…14, todas as recomendações aceitas; regras DL1–DL14 abaixo). Reconciliação com F02, F07, X00 e X01: **2026-10-29** (DR1–DR7 abaixo). |
+| **Código verificado em** | `origin/develop` @ `042a9674` (snapshot read-only, 2026-10-27); billing da TASK-F08-6 reverificado @ `ba076fc4` (2026-10-30). O que F02, F03, F04, F07 e X01 entregam é tratado como existente (Onda 5). |
+| **Decisões** | Do plano: **2026-10-27** (`F08-metas-recompensas.md`; `decisoes.md` Q12 ✅ **DECIDIDA pelo cliente em 2026-10-30: bônus no financeiro, aditivo (cláusula 9.4), TASK-F08-6**, Q13, Q18). Do dev: **2026-10-28** (DV1–DV6 abaixo). Premissas desta quebra: P1–P11 (2026-10-28). Lacunas: **2026-10-29** (L-F08-01…14, todas as recomendações aceitas; regras DL1–DL14 abaixo). Reconciliação com F02, F07, X00 e X01: **2026-10-29** (DR1–DR7 abaixo). |
 
-**Distribuição do plano (14,0) pelas 5 tarefas.** Sem item novo pago acima do plano: a extensão de escopo do `computeMetric` e a coluna de nível na página da F07 são pagas com os cortes de escopo de 2026-10-28.
+**Distribuição do plano (14,0) pelas 6 tarefas.** Sem item novo pago acima do plano: a extensão de escopo do `computeMetric` e a coluna de nível na página da F07 são pagas com os cortes de escopo de 2026-10-28.
 
-| Item do plano | Dias plano | TASK-F08-1 | TASK-F08-2 | TASK-F08-3 | TASK-F08-4 | TASK-F08-5 |
-|---|---|---|---|---|---|---|
-| 03.6/03.7/03.8 modelo + regras + CRUD + auditoria | 3,0 | 1,75 (modelo, migration, API, validação, audit, guarda de exclusão de região) | – | 1,25 (lista, formulário, item de menu, coluna de nível na F07) | – | – |
-| 03.9 + apuração | 4,0 | 4,0 (inclui o escopo `{ regionId?, serviceTypeId? }` no leitor da F07) | – | – | – | – |
-| 03.13 painel Rewards | 1,5 | 0,5 (resumo, aprovar/pagar/anular, CAS) | – | 1,0 (painel, diálogos, seção de settings) | – | – |
-| 03.7 prioridade (acesso antecipado) | 1,5 | – | 1,5 | – | – | – |
-| 03.10/03.15 PWA + `GET /v1/inspector/program` | 2,5 | – | – | – | 2,5 | – |
-| 03.17 mensagens automáticas | 0,5 | – | – | – | 0,5 | – |
-| 03.14 exportação | 1,0 | – | – | – | – | 1,0 |
-| Lacunas 2026-10-29 (L-F08-01…14) | +2,0 | +0,75 (L-02 reativação/`endsAt`/termos do próximo período; L-03 `PAID → VOID`; L-05, L-10, L-11, L-13 em contratos e testes) | +0,25 (L-08 `enabledAt` + mensagem com dia) | +0,25 (L-02 copy e alteração pendente; L-03 anular pago; L-04 aviso; L-05 nota ao inspetor; L-11 "hoje" em Sydney) | +0,5 (L-01 envio às 08:00 agregado; L-06 guarda de 7 dias; L-12 "Starting soon"; L-07, L-09, L-14 copy) | +0,25 (L-02 linhas puladas; L-03, L-05, L-13 colunas) |
-| Reconciliação 2026-10-29 (DR1–DR7) | +0,125 | +0,125 (DR2: `index_snapshot_date` em fechamento e prêmio, regra do snapshot atrasado, teste) | – | – | – | – |
-| **Total** | **16,125** | **7,125** | **1,75** | **2,5** | **3,5** | **1,25** |
+| Item do plano | Dias plano | TASK-F08-1 | TASK-F08-2 | TASK-F08-3 | TASK-F08-4 | TASK-F08-5 | TASK-F08-6 |
+|---|---|---|---|---|---|---|---|
+| 03.6/03.7/03.8 modelo + regras + CRUD + auditoria | 3,0 | 1,75 (modelo, migration, API, validação, audit, guarda de exclusão de região) | – | 1,25 (lista, formulário, item de menu, coluna de nível na F07) | – | – | – |
+| 03.9 + apuração | 4,0 | 4,0 (inclui o escopo `{ regionId?, serviceTypeId? }` no leitor da F07) | – | – | – | – | – |
+| 03.13 painel Rewards | 1,5 | 0,5 (resumo, aprovar/anular, CAS) | – | 1,0 (painel, diálogos, seção de settings) | – | – | – |
+| 03.7 prioridade (acesso antecipado) | 1,5 | – | 1,5 | – | – | – | – |
+| 03.10/03.15 PWA + `GET /v1/inspector/program` | 2,5 | – | – | – | 2,5 | – | – |
+| 03.17 mensagens automáticas | 0,5 | – | – | – | 0,5 | – | – |
+| 03.14 exportação | 1,0 | – | – | – | – | 1,0 | – |
+| Lacunas 2026-10-29 (L-F08-01…14) | +2,0 | +0,75 (L-02 reativação/`endsAt`/termos do próximo período; L-03 `PAID → VOID`; L-05, L-10, L-11, L-13 em contratos e testes) | +0,25 (L-08 `enabledAt` + mensagem com dia) | +0,25 (L-02 copy e alteração pendente; L-03 anular pago; L-04 aviso; L-05 nota ao inspetor; L-11 "hoje" em Sydney) | +0,5 (L-01 envio às 08:00 agregado; L-06 guarda de 7 dias; L-12 "Starting soon"; L-07, L-09, L-14 copy) | +0,25 (L-02 linhas puladas; L-03, L-05, L-13 colunas) | – |
+| Reconciliação 2026-10-29 (DR1–DR7) | +0,125 | +0,125 (DR2: `index_snapshot_date` em fechamento e prêmio, regra do snapshot atrasado, teste) | – | – | – | – | – |
+| Q12 decidida 2026-10-30: pagamento manual retirado | −0,5 | −0,25 (rota `mark-paid`, `paidOn` em Sydney/L-F08-11, ramo `PAID → VOID` com `recovery_note`) | – | −0,25 (diálogo "Mark as paid", "Paid on" em Sydney, variante "Void" de pago) | 0 (só copy) | 0 (troca de colunas) | – |
+| **Aditivo Q12 (cláusula 9.4, 2026-10-30)** | +3,5 | – | – | – | – | – | 3,5 (ledger, fatura, PAID pela fatura, reversão, agências, web, PWA) |
+| **Total** | **19,125** | **6,875** | **1,75** | **2,25** | **3,5** | **1,25** | **3,5** |
 
 **Lacunas (2026-10-29).** As 14 lacunas de `tarefas/lacunas/F08-lacunas.md` foram aplicadas (dev aceitou todas as recomendações, lote 2). Elas acrescentam **2,0 dias** acima do plano, pagos como pedido de ajuste da quebra (não cabem nos cortes de 2026-10-28).
+
+**Aditivo Q12 (2026-10-30).** O cliente decidiu que o bônus entra no módulo financeiro (ledger + fatura do inspetor). É pedido de mudança (cláusula 9.4 do contrato), **+3,5 dias** na TASK-F08-6. Como as TASK-F08-1/3 ainda não foram feitas, o pagamento manual ("Mark as paid", `paidOn`, `payment_reference`, `recovery_note`, `PAID → VOID` manual) **não é construído** nelas (−0,5): saldo líquido **+3,0** (16,125 → 19,125).
 
 **Como os itens sem dono cabem no plano.**
 - **Escopo no `computeMetric` (TASK-F08-1, ~0,5).** Os contratos exportados da F07 (item 1) deixam a extensão para a F08. Cabe nos 4,0 da apuração porque saíram desta quebra: recompensa `OFFER_PRIORITY` e o seu efeito no marketplace, a lógica de autor/autoaprovação dos prêmios, o título único com índice parcial, a configuração `streakCycle`, os jobs extras e o `canonical-period.ts` duplicado.
@@ -35,19 +39,20 @@
 
 | ID | Título | Dias | Depende de |
 |---|---|---|---|
-| TASK-F08-1 | Backend + shared: `InspectorGoal`, `RewardAward`, `GoalPeriodClosure`, chave `inspectorProgram`, CRUD de metas (reativação pula períodos inativos, `endsAt` ≥ período corrente, alvo/bônus valem do próximo período), guarda na exclusão de região, job diário `inspector-program.daily` (fechamento + apuração), níveis e sequência derivados, progresso parcial, escopo no `computeMetric`, resumo e ações de prêmio (aprovar com CAS, pagar, anular, anular pago só AM), `index_snapshot_date` no fechamento | 7,125 | F07-1, F07-2, F03-1 |
+| TASK-F08-1 | Backend + shared: `InspectorGoal`, `RewardAward`, `GoalPeriodClosure`, chave `inspectorProgram`, CRUD de metas (reativação pula períodos inativos, `endsAt` ≥ período corrente, alvo/bônus valem do próximo período), guarda na exclusão de região, job diário `inspector-program.daily` (fechamento + apuração), níveis e sequência derivados, progresso parcial, escopo no `computeMetric`, resumo e ações de prêmio (aprovar com CAS, anular `PENDING`/`APPROVED`; sem pagamento manual, Q12), `index_snapshot_date` no fechamento | 6,875 | F07-1, F07-2, F03-1 |
 | TASK-F08-2 | Backend: acesso antecipado por nível (Q13) em `findEligibleGroupIds`, contagem, detalhe e `accept-offer`, com as regras de partida (desligado por padrão, só se houver qualificado elegível, nunca hoje/D+1, só para publicações depois de `enabledAt`) | 1,75 | TASK-F08-1 |
-| TASK-F08-3 | Web (AM/OP): "Goals & rewards" (abas Goals e Rewards), formulário de meta, painel prometido × atingido, aprovar/pagar/anular (anular pago só AM; nota ao inspetor), item no grupo Dashboard, seção "Inspector program" em "Platform settings", coluna "Level" na página da F07, E2E do 03.A4 | 2,5 | TASK-F08-1; X01; F03-4; F07-3 |
+| TASK-F08-3 | Web (AM/OP): "Goals & rewards" (abas Goals e Rewards), formulário de meta, painel prometido × atingido, aprovar/anular (nota ao inspetor; sem "Mark as paid", Q12), item no grupo Dashboard, seção "Inspector program" em "Platform settings", coluna "Level" na página da F07, E2E do 03.A4 | 2,25 | TASK-F08-1; X01; F03-4; F07-3 |
 | TASK-F08-4 | Backend + shared + PWA: `GET /v1/inspector/program`, tile "Challenges" em More (Active com "Starting soon" / My results / Ranking anônimo com coorte mínima), mensagens `PERFORMANCE_MESSAGE` calculadas pelo job diário e enviadas às 08:00 (agregadas por inspetor, guarda de 7 dias no nível), `/profile/challenges` na allowlist da F02, passo 8 do tour | 3,5 | TASK-F08-1, TASK-F08-3 (`describeGoal`); F02-1/F02-3; F04-3/F04-3b |
-| TASK-F08-5 | Backend + shared + web: `ReportType` `INSPECTOR_PROGRAM` (AM/OP) nos 10 lugares do plano + os 2 que o código exige | 1,25 | TASK-F08-1, TASK-F08-3 (`describeGoal`) |
+| TASK-F08-5 | Backend + shared + web: `ReportType` `INSPECTOR_PROGRAM` (AM/OP) nos 10 lugares do plano + os 2 que o código exige; colunas de lançamento e fatura do bônus | 1,25 | TASK-F08-1, TASK-F08-3 (`describeGoal`), TASK-F08-6 (`inspector_invoice_id`, lançamento) |
+| TASK-F08-6 | Backend + shared + web + PWA: aditivo Q12 — `FinancialEntryType` `INSPECTOR_BONUS` (`tenant_id` nulo só nele), lançamento criado na aprovação do prêmio, linha na fatura do inspetor (snapshot, total, PDF), `PAID` automático pela fatura, anulação com reversão (faturado: só AM), isolamento das agências, leitores do billing, Earnings no PWA | 3,5 | TASK-F08-1, TASK-F08-3 |
 
-Ordem de merge: 1 → 2 → 3 → 4 → 5. A 2 e a 3 só dependem da 1; a 4 e a 5 dependem também da 3 (`describeGoal` no shared). Cada PR parte de `develop` depois do merge da anterior (memória `project_stacked_pr_ci_does_not_run`).
+Ordem de merge: 1 → 2 → 3 → 6 → 4 → 5. A 2 e a 3 só dependem da 1; a 6 depende da 1 (aprovação) e da 3 (aba Rewards); a 4 depende da 1 e da 3 (`describeGoal`) e pode ser feita em paralelo com a 6, mas entra **depois** dela para a copy do app (DL14) já ser verdade no merge; a 5 depende também da 6 (colunas de lançamento/fatura). Cada PR parte de `develop` depois do merge da anterior (memória `project_stacked_pr_ci_does_not_run`).
 
-## Decisões que valem para as 5 tarefas
+## Decisões que valem para as 6 tarefas
 
 **Do plano (2026-10-27):**
 
-- **D1 · Q12 ⚠️ ASSUMIDA, AGUARDANDO O CLIENTE.** O bônus em dinheiro fica **fora do ledger e da fatura**. O `RewardAward` segue `PENDING → APPROVED → PAID` (pagamento manual, fora da plataforma) ou `VOID` (de `PAID` só por AM, DL3). Nenhuma tarefa toca `financial_entries`, `inspector_invoices`, `prisma-financial-entry.repository.ts` nem os ganhos do inspetor. A troca para o financeiro é uma mudança separada (seção "Alternativa se o cliente pedir bônus no financeiro").
+- **D1 · Q12 ✅ DECIDIDA pelo cliente (2026-10-30): bônus no financeiro, aditivo (cláusula 9.4, +3,5 dias, TASK-F08-6).** A aprovação do prêmio cria, na mesma transação, um lançamento `INSPECTOR_BONUS` (`APPROVED`, sem agência) que entra na **fatura do inspetor** do período que contém a data da aprovação. O `RewardAward` segue `PENDING → APPROVED → PAID`, com `PAID` **automático** quando a fatura que contém a linha do bônus é marcada paga (e de volta a `APPROVED` se o pagamento da fatura for estornado), ou `VOID` (antes de faturado, anula o lançamento; depois, só AM, com lançamento de reversão — DL3). **Não existe pagamento manual** ("Mark as paid", `paidOn`, `payment_reference`, `recovery_note`). As TASK-F08-1…5 não tocam `financial_entries`, `inspector_invoices` nem o billing: o único ponto de integração é a TASK-F08-6 (na aprovação, no fechamento/pagamento/estorno da fatura e na anulação). Entre o merge da TASK-F08-1 e o da TASK-F08-6, um prêmio aprovado só fica `APPROVED`.
 - **D2 · Q13 · Acesso antecipado por nível.** Um grupo publicado há menos de **H** horas só aparece e só pode ser aceito por inspetores de nível **≥ X** (regras de partida em DV3). H e X ficam no `PlatformSetting`. Vale em `findEligibleGroupIds` **e** no `accept-offer`. Depois de H horas o grupo fica visível para todos.
 - **D3 · Níveis.** 3 níveis por faixa do índice atual da F07: Bronze < 60, Silver 60–84,9, Gold ≥ 85, com os limites configuráveis. Score nulo = sem nível. Nível e sequência são **derivados, sem tabela**.
 - **D4 · Sequência.** Períodos fechados consecutivos com pelo menos uma meta atingida (derivação em P11).
@@ -87,7 +92,7 @@ Ordem de merge: 1 → 2 → 3 → 4 → 5. A 2 e a 3 só dependem da 1; a 4 e a 
 
 - **DL1 · Mensagens às 08:00 e agregadas (L-F08-01).** O job das 04:45 só **calcula** (fecha períodos, cria prêmios). O envio das 3 mensagens roda às **08:00 Sydney** na **mesma fila** `inspector-program.daily`, com `{ trigger: 'MESSAGES' }`. Como no pg-boss 9 (`apps/backend/package.json`: `pg-boss ^9.0.3`) um segundo `boss.schedule` com o mesmo nome substitui o primeiro, o run das 04:45 enfileira o run de mensagens com `startAfter` = 08:00 Sydney do dia e `singletonKey 'inspector-program.messages:<today>'` (`PgBossJobQueue.enqueue` já repassa `startAfter` e `singletonKey`, `apps/backend/src/shared/infrastructure/pgboss-job-queue.ts`). Prêmios do mesmo inspetor fechados no mesmo dia viram **uma** mensagem ("You reached {n} goals"), `dedupeKey` `program-goals-reached:<inspectorId>:<periodEnd>`.
 - **DL2 · Reativação, fim e alteração de meta (L-F08-02).** (a) `deactivated_at` gravado ao desativar; na reativação, todo período ainda não fechado cujo início é ≤ hoje é registrado como `GoalPeriodClosure` `trigger 'SKIPPED_INACTIVE'` (0 participantes, sem prêmio): a meta volta a contar no **próximo** período. (b) `endsAt` precisa ser ≥ fim do período corrente (`GOAL_END_IN_CURRENT_PERIOD`); para encerrar já, desativar. (c) `target` e `rewardAmount` editados numa meta já iniciada valem a partir do **próximo** período (`next_target`, `next_reward_amount`, `next_effective_from`); o fechamento usa os termos vigentes no período. Copy: "Changes to target and bonus apply from the next period."
-- **DL3 · `PAID → VOID` só AM (L-F08-03).** Única saída de `PAID`: anular, só **AM**, com motivo obrigatório e `recoveryNote` opcional (como o dinheiro foi recuperado, fora da plataforma). `paid_at` é mantido. Não existe `PAID → APPROVED`. Detecção automática de dado tardio fica no estacionamento.
+- **DL3 · Anular prêmio já faturado só AM (L-F08-03, revista por Q12 em 2026-10-30).** Antes de a linha do bônus estar numa fatura `CLOSED`/`PAID`, AM/OP anulam (`PENDING`/`APPROVED → VOID`; o lançamento vira `VOIDED` na mesma transação, TASK-F08-6). Depois (prêmio `APPROVED` faturado ou `PAID`), só **AM**, com motivo obrigatório: o prêmio vira `VOID` e um lançamento de **reversão** (valor negativo) cai na próxima fatura; `paid_at` é mantido. Sem `recoveryNote` (a recuperação é a própria reversão). O usuário não volta um prêmio para `APPROVED`; só o estorno do pagamento da fatura faz `PAID → APPROVED` (TASK-F08-6). Detecção automática de dado tardio fica no estacionamento.
 - **DL4 · Metas independentes e cumulativas (L-F08-04).** Um serviço conta em todas as metas cujo escopo ele satisfaz; não há teto de bônus por inspetor nem orçamento por período nesta fase. O formulário avisa quando já existem metas ativas do mesmo ciclo que podem incluir os mesmos inspetores. "Teto por inspetor/período" fica no estacionamento.
 - **DL5 · Motivo de anulação é interno (L-F08-05).** `void_reason` é só AM/OP e relatório. O diálogo ganha `inspectorNote` opcional (≤ 200), que é o único texto mostrado no app. Sem mensagem automática de pago/anulado (estacionamento).
 - **DL6 · Guarda de 7 dias na mensagem de nível (L-F08-06).** D3 continua (nível e acesso antecipado sem histerese). Só a **mensagem** de mudança de nível não é publicada se o inspetor recebeu outra `program-level:<inspectorId>:*` nos últimos 7 dias.
@@ -95,10 +100,10 @@ Ordem de merge: 1 → 2 → 3 → 4 → 5. A 2 e a 3 só dependem da 1; a 4 e a 
 - **DL8 · Acesso antecipado só para publicações depois de ligar (L-F08-08).** `earlyAccess.enabledAt` é gravado pelo backend quando `enabled` passa de `false` para `true`; a janela só vale para grupos com `published_at ≥ enabledAt`. Aumentar H retroage (aceito e documentado). O 403 diz dia e hora.
 - **DL9 · Challenges é um `ProfileTile` (L-F08-09).** Tile logo depois de Earnings na grade do `ProfilePage`; nenhum grupo ou título novo no hub.
 - **DL10 · Rota de períodos (L-F08-10).** `direction: 'upcoming' | 'past'`; `upcoming` começa no corrente (`IN_PROGRESS`); `past` começa no último fechado e volta, sem o corrente.
-- **DL11 · `paidOn` em Sydney (L-F08-11).** Data civil de Sydney; `todaySydney ≥ paidOn ≥ civilDateInTimezone(approved_at, Sydney)`; `paid_at = paidOn === todaySydney ? now : endOfCivilDayInTimezone(paidOn, Sydney)`. O web calcula "hoje" em `Australia/Sydney`, nunca no fuso do navegador.
+- **DL11 · ~~`paidOn` em Sydney~~ (L-F08-11) — RETIRADA por Q12 (2026-10-30).** Não há data de pagamento manual: `reward_awards.paid_at` copia o `paid_at` da fatura do inspetor (TASK-F08-6), que já tem as suas regras (`mark-invoice-paid.use-case.ts`, "não no futuro, não antes da emissão").
 - **DL12 · Metas futuras visíveis (L-F08-12).** Active ganha "Starting soon" (metas ativas que começam nos próximos 7 dias, inclusive a meta reativada que volta no próximo período); a meta criada no meio do período mostra "Counts jobs since {periodStart}". Sem mensagem de "meta nova" (D10 tem só 3 gatilhos).
 - **DL13 · Fotografia do escopo (L-F08-13).** `scope_label` em `RewardAward` e `GoalPeriodClosure`; `describeGoal` aceita `scopeLabel` nulo ("in a deleted region").
-- **DL14 · Bônus fora da fatura na copy do inspetor (L-F08-14).** O app diz que o bônus é pago à parte da fatura e não aparece em Earnings. Se Q12 mudar, só essas strings mudam.
+- **DL14 · Bônus na fatura, na copy do inspetor (L-F08-14, revista por Q12 em 2026-10-30).** O app diz que o bônus aprovado é somado à **próxima fatura** e aparece em Earnings: rodapé "Bonuses are reviewed by the Properfy team. Once approved, they're added to your next invoice and show in Earnings."; chips de My results "Pending review" / "Approved – on your next invoice" / "Paid" / "Voided".
 
 **Da reconciliação entre tarefas (2026-10-29; ajustes pedidos por F02, F07, X00 e X01):**
 
@@ -112,12 +117,12 @@ Ordem de merge: 1 → 2 → 3 → 4 → 5. A 2 e a 3 só dependem da 1; a 4 e a 
   |---|---|---|
   | data do serviço (contagem, `achieved_on`, `completedServiceDates`) | civil | agência (P2 da F07, DR1) |
   | `starts_at`, `ends_at`, `next_effective_from`, `period_start`, `period_end`, `minEndsAt`, `resumesOn`, `startsOn`, `countsSince`, "hoje" do job e da rota de períodos | civil | `PLATFORM_TIMEZONE` (programa de plataforma, P5) |
-  | `paidOn`; mínimo = data civil da aprovação | civil | `PLATFORM_TIMEZONE` (DL11) |
   | `index_snapshot_date` | civil | `PLATFORM_TIMEZONE` (data do snapshot da F07) |
   | cron 04:45, run de mensagens 08:00, `messagesRunAt` | horário de job | `PLATFORM_TIMEZONE` |
-  | `published_at`, `cutoffUtc`, `earlyAccess.enabledAt`, `opensAt`, `approved_at`, `paid_at`, `voided_at`, `deactivated_at`, `closed_at`, `created_at` | instante | UTC; exibidos em `PLATFORM_TIMEZONE` ("On since", 403 de acesso antecipado, push) |
+  | `published_at`, `cutoffUtc`, `earlyAccess.enabledAt`, `opensAt`, `approved_at`, `paid_at` (do prêmio = `paid_at` da fatura, Q12), `voided_at`, `deactivated_at`, `closed_at`, `created_at`, `effective_at` do lançamento `INSPECTOR_BONUS` | instante | UTC; exibidos em `PLATFORM_TIMEZONE` ("On since", 403 de acesso antecipado, push) |
   | "hoje/D+1" do acesso antecipado (`protectedFrom`) | civil | `PLATFORM_TIMEZONE` (DV3) |
   | relatório `INSPECTOR_PROGRAM` | instantes | fuso do solicitante (só exibição, padrão do fluxo de relatórios); datas civis como gravadas |
+  | período de faturamento que recebe o bônus; `serviceDate` da linha de bônus no snapshot | civil | `PLATFORM_TIMEZONE` (`periodEffectiveRange` do billing, TASK-F08-6) |
 
 - **DR6 · Menu e voltar (L-X01-02, L-X01-03, L-X01-08).** "Goals & rewards" é o **último** filho do grupo Dashboard na ordem canônica do X01 (… Workload · Inspector performance · Goals & rewards). Testes de menu por **rótulo** (nunca índice nem contagem), em `Sidebar.roles.test.tsx` com `MemoryRouter` e **sem** mocks de `SidebarSubmenu`/`SidebarItem`. Sub telas: o `backTo` (`/goals-rewards?tab=goals`) tem `AuthGuard [AM, OP]`, que cobre todos os papéis da sub tela; o teste P-b roda com o papel mais restrito que a acessa (**OP**); a confirmação de saída usa o override `onBack(goBack)` do `PageHeader`, com a mesma constante de fallback da página.
 - **DR7 · Avisos da F02 (L-F02-06, L-F02-07, L-F02-08).** `/profile/challenges` entra em `INSPECTOR_NOTICE_TARGET_PATTERNS` como padrão **estático exato** (sem barra final, sem sufixo). Os `PERFORMANCE_MESSAGE` são de sistema e são **arquivados automaticamente após 30 dias** pela F02: nada da F08 depende deles depois disso (o histórico do inspetor vem de `reward_awards`; a guarda de 7 dias da DL6 fica dentro da janela). Título e corpo aparecem na tela bloqueada: só título da meta, valores, datas e nível; nunca nome de agência, endereço, inquilino, código de chave ou id.
@@ -128,7 +133,7 @@ Ordem de merge: 1 → 2 → 3 → 4 → 5. A 2 e a 3 só dependem da 1; a 4 e a 
 
 > **Dependências de execução** (2026-10-29 · ver `../paralelizacao.md`)
 > - **Bloqueada por (precisa estar mergeada antes):** TASK-X00-1, TASK-F07-1, TASK-F07-2, TASK-F03-1
-> - **Desbloqueia:** TASK-F08-2, TASK-F08-3, TASK-F08-4, TASK-F08-5
+> - **Desbloqueia:** TASK-F08-2, TASK-F08-3, TASK-F08-4, TASK-F08-5, TASK-F08-6
 > - **Pode rodar em paralelo com:** TASK-F05-1, TASK-F06-2, TASK-F04-4, TASK-F07-3, TASK-F04-3b, TASK-F05-2
 > - **Pista sugerida (time de 6):** A + A2 · Backend crítico **em par** · ⚠️ **caminho crítico**: atraso aqui atrasa a entrega inteira
 
@@ -140,7 +145,7 @@ Ordem de merge: 1 → 2 → 3 → 4 → 5. A 2 e a 3 só dependem da 1; a 4 e a 
   - **um** job diário `inspector-program.daily` (04:45 Sydney) que fecha cada período terminado, apura os participantes com o `computeAll` da F07 e cria prêmios idempotentes (03.9, 03.A4) e, no fim, enfileira na mesma fila o run de mensagens das 08:00 (`trigger 'MESSAGES'`, DL1); a TASK-F08-4 acrescenta os passos de mensagem a esse run;
   - reativação que registra os períodos inativos como pulados, `endsAt` ≥ período corrente e alteração de alvo/bônus a partir do próximo período (DL2);
   - derivação de nível e sequência (sem tabela) e o progresso parcial sob demanda (consumido pela TASK-F08-4);
-  - resumo prometido × atingido e as ações aprovar (CAS), marcar pago e anular, inclusive anular pago só por AM (backend do 03.13, DL3).
+  - resumo prometido × atingido e as ações aprovar (CAS) e anular `PENDING`/`APPROVED` (backend do 03.13). **Sem pagamento manual** (Q12 decidida em 2026-10-30, D1): nenhuma rota leva o prêmio a `PAID`; `PAID` e a anulação depois de faturado (DL3) chegam na TASK-F08-6.
 - Estender `computeMetric`/`computeAll` da F07 com escopo opcional `{ regionId?, serviceTypeId? }` e com `completedServiceDates`, **sem mudar o comportamento da F07**.
 - Proteger a exclusão de região: regiões são apagadas de verdade, então a exclusão é bloqueada quando há meta ativa que a usa.
 
@@ -157,16 +162,15 @@ Ordem de merge: 1 → 2 → 3 → 4 → 5. A 2 e a 3 só dependem da 1; a 4 e a 
 - **F03 (existente):** `PLATFORM_SETTINGS_REGISTRY`, `IPlatformSettingsReader.get(key)` (cache 30 s; não existe `getUncached`, DR2), `GET/PUT /v1/platform-settings/:key` (audit `platform_setting.updated`).
 
 ### Decisões aplicáveis
-D1 (Q12 ⚠️ **assumida, aguardando o cliente**, 2026-10-27), D3, D4, D5, D6, D8, D12 (2026-10-27); DV1, DV2, DV6 (2026-10-28); P1–P11 (2026-10-28).
+D1 (Q12 ✅ decidida em 2026-10-30: bônus no financeiro pela TASK-F08-6; aqui só o fluxo do prêmio, sem tocar o billing), D3, D4, D5, D6, D8, D12 (2026-10-27); DV1, DV2, DV6 (2026-10-28); P1–P11 (2026-10-28).
 
 Das lacunas (2026-10-29):
 - **DL1 (L-F08-01, 2026-10-29):** o run das 04:45 termina enfileirando `inspector-program.daily` `{ trigger: 'MESSAGES' }` com `startAfter` 08:00 Sydney e `singletonKey 'inspector-program.messages:<today>'`. Nunca um segundo `boss.schedule` com o mesmo nome (pg-boss 9 guarda um agendamento por nome; o segundo substituiria o das 04:45). Com `trigger 'MESSAGES'`, `RunInspectorProgramDailyUseCase` roda **só** os passos de mensagem (registrados pela TASK-F08-4); com `SCHEDULED`/`STARTUP`, só os de cálculo.
 - **DL2 (L-F08-02, 2026-10-29):** `deactivated_at`; reativação registra `SKIPPED_INACTIVE`; `endsAt` ≥ fim do período corrente (`GOAL_END_IN_CURRENT_PERIOD`, substitui `GOAL_END_BEFORE_CLOSED_PERIOD`); `target`/`rewardAmount` de meta já iniciada valem do próximo período.
-- **DL3 (L-F08-03, 2026-10-29):** `PAID → VOID` só AM (`inspector_program.awards.void_paid`), motivo obrigatório, `recovery_note` opcional; CHECK ajustado para permitir `paid_at` em `VOID`.
+- **DL3 (L-F08-03, revista 2026-10-30):** nesta tarefa só `PENDING`/`APPROVED → VOID` (AM/OP); o CHECK já permite `paid_at` em `VOID` para a anulação depois de pago da TASK-F08-6 (só AM, com reversão). Sem `recovery_note`.
 - **DL4 (L-F08-04, 2026-10-29):** metas independentes e cumulativas, sem teto; o backend não muda (o aviso do formulário é da TASK-F08-3).
 - **DL5 (L-F08-05, 2026-10-29):** `void_reason` interno; `inspector_note` opcional (≤ 200) gravado na anulação.
 - **DL10 (L-F08-10, 2026-10-29):** semântica de `direction` da rota de períodos.
-- **DL11 (L-F08-11, 2026-10-29):** `paidOn` civil de Sydney e derivação de `paid_at`.
 - **DL13 (L-F08-13, 2026-10-29):** `scope_label` na fotografia do prêmio e do fechamento.
 
 Da reconciliação (2026-10-29):
@@ -229,10 +233,9 @@ Vitest; relógio injetado; suíte de domínio também com `TZ=America/Los_Angele
 | `endsAt` antes de `startsAt` | erro em `endsAt` |
 | `updateGoalSchema` com `metric`, `period`, `scope*` ou `startsAt` | erro "This field can't be changed. Create a new goal instead." (`.strict()`) |
 | `updateGoalSchema` vazio | erro "Nothing to update" |
-| `voidAwardSchema` `{ reason: 'Agency rejected the job' }` (L-F08-05) | ok; `inspectorNote` e `recoveryNote` ausentes |
-| `voidAwardSchema` com `inspectorNote` de 201 caracteres / `recoveryNote` de 501 | erro em `inspectorNote` (≤ 200) / `recoveryNote` (≤ 500) |
+| `voidAwardSchema` `{ reason: 'Agency rejected the job' }` (L-F08-05) | ok; `inspectorNote` ausente |
+| `voidAwardSchema` com `inspectorNote` de 201 caracteres / com `recoveryNote` | erro em `inspectorNote` (≤ 200) / erro (`.strict()`, campo não existe — Q12) |
 | `programPeriodsQuerySchema` `{ periodType: 'FORTNIGHTLY', from: 'current', count: 3 }` (L-F08-10) | erro (`direction` obrigatório; `from` não existe, `.strict()`) |
-| `markAwardPaidSchema` `{ paidOn: '2026-11-10' }` / `{ paidOn: '2026-11-10T00:00:00Z' }` (L-F08-11) | ok / erro (data civil `YYYY-MM-DD`) |
 
 (O alinhamento de `startsAt`/`endsAt` ao período é validado no use case, com `isCycleAligned`, para não copiar o cálculo para o shared — teste 13.)
 
@@ -322,15 +325,10 @@ Vitest; relógio injetado; suíte de domínio também com `TZ=America/Los_Angele
 | quem criou a meta aprova o prêmio dela | aprovado (DV2: prêmio do sistema, sem autor) |
 | dois aprovadores ao mesmo tempo | o CAS deixa um vencer; o outro recebe 409 `REWARD_AWARD_INVALID_STATUS` depois da releitura |
 | aprovar `APPROVED`/`PAID`/`VOID` | 409 `REWARD_AWARD_INVALID_STATUS` "This reward is already {status}" |
-| marcar pago `APPROVED` sem `paidOn` | `PAID`, `paid_by`, `paid_at = now`, `payment_reference`; audit `reward_award.paid` |
-| **(L-F08-11)** relógio `2026-11-10T13:30:00Z` (= 11 nov 00:30 Sydney), aprovado em `2026-11-09T23:00:00Z` (= 10 nov Sydney) | `paidOn '2026-11-11'` → aceito, `paid_at = now`; `paidOn '2026-11-12'` → 400 `VALIDATION_ERROR` "Paid on can't be in the future"; `paidOn '2026-11-09'` → 400 "Paid on can't be before the approval date (10 Nov 2026)" |
-| **(L-F08-11)** `paidOn '2026-11-10'` (antes de hoje Sydney `2026-11-11`) | `paid_at = '2026-11-10T12:59:59.999Z'` (23:59:59.999 de 10 nov em Sydney, AEDT) |
-| marcar pago `PENDING` | 409 |
 | anular `PENDING`/`APPROVED` com motivo | `VOID`, `voided_by`, `voided_at`, `void_reason`; audit `reward_award.voided` |
+| anular `PAID` (linha criada à mão no teste; nesta tarefa nenhuma rota chega a `PAID`) | 409 `REWARD_AWARD_INVALID_STATUS` (a anulação depois de pago é da TASK-F08-6) |
+| rotas `POST /awards/:id/mark-paid` | não existem (404 da rota; Q12) |
 | **(L-F08-05)** anular com `inspectorNote 'The job was cancelled by the agency.'` | `inspector_note` gravado; aparece no audit `after` |
-| **(L-F08-03)** AM anula `PAID` com motivo e `recoveryNote 'Deducted from the next transfer'` | `VOID`; `paid_at`/`paid_by` mantidos; `voided_*`, `void_reason`, `recovery_note`; audit `reward_award.voided` com `before.status 'PAID'` e `afterPayment: true` |
-| **(L-F08-03)** OP anula `PAID` | 403 `FORBIDDEN` "Only an Admin Master can void a paid reward"; nada gravado |
-| **(L-F08-03)** `recoveryNote` em prêmio `PENDING`/`APPROVED` | 400 `VALIDATION_ERROR` "Recovery note applies only to paid rewards" |
 | anular `VOID` | 409 `REWARD_AWARD_INVALID_STATUS` "This reward is already voided" |
 | motivo ausente / 4 caracteres | 400 `VALIDATION_ERROR` |
 | mesma `Idempotency-Key` + mesmo payload | resposta guardada, nenhuma escrita |
@@ -374,7 +372,7 @@ Vitest; relógio injetado; suíte de domínio também com `TZ=America/Los_Angele
 
 **17. Banco — `inspector-program.repository.db.test.ts`**
 - unique `(goal_id, inspector_id, period_start)` em `reward_awards` e `(goal_id, period_start)` em `goal_period_closures`; `createMany({ skipDuplicates: true })` ignora a duplicata e devolve `count 0`.
-- CHECKs: `REGION_VOLUME` **ativa** sem região → violação; inativa sem região → ok; `ends_at < starts_at` → violação; `APPROVED` sem `approved_by` → violação; **(L-F08-03)** `VOID` com `paid_at` e `approved_by` → ok; `PAID` sem `paid_at` → violação; `PENDING` com `paid_at` → violação; **(L-F08-02)** `next_target` sem `next_effective_from` → violação; `active true` com `deactivated_at` → violação.
+- CHECKs: `REGION_VOLUME` **ativa** sem região → violação; inativa sem região → ok; `ends_at < starts_at` → violação; `APPROVED` sem `approved_by` → violação; **(L-F08-03)** `VOID` com `paid_at` e `approved_by` → ok (anulado depois de pago, TASK-F08-6); `PAID` sem `paid_at` → violação; `PENDING`/`APPROVED` com `paid_at` → violação; **(L-F08-02)** `next_target` sem `next_effective_from` → violação; `active true` com `deactivated_at` → violação.
 - apagar uma região referenciada por meta inativa → `scope_region_id` vira `NULL`.
 - CAS `approvePending(id, approverId, at)`: `PENDING` → 1 linha; já `APPROVED` → 0.
 - `findParticipations(inspectorId)` usa `participant_ids` e marca `awarded` só com prêmio não `VOID`.
@@ -397,8 +395,8 @@ Vitest; relógio injetado; suíte de domínio também com `TZ=America/Los_Angele
 1. **Shared — enums** `packages/shared/src/enums/inspector-program.ts`: `GoalMetric`, `GoalComparator` (`GTE`, `LTE`), `RewardAwardStatus` (`PENDING`, `APPROVED`, `PAID`, `VOID`), `InspectorLevel` (`BRONZE`, `SILVER`, `GOLD`), `GOAL_METRIC_COMPARATOR`, `GOAL_METRIC_RELIABILITY_KEY`, `GOAL_METRIC_KIND`, rótulos, `GOAL_RATE_MINIMUM_VOLUME = 10`, `CLOSE_CATCH_UP_MAX_PERIODS = 8`. Padrão `as const` + tipo. Exportar em `enums/index.ts`. Período = `BillingPeriodType` existente.
 2. **Shared — níveis:** `packages/shared/src/lib/inspector-level.ts` (`resolveInspectorLevel`, `isEarlyAccessLevel`, `minScoreForLevel`).
 3. **Shared — settings:** `inspectorProgramSettingSchema` + `inspectorProgram: { schema, defaults, section: 'inspectorProgram' }` no `PLATFORM_SETTINGS_REGISTRY` (com `earlyAccess.enabledAt`, L-F08-08; o preenchimento pelo servidor é da TASK-F08-2).
-4. **Shared — schemas** `packages/shared/src/schemas/inspector-program.ts`: `createGoalSchema`, `updateGoalSchema`, `listGoalsQuerySchema`, `goalResponseSchema`, `goalsListResponseSchema`, `programPeriodsQuerySchema`, `programPeriodsResponseSchema`, `listAwardsQuerySchema`, `rewardAwardResponseSchema`, `rewardAwardsListResponseSchema`, `markAwardPaidSchema`, `voidAwardSchema`, `programPeriodSummaryQuerySchema`, `programPeriodSummaryResponseSchema`. `pnpm --filter @properfy/shared build`.
-5. **Shared — permissões** em `ROLE_ACTION_MATRIX`: `inspector_program.goals.manage`, `inspector_program.awards.view`, `inspector_program.awards.approve`, `inspector_program.awards.pay`, `inspector_program.awards.void` (todas `AM`, `OP`), `inspector_program.awards.void_paid` (**só `AM`**, L-F08-03) e `inspector_program.view_own` (`INSP`).
+4. **Shared — schemas** `packages/shared/src/schemas/inspector-program.ts`: `createGoalSchema`, `updateGoalSchema`, `listGoalsQuerySchema`, `goalResponseSchema`, `goalsListResponseSchema`, `programPeriodsQuerySchema`, `programPeriodsResponseSchema`, `listAwardsQuerySchema`, `rewardAwardResponseSchema`, `rewardAwardsListResponseSchema`, `voidAwardSchema` (`.strict()`), `programPeriodSummaryQuerySchema`, `programPeriodSummaryResponseSchema`. `pnpm --filter @properfy/shared build`.
+5. **Shared — permissões** em `ROLE_ACTION_MATRIX`: `inspector_program.goals.manage`, `inspector_program.awards.view`, `inspector_program.awards.approve`, `inspector_program.awards.void` (todas `AM`, `OP`) e `inspector_program.view_own` (`INSP`). Sem `awards.pay` (Q12); a ação só AM de anular faturado (`inspector_program.awards.void_invoiced`) é da TASK-F08-6.
 6. **Extensão da F07 (dono: F08):**
    - `IReliabilityFactsReader.load({ from, to, inspectorIds?, scope? })` com `ReliabilityFactsScope = { regionId?: string; serviceTypeId?: string }` exportado de `domain/reliability-facts.reader.ts`;
    - `PrismaReliabilityFactsReader`: parâmetros novos só em Q1, Q2 (os dois ramos) e Q3 (Algoritmo A). Q4–Q6 e `loadCompletedCounts` não mudam;
@@ -408,14 +406,14 @@ Vitest; relógio injetado; suíte de domínio também com `TZ=America/Los_Angele
 8. **Backend — módulo `apps/backend/src/modules/inspector-program/`:**
    - `domain/`: `goal.entity.ts`, `reward-award.entity.ts` (transições), `goal-periods.ts`, `evaluate-goal.ts`, `participants.ts`, `streak.ts`, `ordering.ts`, `promised-summary.ts`, `inspector-program.errors.ts`, portas `goal.repository.ts`, `reward-award.repository.ts`, `goal-period-closure.repository.ts`;
    - `domain/goal-periods.ts` ganha `periodsToSkipOnReactivation`, `goalTermsForPeriod` e `minEndsAt` (L-F08-02);
-   - `application/use-cases/`: `create-goal`, `update-goal` (reativação com `SKIPPED_INACTIVE`, termos pendentes, `GOAL_END_IN_CURRENT_PERIOD` — L-F08-02), `list-goals`, `get-goal`, `list-program-periods`, `run-inspector-program-daily` (orquestra os passos do job por `trigger`: `SCHEDULED`/`STARTUP` → passos de cálculo + enfileiramento do run `MESSAGES` das 08:00; `MESSAGES` → só passos de mensagem, que a TASK-F08-4 registra — L-F08-01), `close-goal-periods` (usa `goalTermsForPeriod`, promove `next_*`, grava `scope_label` — L-F08-02/13), `list-reward-awards`, `get-program-period-summary`, `approve-reward-award`, `mark-reward-award-paid` (regras de `paidOn` em Sydney, L-F08-11), `void-reward-award` (`PAID → VOID` só AM com `assertRoles([AM])` quando o status lido é `PAID`; CAS `updateMany WHERE status IN (…)` com o status lido; `inspectorNote`/`recoveryNote` — L-F08-03/05); serviço `inspector-program-standing.service.ts`;
+   - `application/use-cases/`: `create-goal`, `update-goal` (reativação com `SKIPPED_INACTIVE`, termos pendentes, `GOAL_END_IN_CURRENT_PERIOD` — L-F08-02), `list-goals`, `get-goal`, `list-program-periods`, `run-inspector-program-daily` (orquestra os passos do job por `trigger`: `SCHEDULED`/`STARTUP` → passos de cálculo + enfileiramento do run `MESSAGES` das 08:00; `MESSAGES` → só passos de mensagem, que a TASK-F08-4 registra — L-F08-01), `close-goal-periods` (usa `goalTermsForPeriod`, promove `next_*`, grava `scope_label` — L-F08-02/13), `list-reward-awards`, `get-program-period-summary`, `approve-reward-award` (CAS; deixa um ponto de extensão na transação para a TASK-F08-6 criar o lançamento — porta `IRewardAwardApprovalHook`, padrão no-op), `void-reward-award` (só `PENDING`/`APPROVED`; CAS `updateMany WHERE status IN ('PENDING','APPROVED')`; `inspectorNote` — L-F08-05; mesmo ponto de extensão para a TASK-F08-6); serviço `inspector-program-standing.service.ts`;
    - `infrastructure/`: repositórios Prisma e `workers/inspector-program-daily.worker.ts`;
    - `interfaces/inspector-program.routes.ts`.
 9. **Guarda na exclusão de região:** `IGoalRepository.countActiveByScopeRegionId(regionId)` exposto por uma porta pequena `IRegionGoalUsageChecker` no domínio de `service-region` (dependência aponta para a porta; o inspector-program implementa — mesmo padrão do `IAppointmentChecker` de tenants). `DeleteServiceRegionUseCase` chama a porta depois das checagens atuais e lança `ServiceRegionHasActiveGoalsError` (`ConflictError('SERVICE_REGION_HAS_ACTIVE_GOALS', …)`) em `service-region.errors.ts`. Parâmetro opcional no fim do construtor (memória `project_adding_usecase_dep_breaks_untyped_test_wirings`).
 10. **Container:** `container.inspectorProgram = { …useCases, standingService, regionGoalUsageChecker }`, com `container.reliability.metricsService`, `indexReader`, o snapshot repository, `IPlatformSettingsReader`, `AuditService`, `IIdempotencyService`, `AuthorizationService`. Registrar as rotas.
 11. **Worker:** `boss.schedule('inspector-program.daily', '45 4 * * *', {}, SYDNEY_TZ)` + `boss.work(...)` com `withJobMetrics`, atrás de `INSPECTOR_PROGRAM_JOBS_ENABLED` (padrão `true`); enfileiramento de startup com `singletonKey`. Incluir a fila no log final. **(L-F08-01)** O run de mensagens das 08:00 é um `IJobQueue.enqueue` da mesma fila com `startAfter` (calculado com `PLATFORM_TIMEZONE`, função pura testável `messagesRunAt(now)` = 08:00 Sydney de hoje ou `now` se já passou) e `singletonKey 'inspector-program.messages:<today>'`; **não** criar um segundo `boss.schedule` com o mesmo nome (pg-boss 9 sobrescreve) nem fila nova.
 12. **OpenAPI:** `generate:openapi` + `generate:types` (memória `reference_generate_openapi_env`), commitados (memória `feedback_generated_apitypes_merge`).
-13. **Doc (X00):** `apps/backend/CLAUDE.md` — módulo `inspector-program` (exceção de tenant D12, job único 04:45 depois do 04:15 da F07 com run de mensagens às 08:00 na mesma fila via `startAfter`, "prêmio é do sistema: qualquer AM/OP aprova", "anular pago só AM", "reativar pula os períodos inativos; alvo/bônus valem do próximo período", "bônus fora do ledger até o cliente decidir Q12", escopo do leitor de fatos da F07, guarda de exclusão de região, "o fechamento não espera o snapshot de hoje e grava `index_snapshot_date`", fuso de cada campo de data conforme N13 (tabela DR5)); `packages/shared/CLAUDE.md` — `enums/inspector-program.ts`, `lib/inspector-level.ts`, chave `inspectorProgram`.
+13. **Doc (X00):** `apps/backend/CLAUDE.md` — módulo `inspector-program` (exceção de tenant D12, job único 04:45 depois do 04:15 da F07 com run de mensagens às 08:00 na mesma fila via `startAfter`, "prêmio é do sistema: qualquer AM/OP aprova", "reativar pula os períodos inativos; alvo/bônus valem do próximo período", "Q12: bônus no ledger e na fatura pela TASK-F08-6; aqui não há pagamento manual", escopo do leitor de fatos da F07, guarda de exclusão de região, "o fechamento não espera o snapshot de hoje e grava `index_snapshot_date`", fuso de cada campo de data conforme N13 (tabela DR5)); `packages/shared/CLAUDE.md` — `enums/inspector-program.ts`, `lib/inspector-level.ts`, chave `inspectorProgram`.
 
 ### Modelo de dados
 
@@ -509,21 +507,17 @@ model RewardAward {
   status               RewardAwardStatus @default(PENDING)
   approved_by_user_id  String?
   approved_at          DateTime?
-  paid_by_user_id      String?
-  paid_at              DateTime?
-  payment_reference    String?           @db.VarChar(120)
+  paid_at              DateTime?         // Q12: preenchido pela TASK-F08-6 com o paid_at da fatura; nulo até lá
   voided_by_user_id    String?
   voided_at            DateTime?
   void_reason          String?           @db.VarChar(500) // interno (AM/OP, relatório), L-F08-05
   inspector_note       String?           @db.VarChar(200) // L-F08-05: único texto da anulação mostrado no app
-  recovery_note        String?           @db.VarChar(500) // L-F08-03: só em PAID → VOID
   created_at           DateTime          @default(now())
   updated_at           DateTime          @updatedAt
 
   goal        InspectorGoal @relation(fields: [goal_id], references: [id], onDelete: Restrict)
   inspector   Inspector     @relation(fields: [inspector_id], references: [id], onDelete: Restrict)
   approved_by User?         @relation("RewardAwardApprovedBy", fields: [approved_by_user_id], references: [id])
-  paid_by     User?         @relation("RewardAwardPaidBy", fields: [paid_by_user_id], references: [id])
   voided_by   User?         @relation("RewardAwardVoidedBy", fields: [voided_by_user_id], references: [id])
 
   @@unique([goal_id, inspector_id, period_start])
@@ -555,7 +549,7 @@ model GoalPeriodClosure {
   @@map("goal_period_closures")
 }
 ```
-- Back-relations: `Inspector.reward_awards`, `Inspector.scoped_goals`, `ServiceRegion.inspector_goals`, `ServiceType.inspector_goals`, `User` (5 relações nomeadas).
+- Back-relations: `Inspector.reward_awards`, `Inspector.scoped_goals`, `ServiceRegion.inspector_goals`, `ServiceType.inspector_goals`, `User` (4 relações nomeadas; sem `paid_by` — quem paga é a fatura, Q12).
 - **SQL extra na migration:**
   ```sql
   ALTER TABLE "inspector_goals"
@@ -577,12 +571,11 @@ model GoalPeriodClosure {
       ("status" IN ('APPROVED','PAID')) <= ("approved_by_user_id" IS NOT NULL)
       AND ("status" = 'PAID') <= ("paid_at" IS NOT NULL)              -- L-F08-03: PAID exige paid_at
       AND ("paid_at" IS NOT NULL) <= ("status" IN ('PAID','VOID'))    -- VOID pode guardar paid_at (anulado depois de pago)
-      AND ("recovery_note" IS NOT NULL) <= ("status" = 'VOID' AND "paid_at" IS NOT NULL)
       AND ("inspector_note" IS NOT NULL) <= ("status" = 'VOID')
       AND ("status" = 'VOID') = ("voided_at" IS NOT NULL AND "void_reason" IS NOT NULL));
   ```
   (`bool <= bool` = implicação.) Em `next_terms_chk`, `next_target` e `next_reward_amount` guardam o valor que vale a partir de `next_effective_from` (o que não mudou é copiado do atual no PATCH, então os dois ficam preenchidos juntos). Sem índice parcial e sem `Unsupported()` nesta migration, então não há risco novo de drift; o diff só precisa não tocar os índices existentes.
-- **Datas:** civis como `@db.Date` (`periodDateColumns`); instantes `timestamp(3)` em UTC. Decimais → `number` no repositório. Fuso de cada campo: tabela de DR5 (N13); **exceção explícita ao fuso da agência:** períodos, `paidOn` e `index_snapshot_date` são civis de `PLATFORM_TIMEZONE` porque o programa é de plataforma (D12).
+- **Datas:** civis como `@db.Date` (`periodDateColumns`); instantes `timestamp(3)` em UTC. Decimais → `number` no repositório. Fuso de cada campo: tabela de DR5 (N13); **exceção explícita ao fuso da agência:** períodos e `index_snapshot_date` são civis de `PLATFORM_TIMEZONE` porque o programa é de plataforma (D12).
 - **Retenção:** sem expurgo (volume baixo).
 - **Settings — chave `inspectorProgram`:**
   ```ts
@@ -643,11 +636,9 @@ Todas as rotas: `preHandler: authenticate`; schemas do shared; envelope de erro 
 | `GET /v1/inspector-program/awards` | `awards.view` | `status?`, `periodType?`, `periodStart?`, `goalId?`, `inspectorId?`, `page`, `pageSize ≤ 100`; ordenação P9 quando `goalId` + `periodStart`, senão `period_end desc, created_at desc` | 200 paginado | 400, 401, 403 |
 | `GET /v1/inspector-program/summary` | `awards.view` | `periodType`, `periodStart` (alinhado, senão 400) | 200 `ProgramPeriodSummaryResponse` | 400, 401, 403 |
 | `POST /v1/inspector-program/awards/:awardId/approve` | `awards.approve` | header `Idempotency-Key`; sem corpo | 200 `RewardAwardResponse` | 400 `IDEMPOTENCY_KEY_REQUIRED`; 404 `REWARD_AWARD_NOT_FOUND`; 409 `REWARD_AWARD_INVALID_STATUS`, `IDEMPOTENCY_PAYLOAD_MISMATCH`, `IDEMPOTENCY_IN_PROGRESS` |
-| `POST /v1/inspector-program/awards/:awardId/mark-paid` | `awards.pay` | `Idempotency-Key`; `{ paidOn?: CivilDate, paymentReference?: string ≤ 120 }` | 200 | idem; 400 `VALIDATION_ERROR` "Paid on can't be in the future" / "Paid on can't be before the approval date ({d MMM yyyy})" |
-| `POST /v1/inspector-program/awards/:awardId/void` | `awards.void`; em `PAID` também `awards.void_paid` (só AM) | `Idempotency-Key`; `{ reason: string 5–500, inspectorNote?: string 1–200, recoveryNote?: string 1–500 }` | 200 | idem; 403 `FORBIDDEN` "Only an Admin Master can void a paid reward"; 400 "Recovery note applies only to paid rewards" |
+| `POST /v1/inspector-program/awards/:awardId/void` | `awards.void` | `Idempotency-Key`; `{ reason: string 5–500, inspectorNote?: string 1–200 }` (`.strict()`) | 200 | idem; 409 `REWARD_AWARD_INVALID_STATUS` em `PAID`/`VOID` (a anulação de faturado/pago, só AM, é da TASK-F08-6) |
 
-- **(L-F08-11) `paidOn`:** data civil de Sydney. Validação: `paidOn ≤ todaySydney` e `paidOn ≥ civilDateInTimezone(approved_at, PLATFORM_TIMEZONE)`. `paid_at = paidOn === todaySydney ? now : endOfCivilDayInTimezone(paidOn, PLATFORM_TIMEZONE)`; sem `paidOn`, `paid_at = now`.
-- **(L-F08-03) Anular pago:** `PAID → VOID` mantém `paid_at`/`paid_by`, grava `voided_*`, `void_reason` e `recovery_note`; o CAS usa `WHERE status = 'PAID'` nesse ramo. Não existe `PAID → APPROVED`.
+- **Sem pagamento manual (Q12, 2026-10-30):** não há rota `mark-paid` nem `paidOn`/`paymentReference`; `PAID` só pela fatura (TASK-F08-6).
 - **(L-F08-05) Textos:** `void_reason` ("Internal reason") nunca sai para o inspetor; `inspector_note` é o único texto da anulação no `GET /v1/inspector/program`.
 
 ```ts
@@ -657,14 +648,16 @@ Todas as rotas: `preHandler: authenticate`; schemas do shared; envelope de erro 
   indexScoreAtClose: number | null, levelAtClose: InspectorLevel | null,
   indexSnapshotDate: string | null, // DR2: data do snapshot da F07 usado no fechamento
   status,
-  approvedBy: { id, name } | null, approvedAt: string | null, paidBy: { id, name } | null, paidAt: string | null,
-  paymentReference: string | null, voidedBy: { id, name } | null, voidedAt: string | null, voidReason: string | null,
-  inspectorNote: string | null, recoveryNote: string | null, voidedAfterPayment: boolean, // L-F08-03/05
+  approvedBy: { id, name } | null, approvedAt: string | null,
+  paidAt: string | null, // Q12: paid_at da fatura (TASK-F08-6); null até lá
+  voidedBy: { id, name } | null, voidedAt: string | null, voidReason: string | null,
+  inspectorNote: string | null, // L-F08-05
+  // a TASK-F08-6 acrescenta financialEntryId, invoice e voidedAfterInvoicing
   scopeLabel: string | null,                                                              // L-F08-13
   createdAt }
 // ProgramPeriodSummaryResponse
 { periodType, periodStart, periodEnd, status: 'CLOSED' | 'IN_PROGRESS' | 'UPCOMING',
-  totals: { promised, achieved, approved, paid, pending, voided, voidedAfterPayment },
+  totals: { promised, achieved, approved, paid, pending, voided }, // paid = 0 até a TASK-F08-6
   goals: Array<{ goalId, title, metric, rewardAmount, participants, promised, achievers, achievedAmount, closed,
                  skipped: boolean }> } // L-F08-02: true no fechamento SKIPPED_INACTIVE (promised 0)
 ```
@@ -673,10 +666,10 @@ Todas as rotas: `preHandler: authenticate`; schemas do shared; envelope de erro 
 
 **RBAC**
 
-| Papel | Metas / períodos | Prêmios (listar, resumo) | Aprovar / pagar / anular |
+| Papel | Metas / períodos | Prêmios (listar, resumo) | Aprovar / anular (`PENDING`/`APPROVED`) |
 |---|---|---|---|
-| AM | sim | sim | sim (qualquer prêmio, DV2); anula também `PAID` (DL3) |
-| OP | sim | sim | sim, exceto anular `PAID` (403) |
+| AM | sim | sim | sim (qualquer prêmio, DV2); anular faturado/pago chega na TASK-F08-6 (só AM, DL3) |
+| OP | sim | sim | sim |
 | CL_ADMIN / CL_USER / INSP / TNT | 403 | 403 | 403 |
 
 **Exclusão de região (rota existente `DELETE /v1/service-regions/:id`):** novo 409 `SERVICE_REGION_HAS_ACTIVE_GOALS`, `message` "This region is used by {n} active goals. Deactivate them first.", `details: { activeGoalCount }`. Declarar no schema da rota e regenerar `api-types`.
@@ -756,7 +749,7 @@ export const UPCOMING_GOAL_LOOKAHEAD_DAYS = 7; // L-F08-12
 - **Concorrência:** o agendado e o enfileiramento de startup usam o mesmo `singletonKey`, então não rodam juntos; os uniques de fechamento e de prêmio são a segunda barreira (`skipDuplicates`, sem mapear erro de unique).
 - **Idempotência:** `GoalPeriodClosure (goal_id, period_start)` impede refechar; `RewardAward (goal_id, inspector_id, period_start)` impede prêmio duplicado.
 - **Fuso:** períodos em datas civis de Sydney; data de cada serviço no fuso da agência (P2 da F07: `finished_at` do executado, `scheduled_date` do DONE sem execução, `created_at` do evento de `CANT_ATTEND`; DR1, DR5). Às 04:45 de Sydney o dia anterior terminou em qualquer fuso até 4h45 atrás de Sydney (Perth, Darwin, Adelaide, Brisbane). Agência num fuso mais atrás exigiria mover o horário (hoje só Sydney, memória `project_sydney_only_timezone`).
-- **Dados tardios:** execução sincronizada, pesquisa respondida ou DONE → REJECTED depois do fechamento não reabrem o período; a OP anula o prêmio (VOID com motivo). Se o prêmio já foi pago, só um AM anula (`PAID → VOID`, com `recoveryNote` opcional, L-F08-03). Não há detecção automática do dado tardio nesta fase. **(DR4)** O fechamento é definitivo: uma rejeição `NOT_EXECUTED` posterior (inclusive a tardia, que a F07 conta no período da rejeição, só na métrica 8) afeta só o índice e os níveis futuros, nunca um período fechado.
+- **Dados tardios:** execução sincronizada, pesquisa respondida ou DONE → REJECTED depois do fechamento não reabrem o período; a OP anula o prêmio (VOID com motivo). Se a linha do bônus já está numa fatura fechada ou paga, só um AM anula, com reversão no ledger (DL3, TASK-F08-6). Não há detecção automática do dado tardio nesta fase. **(DR4)** O fechamento é definitivo: uma rejeição `NOT_EXECUTED` posterior (inclusive a tardia, que a F07 conta no período da rejeição, só na métrica 8) afeta só o índice e os níveis futuros, nunca um período fechado.
 
 **C. Avaliação — `evaluateGoal(goal, c, ctx)`.**
 - Volumes: `value = c?.completedCount ?? 0`; `achieved = value ≥ target`; `achievedOn = c.completedServiceDates[target − 1]`.
@@ -792,30 +785,29 @@ Nenhuma (web na TASK-F08-3; PWA na TASK-F08-4).
 10. Meses de 28–31 dias e quinzenas que cruzam meses: `getCanonicalPeriod`.
 11. DST de Sydney: 04:45 fica fora da hora pulada/repetida (02:00–03:00).
 12. Dois títulos iguais: permitido (sem unicidade).
-13. **(L-F08-11)** `paidOn` futuro ou antes da data civil (Sydney) da aprovação: 400. Um OP em outro fuso que escolhe "hoje" no navegador recebe a data de Sydney do web (TASK-F08-3), então não toma 400 no fim do dia.
-14. **(L-F08-03)** Prêmio pago e depois anulado: some de "Achieved"/"Paid" e aparece em `voidedAfterPayment`; `paid_at` fica para o relatório.
+13. **(Q12)** Prêmio aprovado entre o merge desta tarefa e o da TASK-F08-6: fica `APPROVED`, sem lançamento; a TASK-F08-6 não faz backfill (Deploy da TASK-F08-6: as duas vão juntas para prod, sem prêmio aprovado no meio).
 15. **(L-F08-04)** Metas sobrepostas (ex.: `VOLUME` semanal e `REGION_VOLUME` semanal): o mesmo serviço conta nas duas; o inspetor pode ganhar os dois bônus.
 16. **(L-F08-13)** Região apagada depois do fechamento: fechamentos e prêmios mantêm `scope_label`; a meta fica com `scopeRegionDeleted`.
 
 ### Fora do escopo
-- Ledger/fatura (Q12, estacionamento); qualquer mudança em `billing`/`financial_entries`.
+- Ledger/fatura e qualquer mudança em `billing`/`financial_entries` (Q12 decidida: TASK-F08-6). Pagamento manual de prêmio (retirado em 2026-10-30).
 - Recompensas não monetárias, valores das recompensas, tributação, badges, "Quality reports sent back".
 - Reabrir período; recalcular prêmio com dados tardios; limite de ganhadores.
-- **Estacionamento (lacunas 2026-10-29):** detecção automática de dado tardio depois do fechamento (L-F08-03); teto de bônus por inspetor/período ou orçamento por período (L-F08-04); mensagem automática de prêmio pago/anulado (L-F08-05). `PAID → APPROVED` não existe (L-F08-03).
+- **Estacionamento (lacunas 2026-10-29):** detecção automática de dado tardio depois do fechamento (L-F08-03); teto de bônus por inspetor/período ou orçamento por período (L-F08-04); mensagem automática de prêmio pago/anulado (L-F08-05). `PAID → APPROVED` só pelo estorno da fatura (TASK-F08-6).
 - Unicidade de título; configuração do ciclo da sequência.
 - Telas (TASK-F08-3/4), acesso antecipado (TASK-F08-2), mensagens (TASK-F08-4), relatório (TASK-F08-5).
 - Avaliar `bonus_rule_json` (estacionamento).
 
 ### Critérios de aceite
 1. **03.A4 (backend):** uma meta atingida num período fechado gera, pelo job, exatamente um `RewardAward PENDING` por inspetor atingente, visível em `GET /awards` e somado em `GET /summary` (teste 11 + rota). A prova ponta a ponta é o E2E da TASK-F08-3.
-2. **03.A5:** criar, editar, desativar/reativar meta e aprovar, pagar e anular prêmio geram audit com autor e data (before/after); mudanças em `inspectorProgram` geram `platform_setting.updated` (F03).
+2. **03.A5:** criar, editar, desativar/reativar meta e aprovar e anular prêmio geram audit com autor e data (before/after); mudanças em `inspectorProgram` geram `platform_setting.updated` (F03).
 3. **Concorrência:** dois aprovadores simultâneos → um aprova, o outro recebe 409.
 4. **Idempotência:** job e ações não duplicam escrita.
 5. **F07 intacta:** sem escopo, os testes da F07 passam sem mudar expectativa nem número de consultas.
 6. **Região:** apagar região usada por meta ativa responde 409 com mensagem clara, nunca 500.
 7. **Q18:** CL_*, INSP e TNT → 403. **03.A3:** não se aplica (ranking na TASK-F08-4).
 8. **(L-F08-02)** Reativar uma meta nunca gera prêmio de período em que ela estava inativa; `endsAt` não corta o período corrente; alterar alvo/bônus não muda o período em andamento (testes 5, 11, 13).
-9. **(L-F08-03)** Só AM anula prêmio pago, com motivo; OP recebe 403; o rastro (`paid_at`, `recovery_note`, audit) fica (teste 12).
+9. **(Q12)** Não existe rota nem permissão de pagamento manual; anular só `PENDING`/`APPROVED` (teste 12). A anulação de faturado/pago (só AM) é critério da TASK-F08-6.
 10. **(L-F08-01)** O run das 04:45 não envia mensagem; ele enfileira o run `MESSAGES` das 08:00 na mesma fila, sem segundo `boss.schedule` (testes 11, 19, 20).
 
 ### Dependências
@@ -826,7 +818,7 @@ F07-1, F07-2 (métricas, leitor, snapshots, `getCurrentIndexes`); F03-1 (`IPlatf
 - **Mocks da F07:** `completedServiceDates` e o parâmetro `scope` podem quebrar fakes não tipados (memória `project_adding_usecase_dep_breaks_untyped_test_wirings`).
 - **`NULL` sem tipo no `$queryRaw`:** sempre `$6::text`/`$7::text`.
 - **Custo do fechamento:** 1 `computeAll` por grupo `(período, escopo)` (7 consultas cada), nunca 1 por inspetor.
-- **PR grande (7,125 dias):** manter ≤ 150 arquivos (estimativa ~60); se passar, separar as ações de prêmio num PR seguinte.
+- **PR grande (6,875 dias):** manter ≤ 150 arquivos (estimativa ~60); se passar, separar as ações de prêmio num PR seguinte.
 - **CHECK × `SetNull`:** o CHECK aceita região nula só em meta inativa; a guarda impede chegar lá com meta ativa. Uma corrida (reativar enquanto se apaga) falharia a exclusão por CHECK; aceitável e raro.
 - **(L-F08-01) pg-boss 9 e agendamentos:** a tabela de agendamentos tem um registro por nome; um `boss.schedule('inspector-program.daily', '0 8 * * *')` apagaria o das 04:45 sem erro. Usar só o enfileiramento com `startAfter`.
 - **(L-F08-02) Termos pendentes:** qualquer leitor de `target`/`reward_amount` de período (fechamento, progresso, resumo aberto, "Prometido") passa por `goalTermsForPeriod`; ler a coluna direto é bug.
@@ -838,7 +830,7 @@ F07-1, F07-2 (métricas, leitor, snapshots, `getCurrentIndexes`); F03-1 (`IPlatf
 - **Observabilidade:** `withJobMetrics`; logs `inspector_program.periods_closed`, `inspector_program.index_snapshot_stale`, `inspector_program.close_catch_up_capped`; audit por prêmio.
 
 ### Dias · Branch · Verificação
-- **Dias:** 7,125 = 03.6/03.8 backend 1,75 (modelo, CHECKs, CRUD, rota de períodos, validação, audit, guarda de região) + 03.9/apuração 4,0 (job, 10 métricas, participantes, catch-up, níveis, sequência, progresso parcial, escopo e `completedServiceDates` no leitor da F07 com testes de regressão) + 03.13 backend 0,5 + **lacunas 0,75** (L-F08-02 reativação com `SKIPPED_INACTIVE`, `GOAL_END_IN_CURRENT_PERIOD`, termos do próximo período e promoção 0,4; L-F08-03 `PAID → VOID` só AM e CHECK 0,2; L-F08-01 enfileiramento do run das 08:00, L-F08-05/10/11/13 e "Starting soon" no progresso 0,15) + **reconciliação 0,125** (DR2: coluna `index_snapshot_date` nas 2 tabelas, regra do snapshot atrasado e testes; DR1/DR3/DR4/DR5 só texto e casos de teste, sem custo).
+- **Dias:** 6,875 (**−0,25 em 2026-10-30**, Q12: sem `mark-reward-award-paid`, sem `paidOn` em Sydney/L-F08-11, sem ramo `PAID → VOID` com `recovery_note`; as colunas e o CHECK de `paid_at` ficam) = 03.6/03.8 backend 1,75 (modelo, CHECKs, CRUD, rota de períodos, validação, audit, guarda de região) + 03.9/apuração 4,0 (job, 10 métricas, participantes, catch-up, níveis, sequência, progresso parcial, escopo e `completedServiceDates` no leitor da F07 com testes de regressão) + 03.13 backend 0,4 (resumo, aprovar com CAS, anular, porta de extensão) + **lacunas 0,6** (L-F08-02 reativação com `SKIPPED_INACTIVE`, `GOAL_END_IN_CURRENT_PERIOD`, termos do próximo período e promoção 0,4; L-F08-03 CHECK 0,05; L-F08-01 enfileiramento do run das 08:00, L-F08-05/10/13 e "Starting soon" no progresso 0,15) + **reconciliação 0,125** (DR2: coluna `index_snapshot_date` nas 2 tabelas, regra do snapshot atrasado e testes; DR1/DR3/DR4/DR5 só texto e casos de teste, sem custo).
 - **Branch:** `feat/f08-inspector-program-backend` a partir de `develop`, em worktree. ~60 arquivos.
 - **Verificação:** `pnpm --filter @properfy/shared build test`; `pnpm --filter backend exec prisma generate`; `pnpm --filter backend typecheck lint test`; `test:integration` (testes 14 e 18) e `test:integration:db` (16, 17) via subagente com resumo; `generate:openapi` + `generate:types` commitados; `git diff --stat origin/develop... | tail -1` < 150.
 
@@ -1062,12 +1054,12 @@ TASK-F08-1; F07-2.
 
 > **Dependências de execução** (2026-10-29 · ver `../paralelizacao.md`)
 > - **Bloqueada por (precisa estar mergeada antes):** TASK-X00-1, TASK-F08-1, TASK-X01-1, TASK-F03-4, TASK-F07-3
-> - **Desbloqueia:** TASK-F08-4, TASK-F08-5
+> - **Desbloqueia:** TASK-F08-4, TASK-F08-5, TASK-F08-6
 > - **Pode rodar em paralelo com:** TASK-F05-2, TASK-F08-2, TASK-F05-3
 > - **Pista sugerida (time de 6):** D · Web · ⚠️ **caminho crítico**: atraso aqui atrasa a entrega inteira
 
 ### Objetivo
-- Página nova **"Goals & rewards"** (`/goals-rewards`) no grupo **Dashboard** (X01), só AM/OP, com abas **Goals** (lista, nova meta, editar, desativar/reativar) e **Rewards** (prometido × atingido por período; aprovar, marcar pago, anular).
+- Página nova **"Goals & rewards"** (`/goals-rewards`) no grupo **Dashboard** (X01), só AM/OP, com abas **Goals** (lista, nova meta, editar, desativar/reativar) e **Rewards** (prometido × atingido por período; aprovar, anular). Sem "Mark as paid" (Q12 decidida em 2026-10-30: o prêmio fica `PAID` pela fatura do inspetor, TASK-F08-6, que acrescenta à aba o link da fatura).
 - Sub telas com `BackButton`: `/goals-rewards/goals/new` e `/goals-rewards/goals/:goalId`.
 - Seção **"Inspector program"** em "Platform settings" (limites de nível e acesso antecipado).
 - **Coluna "Level"** na página "Inspector performance" da F07 (linha 03.11 do plano atribui à F08).
@@ -1084,20 +1076,19 @@ TASK-F08-1; F07-2.
 - **TASK-F08-1:** rotas, schemas e rótulos; `resolveInspectorLevel`; rota de períodos.
 
 ### Decisões aplicáveis
-D1 (Q12 ⚠️ **assumida, aguardando o cliente**: a UI diz que o pagamento é feito fora do Properfy), D3, D8, D9 (2026-10-27); DV1, DV2, DV3, DV5 (2026-10-28); P1, P2, P5, P9, P10 (2026-10-28).
+D1 (Q12 ✅ decidida em 2026-10-30: bônus na fatura do inspetor; esta tarefa não tem pagamento manual nem copy de "pago fora do Properfy"), D3, D8, D9 (2026-10-27); DV1, DV2, DV3, DV5 (2026-10-28); P1, P2, P5, P9, P10 (2026-10-28).
 
 Das lacunas (2026-10-29):
 - **DL2 (L-F08-02, 2026-10-29):** o formulário avisa "Changes to target and bonus apply from the next period." e mostra a alteração pendente; "Ends" só oferece fins ≥ `minEndsAt`; reativar avisa que a meta volta no próximo período.
-- **DL3 (L-F08-03, 2026-10-29):** "Void" em prêmio `PAID` só para AM, com "Recovery note (optional)"; a lista mostra "Voided after payment".
+- **DL3 (L-F08-03, revista 2026-10-30):** nesta tarefa "Void" só em `PENDING`/`APPROVED`; "Void" de faturado/pago (só AM, reversão) e o chip "Voided after invoicing" são da TASK-F08-6.
 - **DL4 (L-F08-04, 2026-10-29):** metas cumulativas; aviso informativo no formulário quando há outras metas ativas do mesmo ciclo que podem incluir os mesmos inspetores.
 - **DL5 (L-F08-05, 2026-10-29):** diálogo de anulação com "Internal reason" (obrigatório) e "Note to the inspector (optional)".
 - **DL10 (L-F08-10, 2026-10-29):** RewardsTab = `past&count=12` + `upcoming&count=1`.
-- **DL11 (L-F08-11, 2026-10-29):** "Paid on" padrão e limite máximo = hoje em `Australia/Sydney`; mínimo = data civil de Sydney da aprovação.
 - **DL13 (L-F08-13, 2026-10-29):** `describeGoal` aceita `scopeLabel` nulo.
 - **DL8 (L-F08-08, 2026-10-29):** a seção de settings não mostra nem envia `enabledAt` como campo editável; mostra "On since {d MMM yyyy, h:mm a}" quando ligado.
 
 Da reconciliação (2026-10-29):
-- **DR5 (N13, L-X00-03, 2026-10-29):** datas civis de período e `paidOn` em `PLATFORM_TIMEZONE`, vindas do backend; instantes (`approvedAt`, `paidAt`, `enabledAt`) exibidos em `PLATFORM_TIMEZONE`; `users.timezone` e o fuso do navegador nunca entram.
+- **DR5 (N13, L-X00-03, 2026-10-29):** datas civis de período em `PLATFORM_TIMEZONE`, vindas do backend; instantes (`approvedAt`, `paidAt`, `enabledAt`) exibidos em `PLATFORM_TIMEZONE`; `users.timezone` e o fuso do navegador nunca entram.
 - **DR6 (L-X01-02/03/08, 2026-10-29):** "Goals & rewards" é o último filho do grupo Dashboard; testes de menu por rótulo e sem mocks de `SidebarSubmenu`/`SidebarItem`; `backTo` com `AuthGuard` que cobre AM e OP; P-b com OP; confirmação de saída por `onBack(goBack)`.
 
 ### Testes primeiro (TDD)
@@ -1126,12 +1117,11 @@ Vitest + RTL + MSW; `findBy` só depois da transição estável (memória `proje
 **5. `RewardsTab.test.tsx`**
 - "Cycle" (Weekly padrão) e "Period" (L-F08-10: `GET /periods?direction=past&count=12` + `GET /periods?direction=upcoming&count=1` para o corrente "In progress", corrente no topo); URL `?tab=rewards&cycle=WEEKLY&period=2026-11-02`; refaz `GET /summary` e `GET /awards`.
 - **(L-F08-02)** meta com fechamento pulado no período → linha da tabela por meta com "Skipped (goal inactive)" e Max payout "$0.00".
-- tiles Promised, Achieved, Approved, Paid em AUD; tabela por meta (Per winner, Participants, Max payout, Achievers, Achieved); período em andamento: "This period is still open. Rewards are created after it closes."
+- tiles Promised, Achieved, Approved, Paid em AUD (Paid fica 0 até a TASK-F08-6); tabela por meta (Per winner, Participants, Max payout, Achievers, Achieved); período em andamento: "This period is still open. Rewards are created after it closes."
 - **Aprovar:** "Approve" em todo `PENDING` (qualquer AM/OP, DV2) → `POST /approve` com `Idempotency-Key` → linha atualizada, "Reward approved"; 409 → "This reward was updated by someone else." e recarga.
-- **Marcar pago:** só `APPROVED` → `Dialog` "Mark as paid" ("Paid on" padrão hoje, sem futuro; "Payment reference (optional)") → "Marked as paid".
-- **(L-F08-11)** relógio do navegador `2026-11-10T13:30:00Z` com `TZ=America/Los_Angeles` (navegador ainda em 10 nov) → "Paid on" vem `2026-11-11` (hoje em Sydney) e o máximo do seletor é `2026-11-11`; prêmio aprovado em `2026-11-09T23:00:00Z` → mínimo `2026-11-10`; o corpo enviado é `{ paidOn: '2026-11-11' }`.
+- **Sem pagamento manual (Q12):** nenhum botão "Mark as paid" em nenhum status; `APPROVED` mostra só "Void".
 - **Anular:** `PENDING`/`APPROVED` → `Dialog` "Void reward" com "Internal reason" (5–500, ajuda "Only the Properfy team sees this.") e "Note to the inspector (optional)" (≤ 200, ajuda "Shown in the inspector's app.") (L-F08-05) → corpo `{ reason, inspectorNote? }` → "Reward voided".
-- **(L-F08-03)** AM vê "Void" em `PAID`; o diálogo acrescenta o aviso "This reward was already paid. Voiding it keeps the payment on record." e "Recovery note (optional)" (≤ 500) → corpo `{ reason, inspectorNote?, recoveryNote? }`; OP **não** vê "Void" em `PAID`; 403 do servidor → "Only an Admin Master can void a paid reward." Prêmio `VOID` com `voidedAfterPayment` → chip "Voided after payment"; tile/total "Voided after payment" quando > 0.
+- `PAID`/`VOID` (linhas de fixture): sem "Void" nesta tarefa (a ação só AM em faturado/pago chega na TASK-F08-6).
 - duplo clique → um só `POST`; retry reaproveita a `Idempotency-Key`.
 
 **6. `InspectorProgramSettingsSection.test.tsx`** — "Silver from", "Gold from", "Early offer access" (switch, desligado por padrão), "Early access window (hours)", "Minimum level"; Gold ≤ Silver → erro sem enviar; horas fora de 1–72 → erro; salvar → `PUT /v1/platform-settings/inspectorProgram` com o objeto completo (o `enabledAt` lido é devolvido como veio; o servidor recalcula) → "Inspector program settings saved". **(L-F08-08)** com `enabled true`, `enabledAt '2026-11-01T00:00:00.000Z'` → "On since 1 Nov 2026, 11:00 am" (Sydney); ajuda do switch "Only offers published after you turn this on are affected. Changing the window applies to offers already published."
@@ -1144,14 +1134,13 @@ Vitest + RTL + MSW; `findBy` só depois da transição estável (memória `proje
 
 **9. E2E obrigatório (03.A4) — `apps/web/tests/e2e/inspector-program-rewards.spec.ts`** (Playwright)
 - *Preparação:* script `apps/backend/src/scripts/e2e-inspector-program-fixture.ts` (só dev/test, recusa rodar com `NODE_ENV=production`), chamado pelo `globalSetup` do spec: cria um inspetor com 10 DONE na semana fechada anterior (dados de seed existentes do E2E + appointments novos), e executa `RunInspectorProgramDailyUseCase` com `now` = segunda-feira seguinte.
-- *Fluxo:* o fixture cria a meta (Volume, 10, Weekly, $30) com `starts_at` na semana já fechada, porque o formulário não aceita início no passado; o spec cria **outra** meta pelo formulário só para provar o CRUD. AM faz login → menu Dashboard → "Goals & rewards" → "New goal" → salva → aba Rewards → escolhe a semana fechada → vê o inspetor com "Pending approval" e "Achieved $30.00" → "Approve" → "Approved" → "Mark as paid" → "Paid".
+- *Fluxo:* o fixture cria a meta (Volume, 10, Weekly, $30) com `starts_at` na semana já fechada, porque o formulário não aceita início no passado; o spec cria **outra** meta pelo formulário só para provar o CRUD. AM faz login → menu Dashboard → "Goals & rewards" → "New goal" → salva → aba Rewards → escolhe a semana fechada → vê o inspetor com "Pending approval" e "Achieved $30.00" → "Approve" → "Approved". (A TASK-F08-6 estende o E2E: fatura do período aprovada e paga → o prêmio mostra "Paid" com o link da fatura.)
 - *Também:* logado como CL_ADMIN, `/goals-rewards` mostra o acesso negado.
 
 ### Escopo / Passos
-1. **Feature** `apps/web/src/features/inspector-program/`: `pages/GoalsRewardsPage.tsx`, `pages/GoalFormPage.tsx`; `components/GoalsTab.tsx`, `RewardsTab.tsx`, `GoalFilters.tsx`, `PeriodSelect.tsx` (dados da rota de períodos), `ProgramTotals.tsx`, `GoalSummaryTable.tsx`, `RewardAwardsTable.tsx`, `MarkAwardPaidDialog.tsx`, `VoidAwardDialog.tsx`, `InspectorProgramSettingsSection.tsx`; `hooks/useGoals.ts`, `useGoal.ts`, `useSaveGoal.ts`, `useProgramPeriods.ts`, `useProgramSummary.ts`, `useRewardAwards.ts`, `useRewardAwardAction.ts`; `lib/goal-labels.ts`.
+1. **Feature** `apps/web/src/features/inspector-program/`: `pages/GoalsRewardsPage.tsx`, `pages/GoalFormPage.tsx`; `components/GoalsTab.tsx`, `RewardsTab.tsx`, `GoalFilters.tsx`, `PeriodSelect.tsx` (dados da rota de períodos), `ProgramTotals.tsx`, `GoalSummaryTable.tsx`, `RewardAwardsTable.tsx`, `VoidAwardDialog.tsx`, `InspectorProgramSettingsSection.tsx`; `hooks/useGoals.ts`, `useGoal.ts`, `useSaveGoal.ts`, `useProgramPeriods.ts`, `useProgramSummary.ts`, `useRewardAwards.ts`, `useRewardAwardAction.ts`; `lib/goal-labels.ts`.
 2. **Shared:** `packages/shared/src/lib/goal-copy.ts` com `describeGoal({ metric, target, scopeLabel })` (textos na seção UI; `scopeLabel: string | null`, fallback de escopo apagado — L-F08-13), consumido aqui, no PWA (TASK-F08-4) e no relatório (TASK-F08-5). `pnpm --filter @properfy/shared build`.
-2a. **(L-F08-11) "Hoje" em Sydney:** o "Paid on" usa o helper de data civil de Sydney já usado no web (memória `project_sydney_only_timezone`; nunca `new Date()` formatado no fuso do navegador); mínimo = data civil de Sydney de `approvedAt`.
-2b. **(L-F08-02/03/04/05)** Formulário: aviso de termos do próximo período, `pendingChange`, "Ends" ≥ `minEndsAt`, diálogo de reativação, aviso de metas sobrepostas (contagem no cliente a partir de `GET /goals?active=true&period=…`, sem rota nova). `VoidAwardDialog` com "Internal reason", "Note to the inspector" e, para AM em `PAID`, "Recovery note"; visibilidade de "Void" em `PAID` por `UserRole.AM`.
+2b. **(L-F08-02/03/04/05)** Formulário: aviso de termos do próximo período, `pendingChange`, "Ends" ≥ `minEndsAt`, diálogo de reativação, aviso de metas sobrepostas (contagem no cliente a partir de `GET /goals?active=true&period=…`, sem rota nova). `VoidAwardDialog` com "Internal reason" e "Note to the inspector" (sem "Recovery note", Q12); "Void" só em `PENDING`/`APPROVED`.
 3. **Status:** `REWARD_AWARD_STATUS_MAP` em `status-colors.ts` com tokens de status existentes (sem token novo).
 4. **Menu:** filho `{ icon: 'mdi-trophy-outline', label: 'Goals & rewards', to: '/goals-rewards', roles: [UserRole.AM, UserRole.OP] }`, **último** filho do `submenu` Dashboard (ordem canônica do X01: Overview · Live Day · Inspector notices · Analytics · Workload · Inspector performance · Goals & rewards; DR6). Se um vizinho ainda não existir no merge, fica no fim mesmo assim.
 4a. **Voltar (DR6):** `const BACK_TO = '/goals-rewards?tab=goals'` usado em `useGoBack(BACK_TO)` e `backTo={BACK_TO}`; a confirmação "Leave without saving?" usa `onBack={(goBack) => …}` do `PageHeader` (contrato do X01).
@@ -1159,7 +1148,7 @@ Vitest + RTL + MSW; `findBy` só depois da transição estável (memória `proje
 6. **Settings:** `<InspectorProgramSettingsSection />` em `PlatformSettingsPage.tsx`.
 7. **Coluna "Level" na F07:** na tabela do ranking da página "Inspector performance", coluna derivada no cliente com `resolveInspectorLevel(row.score, setting.levels)` e `INSPECTOR_LEVEL_LABELS`. Sem mudança no backend nem na resposta da F07.
 8. **E2E:** spec + script de fixture.
-9. **Doc (X00):** `apps/web/CLAUDE.md` — feature `inspector-program`, item de menu, "bônus pago fora da plataforma (Q12)", coluna de nível derivada no cliente.
+9. **Doc (X00):** `apps/web/CLAUDE.md` — feature `inspector-program`, item de menu, "bônus pago pela fatura do inspetor (Q12, TASK-F08-6); sem pagamento manual", coluna de nível derivada no cliente.
 
 ### Modelo de dados
 Nenhum.
@@ -1190,7 +1179,7 @@ Rótulos de métrica: Volume · Region volume · Service type volume · Reliabil
 
 **Formulário** — `PageHeader` "New goal" / "Edit goal" com `backTo`. Campos: Title · Metric · Target (unidade + "at least"/"at most") · Period · Region (só Region volume) · Service type (só Service type volume) · Inspector ("All eligible inspectors" padrão) · Bonus (AUD) · Starts · Ends · (edição) Status. Rodapé: "Bonuses are paid outside Properfy. Mark them as paid here once you've paid them." Botões "Create goal"/"Save", "Cancel"; "Deactivate goal"/"Reactivate goal". **(L-F08-02)** Edição de meta iniciada: "Changes to target and bonus apply from the next period." e, havendo, "From {EEE d MMM yyyy}: target {n}, bonus {$}." **(L-F08-04)** Aviso informativo: "Inspectors can earn this on top of {n} other active {weekly|fortnightly|monthly} goals."
 
-**Aba Rewards** — Cycle, Period; tiles Promised (ajuda "The most you could pay if every eligible inspector reached every goal."), Achieved, Approved, Paid; tabela por meta; lista de prêmios: Inspector (nome + e-mail) · Goal · Result ("62 inspections", "96.4%") · Index at close · Level · Amount · Status (inclui "Voided after payment", L-F08-03) · Actions ("Approve", "Mark as paid", "Void"; "Void" em `PAID` só AM). Diálogo "Void reward": "Internal reason" · "Note to the inspector (optional)" · (AM, `PAID`) aviso + "Recovery note (optional)" (L-F08-03/05).
+**Aba Rewards** — Cycle, Period; tiles Promised (ajuda "The most you could pay if every eligible inspector reached every goal."), Achieved, Approved, Paid; tabela por meta; lista de prêmios: Inspector (nome + e-mail) · Goal · Result ("62 inspections", "96.4%") · Index at close · Level · Amount · Status ("Pending approval", "Approved", "Paid", "Voided") · Actions ("Approve" em `PENDING`; "Void" em `PENDING`/`APPROVED`). Diálogo "Void reward": "Internal reason" · "Note to the inspector (optional)" (L-F08-05). A coluna "Invoice" e o "Void" de faturado são da TASK-F08-6.
 
 **Seção "Inspector program"** — "Levels" (Silver from [60], Gold from [85]; "Bronze is below Silver. Inspectors without enough jobs have no level."); "Early offer access" (switch, desligado; "When on, new offers for two or more days ahead are shown first to inspectors at or above the minimum level for [12] hours. It only applies when at least one of them can take the offer."; "Only offers published after you turn this on are affected. Changing the window applies to offers already published." (L-F08-08); quando ligado, "On since {d MMM yyyy, h:mm a}"; "Minimum level").
 
@@ -1206,17 +1195,16 @@ Rótulos de métrica: Volume · Region volume · Service type volume · Reliabil
 5. Período da URL inválido para o ciclo: volta ao corrente.
 6. Valores em `Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' })`.
 7. Chave `inspectorProgram` ilegível na página da F07: coluna "–".
-8. **(L-F08-11)** OP em fuso adiantado/atrasado em relação a Sydney: "Paid on" sempre em Sydney; perto da meia-noite o padrão pode ser "amanhã" ou "ontem" do navegador.
-9. **(L-F08-03)** OP abre um prêmio `PAID`: sem botão "Void"; AM vê.
+8. **(Q12)** Prêmio `APPROVED` antes da TASK-F08-6: fica "Approved" sem ação de pagamento; o tile Paid mostra $0.00.
 10. **(L-F08-02)** Meta reativada com o período corrente pulado: Rewards mostra o período como "Skipped (goal inactive)"; o formulário mostra "Counts again from …".
 11. **(L-F08-13)** Meta de região apagada: "Who" e `describeGoal` usam "a deleted region".
 
 ### Fora do escopo
-Mudar `DashboardPage`, `AnalyticsPage`, `InspectorWorkloadPage` ou outras colunas da página da F07; aprovação em lote; exportação (TASK-F08-5); histórico de auditoria na página; lançamento financeiro (Q12).
+Mudar `DashboardPage`, `AnalyticsPage`, `InspectorWorkloadPage` ou outras colunas da página da F07; aprovação em lote; exportação (TASK-F08-5); histórico de auditoria na página; lançamento financeiro, link da fatura e anular faturado (Q12, TASK-F08-6); pagamento manual (retirado).
 
 ### Critérios de aceite
 1. **03.A4 (obrigatório por E2E, DV5):** o spec Playwright `inspector-program-rewards.spec.ts` passa: uma meta atingida e fechada pelo job aparece no painel Rewards do período, somada em "Achieved", e pode ser aprovada e marcada como paga.
-2. **03.13:** prometido × atingido por período; aprovar (qualquer AM/OP); marcar pago ("Paid on" em Sydney, L-F08-11); anular com motivo interno e nota opcional ao inspetor (L-F08-05); anular pago só AM (L-F08-03).
+2. **03.13:** prometido × atingido por período; aprovar (qualquer AM/OP); anular `PENDING`/`APPROVED` com motivo interno e nota opcional ao inspetor (L-F08-05); nenhum controle de pagamento manual (Q12; `PAID` e anular faturado na TASK-F08-6).
 2a. **(L-F08-02/04)** O formulário avisa que alvo/bônus valem do próximo período, mostra a alteração pendente, não oferece fim antes do período corrente e avisa sobre metas cumulativas do mesmo ciclo.
 3. **03.11 (coluna):** "Level" na página da F07, coerente com os limites configurados.
 4. **03.A5:** toda escrita passa pelos endpoints auditados.
@@ -1234,7 +1222,7 @@ TASK-F08-1; X01; F03-4; F07-3.
 - Front + script de E2E (fora do bundle do backend em produção: fica em `src/scripts`, não registrado em rota nem worker). Rollback: reverter o PR.
 
 ### Dias · Branch · Verificação
-- **Dias:** 2,5 = 03.6/03.8 web 1,0 (lista, filtros, formulário, desativar, menu, router) + coluna "Level" na F07 0,25 + 03.13 web 1,0 (seletores, tiles, tabelas, 3 diálogos, seção de settings, E2E) + **lacunas 0,25** (L-F08-02 copy/pendente/reativação/"Ends"; L-F08-03 anular pago; L-F08-04 aviso; L-F08-05 nota; L-F08-08 "On since"; L-F08-11 "hoje" em Sydney; L-F08-13 `describeGoal`).
+- **Dias:** 2,25 (**−0,25 em 2026-10-30**, Q12: sem diálogo "Mark as paid", sem "Paid on" em Sydney/L-F08-11, sem variante de "Void" para pago com "Recovery note") = 03.6/03.8 web 1,0 (lista, filtros, formulário, desativar, menu, router) + coluna "Level" na F07 0,25 + 03.13 web 0,85 (seletores, tiles, tabelas, 2 diálogos, seção de settings, E2E) + **lacunas 0,15** (L-F08-02 copy/pendente/reativação/"Ends"; L-F08-04 aviso; L-F08-05 nota; L-F08-08 "On since"; L-F08-13 `describeGoal`).
 - **Branch:** `feat/f08-goals-rewards-web` a partir de `develop` (depois da TASK-F08-1), em worktree. ~34 arquivos.
 - **Verificação:** `pnpm --filter @properfy/shared build`; `pnpm --filter web typecheck lint test`; `pnpm --filter web test:e2e -- inspector-program-rewards` com backend local (via subagente com resumo); QA no navegador (AM, OP, CL_ADMIN; memória `feedback_qa_must_test_in_browser`); `git diff --stat origin/develop... | tail -1` < 150. Screenshots nunca no commit.
 
@@ -1245,7 +1233,7 @@ TASK-F08-1; X01; F03-4; F07-3.
 > **Dependências de execução** (2026-10-29 · ver `../paralelizacao.md`)
 > - **Bloqueada por (precisa estar mergeada antes):** TASK-X00-1, TASK-F08-1, TASK-F08-3, TASK-F02-1, TASK-F02-3, TASK-F04-3, TASK-F04-3b
 > - **Desbloqueia:** — (fim de cadeia)
-> - **Pode rodar em paralelo com:** TASK-F08-5
+> - **Pode rodar em paralelo com:** TASK-F08-5, TASK-F08-6 (merge **depois** da TASK-F08-6, para a copy de DL14 já ser verdade)
 > - **Pista sugerida (time de 6):** C · PWA · ⚠️ **caminho crítico**: atraso aqui atrasa a entrega inteira
 
 ### Objetivo
@@ -1263,7 +1251,7 @@ TASK-F08-1; X01; F03-4; F07-3.
 - **TASK-F08-1:** `InspectorProgramStandingService`, `RunInspectorProgramDailyUseCase` (passos), `ctx.createdAwardIds`, prêmios; **TASK-F08-3:** `describeGoal`.
 
 ### Decisões aplicáveis
-D1 (Q12 ⚠️ **assumida, aguardando o cliente**), D3, D4, D5, D7, D8, D9, D10 (2026-10-27); DV4 (2026-10-28); P7, P8, P11 (2026-10-28); DB1/DB7 da F04.
+D1 (Q12 ✅ decidida em 2026-10-30: bônus na próxima fatura; copy abaixo), D3, D4, D5, D7, D8, D9, D10 (2026-10-27); DV4 (2026-10-28); P7, P8, P11 (2026-10-28); DB1/DB7 da F04.
 
 Das lacunas (2026-10-29):
 - **DL1 (L-F08-01, 2026-10-29):** os 3 passos de mensagem têm `phase 'MESSAGES'` e rodam às 08:00 Sydney (run `{ trigger: 'MESSAGES' }` enfileirado pela TASK-F08-1). Meta atingida: um aviso por `(inspetor, periodEnd)` agregando todos os prêmios não anulados criados nas últimas 48 h para aquele fim de período; `dedupeKey` `program-goals-reached:<inspectorId>:<periodEnd>` (usa o fim, não o início do período, porque uma semana e uma quinzena podem começar no mesmo dia e fechar em dias diferentes — a chave por início faria a F02 descartar a segunda).
@@ -1272,7 +1260,7 @@ Das lacunas (2026-10-29):
 - **DL7 (L-F08-07, 2026-10-29):** coorte do ranking = todos os ACTIVE com `SCORED` da plataforma; rodapé diz isso.
 - **DL9 (L-F08-09, 2026-10-29):** `ProfileTile` "Challenges" logo depois de Earnings; Announcements (F02-3) continua `col-span-2` no fim.
 - **DL12 (L-F08-12, 2026-10-29):** "Starting soon" (7 dias) e "Counts jobs since {periodStart}".
-- **DL14 (L-F08-14, 2026-10-29):** copy do bônus pago à parte da fatura, fora de Earnings.
+- **DL14 (L-F08-14, revista 2026-10-30):** copy do bônus somado à próxima fatura e visível em Earnings; chips "Pending review" / "Approved – on your next invoice" / "Paid" / "Voided". As linhas de bônus em Earnings e na fatura são da TASK-F08-6.
 
 Da reconciliação (2026-10-29):
 - **DR4 (L-F07-12, 2026-10-29):** a mensagem de nível lê só os snapshots `latest` e `latest − 1`; nenhuma leitura de histórico (retenção de 400 dias e expurgo de inspetor apagado na F07).
@@ -1294,7 +1282,7 @@ Da reconciliação (2026-10-29):
 - não ranqueado → `myPosition null`, `notRankedReason 'NOT_ENOUGH_DATA'` ou `'NOT_COMPUTED'`;
 - só metas em que ele participa aparecem em `activeGoals`.
 - **(L-F08-12)** meta que começa em 5 dias → item com `state 'UPCOMING'`, `startsOn` = início, `value null`; não entra em `summary.openCashTotal`; meta que começa em 8 dias → fora.
-- **(L-F08-05)** prêmio `VOID` com `inspector_note 'The job was cancelled by the agency.'` → `awards[i]` `{ status: 'VOID', voidedAt, inspectorNote: 'The job was cancelled by the agency.' }`; `JSON.stringify(body)` não contém o `void_reason` ("Agency X suspected fraud") nem o `recovery_note`.
+- **(L-F08-05)** prêmio `VOID` com `inspector_note 'The job was cancelled by the agency.'` → `awards[i]` `{ status: 'VOID', voidedAt, inspectorNote: 'The job was cancelled by the agency.' }`; `JSON.stringify(body)` não contém o `void_reason` ("Agency X suspected fraud").
 
 **4. Backend — contrato 03.A3 — `inspector-program-anonymity.routes.test.ts`** (Supertest; 6 inspetores com nomes, e-mails, telefones e ids conhecidos, todos `SCORED`)
 - `GET /v1/inspector/program` como A: `JSON.stringify(body)` não contém nenhum id, nome, e-mail ou telefone dos outros 5; varredura recursiva: nenhuma chave `inspectorId`, `id`, `name`, `photoUrl`, `avatarUrl`, `email` ou `phone`; cada `entries[i]` tem só as 4 chaves.
@@ -1305,8 +1293,8 @@ Da reconciliação (2026-10-29):
 
 | Gatilho | Entrada | Esperado |
 |---|---|---|
-| meta atingida (1 prêmio) | run `MESSAGES` às 08:00 de 9 nov; um prêmio `PENDING` de 30 criado às 04:45, semana 2–8 Nov | `publish({ type: 'PERFORMANCE_MESSAGE', inspectorIds: [id], title: 'Goal reached: Weekly volume', body: 'You reached "Weekly volume" for the week of Mon 2 Nov. Your $30.00 bonus will be reviewed and paid separately from your invoice.', dedupeKey: 'program-goals-reached:<inspectorId>:2026-11-08', targetPath: '/profile/challenges' })` (L-F08-01, L-F08-14) |
-| **(L-F08-01)** agregação | run `MESSAGES` de 16 nov; mesmo inspetor, 3 prêmios da semana 9–15 Nov (30 + 30 + 60) e 1 da quinzena 2–15 Nov (40), todos com `periodEnd 2026-11-15` | **um** `publish`: title `'You reached 4 goals'`, body `'You reached "Weekly volume", "On-time arrival", "Region volume" and "Fortnight volume". Your bonuses (total $160.00) will be reviewed and paid separately from your invoice.'`, `dedupeKey 'program-goals-reached:<inspectorId>:2026-11-15'` |
+| meta atingida (1 prêmio) | run `MESSAGES` às 08:00 de 9 nov; um prêmio `PENDING` de 30 criado às 04:45, semana 2–8 Nov | `publish({ type: 'PERFORMANCE_MESSAGE', inspectorIds: [id], title: 'Goal reached: Weekly volume', body: 'You reached "Weekly volume" for the week of Mon 2 Nov. Your $30.00 bonus will be reviewed and, once approved, added to your next invoice.', dedupeKey: 'program-goals-reached:<inspectorId>:2026-11-08', targetPath: '/profile/challenges' })` (L-F08-01, L-F08-14) |
+| **(L-F08-01)** agregação | run `MESSAGES` de 16 nov; mesmo inspetor, 3 prêmios da semana 9–15 Nov (30 + 30 + 60) e 1 da quinzena 2–15 Nov (40), todos com `periodEnd 2026-11-15` | **um** `publish`: title `'You reached 4 goals'`, body `'You reached "Weekly volume", "On-time arrival", "Region volume" and "Fortnight volume". Your bonuses (total $160.00) will be reviewed and, once approved, added to your next invoice.'`, `dedupeKey 'program-goals-reached:<inspectorId>:2026-11-15'` |
 | **(L-F08-01)** mesmo início, fins diferentes | prêmio semanal 2–8 Nov avisado em 9 nov; prêmio quinzenal 2–15 Nov em 16 nov | 2 avisos distintos (`…:2026-11-08` e `…:2026-11-15`); nenhum descartado como repetido |
 | **(L-F08-01)** inspetores diferentes | 2 inspetores com prêmio no mesmo dia | 2 `publish`, um por inspetor |
 | **(L-F08-01)** horário | run `SCHEDULED` das 04:45 | nenhum `publish` (os passos de mensagem não rodam fora do run `MESSAGES`) |
@@ -1335,7 +1323,7 @@ Da reconciliação (2026-10-29):
 - abre em **Active**; `?tab=results`/`?tab=ranking`; troca com `replace`.
 - **Active:** card por meta com título, "$60", `describeGoal`, progresso e prazo; barra só em volume (`role="progressbar"`, `aria-valuenow 47`, `aria-valuemax 60`, `aria-valuetext "47 of 60 inspections"`); textos dos 5 estados.
 - **(L-F08-12)** item `UPCOMING` com `startsOn '2026-11-16'` → seção "Starting soon" abaixo das ativas, card sem barra com "Starts Mon 16 Nov"; sem itens `UPCOMING` → seção ausente; `countsSince '2026-11-09'` → "Counts jobs since Mon 9 Nov" na descrição.
-- **(L-F08-14)** rodapé de Active e de My results: "Bonuses are reviewed by the Properfy team and paid separately from your invoice. They don't appear in Earnings."
+- **(L-F08-14)** rodapé de Active e de My results: "Bonuses are reviewed by the Properfy team. Once approved, they're added to your next invoice and show in Earnings."
 - **My results:** índice "88.3" ou "Not enough data yet"; nível "Gold" ou "No level yet"; sequência "3 weeks in a row" e aviso de risco; histórico com chips.
 - **(L-F08-05)** prêmio `VOID` com `inspectorNote` → chip "Voided" + nota abaixo; sem nota → "Contact the Properfy team for details."
 - **Ranking:** "You're #4 of 37"; **(L-F08-07)** rodapé "Ranked against all active inspectors on the platform. Other inspectors are shown without names. Updated daily."; `<ol>` "#1 · 96.4 · Gold"; linha própria com "You" e `aria-label "Your position: 4 of 37, score 88.3"`; empates com a mesma posição; **coorte < 5** → só o cartão próprio + "The ranking appears once at least 5 inspectors have a score."; não ranqueado → "You're not ranked yet" + "You'll appear once you have 10 jobs in the last 30 days."; **nenhum nome renderizado**.
@@ -1383,7 +1371,7 @@ Nenhuma tabela nova. Lê as tabelas da TASK-F08-1 e os snapshots da F07; escreve
   };
   awards: Array<{ goalTitle: string; metric: GoalMetric; periodType: BillingPeriodType; periodStart: string; periodEnd: string;
                   amount: number; achievedValue: number; status: RewardAwardStatus; paidAt: string | null;
-                  voidedAt: string | null; inspectorNote: string | null }>; // L-F08-05: nunca voidReason nem recoveryNote
+                  voidedAt: string | null; inspectorNote: string | null }>; // L-F08-05: nunca voidReason; paidAt = paid_at da fatura (TASK-F08-6)
   ranking: {
     myPosition: number | null; myScore: number | null; totalRanked: number;
     notRankedReason: 'NOT_ENOUGH_DATA' | 'NOT_COMPUTED' | null;
@@ -1397,7 +1385,7 @@ Nenhuma tabela nova. Lê as tabelas da TASK-F08-1 e os snapshots da F07; escreve
 - `summary.openCashTotal` soma só itens com período corrente (não `UPCOMING`), sem teto (L-F08-04).
 - **Mensagens (interno):** `PERFORMANCE_MESSAGE`, `targetPath '/profile/challenges'`, enviadas no run `MESSAGES` das **08:00 Sydney** (L-F08-01); `dedupeKey`s `program-goals-reached:<inspectorId>:<periodEnd>` (agregado por inspetor e fim de período, L-F08-01), `program-level:<inspectorId>:<snapshotDate>` (no máximo 1 a cada 7 dias por inspetor, L-F08-06), `program-streak-risk:<inspectorId>:<periodStart>`.
 - **Conteúdo e retenção (DR7):** título e corpo aparecem na tela bloqueada (D23 da F02): só título da meta, valores, datas, nível e sequência; nunca id, nome de agência, endereço ou dado de inquilino. Os avisos são de sistema e a F02 os arquiva após 30 dias; "My results" não depende deles (lê `reward_awards`).
-- **Copy das mensagens:** 1 prêmio — title "Goal reached: {title}", body "You reached "{title}" for {period text}. Your {amount} bonus will be reviewed and paid separately from your invoice."; n > 1 — title "You reached {n} goals", body "You reached "{t1}", "{t2}" and "{tn}". Your bonuses (total {sum}) will be reviewed and paid separately from your invoice." (L-F08-01, L-F08-14).
+- **Copy das mensagens:** 1 prêmio — title "Goal reached: {title}", body "You reached "{title}" for {period text}. Your {amount} bonus will be reviewed and, once approved, added to your next invoice."; n > 1 — title "You reached {n} goals", body "You reached "{t1}", "{t2}" and "{tn}". Your bonuses (total {sum}) will be reviewed and, once approved, added to your next invoice." (L-F08-01, L-F08-14 revista por Q12).
 
 ### Algoritmos
 - **Ranking anônimo:** **(L-F08-07)** a coorte é a **plataforma inteira** (todos os ACTIVE com `SCORED`, `position` da F07), nunca recortada por região, tipo de serviço ou metas; `indexes = getCurrentIndexes()` sem filtro; `ranked = [...indexes].filter(position ≠ null)`; ordenar por `position` asc, depois `sha256(snapshotDate + ':' + inspectorId)` asc (estável no dia, sem nome nem ordem de inserção); mapear para `{ position, score, level, isMe }` descartando o id. `totalRanked < 5` → `entries = []`, `cohortTooSmall = true`.
@@ -1421,11 +1409,11 @@ Nenhuma tabela nova. Lê as tabelas da TASK-F08-1 e os snapshots da F07; escreve
 | Progresso | volume "47 of 60"; taxa "96% so far" (`CANT_DO_MAX` "3% so far"; `LATE_NOTICE` sem atrasos: "No late arrivals so far"); índice "Index 82.4 so far"; `NOT_ENOUGH_SERVICES` "{n} of 10 jobs to qualify"; `NO_DATA` "No data yet" |
 | Situação | volume `MET_SO_FAR` "Target reached"; taxa/índice `MET_SO_FAR` "On track"; senão "{n} days left" / "1 day left" / "Last day"; `BELOW_TARGET` + "Target {target}%" |
 | Descrição extra (L-F08-12) | meta criada depois do início do período: "Counts jobs since {EEE d MMM}" |
-| Rodapé (L-F08-14) | "Bonuses are reviewed by the Properfy team and paid separately from your invoice. They don't appear in Earnings." |
+| Rodapé (L-F08-14) | "Bonuses are reviewed by the Properfy team. Once approved, they're added to your next invoice and show in Earnings." |
 
 *Starting soon* (L-F08-12; só quando há itens `UPCOMING`; depois das ativas, ordem por `startsOn`): card com título, bônus, `describeGoal` e "Starts {EEE d MMM}"; sem barra nem progresso.
 
-*My results* — cartões **Reliability index** ("88.3" / "Not enough data yet"; "Based on your last 30 days. You need 10 jobs for a score."), **Level** ("Gold" / "No level yet"), **Streak** ("3 weeks in a row" / "No streak yet"; em risco "Reach a weekly goal today to keep it."). Lista "Rewards": título, "Week of Mon 2 Nov", valor, chip "Pending approval" / "Approved" / "Paid" / "Voided" (texto + cor); **(L-F08-05)** em "Voided", abaixo do chip, a `inspectorNote` ou "Contact the Properfy team for details.". Vazio: "No rewards yet. Reach a goal to earn one." Rodapé igual ao de Active (L-F08-14).
+*My results* — cartões **Reliability index** ("88.3" / "Not enough data yet"; "Based on your last 30 days. You need 10 jobs for a score."), **Level** ("Gold" / "No level yet"), **Streak** ("3 weeks in a row" / "No streak yet"; em risco "Reach a weekly goal today to keep it."). Lista "Rewards": título, "Week of Mon 2 Nov", valor, chip "Pending review" / "Approved – on your next invoice" / "Paid" / "Voided" (texto + cor; DL14 revista por Q12); **(L-F08-05)** em "Voided", abaixo do chip, a `inspectorNote` ou "Contact the Properfy team for details.". Vazio: "No rewards yet. Reach a goal to earn one." Rodapé igual ao de Active (L-F08-14).
 
 *Ranking* — "You're #4 of 37" (ou "You're not ranked yet" + ajuda); `<ol>` "#", score, nível; linha própria "You"; coorte < 5: só o cartão "Your score: 88.3" + "The ranking appears once at least 5 inspectors have a score."; rodapé **(L-F08-07)** "Ranked against all active inspectors on the platform. Other inspectors are shown without names. Updated daily."
 
@@ -1448,14 +1436,14 @@ Nenhuma tabela nova. Lê as tabelas da TASK-F08-1 e os snapshots da F07; escreve
 9. Várias metas semanais com uma já atingida: sem aviso de risco.
 
 ### Fora do escopo
-"Quality reports sent back", badges, "Help and support"; nomes/fotos/ids no ranking; distância até o próximo nível; selo de acesso antecipado; mensagens críticas/SMS; filas, agendamentos ou jobs novos; mudanças em Earnings ou na caixa de avisos; ranking por região (L-F08-07); mensagem de "meta nova" (L-F08-12) e de prêmio pago/anulado (L-F08-05, estacionamento).
+"Quality reports sent back", badges, "Help and support"; nomes/fotos/ids no ranking; distância até o próximo nível; selo de acesso antecipado; mensagens críticas/SMS; filas, agendamentos ou jobs novos; mudanças em Earnings (as linhas de bônus são da TASK-F08-6) ou na caixa de avisos; ranking por região (L-F08-07); mensagem de "meta nova" (L-F08-12) e de prêmio pago/anulado (L-F08-05, estacionamento).
 
 ### Critérios de aceite
 1. **03.A3:** o ranking mostra a própria posição e as pontuações dos outros sem identificação — teste de contrato (ausência de nome e id), teste de componente (sem nomes), desempate estável por hash e coorte mínima de 5.
 2. **03.10/03.15:** metas com progresso, bônus e prazo; índice, nível, sequência e histórico com status.
 3. **03.17:** as 3 mensagens chegam como `PERFORMANCE_MESSAGE`, sem duplicata, **às 08:00 Sydney** (nunca no run das 04:45), com prêmios do mesmo inspetor e fim de período agregados num aviso; nenhuma mudança de nível é avisada quando os pesos mudaram entre os dois snapshots nem mais de 1 vez a cada 7 dias (L-F08-01, L-F08-06).
-3a. **(L-F08-05/07/09/12/14)** "Voided" mostra só a nota ao inspetor; o rodapé do ranking declara a coorte da plataforma; Challenges é um tile depois de Earnings; "Starting soon" lista metas dos próximos 7 dias; o app diz que o bônus é pago à parte da fatura.
-4. **03.A4 (PWA):** o prêmio criado pelo fechamento aparece em "My results" como "Pending approval".
+3a. **(L-F08-05/07/09/12/14)** "Voided" mostra só a nota ao inspetor; o rodapé do ranking declara a coorte da plataforma; Challenges é um tile depois de Earnings; "Starting soon" lista metas dos próximos 7 dias; o app diz que o bônus aprovado entra na próxima fatura e aparece em Earnings (Q12).
+4. **03.A4 (PWA):** o prêmio criado pelo fechamento aparece em "My results" como "Pending review".
 5. **03.A5:** nenhuma escrita fora da F02 (que audita os avisos). **Q18:** CL_* e AM/OP → 403 no endpoint do inspetor.
 
 ### Dependências
@@ -1485,13 +1473,13 @@ TASK-F08-1, TASK-F08-3; F02-1, F02-3; F04-3, F04-3b.
 ## TASK-F08-5 · Backend + shared + web: relatório `INSPECTOR_PROGRAM` (03.14)
 
 > **Dependências de execução** (2026-10-29 · ver `../paralelizacao.md`)
-> - **Bloqueada por (precisa estar mergeada antes):** TASK-X00-1, TASK-F08-1, TASK-F08-3
+> - **Bloqueada por (precisa estar mergeada antes):** TASK-X00-1, TASK-F08-1, TASK-F08-3, TASK-F08-6 (colunas `reward_awards.inspector_invoice_id` e `financial_entries.reward_award_id`)
 > - **Desbloqueia:** — (fim de cadeia)
 > - **Pode rodar em paralelo com:** TASK-F08-4
 > - **Pista sugerida (time de 6):** D · Web
 
 ### Objetivo
-- `ReportType` **`INSPECTOR_PROGRAM`** no fluxo de relatórios existente, **só AM/OP**, com metas, prêmios e o índice no fechamento.
+- `ReportType` **`INSPECTOR_PROGRAM`** no fluxo de relatórios existente, **só AM/OP**, com metas, prêmios, o índice no fechamento e, por prêmio, a referência do lançamento e da fatura do bônus (Q12, TASK-F08-6).
 - Os **10 lugares** do plano e os **2** que o código também exige.
 
 ### Contexto no código (os lugares)
@@ -1516,12 +1504,12 @@ TASK-F08-1, TASK-F08-3; F02-1, F02-3; F04-3, F04-3b.
 - Testes que listam os tipos: `packages/shared/src/schemas/report.test.ts:187`, `request-report.use-case.test.ts`, `process-report-job.use-case.test.ts`, `GenerateReportDialog.test.tsx`.
 
 ### Decisões aplicáveis
-D8, D11, D12 (2026-10-27); P9, P10 (2026-10-28). Q12 ⚠️ assumida: o relatório mostra o status do pagamento manual.
+D8, D11, D12 (2026-10-27); P9, P10 (2026-10-28). D1/Q12 ✅ decidida em 2026-10-30: o relatório mostra a fatura do bônus e o status do lançamento (não há pagamento manual nem referência de pagamento).
 - **DR5 (N13, L-X00-03, 2026-10-29):** instantes (`Approved at`, `Paid at`, `Voided at`) no fuso do solicitante, como o fluxo de relatórios já faz (só exibição); datas civis (`Period start/end`, `Achieved on`) como gravadas (`PLATFORM_TIMEZONE` para períodos; agência para `Achieved on`).
 
 Das lacunas (2026-10-29):
 - **DL2 (L-F08-02, 2026-10-29):** fechamentos `SKIPPED_INACTIVE` viram uma linha "Skipped (goal inactive)" (o buraco fica visível).
-- **DL3 (L-F08-03, 2026-10-29):** colunas "Paid then voided" (Yes/No) e "Recovery note".
+- **DL3 (L-F08-03, revista 2026-10-30):** coluna "Voided after invoicing" (Yes/No); sem "Recovery note" (a recuperação é a reversão no ledger, coluna "Reversal invoice").
 - **DL5 (L-F08-05, 2026-10-29):** coluna "Inspector note" ao lado de "Void reason" (interno).
 - **DL13 (L-F08-13, 2026-10-29):** "Scope" e "Goal description" usam `scope_label` da fotografia (prêmio; na linha sem prêmio, do fechamento).
 
@@ -1531,7 +1519,7 @@ Das lacunas (2026-10-29):
 3. **`process-report-job.use-case.test.ts`:** despacha para `getInspectorProgramRows`; colunas certas; vazio → só cabeçalho, `READY`, `rowCount 0`.
 4. **`prisma-report-data-reader.integration.test.ts`** (2 metas, 3 fechamentos, prêmios em todos os status, um fechamento sem atingentes): uma linha por prêmio dos fechamentos com `period_end` no intervalo + uma por fechamento sem prêmio; ordem `period_start`, título, P9; instantes no fuso do solicitante; datas civis `YYYY-MM-DD`; fora do intervalo não entra; nenhuma coluna de agência, endereço ou coordenada.
    - **(L-F08-02)** fechamento `SKIPPED_INACTIVE` → uma linha com Status "Skipped (goal inactive)", Participants 0, Promised 0.00, colunas de inspetor vazias.
-   - **(L-F08-03)** prêmio `VOID` com `paid_at` e `recovery_note 'Deducted from the next transfer'` → "Paid then voided" `Yes`, "Paid at" preenchido, "Recovery note" com o texto; `VOID` sem `paid_at` → `No`, "Paid at" vazio.
+   - **(L-F08-03/Q12)** prêmio `PAID` na fatura 42 → "Invoice" `PINV-000042` (formato de `invoiceNumberDisplay`), "Ledger status" `Approved`, "Paid at" = `paid_at` da fatura; prêmio `APPROVED` sem fatura → "Invoice" vazio, "Ledger status" `Approved`; prêmio `VOID` anulado antes de faturar → "Ledger status" `Voided`, "Voided after invoicing" `No`; prêmio `VOID` anulado depois de pago, com reversão na fatura 57 → "Voided after invoicing" `Yes`, "Paid at" mantido, "Reversal invoice" `PINV-000057` (vazio enquanto a reversão não foi faturada); `PENDING` → colunas de lançamento vazias. Nenhuma coluna mostra id cru (memória `feedback_no_raw_ids_in_ui`).
    - **(L-F08-05)** "Void reason" e "Inspector note" em colunas separadas.
    - **(L-F08-13)** meta `REGION_VOLUME` cuja região foi apagada depois do fechamento (`scope_region_id` nulo, `scope_label 'Sydney North'` na fotografia) → "Scope" `Sydney North` e "Goal description" "9 inspections in Sydney North"; fotografia com `scope_label` nulo → "a deleted region".
 5. **`GenerateReportDialog.test.tsx`:** AM/OP veem "Inspector program", CL_* não; escolhido, os campos de agência somem e o envio leva só `fromDate`/`toDate`; `REPORT_TYPE_MAP` com 5 chaves.
@@ -1539,7 +1527,7 @@ Das lacunas (2026-10-29):
 ### Escopo / Passos
 1. Os 12 lugares, nesta ordem: shared (2) → `pnpm --filter @properfy/shared build` → Prisma (1) + `prisma generate` → backend (3–8, +1) → web (9, 10, +2) → `generate:openapi` + `generate:types`.
 2. `INSPECTOR_PROGRAM_COLUMNS` (lista em UI).
-3. Leitor com Prisma (`goal_period_closures` + `inspector_goals` + `reward_awards` + `inspectors` + `users`), sem `$queryRaw`.
+3. Leitor com Prisma (`goal_period_closures` + `inspector_goals` + `reward_awards` + `inspectors` + `users` + `financial_entries` por `reward_award_id` e a reversão por `reference_entry_id` + `inspector_invoices` por `reward_awards.inspector_invoice_id`/snapshot), sem `$queryRaw`.
 4. **Doc (X00):** `apps/backend/CLAUDE.md` — "adicionar um `ReportType` mexe em 12 lugares" (tabela acima).
 
 ### Modelo de dados
@@ -1553,11 +1541,12 @@ Só o valor novo do enum (migration expand; o valor não é usado na mesma trans
 - Por fechamento: prêmios em ordem P9, uma linha cada; sem prêmios → uma linha "sem atingentes"; `trigger 'SKIPPED_INACTIVE'` → uma linha "Skipped (goal inactive)" (L-F08-02).
 - `Per winner` = `amount` do prêmio (fotografia) ou, na linha sem atingentes, o valor vigente no período (`goalTermsForPeriod`, L-F08-02; vazio na linha pulada); `Promised` = `promised_amount` do fechamento.
 - `Scope`/`Goal description` = `scope_label` do prêmio ou do fechamento (L-F08-13), passado a `describeGoal({ metric, target, scopeLabel })`.
-- `Paid then voided` = `status = 'VOID' AND paid_at IS NOT NULL` (L-F08-03).
+- `Voided after invoicing` = `status = 'VOID' AND inspector_invoice_id IS NOT NULL` (L-F08-03 revista; o vínculo é gravado no fechamento da fatura, TASK-F08-6).
+- `Invoice` = `invoiceNumberDisplay` da fatura de `inspector_invoice_id`; `Ledger status` = status do lançamento `INSPECTOR_BONUS` (`reward_award_id`); `Reversal invoice` = fatura `CLOSED`/`PAID` cujo snapshot contém a linha da reversão (`entryId`).
 
 ### UI
 - Tipo "Inspector program" no diálogo e na lista (chip com o token novo).
-- **Colunas:** Period type · Period start · Period end · Goal · Goal description (`describeGoal`) · Metric · Target · Scope · Per winner (AUD) · Participants · Achievers · Promised (AUD) · Inspector · Inspector email · Result · Jobs in period · Achieved on · Index at close · Level at close · Status · Amount (AUD) · Approved by · Approved at · Paid at · Payment reference · Voided at · Void reason · Inspector note (L-F08-05) · Paid then voided (L-F08-03) · Recovery note (L-F08-03). Status inclui "Skipped (goal inactive)" (L-F08-02).
+- **Colunas:** Period type · Period start · Period end · Goal · Goal description (`describeGoal`) · Metric · Target · Scope · Per winner (AUD) · Participants · Achievers · Promised (AUD) · Inspector · Inspector email · Result · Jobs in period · Achieved on · Index at close · Level at close · Status · Amount (AUD) · Approved by · Approved at · Ledger status (Q12) · Invoice (Q12) · Paid at · Voided at · Void reason · Inspector note (L-F08-05) · Voided after invoicing (L-F08-03) · Reversal invoice (Q12). Status inclui "Skipped (goal inactive)" (L-F08-02).
 
 ### Casos de borda
 1. Intervalo sem fechamentos → só cabeçalho, `READY`, `rowCount 0`.
@@ -1566,7 +1555,8 @@ Só o valor novo do enum (migration expand; o valor não é usado na mesma trans
 4. OP com agência escolhida antes de trocar o tipo → o diálogo limpa ao esconder o campo; o backend ignora.
 5. **(L-F08-13)** Região/tipo/inspetor do escopo apagado ou renomeado depois do fechamento → "Scope" mostra o nome do fechamento (fotografia).
 6. **(L-F08-02)** Meta inativa por meses e reativada → uma linha "Skipped (goal inactive)" por período pulado.
-7. **(L-F08-03)** Prêmio pago e anulado → linha com Status "Voided", "Paid then voided" `Yes`, "Paid at" mantido.
+7. **(L-F08-03/Q12)** Prêmio pago e anulado → linha com Status "Voided", "Voided after invoicing" `Yes`, "Paid at" mantido, "Reversal invoice" vazio até a fatura seguinte fechar.
+8. **(Q12)** Fatura com pagamento estornado (`PAID → CLOSED`) → prêmio volta a `APPROVED`: "Paid at" vazio, "Invoice" mantido.
 
 ### Fora do escopo
 Várias planilhas, gráficos, filtros por meta/inspetor, histórico diário do índice, relatório para agências, relatório de exemplo no seed.
@@ -1589,9 +1579,283 @@ TASK-F08-1; TASK-F08-3 (`describeGoal`).
 Migration expand (staging → prod). Backend antes do web. Rollback: reverter o código; o valor do enum fica sem uso; arquivos expiram pela retenção de 30 dias. Observabilidade: logs e notificações de relatório existentes.
 
 ### Dias · Branch · Verificação
-- **Dias:** 1,25 = 03.14 (12 lugares, leitor, colunas, testes) 1,0 + **lacunas 0,25** (L-F08-02 linhas puladas; L-F08-03/05 colunas novas; L-F08-13 escopo da fotografia, com testes).
-- **Branch:** `feat/f08-inspector-program-report` a partir de `develop` (depois das TASK-F08-1 e F08-3), em worktree. ~17 arquivos.
+- **Dias:** 1,25 (sem mudança em 2026-10-30: as colunas de pagamento manual são trocadas pelas de lançamento/fatura no mesmo custo) = 03.14 (12 lugares, leitor, colunas, testes) 1,0 + **lacunas 0,25** (L-F08-02 linhas puladas; L-F08-03/05 colunas novas; L-F08-13 escopo da fotografia, com testes).
+- **Branch:** `feat/f08-inspector-program-report` a partir de `develop` (depois das TASK-F08-1, F08-3 e F08-6), em worktree. ~17 arquivos.
 - **Verificação:** `pnpm --filter @properfy/shared build test`; `pnpm --filter backend exec prisma generate`; `pnpm --filter backend typecheck lint test`; `test:integration` (4) via subagente; `generate:openapi` + `generate:types`; `pnpm --filter web typecheck lint test`; QA no navegador (AM gera e baixa; CL_ADMIN não vê); `git diff --stat origin/develop... | tail -1` < 150.
+
+---
+
+## TASK-F08-6 · Backend + shared + web + PWA: bônus no financeiro (ledger, fatura do inspetor, aditivo Q12)
+
+> **Dependências de execução** (2026-10-30 · ver `../paralelizacao.md`)
+> - **Bloqueada por (precisa estar mergeada antes):** TASK-X00-1, TASK-F08-1 (`ApproveRewardAwardUseCase`, `VoidRewardAwardUseCase`, porta `IRewardAwardApprovalHook`), TASK-F08-3 (aba Rewards)
+> - **Desbloqueia:** TASK-F08-5 (colunas de lançamento/fatura); TASK-F08-4 entra depois dela (copy de DL14)
+> - **Pode rodar em paralelo com:** TASK-F08-2, TASK-F08-4
+> - **Pista sugerida (time de 6):** A2 · Backend em par (billing + inspector-program), com D · Web e C · PWA no último dia
+
+### Objetivo
+- Aditivo Q12 (cláusula 9.4, decidido pelo cliente em 2026-10-30): o bônus aprovado vira **lançamento no ledger** e **linha na fatura do inspetor**; o `RewardAward` fica `PAID` quando essa fatura é paga.
+- `FinancialEntryType` **`INSPECTOR_BONUS`** (Prisma + shared): `appointment_id NULL`, `inspector_id` obrigatório, **`tenant_id NULL`** (bônus é de plataforma), `reward_award_id UNIQUE` (idempotência).
+- Ponto de integração único no inspector-program: aprovar o prêmio cria o lançamento `APPROVED` na mesma transação do CAS; anular antes de faturado anula o lançamento; anular depois de faturado (só AM) cria a reversão.
+- Ganchos no billing: fechar a fatura (`PENDING_REVIEW → CLOSED`) vincula os prêmios; pagar (`CLOSED → PAID`, unitário e em lote) leva os prêmios a `PAID`; estornar o pagamento (`PAID → CLOSED`) devolve a `APPROVED`.
+- Agências **nunca** veem o bônus (lista, detalhe, resumo, exportação, relatório FINANCIAL, dashboard).
+- Web: aba Rewards com a fatura do prêmio e "Void" de faturado (só AM); lista financeira e fatura com a linha "Bonus". PWA: bônus no histórico de Earnings e na fatura.
+
+### Contexto no código (verificado @ `ba076fc4`, `origin/develop`, 2026-10-30)
+- **Modelo:** `FinancialEntry` (`apps/backend/prisma/schema.prisma:1233-1273`): `tenant_id String` obrigatório (`:1235`) com relação obrigatória `tenant Tenant` (`:1252`); `appointment_id`/`inspector_id` já opcionais; `initiated_by_user_id` opcional; auto-relação `reference_entry_id`/`EntryReference` (`:1247,1261-1262`). `enum FinancialEntryType` (`:1021-1026`) = `TENANT_DEBIT`, `INSPECTOR_PAYOUT`, `REFUND`, `MANUAL_ADJUSTMENT`. `InspectorInvoice` (`:1275-1313`): `line_items_snapshot Json?`, `total_amount`, `paid_at`, `paid_by_user_id`, `payment_reference`, índice único **parcial** por `(inspector_id, period_start, period_end)` só nos status ativos (`:1303-1307`, SQL da spec 032) e GIN em `line_items_snapshot` (`:1311`). Shared: `FinancialEntryType` (`packages/shared/src/enums/financial.ts:1-7`), `AGENCY_VISIBLE_ENTRY_TYPES` (`:21-25`), filtro `type` com enum fixo (`packages/shared/src/schemas/billing.ts:4`), `financialEntryResponseSchema.tenantId: z.string().uuid()` obrigatório (`packages/shared/src/schemas/responses.ts:966-968`), `invoiceSnapshotLineSchema` com `appointmentId: uuid` e `appointmentCode: string` obrigatórios (`responses.ts:995-1006`).
+- **Fatura não tem FK para lançamento:** é por **período**. `RequestInvoiceUseCase` (`apps/backend/src/modules/billing/application/use-cases/request-invoice.use-case.ts:58-94`): período fechado e alinhado ao ciclo do inspetor, soma `aggregateApprovedPayoutsForInspectorInPeriod` em `periodEffectiveRange` (≥ 1 lançamento, uma moeda), nenhuma fatura ativa no período. `PreviewInvoiceUseCase` devolve `payoutCount` (`preview-invoice.use-case.ts:59`). `ApproveDraftInvoiceUseCase` (`approve-draft-invoice.use-case.ts:110-151`): relê o ledger com `findApprovedPayoutLinesForSnapshot`, soma as linhas e congela snapshot, total, nome e ABN em `assignNumberAndFreeze` (`prisma-inspector-invoice.repository.ts:215-249`, `$transaction`); PDF enfileirado depois (`:154-160`).
+- **Pagamento e estorno da fatura:** `MarkInvoicePaidUseCase` (`mark-invoice-paid.use-case.ts:136-160`) e `BatchMarkInvoicesPaidUseCase` (`batch-mark-invoices-paid.use-case.ts:140-190`) gravam com `invoiceRepo.update` **sem transação e sem CAS**; `ReverseInvoicePaymentUseCase` faz `PAID → CLOSED` (`reverse-invoice-payment.use-case.ts:33,80-130`). Transições no domínio: `inspector-invoice.entity.ts:126-183`.
+- **VOID de fatura hoje:** só `PENDING_REVIEW → VOID` (`RejectDraftInvoiceUseCase`, `reject-draft-invoice.use-case.ts:99-111`; `voidIfPendingReview`, `prisma-inspector-invoice.repository.ts:251`). Fatura `CLOSED`/`PAID` **não** é anulada. Como não há vínculo lançamento→fatura, o lançamento "volta" sozinho: um novo pedido para o mesmo período o relê (o índice parcial deixa a fatura VOID coexistir). A F08-6 segue isso: rejeitar rascunho não mexe no prêmio; o vínculo do prêmio só é gravado no fechamento.
+- **Os 3 leitores de fatura que filtram `INSPECTOR_PAYOUT`** (`apps/backend/src/modules/billing/infrastructure/prisma-financial-entry.repository.ts`): `sumApprovedPayoutsForInspectorInPeriod` (`:393-406`, filtro `:401`), `aggregateApprovedPayoutsForInspectorInPeriod` (`:408-430`, `:419`), `findApprovedPayoutLinesForSnapshot` (`:432-490`, `:445`, que ainda exige `appointment_id: { not: null }` e monta `agencyName: appt.tenant?.name`, `:485`). Outros leitores do inspetor: `getInspectorEarningsSummary` (`:125-160`, `payoutWhere` `:126`); `getSummary` com `switch` por tipo (`:112-119`, sem caso para tipo novo).
+- **Escopo por papel:** `ListFinancialEntriesUseCase` (`list-financial-entries.use-case.ts`): AM sem filtro de tenant (`:74-79`); **OP com `filters.tenantId = actor.tenantId`** (`:97-103`); CL com `requireAgencyTenantScope` + `excludeInspectorScoped` (`inspector_id IS NULL`) + `AGENCY_VISIBLE_ENTRY_TYPES` (`:104-124`); INSP com `entryType = 'INSPECTOR_PAYOUT'` forçado (`:125-133`). `GetFinancialEntryUseCase` (`get-financial-entry.use-case.ts:30-46`): CL → 404 fora do tenant/tipo; INSP → 404 se não for `INSPECTOR_PAYOUT`. Repositório: `if (filters.tenantId) where.tenant_id` (`:48`), `excludeInspectorScoped` (`:55`), lista de agência (`:81`), `sumApprovedEntriesForTenantInPeriod` (`:507-520`).
+- **Lugares que supõem `tenant_id` não nulo:** entidade `tenantId: string` (`financial-entry.entity.ts:6,26,43`); mapper `tenantId: row.tenant_id` (`prisma-financial-entry.repository.ts:20`); `create` grava `tenant_id: entry.tenantId` (`:272`); escritas com `where: { id, tenant_id: tenantId }` e `tenantId: string` em `updateStatus` (`:292-298`), atualização de ajuste (`:309-325`), `approvePendingEntry` (`:333-356`), transição (`:363-380`) e `voidEntry` (`:544-550`), chamadas com `entry.tenantId` (ex.: `void-financial-entry.use-case.ts:88,97`); `relatedEntityName: inspector?.name ?? tenant?.name` (`:189,253`, já tolera nulo); `financialEntryResponseSchema.tenantId` obrigatório (`responses.ts:968`); relatório FINANCIAL com comentário "tenant_id is always set" e `agency: e.tenant?.name ?? ''` (`apps/backend/src/modules/report/infrastructure/prisma-report-data-reader.ts:197,220`).
+- **Agências e relatórios:** relatório FINANCIAL (`prisma-report-data-reader.ts:146-158`): `tenantId` opcional; `agencyScoped` → `AGENCY_VISIBLE_ENTRY_TYPES` + `inspector_id: null`; `switch` de receita/despesa (`:199-213`, sem caso novo). `FINANCIAL_AGENCY_COLUMNS` (`apps/backend/src/modules/report/domain/report.constants.ts:67`). `ExportAgencyFinancialUseCase` (`export-agency-financial.use-case.ts:75-78`). Dashboard: pendentes com allowlist de agência (`apps/backend/src/modules/dashboard/infrastructure/prisma-dashboard.repository.ts:189-196`); analytics só soma `TENANT_DEBIT` (`prisma-dashboard-analytics.repository.ts:133-137`, não muda).
+- **Lançamento do sistema:** `CreateFinancialEntriesOnDoneUseCase` grava `initiatedByUserId: null` (`create-financial-entries-on-done.use-case.ts:93-96,151-154`); o literal `'SYSTEM'` violava a FK de `users` e zerou o ledger em prod (PR #1229, memória `project_financial_entries_system_initiator_fk_bug`). Reversão com vínculo: compensação DONE→REJECTED cria `REFUND` com `referenceEntryId` (`apps/backend/src/modules/appointment/application/handlers/compensate-financial-on-done-rejected.handler.ts:71-80`).
+- **Arquivos da fatura:** só PDF (`generate-invoice-file.worker.ts:39-55`; colunas Appointment, Property, Service Type, Agency em `pdfkit-invoice-pdf.generator.ts:14-17`, linhas `:81-90`); não há XLSX de fatura.
+- **Web:** linhas da fatura em `apps/web/src/features/financial/components/InvoiceDetailDrawer.tsx:198-217` (`line.appointmentCode`); rótulos de tipo em `apps/web/src/lib/status-colors.ts:92` e `apps/web/src/features/financial/constants/form-options.ts:5`; `FinancialTable.tsx:45,76` (`appointmentCode ?? description`).
+- **PWA:** histórico de Earnings pede `/v1/financial/entries?type=INSPECTOR_PAYOUT` (`apps/pwa/src/features/earnings/hooks/useInspectorEarnings.ts:60`); linhas da fatura com chave `line.appointmentCode` (`apps/pwa/src/features/earnings/pages/InvoiceDetailPage.tsx:67-79`); pedido de fatura mostra "{n} approved payouts" (`RequestInvoicePage.tsx:41,114`).
+- **TASK-F08-1:** `ApproveRewardAwardUseCase` e `VoidRewardAwardUseCase` com CAS e `IRewardAwardApprovalHook` no-op; `reward_awards.paid_at` nulo; CHECK `reward_awards_status_fields_chk` já aceita `paid_at` em `VOID`.
+
+### Decisões aplicáveis
+D1 (Q12 ✅ decidida pelo cliente em 2026-10-30), D8, D12 (2026-10-27); DV2 (2026-10-28: prêmio do sistema, aprovação sem autoaprovação = maker-checker); DL3 e DL14 revistas (2026-10-30); DR5 (fuso de cada campo).
+
+Do dev (2026-10-30):
+- **DQ1 · Tipo novo** `INSPECTOR_BONUS` no enum Prisma e no shared; `appointment_id NULL`, `inspector_id` obrigatório, `reward_award_id UNIQUE`.
+- **DQ2 · `tenant_id NULL` só no `INSPECTOR_BONUS`.** Migration expand (`DROP NOT NULL`) + CHECK `("entry_type" = 'INSPECTOR_BONUS') = ("tenant_id" IS NULL)`. Leitores de agência filtram por `tenant_id` (o `NULL` sai sozinho), mas cada um é conferido e ganha teste explícito.
+- **DQ3 · Integração única na aprovação:** na transação do CAS do `ApproveRewardAwardUseCase`, criar o lançamento `APPROVED` com `initiated_by_user_id NULL` e `approved_by_user_id` = quem aprovou o prêmio (padrão PR #1229; o CAS do prêmio sem autoaprovação **é** o maker-checker).
+- **DQ4 · Fatura:** o bônus entra na fatura do período (ciclo do inspetor) que contém a data da aprovação (`effective_at = approved_at`), como linha sem atendimento "Bonus: {goal title} · {period}", no total, no snapshot e no PDF.
+- **DQ5 · Sem "Mark as paid".** As TASK-F08-1/3 não constroem pagamento manual. `PAID` automático no pagamento da fatura (mesma transação, idempotente); estorno do pagamento devolve a `APPROVED`. Rejeitar rascunho de fatura (`PENDING_REVIEW → VOID`) não mexe no prêmio: o lançamento entra no próximo pedido do mesmo período (comportamento atual).
+- **DQ6 · Anular:** antes de faturado, lançamento `VOIDED` na mesma transação; depois (fatura `CLOSED`/`PAID`), só AM, com lançamento de **reversão** `INSPECTOR_BONUS` negativo que cai na próxima fatura. Vínculo da reversão pela coluna **existente** `reference_entry_id` (→ lançamento original), não por coluna nova: a auto-relação já existe e é o padrão do `REFUND` da compensação; `reward_award_id` fica só no original (o `UNIQUE` continua 1:1) e a idempotência da reversão é um índice único parcial em `reference_entry_id` para o tipo. `recovery_note` não existe.
+- **DQ7 · PWA:** bônus no histórico de Earnings e nas linhas da fatura; copy de DL14 (TASK-F08-4).
+- **DQ8 · Relatórios:** FINANCIAL de AM/OP inclui o bônus (despesa); FINANCIAL de agência e `FINANCIAL_AGENCY_COLUMNS` nunca. `INSPECTOR_PROGRAM` (TASK-F08-5) mostra lançamento e fatura.
+- **DQ9 · Leitores do billing:** os 3 leitores de fatura e o resumo de ganhos incluem `INSPECTOR_BONUS`.
+
+Desta quebra (2026-10-30, a confirmar nos Achados):
+- **DQ10 · OP vê as linhas de bônus na lista financeira.** O ramo OP (`list-financial-entries.use-case.ts:97-103`) força `tenant_id = actor.tenantId` e esconderia o bônus de quem aprova os prêmios. Proposta: filtro novo `includePlatformBonus` só para OP (`OR (tenant_id IS NULL AND entry_type = 'INSPECTOR_BONUS')`). É ampliação de RBAC: seguir o checklist (memória `project_rbac_widening_checklist`). Alternativa sem ampliação: OP vê o bônus só na aba Rewards e na fatura.
+- **DQ11 · Vínculo prêmio → fatura no fechamento.** Coluna nova `reward_awards.inspector_invoice_id` (FK, nula) gravada quando a fatura passa a `CLOSED` (a única fatura que não pode mais ser anulada). "Faturado" = `inspector_invoice_id IS NOT NULL`; dá o link "Invoice PINV-…" sem varrer JSON.
+- **DQ12 · Lançamento do bônus é gerido só pelo prêmio:** `void`/`update`/`approve`/`cancel`/`refund` genéricos do billing em `INSPECTOR_BONUS` → 409 `BONUS_ENTRY_MANAGED_BY_REWARD` "Bonus entries are managed from Goals & rewards.".
+- **DQ13 · Período com total ≤ 0** (só reversão, ou reversão maior que os ganhos): o pedido de fatura responde 422 `INVOICE_NON_POSITIVE_TOTAL` "This period has no amount to invoice." (o preview só mostra o total, e o PWA desabilita "Request"); a OP resolve com ajuste manual. Raro (o bônus é pequeno perto dos ganhos do período).
+
+### Testes primeiro (TDD)
+
+Vitest; relógio injetado; datas de período com `TZ=America/Los_Angeles` também (memória `feedback_tz_dependent_test_must_pin_away`). Inspetor `I` com ciclo `WEEKLY`; meta "Weekly volume" $30; prêmio `A` `PENDING` da semana 2–8 Nov 2026.
+
+**1. Shared — `financial.test.ts` e `responses.test.ts`**
+- `FinancialEntryType` contém `INSPECTOR_BONUS`; `AGENCY_VISIBLE_ENTRY_TYPES` **não** contém (`['TENANT_DEBIT','REFUND','MANUAL_ADJUSTMENT']` exato).
+- `financialEntryResponseSchema` aceita `tenantId: null`; `invoiceSnapshotLineSchema`: linha antiga (sem `kind`) → `kind 'SERVICE'`; `{ kind: 'BONUS', appointmentId: null, appointmentCode: null, entryId, rewardAwardId, description: 'Bonus: Weekly volume · Week of Mon 2 Nov' }` → ok; `kind 'SERVICE'` sem `appointmentId` → erro.
+- `listFinancialEntriesQuerySchema.type` aceita `INSPECTOR_BONUS`.
+
+**2. Aplicação — `approve-reward-award.use-case.test.ts` (acréscimo)**
+
+| Caso | Esperado |
+|---|---|
+| OP aprova `A` às `2026-11-10T01:00:00Z` | na mesma transação: `A` `APPROVED` e 1 lançamento `{ entry_type: 'INSPECTOR_BONUS', tenant_id: null, appointment_id: null, inspector_id: I, reward_award_id: A, amount: 30.00, currency: 'AUD', status: 'APPROVED', effective_at: approved_at, initiated_by_user_id: null, approved_by_user_id: <OP>, approved_at, description: 'Bonus: Weekly volume · Week of Mon 2 Nov' }`; audit `reward_award.approved` com `after.financialEntryId` e `financial_entry.created` |
+| quem criou a meta aprova | aprovado; lançamento criado (DV2) |
+| inserção do lançamento falha (simulada) | rollback: `A` continua `PENDING`; 500 logado; nada engolido por `catch {}` (lição do PR #1229) |
+| dois aprovadores simultâneos | um vence; o outro recebe 409 depois da releitura; **1** lançamento |
+| mesma `Idempotency-Key` repetida | resposta guardada; 1 lançamento |
+| `reward_award_id` já existe (CAS forçado a passar no teste) | `P2002` no `UNIQUE` → 409 `REWARD_AWARD_INVALID_STATUS`, rollback |
+
+**3. Aplicação — `void-reward-award.use-case.test.ts` (acréscimo)**
+
+| Caso | Esperado |
+|---|---|
+| OP anula `PENDING` | `VOID`; nenhum lançamento tocado (não existe) |
+| OP anula `APPROVED` não faturado (`inspector_invoice_id` nulo) | `VOID` e lançamento `APPROVED → VOIDED` (`voided_by`, `voided_at`, `void_reason` = motivo) na mesma transação |
+| idem com fatura do período em `PENDING_REVIEW` | igual; ao aprovar o rascunho, o snapshot não tem a linha e o total é recalculado (comportamento atual) |
+| OP anula `APPROVED` faturado (fatura `CLOSED`) | 403 `FORBIDDEN` "Only an Admin Master can void an invoiced reward"; nada gravado |
+| AM anula `APPROVED` faturado | `VOID`; lançamento original **intocado**; reversão `{ INSPECTOR_BONUS, amount: -30.00, tenant_id: null, reward_award_id: null, reference_entry_id: <original>, status: 'APPROVED', effective_at: now, description: 'Bonus reversal: Weekly volume · Week of Mon 2 Nov' }`; audit com `afterInvoicing: true` |
+| AM anula `PAID` | igual; `paid_at` mantido; `voidedAfterInvoicing true` |
+| mesma `Idempotency-Key` / segunda anulação | 1 reversão (índice único parcial); 409 `REWARD_AWARD_INVALID_STATUS` na segunda |
+| corrida: AM anula `APPROVED` enquanto a OP aprova o rascunho da fatura do período | um vence: (a) anulação primeiro → fechamento vê o prêmio `VOID`, a contagem de vínculos não bate e o fechamento falha com 409 `INVOICE_LINES_CHANGED` "Invoice lines changed. Try again." (retry congela sem a linha); (b) fechamento primeiro → a anulação lê `inspector_invoice_id` e segue o ramo de reversão |
+| `recoveryNote` no corpo | 400 (`.strict()`) |
+
+**4. Billing — leitores (`prisma-financial-entry.repository.integration.test.ts`, banco real)**
+- `aggregateApprovedPayoutsForInspectorInPeriod(I, semana 9–15 Nov)` com 2 payouts (80 + 70) e o bônus aprovado em 10 nov → `{ totalAmount: 180, count: 3 }`; bônus `VOIDED` → fora; bônus de outro inspetor → fora.
+- `sumApprovedPayoutsForInspectorInPeriod` → 180.
+- `findApprovedPayoutLinesForSnapshot` → 2 linhas `SERVICE` (inalteradas) + 1 `{ kind: 'BONUS', serviceDate: '2026-11-10', appointmentId: null, appointmentCode: null, propertyAddress: null, serviceType: null, agencyId: null, agencyName: null, branchId: null, branchName: null, amount: 30, entryId, rewardAwardId: A, description: 'Bonus: Weekly volume · Week of Mon 2 Nov' }`, em ordem de `effective_at`; reversão → linha `BONUS` com `amount -30`, `rewardAwardId` do original via `reference_entry_id`, `description` "Bonus reversal: …".
+- `getInspectorEarningsSummary(I)` soma o bônus em `totalApproved` e no mês de `effective_at`.
+- `getSummary` (AM) → `totalBonuses 30` separado de `totalPayouts`.
+
+**5. Billing — fatura (unit + integração)**
+- `request-invoice`: período só com bônus (30) → cria `PENDING_REVIEW` (`payoutCount 1`); período só com reversão (−30) → 422 `INVOICE_NON_POSITIVE_TOTAL` (DQ13); bônus em AUD com payouts em outra moeda → `InvoiceMixedCurrencyError` (existente).
+- `approve-draft-invoice` da semana 9–15 Nov: `total_amount 180`, snapshot com a linha `BONUS`; **na mesma transação** `A.inspector_invoice_id = invoice.id` (`UPDATE … WHERE id IN (rewardAwardIds) AND status = 'APPROVED'`; contagem ≠ linhas `BONUS` com `rewardAwardId` de prêmio original → rollback + 409 `INVOICE_LINES_CHANGED`); fatura sem linha `BONUS` → nenhum `UPDATE` (zero regressão nos testes atuais).
+- `mark-invoice-paid` da fatura com `A`: fatura `PAID` e `A` `APPROVED → PAID` com `paid_at = invoice.paid_at` na **mesma transação**; audit `reward_award.paid` (`actorType 'SYSTEM'`, `metadata.invoiceId`); repetir (idempotência do billing) → nada novo; prêmio já `VOID` (anulado depois do fechamento) → não muda (`WHERE status = 'APPROVED'`, 0 linhas, sem erro).
+- `batch-mark-invoices-paid` com 2 faturas, uma com bônus → só os prêmios dela viram `PAID`; fatura pulada (`NOT_CLOSED`) não mexe em prêmio.
+- `reverse-invoice-payment` (`PAID → CLOSED`) → `A` `PAID → APPROVED`, `paid_at` nulo, `inspector_invoice_id` mantido; audit `reward_award.payment_reversed`.
+- `reject-draft-invoice` (`PENDING_REVIEW → VOID`) → `A` não muda (`APPROVED`, sem vínculo); novo pedido do mesmo período relê o bônus.
+- falha no `UPDATE` dos prêmios ao pagar → rollback da fatura (continua `CLOSED`).
+
+**6. Isolamento de agência (integração, Supertest)** — seed: agência X com payout/débito; bônus de `I` (que atende X).
+- CL_ADMIN/CL_USER de X: `GET /v1/financial/entries` sem filtro, com `type=INSPECTOR_BONUS` (→ 403 existente "Agencies cannot view this entry type") e com `appointmentId`; `GET /v1/financial/entries/:bonusId` → **404**; resumo, exportação agency (`export-agency-financial`) e contagem de pendentes do dashboard → bônus ausente em todos.
+- relatório FINANCIAL `agencyScoped` de X → nenhuma linha `INSPECTOR_BONUS`; colunas = `FINANCIAL_AGENCY_COLUMNS` (inalteradas).
+- AM: lista sem `tenantId` → bônus presente; com `tenantId = X` → ausente (o bônus não é de agência). OP: presente com `includePlatformBonus` (DQ10) e ausente o bônus de agência alheia.
+- INSP `I`: lista sem `type` → payouts + bônus próprios; `type=INSPECTOR_BONUS` → só bônus; bônus de outro inspetor por id → 404.
+
+**7. Ações genéricas no lançamento de bônus** — `void-financial-entry`, `update-financial-entry`, `approve-financial-entry`, `cancel-financial-entry`, `create-refund` com id de `INSPECTOR_BONUS` → 409 `BONUS_ENTRY_MANAGED_BY_REWARD`, nada gravado (DQ12).
+
+**8. Banco — `financial-entries-bonus.db.test.ts` (Testcontainers)**
+- CHECK `financial_entries_bonus_tenant_chk`: `INSPECTOR_BONUS` com `tenant_id` → violação; `TENANT_DEBIT` com `tenant_id NULL` → violação.
+- CHECK `financial_entries_bonus_shape_chk`: bônus sem `inspector_id`, com `appointment_id`, com `reward_award_id` **e** `reference_entry_id`, original com valor ≤ 0, reversão com valor ≥ 0 → violação; `reward_award_id` em tipo ≠ `INSPECTOR_BONUS` → violação.
+- `UNIQUE (reward_award_id)`; índice parcial `financial_entries_bonus_reversal_unique` → segunda reversão do mesmo original falha com `23505` (cru, não `P2002`: memória `project_pricing_catalog_spec_execution`) e o repositório mapeia para 409.
+- `reward_awards.inspector_invoice_id` FK `Restrict`.
+- migração sobre dump com lançamentos existentes: nenhum dado alterado; `tenant_id` continua preenchido em todas as linhas antigas.
+
+**9. Relatório FINANCIAL (`prisma-report-data-reader.integration.test.ts`, acréscimo)** — AM/OP sem agência: linha do bônus com `agency` vazio, `entryType 'INSPECTOR_BONUS'`, `expense 30`; reversão `expense -30`; com filtro de agência → ausente.
+
+**10. Web (Vitest + RTL)**
+- `RewardAwardsTable`: `APPROVED` sem fatura → "Approved · next invoice"; com `invoice` → link "PINV-000042" para o drawer da fatura; `PAID` → "Paid" + link; AM vê "Void" em `APPROVED` faturado e em `PAID` (diálogo com aviso "This bonus is already on an invoice. Voiding it adds a reversal to the inspector's next invoice."); OP não vê; 403 → "Only an Admin Master can void an invoiced reward."; `VOID` com `voidedAfterInvoicing` → chip "Voided after invoicing". Nenhum "Mark as paid".
+- `FinancialTable`: linha `INSPECTOR_BONUS` com chip "Bonus" e descrição no lugar do código; agência "—".
+- `InvoiceDetailDrawer`: linha `BONUS` com "Bonus" na coluna Appointment e a descrição; total igual à soma.
+
+**11. PWA (Vitest + RTL)**
+- `useInspectorPayoutHistory` não manda `type` (o backend devolve payouts + bônus do inspetor); item `INSPECTOR_BONUS` com rótulo "Bonus" e descrição; reversão com valor negativo "−$30.00".
+- `InvoiceDetailPage`: linha `BONUS` sem endereço, com "Bonus: Weekly volume · Week of Mon 2 Nov"; chave da lista por `entryId ?? appointmentCode`.
+- `RequestInvoicePage`: "{n} approved items" (payouts + bônus).
+
+**12. E2E web (estende o da TASK-F08-3)** — depois de "Approve": fixture fecha a semana do faturamento, o inspetor pede a fatura, AM aprova e marca paga → aba Rewards mostra "Paid" e "PINV-…"; CL_ADMIN da agência do inspetor abre Financial → nenhuma linha "Bonus".
+
+### Escopo / Passos
+1. **Shared:** `INSPECTOR_BONUS` em `FinancialEntryType` (fora de `AGENCY_VISIBLE_ENTRY_TYPES`, comentário); `billing.ts:4` aceita o tipo; `financialEntryResponseSchema.tenantId` `.nullable()`; `invoiceSnapshotLineSchema` com `kind: z.enum(['SERVICE','BONUS']).default('SERVICE')`, `appointmentId`/`appointmentCode` `.nullable()` com `refine` (`SERVICE` exige os dois), `entryId?: uuid`, `rewardAwardId?: uuid | null`, `description?: string | null`; `rewardAwardResponseSchema` ganha `financialEntryId`, `invoice`, `voidedAfterInvoicing`; `voidAwardSchema` sem mudança. `pnpm --filter @properfy/shared build`.
+2. **Prisma + 2 migrations** (Modelo de dados). Relação `tenant Tenant?`; `rewardAward RewardAward?`; `RewardAward.inspector_invoice` e back-relations. `prisma generate`.
+3. **Ripple do `tenant_id` nulo** (lista do Contexto): entidade `tenantId: string | null`; mapper; `create`; os métodos de escrita com `where: { id, tenant_id }` passam a receber `tenantId: string | null` só onde o bônus pode chegar — como as ações genéricas são bloqueadas em bônus (DQ12) antes da escrita, eles mantêm `string` e o guarda fica no use case (typecheck acusa qualquer chamada com `entry.tenantId` nulo). Relatório: tirar o comentário "tenant_id is always set" e tratar `INSPECTOR_BONUS` como despesa.
+4. **Billing — leitores:** `entry_type: { in: ['INSPECTOR_PAYOUT','INSPECTOR_BONUS'] }` nos 3 leitores de fatura e em `getInspectorEarningsSummary`; `findApprovedPayoutLinesForSnapshot` passa a ler o bônus numa segunda consulta (sem `appointment`) com a meta do prêmio para a descrição já gravada no lançamento, e intercala por `effective_at`; `getSummary` com `totalBonuses`. `RequestInvoiceUseCase`: total ≤ 0 → `InvoiceNonPositiveTotalError` (DQ13); `PreviewInvoiceUseCase` só devolve o total (o `payoutCount` passa a contar bônus).
+5. **Billing — escopo:** `ListFinancialEntriesUseCase` INSP → `entryTypeIn: ['INSPECTOR_PAYOUT','INSPECTOR_BONUS']` sem `type`, `type` restrito a esses dois; OP → `includePlatformBonus` (DQ10); `GetFinancialEntryUseCase` INSP aceita os dois tipos. Guarda `BONUS_ENTRY_MANAGED_BY_REWARD` em void/update/approve/cancel/refund (DQ12).
+6. **Billing — ganchos da fatura** via porta `IRewardAwardInvoiceSync` (domínio do billing; implementação no inspector-program; parâmetro opcional no fim do construtor, memória `project_adding_usecase_dep_breaks_untyped_test_wirings`): `linkToInvoice(tx, invoiceId, rewardAwardIds)` no `assignNumberAndFreeze` (a leitura do snapshot entra na mesma `$transaction`); `markPaidForInvoice(tx, invoiceId, paidAt)` em `MarkInvoicePaidUseCase` e por fatura no lote (escrita da fatura + prêmios numa `$transaction`; método novo `invoiceRepo.markPaidInTransaction`); `revertPaidForInvoice(tx, invoiceId)` em `ReverseInvoicePaymentUseCase`.
+7. **Inspector-program:** `IRewardAwardApprovalHook` real (`BonusLedgerHook`) usando um repositório pequeno `IBonusEntryWriter` (porta no inspector-program, implementação no billing — o prêmio não importa o repositório financeiro); `VoidRewardAwardUseCase` com os 2 ramos (DQ6) e `assertRoles([AM])` no ramo faturado; permissão `inspector_program.awards.void_invoiced` (só AM) em `ROLE_ACTION_MATRIX`; listagem e resposta com `financialEntryId`, `invoice: { id, invoiceNumberDisplay, status } | null`, `voidedAfterInvoicing`.
+8. **PDF:** linha `BONUS` → Appointment "Bonus", Property = `description`, Service Type/Agency "-"; total inalterado (soma das linhas).
+9. **Web:** `RewardAwardsTable` (coluna "Invoice", chips, "Void" de faturado só AM, diálogo com aviso), `RewardsTab` tile "Paid" passa a refletir faturas pagas; `status-colors.ts` + `form-options.ts` com "Bonus" (token `--color-fin-type-bonus`, contraste ≥ 4.5:1); `FinancialTable`/drawer do lançamento sem atendimento; `InvoiceDetailDrawer` linha `BONUS`.
+10. **PWA:** histórico sem `type` fixo; rótulo "Bonus"; `InvoiceDetailPage` e `RequestInvoicePage`.
+11. **OpenAPI:** `generate:openapi` + `generate:types` (memória `reference_generate_openapi_env`), commitados (memória `feedback_generated_apitypes_merge`).
+12. **Doc (X00):** `apps/backend/CLAUDE.md` — billing: "`INSPECTOR_BONUS` é o único lançamento sem `tenant_id`; leitores de agência nunca o devolvem; só o inspector-program o cria/anula"; inspector-program: ganchos da fatura e regra de anulação; `packages/shared/CLAUDE.md` — `invoiceSnapshotLineSchema.kind`. Atualizar `CLAUDE.md` da raiz §8 (regras financeiras: bônus de meta entra na fatura do inspetor).
+
+### Modelo de dados
+```prisma
+enum FinancialEntryType { TENANT_DEBIT INSPECTOR_PAYOUT REFUND MANUAL_ADJUSTMENT INSPECTOR_BONUS }
+
+model FinancialEntry {
+  tenant_id       String?        // Q12: NULL só em INSPECTOR_BONUS (CHECK)
+  reward_award_id String?  @unique // Q12: lançamento original do bônus (1:1 com o prêmio)
+  tenant          Tenant?        @relation(fields: [tenant_id], references: [id])
+  rewardAward     RewardAward?   @relation(fields: [reward_award_id], references: [id], onDelete: Restrict)
+  // demais campos inalterados; reversão usa reference_entry_id (existente)
+}
+
+model RewardAward {
+  inspector_invoice_id String?           // Q12/DQ11: gravado no fechamento da fatura (CLOSED)
+  inspector_invoice    InspectorInvoice? @relation(fields: [inspector_invoice_id], references: [id], onDelete: Restrict)
+  financial_entry      FinancialEntry?
+  @@index([inspector_invoice_id])
+}
+```
+- **Migration 1** `YYYYMMDDhhmmss_financial_entry_type_inspector_bonus`: `ALTER TYPE "FinancialEntryType" ADD VALUE 'INSPECTOR_BONUS';` sozinha (o Postgres não deixa usar o valor novo na mesma transação, e os CHECKs abaixo o citam).
+- **Migration 2** `YYYYMMDDhhmmss_inspector_bonus_ledger` (expand):
+  ```sql
+  ALTER TABLE "financial_entries" ALTER COLUMN "tenant_id" DROP NOT NULL;
+  ALTER TABLE "financial_entries" ADD COLUMN "reward_award_id" TEXT;
+  ALTER TABLE "financial_entries" ADD CONSTRAINT "financial_entries_reward_award_id_fkey"
+    FOREIGN KEY ("reward_award_id") REFERENCES "reward_awards"("id") ON DELETE RESTRICT;
+  CREATE UNIQUE INDEX "financial_entries_reward_award_id_key" ON "financial_entries"("reward_award_id");
+  ALTER TABLE "financial_entries"
+    ADD CONSTRAINT "financial_entries_bonus_tenant_chk" CHECK (("entry_type" = 'INSPECTOR_BONUS') = ("tenant_id" IS NULL)),
+    ADD CONSTRAINT "financial_entries_bonus_shape_chk" CHECK (
+      ("reward_award_id" IS NOT NULL) <= ("entry_type" = 'INSPECTOR_BONUS')
+      AND (("entry_type" <> 'INSPECTOR_BONUS') OR (
+        "inspector_id" IS NOT NULL AND "appointment_id" IS NULL
+        AND (("reward_award_id" IS NOT NULL) <> ("reference_entry_id" IS NOT NULL))
+        AND (("reward_award_id" IS NOT NULL) = ("amount" > 0))
+        AND (("reference_entry_id" IS NOT NULL) = ("amount" < 0)))));
+  -- idempotência da reversão (Prisma não expressa índice parcial: fica só no SQL)
+  CREATE UNIQUE INDEX "financial_entries_bonus_reversal_unique"
+    ON "financial_entries"("reference_entry_id") WHERE "entry_type" = 'INSPECTOR_BONUS';
+  ALTER TABLE "reward_awards" ADD COLUMN "inspector_invoice_id" TEXT
+    REFERENCES "inspector_invoices"("id") ON DELETE RESTRICT;
+  CREATE INDEX "reward_awards_inspector_invoice_id_idx" ON "reward_awards"("inspector_invoice_id");
+  ALTER TABLE "reward_awards" ADD CONSTRAINT "reward_awards_paid_invoice_chk"
+    CHECK (("status" = 'PAID') <= ("inspector_invoice_id" IS NOT NULL));
+  ```
+- **Backfill:** nenhum (nenhum prêmio aprovado antes desta tarefa em prod: Deploy). Contract: nenhum — `tenant_id` nulo é permanente para o tipo.
+- **Drift:** o índice parcial não aparece no `schema.prisma`; conferir o diff do `prisma migrate dev` para ele não ser dropado (memória `project_prisma_drift_drops_unsupported_indexes`) e aplicar localmente (memória `feedback_migration_apply_locally`).
+
+### Contratos
+| Rota | Mudança |
+|---|---|
+| `POST /v1/inspector-program/awards/:awardId/approve` | resposta ganha `financialEntryId`; mesmos erros |
+| `POST /v1/inspector-program/awards/:awardId/void` | `awards.void`; prêmio faturado (`inspector_invoice_id` não nulo) ou `PAID` exige `awards.void_invoiced` (só AM) → 403 `FORBIDDEN` "Only an Admin Master can void an invoiced reward"; 409 `INVOICE_LINES_CHANGED` não se aplica aqui |
+| `GET /v1/inspector-program/awards`, `GET /summary` | item ganha `financialEntryId: string \| null`, `invoice: { id, invoiceNumberDisplay, status } \| null`, `voidedAfterInvoicing: boolean`; `totals.paid` = prêmios `PAID` |
+| `GET /v1/inspector/program` (TASK-F08-4) | `awards[i].paidAt` = `paid_at` da fatura; sem campo novo |
+| `GET /v1/financial/entries` | `type` aceita `INSPECTOR_BONUS` (AM, OP, INSP); CL → 403 existente; item com `tenantId: null`; INSP sem `type` devolve payouts + bônus |
+| `GET /v1/financial/entries/:id` | CL → 404 no bônus; INSP → só o próprio |
+| `GET /v1/financial/entries/summary` (AM/OP) | `totalBonuses` |
+| `POST /v1/financial/entries/:entryId/{void,approve,cancel,refund}`, `PATCH /v1/financial/entries/:entryId` | 409 `BONUS_ENTRY_MANAGED_BY_REWARD` em bônus (o `refund` copiaria `tenant_id` nulo num `REFUND` e estouraria o CHECK) |
+| `POST /v1/inspector/invoices/request`, `GET /v1/inspector/invoices/preview` (`inspector-execution.routes.ts:292-315`) | contam bônus; o pedido responde 422 `INVOICE_NON_POSITIVE_TOTAL` com total ≤ 0 |
+| `POST /v1/billing/invoices/:invoiceId/approve-draft` | 409 `INVOICE_LINES_CHANGED` "Invoice lines changed. Try again." |
+| `GET /v1/billing/invoices/:invoiceId` | `lineItemsSnapshot[i]` com `kind`, `entryId`, `rewardAwardId`, `description`; `appointmentId`/`appointmentCode` nulos no bônus |
+| `POST /v1/billing/invoices/:invoiceId/mark-paid`, `/batch-mark-paid`, `/:invoiceId/reverse-payment`, `/:invoiceId/reject-draft` | sem mudança de contrato; efeito colateral nos prêmios (reject-draft: nenhum) |
+- Rota `mark-paid` de prêmio: **não existe** (as TASK-F08-1/3 não a constroem).
+- Declarar os códigos novos nos response schemas das rotas (o serializer remove/estoura campos não declarados: memórias `project_response_schema_strips_undeclared_fields`, `project_fastify_response_schema_serializer_throws`).
+
+### UI
+- **Web · aba Rewards (TASK-F08-3, estendida):** coluna **Invoice** ("PINV-000042" abre o `InvoiceDetailDrawer` na mesma aba; vazio enquanto não faturado); chips "Pending approval" · "Approved · next invoice" (sem fatura) / "Approved · on PINV-000042" · "Paid" · "Voided" · "Voided after invoicing"; "Void" em `APPROVED` faturado e `PAID` só para AM, com o aviso "This bonus is already on an invoice. Voiding it adds a reversal to the inspector's next invoice."; nenhum "Mark as paid"; ajuda do tile Paid "Paid through the inspector's invoice."
+- **Web · Financial (AM/OP):** chip de tipo **"Bonus"**; coluna Inspection mostra a descrição ("Bonus: Weekly volume · Week of Mon 2 Nov"); Agency "—"; filtro de tipo com "Bonus". **Fatura:** linha "Bonus" com a descrição, sem endereço/agência.
+- **PWA · Earnings:** histórico com itens "Bonus" (descrição, valor; reversão "Bonus reversal", valor negativo); fatura com a linha "Bonus"; pedido de fatura "{n} approved items". **Challenges** (TASK-F08-4): rodapé e chips de DL14.
+
+### Casos de borda
+1. Aprovação no último dia do período de faturamento (domingo 23:30 Sydney) → `effective_at` no período que fecha; `periodEffectiveRange` decide (DR5).
+2. Inspetor com ciclo `MONTHLY` → o bônus entra na fatura do mês da aprovação, não da semana da meta.
+3. Fatura do período já pedida (`PENDING_REVIEW`) quando o bônus é aprovado: impossível — o pedido exige período fechado e o bônus nasce em `now` (período aberto). Coberto por teste (aprovar com rascunho de período anterior não muda o rascunho).
+4. Rascunho rejeitado (`VOID`) → prêmio intocado; o próximo pedido do período inclui o bônus.
+5. Fatura paga e estornada → prêmio volta a `APPROVED` (faturado); paga de novo → `PAID` com o novo `paid_at`.
+6. Prêmio anulado depois do fechamento e antes do pagamento → reversão na próxima fatura; ao pagar a fatura original, o prêmio `VOID` não vira `PAID`.
+7. Reversão num período sem outros ganhos → 422 `INVOICE_NON_POSITIVE_TOTAL` (DQ13); a OP resolve com ajuste manual.
+8. Inspetor apagado/inativo com bônus aprovado → lançamento existe; a fatura segue o fluxo atual do inspetor.
+9. ABN e nome congelados no fechamento (`assignNumberAndFreeze`) valem também para a linha de bônus; nada novo a congelar.
+10. Filtro de faturas por agência/filial (GIN no snapshot): linha `BONUS` tem `agencyId null`, então não faz uma fatura "pertencer" a uma agência; faturas só com bônus não aparecem em filtro por agência.
+11. Moeda: o programa é AUD; se o inspetor tiver payouts em outra moeda no período, o pedido falha com o erro de moeda mista existente.
+12. Lançamentos antigos (`tenant_id` preenchido) não mudam; CHECK garante que nenhum tipo antigo fique sem tenant.
+
+### Fora do escopo
+- Pagamento manual de prêmio (retirado); `recovery_note`; reabrir/anular fatura `CLOSED`/`PAID` (não existe no billing).
+- Tributação do bônus, ABN/GST novos, lançamento de bônus para agência.
+- Mostrar o bônus a agências em qualquer superfície; dashboard Analytics (soma só `TENANT_DEBIT`).
+- Backfill de prêmios aprovados antes desta tarefa (não haverá em prod).
+- Carregar automaticamente a reversão para um período seguinte quando o total fica ≤ 0 (DQ13; manual).
+
+### Critérios de aceite
+1. **Q12:** aprovar um prêmio cria exatamente um lançamento `INSPECTOR_BONUS` `APPROVED` sem agência, na mesma transação; a fatura do período da aprovação mostra a linha "Bonus" no snapshot, no total e no PDF (testes 2, 4, 5).
+2. Pagar a fatura leva o prêmio a `PAID` (mesmo `paid_at`), unitário e em lote; estornar devolve a `APPROVED`; rejeitar rascunho não mexe no prêmio (teste 5).
+3. Anular antes de faturado anula o lançamento; depois, só AM, com reversão negativa na próxima fatura; OP recebe 403 (teste 3).
+4. **Agências:** nenhuma superfície de CL_ADMIN/CL_USER (lista, detalhe 404, resumo, exportação, relatório FINANCIAL agency-scoped, dashboard) mostra bônus (testes 6, 9).
+5. CHECKs e índices impedem bônus com agência, tipo antigo sem agência, lançamento duplicado e reversão duplicada (teste 8).
+6. Idempotência e concorrência: aprovação repetida/simultânea gera 1 lançamento; corrida anulação × fechamento termina em um estado coerente (testes 2, 3).
+7. Nenhuma rota de pagamento manual de prêmio; nenhuma ação genérica do billing altera um bônus (teste 7).
+8. **03.A5:** aprovar, anular, `PAID` e estorno geram audit com autor (ou `SYSTEM` nos ganchos da fatura) e before/after.
+
+### Dependências
+TASK-F08-1 (aprovação, anulação, porta de extensão, `paid_at`); TASK-F08-3 (aba Rewards). Billing existente (spec 032: pedido/aprovação de fatura do inspetor, pagamento em lote, estorno).
+
+### Riscos e armadilhas
+- **Vazamento para agência:** todo leitor novo de `financial_entries` precisa da allowlist ou do `tenant_id`; o teste 6 cobre os atuais. Atenção ao `appointmentId` aditivo da lista (`list-financial-entries.use-case.ts:136`): o bônus não tem atendimento, mas o teste confirma.
+- **`tenant_id` nulo quebrando código existente:** o typecheck acusa `entry.tenantId` usado como `string`; escritas com `where: { id, tenant_id: tenantId }` silenciosamente não acham o bônus (0 linhas → `InvalidEntryStatusTransitionError`): por isso a guarda DQ12 vem antes, com teste.
+- **Serializer e response schema:** `tenantId` nulo num schema que exige uuid estoura o serializer (memória `project_fastify_response_schema_serializer_throws`); campos novos não declarados somem (memória `project_response_schema_strips_undeclared_fields`).
+- **`ADD VALUE` em migration própria** (uso na mesma transação falha); irreversível sem recriar o tipo.
+- **Índice parcial e drift do Prisma** (Modelo de dados); `23505` cru do índice parcial não vira `P2002`.
+- **Lição do PR #1229:** nunca `initiated_by_user_id = 'SYSTEM'`; nunca `catch {}` em volta da criação do lançamento (aqui ela é transacional com o CAS, então falhar é falhar a aprovação).
+- **Mark-paid sem transação hoje:** o gancho exige mover a escrita da fatura para uma `$transaction`; o lote processa fatura a fatura (uma transação por fatura) para manter a semântica "processa o que der".
+- **ABN/nome congelados:** o snapshot do bônus entra pelo mesmo `assignNumberAndFreeze`; não criar caminho paralelo que escreva no snapshot depois do fechamento.
+- **`api-types`:** regenerar com `generate:openapi` → `generate:types` (memória `reference_generate_openapi_env`) e conferir drift (memória `project_tenant_apitypes_openapi_drift`).
+- **PR:** ~55 arquivos (backend ~30, shared ~6, web ~10, PWA ~6); se passar de 150, separar web/PWA num PR seguinte.
+
+### Deploy / rollout / rollback
+- **Migrations:** expand (enum em migration própria; `DROP NOT NULL`, colunas, CHECKs, índices). Staging, depois prod. Sem backfill.
+- **Rollout:** TASK-F08-1, F08-3 e F08-6 vão juntas para prod (nenhum prêmio aprovado no meio); a TASK-F08-4 só depois desta (copy). Smoke em staging: aprovar prêmio → linha no ledger (AM) → pedir/aprovar/pagar fatura → prêmio `PAID`; CL_ADMIN não vê "Bonus".
+- **Rollback:** reverter o código desliga a criação do lançamento; colunas e enum ficam (inofensivos). Lançamentos já criados continuam válidos no ledger e nas faturas; prêmios ficam no último status.
+- **Observabilidade:** audit `financial_entry.created` (bônus), `reward_award.paid`/`payment_reversed`; log `inspector_program.bonus_entry_created { awardId, entryId, inspectorId }`; erro `INVOICE_LINES_CHANGED` logado em `warn`.
+
+### Dias · Branch · Verificação
+- **Dias:** 3,5 (aditivo Q12, cláusula 9.4) = migrations + shared (enum, CHECKs, índices, snapshot com `kind`, schemas) 0,5 + inspector-program (lançamento na aprovação, anulação em 2 ramos, reversão, permissão AM, respostas) 0,75 + billing (3 leitores + ganhos + resumo, escopo INSP/OP, guarda das ações genéricas, snapshot com linha de bônus, PDF, ganchos de fechamento/pagamento/lote/estorno com transação) 1,0 + ripple do `tenant_id` nulo (entidade, mappers, relatório FINANCIAL, response schemas, `api-types`) 0,25 + web (aba Rewards, Financial, fatura) 0,5 + PWA (Earnings, fatura, pedido) 0,25 + testes de banco/integração (isolamento de agência, CHECKs, concorrência, E2E estendido) 0,25.
+- **Branch:** `feat/f08-bonus-ledger` a partir de `develop` (depois das TASK-F08-1 e F08-3), em worktree. ~55 arquivos.
+- **Verificação:** `pnpm --filter @properfy/shared build test`; `pnpm --filter backend exec prisma generate`; `pnpm --filter backend typecheck lint test`; `test:integration` (5, 6, 9) e `test:integration:db` (4, 8) via subagente com resumo (memória `feedback_verify_backend_full_suite_includes_integration`); `generate:openapi` + `generate:types` commitados; `pnpm --filter web typecheck lint test` e `test:e2e` (12); `pnpm --filter pwa typecheck lint test`; QA no navegador (AM aprova → fatura paga → "Paid"; CL_ADMIN sem "Bonus"; PWA Earnings com "Bonus"); `git diff --stat origin/develop... | tail -1` < 150.
 
 ---
 
@@ -1600,7 +1864,7 @@ Migration expand (staging → prod). Backend antes do web. Rollback: reverter o 
 | Contrato | Onde | Uso |
 |---|---|---|
 | `InspectorProgramStandingService` (`getStanding`, `getActiveGoalProgress`, `getActiveGoalProgressForMany`, `hasEarlyAccess`) | `apps/backend/src/modules/inspector-program/application/inspector-program-standing.service.ts` | TASK-F08-2, TASK-F08-4 |
-| `RunInspectorProgramDailyUseCase` + `InspectorProgramDailyStep` | `application/use-cases/run-inspector-program-daily.use-case.ts` | TASK-F08-4 (mensagens); a alternativa do financeiro não precisa do job (integra na aprovação) |
+| `RunInspectorProgramDailyUseCase` + `InspectorProgramDailyStep` | `application/use-cases/run-inspector-program-daily.use-case.ts` | TASK-F08-4 (mensagens); a TASK-F08-6 não usa o job (integra na aprovação e na fatura) |
 | `IOfferEarlyAccessPolicy` | `apps/backend/src/modules/service-group/domain/early-access.ts` | lista, detalhe e aceite do marketplace |
 | `IRegionGoalUsageChecker` | `apps/backend/src/modules/service-region/domain/` | exclusão de região |
 | `resolveInspectorLevel`, `isEarlyAccessLevel`, `minScoreForLevel`; `describeGoal` | `packages/shared/src/lib/` | web, PWA, backend |
@@ -1609,24 +1873,14 @@ Migration expand (staging → prod). Backend antes do web. Rollback: reverter o 
 | `InspectorProgramDailyTrigger` (`SCHEDULED`/`STARTUP`/`MESSAGES`) e `phase` dos passos (L-F08-01) | `run-inspector-program-daily.use-case.ts` | TASK-F08-1 (cálculo + enfileiramento das 08:00), TASK-F08-4 (mensagens) |
 | `PLATFORM_SETTING_SAVE_HOOKS` (L-F08-08) | use case do `PUT /v1/platform-settings/:key` (F03, estendido pela TASK-F08-2) | `inspectorProgram.earlyAccess.enabledAt`; futuras chaves com campo derivado |
 | `IRecentProgramNoticeReader` (L-F08-06) | `apps/backend/src/modules/inspector-program/domain/` | guarda de 7 dias da mensagem de nível |
-
-## Alternativa se o cliente pedir bônus no financeiro (Q12)
-
-Hoje ⚠️ **assumido fora do financeiro** (2026-10-27, aguardando o cliente). Se o cliente pedir lançamento no ledger e na fatura, é **pedido de mudança (§9), +3 a 4 dias**, numa **tarefa nova**, sem reabrir as 5 acima:
-
-1. **Tipo de lançamento** `INSPECTOR_BONUS` em `FinancialEntryType` (Prisma + shared), com `appointment_id NULL`, `inspector_id` obrigatório e regra de `tenant_id` decidida (o `MANUAL_ADJUSTMENT` exige `tenantId`; o bônus é cross-tenant).
-2. **Ponto de integração único:** no `ApproveRewardAwardUseCase`, na mesma transação do CAS, criar o lançamento com `initiated_by_user_id NULL` (sistema), idempotente por `financial_entries.reward_award_id UNIQUE` (coluna nova). "Mark as paid" sai da UI; `PAID` passa a refletir o pagamento da fatura.
-3. **Leitores do billing:** os 3 que filtram `INSPECTOR_PAYOUT` (`prisma-financial-entry.repository.ts:126,393,437`) passam a incluir `INSPECTOR_BONUS`.
-4. **Fatura:** linha sem `appointment_id` ("Bonus: {goal} · {period}") no `InspectorInvoice` e nos arquivos da fatura.
-5. **Agências:** garantir que nenhum filtro de agência (lista financeira, FINANCIAL agency-scoped, `FINANCIAL_AGENCY_COLUMNS`) mostre o bônus.
-6. **O que não muda:** `RewardAward`, job, CAS, PWA (o status passa a vir da fatura) e relatório (ganha a coluna do lançamento).
-7. **(L-F08-03)** `PAID → VOID` (só AM) passa a gerar o lançamento de reversão do bônus na mesma transação; `recovery_note` vira opcional/obsoleto. As strings de L-F08-14 ("paid separately from your invoice", "don't appear in Earnings") mudam.
-
-Por isso as tarefas mantêm o prêmio **desacoplado do billing**: nenhuma importação de repositório financeiro, um único ponto de extensão na aprovação e o mesmo padrão de CAS.
+| `IRewardAwardApprovalHook` (TASK-F08-1, no-op) → `BonusLedgerHook` | `apps/backend/src/modules/inspector-program/` | TASK-F08-6: lançamento `INSPECTOR_BONUS` na transação da aprovação/anulação |
+| `IRewardAwardInvoiceSync` (`linkToInvoice`, `markPaidForInvoice`, `revertPaidForInvoice`) | porta em `apps/backend/src/modules/billing/domain/`, implementada pelo inspector-program | TASK-F08-6: fechamento, pagamento (unitário e lote) e estorno da fatura |
+| `IBonusEntryWriter` | porta em `apps/backend/src/modules/inspector-program/domain/`, implementada pelo billing | TASK-F08-6: criar/anular/reverter o lançamento sem o prêmio importar o repositório financeiro |
+| `invoiceSnapshotLineSchema.kind` (`SERVICE`/`BONUS`) | `packages/shared/src/schemas/responses.ts` | fatura do inspetor (web, PWA, PDF); futuras linhas sem atendimento |
 
 ## Achados para revisão
 
-1. **Q12 ⚠️ aguardando o cliente.** Quebra feita com o bônus fora do financeiro; a troca está descrita acima (+3 a 4 dias, pedido de mudança).
+1. **Q12 ✅ decidida pelo cliente (2026-10-30): bônus no financeiro, aditivo (cláusula 9.4).** TASK-F08-6 (+3,5 dias); pagamento manual retirado das TASK-F08-1/3 antes de construir (−0,5); total 16,125 → **19,125**. Verificado @ `ba076fc4`: a fatura do inspetor é por período (sem FK lançamento→fatura) e só `PENDING_REVIEW` pode ser anulada, então "fatura anulada" vira dois casos: rejeitar rascunho (prêmio intocado, o lançamento entra no próximo pedido do período) e estornar pagamento `PAID → CLOSED` (prêmio volta a `APPROVED`). **Confirmar com o dev:** (a) **DQ10** — OP passa a ver o bônus na lista financeira (o ramo OP hoje força `tenant_id = actor.tenantId`; é ampliação de RBAC) ou só na aba Rewards e na fatura; (b) **DQ11** — vínculo `reward_awards.inspector_invoice_id` gravado no fechamento da fatura; (c) **DQ13** — período com total ≤ 0 (só reversão) bloqueia o pedido com 422 e vira ajuste manual; (d) reversão ligada pelo `reference_entry_id` existente (sem coluna nova), com índice único parcial.
 2. **`minLevel` padrão `GOLD`.** `decisoes.md` só fixa H = 12 h. Com a janela desligada por padrão (DV3), o valor só importa quando o AM ligar; confirmar no onboarding.
 3. **Premissas a confirmar:** taxa sem denominador = não atingida (P7; `LATE_NOTICE` sem atrasos é a exceção decidida em DV6); `INDEX_AT_LEAST` sobre o período da meta (P6; numa meta semanal exige 10 serviços na semana); "prometido" = bônus × participantes (P10); sequência pelo menor ciclo entre as metas de que o inspetor participou (P11); dados tardios não reabrem o período.
 4. **Lacunas aplicadas (2026-10-29).** L-F08-01…14 aplicadas com as opções recomendadas (+2,0 dias: TASK-F08-1 +0,75, TASK-F08-2 +0,25, TASK-F08-3 +0,25, TASK-F08-4 +0,5, TASK-F08-5 +0,25). Desvios conscientes da proposta, verificados no snapshot: (a) L-F08-01 propunha `boss.schedule('inspector-program.daily', '0 8 * * *', …)`; no pg-boss 9 (`^9.0.3`) há um agendamento por nome e o segundo substituiria o das 04:45, então o run das 08:00 é um `enqueue` com `startAfter` na mesma fila (sem fila nova, como pedido); (b) a `dedupeKey` agregada usa `<periodEnd>` em vez de `<periodStart>` (semana e quinzena podem começar no mesmo dia e a F02 descartaria o segundo aviso).
@@ -1640,4 +1894,8 @@ Por isso as tarefas mantêm o prêmio **desacoplado do billing**: nenhuma import
 - `F04-tarefas.md` (DB1, seção "Perfil (hub de More)", Achado "More sem Challenges", nota do passo 8 do tour): trocar "linha Challenges em More" por "`ProfileTile` Challenges logo depois de Earnings na grade 2 colunas, sem grupo novo" (L-F08-09).
 - `F07-tarefas.md` (TASK-F07-2, `ReliabilityIndexReader.getCurrentIndexes`/`position`): registrar que a F08 depende de `position` ser o ranking da plataforma inteira (todos os ACTIVE com `SCORED`) e que ele não pode ser recortado por região (03.A3) (L-F08-07).
 - `F08-metas-recompensas.md` (plano): registrar DL1–DL14 e acrescentar ao estacionamento "teto de bônus por inspetor/período" (L-F08-04), "detecção automática de dado tardio" (L-F08-03) e "aviso de prêmio pago/anulado" (L-F08-05). (encaminhado: DL1–DL14 e os 3 itens registrados no plano, seções "Decisões das lacunas" e "Fora do escopo"; o `estacionamento.md` em si não foi tocado)
-- `README.md` (fase2-etapa1): total da F08 14,0 → 16,0 dias (+2,0 das lacunas L-F08-01…14).
+- `README.md` (fase2-etapa1): total da F08 14,0 → 16,0 dias (+2,0 das lacunas L-F08-01…14) → **19,125** (+0,125 da reconciliação DR2, +3,5 do aditivo Q12, −0,5 do pagamento manual retirado; 6 tarefas).
+- `decisoes.md`: Q12 de "⚠️ assumida" para "✅ decidida pelo cliente em 2026-10-30: bônus no ledger e na fatura do inspetor, aditivo (cláusula 9.4), TASK-F08-6".
+- `F08-metas-recompensas.md` (plano): "Quebra em PRs" ganha a TASK-F08-6; DL3, DL11 e DL14 revistas por Q12; estacionamento perde "bônus no financeiro".
+- `paralelizacao.md` e `cronograma-sprints.md`: TASK-F08-6 (pista A2, 3,5 dias) depois das TASK-F08-1/3 e antes das TASK-F08-4 (merge) e F08-5; TASK-F08-1 6,875 e TASK-F08-3 2,25.
+- `CLAUDE.md` da raiz, §8 (regras financeiras): acrescentar "bônus de meta do inspetor (`INSPECTOR_BONUS`, sem agência) entra na fatura do inspetor" (feito pela TASK-F08-6, passo 12).

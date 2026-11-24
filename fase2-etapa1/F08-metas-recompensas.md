@@ -3,11 +3,11 @@
 | | |
 |---|---|
 | **Contrato** | 03.6, 03.7, 03.8, 03.9, 03.10, 03.13, 03.14, 03.15, 03.17 (critérios 03.A3, 03.A4, 03.A5) |
-| **Esforço** | **14,0 dias** · dificuldade **A** (quebra em tarefas: 16,125 = 14,0 + 2,0 das lacunas L-F08-01…14 + 0,125 da reconciliação, 2026-10-29; ver `tarefas/F08-tarefas.md`) |
+| **Esforço** | **14,0 dias** · dificuldade **A** (quebra em tarefas: 16,125 = 14,0 + 2,0 das lacunas L-F08-01…14 + 0,125 da reconciliação, 2026-10-29) **− 0,5 do "marcar pago" manual que saiu + 3,5 do aditivo "bônus no financeiro"** (TASK-F08-6, 2026-10-30) = **19,125**; ver `tarefas/F08-tarefas.md` |
 | **Depende de** | F07 (índice e níveis), F02 (mensagens automáticas), X01 (itens de menu) |
 | **Bloqueia** | – |
-| **Status** | Decisões fechadas em 2026-10-27, **com 1 alerta aberto** (Q12, aguardando o cliente). Pronto para spec, assumindo Q12 = fora do financeiro. |
-| **Decisões** | Q12 ⚠️ assumida, aguardando o cliente · Q13 ✅ · Q18 ✅ |
+| **Status** | Decisões fechadas. **Q12 decidida pelo cliente em 2026-10-30: o bônus entra no financeiro** (aditivo, +3,5 dias, TASK-F08-6). Pronto para spec. |
+| **Decisões** | Q12 ✅ (cliente, 2026-10-30: no financeiro) · Q13 ✅ · Q18 ✅ |
 
 ## Objetivo
 
@@ -17,7 +17,7 @@ Incentivar o inspetor a registrar os eventos na hora. A operação cadastra **me
 
 | Tema | Decisão |
 |---|---|
-| Bônus em dinheiro (Q12) | ⚠️ **ALERTA: o dev vai confirmar com o cliente.** A spec assume **fora do financeiro**: o prêmio é aprovado pela OP, pago por fora e marcado como pago. **Se o cliente pedir lançamento no financeiro ou na fatura:** +3 a 4 dias, um novo tipo de lançamento `INSPECTOR_BONUS`, ajuste nos 3 leitores do billing (`prisma-financial-entry.repository.ts:126,393,437`), uma linha de fatura sem `appointment_id` e os filtros de visibilidade das agências. Isso entra como pedido de mudança (§9). |
+| Bônus em dinheiro (Q12) | ✅ **Decidido pelo cliente (2026-10-30): o bônus entra no financeiro**, como aditivo (cláusula 9.4, +3,5 dias, TASK-F08-6). Ao aprovar o prêmio (sem autoaprovação), nasce um lançamento `INSPECTOR_BONUS` (sem appointment e **sem agência**: `tenant_id` nulo só para esse tipo, garantido por CHECK). Ele entra na **fatura do inspetor** do período da aprovação, como linha "Bonus: {meta} · {período}". O prêmio vira PAID quando essa fatura é paga; não existe mais "marcar pago" manual. Anular antes da fatura anula o lançamento; depois da fatura (só AM), gera um estorno na fatura seguinte. Agências nunca veem o bônus. |
 | Prioridade de oferta (Q13) | **Acesso antecipado por nível**, com H horas e nível mínimo X na configuração da plataforma. **Só o nível dá prioridade; as metas pagam só em dinheiro** (2026-10-28). **Nasce desligado**: o AM liga depois do onboarding. Mesmo ligado, a janela só se aplica se houver pelo menos um inspetor qualificado e elegível para o grupo, e nunca a grupos de hoje ou D+1. |
 | Aprovação de prêmio | **Qualquer AM/OP aprova** um prêmio gerado pelo sistema, inclusive quem criou a meta (2026-10-28). |
 | Ranking no app (privacidade) | O desempate usa um hash estável por período. Com coorte menor que 5, o app mostra só a posição e a nota do próprio inspetor. |
@@ -53,7 +53,7 @@ Custo: **+2,0 dias** sobre o plano (pedido de ajuste da quebra).
 ## Estado atual (verificado @042a9674)
 
 - **Programa:** não existe nenhum modelo de meta, desafio, prêmio, badge, sequência ou nível.
-- **Bônus via financeiro:** o `MANUAL_ADJUSTMENT` exige `tenantId`. Ajustes **nunca** chegam à fatura nem aos ganhos do inspetor (os 3 leitores filtram `INSPECTOR_PAYOUT`: `prisma-financial-entry.repository.ts:126,393,437`). Por isso o bônus fica fora do ledger (Q12).
+- **Bônus via financeiro (motivo do tipo novo):** o `MANUAL_ADJUSTMENT` exige `tenantId`. Ajustes **nunca** chegam à fatura nem aos ganhos do inspetor (os 3 leitores filtram `INSPECTOR_PAYOUT`: `prisma-financial-entry.repository.ts:126,393,437`). Por isso o bônus fica fora do ledger (Q12).
 - **Aprovação:** a aprovação maker-checker com CAS (`approve-financial-entry.use-case.ts:76-95`) é o padrão a copiar para aprovar prêmios.
 - **Ofertas:** ordenadas por `scheduled_date` para todos (`prisma-service-group.repository.ts:721,999`), e o aceite é por ordem de chegada (`acceptOptimistic` `:602`). O `priorityOfferHours` está morto. O #1299 não mudou a consulta.
 - **Períodos:** `getCanonicalPeriod` (`billing-period.service.ts:70`) dá semanas de segunda a domingo e quinzenas ancoradas.
@@ -66,7 +66,7 @@ Custo: **+2,0 dias** sobre o plano (pedido de ajuste da quebra).
 |---|---|---|---|---|
 | 03.6 / 03.7 / 03.8 | Modelo `Goal(id, title, metric VOLUME\|REGION_VOLUME\|SERVICE_TYPE_VOLUME\|INDEX_AT_LEAST\|PUNCTUALITY\|GEOFENCE\|NO_STUCK\|SATISFACTION\|LATE_NOTICE\|CANT_DO_MAX, comparator ≥/≤, target, period WEEKLY\|FORTNIGHTLY\|MONTHLY, scope_region_id?, scope_service_type_id?, scope_inspector_id?, reward_type CASH\|OFFER_PRIORITY, reward_amount?, starts_at, ends_at, active)`. As regras (03.8) são campos fixos: participam os inspetores ativos no escopo; contam os DONE do período (data = `finished_at` no fuso da agência); o fechamento é no fim do período; o desempate é pelo índice e depois por quem atingiu primeiro. CRUD no web (AM/OP), com auditoria de criação, edição e desativação (03.A5). | M | 3,0 | – |
 | 03.9 + apuração | Job no fechamento de cada período: calcula o progresso via `computeMetric` da F07 (as métricas de taxa respeitam o volume mínimo de 10 no período; abaixo disso a meta não é atingida) e cria um `RewardAward(goal_id, inspector_id, period, amount, status PENDING\|APPROVED\|PAID\|VOID)` (unique `(goal, inspector, period)`, idempotente). Os **níveis** são faixas do índice do F07 (3 níveis no `PlatformSetting`). A **sequência** é o número de períodos consecutivos com pelo menos uma meta atingida. Ambos são derivados, sem tabela. O progresso parcial é calculado sob demanda para a tela do inspetor. | A | 4,0 | F07 |
-| 03.13 | Web "Rewards" (AM/OP): por período, **prometido** (soma dos prêmios em dinheiro possíveis das metas ativas) × **atingido** (prêmios gerados). Ações: aprovar (sem autoaprovação), marcar pago e anular. Pagamento manual, fora da plataforma (Q12). | M | 1,5 | apuração |
+| 03.13 | Web "Rewards" (AM/OP): por período, **prometido** (soma dos prêmios em dinheiro possíveis das metas ativas) × **atingido** (prêmios gerados). Ações: aprovar (sem autoaprovação, gera o lançamento financeiro — TASK-F08-6), marcar pago e anular. Pagamento manual, fora da plataforma (Q12). | M | 1,5 | apuração |
 | 03.7 prioridade | **Acesso antecipado** (Q13): um grupo publicado há menos de H horas só aparece e só pode ser aceito por inspetores de nível ≥ X. Filtro em `findEligibleGroupIds` (`published_at + H > now()` → exige nível) + a mesma checagem no `accept-offer`. H e X ficam no `PlatformSetting`. | M | 1,5 | 03.9 |
 | 03.10 / 03.15 | PWA **"Challenges"** em "More" (design v3), com 3 abas: **Active** (metas com progresso, prêmio e prazo), **My results** (índice, nível, sequência e histórico de prêmios com status) e **Ranking** (posição própria + pontuações dos outros **sem nome nem id**, 03.A3). Um endpoint `GET /v1/inspector/program`. | M | 2,5 | apuração, F07 |
 | 03.17 | Mensagens automáticas do sistema na caixa de avisos (F02, não críticas) em 3 gatilhos: meta atingida, subiu/desceu de nível e sequência em risco (último dia do período sem meta). | B | 0,5 | F02 |
@@ -74,7 +74,6 @@ Custo: **+2,0 dias** sobre o plano (pedido de ajuste da quebra).
 
 ## Fora do escopo
 
-- Lançar o bônus no ledger ou na fatura (estacionamento).
 - Valores das recompensas.
 - Tributação.
 - Badges ilustrados.

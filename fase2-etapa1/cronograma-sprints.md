@@ -15,7 +15,7 @@
 | **1** | 04/11 → 10/11 | Fundações do inspetor e do mapa | E.1, E.2, 00.3, 00.4, 00.10 |
 | **2** | 11/11 → 17/11 | Comunicação com o inspetor e eventos de campo | 00.6, 00.7, 00.8, 00.9, 03.1, 03.2, 03.3, 03.16, D.1–D.4, 01.14 |
 | **3** | 18/11 → 24/11 | Roteiro do dia e índice de confiabilidade | 00.1, 00.5, 01.1–01.7, 03.4, 03.5, 03.11, 03.12 |
-| **4** | 25/11 → 01/12 | Operação ao vivo, avisos ao inquilino e programa do inspetor | 00.2, 01.8–01.13, 03.6–03.10, 03.13–03.15, 03.17, C.1–C.9 |
+| **4** | 25/11 → 01/12 | Operação ao vivo, avisos ao inquilino e programa do inspetor | 00.2, 01.8–01.13, 03.6–03.10, 03.13–03.15, 03.17, C.1–C.9 + aditivo Issues |
 
 ---
 
@@ -287,8 +287,11 @@
 | # | Tarefa | Onde |
 |---|---|---|
 | 4.7.1 | Painel de prêmios por período: prometido × atingido | Web |
-| 4.7.2 | Aprovar (por outra pessoa da operação, não quem criou), marcar como pago e anular, com auditoria | Web |
-| 4.7.3 | Relatório do programa (metas, prêmios e histórico do índice) em XLSX, no fluxo de relatórios existente | Web |
+| 4.7.2 | Aprovar (por outra pessoa da operação, não quem criou) e anular, com auditoria | Web |
+| 4.7.3 | Bônus aprovado lançado automaticamente no financeiro e incluído na próxima fatura do inspetor (aditivo aprovado) | Sistema |
+| 4.7.4 | O prêmio passa a "pago" quando a fatura do inspetor é paga; anulação depois da fatura gera estorno na fatura seguinte | Sistema |
+| 4.7.5 | Bônus visível no financeiro da operação e nos ganhos do inspetor no app; nunca visível para as agências | Web / App |
+| 4.7.6 | Relatório do programa (metas, prêmios e histórico do índice) em XLSX, no fluxo de relatórios existente | Web |
 
 ### 4.8 "Challenges" no app (03.10, 03.15, 03.17)
 
@@ -299,19 +302,37 @@
 | 4.8.3 | Aba "Ranking": posição própria e pontuações dos demais, sem nomes | App |
 | 4.8.4 | Mensagens automáticas na caixa de avisos: meta atingida, mudança de nível e sequência em risco | Sistema |
 
-### 4.9 Anexos e mídias (C.1–C.9) — condicionado à validação do cliente
-
-Entra neste sprint se a validação da parte de imagens e arquivos for concluída **até 11/11**. Depois dessa data, é agendada como entrega complementar.
+### 4.9 Arquivos do imóvel (C.1–C.9)
 
 | # | Tarefa | Onde |
 |---|---|---|
-| 4.9.1 | Aba "Files" no detalhe do appointment e do imóvel: enviar (arrastar ou escolher), filtrar, pré-visualizar, baixar e excluir | Web |
-| 4.9.2 | Controle de versões: "New version" e histórico de versões de cada arquivo | Web |
-| 4.9.3 | O imóvel mostra os próprios arquivos e os de todos os seus appointments, agrupados | Web |
-| 4.9.4 | Tipos e tamanho de arquivo aceitos e tempo de retenção configuráveis | Web |
-| 4.9.5 | Seção "Files" somente leitura no detalhe do serviço no app | App |
-| 4.9.6 | No portal do inquilino: "Report something about the property", com nota e até 5 fotos | Portal do inquilino |
-| 4.9.7 | Limpeza automática de arquivos excluídos e vencidos, com auditoria | Sistema |
+| 4.9.1 | Aba "Files (n)" no detalhe do appointment e no do imóvel, com subabas Issues (principal), Documents, Reports e Other | Web |
+| 4.9.2 | Enviar arquivos (arrastar ou escolher) pelo appointment ou pelo imóvel; imagens, documentos e PDF | Web |
+| 4.9.3 | O que é enviado pelo appointment fica ligado ao appointment e ao imóvel; no imóvel, o arquivo pode ser ligado a um appointment dele ou ficar só no imóvel | Sistema |
+| 4.9.4 | Contagem por subaba e busca pelo nome do arquivo | Web |
+| 4.9.5 | Pré-visualização de imagens, PDF em nova aba e download | Web |
+| 4.9.6 | "New version" em qualquer arquivo, com histórico de versões; as versões anteriores continuam acessíveis | Web |
+| 4.9.7 | Formatos aceitos, tamanho máximo e retenção configuráveis em "Platform settings" | Web |
+| 4.9.8 | Acesso por agência e perfil, com isolamento entre agências | Sistema |
+| 4.9.9 | Auditoria de envio, nova versão e exclusão (autor, data/hora e versão) | Sistema |
+| 4.9.10 | Exclusão pela operação (Admin/Operador), mantida por 1 ano e depois apagada definitivamente | Sistema |
+
+### 4.10 Issues: fotos de problemas (aditivo aprovado)
+
+| # | Tarefa | Onde |
+|---|---|---|
+| 4.10.1 | Seção "Files" no detalhe do serviço no app, com as issues em primeiro: o inspetor vê issues e arquivos do serviço e baixa as fotos | App |
+| 4.10.2 | Botão "Report issue" no app: motivo + fotos pela câmera ou galeria, com progresso de envio | App |
+| 4.10.3 | "Não consigo fazer" passa a aceitar fotos, que viram uma issue do serviço | App |
+| 4.10.4 | Subaba "Issues" (principal) na aba Files do appointment: motivo, autor, data, todas as fotos e download | Web |
+| 4.10.5 | Operação e admin da agência criam issues pelo appointment ou direto no imóvel (sem appointment) | Web |
+| 4.10.6 | Botão "Mark as seen", que registra quem marcou e a data/hora | Web |
+| 4.10.7 | Botão "View all property files" na aba do appointment, levando aos arquivos do imóvel na mesma subaba | Web |
+| 4.10.8 | No imóvel, cada arquivo ou issue ligado a um appointment mostra a referência dele e o botão "Open appointment" | Web |
+| 4.10.9 | Ponto amarelo nos ícones de Appointments e Properties do menu lateral quando há issue não vista | Web |
+| 4.10.10 | Borda amarela nas listas de appointments e de imóveis para registros com issue não vista | Web |
+| 4.10.11 | Filtro "With issues" nas listas de appointments e de imóveis | Web |
+| 4.10.12 | No portal do inquilino, antes de confirmar: "Report a problem with the property", com motivo e até 5 fotos | Portal do inquilino |
 
 ---
 
@@ -319,6 +340,3 @@ Entra neste sprint se a validação da parte de imagens e arquivos for concluíd
 
 - Cada sprint é validado em staging durante o sprint seguinte. Os ajustes apontados entram na sequência.
 - A validação do Sprint 4 acontece de **02/12 a 08/12**. Depois dela vem a publicação em produção.
-- Itens que dependem de definição do cliente:
-  - formato de pagamento dos prêmios (hoje previsto como pagamento manual, fora do financeiro da plataforma);
-  - validação da parte de imagens e arquivos (4.9).
