@@ -118,10 +118,11 @@ day-plan route map (`features/day-plan/components/RouteMapView.tsx`) consume it 
 - `GET /v1/inspector/schedule/month` – month overview for the calendar
 - Display as a list sorted by time slot
 - Show: property address, service type, time, tenant confirmation status
-- **T-1 rule filtering:**
-  - `Routine Inspection`: only show if tenant confirmed (or exception applies)
+- **T-1 rule filtering (server-side `T1VisibilityService`):**
+  - `Routine Inspection`: an **accepted** (`SCHEDULED`) job stays visible even while the rental tenant has yet to confirm — it is **no longer hidden** at T-1/T-0 (that was the HML "disappearing schedule" bug). The backend hides only an `UNAVAILABLE` routine job.
   - `Ingoing/Outgoing`: show when `SCHEDULED`
-  - Exceptions: `key_required = true`, manual OP confirmation
+  - Exceptions (always visible): `key_required = true`, manual OP confirmation
+- **Awaiting-confirmation legibility (`AppointmentCard`).** Every card shows the `RentalTenantConfirmationBadge` (PENDING → amber "Pending"); an unconfirmed routine job the inspector accepted also gets the urgent amber "Unconfirmed" flag (`data-testid="t1-warning"`, `isScheduleRisk` in `lib/time-slot.ts`) on the inspection day **and the day before** (T-0/T-1) — exactly the jobs the daily sweep auto-rejects if still unconfirmed. Starting such a job is still blocked server-side; the inspector sees it with the badge rather than finding it gone.
 - **Card actions (F03-3, contract 00.A3).** `AppointmentCard` is an `<article>` (not a `<button>` — never nest a button) with a nav target (`data-testid="appointment-card-{id}"`) plus, for `SCHEDULED` jobs, `AppointmentCardActions`: a primary "Check in"/"Check out" button (phase from `useLocalExecutionState`, **not** a server field — the day payload has none; "Check in" disabled off the inspection day with "Available on inspection day", using `useEffectiveTimezone`) and a "More actions" menu (`aria-haspopup="menu"`) opening "Running late" (today + not in progress) and "Can't do this job". Check-in uses `captureRequiredLocation` (`features/execution/lib/geolocation.ts`) then `useExecutionActions().checkIn`; an `outOfRadius` FLAG success shows a warning snackbar, a BLOCK 422 keeps the card on "Check in". Check-out `queryClient.fetchQuery`'s the detail (for `inspectionAppLink`), falling back to `/execution/:id` when offline-uncached, then renders the Sync/Past-time modals from the card.
 
 ### 4.3 Inspection execution (`features/execution`)

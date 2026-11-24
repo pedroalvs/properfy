@@ -17,8 +17,22 @@ interface AppointmentCardProps {
   today?: string;
 }
 
+/** The civil day after `dateStr` (YYYY-MM-DD), computed UTC-anchored so it is DST-safe. */
+function nextCivilDay(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Amber "Unconfirmed" flag for a routine job the inspector has accepted but whose
+ * rental tenant has not confirmed, on the inspection day (T-0) OR the day before
+ * (T-1). These are exactly the jobs the daily sweep auto-rejects if still
+ * unconfirmed, so the inspector must see the risk rather than find the job gone.
+ */
 function isT1Warning(appointment: InspectorAppointment, today: string): boolean {
-  return isScheduleRisk(appointment) && appointment.scheduledDate === today;
+  if (!isScheduleRisk(appointment)) return false;
+  return appointment.scheduledDate === today || appointment.scheduledDate === nextCivilDay(today);
 }
 
 function getStatusAccent(status: AppointmentStatus): string {

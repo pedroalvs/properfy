@@ -351,7 +351,11 @@ describe('GetAppointmentDetailUseCase', () => {
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('should throw ExecutionT1BlockedError for unconfirmed ROUTINE at T-1', async () => {
+  it('returns the detail for an unconfirmed ROUTINE at T-1 (accepted jobs stay visible)', async () => {
+    // The inspector accepted this job, so it is no longer hidden while the rental
+    // tenant has yet to confirm — the detail opens (with the pending state shown
+    // in the UI). Starting it is still blocked separately by the confirmation gate
+    // in start-inspection.use-case.ts (step 4b).
     const today = new Date('2026-03-20T12:00:00Z');
     vi.useFakeTimers({ now: today });
 
@@ -371,12 +375,12 @@ describe('GetAppointmentDetailUseCase', () => {
 
     await expect(
       useCase.execute({ appointmentId: 'appt-1', actor: inspActor }),
-    ).rejects.toThrow(ExecutionT1BlockedError);
+    ).resolves.toMatchObject({ id: 'appt-1' });
 
     vi.useRealTimers();
   });
 
-  it('should throw ExecutionT1BlockedError for unconfirmed ROUTINE on the scheduled day', async () => {
+  it('returns the detail for an unconfirmed ROUTINE on the scheduled day (accepted jobs stay visible)', async () => {
     const today = new Date('2026-03-21T12:00:00Z');
     vi.useFakeTimers({ now: today });
 
@@ -390,7 +394,7 @@ describe('GetAppointmentDetailUseCase', () => {
 
     await expect(
       useCase.execute({ appointmentId: 'appt-1', actor: inspActor }),
-    ).rejects.toThrow(ExecutionT1BlockedError);
+    ).resolves.toMatchObject({ id: 'appt-1' });
 
     vi.useRealTimers();
   });

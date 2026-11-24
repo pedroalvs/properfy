@@ -4,12 +4,13 @@
  * the multi-tenant exception in the F02-1 spec and CLAUDE.md §7 rule 1.
  */
 
-/** System-generated notice types. F04 raises ROUTE_*; F03 raises COMPLETION_REMINDER; F08 raises PERFORMANCE_MESSAGE. */
+/** System-generated notice types. F04 raises ROUTE_*; F03 raises COMPLETION_REMINDER; F08 raises PERFORMANCE_MESSAGE; the T-1 sweep raises APPOINTMENT_AUTO_REJECTED. */
 export const SYSTEM_INSPECTOR_NOTICE_TYPES = [
   'ROUTE_PUBLISHED', // F04 – critical (D1)
   'ROUTE_CHANGED', // F04 – critical (D1)
   'COMPLETION_REMINDER', // F03 – critical (D1)
   'PERFORMANCE_MESSAGE', // F08 – never critical (D1)
+  'APPOINTMENT_AUTO_REJECTED', // T-1 unconfirmed sweep – not critical (in-app + push, no SMS blast)
 ] as const;
 
 export type SystemInspectorNoticeType = (typeof SYSTEM_INSPECTOR_NOTICE_TYPES)[number];
@@ -20,6 +21,10 @@ export const SYSTEM_NOTICE_CRITICALITY: Record<SystemInspectorNoticeType, boolea
   ROUTE_CHANGED: true,
   COMPLETION_REMINDER: true,
   PERFORMANCE_MESSAGE: false,
+  // Not critical: the daily T-1 sweep can reject several of one inspector's jobs at
+  // once; a critical notice would fire one SMS per job (bounded by the daily cap).
+  // The in-app Announcements entry + push are enough to end the silent removal.
+  APPOINTMENT_AUTO_REJECTED: false,
 };
 
 export function isCriticalSystemNoticeType(type: SystemInspectorNoticeType): boolean {

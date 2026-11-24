@@ -520,11 +520,14 @@ describe('StartInspectionUseCase', () => {
 
   it('should refuse an unconfirmed routine inspection whose date has passed', async () => {
     const sut = makeSut();
-    // T1VisibilityService only blocks an unconfirmed routine when the scheduled
-    // date is today or tomorrow (diffDays 0 or 1); a past date yields a negative
-    // diff and is reported visible. The old "too late" bound was what kept that
-    // branch unreachable, so opening the gate must not make an unconfirmed job
-    // executable — that would bypass the AM/OP-only force-confirmation rule.
+    // T1VisibilityService no longer hides an accepted (SCHEDULED) job while the
+    // rental tenant has yet to confirm — the inspector sees it in the schedule
+    // (with an "awaiting confirmation" badge). Starting it is still blocked by the
+    // independent confirmation gate (step 4b: needsConfirmation && status !==
+    // 'CONFIRMED' → ExecutionT1BlockedError), which this test proves: the visibility
+    // mock returns true (see beforeEach), so the block here comes from 4b, not from
+    // visibility. Opening the schedule must never make an unconfirmed job executable
+    // — that would bypass the AM/OP-only force-confirmation rule.
     vi.setSystemTime(zonedWallTimeToUtc('2026-03-22', '09:00', PLATFORM_TIMEZONE));
 
     appointmentRepo.findById.mockResolvedValue(
