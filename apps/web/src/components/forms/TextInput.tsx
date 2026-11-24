@@ -80,6 +80,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function T
         maxLength={maxLength}
         onFocus={onFocus}
         aria-label={ariaLabel}
+        aria-invalid={error || undefined}
       />
     </div>
   );

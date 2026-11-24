@@ -50,6 +50,11 @@ export const createPropertySchema = z
     furnished: z.boolean().optional(),
     linenProvided: z.boolean().optional(),
     rentAmount: z.number().nonnegative().max(9999999999.99).optional(),
+    // Manual pin (V-1 / decision V2): when both are present the address text is
+    // not validated and the property is stored MANUAL — the escape for a
+    // legitimate rural address the geocoder can only locate coarsely.
+    latitude: z.number().min(-90).max(90).nullable().optional(),
+    longitude: z.number().min(-180).max(180).nullable().optional(),
     notes: z.string().max(2000).optional(),
     rulesJson: propertyRulesSchema.optional(),
   })

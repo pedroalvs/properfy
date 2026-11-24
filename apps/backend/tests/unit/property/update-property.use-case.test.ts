@@ -56,6 +56,10 @@ function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
   };
 }
 
+function makeGeocodingService(): { geocode: ReturnType<typeof vi.fn> } {
+  return { geocode: vi.fn() };
+}
+
 describe('UpdatePropertyUseCase', () => {
   let propertyRepo: IPropertyRepository;
   let branchRepo: IBranchRepository;
@@ -117,21 +121,111 @@ describe('UpdatePropertyUseCase', () => {
     );
   });
 
-  it('should reset geocodingStatus when address changes', async () => {
+  // R3 (V-1): the X02 "edit swaps the suggestion → PENDING + job" expectation
+  // changed. An address edit now geocodes SYNCHRONOUSLY and, when the result
+  // passes rule A, stores SUCCESS directly — no async job.
+  it('geocodes synchronously and stores SUCCESS (not PENDING) when the new address verifies', async () => {
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    const geocoder = makeGeocodingService();
+    geocoder.geocode.mockResolvedValue({ lat: -33.87, lng: 151.21, placeType: 'address', relevance: 0.95 });
+    const uc = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger as never, geocoder as never);
 
-    const result = await useCase.execute({
+    const result = await uc.execute({
+      propertyId: 'prop-1',
+      data: { street: '456 New St' },
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(geocoder.geocode).toHaveBeenCalledWith('456 New St, Sydney, NSW, 2000, AU', { mode: 'permanent' });
+    expect(result.geocodingStatus).toBe('SUCCESS');
+    expect(result.latitude).toBe(-33.87);
+    expect(propertyRepo.update).toHaveBeenCalledWith(
+      'prop-1',
+      'tenant-1',
+      expect.objectContaining({ geocodingStatus: 'SUCCESS', lat: -33.87, lng: 151.21 }),
+    );
+    expect(sendJob).not.toHaveBeenCalled();
+  });
+
+  it('rejects an address edit with 422 and writes nothing when the new address does not verify (V-1)', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    const geocoder = makeGeocodingService();
+    geocoder.geocode.mockResolvedValue({ lat: -33.8, lng: 151.1, placeType: 'locality', relevance: 0.99 });
+    const uc = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger as never, geocoder as never);
+
+    await expect(
+      uc.execute({
+        propertyId: 'prop-1',
+        data: { street: 'Old Coach Rd' },
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toMatchObject({ code: 'ADDRESS_NOT_VERIFIED', statusCode: 422, details: [{ reason: 'COARSE_RESULT' }] });
+    expect(propertyRepo.update).not.toHaveBeenCalled();
+    expect(sendJob).not.toHaveBeenCalled();
+  });
+
+  it('rejects an address edit with 422 NOT_FOUND when the geocoder returns no match (V-1)', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    const geocoder = makeGeocodingService();
+    geocoder.geocode.mockResolvedValue(null);
+    const uc = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger as never, geocoder as never);
+
+    await expect(
+      uc.execute({
+        propertyId: 'prop-1',
+        data: { street: 'Nowhere Rd' },
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toMatchObject({ code: 'ADDRESS_NOT_VERIFIED', statusCode: 422, details: [{ reason: 'NOT_FOUND' }] });
+    expect(propertyRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('keeps PENDING and enqueues the job when the geocoder times out on an address edit (V4 provider-down)', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    const geocoder = makeGeocodingService();
+    geocoder.geocode.mockReturnValue(new Promise(() => {})); // never resolves → timeout wins
+    const uc = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger as never, geocoder as never, 20);
+
+    const result = await uc.execute({
       propertyId: 'prop-1',
       data: { street: '456 New St' },
       actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
     });
 
     expect(result.geocodingStatus).toBe('PENDING');
-    expect(propertyRepo.update).toHaveBeenCalledWith(
-      'prop-1',
-      'tenant-1',
-      expect.objectContaining({ geocodingStatus: 'PENDING' }),
-    );
+    expect(sendJob).toHaveBeenCalledWith('property.geocode', { propertyId: 'prop-1' }, { retryLimit: 6, retryBackoff: true });
+  });
+
+  it('does not call the geocoder when a manual coordinate pair is set on an address edit (manual wins)', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    const geocoder = makeGeocodingService();
+    const uc = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger as never, geocoder as never);
+
+    const result = await uc.execute({
+      propertyId: 'prop-1',
+      data: { street: 'Old Coach Rd', latitude: -33.4521, longitude: 150.6612 },
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(geocoder.geocode).not.toHaveBeenCalled();
+    expect(result.geocodingStatus).toBe('MANUAL');
+    assertNoManualWithNullCoord();
+  });
+
+  it('does not call the geocoder when editing only a non-address field on a FAILED record (V-1)', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty({ geocodingStatus: 'FAILED', lat: null, lng: null }));
+    const geocoder = makeGeocodingService();
+    const uc = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger as never, geocoder as never);
+
+    const result = await uc.execute({
+      propertyId: 'prop-1',
+      data: { notes: 'just a note' },
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(geocoder.geocode).not.toHaveBeenCalled();
+    expect(result.notes).toBe('just a note');
+    expect(propertyRepo.update).toHaveBeenCalled();
   });
 
   it('should not reset geocodingStatus when non-address field changes', async () => {
@@ -202,7 +296,8 @@ describe('UpdatePropertyUseCase', () => {
     );
   });
 
-  it('should set geocodingStatus to PENDING when only address changes', async () => {
+  // No geocoder wired (the default useCase) → the V4 fallback: PENDING + async job.
+  it('falls back to PENDING when an address changes and no geocoder is wired', async () => {
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
 
     const result = await useCase.execute({

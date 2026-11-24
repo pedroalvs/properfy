@@ -884,7 +884,7 @@ export function createContainer(logger: Logger): AppContainer {
   const getPropertyUseCase = new GetPropertyUseCase(propertyRepo, propertyFileRepo);
   const listPropertiesUseCase = new ListPropertiesUseCase(propertyRepo, propertyIssueRepo);
   const getPropertySummaryUseCase = new GetPropertySummaryUseCase(propertyRepo);
-  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger);
+  const updatePropertyUseCase = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger, geocodingService);
   const deletePropertyUseCase = new DeletePropertyUseCase(propertyRepo, appointmentChecker, auditService);
   const geocodePropertyUseCase = new GeocodePropertyUseCase(propertyRepo, authorizationService);
   const rawAddressLookupService = new DynamicAddressLookupService(integrationConfigResolver);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
@@ -11,16 +11,28 @@ import { TextInput } from '@/components/forms/TextInput';
 import { SelectInput } from '@/components/forms/SelectInput';
 import { Textarea } from '@/components/forms/Textarea';
 import { AddressLookupInput } from '@/components/forms/AddressLookupInput';
+import { InfoBanner } from '@/components/feedback/InfoBanner';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { usePropertyDetail } from '../hooks/usePropertyDetail';
 import { usePropertySave } from '../hooks/usePropertySave';
+import { AddressNotVerifiedAlert } from './AddressNotVerifiedAlert';
 import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS, YES_NO_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
 import type { AddressLookupSuggestion } from '@/lib/address';
 import { buildAddressLabel } from '@/lib/address';
-import { PropertyType } from '@properfy/shared';
+import { PropertyType, ADDRESS_LEGACY_UNVERIFIED_MESSAGE, ADDRESS_CHECK_DEFERRED_MESSAGE, type AddressNotVerifiedReason } from '@properfy/shared';
+
+/** Address fields whose edit clears the on-save verification error (§5.3). */
+const ADDRESS_FORM_FIELDS = new Set<keyof PropertyFormData>([
+  'street',
+  'addressLine2',
+  'suburb',
+  'postcode',
+  'state',
+  'country',
+]);
 
 interface PropertyFormDrawerProps {
   open: boolean;
@@ -72,6 +84,13 @@ export function PropertyFormDrawer({
   const [initialData, setInitialData] = useState<PropertyFormData>(EMPTY_PROPERTY_FORM);
   const [errors, setErrors] = useState<PropertyFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  // V-1: on-save address verification failure (422) + the manual-pin escape.
+  const [addressError, setAddressError] = useState<AddressNotVerifiedReason | null>(null);
+  const [showManualPin, setShowManualPin] = useState(false);
+  const streetRef = useRef<HTMLInputElement>(null);
+  // Legacy record whose stored address could not be located (edit only) — a
+  // non-blocking yellow banner; editing non-address fields still saves.
+  const showLegacyWarning = isEditMode && property?.geocodingStatus === 'FAILED';
 
   useEffect(() => {
     if (isEditMode && property) {
@@ -98,6 +117,8 @@ export function PropertyFormDrawer({
       setForm(data);
       setInitialData(data);
       setErrors({});
+      setAddressError(null);
+      setShowManualPin(false);
     }
   }, [isEditMode, property]);
 
@@ -110,6 +131,8 @@ export function PropertyFormDrawer({
       setForm(nextForm);
       setInitialData(nextForm);
       setErrors({});
+      setAddressError(null);
+      setShowManualPin(false);
     }
   }, [open, isEditMode, initialBranchId]);
 
@@ -126,6 +149,7 @@ export function PropertyFormDrawer({
         }
         return prev;
       });
+      if (ADDRESS_FORM_FIELDS.has(field)) setAddressError(null);
     },
     [],
   );
@@ -156,6 +180,7 @@ export function PropertyFormDrawer({
         delete next.country;
         return next;
       });
+      setAddressError(null);
     },
     [isEditMode, property?.geocodingStatus],
   );
@@ -183,11 +208,19 @@ export function PropertyFormDrawer({
       geocodingStatus: property?.geocodingStatus,
     });
     if (result.success) {
-      showSuccess(isEditMode ? 'Property updated successfully' : 'Property created successfully');
+      const createMsg =
+        result.geocodingStatus === 'PENDING'
+          ? `Property created. ${ADDRESS_CHECK_DEFERRED_MESSAGE}`
+          : 'Property created successfully';
+      showSuccess(isEditMode ? 'Property updated successfully' : createMsg);
       if (!isEditMode && result.id) {
         onCreated?.(result.id);
       }
       onSaved();
+    } else if (result.addressNotVerified) {
+      // V-1: keep the drawer open, mark the fields, show the reason + manual escape.
+      setAddressError(result.addressNotVerified);
+      streetRef.current?.focus();
     } else {
       if (result.fieldErrors) {
         setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
@@ -274,6 +307,19 @@ export function PropertyFormDrawer({
                   </FormSection>
 
                   <FormSection title="Address" columns={2}>
+                    {showLegacyWarning && !addressError && (
+                      <div className="md:col-span-2">
+                        <InfoBanner variant="warning">{ADDRESS_LEGACY_UNVERIFIED_MESSAGE}</InfoBanner>
+                      </div>
+                    )}
+                    {addressError && (
+                      <div className="md:col-span-2">
+                        <AddressNotVerifiedAlert
+                          reason={addressError}
+                          onSetManual={isEditMode ? undefined : () => setShowManualPin(true)}
+                        />
+                      </div>
+                    )}
                     <FormField
                       label="Verified Address"
                       required
@@ -297,8 +343,10 @@ export function PropertyFormDrawer({
                     </FormField>
                     <FormField label="Street" required error={errors.street}>
                       <TextInput
+                        ref={streetRef}
                         value={form.street}
                         onChange={(v) => updateField('street', v)}
+                        error={!!errors.street || addressError !== null}
                         aria-label="Street"
                       />
                     </FormField>
@@ -313,6 +361,7 @@ export function PropertyFormDrawer({
                       <TextInput
                         value={form.suburb}
                         onChange={(v) => updateField('suburb', v)}
+                        error={!!errors.suburb || addressError !== null}
                         aria-label="Suburb"
                       />
                     </FormField>
@@ -320,6 +369,7 @@ export function PropertyFormDrawer({
                       <TextInput
                         value={form.postcode}
                         onChange={(v) => updateField('postcode', v)}
+                        error={!!errors.postcode || addressError !== null}
                         aria-label="Postcode"
                       />
                     </FormField>
@@ -329,6 +379,7 @@ export function PropertyFormDrawer({
                         onChange={(v) => updateField('state', v)}
                         options={STATE_OPTIONS}
                         placeholder="Select state"
+                        error={!!errors.state || addressError !== null}
                         aria-label="State"
                       />
                     </FormField>
@@ -386,11 +437,15 @@ export function PropertyFormDrawer({
                     </FormField>
                   </FormSection>
 
-                  {isEditMode && (
+                  {(isEditMode || showManualPin) && (
                     <FormSection title="Coordinates" columns={2}>
                       <FormField
                         label="Latitude"
-                        hint="Optional. Manually override geocoded coordinates."
+                        hint={
+                          isEditMode
+                            ? 'Optional. Manually override geocoded coordinates.'
+                            : "Use only when the address can't be located. The address text is kept as typed and the location is marked as set manually."
+                        }
                         error={errors.latitude}
                       >
                         <TextInput

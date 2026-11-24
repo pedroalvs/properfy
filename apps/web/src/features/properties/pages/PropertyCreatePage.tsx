@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { UserRole, PropertyType } from '@properfy/shared';
+import { UserRole, PropertyType, ADDRESS_CHECK_DEFERRED_MESSAGE, type AddressNotVerifiedReason } from '@properfy/shared';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/forms/FormSection';
 import { FormField } from '@/components/forms/FormField';
@@ -16,6 +16,7 @@ import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
 import { useGoBack } from '@/hooks/useGoBack';
 import { usePropertySave } from '../hooks/usePropertySave';
+import { AddressNotVerifiedAlert } from '../components/AddressNotVerifiedAlert';
 import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS, YES_NO_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';
@@ -25,6 +26,16 @@ import { buildAddressLabel } from '@/lib/address';
 // Single source of truth for the Back fallback: the page's own useGoBack and the header's
 // backTo must agree (L-X01-08).
 const BACK_TO = '/properties';
+
+/** Address fields whose edit clears the on-save verification error (§5.3). */
+const ADDRESS_FORM_FIELDS = new Set<keyof PropertyFormData>([
+  'street',
+  'addressLine2',
+  'suburb',
+  'postcode',
+  'state',
+  'country',
+]);
 
 export function PropertyCreatePage() {
   const navigate = useNavigate();
@@ -71,6 +82,11 @@ export function PropertyCreatePage() {
   const [initialData] = useState<PropertyFormData>({ ...EMPTY_PROPERTY_FORM, branchId: initialBranchId });
   const [errors, setErrors] = useState<PropertyFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  // V-1: the on-save address-verification failure (422). Marks the address
+  // fields, shows the reason block, and offers the manual-pin escape.
+  const [addressError, setAddressError] = useState<AddressNotVerifiedReason | null>(null);
+  const [showManualPin, setShowManualPin] = useState(false);
+  const streetRef = useRef<HTMLInputElement>(null);
 
   // Changing the agency invalidates the branch (branches are tenant-scoped). Done imperatively
   // in the change handler rather than a mount effect so a pre-filled branch survives the initial
@@ -93,6 +109,8 @@ export function PropertyCreatePage() {
         }
         return prev;
       });
+      // Correcting any address field clears the verification error (§5.3).
+      if (ADDRESS_FORM_FIELDS.has(field)) setAddressError(null);
     },
     [],
   );
@@ -115,6 +133,7 @@ export function PropertyCreatePage() {
       delete next.country;
       return next;
     });
+    setAddressError(null);
   }, []);
 
   const clearAddressSelection = useCallback(() => {
@@ -145,12 +164,21 @@ export function PropertyCreatePage() {
 
     const result = await save(form, undefined, effectiveTenantId);
     if (result.success) {
-      showSuccess('Property created. Geocoding in progress.');
+      showSuccess(
+        result.geocodingStatus === 'PENDING'
+          ? `Property created. ${ADDRESS_CHECK_DEFERRED_MESSAGE}`
+          : 'Property created.',
+      );
       if (result.id) {
         navigate(`/properties/${result.id}`);
       } else {
         navigate('/properties');
       }
+    } else if (result.addressNotVerified) {
+      // V-1: the address could not be verified — keep the form open, mark the
+      // fields, show the reason block, and move focus to Street. No snackbar.
+      setAddressError(result.addressNotVerified);
+      streetRef.current?.focus();
     } else {
       if (result.fieldErrors) {
         setErrors((prev) => ({ ...prev, ...result.fieldErrors }));
@@ -241,6 +269,14 @@ export function PropertyCreatePage() {
             </FormSection>
 
             <FormSection title="Address" columns={2}>
+              {addressError && (
+                <div className="md:col-span-2">
+                  <AddressNotVerifiedAlert
+                    reason={addressError}
+                    onSetManual={() => setShowManualPin(true)}
+                  />
+                </div>
+              )}
               <FormField
                 label="Verified Address"
                 required
@@ -264,9 +300,10 @@ export function PropertyCreatePage() {
               </FormField>
               <FormField label="Street" required error={errors.street}>
                 <TextInput
+                  ref={streetRef}
                   value={form.street}
                   onChange={(v) => updateField('street', v)}
-                  error={!!errors.street}
+                  error={!!errors.street || addressError !== null}
                   aria-label="Street"
                 />
               </FormField>
@@ -281,7 +318,7 @@ export function PropertyCreatePage() {
                 <TextInput
                   value={form.suburb}
                   onChange={(v) => updateField('suburb', v)}
-                  error={!!errors.suburb}
+                  error={!!errors.suburb || addressError !== null}
                   aria-label="Suburb"
                 />
               </FormField>
@@ -289,7 +326,7 @@ export function PropertyCreatePage() {
                 <TextInput
                   value={form.postcode}
                   onChange={(v) => updateField('postcode', v)}
-                  error={!!errors.postcode}
+                  error={!!errors.postcode || addressError !== null}
                   aria-label="Postcode"
                 />
               </FormField>
@@ -299,7 +336,7 @@ export function PropertyCreatePage() {
                   onChange={(v) => updateField('state', v)}
                   options={STATE_OPTIONS}
                   placeholder="Select state"
-                  error={!!errors.state}
+                  error={!!errors.state || addressError !== null}
                   aria-label="State"
                 />
               </FormField>
@@ -311,6 +348,34 @@ export function PropertyCreatePage() {
                 />
               </FormField>
             </FormSection>
+
+            {showManualPin && (
+              <FormSection
+                title="Coordinates"
+                columns={2}
+              >
+                <FormField
+                  label="Latitude"
+                  className="md:col-span-2"
+                  hint="Use only when the address can't be located. The address text is kept as typed and the location is marked as set manually."
+                >
+                  <TextInput
+                    value={form.latitude}
+                    onChange={(v) => updateField('latitude', v)}
+                    placeholder="-33.4521"
+                    aria-label="Latitude"
+                  />
+                </FormField>
+                <FormField label="Longitude">
+                  <TextInput
+                    value={form.longitude}
+                    onChange={(v) => updateField('longitude', v)}
+                    placeholder="150.6612"
+                    aria-label="Longitude"
+                  />
+                </FormField>
+              </FormSection>
+            )}
 
             <FormSection title="Details" columns={2}>
               <FormField label="Private Area (m²)" error={errors.privateAreaM2}>

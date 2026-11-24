@@ -10,3 +10,4 @@ export * from './transition-sources';
 export * from './inspector-notices';
 export * from './day-plan';
 export * from './property-files';
+export * from './address-validation';

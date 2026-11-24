@@ -8,9 +8,28 @@ import {
   PropertyNotFoundError,
   PropertyAddressConflictError,
   BranchInactiveError,
+  PropertyAddressNotVerifiedError,
 } from '../../domain/property.errors';
 import { BranchNotFoundError } from '../../../tenant/domain/tenant.errors';
+import type { IGeocodingService, GeocodingResult } from '../../domain/geocoding.service';
+import { classifyGeocodingResult } from '../../domain/geocoding.service';
+import { geocodeWithTimeout, GEOCODE_SYNC_TIMEOUT_MS } from '../services/geocode-with-timeout';
 import { sendJob } from '../../../../shared/infrastructure/queue';
+
+/** Build the geocoder query exactly like `PropertyEntity.fullAddress` (kept in lockstep). */
+function buildFullAddress(f: {
+  street: string;
+  addressLine2: string | null;
+  suburb: string;
+  state: string;
+  postcode: string;
+  country: string;
+}): string {
+  const parts = [f.street];
+  if (f.addressLine2) parts.push(f.addressLine2);
+  parts.push(f.suburb, f.state, f.postcode, f.country);
+  return parts.join(', ');
+}
 
 export interface UpdatePropertyInput {
   propertyId: string;
@@ -72,6 +91,8 @@ export class UpdatePropertyUseCase {
     private readonly branchRepo: IBranchRepository,
     private readonly auditService: AuditService,
     private readonly logger?: Logger,
+    private readonly geocodingService?: IGeocodingService,
+    private readonly syncGeocodeTimeoutMs: number = GEOCODE_SYNC_TIMEOUT_MS,
   ) {}
 
   /** Compare an incoming coordinate against a stored one at 7 decimal places
@@ -234,11 +255,51 @@ export class UpdatePropertyUseCase {
     // entirely — handled by falling through neither branch above.
 
     // Address change re-geocodes (unless a MANUAL override was just set — it wins).
+    // V-1: geocode SYNCHRONOUSLY and validate (rule A) before writing. Accepted →
+    // store coords + SUCCESS now; rejected/null → 422, nothing written; a
+    // timeout/transient error (or no geocoder wired) → keep PENDING and let the
+    // async worker finish it (V4 "provider down"). An edit that does NOT touch the
+    // address never reaches here, so it never calls the geocoder.
     if (!manualSet && addressChanged) {
-      updateData.geocodingStatus = 'PENDING';
       updateData.geocodedPermanentlyAt = null;
       updateData.geocodingFailureCode = null;
-      statusToPending = true;
+
+      const query = buildFullAddress({
+        street: data.street ?? property.street,
+        addressLine2: data.addressLine2 !== undefined ? data.addressLine2 : property.addressLine2,
+        suburb: data.suburb ?? property.suburb,
+        state: data.state ?? property.state,
+        postcode: data.postcode ?? property.postcode,
+        country: data.country ?? property.country,
+      });
+
+      let outcome: GeocodingResult | null | undefined;
+      if (this.geocodingService) {
+        try {
+          outcome = await geocodeWithTimeout(this.geocodingService, query, {
+            timeoutMs: this.syncGeocodeTimeoutMs,
+          });
+        } catch (err) {
+          this.logger?.warn({ propertyId, err }, 'property.sync_geocode_failed_falling_back');
+        }
+      }
+
+      if (outcome === null) {
+        throw new PropertyAddressNotVerifiedError('NOT_FOUND');
+      }
+      if (outcome !== undefined) {
+        const decision = classifyGeocodingResult(outcome);
+        if (!decision.accepted) {
+          throw new PropertyAddressNotVerifiedError(decision.reason);
+        }
+        updateData.lat = outcome.lat;
+        updateData.lng = outcome.lng;
+        updateData.geocodingStatus = 'SUCCESS';
+        updateData.geocodedPermanentlyAt = new Date();
+      } else {
+        updateData.geocodingStatus = 'PENDING';
+        statusToPending = true;
+      }
     }
 
     const before = {
