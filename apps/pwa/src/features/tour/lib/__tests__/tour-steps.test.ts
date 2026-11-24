@@ -2,22 +2,25 @@ import { describe, expect, it } from 'vitest';
 import { resolveTourSteps, TARGET_STEPS } from '../tour-steps';
 
 describe('resolveTourSteps', () => {
-  it('returns 8 target steps + install (9) in a browser', () => {
+  it('returns 8 target steps + notifications + install (10) in a browser', () => {
     const steps = resolveTourSteps({ isStandalone: false });
-    expect(steps).toHaveLength(9);
+    expect(steps).toHaveLength(10);
     expect(steps.filter((s) => s.kind === 'target')).toHaveLength(8);
-    expect(steps[8]).toMatchObject({ kind: 'install', title: 'Install Properfy' });
+    expect(steps[8]).toMatchObject({ kind: 'notifications', title: 'Notifications' });
+    expect(steps[9]).toMatchObject({ kind: 'install', title: 'Install Properfy' });
   });
 
-  it('omits the install step in standalone (8)', () => {
+  it('keeps the notifications step but omits install in standalone (9)', () => {
     const steps = resolveTourSteps({ isStandalone: true });
-    expect(steps).toHaveLength(8);
-    expect(steps.every((s) => s.kind === 'target')).toBe(true);
+    expect(steps).toHaveLength(9);
+    expect(steps.filter((s) => s.kind === 'target')).toHaveLength(8);
+    expect(steps[8]).toMatchObject({ kind: 'notifications', title: 'Notifications' });
+    expect(steps.some((s) => s.kind === 'install')).toBe(false);
   });
 
   it('keeps the frozen order of target anchors (L-F04-12)', () => {
     const steps = resolveTourSteps({ isStandalone: true });
-    expect(steps.map((s) => s.anchor)).toEqual([
+    expect(steps.filter((s) => s.kind === 'target').map((s) => s.anchor)).toEqual([
       'nav-today',
       'today-next',
       'today-next-actions',

@@ -12416,7 +12416,8 @@
                                     "ROUTE_PUBLISHED",
                                     "ROUTE_CHANGED",
                                     "COMPLETION_REMINDER",
-                                    "PERFORMANCE_MESSAGE"
+                                    "PERFORMANCE_MESSAGE",
+                                    "APPOINTMENT_AUTO_REJECTED"
                                   ]
                                 }
                               },
@@ -12649,7 +12650,8 @@
                                       "ROUTE_PUBLISHED",
                                       "ROUTE_CHANGED",
                                       "COMPLETION_REMINDER",
-                                      "PERFORMANCE_MESSAGE"
+                                      "PERFORMANCE_MESSAGE",
+                                      "APPOINTMENT_AUTO_REJECTED"
                                     ]
                                   }
                                 },
@@ -12861,7 +12863,8 @@
                                     "ROUTE_PUBLISHED",
                                     "ROUTE_CHANGED",
                                     "COMPLETION_REMINDER",
-                                    "PERFORMANCE_MESSAGE"
+                                    "PERFORMANCE_MESSAGE",
+                                    "APPOINTMENT_AUTO_REJECTED"
                                   ]
                                 }
                               },
@@ -13084,7 +13087,8 @@
                                     "ROUTE_PUBLISHED",
                                     "ROUTE_CHANGED",
                                     "COMPLETION_REMINDER",
-                                    "PERFORMANCE_MESSAGE"
+                                    "PERFORMANCE_MESSAGE",
+                                    "APPOINTMENT_AUTO_REJECTED"
                                   ]
                                 }
                               },
@@ -21100,7 +21104,8 @@
                     "type": "string",
                     "enum": [
                       "RESEND",
-                      "NOTIFY_ONLY"
+                      "NOTIFY_ONLY",
+                      "FORCE_CONFIRM"
                     ]
                   }
                 },
@@ -21170,7 +21175,8 @@
                               "type": "string",
                               "enum": [
                                 "RESEND",
-                                "NOTIFY_ONLY"
+                                "NOTIFY_ONLY",
+                                "FORCE_CONFIRM"
                               ]
                             }
                           },

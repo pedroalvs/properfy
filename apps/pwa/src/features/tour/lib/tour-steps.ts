@@ -1,18 +1,19 @@
 /**
- * The app-tour step catalog (pure). Counts and texts are frozen by L-F04-12:
- * 8 target steps + 1 install step → 9 in a browser, 8 in standalone. Titles and
- * bodies are used verbatim by the E2E and component tests; do not reword them
- * without updating the contract.
+ * The app-tour step catalog (pure). Counts and texts are frozen by L-F04-12 and
+ * extended by the push-default feature with a notifications step before install:
+ * 8 target steps + 1 notifications step → 9 in standalone, + 1 install step → 10
+ * in a browser. Titles and bodies are used verbatim by the E2E and component
+ * tests; do not reword them without updating the contract.
  */
 
 export interface TourStep {
   /** Stable id for keys/tests. */
   id: string;
-  kind: 'target' | 'install';
-  /** `data-tour` selector key for target steps; absent for the install step. */
+  kind: 'target' | 'install' | 'notifications';
+  /** `data-tour` selector key for target steps; absent for the install/notifications steps. */
   anchor?: string;
   title: string;
-  /** Body copy for target steps; the install step renders `InstallStepBody` instead. */
+  /** Body copy for target steps; the install/notifications steps render their own body component. */
   body: string;
 }
 
@@ -76,6 +77,13 @@ export const TARGET_STEPS: readonly TourStep[] = [
   },
 ];
 
+const NOTIFICATIONS_STEP: TourStep = {
+  id: 'notifications',
+  kind: 'notifications',
+  title: 'Notifications',
+  body: '',
+};
+
 const INSTALL_STEP: TourStep = {
   id: 'install',
   kind: 'install',
@@ -91,11 +99,12 @@ export interface TourStepFlags {
 
 /**
  * The full step list before runtime target-presence filtering: all 8 target
- * steps, plus the install step only when the app is not already installed.
- * Target steps whose anchor is absent at runtime are skipped by `AppTour`.
+ * steps, then the notifications step (always — push is relevant installed or not),
+ * then the install step only when the app is not already installed. Target steps
+ * whose anchor is absent at runtime are skipped by `AppTour`.
  */
 export function resolveTourSteps(flags: TourStepFlags): TourStep[] {
-  const steps = [...TARGET_STEPS];
+  const steps = [...TARGET_STEPS, NOTIFICATIONS_STEP];
   if (!flags.isStandalone) steps.push(INSTALL_STEP);
   return steps;
 }

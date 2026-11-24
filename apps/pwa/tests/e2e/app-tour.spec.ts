@@ -41,7 +41,7 @@ async function advanceToEnd(page: Page, nextClicks: number) {
 }
 
 test.describe('App tour (00.A1)', () => {
-  test('E1: first access shows the tour at step 1 of 9', async ({ page }) => {
+  test('E1: first access shows the tour at step 1 of 10', async ({ page }) => {
     skipOnWide(PHONE_ONLY);
     await loginAsInspector(page, { me: INSPECTOR_ME });
     await overrideMe(page, INSPECTOR_PROFILE_TOUR_PENDING);
@@ -49,7 +49,7 @@ test.describe('App tour (00.A1)', () => {
 
     await page.goto('/today');
     await expect(page.getByRole('dialog', { name: 'Today' })).toBeVisible();
-    await expect(page.getByText('Step 1 of 9')).toBeVisible();
+    await expect(page.getByText('Step 1 of 10')).toBeVisible();
     await expect(page.getByTestId('tour-overlay')).toBeVisible();
   });
 
@@ -76,8 +76,8 @@ test.describe('App tour (00.A1)', () => {
 
     await page.goto('/today');
     await expect(page.getByRole('dialog', { name: 'Today' })).toBeVisible();
-    await advanceToEnd(page, 8);
-    await expect(page.getByText('Step 9 of 9')).toBeVisible();
+    await advanceToEnd(page, 9);
+    await expect(page.getByText('Step 10 of 10')).toBeVisible();
     await page.getByRole('button', { name: 'Done' }).click();
 
     await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -121,7 +121,7 @@ test.describe('App tour (00.A1)', () => {
     expect(completions).toHaveLength(0);
   });
 
-  test('E6a: the install step is the last step in a browser (9 total)', async ({ page }) => {
+  test('E6a: the install step is the last step in a browser (10 total)', async ({ page }) => {
     skipOnWide(PHONE_ONLY);
     await loginAsInspector(page, { me: INSPECTOR_ME });
     await overrideMe(page, INSPECTOR_PROFILE_TOUR_PENDING);
@@ -129,12 +129,12 @@ test.describe('App tour (00.A1)', () => {
 
     await page.goto('/today');
     await expect(page.getByRole('dialog', { name: 'Today' })).toBeVisible();
-    await advanceToEnd(page, 8);
+    await advanceToEnd(page, 9);
     await expect(page.getByRole('dialog', { name: 'Install Properfy' })).toBeVisible();
-    await expect(page.getByText('Step 9 of 9')).toBeVisible();
+    await expect(page.getByText('Step 10 of 10')).toBeVisible();
   });
 
-  test('E6b: the install step is absent in standalone (8 total)', async ({ page }) => {
+  test('E6b: the install step is absent in standalone (9 total)', async ({ page }) => {
     skipOnWide(PHONE_ONLY);
     await emulateStandalone(page);
     await loginAsInspector(page, { me: INSPECTOR_ME });
@@ -143,9 +143,25 @@ test.describe('App tour (00.A1)', () => {
 
     await page.goto('/today');
     await expect(page.getByRole('dialog', { name: 'Today' })).toBeVisible();
-    await advanceToEnd(page, 7);
-    await expect(page.getByText('Step 8 of 8')).toBeVisible();
+    await advanceToEnd(page, 8);
+    await expect(page.getByText('Step 9 of 9')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Done' })).toBeVisible();
     await expect(page.getByRole('dialog', { name: 'Install Properfy' })).toHaveCount(0);
+  });
+
+  test('E7: the notifications step appears before install (R4)', async ({ page }) => {
+    skipOnWide(PHONE_ONLY);
+    await loginAsInspector(page, { me: INSPECTOR_ME });
+    await overrideMe(page, INSPECTOR_PROFILE_TOUR_PENDING);
+    await captureCompletions(page);
+
+    await page.goto('/today');
+    await expect(page.getByRole('dialog', { name: 'Today' })).toBeVisible();
+    // 8 advances reach the notifications step (step 9), before install (step 10).
+    await advanceToEnd(page, 8);
+    await expect(page.getByRole('dialog', { name: 'Notifications' })).toBeVisible();
+    await expect(page.getByText('Step 9 of 10')).toBeVisible();
+    await advanceToEnd(page, 1);
+    await expect(page.getByRole('dialog', { name: 'Install Properfy' })).toBeVisible();
   });
 });

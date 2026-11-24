@@ -21,6 +21,7 @@ import {
 import { getServiceGroupDateAdjustment } from '../../domain/service-group-date-sync';
 import { getServiceGroupTimeSlotAdjustment } from '../../domain/service-group-time-slot-sync';
 import type { SendGroupPortalLinksUseCase } from './send-group-portal-links.use-case';
+import type { ForceConfirmGroupUseCase } from './force-confirm-group.use-case';
 
 /** A closed group's schedule is history; only a live one can still move. */
 const CHANGEABLE_STATUSES = ['DRAFT', 'PUBLISHED', 'ACCEPTED'];
@@ -84,6 +85,7 @@ export class ChangeGroupScheduleUseCase {
     private readonly sendGroupPortalLinks: SendGroupPortalLinksUseCase,
     private readonly confirmationCycleService: ConfirmationCycleService,
     private readonly onAdminRescheduleHandler: AdminRescheduleNotifier,
+    private readonly forceConfirmGroup: ForceConfirmGroupUseCase,
     private readonly eventBus?: DomainEventBus,
     private readonly logger: ServiceGroupTimeSyncLogger = { error: () => undefined },
   ) {}
@@ -139,6 +141,19 @@ export class ChangeGroupScheduleUseCase {
       input.idempotencyKey ?? `group-schedule:${groupId}:${effectiveDate}:${effectiveWindow}:${confirmationStrategy}`;
     const cached = await this.idempotencyService.get<ChangeGroupScheduleOutput>(idempotencyKey, 'group-schedule');
     if (cached) return cached;
+
+    // FORCE_CONFIRM: confirm the unconfirmed members on the tenants' behalf
+    // BEFORE moving the group. Ordering is the safety guarantee — if the
+    // force-confirm throws, the move below never runs, so no "moved but still
+    // unconfirmed" state (the exact limbo the daily sweep would auto-cancel) can
+    // ever persist. The move then runs with NOTIFY_ONLY semantics (it keeps
+    // confirmations and realigns the cycle). A reschedule failure after this
+    // leaves members confirmed at the old date — safe, and a retry moves them.
+    // This reuses ForceConfirmGroupUseCase (own-tenant scoping, force_confirmation
+    // RBAC, idempotent skip of already-CONFIRMED/terminal, per-member audits).
+    if (confirmationStrategy === 'FORCE_CONFIRM') {
+      await this.forceConfirmGroup.execute({ groupId, actor });
+    }
 
     const groupScheduledDate = new Date(effectiveDate);
 

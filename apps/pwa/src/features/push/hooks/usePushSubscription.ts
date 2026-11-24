@@ -40,6 +40,9 @@ export interface PushDeps {
   subscribe: (applicationServerKey: Uint8Array) => Promise<PushSubscription>;
   saveSubscription: (subscription: PushSubscription) => Promise<void>;
   removeSubscription: (endpoint: string) => Promise<void>;
+  /** Per-device opt-out store (R2). Default-on means absent ⇒ wants push. */
+  getOptOut: () => boolean;
+  setOptOut: (value: boolean) => void;
 }
 
 export interface UsePushSubscriptionResult {
@@ -92,6 +95,23 @@ export function usePushSubscription(deps: PushDeps): UsePushSubscriptionResult {
         const sub = await d.getSubscription();
         if (cancelled) return;
         if (!sub) {
+          // R1 default-on: when the OS permission is already granted and the device
+          // has not opted out, subscribe from scratch (no gesture needed) and resolve
+          // to 'on' on this same load. This hook is the single source of truth — the
+          // resync no longer subscribes from scratch — so the indicator/toggle reflect
+          // the active subscription immediately instead of showing 'off' until reload.
+          if (d.getPermission() === 'granted' && !d.getOptOut()) {
+            try {
+              const fresh = await d.subscribe(urlBase64ToUint8Array(vapidKey));
+              await d.saveSubscription(fresh);
+              if (!cancelled) setState('on');
+            } catch {
+              // Automatic subscribe failed silently; the inspector can retry via the
+              // toggle or the top-bar indicator. No loud error for a background op.
+              if (!cancelled) setState('off');
+            }
+            return;
+          }
           setState('off');
           return;
         }
@@ -137,6 +157,9 @@ export function usePushSubscription(deps: PushDeps): UsePushSubscriptionResult {
   const enable = useCallback(async () => {
     const d = depsRef.current;
     if (d.vapidPublicKey === null) return;
+    // R1/R2: enabling is an explicit opt back in. Clear the opt-out first so a
+    // later reload's resync keeps this device subscribed.
+    d.setOptOut(false);
     setError(null);
     setState('enabling');
     const permission = await d.requestPermission();
@@ -162,6 +185,9 @@ export function usePushSubscription(deps: PushDeps): UsePushSubscriptionResult {
 
   const disable = useCallback(async () => {
     const d = depsRef.current;
+    // R2: a disable is a persisted opt-out so the resync never re-subscribes this
+    // device after a reload.
+    d.setOptOut(true);
     setError(null);
     setState('disabling');
     const sub = await d.getSubscription().catch(() => null);

@@ -494,6 +494,7 @@ import { NotifyOnGroupAcceptedSubscriber } from '../modules/notification/applica
 import { NotifyOnGroupInspectorChangeSubscriber } from '../modules/notification/application/subscribers/notify-on-group-inspector-change.subscriber';
 import { ChangeGroupInspectorUseCase } from '../modules/service-group/application/use-cases/change-group-inspector.use-case';
 import { ChangeGroupScheduleUseCase } from '../modules/service-group/application/use-cases/change-group-schedule.use-case';
+import { ForceConfirmGroupUseCase } from '../modules/service-group/application/use-cases/force-confirm-group.use-case';
 import { createApiKeyAuthMiddleware } from '../shared/interfaces/api-key-auth-middleware';
 import { createAuthMiddleware, setDefaultTimezoneResolver } from '../shared/interfaces/auth-middleware';
 import { createEffectiveTimezoneResolver } from '../shared/infrastructure/effective-timezone-resolver';
@@ -1739,6 +1740,16 @@ export function createContainer(logger: Logger): AppContainer {
     domainEventBus,
   );
 
+  // Force-confirm is folded into the schedule change as the FORCE_CONFIRM strategy
+  // (atomic single call), so this use case is an internal collaborator — no route.
+  const forceConfirmGroupUseCase = new ForceConfirmGroupUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    auditService,
+    authorizationService,
+    confirmationCycleService,
+  );
+
   const changeGroupScheduleUseCase = new ChangeGroupScheduleUseCase(
     serviceGroupRepo,
     appointmentRepo,
@@ -1748,6 +1759,7 @@ export function createContainer(logger: Logger): AppContainer {
     sendGroupPortalLinksUseCase,
     confirmationCycleService,
     notifyOnAdminRescheduleHandler,
+    forceConfirmGroupUseCase,
     domainEventBus,
     logger,
   );
@@ -2092,6 +2104,9 @@ export function createContainer(logger: Logger): AppContainer {
   // Reject unconfirmed appointments cleanup worker
   const rejectUnconfirmedAppointmentsUseCase = new RejectUnconfirmedAppointmentsUseCase(
     appointmentRepo, serviceGroupRepo, auditService, logger, confirmationCycleService, prisma,
+    // Agency reschedule-cue email (INSPECTION_REJECTED_AGENCY) + inspector in-app notice
+    // that their accepted job was removed — the sweep bypasses ExecuteStatusTransitionUseCase.
+    notifyOnStatusTransitionHandler, publishSystemInspectorNoticeUseCase,
   );
   const rejectUnconfirmedWorker = new RejectUnconfirmedWorker(rejectUnconfirmedAppointmentsUseCase);
 

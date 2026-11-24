@@ -39,10 +39,14 @@ describe('usePushSubscriptionSync', () => {
     await waitFor(() => expect(deps.saveSubscription).toHaveBeenCalledTimes(1));
   });
 
-  it('does not POST when there is no local subscription', async () => {
-    const deps = makeDeps({ getSubscription: vi.fn().mockResolvedValue(null) });
+  it('never subscribes from scratch — no POST when there is no local subscription', async () => {
+    // The R1 default-on auto-subscribe lives in usePushSubscription, not the resync.
+    const deps = makeDeps({
+      getSubscription: vi.fn().mockResolvedValue(null),
+    });
     renderHook(() => usePushSubscriptionSync('u1', deps));
     await new Promise((r) => setTimeout(r, 10));
+    expect(deps.subscribe).not.toHaveBeenCalled();
     expect(deps.saveSubscription).not.toHaveBeenCalled();
   });
 

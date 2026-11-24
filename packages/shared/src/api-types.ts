@@ -5195,7 +5195,7 @@ export interface paths {
                                     /** @enum {string} */
                                     type: "SYSTEM";
                                     /** @enum {string} */
-                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE";
+                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE" | "APPOINTMENT_AUTO_REJECTED";
                                 };
                                 author: {
                                     /** @enum {string} */
@@ -5278,7 +5278,7 @@ export interface paths {
                                     /** @enum {string} */
                                     type: "SYSTEM";
                                     /** @enum {string} */
-                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE";
+                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE" | "APPOINTMENT_AUTO_REJECTED";
                                 };
                                 author: {
                                     /** @enum {string} */
@@ -5347,7 +5347,7 @@ export interface paths {
                                     /** @enum {string} */
                                     type: "SYSTEM";
                                     /** @enum {string} */
-                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE";
+                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE" | "APPOINTMENT_AUTO_REJECTED";
                                 };
                                 author: {
                                     /** @enum {string} */
@@ -5428,7 +5428,7 @@ export interface paths {
                                     /** @enum {string} */
                                     type: "SYSTEM";
                                     /** @enum {string} */
-                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE";
+                                    systemType: "ROUTE_PUBLISHED" | "ROUTE_CHANGED" | "COMPLETION_REMINDER" | "PERFORMANCE_MESSAGE" | "APPOINTMENT_AUTO_REJECTED";
                                 };
                                 author: {
                                     /** @enum {string} */
@@ -8699,7 +8699,7 @@ export interface paths {
                         scheduledDate?: string;
                         timeWindow?: string;
                         /** @enum {string} */
-                        confirmationStrategy: "RESEND" | "NOTIFY_ONLY";
+                        confirmationStrategy: "RESEND" | "NOTIFY_ONLY" | "FORCE_CONFIRM";
                     };
                 };
             };
@@ -8724,7 +8724,7 @@ export interface paths {
                                     failed: number;
                                     confirmationsHandled: number;
                                     /** @enum {string} */
-                                    confirmationStrategy: "RESEND" | "NOTIFY_ONLY";
+                                    confirmationStrategy: "RESEND" | "NOTIFY_ONLY" | "FORCE_CONFIRM";
                                 };
                             };
                         };

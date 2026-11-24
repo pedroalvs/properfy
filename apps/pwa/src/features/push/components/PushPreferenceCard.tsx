@@ -1,21 +1,9 @@
 import { useState } from 'react';
 import { cn } from '@properfy/frontend-standards';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { useBrowserPushDeps } from '../hooks/useBrowserPushDeps';
-import { usePushSubscription, type PushState } from '../hooks/usePushSubscription';
-
-const DESCRIPTIONS: Record<Exclude<PushState, 'loading'>, string> = {
-  on: "On for this device. You'll get announcements even when the app is closed.",
-  off: 'Get announcements on this device even when the app is closed.',
-  enabling: 'Turning on…',
-  disabling: 'Turning off…',
-  blocked:
-    'Notifications are blocked for Properfy. Turn them on in your device settings, then come back.',
-  'ios-needs-install':
-    'To get push notifications on iPhone, add Properfy to your Home Screen (iOS 16.4 or later) and open it from there.',
-  unsupported: "This browser doesn't support push notifications.",
-  unavailable: "Push notifications aren't available right now.",
-};
+import { usePushControl } from '../context/PushControlProvider';
+import { PUSH_STATE_DESCRIPTIONS } from '../lib/push-copy';
+import type { PushState } from '../hooks/usePushSubscription';
 
 // States where the switch cannot be toggled.
 const DISABLED_STATES: PushState[] = [
@@ -30,12 +18,13 @@ const DISABLED_STATES: PushState[] = [
 
 /**
  * The per-device "Push notifications" control for `/profile/settings`. Mounts in
- * the F01-3 `push-preference-slot`. No mention of SMS (D5): the only preference
- * the inspector controls is push on this device.
+ * the F01-3 `push-preference-slot` and reads the shared {@link usePushControl}
+ * context, so toggling it here stays in sync with the top-bar indicator and the
+ * enable modal. No mention of SMS (D5): the only preference the inspector
+ * controls is push on this device.
  */
 export function PushPreferenceCard() {
-  const deps = useBrowserPushDeps();
-  const { state, error, enable, disable } = usePushSubscription(deps);
+  const { state, error, enable, disable } = usePushControl();
   const [offline, setOffline] = useState(false);
 
   const isOn = state === 'on';
@@ -88,7 +77,7 @@ export function PushPreferenceCard() {
 
       {state !== 'loading' && (
         <p role="status" className="mt-2 text-sm text-muted-foreground">
-          {DESCRIPTIONS[state]}
+          {PUSH_STATE_DESCRIPTIONS[state]}
         </p>
       )}
       {error === 'save-failed' && (

@@ -21,7 +21,11 @@ async function resync(deps: PushSyncDeps): Promise<void> {
   if (deps.getPermission() !== 'granted') return;
   try {
     const sub = await deps.getSubscription();
-    if (!sub) return; // never subscribe from scratch during a resync
+    // Never subscribe from scratch here: the R1 default-on auto-subscribe lives in
+    // `usePushSubscription` (the single state source) so the UI reflects it on the
+    // same load. The resync only keeps an EXISTING subscription registered and
+    // handles a VAPID rotation.
+    if (!sub) return;
     const serverKey = deps.vapidPublicKey ? urlBase64ToUint8Array(deps.vapidPublicKey) : null;
     const localKey = sub.options.applicationServerKey;
     // Server VAPID key rotated (and we can compare): re-subscribe with the new
@@ -40,12 +44,13 @@ async function resync(deps: PushSyncDeps): Promise<void> {
 }
 
 /**
- * Keeps this device's push subscription registered with the server on every
- * authenticated app load (mounted in `PwaLayout`) and whenever the service
- * worker reports `push-subscription-changed`. It never subscribes from scratch
- * (only an existing local subscription is re-POSTed); the single automatic
- * re-subscription is a VAPID key rotation with permission already granted
- * (L-F02-04). At most one POST per load per `userId`.
+ * Keeps this device's EXISTING push subscription registered with the server on
+ * every authenticated app load (mounted in `PwaLayout`) and whenever the service
+ * worker reports `push-subscription-changed`: it re-POSTs the current subscription
+ * and re-subscribes on a VAPID rotation (L-F02-04). It never subscribes from
+ * scratch — the R1 default-on auto-subscribe lives in `usePushSubscription` (the
+ * single state source) so the UI reflects it immediately. At most one POST per
+ * load per `userId`.
  */
 export function usePushSubscriptionSync(userId: string | null, deps: PushSyncDeps): void {
   const depsRef = useRef(deps);
