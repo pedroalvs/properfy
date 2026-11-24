@@ -20,6 +20,9 @@ primary_region = 'syd'
   PORT = '3000'
   LOG_LEVEL = 'info'
   JWT_ACCESS_TOKEN_TTL_MINUTES = '60'
+  # Slow pg-boss job polling from the 2s default to 15s — STAGING does not need
+  # sub-second job latency, and constant 24/7 polling is pure Supabase egress.
+  PGBOSS_NEW_JOB_CHECK_INTERVAL_SECONDS = '15'
 
 [http_service]
   internal_port = 3000
