@@ -31,6 +31,7 @@ import { PrismaServiceGroupRepository } from '../../../src/modules/service-group
 import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
 import { PrismaConfirmationCycleRepository } from '../../../src/modules/appointment/infrastructure/prisma-confirmation-cycle.repository';
 import { ConfirmationCycleService } from '../../../src/modules/appointment/application/services/confirmation-cycle.service';
+import { ForceConfirmGroupUseCase } from '../../../src/modules/service-group/application/use-cases/force-confirm-group.use-case';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { IIdempotencyService } from '../../../src/shared/domain/idempotency.service';
@@ -190,20 +191,31 @@ describe('service group schedule change (real DB)', () => {
 
   function makeUseCase(sendGroupPortalLinksSpy?: { execute: (i: unknown) => Promise<unknown> }) {
     const auditService = silentAuditService();
+    const serviceGroupRepo = new PrismaServiceGroupRepository(prisma);
+    const appointmentRepo = new PrismaAppointmentRepository(prisma);
+    const authorizationService = new AuthorizationService(auditService);
     const cycleService = new ConfirmationCycleService(
       new PrismaConfirmationCycleRepository(prisma),
       auditService,
       prisma,
     );
-    return new ChangeGroupScheduleUseCase(
-      new PrismaServiceGroupRepository(prisma),
-      new PrismaAppointmentRepository(prisma),
+    const forceConfirmGroup = new ForceConfirmGroupUseCase(
+      serviceGroupRepo,
+      appointmentRepo,
       auditService,
-      new AuthorizationService(auditService),
+      authorizationService,
+      cycleService,
+    );
+    return new ChangeGroupScheduleUseCase(
+      serviceGroupRepo,
+      appointmentRepo,
+      auditService,
+      authorizationService,
       passthroughIdempotency(),
       (sendGroupPortalLinksSpy ?? { execute: async () => ({ results: [] }) }) as never,
       cycleService,
       { execute: async () => undefined },
+      forceConfirmGroup,
       undefined,
       { error: () => undefined },
     );
@@ -427,5 +439,29 @@ describe('service group schedule change (real DB)', () => {
     // Soft-deleted rows keep their service_group_id, so this is a real trap.
     expect([deletedRow.time_slot_start, deletedRow.time_slot_end]).toEqual(['09:30', '10:30']);
     expect(result.applied).toMatchObject({ total: 1, slotClamped: 1 });
+  }, 60_000);
+
+  it('FORCE_CONFIRM confirms unconfirmed members AND moves the group in one call', async () => {
+    const groupId = await seedGroup();
+    const apptA = await seedMember(prisma, tenantA, serviceTypeId, groupId, GROUP_DATE, { start: '10:00', end: '11:00' });
+    const apptB = await seedMember(prisma, tenantB, serviceTypeId, groupId, GROUP_DATE, { start: '14:30', end: '15:30' });
+    const newDate = futureDateStr(40);
+
+    await makeUseCase().execute({
+      groupId,
+      scheduledDate: newDate,
+      confirmationStrategy: 'FORCE_CONFIRM',
+      actor: amActor(tenantA.userId),
+    });
+
+    const [rowA, rowB] = await Promise.all([
+      prisma.appointment.findUniqueOrThrow({ where: { id: apptA } }),
+      prisma.appointment.findUniqueOrThrow({ where: { id: apptB } }),
+    ]);
+    // Both unconfirmed members were force-confirmed AND moved — in one request.
+    expect(rowA.rental_tenant_confirmation_status).toBe('CONFIRMED');
+    expect(rowB.rental_tenant_confirmation_status).toBe('CONFIRMED');
+    expect(rowA.scheduled_date.toISOString().slice(0, 10)).toBe(newDate);
+    expect(rowB.scheduled_date.toISOString().slice(0, 10)).toBe(newDate);
   }, 60_000);
 });
