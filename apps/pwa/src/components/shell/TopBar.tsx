@@ -3,6 +3,7 @@ import { cn } from '@properfy/frontend-standards';
 import { useGoBack } from '@/hooks/useGoBack';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import { useQueuedActionCount } from '@/features/execution/hooks/useQueuedActionCount';
+import { PushStatusIndicator } from '@/features/push/components/PushStatusIndicator';
 import { useWidePane } from './WidePaneContext';
 
 interface TopBarProps {
@@ -84,6 +85,7 @@ export function TopBar({
         )}
       </div>
       <div className="flex items-center gap-2">
+        <PushStatusIndicator />
         {queuedCount > 0 && (
           <div
             className="flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2.5 py-1 text-[11px] font-semibold text-warning"

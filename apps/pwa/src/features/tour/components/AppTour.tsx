@@ -8,6 +8,7 @@ import { handleFocusTrapKeyDown } from '../lib/focus-trap';
 import { useTargetRect } from '../hooks/useTargetRect';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import { InstallStepBody } from './InstallStepBody';
+import { NotificationStepBody } from './NotificationStepBody';
 
 export interface AppTourProps {
   /** The resolved step list (install already included/excluded by `resolveTourSteps`). */
@@ -65,9 +66,9 @@ export function AppTour({ steps, onFinish }: AppTourProps) {
   );
 
   // Skip the current step when its target settled as absent, moving in the travel
-  // direction. Install steps are never skipped.
+  // direction. Non-target steps (install, notifications) are never skipped.
   useEffect(() => {
-    if (finished || !current || current.kind === 'install') return;
+    if (finished || !current || current.kind !== 'target') return;
     if (!target.resolved || target.isVisible) return;
 
     const nextSkipped = new Set(skipped);
@@ -87,7 +88,7 @@ export function AppTour({ steps, onFinish }: AppTourProps) {
   }, [current, target.resolved, target.isVisible, finished, index, skipped, direction, nextVisible, steps.length, finish]);
 
   const showBalloon =
-    !finished && !!current && (current.kind === 'install' || (target.resolved && target.isVisible));
+    !finished && !!current && (current.kind !== 'target' || (target.resolved && target.isVisible));
 
   // Capture prior focus + make the background inert while open; always restore.
   useEffect(() => {
@@ -148,7 +149,7 @@ export function AppTour({ steps, onFinish }: AppTourProps) {
     height: typeof window !== 'undefined' ? window.innerHeight : 844,
   };
   const geometry = computeTourGeometry({
-    targetRect: current?.kind === 'install' ? null : (target.rect as Rect | null),
+    targetRect: current?.kind === 'target' ? (target.rect as Rect | null) : null,
     viewport,
     insets: { safeTop: readInset('--safe-area-top'), safeBottom: readInset('--safe-area-bottom') },
   });
@@ -191,6 +192,8 @@ export function AppTour({ steps, onFinish }: AppTourProps) {
         <div id={bodyId} className="mt-1">
           {current.kind === 'install' ? (
             <InstallStepBody />
+          ) : current.kind === 'notifications' ? (
+            <NotificationStepBody />
           ) : (
             <p className="text-sm text-muted-foreground">{current.body}</p>
           )}

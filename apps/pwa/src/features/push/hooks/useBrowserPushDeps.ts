@@ -1,6 +1,7 @@
 import { getIsIosSafariEligible, getIsStandalone } from '@/app/useInstallPrompt';
 import { apiPost, useListQuery, type SuccessResponse } from '@/hooks/useApiQuery';
 import type { PushConfigResponse } from '@properfy/shared';
+import { getPushOptOut, setPushOptOut } from '../lib/push-preference';
 import type { PushDeps } from './usePushSubscription';
 
 async function readyRegistration(): Promise<ServiceWorkerRegistration> {
@@ -43,5 +44,7 @@ export function useBrowserPushDeps(): PushDeps {
     removeSubscription: async (endpoint) => {
       await apiPost('/v1/inspectors/me/push-subscriptions/unsubscribe', { endpoint });
     },
+    getOptOut: getPushOptOut,
+    setOptOut: setPushOptOut,
   };
 }

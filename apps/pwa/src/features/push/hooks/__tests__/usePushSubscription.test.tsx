@@ -25,6 +25,8 @@ function makeDeps(overrides: Partial<PushDeps> = {}): PushDeps {
     subscribe: vi.fn().mockResolvedValue(fakeSub(new Uint8Array([1, 2, 3]).buffer)),
     saveSubscription: vi.fn().mockResolvedValue(undefined),
     removeSubscription: vi.fn().mockResolvedValue(undefined),
+    getOptOut: () => false,
+    setOptOut: vi.fn(),
     ...overrides,
   };
 }
@@ -71,6 +73,58 @@ describe('usePushSubscription — state precedence (L-F02-05)', () => {
   it('on with a local subscription', async () => {
     const r = await settle(makeDeps({ getSubscription: vi.fn().mockResolvedValue(fakeSub(new Uint8Array([1, 2, 3]).buffer)) }));
     expect(r.current.state).toBe('on');
+  });
+});
+
+describe('usePushSubscription — default-on auto-subscribe (R1)', () => {
+  it('subscribes from scratch and resolves to on on the same load when granted + no sub + not opted out', async () => {
+    // Regression: the displayed state must reflect the auto-subscribe immediately,
+    // not stay 'off' until the next reload (the indicator must hide, toggle on).
+    const fresh = fakeSub(new Uint8Array([1, 2, 3]).buffer);
+    const deps = makeDeps({
+      getPermission: () => 'granted',
+      getSubscription: vi.fn().mockResolvedValue(null),
+      subscribe: vi.fn().mockResolvedValue(fresh),
+      getOptOut: () => false,
+    });
+    const r = await settle(deps);
+    expect(deps.subscribe).toHaveBeenCalledWith(new Uint8Array([1, 2, 3]));
+    expect(deps.saveSubscription).toHaveBeenCalledWith(fresh);
+    expect(r.current.state).toBe('on');
+  });
+
+  it('does not auto-subscribe when the device opted out (stays off)', async () => {
+    const deps = makeDeps({
+      getPermission: () => 'granted',
+      getSubscription: vi.fn().mockResolvedValue(null),
+      getOptOut: () => true,
+    });
+    const r = await settle(deps);
+    expect(deps.subscribe).not.toHaveBeenCalled();
+    expect(r.current.state).toBe('off');
+  });
+
+  it('does not auto-subscribe when permission is not granted (stays off)', async () => {
+    const deps = makeDeps({
+      getPermission: () => 'default',
+      getSubscription: vi.fn().mockResolvedValue(null),
+      getOptOut: () => false,
+    });
+    const r = await settle(deps);
+    expect(deps.subscribe).not.toHaveBeenCalled();
+    expect(r.current.state).toBe('off');
+  });
+
+  it('falls back to off (no loud error) when the automatic subscribe fails', async () => {
+    const deps = makeDeps({
+      getPermission: () => 'granted',
+      getSubscription: vi.fn().mockResolvedValue(null),
+      subscribe: vi.fn().mockRejectedValue(new Error('denied')),
+      getOptOut: () => false,
+    });
+    const r = await settle(deps);
+    expect(r.current.state).toBe('off');
+    expect(r.current.error).toBeNull();
   });
 });
 
@@ -133,6 +187,27 @@ describe('usePushSubscription — enable/disable', () => {
     const r = await settle(deps);
     await act(async () => { await r.current.disable(); });
     expect(sub.unsubscribe).toHaveBeenCalled();
+    expect(r.current.state).toBe('off');
+  });
+});
+
+describe('usePushSubscription — opt-out store (R2)', () => {
+  it('clears the opt-out before subscribing on enable', async () => {
+    const setOptOut = vi.fn();
+    const deps = makeDeps({ setOptOut, requestPermission: vi.fn().mockResolvedValue('granted') });
+    const r = await settle(deps);
+    await act(async () => { await r.current.enable(); });
+    expect(setOptOut).toHaveBeenCalledWith(false);
+    expect(r.current.state).toBe('on');
+  });
+
+  it('persists the opt-out on disable', async () => {
+    const setOptOut = vi.fn();
+    const sub = fakeSub(new Uint8Array([1, 2, 3]).buffer);
+    const deps = makeDeps({ setOptOut, getSubscription: vi.fn().mockResolvedValue(sub) });
+    const r = await settle(deps);
+    await act(async () => { await r.current.disable(); });
+    expect(setOptOut).toHaveBeenCalledWith(true);
     expect(r.current.state).toBe('off');
   });
 });

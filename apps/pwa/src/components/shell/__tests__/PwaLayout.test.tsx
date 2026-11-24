@@ -16,6 +16,27 @@ vi.mock('@/app/useAppStateHeartbeat', () => ({
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
 vi.mock('@/features/push/hooks/useBrowserPushDeps', () => ({ useBrowserPushDeps: () => ({}) }));
 vi.mock('@/features/push/hooks/usePushSubscriptionSync', () => ({ usePushSubscriptionSync: vi.fn() }));
+// The push control provider + enable modal have their own suites; stub the context
+// so this layout test does not drive the real subscription hook.
+vi.mock('@/features/push/context/PushControlProvider', async () => {
+  const React = await import('react');
+  return {
+    PushControlContext: React.createContext(null),
+    PushControlProvider: ({ children }: { children: React.ReactNode }) => children,
+    usePushControl: () => ({
+      state: 'off',
+      error: null,
+      optedOut: false,
+      enable: vi.fn(),
+      disable: vi.fn(),
+      requestEnable: vi.fn(),
+      declinePersistently: vi.fn(),
+      isEnableModalOpen: false,
+      openEnableModal: vi.fn(),
+      closeEnableModal: vi.fn(),
+    }),
+  };
+});
 vi.mock('@/app/useNoticeOpenedFromPush', () => ({ useNoticeOpenedFromPush: vi.fn() }));
 vi.mock('@/features/announcements/hooks/useUnreadNoticeCount', () => ({
   useUnreadNoticeCount: () => ({ count: 0 }),
