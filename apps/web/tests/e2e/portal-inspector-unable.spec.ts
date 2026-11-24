@@ -65,4 +65,30 @@ test.describe('Portal — inspector-rejected appointment (L-F03-01)', () => {
     await expect(page.getByText(/pick another available time/i)).toHaveCount(0);
     await expect(page.getByRole('button', { name: /change time/i })).toHaveCount(0);
   });
+
+  test('does not offer a change of time in the cutoff banner past the deadline', async ({ page }) => {
+    await page.route(`**/v1/rental-tenant-portal/${TOKEN}`, async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ...portalData,
+            token: { status: 'ACTIVE', isReadOnly: false, isPastConfirmCutoff: true },
+          }),
+        });
+      } else {
+        await route.fallback();
+      }
+    });
+    await failIfAvailableGroupsQueried(page);
+
+    await page.goto(`/portal/${TOKEN}`);
+
+    await expect(
+      page.getByText(/The agency will contact you to arrange a new time\./i),
+    ).toBeVisible();
+    await expect(page.getByText(/change to another available time/i)).toHaveCount(0);
+    await expect(page.getByText(/report that you cannot attend/i)).toHaveCount(0);
+  });
 });

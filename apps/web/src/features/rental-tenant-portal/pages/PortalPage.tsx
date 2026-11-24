@@ -280,7 +280,12 @@ export function PortalPage() {
           . Please check the date, time and other information before confirming it.
         </p>
 
-        {(isPastConfirmCutoff || isReadOnly) && (
+        {/* When the inspector rejected it (canChangeTime: false, L-F03-01) the tenant
+            can neither report unavailability nor reschedule, so this cutoff banner's
+            "report that you cannot attend, or change to another available time" would
+            contradict the agency-will-contact message below. The rejected banner then
+            stands alone. */}
+        {(isPastConfirmCutoff || isReadOnly) && canChangeTime && (
           <InfoBanner>
             The confirmation deadline has passed, so this inspection can no longer be
             confirmed. You can still report that you cannot attend, or change to another

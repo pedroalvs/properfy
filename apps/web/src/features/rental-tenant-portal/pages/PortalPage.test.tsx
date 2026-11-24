@@ -258,6 +258,40 @@ describe('PortalPage', () => {
 
       expect(await screen.findByRole('button', { name: /change time/i })).toBeInTheDocument();
     });
+
+    // L-F03-01: when the inspector rejected it, the agency re-offers it — the tenant
+    // cannot reschedule. The past-cutoff banner must not keep offering "change to
+    // another available time", which contradicts the agency-will-contact message.
+    it('does not offer a change of time in the cutoff banner (past cutoff)', async () => {
+      mockGet.mockResolvedValue({
+        data: {
+          ...INSPECTOR_REJECTED,
+          token: { status: 'ACTIVE', isReadOnly: false, isPastConfirmCutoff: true },
+        },
+      });
+      renderPortal();
+
+      expect(
+        await screen.findByText(/The agency will contact you to arrange a new time\./i),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/change to another available time/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/report that you cannot attend/i)).not.toBeInTheDocument();
+    });
+
+    it('does not offer a change of time in the cutoff banner (expired token)', async () => {
+      mockGet.mockResolvedValue({
+        data: {
+          ...INSPECTOR_REJECTED,
+          token: { status: 'EXPIRED', isReadOnly: true },
+        },
+      });
+      renderPortal();
+
+      expect(
+        await screen.findByText(/The agency will contact you to arrange a new time\./i),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/change to another available time/i)).not.toBeInTheDocument();
+    });
   });
 
   it('shows invalid view when API returns PORTAL_TOKEN_NOT_FOUND', async () => {
@@ -577,6 +611,14 @@ describe('PortalPage', () => {
       renderPortal();
       await screen.findByText(/confirmation deadline has passed/i);
       expect(screen.getByRole('button', { name: /change time/i })).toBeTruthy();
+    });
+
+    it('keeps offering a change of time in the cutoff banner when the tenant may reschedule', async () => {
+      mockGet.mockResolvedValue({ data: PAST_CUTOFF_DATA });
+      renderPortal();
+      expect(
+        await screen.findByText(/change to another available time/i),
+      ).toBeInTheDocument();
     });
 
     it('keeps change time available when the token is expired (active appointment)', async () => {
