@@ -570,7 +570,6 @@ import { PrismaDayPlanRepository } from '../modules/day-plan/infrastructure/pris
 import { PrismaDayPlanInputReader } from '../modules/day-plan/infrastructure/prisma-day-plan-input.reader';
 import { ComputeDayPlanUseCase } from '../modules/day-plan/application/use-cases/compute-day-plan.use-case';
 import { GetMyDayPlanUseCase } from '../modules/day-plan/application/use-cases/get-my-day-plan.use-case';
-import { GetDayPlanForOperatorUseCase } from '../modules/day-plan/application/use-cases/get-day-plan-for-operator.use-case';
 import { SaveDayPlanOrderUseCase } from '../modules/day-plan/application/use-cases/save-day-plan-order.use-case';
 import { RecalculateDayPlanUseCase } from '../modules/day-plan/application/use-cases/recalculate-day-plan.use-case';
 import { PublishDayPlansUseCase } from '../modules/day-plan/application/use-cases/publish-day-plans.use-case';
@@ -1308,15 +1307,11 @@ export function createContainer(logger: Logger): AppContainer {
   const getMyDayPlanUseCase = new GetMyDayPlanUseCase(
     dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock,
   );
-  const getDayPlanForOperatorUseCase = new GetDayPlanForOperatorUseCase(
-    dayPlanInputReader, dayPlanRepo, authorizationService, dayPlanClock,
-  );
   const saveDayPlanOrderUseCase = new SaveDayPlanOrderUseCase(
     dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, auditService, dayPlanClock,
   );
   const recalculateDayPlanUseCase = new RecalculateDayPlanUseCase(
-    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, authorizationService,
-    publishSystemInspectorNoticeUseCase, auditService, dayPlanClock,
+    dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, auditService, dayPlanClock,
   );
   const setDayPlanOriginUseCase = new SetDayPlanOriginUseCase(
     dayPlanInputReader, dayPlanRepo, computeDayPlanUseCase, dayPlanClock, geocodingService, auditService, logger,
@@ -1340,7 +1335,6 @@ export function createContainer(logger: Logger): AppContainer {
   );
   const getDayPlanSheetUseCase = new GetDayPlanSheetUseCase(
     getMyDayPlanUseCase,
-    getDayPlanForOperatorUseCase,
     new DayPlanSheetRenderer(new ExcelJsXlsxGenerator(), new PdfKitDayPlanSheetGenerator()),
     auditService,
     dayPlanClock,
@@ -2157,7 +2151,7 @@ export function createContainer(logger: Logger): AppContainer {
     auditService,
     domainEventBus,
     geocodingService,
-    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, getDayPlanForOperatorUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, getFreshStopForAppointmentUseCase, getRouteEtaAccuracyUseCase, previewRouteWeightsUseCase, previewDayPlanOrderUseCase, getDayPlanSheetUseCase, jwtService, tenantRepo },
+    dayPlan: { planRouteService, computeDayPlanUseCase, getMyDayPlanUseCase, saveDayPlanOrderUseCase, recalculateDayPlanUseCase, setDayPlanOriginUseCase, clearDayPlanOriginUseCase, getFreshStopForAppointmentUseCase, getRouteEtaAccuracyUseCase, previewRouteWeightsUseCase, previewDayPlanOrderUseCase, getDayPlanSheetUseCase, jwtService, tenantRepo },
     tenantEta: {
       planReader: tenantEtaPlanReader,
       sendMorningEtaNoticesUseCase,
