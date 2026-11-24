@@ -393,7 +393,6 @@ import { DispatchRemindersUseCase } from '../modules/notification/application/us
 import { DispatchEscalationsUseCase } from '../modules/notification/application/use-cases/dispatch-escalations.use-case';
 import { ListConsentsByRecipientUseCase } from '../modules/notification/application/use-cases/list-consents-by-recipient.use-case';
 import { OverrideConsentUseCase } from '../modules/notification/application/use-cases/override-consent.use-case';
-import { RecordConsentOptOutUseCase } from '../modules/notification/application/use-cases/record-consent-opt-out.use-case';
 import { PrismaTenantEtaPlanReader } from '../modules/tenant-eta/infrastructure/prisma-tenant-eta-plan.reader';
 import type { ITenantEtaPlanReader } from '../modules/tenant-eta/domain/tenant-eta-plan.reader';
 import { PrismaTenantEtaNoticeLog } from '../modules/tenant-eta/infrastructure/prisma-tenant-eta-notice-log';
@@ -1926,11 +1925,6 @@ export function createContainer(logger: Logger): AppContainer {
     authorizationService,
     auditService,
   );
-  const recordConsentOptOutUseCase = new RecordConsentOptOutUseCase(
-    consentRepo,
-    authorizationService,
-    auditService,
-  );
   // F06 tenant-eta plan reader (consumed by TASK-F06-2; no HTTP route here).
   const tenantEtaPlanReader = new PrismaTenantEtaPlanReader(prisma, inspectorFieldEventRepo);
 
@@ -2533,7 +2527,6 @@ export function createContainer(logger: Logger): AppContainer {
       dispatchEscalationsUseCase,
       listConsentsByRecipientUseCase,
       overrideConsentUseCase,
-      recordConsentOptOutUseCase,
       jwtService,
       tenantRepo,
       webhookSignatureValidator,

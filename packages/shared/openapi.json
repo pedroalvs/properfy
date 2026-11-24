@@ -40590,15 +40590,6 @@
         }
       }
     },
-    "/v1/notifications/consents/opt-out": {
-      "post": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
     "/v1/notification-templates/{templateCode}/{channel}/test-send": {
       "post": {
         "requestBody": {
