@@ -1,12 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { todayInTzDateString, addCivilDays, PLATFORM_TIMEZONE } from '@properfy/shared';
 import { RescheduleGroupModal } from './RescheduleGroupModal';
 import type { ServiceGroupAppointment, ServiceGroupDetail } from '../types';
 
 
 const mockReschedule = vi.fn();
+let rescheduleOnSuccess: (() => void) | undefined;
 vi.mock('../hooks/useRescheduleServiceGroup', () => ({
-  useRescheduleServiceGroup: () => ({ reschedule: mockReschedule, isRescheduling: false }),
+  useRescheduleServiceGroup: (_id: string | null, onSuccess?: () => void) => {
+    rescheduleOnSuccess = onSuccess;
+    return { reschedule: mockReschedule, isRescheduling: false };
+  },
+}));
+
+const mockForceConfirm = vi.fn();
+vi.mock('../hooks/useForceConfirmServiceGroup', () => ({
+  useForceConfirmServiceGroup: () => ({ forceConfirm: mockForceConfirm, isForcing: false }),
+}));
+
+let mockCanForceConfirm = true;
+vi.mock('@/hooks/usePermissions', () => ({
+  usePermissions: () => ({
+    role: 'OP',
+    hasRole: () => true,
+    canPerform: () => mockCanForceConfirm,
+    hasClUserFlag: () => mockCanForceConfirm,
+  }),
 }));
 
 function makeAppointment(overrides: Partial<ServiceGroupAppointment> = {}): ServiceGroupAppointment {
@@ -64,6 +84,8 @@ const applyButton = () => screen.getByRole('button', { name: /Apply changes/ });
 describe('RescheduleGroupModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCanForceConfirm = true;
+    rescheduleOnSuccess = undefined;
   });
 
   it('prefills the group current date and window', () => {
@@ -260,5 +282,84 @@ describe('RescheduleGroupModal terminal members', () => {
 
     fireEvent.change(dateInput(), { target: { value: '2030-07-20' } });
     expect(screen.queryByTestId('reschedule-group-confirmation-choice')).not.toBeInTheDocument();
+  });
+});
+
+describe('RescheduleGroupModal — force-confirm at T-1', () => {
+  const today = todayInTzDateString(PLATFORM_TIMEZONE);
+  const tomorrow = addCivilDays(today, 1);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCanForceConfirm = true;
+    rescheduleOnSuccess = undefined;
+  });
+
+  // A PUBLISHED group with unconfirmed members, moved to tomorrow (T-1).
+  const unconfirmedGroup = () =>
+    makeGroup({
+      scheduledDate: today,
+      appointments: [
+        makeAppointment({ id: 'a', rentalTenantConfirmationStatus: 'PENDING' }),
+        makeAppointment({ id: 'b', rentalTenantConfirmationStatus: 'NO_RESPONSE' }),
+      ],
+    });
+
+  it('offers the force-confirm choice when the move lands unconfirmed members at T-1', () => {
+    renderModal(unconfirmedGroup());
+    fireEvent.change(dateInput(), { target: { value: tomorrow } });
+
+    expect(screen.getByTestId('reschedule-group-confirmation-choice')).toBeInTheDocument();
+    expect(screen.getByTestId('reschedule-group-force-confirm-warning')).toBeInTheDocument();
+    expect(screen.getByTestId('reschedule-choice-force-confirm')).toBeInTheDocument();
+    expect(screen.getByTestId('reschedule-choice-resend')).toBeInTheDocument();
+    // No plain "Notify only" when there is nothing already confirmed to keep.
+    expect(screen.queryByTestId('reschedule-choice-notify-only')).not.toBeInTheDocument();
+    expect(applyButton()).toBeDisabled();
+  });
+
+  it('wires "confirm on the tenants\' behalf" to NOTIFY_ONLY then the group force-confirm', () => {
+    renderModal(unconfirmedGroup());
+    fireEvent.change(dateInput(), { target: { value: tomorrow } });
+    fireEvent.click(screen.getByTestId('reschedule-choice-force-confirm'));
+    fireEvent.click(applyButton());
+
+    expect(mockReschedule).toHaveBeenCalledTimes(1);
+    expect(mockReschedule.mock.calls[0]![0]).toMatchObject({
+      scheduledDate: tomorrow,
+      confirmationStrategy: 'NOTIFY_ONLY',
+    });
+    // Force-confirm is chained only once the reschedule resolves.
+    expect(mockForceConfirm).not.toHaveBeenCalled();
+    rescheduleOnSuccess?.();
+    expect(mockForceConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('wires "move & re-request" to RESEND with no force-confirm', () => {
+    renderModal(unconfirmedGroup());
+    fireEvent.change(dateInput(), { target: { value: tomorrow } });
+    const resend = screen.getByTestId('reschedule-choice-resend') as HTMLInputElement;
+    fireEvent.click(resend);
+    expect(resend.checked).toBe(true);
+    fireEvent.click(applyButton());
+
+    expect(mockReschedule.mock.calls[0]![0]).toMatchObject({ confirmationStrategy: 'RESEND' });
+    rescheduleOnSuccess?.();
+    expect(mockForceConfirm).not.toHaveBeenCalled();
+  });
+
+  it('does not offer force-confirm for a far-future date (not T-1)', () => {
+    renderModal(unconfirmedGroup());
+    fireEvent.change(dateInput(), { target: { value: '2030-07-20' } });
+    expect(screen.queryByTestId('reschedule-group-force-confirm-warning')).not.toBeInTheDocument();
+    // No confirmed members either, so no choice is required at all.
+    expect(screen.queryByTestId('reschedule-group-confirmation-choice')).not.toBeInTheDocument();
+  });
+
+  it('does not offer force-confirm without the force_confirmation capability', () => {
+    mockCanForceConfirm = false;
+    renderModal(unconfirmedGroup());
+    fireEvent.change(dateInput(), { target: { value: tomorrow } });
+    expect(screen.queryByTestId('reschedule-group-force-confirm-warning')).not.toBeInTheDocument();
   });
 });

@@ -262,6 +262,15 @@ Body: { targetStatus, reason? }
 
 All state transitions go through this single endpoint.
 
+### Group force-confirm
+
+```text
+POST /v1/service-groups/:groupId/force-confirmation   → 200  bulk force-confirm
+Body: { reason? }   → { groupId, confirmedCount, skippedCount }
+```
+
+Bulk sibling of the per-appointment `POST /v1/appointments/:id/force-confirmation`. `ForceConfirmGroupUseCase` (`service-group/application/use-cases/`) moves every unconfirmed, non-terminal member of a group to `CONFIRMED` (via `ConfirmationCycleService.confirm(..., 'OPERATOR_FORCED', null)`, same fallback-to-direct-write as the per-appointment use case; one `appointment.force_manual_confirmation` audit per member). Same RBAC as the per-appointment one — `AM`/`OP`/`CL_ADMIN`, or `CL_USER` with `force_confirmation` (enforced in the use case, not the route). A tenant-pinned `CL_*` actor confirms **only its own agency's** members (groups are cross-tenant). Idempotent: already-`CONFIRMED` and terminal members are skipped. It is the **terminal write** of the web date-change "confirm on the tenants' behalf & move" flow — the web calls `…/schedule` with `NOTIFY_ONLY` (keeps confirmations), then this endpoint force-confirms the unconfirmed members, so nothing re-PENDINGs them.
+
 ### Inspector field events (F03-2)
 
 Two inspector actions from the PWA, both `Idempotency-Key`-required and INSP-only:

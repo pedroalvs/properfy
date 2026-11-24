@@ -21210,6 +21210,77 @@
         }
       }
     },
+    "/v1/service-groups/{groupId}/force-confirmation": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "in": "path",
+            "name": "groupId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "groupId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "confirmedCount": {
+                          "type": "integer"
+                        },
+                        "skippedCount": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "groupId",
+                        "confirmedCount",
+                        "skippedCount"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/marketplace/offers": {
       "get": {
         "parameters": [

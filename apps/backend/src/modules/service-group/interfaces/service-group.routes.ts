@@ -24,6 +24,8 @@ import {
   changeGroupInspectorResponseSchema,
   changeGroupScheduleRequestSchema,
   changeGroupScheduleResponseSchema,
+  forceConfirmGroupRequestSchema,
+  forceConfirmGroupResponseSchema,
 } from '@properfy/shared';
 import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware';
 import { ValidationError } from '../../../shared/domain/errors';
@@ -45,6 +47,7 @@ import type { GetGroupPortalLinkPlanUseCase } from '../application/use-cases/get
 import type { SendGroupPortalLinksUseCase } from '../application/use-cases/send-group-portal-links.use-case';
 import type { ChangeGroupInspectorUseCase } from '../application/use-cases/change-group-inspector.use-case';
 import type { ChangeGroupScheduleUseCase } from '../application/use-cases/change-group-schedule.use-case';
+import type { ForceConfirmGroupUseCase } from '../application/use-cases/force-confirm-group.use-case';
 import type { JwtService } from '../../auth/application/services/jwt.service';
 
 export interface ServiceGroupRouteContainer {
@@ -65,6 +68,7 @@ export interface ServiceGroupRouteContainer {
   sendGroupPortalLinksUseCase: SendGroupPortalLinksUseCase;
   changeGroupInspectorUseCase: ChangeGroupInspectorUseCase;
   changeGroupScheduleUseCase: ChangeGroupScheduleUseCase;
+  forceConfirmGroupUseCase: ForceConfirmGroupUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
 }
@@ -610,6 +614,38 @@ export async function registerServiceGroupRoutes(
         confirmationStrategy: parsed.data.confirmationStrategy,
         actor: auth,
         idempotencyKey: request.headers['idempotency-key'] as string | undefined,
+      });
+      return reply.status(200).send(success(result));
+    },
+  );
+
+  // POST /v1/service-groups/:groupId/force-confirmation — 200
+  // Bulk force-confirm every unconfirmed member. RBAC is enforced in the use case
+  // (AM/OP/CL_ADMIN, or CL_USER with the force_confirmation flag), mirroring the
+  // per-appointment force-confirmation route.
+  app.post(
+    '/v1/service-groups/:groupId/force-confirmation',
+    {
+      preHandler: authenticate,
+      schema: {
+        params: z.object({ groupId: z.string().uuid() }),
+        body: forceConfirmGroupRequestSchema,
+        response: { 200: successResponseSchema(forceConfirmGroupResponseSchema) },
+      },
+    },
+    async (request, reply) => {
+      const params = groupIdParam.safeParse(request.params);
+      if (!params.success) {
+        throw new ValidationError('Invalid group ID', params.error.errors);
+      }
+      const parsed = forceConfirmGroupRequestSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        throw new ValidationError('Request payload is invalid', parsed.error.errors);
+      }
+      const result = await container.forceConfirmGroupUseCase.execute({
+        groupId: params.data.groupId,
+        ...(parsed.data.reason !== undefined ? { reason: parsed.data.reason } : {}),
+        actor: request.authContext!,
       });
       return reply.status(200).send(success(result));
     },

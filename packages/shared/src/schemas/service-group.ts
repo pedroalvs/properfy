@@ -319,6 +319,29 @@ export const changeGroupScheduleResponseSchema = z.object({
 });
 export type ChangeGroupScheduleResponse = z.infer<typeof changeGroupScheduleResponseSchema>;
 
+// ─── Group force-confirm ───────────────────────────────────────────────────
+
+/**
+ * Force the rental-tenant confirmation to CONFIRMED for every unconfirmed member
+ * of a group in one call — the bulk sibling of the per-appointment
+ * force-confirmation. Used by the date-change flow when the operator chooses
+ * "confirm on the tenants' behalf & move" so members are not swept by the T-1
+ * reject. `reason` is optional (a system default is used when absent).
+ */
+export const forceConfirmGroupRequestSchema = z.object({
+  reason: z.string().min(1).max(500).optional(),
+});
+export type ForceConfirmGroupRequest = z.infer<typeof forceConfirmGroupRequestSchema>;
+
+export const forceConfirmGroupResponseSchema = z.object({
+  groupId: z.string().uuid(),
+  /** Members moved to CONFIRMED by this call. */
+  confirmedCount: z.number().int(),
+  /** Members left untouched (already CONFIRMED, terminal, or — for CL_* — another agency's). */
+  skippedCount: z.number().int(),
+});
+export type ForceConfirmGroupResponse = z.infer<typeof forceConfirmGroupResponseSchema>;
+
 // ─── Group inspector change ────────────────────────────────────────────────
 
 export const changeGroupInspectorRequestSchema = z.object({
