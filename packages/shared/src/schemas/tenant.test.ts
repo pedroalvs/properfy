@@ -447,8 +447,6 @@ describe('tenantSettingsSchema', () => {
       allowClientCancellation: false,
       allowClientRescheduling: true,
       allowClientUserManagement: true,
-      priorityOfferHours: 48,
-      inspectorOfferRadiusKm: 5,
       clUserPermissions: ['create_appointments', 'cancel_appointments'],
       emailTemplates: {
         initial: { subject: 'Inspection Notice', headerText: 'Hello' },
@@ -552,8 +550,6 @@ describe('tenantSettingsSchema', () => {
     expect(result.allowClientCancellation).toBe(true);
     expect(result.allowClientRescheduling).toBe(true);
     expect(result.allowClientUserManagement).toBe(false);
-    expect(result.priorityOfferHours).toBe(24);
-    expect(result.inspectorOfferRadiusKm).toBe(2);
     expect(result.clUserPermissions).toEqual([]);
   });
 
@@ -571,6 +567,24 @@ describe('tenantSettingsSchema', () => {
       const data = result.data as Record<string, unknown>;
       expect(data['inspectionWindowBeforeMinutes']).toBe(60);
       expect(data['inspectionWindowAfterMinutes']).toBe(15);
+    }
+  });
+
+  it('tolerates tenants whose settings_json still holds the removed offer keys', () => {
+    // PR-17 dropped `priorityOfferHours` and `inspectorOfferRadiusKm` from the schema,
+    // but staging/prod rows still carry them (at the old defaults). Because the schema is
+    // `.passthrough()` — not `.strict()` — parsing such a row must still SUCCEED and must
+    // NOT reject, so no tenant becomes unreadable after the fields are gone. The values
+    // survive untouched (inert): nothing consumes them.
+    const result = tenantSettingsSchema.safeParse({
+      priorityOfferHours: 24,
+      inspectorOfferRadiusKm: 2,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const data = result.data as Record<string, unknown>;
+      expect(data['priorityOfferHours']).toBe(24);
+      expect(data['inspectorOfferRadiusKm']).toBe(2);
     }
   });
 });

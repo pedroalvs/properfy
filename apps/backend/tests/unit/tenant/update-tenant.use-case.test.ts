@@ -324,7 +324,6 @@ describe('UpdateTenantUseCase', () => {
           billingPeriod: 'WEEKLY',
           clUserPermissions: ['create_appointments'],
           allowClientCancellation: false,
-          priorityOfferHours: 48,
         },
       },
       actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
@@ -341,7 +340,6 @@ describe('UpdateTenantUseCase', () => {
     expect(mergedSettings).not.toHaveProperty('billingPeriod');
     expect(mergedSettings).not.toHaveProperty('clUserPermissions');
     expect(mergedSettings).not.toHaveProperty('allowClientCancellation');
-    expect(mergedSettings).not.toHaveProperty('priorityOfferHours');
   });
 
   it('should throw ValidationError when AM tries to set logoUrl via PATCH', async () => {
