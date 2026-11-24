@@ -59,12 +59,13 @@ describe('ListConsentsByRecipientUseCase', () => {
     useCase = new ListConsentsByRecipientUseCase(consentRepo, authorizationService);
   });
 
-  it('allows OP to list within own tenant', async () => {
+  it('allows OP to list for a provided agency', async () => {
     vi.mocked(consentRepo.listByRecipient).mockResolvedValue([makeConsent()]);
     vi.mocked(consentRepo.countSkippedForRecipient).mockResolvedValue(3);
 
     const result = await useCase.execute({
       recipient: 'user@example.com',
+      tenantId: 'tenant-1',
       actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
     });
 
@@ -73,7 +74,7 @@ describe('ListConsentsByRecipientUseCase', () => {
     expect(result.skippedCount).toBe(3);
   });
 
-  it('forces OP to own tenantId (ignores input tenantId)', async () => {
+  it('lets OP query any agency by the provided tenantId (cross-tenant, OP constitution v1.3)', async () => {
     vi.mocked(consentRepo.listByRecipient).mockResolvedValue([]);
 
     await useCase.execute({
@@ -83,7 +84,17 @@ describe('ListConsentsByRecipientUseCase', () => {
     });
 
     const call = vi.mocked(consentRepo.listByRecipient).mock.calls[0][0];
-    expect(call.tenantId).toBe('tenant-1');
+    expect(call.tenantId).toBe('tenant-other');
+  });
+
+  it('requires OP to provide a tenantId (ValidationError when none chosen)', async () => {
+    await expect(
+      useCase.execute({
+        recipient: 'user@example.com',
+        actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(ValidationError);
+    expect(consentRepo.listByRecipient).not.toHaveBeenCalled();
   });
 
   it('requires AM to provide tenantId', async () => {
@@ -149,6 +160,7 @@ describe('ListConsentsByRecipientUseCase', () => {
 
     const result = await useCase.execute({
       recipient: 'never@seen.com',
+      tenantId: 'tenant-1',
       actor: makeActor(),
     });
 
@@ -162,6 +174,7 @@ describe('ListConsentsByRecipientUseCase', () => {
     await useCase.execute({
       recipient: 'user@example.com',
       channel: 'SMS',
+      tenantId: 'tenant-1',
       actor: makeActor(),
     });
 

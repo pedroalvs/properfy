@@ -18,7 +18,7 @@ vi.mock('@/hooks/usePermissions', () => ({
 
 const mockConsentLookup = vi.fn();
 vi.mock('../hooks/useConsentLookup', () => ({
-  useConsentLookup: (args: { recipient: string | null }) => mockConsentLookup(args),
+  useConsentLookup: (args: { recipient: string | null; tenantId?: string }) => mockConsentLookup(args),
 }));
 
 vi.mock('./ConsentOverrideModal', () => ({
@@ -27,6 +27,16 @@ vi.mock('./ConsentOverrideModal', () => ({
       <button onClick={onSuccess}>Confirm override</button>
       <button onClick={onClose}>Cancel</button>
     </div>
+  ),
+}));
+
+// The agency picker is a searchable server-backed combobox; stub it so a click
+// selects a fixed tenant and the test can exercise the mandatory-agency gate.
+vi.mock('@/features/apps/components/AgencySelect', () => ({
+  AgencySelect: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+    <button type="button" aria-label="Agency" onClick={() => onChange('tenant-1')}>
+      {value || 'Select agency'}
+    </button>
   ),
 }));
 
@@ -49,7 +59,12 @@ function idleHookResult() {
   return { data: null, isLoading: false, isError: false, error: null, refetch: vi.fn() };
 }
 
-function submitRecipient(value: string) {
+function selectAgency() {
+  fireEvent.click(screen.getByRole('button', { name: /^agency$/i }));
+}
+
+function submitRecipient(value: string, { withAgency = true } = {}) {
+  if (withAgency) selectAgency();
   fireEvent.change(screen.getByLabelText(/recipient/i), { target: { value } });
   fireEvent.submit(screen.getByRole('button', { name: /search/i }).closest('form')!);
 }
@@ -75,8 +90,8 @@ describe('ConsentLookup (feature 018 T075)', () => {
 
     expect(screen.getByText(/enter a recipient to search/i)).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    // The hook is called with a null recipient, so it stays disabled (no fetch).
-    expect(mockConsentLookup).toHaveBeenLastCalledWith({ recipient: null });
+    // The hook is called with a null recipient + no tenant, so it stays disabled.
+    expect(mockConsentLookup).toHaveBeenLastCalledWith({ recipient: null, tenantId: undefined });
   });
 
   it('renders search form and disables Search when input is empty', () => {
@@ -85,18 +100,37 @@ describe('ConsentLookup (feature 018 T075)', () => {
     expect(screen.getByRole('button', { name: /search/i })).toBeDisabled();
   });
 
-  it('enables Search when input has text', () => {
+  it('keeps Search disabled with recipient text but no agency chosen', () => {
     render(<ConsentLookup />, { wrapper: createWrapper() });
+    fireEvent.change(screen.getByLabelText(/recipient/i), { target: { value: 'alice@example.com' } });
+    expect(screen.getByRole('button', { name: /search/i })).toBeDisabled();
+  });
+
+  it('enables Search when input has text and an agency is chosen', () => {
+    render(<ConsentLookup />, { wrapper: createWrapper() });
+    selectAgency();
     fireEvent.change(screen.getByLabelText(/recipient/i), { target: { value: 'alice@example.com' } });
     expect(screen.getByRole('button', { name: /search/i })).not.toBeDisabled();
   });
 
-  it('calls useConsentLookup with the submitted recipient', async () => {
+  it('calls useConsentLookup with the submitted recipient and the chosen agency', async () => {
     render(<ConsentLookup />, { wrapper: createWrapper() });
     submitRecipient('alice@example.com');
     await waitFor(() => {
       expect(mockConsentLookup.mock.calls.at(-1)![0].recipient).toBe('alice@example.com');
+      expect(mockConsentLookup.mock.calls.at(-1)![0].tenantId).toBe('tenant-1');
     });
+  });
+
+  it('does not search (sends nothing) when no agency is chosen', async () => {
+    render(<ConsentLookup />, { wrapper: createWrapper() });
+    submitRecipient('alice@example.com', { withAgency: false });
+    // The active recipient is never set without an agency, so the hook keeps its
+    // disabled { recipient: null, tenantId: undefined } call.
+    await waitFor(() => {
+      expect(mockConsentLookup.mock.calls.at(-1)![0]).toEqual({ recipient: null, tenantId: undefined });
+    });
+    expect(screen.getByText(/enter a recipient to search/i)).toBeInTheDocument();
   });
 
   it('shows the DataTable loading state while the hook is loading', async () => {

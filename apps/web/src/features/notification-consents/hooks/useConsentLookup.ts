@@ -35,13 +35,14 @@ export interface UseConsentLookupParams {
 /**
  * Feature 018 US3: operator consent lookup hook.
  *
- * Disabled until `recipient` is non-null so the page doesn't fire a query
- * on every keystroke before the user clicks Search.
+ * Disabled until both `recipient` and `tenantId` are set, so the page never
+ * fires a query on every keystroke before the user clicks Search and never
+ * fires without a chosen agency (the agency is mandatory for AM/OP).
  */
 export function useConsentLookup({ recipient, tenantId, channel }: UseConsentLookupParams) {
   return useQuery<ConsentLookupResult, ApiError>({
     queryKey: ['notification-consents', recipient, tenantId, channel],
-    enabled: !!recipient,
+    enabled: !!recipient && !!tenantId,
     queryFn: async () => {
       const query: Record<string, string> = { recipient: recipient! };
       if (tenantId) query['tenantId'] = tenantId;

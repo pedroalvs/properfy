@@ -2,10 +2,12 @@ import type { AuthContext, NotificationChannel, NotificationClass, ConsentChange
 import type { INotificationConsentRepository } from '../../domain/notification-consent.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { ValidationError } from '../../../../shared/domain/errors';
+import { requireTenantScope } from '../../../../shared/domain/require-tenant-scope';
 
 export interface ListConsentsByRecipientInput {
   recipient: string;
-  tenantId?: string; // required for AM; ignored for OP (forced to actor.tenantId)
+  /** The agency to look up. Required for cross-tenant roles (AM/OP); a tenant-pinned role uses its own. */
+  tenantId?: string;
   channel?: NotificationChannel;
   actor: AuthContext;
 }
@@ -35,10 +37,11 @@ export interface ListConsentsByRecipientOutput {
 /**
  * Feature 018 US3: operator view of a recipient's consent status.
  *
- * Access:
- *   - AM: must provide `tenantId` explicitly (any tenant allowed)
- *   - OP: forced to the actor's own `tenantId` (any provided tenantId is ignored)
- *   - All other roles: 403
+ * Access (consent records are per agency, so a specific tenant is always resolved):
+ *   - AM and OP: cross-tenant (OP role constitution v1.3) — must target an agency by
+ *     providing `tenantId` explicitly (any tenant allowed; 400 when missing).
+ *   - A tenant-pinned role would be confined to its own tenant, but the route is
+ *     AM/OP-only, so CL/INSP/TNT never reach here (403 at the role gate).
  */
 export class ListConsentsByRecipientUseCase {
   constructor(
@@ -56,18 +59,18 @@ export class ListConsentsByRecipientUseCase {
       throw new ValidationError('recipient is required');
     }
 
+    // Resolve the scope the constitutional way: cross-tenant roles (AM/OP) get
+    // `undefined` and must name the agency they are inspecting; a tenant-pinned
+    // role (not reachable past the AM/OP gate above) is confined to its own.
+    const pinnedTenant = requireTenantScope(input.actor, 'consent.list');
     let effectiveTenantId: string;
-    if (input.actor.role === 'AM') {
+    if (pinnedTenant !== undefined) {
+      effectiveTenantId = pinnedTenant;
+    } else {
       if (!input.tenantId) {
-        throw new ValidationError('tenantId is required when querying as AM');
+        throw new ValidationError('tenantId is required: choose an agency to look up');
       }
       effectiveTenantId = input.tenantId;
-    } else {
-      // OP: forced to own tenant
-      if (!input.actor.tenantId) {
-        throw new ValidationError('Operator must have a tenant context');
-      }
-      effectiveTenantId = input.actor.tenantId;
     }
 
     const entries = await this.consentRepo.listByRecipient({
