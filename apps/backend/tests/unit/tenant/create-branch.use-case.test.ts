@@ -270,6 +270,52 @@ describe('CreateBranchUseCase', () => {
       );
     });
 
+    it('2b. rule A: a coarse (non-address) result stores no coordinates (warn reason=COARSE_RESULT)', async () => {
+      // Real Mapbox probe: 'Tilpa NSW 2840' → place, relevance=0.667.
+      const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -30.9, lng: 144.4, placeType: 'place', relevance: 0.667 }) };
+      const logger = makeLogger();
+      const uc = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, logger as never);
+
+      await uc.execute({ tenantId: 'tenant-1', name: 'B', address: { ...ADDRESS }, actor: makeActor() });
+
+      const branch = savedBranch();
+      expect(branch.addressJson).not.toHaveProperty('latitude');
+      expect(branch.geocodedPermanentlyAt).toBeNull();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: 'tenant-1', reason: 'COARSE_RESULT' }),
+        'branch.geocode_failed_saved_without_coordinates',
+      );
+    });
+
+    it('2c. rule A: a low-relevance address (<0.8) stores no coordinates (warn reason=LOW_RELEVANCE)', async () => {
+      // Real Mapbox probe: '50 Louth Road, Tilpa NSW 2840' → address, relevance=0.667.
+      const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -30.9, lng: 144.4, placeType: 'address', relevance: 0.667 }) };
+      const logger = makeLogger();
+      const uc = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, logger as never);
+
+      await uc.execute({ tenantId: 'tenant-1', name: 'B', address: { ...ADDRESS }, actor: makeActor() });
+
+      const branch = savedBranch();
+      expect(branch.addressJson).not.toHaveProperty('latitude');
+      expect(branch.geocodedPermanentlyAt).toBeNull();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: 'LOW_RELEVANCE' }),
+        'branch.geocode_failed_saved_without_coordinates',
+      );
+    });
+
+    it('2d. rule A: a confident address (>=0.8) still stores coordinates', async () => {
+      // Real Mapbox probe: '1 Martin Place, Sydney NSW 2000' → address, relevance=0.894.
+      const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.868, lng: 151.209, placeType: 'address', relevance: 0.894 }) };
+      const uc = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
+
+      await uc.execute({ tenantId: 'tenant-1', name: 'B', address: { ...ADDRESS }, actor: makeActor() });
+
+      const branch = savedBranch();
+      expect(branch.addressJson).toMatchObject({ latitude: -33.868, longitude: 151.209 });
+      expect(branch.geocodedPermanentlyAt).toBeInstanceOf(Date);
+    });
+
     it('3. stores no coordinates and logs error on an account error', async () => {
       const geocoder = { geocode: vi.fn().mockRejectedValue(new MapboxPermanentGeocodingUnavailableError()) };
       const logger = makeLogger();

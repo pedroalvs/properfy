@@ -358,6 +358,50 @@ describe('UpdateBranchUseCase', () => {
       );
     });
 
+    it('5b. rule A: drops the coordinate when a changed address returns a coarse result (warn COARSE_RESULT)', async () => {
+      // Real Mapbox probe: postcode, relevance=0.522.
+      vi.mocked(branchRepo.findById).mockResolvedValue(
+        makeBranch({ addressJson: { ...OLD_ADDRESS }, geocodedPermanentlyAt: new Date() }),
+      );
+      const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.8, lng: 151.2, placeType: 'postcode', relevance: 0.522 }) };
+      const logger = makeLogger();
+      const uc = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, logger as never);
+
+      await uc.execute({
+        tenantId: 'tenant-1',
+        branchId: 'branch-1',
+        data: { address: { street: '99 Other St', suburb: 'Newtown', state: 'NSW', postcode: '2042', country: 'AU' } },
+        actor: makeActor(),
+      });
+
+      const payload = updatePayload();
+      expect(payload.addressJson).not.toHaveProperty('latitude');
+      expect(payload.geocodedPermanentlyAt).toBeNull();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: 'COARSE_RESULT' }),
+        'branch.geocode_failed_saved_without_coordinates',
+      );
+    });
+
+    it('5c. rule A: a confident address (>=0.8) still stores coordinates', async () => {
+      vi.mocked(branchRepo.findById).mockResolvedValue(
+        makeBranch({ addressJson: { ...OLD_ADDRESS }, geocodedPermanentlyAt: new Date() }),
+      );
+      const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.868, lng: 151.209, placeType: 'address', relevance: 0.894 }) };
+      const uc = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
+
+      await uc.execute({
+        tenantId: 'tenant-1',
+        branchId: 'branch-1',
+        data: { address: { street: '99 Other St', suburb: 'Newtown', state: 'NSW', postcode: '2042', country: 'AU' } },
+        actor: makeActor(),
+      });
+
+      const payload = updatePayload();
+      expect(payload.addressJson).toMatchObject({ latitude: -33.868, longitude: 151.209 });
+      expect(payload.geocodedPermanentlyAt).toBeInstanceOf(Date);
+    });
+
     it('6. drops the coordinate and nulls the marker on an account error (changed address)', async () => {
       vi.mocked(branchRepo.findById).mockResolvedValue(
         makeBranch({ addressJson: { ...OLD_ADDRESS }, geocodedPermanentlyAt: new Date() }),

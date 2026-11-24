@@ -7,6 +7,7 @@ import type { IBranchRepository } from '../../domain/branch.repository';
 import {
   type IGeocodingService,
   MapboxPermanentGeocodingUnavailableError,
+  classifyGeocodingResult,
 } from '../../../property/domain/geocoding.service';
 import {
   geocodeWithTimeout,
@@ -122,14 +123,18 @@ export class UpdateBranchUseCase {
             this.geocodingService,
             formatGeocodingQuery(clean as unknown as GeocodableAddress),
           );
-          if (coords) {
+          // Rule A (PR-18): only a confident address-level result is stored. A
+          // coarse (non-address) or low-relevance result is saved WITHOUT
+          // coordinates (null marker), exactly like a no-result.
+          const decision = coords ? classifyGeocodingResult(coords) : null;
+          if (coords && decision?.accepted) {
             updateData.addressJson = { ...clean, latitude: coords.lat, longitude: coords.lng };
             updateData.geocodedPermanentlyAt = new Date();
           } else {
             updateData.addressJson = clean;
             updateData.geocodedPermanentlyAt = null;
             this.logger?.warn(
-              { branchId, tenantId, reason: 'no_results' },
+              { branchId, tenantId, reason: decision && !decision.accepted ? decision.reason : 'no_results' },
               'branch.geocode_failed_saved_without_coordinates',
             );
           }
