@@ -42,6 +42,30 @@ describe('ImportGeocodeVerifier', () => {
     expect(geocoding.geocode).toHaveBeenCalledWith(expect.any(String), { mode: 'permanent' });
   });
 
+  it('rule A: coarse / low-relevance results are not_found, a confident address is found', async () => {
+    // Real Mapbox probe values (place_type, relevance).
+    const geocoding = service(async (address) => {
+      if (address.includes('Martin')) return { lat: -33.868, lng: 151.209, placeType: 'address', relevance: 0.894 };
+      if (address.includes('LouthAddr')) return { lat: -30.9, lng: 144.4, placeType: 'address', relevance: 0.667 };
+      if (address.includes('Tilpa')) return { lat: -30.9, lng: 144.4, placeType: 'place', relevance: 0.667 };
+      return { lat: -33.8, lng: 151.2, placeType: 'postcode', relevance: 0.522 };
+    });
+    const verifier = new ImportGeocodeVerifier(geocoding);
+    const result = await verifier.verifyMany(
+      new Map([
+        ['ok', '1 Martin Place, Sydney NSW 2000'],
+        ['low', '50 Louth Road LouthAddr, Tilpa NSW 2840'],
+        ['place', 'Tilpa NSW 2840'],
+        ['postcode', '99999 Nonexistent St, Parramatta NSW 2150'],
+      ]),
+    );
+    expect(result.get('ok')).toEqual({ status: 'found', lat: -33.868, lng: 151.209, mode: 'permanent' });
+    // A coarse or low-relevance result must NOT be committed as a SUCCESS coordinate.
+    expect(result.get('low')).toEqual({ status: 'not_found', lat: null, lng: null });
+    expect(result.get('place')).toEqual({ status: 'not_found', lat: null, lng: null });
+    expect(result.get('postcode')).toEqual({ status: 'not_found', lat: null, lng: null });
+  });
+
   it('marks a thrown geocode error as unverified without failing the batch', async () => {
     const geocoding = service(async (address) => {
       if (address.includes('boom')) throw new Error('circuit open');

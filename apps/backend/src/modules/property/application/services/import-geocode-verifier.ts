@@ -2,6 +2,7 @@ import type { GeocodeVerification } from '@properfy/shared';
 import {
   type IGeocodingService,
   MapboxPermanentGeocodingUnavailableError,
+  classifyGeocodingResult,
 } from '../../domain/geocoding.service';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import { geocodeWithTimeout } from './geocode-with-timeout';
@@ -87,11 +88,16 @@ export class ImportGeocodeVerifier {
           const coords = await geocodeWithTimeout(this.geocoding, address, {
             timeoutMs: Math.min(this.opts.perAddressTimeoutMs, remainingMs),
           });
+          // Rule A (PR-18): a coarse (non-address) or low-relevance result is
+          // not a usable coordinate — treat it as not_found so the commit worker
+          // persists FAILED (exactly what the async geocode worker would do),
+          // never committing a coarse pin as a SUCCESS coordinate.
+          const usable = coords !== null && classifyGeocodingResult(coords).accepted;
           result.set(
             key,
-            coords === null
-              ? { status: 'not_found', lat: null, lng: null }
-              : { status: 'found', lat: coords.lat, lng: coords.lng, mode: 'permanent' },
+            usable
+              ? { status: 'found', lat: coords!.lat, lng: coords!.lng, mode: 'permanent' }
+              : { status: 'not_found', lat: null, lng: null },
           );
         } catch (err) {
           result.set(key, UNVERIFIED);
