@@ -191,7 +191,14 @@ export class ComputeDayPlanUseCase {
       stops.push(this.reorderableStop(c, r, prev, seq++, mode, status, now));
     }
 
-    const suggestedOrder = result.optimizedOrder ?? result.order;
+    // A manual reorder (FIXED_ORDER) keeps the optimizer's recommendation as the
+    // "suggested" baseline, so the app can still show "+N min vs. suggested" after
+    // a save instead of comparing the order against itself (D-06). The save path
+    // validates that the id set is unchanged, so the prior suggestion stays valid.
+    // OPTIMIZE yields a fresh suggestion; PRESERVE_ORDER (auto-recompute, e.g. a
+    // changed stop set) regenerates it for the current set via `result.order`.
+    const suggestedOrder =
+      mode.kind === 'FIXED_ORDER' ? (existing?.suggestedOrder ?? result.order) : (result.optimizedOrder ?? result.order);
     const manualOrder =
       mode.kind === 'FIXED_ORDER' ? true : mode.kind === 'PRESERVE_ORDER' ? (existing?.manualOrder ?? false) : false;
 
