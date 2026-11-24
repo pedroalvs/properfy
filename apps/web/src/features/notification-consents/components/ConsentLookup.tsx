@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { DataTable, type DataTableColumn } from '@/components/data/DataTable';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { InfoBanner } from '@/components/feedback/InfoBanner';
+import { AgencySelect } from '@/features/apps/components/AgencySelect';
 import { useConsentLookup, type ConsentRecord } from '../hooks/useConsentLookup';
 import { ConsentOverrideModal } from './ConsentOverrideModal';
 
@@ -23,11 +24,14 @@ import { ConsentOverrideModal } from './ConsentOverrideModal';
 export function ConsentLookup() {
   const { hasRole } = usePermissions();
   const [searchInput, setSearchInput] = useState('');
+  const [tenantId, setTenantId] = useState('');
   const [activeRecipient, setActiveRecipient] = useState<string | null>(null);
+  const [activeTenantId, setActiveTenantId] = useState<string | undefined>(undefined);
   const [selectedConsent, setSelectedConsent] = useState<ConsentRecord | null>(null);
 
   const { data, isLoading, isError, error, refetch } = useConsentLookup({
     recipient: activeRecipient,
+    tenantId: activeTenantId,
   });
 
   if (!hasRole('AM', 'OP')) {
@@ -41,8 +45,10 @@ export function ConsentLookup() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = searchInput.trim();
-    if (trimmed) {
+    // An agency is mandatory: without a chosen tenantId we never fire the request.
+    if (trimmed && tenantId) {
       setActiveRecipient(trimmed);
+      setActiveTenantId(tenantId);
     }
   };
 
@@ -90,18 +96,26 @@ export function ConsentLookup() {
         Look up a recipient&apos;s opt-out status across channels and classifications.
       </p>
 
-      <form onSubmit={handleSearch} className="mb-6 flex gap-2">
-        <input
-          type="text"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="Enter email or phone"
-          className="flex-1 rounded border border-border-subtle px-3 py-2 text-sm focus:border-primary focus:outline-none"
-          aria-label="Recipient (email or phone)"
-        />
-        <Button type="submit" variant="primary" disabled={!searchInput.trim()}>
-          Search
-        </Button>
+      <form onSubmit={handleSearch} className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="sm:w-64">
+          <label className="mb-1 block text-sm font-medium text-text-primary" htmlFor="consent-agency">
+            Agency
+          </label>
+          <AgencySelect value={tenantId} onChange={setTenantId} aria-label="Agency" />
+        </div>
+        <div className="flex flex-1 gap-2">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Enter email or phone"
+            className="flex-1 rounded border border-border-subtle px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            aria-label="Recipient (email or phone)"
+          />
+          <Button type="submit" variant="primary" disabled={!searchInput.trim() || !tenantId}>
+            Search
+          </Button>
+        </div>
       </form>
 
       {activeRecipient === null ? (
