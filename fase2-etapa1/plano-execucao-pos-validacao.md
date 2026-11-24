@@ -330,7 +330,12 @@ Se o F08-f mostrar erro genérico, levar ao Pedro (não corrigir por conta próp
 | 11 | PR-16 Consent Lookup | Item "Consent Lookup" em "Configuration", depois de "Notification Templates"; seletor "Agency" obrigatório. Captura de tela ao Pedro **antes** do merge | PR-16 liberado até a captura |
 | 12 | PR-18 regra de geocodificação (D-05) | (1) FAILED quando o resultado não é do tipo endereço, ou é endereço com relevância < 0,8; reusa FAILED com código `LOW_RELEVANCE`, sem enum nem migração. (2) Limiar 0,8. (3) **Endereço rural não é falha:** resultado no nível de localidade é válido; níveis mais largos (cidade, CEP, região) continuam FAILED. (4) Mesma regra no endereço-base do inspetor | PR-18 liberado, no fim da fila de backend. **Parte (3) em verificação:** na Austrália o subúrbio pode vir como localidade e reabrir o defeito em endereço urbano; o executor consulta endereços reais e devolve o resultado antes de implementar essa parte |
 
-Continuam abertos: capturas de tela do PR-15 e do PR-16, verificação da parte (3) do PR-18, contagem em staging/produção (PR-17; consultas na nota Maestri "PR-17 e PR-18 — para o Pedro"), diagnóstico do D-03 (PR-12).
+| 13 | PR-13 tipo `ROUTE_CHANGED` | O emissor e o texto saíram; o valor do tipo fica inerte na lista compartilhada, só para leitura de avisos antigos (removê-lo exigiria migração do histórico). Sem resposta contrária do Pedro, fica assim | Nenhum PR |
+| 14 | PR-15 telas e campos | Telas aprovadas (alerta + modal + volta ao login). Ao fechar o modal, e-mail e senha são limpos. Endereço do app derivado do endereço da API já embutido no build (o workflow de deploy roda com o arquivo de `main`, então variável nova em `develop` não vale em DEV/staging); host publicado desconhecido → botão desabilitado | PR-15 mergeia no verde |
+| 15 | PR-05 ajuste da base do alerta | Base do alerta "não iniciado" e do atraso = horário previsto no plano quando cai dentro da janela atual do agendamento; senão o início da janela atual; nunca o horário congelado na publicação | PR de follow-up na fila de backend |
+| 16 | D-03 versão "+dev" | Causa: o workflow de `main` não tem `APP_BUILD_SHA`. Corrige-se sozinho na promoção `develop → staging → main`; sem alteração direta em `main` por enquanto | Nenhum PR |
+
+Continuam abertos: capturas de tela do PR-16 e do PR-16, verificação da parte (3) do PR-18, contagem em staging/produção (PR-17; consultas na nota Maestri "PR-17 e PR-18 — para o Pedro"), diagnóstico do D-03 (PR-12).
 
 ---
 
