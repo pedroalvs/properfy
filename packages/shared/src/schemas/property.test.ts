@@ -268,6 +268,19 @@ describe('createPropertySchema', () => {
     expect(createPropertySchema.safeParse({ ...validInput, latitude: -999, longitude: 151.2 }).success).toBe(false);
   });
 
+  it('rejects a lone latitude or longitude (both-or-neither)', () => {
+    const latOnly = createPropertySchema.safeParse({ ...validInput, latitude: -33.4521 });
+    expect(latOnly.success).toBe(false);
+    if (!latOnly.success) {
+      expect(latOnly.error.issues.some((i) => i.path.join('.') === 'longitude')).toBe(true);
+    }
+    const lngOnly = createPropertySchema.safeParse({ ...validInput, longitude: 150.6612 });
+    expect(lngOnly.success).toBe(false);
+    if (!lngOnly.success) {
+      expect(lngOnly.error.issues.some((i) => i.path.join('.') === 'latitude')).toBe(true);
+    }
+  });
+
   it('should accept valid minimal input with defaults', () => {
     const result = createPropertySchema.safeParse(validInput);
     expect(result.success).toBe(true);

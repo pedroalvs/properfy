@@ -13,23 +13,9 @@ import {
 import { BranchNotFoundError } from '../../../tenant/domain/tenant.errors';
 import type { IGeocodingService, GeocodingResult } from '../../domain/geocoding.service';
 import { classifyGeocodingResult } from '../../domain/geocoding.service';
+import { propertyFullAddress } from '../../domain/property.entity';
 import { geocodeWithTimeout, GEOCODE_SYNC_TIMEOUT_MS } from '../services/geocode-with-timeout';
 import { sendJob } from '../../../../shared/infrastructure/queue';
-
-/** Build the geocoder query exactly like `PropertyEntity.fullAddress` (kept in lockstep). */
-function buildFullAddress(f: {
-  street: string;
-  addressLine2: string | null;
-  suburb: string;
-  state: string;
-  postcode: string;
-  country: string;
-}): string {
-  const parts = [f.street];
-  if (f.addressLine2) parts.push(f.addressLine2);
-  parts.push(f.suburb, f.state, f.postcode, f.country);
-  return parts.join(', ');
-}
 
 export interface UpdatePropertyInput {
   propertyId: string;
@@ -264,7 +250,7 @@ export class UpdatePropertyUseCase {
       updateData.geocodedPermanentlyAt = null;
       updateData.geocodingFailureCode = null;
 
-      const query = buildFullAddress({
+      const query = propertyFullAddress({
         street: data.street ?? property.street,
         addressLine2: data.addressLine2 !== undefined ? data.addressLine2 : property.addressLine2,
         suburb: data.suburb ?? property.suburb,

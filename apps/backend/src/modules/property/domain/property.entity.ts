@@ -3,6 +3,28 @@ import { buildNormalizedAddressKey } from '../../../shared/domain/normalize-addr
 import type { PropertyType, GeocodingStatus, PropertyRules } from '@properfy/shared';
 import { type GeocodingResult, classifyGeocodingResult } from './geocoding.service';
 
+/** Structured address fields that compose the geocoder query. */
+export interface PropertyAddressFields {
+  street: string;
+  addressLine2: string | null;
+  suburb: string;
+  state: string;
+  postcode: string;
+  country: string;
+}
+
+/**
+ * The single source of truth for the geocoding query string. Used by
+ * `PropertyEntity.fullAddress` (→ the async `GeocodeWorker`) AND the synchronous
+ * create/update geocode, so the query can never diverge between the two paths.
+ */
+export function propertyFullAddress(f: PropertyAddressFields): string {
+  const parts = [f.street];
+  if (f.addressLine2) parts.push(f.addressLine2);
+  parts.push(f.suburb, f.state, f.postcode, f.country);
+  return parts.join(', ');
+}
+
 export interface PropertyProps {
   id: string;
   tenantId: string;
@@ -133,10 +155,7 @@ export class PropertyEntity extends BaseEntity {
   }
 
   get fullAddress(): string {
-    const parts = [this.street];
-    if (this.addressLine2) parts.push(this.addressLine2);
-    parts.push(this.suburb, this.state, this.postcode, this.country);
-    return parts.join(', ');
+    return propertyFullAddress(this);
   }
 
   /** Derived, never stale within a loaded instance — see `buildNormalizedAddressKey`

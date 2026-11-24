@@ -58,7 +58,20 @@ export const createPropertySchema = z
     notes: z.string().max(2000).optional(),
     rulesJson: propertyRulesSchema.optional(),
   })
-  .merge(propertyAddressSchema);
+  .merge(propertyAddressSchema)
+  // A manual pin needs BOTH coordinates or neither — a lone value is a mistake
+  // (the user thinks they pinned, but the address would still be validated).
+  .superRefine((data, ctx) => {
+    const latSet = data.latitude !== undefined && data.latitude !== null;
+    const lngSet = data.longitude !== undefined && data.longitude !== null;
+    if (latSet !== lngSet) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'latitude and longitude must be provided together',
+        path: [latSet ? 'longitude' : 'latitude'],
+      });
+    }
+  });
 export type CreatePropertyInput = z.infer<typeof createPropertySchema>;
 
 export const updatePropertySchema = z
