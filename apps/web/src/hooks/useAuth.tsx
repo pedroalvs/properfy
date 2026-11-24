@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { PLATFORM_TIMEZONE } from '@properfy/shared';
+import { PLATFORM_TIMEZONE, UserRole } from '@properfy/shared';
 import { api } from '@/services/api';
 import { authStorage } from '@/lib/auth-storage';
 import { ApiError, toApiError } from '@/lib/api-error';
@@ -53,6 +53,21 @@ interface AuthContextValue {
   confirmPendingTotp: (totpCode: string) => Promise<void>;
   /** Abandon the pending enrolment (e.g. the user signs out of the wizard). */
   cancelTotpSetup: () => void;
+  /**
+   * True when an inspector (INSP) reached a sign-in on the web. Inspectors use
+   * the Properfy app, not this website, so no session is ever opened for them:
+   * the login response is dropped (no tokens persisted) and a preexisting INSP
+   * session is discarded on boot. The login screen reads this to show the
+   * access-denied message + the "open the app" modal.
+   */
+  inspectorBlocked: boolean;
+  /** Dismiss the inspector block, returning to a clean login screen. */
+  dismissInspectorBlock: () => void;
+}
+
+/** Inspectors have no web access — their account links point at the PWA. */
+function isInspectorRole(role: string | undefined): boolean {
+  return role === UserRole.INSP;
 }
 
 interface PendingTotpSetupState {
@@ -100,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(authStorage.getAccessToken());
   const [isLoading, setIsLoading] = useState(authStorage.hasTokens());
   const [pendingTotpSetup, setPendingTotpSetup] = useState<{ email: string } | null>(null);
+  const [inspectorBlocked, setInspectorBlocked] = useState(false);
   // Sensitive setup material (staged token + password) lives only in a ref — never
   // in state, storage, or the exposed context — so it never leaks or persists.
   const pendingSetupRef = useRef<PendingTotpSetupState | null>(null);
@@ -109,7 +125,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     fetchFullUser()
       .then((fullUser) => {
-        if (fullUser) setUser(fullUser);
+        if (!fullUser) return;
+        // A stale inspector session (e.g. from before this block shipped) must
+        // not restore: discard its tokens and surface the access-denied screen.
+        if (isInspectorRole(fullUser.role)) {
+          authStorage.clearTokens();
+          setToken(null);
+          setInspectorBlocked(true);
+          return;
+        }
+        setUser(fullUser);
       })
       .catch(() => {
         authStorage.clearTokens();
@@ -152,6 +177,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPendingTotpSetup({ email });
       return;
     }
+    // Inspectors use the Properfy app, not the web. Never open a web session for
+    // them: drop the login response (no tokens persisted) and raise the block so
+    // the login screen can point them to the app.
+    if (isInspectorRole(data.user?.role)) {
+      setInspectorBlocked(true);
+      return;
+    }
+    setInspectorBlocked(false);
     authStorage.setTokens(data.accessToken, data.refreshToken);
     setToken(data.accessToken);
     setUser(data.user);
@@ -212,6 +245,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPendingTotpSetup(null);
   }, []);
 
+  const dismissInspectorBlock = useCallback(() => {
+    // Decision 4: discard the browser session only — the tokens were never
+    // persisted (login) or were already cleared (boot), so there is nothing to
+    // revoke and we never call the logout endpoint.
+    setInspectorBlocked(false);
+  }, []);
+
   const logout = useCallback(() => {
     api.POST('/v1/auth/logout').catch(() => {});
     pendingSetupRef.current = null;
@@ -237,6 +277,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setupPendingTotp,
         confirmPendingTotp,
         cancelTotpSetup,
+        inspectorBlocked,
+        dismissInspectorBlock,
       }}
     >
       {children}

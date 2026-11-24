@@ -6,9 +6,15 @@ import { LoginPage } from './LoginPage';
 const mockLogin = vi.fn();
 const mockNavigate = vi.fn();
 const mockUseAuth = vi.fn();
+const mockDismissInspectorBlock = vi.fn();
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
+}));
+
+// The inspector-redirect modal reads the PWA URL from config/env.
+vi.mock('@/config/env', () => ({
+  env: { apiBaseUrl: 'http://localhost:3000', mapboxToken: '', pwaUrl: 'https://pwa.example.test' },
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -43,6 +49,7 @@ function renderLogin() {
 let authIsAuthenticated = false;
 let authUser: { id: string; role: string; totpEnabled?: boolean } | null = null;
 let authPendingTotpSetup: { email: string } | null = null;
+let authInspectorBlocked = false;
 
 function setupAuthMock() {
   mockUseAuth.mockImplementation(() => ({
@@ -53,6 +60,8 @@ function setupAuthMock() {
     isLoading: false,
     logout: vi.fn(),
     pendingTotpSetup: authPendingTotpSetup,
+    inspectorBlocked: authInspectorBlocked,
+    dismissInspectorBlock: mockDismissInspectorBlock,
   }));
 }
 
@@ -61,10 +70,12 @@ describe('LoginPage', () => {
     mockLogin.mockReset();
     mockNavigate.mockReset();
     mockUseAuth.mockReset();
+    mockDismissInspectorBlock.mockReset();
     sessionStorage.clear();
     authIsAuthenticated = false;
     authUser = null;
     authPendingTotpSetup = null;
+    authInspectorBlocked = false;
     setupAuthMock();
   });
 
@@ -279,6 +290,44 @@ describe('LoginPage', () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
     });
+  });
+
+  it('shows the access-denied message and the app-redirect modal when an inspector is blocked', () => {
+    authInspectorBlocked = true;
+    setupAuthMock();
+    renderLogin();
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "Your account doesn't have access to this website. Inspectors use the Properfy app.",
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Inspectors use the Properfy app' }),
+    ).toBeInTheDocument();
+    const appLink = screen.getByRole('link', { name: 'Open the app' });
+    expect(appLink).toHaveAttribute('href', 'https://pwa.example.test');
+  });
+
+  it('dismisses the block and clears both fields (clean screen) when the modal is closed', () => {
+    authInspectorBlocked = true;
+    setupAuthMock();
+    renderLogin();
+
+    // Simulate what the inspector typed before being blocked.
+    fireEvent.change(screen.getByLabelText('Work Email'), { target: { value: 'ivy@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secretpw' } });
+    expect(screen.getByLabelText('Work Email')).toHaveValue('ivy@example.com');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(mockDismissInspectorBlock).toHaveBeenCalledTimes(1);
+    // Decision 3: a clean login screen also clears both inputs.
+    expect(screen.getByLabelText('Work Email')).toHaveValue('');
+    expect(screen.getByLabelText('Password')).toHaveValue('');
+  });
+
+  it('does not show the modal for a normal (not blocked) login screen', () => {
+    renderLogin();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('redirects authenticated users away from the login page', async () => {

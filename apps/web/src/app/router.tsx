@@ -76,7 +76,6 @@ const AuditLogListPage = Loadable(lazyRetry(() => import('@/features/audit-logs/
 const AvailabilitySlotListPage = Loadable(lazyRetry(() => import('@/features/availability-slots/pages/AvailabilitySlotListPage').then(m => ({ default: m.AvailabilitySlotListPage }))));
 const NotificationTemplateListPage = Loadable(lazyRetry(() => import('@/features/notification-templates/pages/NotificationTemplateListPage').then(m => ({ default: m.NotificationTemplateListPage }))));
 const ConsentLookupPage = Loadable(lazyRetry(() => import('@/features/notification-consents/pages/ConsentLookupPage').then(m => ({ default: m.ConsentLookupPage }))));
-const MarketplacePage = Loadable(lazyRetry(() => import('@/features/marketplace/pages/MarketplacePage').then(m => ({ default: m.MarketplacePage }))));
 const ServiceRegionListPage = Loadable(lazyRetry(() => import('@/features/service-regions/pages/ServiceRegionListPage').then(m => ({ default: m.ServiceRegionListPage }))));
 const PlatformSettingsPage = Loadable(lazyRetry(() => import('@/features/platform-settings/pages/PlatformSettingsPage').then(m => ({ default: m.PlatformSettingsPage }))));
 const AppointmentMapPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentMapPage').then(m => ({ default: m.AppointmentMapPage }))));
@@ -405,16 +404,6 @@ export const routes: RouteObject[] = [
             // The unified map's groups mode replaces it.
             path: 'service-groups/map',
             element: <Navigate to="/map?mode=groups" replace />,
-          },
-          {
-            path: 'marketplace',
-            // Header + fullscreen map — same clamp as /map.
-            handle: { fullHeight: true },
-            element: (
-              <AuthGuard roles={[UserRole.INSP]}>
-                <MarketplacePage />
-              </AuthGuard>
-            ),
           },
           {
             path: 'availability-slots',
