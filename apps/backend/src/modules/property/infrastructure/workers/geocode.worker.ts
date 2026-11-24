@@ -1,7 +1,9 @@
 import type { IPropertyRepository } from '../../domain/property.repository';
 import {
   type IGeocodingService,
+  type GeocodingResult,
   MapboxPermanentGeocodingUnavailableError,
+  classifyGeocodingResult,
 } from '../../domain/geocoding.service';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { Logger } from '../../../../shared/infrastructure/logger';
@@ -52,7 +54,7 @@ export class GeocodeWorker {
 
     const fullAddress = property.fullAddress;
 
-    let result: { lat: number; lng: number } | null;
+    let result: GeocodingResult | null;
     try {
       result = await this.geocodingService.geocode(fullAddress, { mode: 'permanent' });
     } catch (err) {
@@ -100,19 +102,7 @@ export class GeocodeWorker {
       return;
     }
 
-    if (result) {
-      await this.propertyRepo.update(propertyId, property.tenantId, {
-        lat: result.lat,
-        lng: result.lng,
-        geocodingStatus: 'SUCCESS',
-        geocodedPermanentlyAt: new Date(),
-        geocodingFailureCode: null,
-      });
-      this.logger.info(
-        { propertyId, lat: result.lat, lng: result.lng },
-        'Property geocoded successfully',
-      );
-    } else {
+    if (!result) {
       await this.propertyRepo.update(propertyId, property.tenantId, {
         geocodingStatus: 'FAILED',
       });
@@ -126,7 +116,51 @@ export class GeocodeWorker {
       });
       this.logger.warn({ propertyId }, 'Geocoding failed for property');
       await this.updateFailedGauge();
+      return;
     }
+
+    // Rule A (PR-18): only a confident address-level result is a usable
+    // coordinate. A non-address (coarse) result or a low-relevance address is
+    // marked FAILED with the reason code and stores no coordinate.
+    const decision = classifyGeocodingResult(result);
+    if (!decision.accepted) {
+      await this.propertyRepo.update(propertyId, property.tenantId, {
+        geocodingStatus: 'FAILED',
+        geocodingFailureCode: decision.reason,
+      });
+      this.auditService.log({
+        action: 'property.geocoding_failed',
+        actorType: 'SYSTEM',
+        entityType: 'Property',
+        entityId: property.id,
+        tenantId: property.tenantId,
+        metadata: {
+          address: fullAddress,
+          reason: `${decision.reason}: geocoding result too coarse or low-confidence`,
+          code: decision.reason,
+          placeType: result.placeType,
+          relevance: result.relevance,
+        },
+      });
+      this.logger.warn(
+        { propertyId, code: decision.reason, placeType: result.placeType, relevance: result.relevance },
+        'Geocoding result rejected as too coarse/low-confidence; property marked FAILED',
+      );
+      await this.updateFailedGauge();
+      return;
+    }
+
+    await this.propertyRepo.update(propertyId, property.tenantId, {
+      lat: result.lat,
+      lng: result.lng,
+      geocodingStatus: 'SUCCESS',
+      geocodedPermanentlyAt: new Date(),
+      geocodingFailureCode: null,
+    });
+    this.logger.info(
+      { propertyId, lat: result.lat, lng: result.lng },
+      'Property geocoded successfully',
+    );
   }
 
   private async updateFailedGauge(): Promise<void> {

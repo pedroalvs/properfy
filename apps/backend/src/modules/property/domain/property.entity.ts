@@ -1,7 +1,7 @@
 import { BaseEntity } from '../../../shared/domain/entity';
 import { buildNormalizedAddressKey } from '../../../shared/domain/normalize-address';
 import type { PropertyType, GeocodingStatus, PropertyRules } from '@properfy/shared';
-import type { GeocodingResult } from './geocoding.service';
+import { type GeocodingResult, classifyGeocodingResult } from './geocoding.service';
 
 export interface PropertyProps {
   id: string;
@@ -100,8 +100,9 @@ export class PropertyEntity extends BaseEntity {
 
   /**
    * Apply the outcome of a geocoding lookup to this entity. A coordinate result
-   * sets SUCCESS; a null result (address not found) sets FAILED. Used by the
-   * create flow to geocode synchronously before persisting.
+   * that passes rule A ({@link classifyGeocodingResult}) sets SUCCESS; a null
+   * result (address not found) or a too-coarse / low-relevance result sets
+   * FAILED. Used by the create flow to geocode synchronously before persisting.
    *
    * `options.permanent` stamps `geocodedPermanentlyAt` (the coordinate came from
    * a permanent geocode, Mapbox terms) and clears any failure code. A SUCCESS
@@ -109,7 +110,8 @@ export class PropertyEntity extends BaseEntity {
    * future non-permanent caller cannot stamp the marker by accident.
    */
   applyGeocodingResult(result: GeocodingResult | null, options?: { permanent?: boolean }): void {
-    if (result) {
+    const decision = result ? classifyGeocodingResult(result) : null;
+    if (result && decision?.accepted) {
       this.lat = result.lat;
       this.lng = result.lng;
       this.geocodingStatus = 'SUCCESS';
@@ -122,6 +124,11 @@ export class PropertyEntity extends BaseEntity {
       this.lng = null;
       this.geocodingStatus = 'FAILED';
       this.geocodedPermanentlyAt = null;
+      // A rejected result (too coarse / low relevance) records its reason;
+      // a null result (address not found) leaves the failure code untouched.
+      if (decision && !decision.accepted) {
+        this.geocodingFailureCode = decision.reason;
+      }
     }
   }
 

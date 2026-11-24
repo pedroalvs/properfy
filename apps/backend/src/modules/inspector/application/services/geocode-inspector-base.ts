@@ -1,7 +1,10 @@
 import type {
   IGeocodingService,
 } from '../../../property/domain/geocoding.service';
-import { MapboxPermanentGeocodingUnavailableError } from '../../../property/domain/geocoding.service';
+import {
+  MapboxPermanentGeocodingUnavailableError,
+  classifyGeocodingResult,
+} from '../../../property/domain/geocoding.service';
 import {
   geocodeWithTimeout,
   GeocodeTimeoutError,
@@ -20,7 +23,11 @@ export type GeocodeInspectorBaseFailure =
   | 'no_results'
   | 'error'
   | 'timeout'
-  | 'permanent_unavailable';
+  | 'permanent_unavailable'
+  // Rule A (PR-18): the result was too coarse (non-address) or too
+  // low-confidence (address relevance < 0.8) to store.
+  | 'coarse_result'
+  | 'low_relevance';
 
 export type GeocodeInspectorBaseResult =
   | { lat: number; lng: number; geocodedAt: Date }
@@ -50,6 +57,18 @@ export async function geocodeInspectorBase(
       timeoutMs: GEOCODE_SYNC_TIMEOUT_MS,
     });
     if (coords) {
+      // Rule A (PR-18): only a confident address-level result is stored. A
+      // non-address (coarse) result or a low-relevance address is a failure.
+      const decision = classifyGeocodingResult(coords);
+      if (!decision.accepted) {
+        const reason: GeocodeInspectorBaseFailure =
+          decision.reason === 'COARSE_RESULT' ? 'coarse_result' : 'low_relevance';
+        logger?.warn(
+          { reason, placeType: coords.placeType, relevance: coords.relevance },
+          'inspector.base_geocode_failed',
+        );
+        return { failed: reason };
+      }
       return { lat: coords.lat, lng: coords.lng, geocodedAt: clock.now() };
     }
     logger?.warn({ reason: 'no_results' }, 'inspector.base_geocode_failed');
