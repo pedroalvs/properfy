@@ -110,6 +110,17 @@ export class PrismaPropertyFileRepository implements IPropertyFileRepository {
     return row?.tenant_id ?? null;
   }
 
+  async findAppointmentTenantId(
+    appointmentId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<string | null> {
+    const row = await this.db(tx).appointment.findUnique({
+      where: { id: appointmentId },
+      select: { tenant_id: true },
+    });
+    return row?.tenant_id ?? null;
+  }
+
   async listReadyByProperty(
     propertyId: string,
     filter?: PropertyFileListFilter,

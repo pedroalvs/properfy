@@ -57,18 +57,30 @@ export class PropertyScopeService {
   /**
    * Resolve the tenant predicate for a list query. INSP MUST query by a visible
    * appointment (never by property); a property-only INSP query is forbidden.
+   *
+   * `resolveTargetTenantId` (when given) returns the tenant that owns the
+   * requested property/appointment. For a tenant-pinned actor (CL_*) a target
+   * owned by another agency — or a missing target — is 404, matching the detail
+   * route (C.A2), instead of a silent empty list. AM/OP (cross-tenant) and INSP
+   * (resolved by appointment visibility) never consult the resolver.
    */
   async resolveReadListScope(
     actor: AuthContext,
     query: { propertyId?: string; appointmentId?: string },
+    resolveTargetTenantId?: () => Promise<string | null>,
   ): Promise<ReadListScope> {
     switch (actor.role) {
       case 'AM':
       case 'OP':
         return {};
       case 'CL_ADMIN':
-      case 'CL_USER':
-        return { tenantId: assertTenantScope(actor, 'property_file.read') };
+      case 'CL_USER': {
+        const tenantId = assertTenantScope(actor, 'property_file.read');
+        if (resolveTargetTenantId && (await resolveTargetTenantId()) !== tenantId) {
+          throw new PropertyFileNotFoundError();
+        }
+        return { tenantId };
+      }
       case 'INSP': {
         if (!actor.inspectorId) throw new PropertyFileForbiddenError();
         if (!query.appointmentId) {

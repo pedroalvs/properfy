@@ -16,7 +16,11 @@ export class ListPropertyFilesUseCase {
 
   async execute(command: ListPropertyFilesCommand): Promise<ListPropertyFilesResponse> {
     const { actor, query } = command;
-    const listScope = await this.scope.resolveReadListScope(actor, query);
+    const listScope = await this.scope.resolveReadListScope(actor, query, () =>
+      query.appointmentId
+        ? this.fileRepo.findAppointmentTenantId(query.appointmentId)
+        : this.fileRepo.findPropertyTenantId(query.propertyId!),
+    );
     const filter = { type: query.type, tenantId: listScope.tenantId };
 
     const files = query.appointmentId
