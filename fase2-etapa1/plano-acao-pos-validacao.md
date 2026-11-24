@@ -513,7 +513,74 @@ Não vão para o repositório: o anexo (`fase2-etapa1/arquivo/*.pages` e o texto
 
 ---
 
+## H — Defeitos do teste em DEV (24/11)
+
+**Decisão (Pedro, 24/11/2026):** todos os defeitos entram na lista para correção. Passos de reprodução, capturas e evidências: `fase2-etapa1/smoke-dev-2026-11-23.md` § Defeitos.
+
+Regras para o agente: um PR por defeito (ou por grupo indicado), TDD com um teste que falha antes da correção, sem mudar comportamento fora do defeito. Mudança visível em tela passa pelo Pedro antes (portão de design).
+
+### H-1 — Ligados a critério de aceite (prioridade)
+
+| # | Defeito | Critério | Onde | O que corrigir |
+|---|---|---|---|---|
+| D-02 | Depois do check-out em **Today**, o cartão da próxima parada fica sem "Check in" até recarregar | 00.A3 | PWA | O cartão "Next inspection" deve refletir o novo estado sem recarregar (a aba Schedule já reflete) |
+| D-13 | Aviso "Your route for tomorrow is ready" (a) enviado para o próprio dia, com a palavra "tomorrow"; (b) enviado e marcado como notificado com o plano ainda em rascunho | 00.A2 | Backend | (a) o aviso só sai para o plano do dia seguinte, ou o texto confere a data; (b) `PublishDayPlansUseCase` só avisa e marca quando o plano está publicado. O caso (b) foi provocado por comando no teste, mas a falta da checagem é real |
+| D-06 | "Same finish time as suggested" depois de salvar uma ordem 58 min pior | 01.A2 | PWA | Depois de salvar, a comparação continua sendo com a ordem sugerida |
+| D-12 | Alerta "não iniciado" do Live Day atrasa horas quando a parada foi reagendada depois da publicação | 01.A5 | Backend | `baselineInstant` (`live-day/domain/stop-view.ts`) usa o horário congelado na publicação; para o alerta deve valer o horário atual da parada. A métrica de precisão continua usando o congelado |
+| D-07 | "You need 10 jobs…" fixo no app, ignorando "Minimum services to be ranked" | 03.A3 | PWA (`StandingCards.tsx`, `RankingTab.tsx`) | Usar o mínimo configurado |
+| D-08 | Arquivo recusado pelo armazenamento mostra "Upload failed" genérico | C.A5 | Web (e PWA, se igual) | Mensagem clara de formato/tamanho não aceito. A parte de configuração do bucket está na seção D |
+| D-04 | Número do endereço-base some no painel do inspetor | 00.A5 | Web | Mostrar o número |
+| D-15 | Listagem de arquivos de imóvel de outra imobiliária devolve 200 com lista vazia, em vez de 404 | C.A2 | Backend | `GET /v1/property-files?propertyId=` de outro tenant → 404. Não há vazamento; diverge do texto do critério |
+
+### H-2 — Sem critério direto
+
+| # | Defeito | Onde | O que corrigir |
+|---|---|---|---|
+| D-01 | Auditoria guarda latitude/longitude do inspetor em `inspection.started`, `inspection.finished`, `inspection.geolocation_mismatch` (regra §7.9; item 12 do estacionamento) | Backend | Entradas novas sem coordenada crua; manter os valores derivados (distância, precisão). As antigas continuam mascaradas na leitura para CL |
+| D-05 | Endereço inventado é geocodificado como "Success", com pino em outra cidade | Backend (X02) | Tratar resultado de baixa relevância como falha/aviso. Levar a proposta de regra ao Pedro antes |
+| D-10 | Portal, depois de "Can't do", oferece trocar de horário e logo abaixo diz que a inspeção não vai acontecer | Web (portal) | Um texto só, coerente com `canChangeTime === false` |
+| D-14 | Busca do "Consent Lookup" dá erro para AM e OP | Web | Tratado no E-3 |
+| D-03 | Duas versões no app ("v0.1.0+dev" e "v1.0") | PWA + configuração | Uma só versão nos dois lugares; build de DEV com `APP_BUILD_SHA` |
+
+### H-3 — Configuração de ambiente (entra na lista da seção D; conferir também em staging)
+
+| # | Defeito | O que fazer |
+|---|---|---|
+| D-08 | Bucket `inspection-assets` só aceita imagens | Ampliar tipos e tamanho (item 4 da seção D) |
+| D-09 | Bucket de relatórios (`SUPABASE_STORAGE_BUCKET`) não existe em DEV: todo relatório fica "Failed" | Criar o bucket ou corrigir o segredo |
+| D-11 | E-mails de sistema falham: domínio do remetente não verificado no Resend | Verificar o domínio ou trocar o remetente de sistema |
+
+### H-4 — Observações menores (lista, sem prioridade)
+
+Timeline com identificadores crus; "Inactive Branch" oferecida no seletor de filial do novo imóvel; endereços importados com vírgula dupla; "Complete 1 inspections"; excluir arquivo com 2 versões remove só a última; datas do período "Custom" da densidade cortadas.
+
+### H-5 — "A mais" em tela: sem ação
+
+| Item | Origem | Situação |
+|---|---|---|
+| "Mark all read" nos avisos do app | PR #1369 | Construído por decisão do Pedro de 18/11 (registrada no estacionamento) |
+| Sino e passo "Notifications" no tour | PR #1371 (23/11) | Recurso de push ligado por padrão |
+| "Add to calendar" no portal | PR #1081 (agosto) | Anterior à Fase 2 |
+
+Ficam como estão, salvo decisão contrária do Pedro.
+
+### H-6 — Pendentes do teste (validar depois; decisão do Pedro: seguir)
+
+| Item | A partir de (Brasília) |
+|---|---|
+| Trocar ponto de partida da rota (F04-b) | 24/11, 05:30 |
+| Níveis do índice e acesso antecipado (F07-a, F08-c/d/e/f) | 24/11, 14:15 |
+| Aviso da manhã ao inquilino (F06-a) | 24/11, 17:00 |
+| Prêmios e bônus na fatura (F08-a/b) | 29/11, 15:45 |
+
+Passo a passo de cada um: relatório do teste, § Pendentes declarados.
+
+### Estado de DEV depois do teste
+
+Interruptores "Early offer access" e "Send arrival notices to rental tenants" ligados; "Minimum services to be ranked" em 1 (era 10); contatos de inspetores e filiais trocados por fictícios. Valores anteriores no relatório. A conta `smoke.am@pedroalvs.com` fica ativa para uso futuro (registrada na nota "Acessos QA Properfy").
+
+---
+
 ## Ainda em discussão (não executar)
 
-- Triagem dos 14 defeitos e dos itens "a mais" do teste em DEV (`fase2-etapa1/smoke-dev-2026-11-23.md`).
-- Commit/PR da documentação local (seção F).
+Nada. Todas as seções da nota (A a G) e os defeitos do teste estão decididos.
