@@ -31,8 +31,11 @@ describe('T1VisibilityService', () => {
       expect(service.isVisibleForInspector('ROUTINE', 'PENDING', true, tomorrow, today)).toBe(true);
     });
 
-    it('should NOT be visible when PENDING confirmation and keyRequired is false', () => {
-      expect(service.isVisibleForInspector('ROUTINE', 'PENDING', false, tomorrow, today)).toBe(false);
+    // Regression: an accepted (SCHEDULED) routine job must NOT disappear from the
+    // inspector's schedule at T-1 just because the rental tenant has not confirmed.
+    // This asserted `false` before the "disappearing schedule" fix.
+    it('should be visible when PENDING confirmation and keyRequired is false (awaiting confirmation)', () => {
+      expect(service.isVisibleForInspector('ROUTINE', 'PENDING', false, tomorrow, today)).toBe(true);
     });
 
     it('should be visible when requiresRentalTenantConfirmation is false regardless of confirmation status', () => {
@@ -49,17 +52,31 @@ describe('T1VisibilityService', () => {
     });
   });
 
-  describe('ROUTINE appointments for today (not T-1)', () => {
-    it('should NOT be visible when scheduled for today and not confirmed', () => {
-      expect(service.isVisibleForInspector('ROUTINE', 'PENDING', false, todayDate, today)).toBe(false);
-    });
-
-    it('should NOT be visible when scheduled for today and marked UNAVAILABLE', () => {
-      expect(service.isVisibleForInspector('ROUTINE', 'UNAVAILABLE', false, todayDate, today)).toBe(false);
+  describe('ROUTINE appointments for today (T-0)', () => {
+    // Regression: the accepted job must stay visible on the inspection day too,
+    // even while confirmation is still pending. (Was `false` before the fix.)
+    it('should be visible when scheduled for today and not yet confirmed', () => {
+      expect(service.isVisibleForInspector('ROUTINE', 'PENDING', false, todayDate, today)).toBe(true);
     });
 
     it('should remain visible when scheduled for today with keyRequired', () => {
       expect(service.isVisibleForInspector('ROUTINE', 'PENDING', true, todayDate, today)).toBe(true);
+    });
+  });
+
+  describe('ROUTINE appointments the tenant reported UNAVAILABLE', () => {
+    // UNAVAILABLE is the one status still hidden: the tenant actively reported they
+    // will not be available, which drives its own rejection flow.
+    it('should NOT be visible when marked UNAVAILABLE at T-1', () => {
+      expect(service.isVisibleForInspector('ROUTINE', 'UNAVAILABLE', false, tomorrow, today)).toBe(false);
+    });
+
+    it('should NOT be visible when marked UNAVAILABLE for today', () => {
+      expect(service.isVisibleForInspector('ROUTINE', 'UNAVAILABLE', false, todayDate, today)).toBe(false);
+    });
+
+    it('should still be visible when UNAVAILABLE but keyRequired is true', () => {
+      expect(service.isVisibleForInspector('ROUTINE', 'UNAVAILABLE', true, tomorrow, today)).toBe(true);
     });
   });
 });

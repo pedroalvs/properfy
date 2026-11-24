@@ -2092,6 +2092,9 @@ export function createContainer(logger: Logger): AppContainer {
   // Reject unconfirmed appointments cleanup worker
   const rejectUnconfirmedAppointmentsUseCase = new RejectUnconfirmedAppointmentsUseCase(
     appointmentRepo, serviceGroupRepo, auditService, logger, confirmationCycleService, prisma,
+    // Agency reschedule-cue email (INSPECTION_REJECTED_AGENCY) + inspector in-app notice
+    // that their accepted job was removed — the sweep bypasses ExecuteStatusTransitionUseCase.
+    notifyOnStatusTransitionHandler, publishSystemInspectorNoticeUseCase,
   );
   const rejectUnconfirmedWorker = new RejectUnconfirmedWorker(rejectUnconfirmedAppointmentsUseCase);
 

@@ -6,7 +6,11 @@ describe('filterT1Visible (L-F05-03)', () => {
   const today = '2026-11-05';
   const tomorrow = '2026-11-06';
 
-  it('keeps an INGOING SCHEDULED stop and drops a ROUTINE unconfirmed one for tomorrow', () => {
+  it('keeps an INGOING SCHEDULED stop and also an accepted ROUTINE unconfirmed one for tomorrow', () => {
+    // An accepted (SCHEDULED) routine job is no longer hidden while the rental
+    // tenant has yet to confirm — it stays on the inspector's day (and therefore
+    // on the ops Live Day), flagged as awaiting confirmation, instead of silently
+    // disappearing. Only an UNAVAILABLE routine stop is dropped (see below).
     const rows = [
       makeStopRow({
         appointmentId: 'A',
@@ -25,7 +29,7 @@ describe('filterT1Visible (L-F05-03)', () => {
         requiresRentalTenantConfirmation: true,
       }),
     ];
-    expect(filterT1Visible(rows, today).map((r) => r.appointmentId)).toEqual(['A']);
+    expect(filterT1Visible(rows, today).map((r) => r.appointmentId)).toEqual(['A', 'B']);
   });
 
   it('keeps a ROUTINE stop once it is CONFIRMED', () => {

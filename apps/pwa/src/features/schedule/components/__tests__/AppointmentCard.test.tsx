@@ -260,3 +260,37 @@ describe('AppointmentCard — more actions menu', () => {
     expect(screen.getByTestId('cant-do-sheet')).toHaveAttribute('data-open', 'true');
   });
 });
+
+describe('AppointmentCard — awaiting tenant confirmation', () => {
+  // TODAY is 2026-03-18; the civil day after is 2026-03-19 (T-1 relative to TODAY).
+  const TOMORROW = '2026-03-19';
+  const unconfirmedToday: InspectorAppointment = {
+    ...baseAppointment,
+    rentalTenantConfirmation: RentalTenantConfirmationStatus.PENDING,
+    scheduledDate: TODAY,
+  };
+
+  it('shows the Pending confirmation badge and the urgent "Unconfirmed" flag on the inspection day (T-0)', () => {
+    renderWithProviders(<AppointmentCard appointment={unconfirmedToday} today={TODAY} />);
+    expect(screen.getByTestId('confirmation-badge')).toHaveTextContent('Pending');
+    expect(screen.getByTestId('t1-warning')).toBeInTheDocument();
+  });
+
+  it('shows the urgent "Unconfirmed" flag for an accepted routine job still pending the day before (T-1)', () => {
+    renderWithProviders(
+      <AppointmentCard appointment={{ ...unconfirmedToday, scheduledDate: TOMORROW }} today={TODAY} />,
+    );
+    expect(screen.getByTestId('confirmation-badge')).toHaveTextContent('Pending');
+    expect(screen.getByTestId('t1-warning')).toBeInTheDocument();
+  });
+
+  it('does not show the "Unconfirmed" flag once the tenant has confirmed', () => {
+    renderWithProviders(
+      <AppointmentCard
+        appointment={{ ...baseAppointment, rentalTenantConfirmation: RentalTenantConfirmationStatus.CONFIRMED }}
+        today={TODAY}
+      />,
+    );
+    expect(screen.queryByTestId('t1-warning')).not.toBeInTheDocument();
+  });
+});

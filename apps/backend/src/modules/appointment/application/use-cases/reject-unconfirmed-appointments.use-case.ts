@@ -1,4 +1,5 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
+import { formatCivilDate, type SystemInspectorNoticeType } from '@properfy/shared';
 import { civilDateInTimezone, PLATFORM_TIMEZONE } from '../../../../shared/domain/timezone-date';
 import type { IAppointmentRepository } from '../../domain/appointment.repository';
 import type { IServiceGroupRepository } from '../../../service-group/domain/service-group.repository';
@@ -9,6 +10,43 @@ import type { Logger } from '../../../../shared/infrastructure/logger';
 
 const REJECTION_REASON = 'Tenant did not respond to confirmation request';
 const GROUP_CANCEL_REASON = 'All appointments removed due to non-response cleanup';
+
+/** Inspector notice type raised for the inspector whose accepted job the sweep rejects. */
+const INSPECTOR_NOTICE_TYPE: SystemInspectorNoticeType = 'APPOINTMENT_AUTO_REJECTED';
+
+/**
+ * Agency-facing notification seam. Satisfied by the notification module's
+ * `NotifyOnStatusTransitionHandler`, which sends the existing
+ * `INSPECTION_REJECTED_AGENCY` email (its cue to reschedule). The sweep writes
+ * the rejection directly (it does not go through `ExecuteStatusTransitionUseCase`),
+ * so without this the agency was never told.
+ */
+export interface IRejectUnconfirmedAgencyNotifier {
+  execute(input: {
+    appointmentId: string;
+    tenantId?: string | null;
+    previousStatus: string;
+    targetStatus: string;
+  }): Promise<void>;
+}
+
+/**
+ * Inspector-facing notification seam. Satisfied by the inspector-notice module's
+ * `PublishSystemInspectorNoticeUseCase`: an in-app Announcement + push so the
+ * inspector who had accepted the job is told it was removed instead of it silently
+ * vanishing from the schedule. Idempotent by `dedupeKey`.
+ */
+export interface IRejectUnconfirmedInspectorNotifier {
+  execute(input: {
+    type: SystemInspectorNoticeType;
+    inspectorIds: string[];
+    title: string;
+    body: string;
+    dedupeKey: string;
+    targetPath?: string;
+    requestId?: string;
+  }): Promise<{ noticeId: string | null; created: boolean }>;
+}
 
 export interface RejectUnconfirmedAppointmentsOutput {
   rejectedCount: number;
@@ -27,6 +65,10 @@ export class RejectUnconfirmedAppointmentsUseCase {
     /** 028 — optional. When wired, supersedes the confirmation cycle per rejected appointment. */
     private readonly cycleService?: ConfirmationCycleService,
     private readonly prisma?: PrismaClient,
+    /** Optional. When wired, emails the agency its reschedule cue (INSPECTION_REJECTED_AGENCY). */
+    private readonly agencyNotifier?: IRejectUnconfirmedAgencyNotifier,
+    /** Optional. When wired, tells the assigned inspector their accepted job was removed. */
+    private readonly inspectorNotifier?: IRejectUnconfirmedInspectorNotifier,
   ) {}
 
   async execute(scope?: { timezone: string; todayCivil?: string; tenantIds: string[] }): Promise<RejectUnconfirmedAppointmentsOutput> {
@@ -67,6 +109,9 @@ export class RejectUnconfirmedAppointmentsUseCase {
         }
 
         const previousStatus = appointment.status;
+        // Captured before the reject nulls it: only a SCHEDULED job has an inspector
+        // assigned (it was accepted), and that inspector must be told it was removed.
+        const assignedInspectorId = appointment.inspectorId;
 
         // Update appointment: reject, set reason code, update confirmation status, remove from group.
         // When cycleService is wired, supersede the active cycle atomically.
@@ -122,6 +167,47 @@ export class RejectUnconfirmedAppointmentsUseCase {
         });
 
         rejectedCount++;
+
+        // Notify after the reject committed. Both legs are best-effort: a failure is
+        // logged but must never abort the sweep or roll back the rejection. They are
+        // idempotent — the appointment is now REJECTED, so the next run's
+        // `findUnconfirmedForDate` skips it (agency leg), and the inspector notice
+        // dedupes by `appointmentId`.
+        if (this.agencyNotifier) {
+          try {
+            await this.agencyNotifier.execute({
+              appointmentId: appointment.id,
+              tenantId: appointment.tenantId,
+              previousStatus,
+              targetStatus: 'REJECTED',
+            });
+          } catch (err) {
+            this.logger.error(
+              { appointmentId: appointment.id, err },
+              'Failed to notify agency of auto-rejected appointment',
+            );
+          }
+        }
+
+        if (this.inspectorNotifier && assignedInspectorId) {
+          try {
+            const dateLabel = formatCivilDate(appointment.scheduledDate);
+            await this.inspectorNotifier.execute({
+              type: INSPECTOR_NOTICE_TYPE,
+              inspectorIds: [assignedInspectorId],
+              title: 'Job removed from your schedule',
+              body: dateLabel
+                ? `A job scheduled for ${dateLabel} was cancelled because the rental tenant didn't confirm in time. It has been removed from your schedule.`
+                : `A job was cancelled because the rental tenant didn't confirm in time. It has been removed from your schedule.`,
+              dedupeKey: `appointment-auto-rejected:${appointment.id}`,
+            });
+          } catch (err) {
+            this.logger.error(
+              { appointmentId: appointment.id, err },
+              'Failed to notify inspector of auto-rejected appointment',
+            );
+          }
+        }
       } catch (err) {
         this.logger.error(
           { appointmentId: appointment.id, err },

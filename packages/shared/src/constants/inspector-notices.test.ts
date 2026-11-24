@@ -29,12 +29,17 @@ describe('system notice types + criticality', () => {
     expect(isCriticalSystemNoticeType('PERFORMANCE_MESSAGE')).toBe(false);
   });
 
-  it('exposes exactly the four system types', () => {
+  it('the T-1 auto-reject notice is never critical', () => {
+    expect(isCriticalSystemNoticeType('APPOINTMENT_AUTO_REJECTED')).toBe(false);
+  });
+
+  it('exposes exactly the five system types', () => {
     expect([...SYSTEM_INSPECTOR_NOTICE_TYPES]).toEqual([
       'ROUTE_PUBLISHED',
       'ROUTE_CHANGED',
       'COMPLETION_REMINDER',
       'PERFORMANCE_MESSAGE',
+      'APPOINTMENT_AUTO_REJECTED',
     ]);
   });
 });

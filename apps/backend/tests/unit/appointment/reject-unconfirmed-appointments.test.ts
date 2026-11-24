@@ -447,3 +447,108 @@ describe('RejectUnconfirmedAppointmentsUseCase', () => {
     );
   });
 });
+
+describe('RejectUnconfirmedAppointmentsUseCase — notifications', () => {
+  let useCase: RejectUnconfirmedAppointmentsUseCase;
+  let appointmentRepo: IAppointmentRepository;
+  let serviceGroupRepo: IServiceGroupRepository;
+  let auditService: AuditService;
+  let logger: Logger;
+  let agencyNotifier: { execute: ReturnType<typeof vi.fn> };
+  let inspectorNotifier: { execute: ReturnType<typeof vi.fn> };
+
+  beforeEach(() => {
+    appointmentRepo = createMockRepo();
+    serviceGroupRepo = createMockServiceGroupRepo();
+    auditService = { log: vi.fn() };
+    logger = createMockLogger();
+    agencyNotifier = { execute: vi.fn().mockResolvedValue(undefined) };
+    inspectorNotifier = { execute: vi.fn().mockResolvedValue({ noticeId: 'notice-1', created: true }) };
+    useCase = new RejectUnconfirmedAppointmentsUseCase(
+      appointmentRepo,
+      serviceGroupRepo,
+      auditService,
+      logger,
+      undefined,
+      undefined,
+      agencyNotifier,
+      inspectorNotifier,
+    );
+  });
+
+  it('notifies the agency and the assigned inspector when an accepted job is rejected', async () => {
+    const appt = makeAppointment({
+      id: 'appt-1',
+      status: 'SCHEDULED',
+      inspectorId: 'inspector-1',
+      rentalTenantConfirmationStatus: 'PENDING',
+    });
+    vi.mocked(appointmentRepo.findUnconfirmedForDate).mockResolvedValue([appt]);
+
+    const result = await useCase.execute();
+
+    expect(result.rejectedCount).toBe(1);
+    expect(agencyNotifier.execute).toHaveBeenCalledWith({
+      appointmentId: 'appt-1',
+      tenantId: 'tenant-1',
+      previousStatus: 'SCHEDULED',
+      targetStatus: 'REJECTED',
+    });
+    expect(inspectorNotifier.execute).toHaveBeenCalledTimes(1);
+    expect(inspectorNotifier.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'APPOINTMENT_AUTO_REJECTED',
+        inspectorIds: ['inspector-1'],
+        dedupeKey: 'appointment-auto-rejected:appt-1',
+      }),
+    );
+  });
+
+  it('does not notify an inspector when the rejected job had none (AWAITING_INSPECTOR), but still notifies the agency', async () => {
+    const appt = makeAppointment({
+      id: 'appt-2',
+      status: 'AWAITING_INSPECTOR',
+      inspectorId: null,
+      rentalTenantConfirmationStatus: 'PENDING',
+    });
+    vi.mocked(appointmentRepo.findUnconfirmedForDate).mockResolvedValue([appt]);
+
+    const result = await useCase.execute();
+
+    expect(result.rejectedCount).toBe(1);
+    expect(agencyNotifier.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: 'appt-2', previousStatus: 'AWAITING_INSPECTOR', targetStatus: 'REJECTED' }),
+    );
+    expect(inspectorNotifier.execute).not.toHaveBeenCalled();
+  });
+
+  it('still rejects (and does not throw) when a notifier fails', async () => {
+    const appt = makeAppointment({
+      id: 'appt-1',
+      status: 'SCHEDULED',
+      inspectorId: 'inspector-1',
+      rentalTenantConfirmationStatus: 'PENDING',
+    });
+    vi.mocked(appointmentRepo.findUnconfirmedForDate).mockResolvedValue([appt]);
+    agencyNotifier.execute.mockRejectedValue(new Error('smtp down'));
+    inspectorNotifier.execute.mockRejectedValue(new Error('push down'));
+
+    const result = await useCase.execute();
+
+    expect(result.rejectedCount).toBe(1);
+    expect(appointmentRepo.update).toHaveBeenCalledWith(
+      'appt-1',
+      'tenant-1',
+      expect.objectContaining({ status: 'REJECTED' }),
+      undefined,
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: 'appt-1' }),
+      'Failed to notify agency of auto-rejected appointment',
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: 'appt-1' }),
+      'Failed to notify inspector of auto-rejected appointment',
+    );
+  });
+});
