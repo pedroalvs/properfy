@@ -276,8 +276,12 @@ export type SendGroupPortalLinksResponse = z.infer<typeof sendGroupPortalLinksRe
  * so the choice is required and recorded in the audit log.
  * - RESEND: reset the confirmation to PENDING and send a fresh portal link.
  * - NOTIFY_ONLY: keep the confirmation, realign its cycle, just inform the tenant.
+ * - FORCE_CONFIRM: like NOTIFY_ONLY, but ALSO force-confirm every unconfirmed member
+ *   on the tenant's behalf (done before the move, in the same request, so no
+ *   "moved but still unconfirmed" state can persist). Used when the move lands
+ *   members at T-1/T-0 where the daily sweep would otherwise auto-cancel them.
  */
-export const groupConfirmationStrategySchema = z.enum(['RESEND', 'NOTIFY_ONLY']);
+export const groupConfirmationStrategySchema = z.enum(['RESEND', 'NOTIFY_ONLY', 'FORCE_CONFIRM']);
 export type GroupConfirmationStrategy = z.infer<typeof groupConfirmationStrategySchema>;
 
 export const changeGroupScheduleRequestSchema = z
@@ -318,29 +322,6 @@ export const changeGroupScheduleResponseSchema = z.object({
   }),
 });
 export type ChangeGroupScheduleResponse = z.infer<typeof changeGroupScheduleResponseSchema>;
-
-// ─── Group force-confirm ───────────────────────────────────────────────────
-
-/**
- * Force the rental-tenant confirmation to CONFIRMED for every unconfirmed member
- * of a group in one call — the bulk sibling of the per-appointment
- * force-confirmation. Used by the date-change flow when the operator chooses
- * "confirm on the tenants' behalf & move" so members are not swept by the T-1
- * reject. `reason` is optional (a system default is used when absent).
- */
-export const forceConfirmGroupRequestSchema = z.object({
-  reason: z.string().min(1).max(500).optional(),
-});
-export type ForceConfirmGroupRequest = z.infer<typeof forceConfirmGroupRequestSchema>;
-
-export const forceConfirmGroupResponseSchema = z.object({
-  groupId: z.string().uuid(),
-  /** Members moved to CONFIRMED by this call. */
-  confirmedCount: z.number().int(),
-  /** Members left untouched (already CONFIRMED, terminal, or — for CL_* — another agency's). */
-  skippedCount: z.number().int(),
-});
-export type ForceConfirmGroupResponse = z.infer<typeof forceConfirmGroupResponseSchema>;
 
 // ─── Group inspector change ────────────────────────────────────────────────
 

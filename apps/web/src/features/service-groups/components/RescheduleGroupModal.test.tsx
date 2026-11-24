@@ -6,17 +6,8 @@ import type { ServiceGroupAppointment, ServiceGroupDetail } from '../types';
 
 
 const mockReschedule = vi.fn();
-let rescheduleOnSuccess: (() => void) | undefined;
 vi.mock('../hooks/useRescheduleServiceGroup', () => ({
-  useRescheduleServiceGroup: (_id: string | null, onSuccess?: () => void) => {
-    rescheduleOnSuccess = onSuccess;
-    return { reschedule: mockReschedule, isRescheduling: false };
-  },
-}));
-
-const mockForceConfirm = vi.fn();
-vi.mock('../hooks/useForceConfirmServiceGroup', () => ({
-  useForceConfirmServiceGroup: () => ({ forceConfirm: mockForceConfirm, isForcing: false }),
+  useRescheduleServiceGroup: () => ({ reschedule: mockReschedule, isRescheduling: false }),
 }));
 
 let mockCanForceConfirm = true;
@@ -85,7 +76,6 @@ describe('RescheduleGroupModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCanForceConfirm = true;
-    rescheduleOnSuccess = undefined;
   });
 
   it('prefills the group current date and window', () => {
@@ -292,7 +282,6 @@ describe('RescheduleGroupModal — force-confirm at T-1', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCanForceConfirm = true;
-    rescheduleOnSuccess = undefined;
   });
 
   // A PUBLISHED group with unconfirmed members, moved to tomorrow (T-1).
@@ -318,24 +307,21 @@ describe('RescheduleGroupModal — force-confirm at T-1', () => {
     expect(applyButton()).toBeDisabled();
   });
 
-  it('wires "confirm on the tenants\' behalf" to NOTIFY_ONLY then the group force-confirm', () => {
+  it('sends FORCE_CONFIRM in a single reschedule call for "confirm on the tenants\' behalf & move"', () => {
     renderModal(unconfirmedGroup());
     fireEvent.change(dateInput(), { target: { value: tomorrow } });
     fireEvent.click(screen.getByTestId('reschedule-choice-force-confirm'));
     fireEvent.click(applyButton());
 
+    // One atomic call — the backend force-confirms before moving; no chained client call.
     expect(mockReschedule).toHaveBeenCalledTimes(1);
     expect(mockReschedule.mock.calls[0]![0]).toMatchObject({
       scheduledDate: tomorrow,
-      confirmationStrategy: 'NOTIFY_ONLY',
+      confirmationStrategy: 'FORCE_CONFIRM',
     });
-    // Force-confirm is chained only once the reschedule resolves.
-    expect(mockForceConfirm).not.toHaveBeenCalled();
-    rescheduleOnSuccess?.();
-    expect(mockForceConfirm).toHaveBeenCalledTimes(1);
   });
 
-  it('wires "move & re-request" to RESEND with no force-confirm', () => {
+  it('sends RESEND for "move & re-request"', () => {
     renderModal(unconfirmedGroup());
     fireEvent.change(dateInput(), { target: { value: tomorrow } });
     const resend = screen.getByTestId('reschedule-choice-resend') as HTMLInputElement;
@@ -343,9 +329,8 @@ describe('RescheduleGroupModal — force-confirm at T-1', () => {
     expect(resend.checked).toBe(true);
     fireEvent.click(applyButton());
 
+    expect(mockReschedule).toHaveBeenCalledTimes(1);
     expect(mockReschedule.mock.calls[0]![0]).toMatchObject({ confirmationStrategy: 'RESEND' });
-    rescheduleOnSuccess?.();
-    expect(mockForceConfirm).not.toHaveBeenCalled();
   });
 
   it('does not offer force-confirm for a far-future date (not T-1)', () => {

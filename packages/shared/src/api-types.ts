@@ -8699,7 +8699,7 @@ export interface paths {
                         scheduledDate?: string;
                         timeWindow?: string;
                         /** @enum {string} */
-                        confirmationStrategy: "RESEND" | "NOTIFY_ONLY";
+                        confirmationStrategy: "RESEND" | "NOTIFY_ONLY" | "FORCE_CONFIRM";
                     };
                 };
             };
@@ -8724,58 +8724,8 @@ export interface paths {
                                     failed: number;
                                     confirmationsHandled: number;
                                     /** @enum {string} */
-                                    confirmationStrategy: "RESEND" | "NOTIFY_ONLY";
+                                    confirmationStrategy: "RESEND" | "NOTIFY_ONLY" | "FORCE_CONFIRM";
                                 };
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/service-groups/{groupId}/force-confirmation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    groupId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        reason?: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: {
-                                /** Format: uuid */
-                                groupId: string;
-                                confirmedCount: number;
-                                skippedCount: number;
                             };
                         };
                     };

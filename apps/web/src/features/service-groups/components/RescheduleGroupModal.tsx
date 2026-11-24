@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   currentTimeInTzHHmm,
   todayInTzDateString,
@@ -15,18 +15,10 @@ import { FormField } from '@/components/forms/FormField';
 import { TimeWindowPicker } from './TimeWindowPicker';
 import { AppointmentCodePill } from '@/features/appointments/components/AppointmentCodePill';
 import { useRescheduleServiceGroup } from '../hooks/useRescheduleServiceGroup';
-import { useForceConfirmServiceGroup } from '../hooks/useForceConfirmServiceGroup';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { ServiceGroupDetail } from '../types';
 import { DateInput } from '@/components/forms/DateInput';
 import { formatWallTimeRange } from '@/lib/format-date';
-
-/**
- * The operator's choice when a date change puts unconfirmed members at risk.
- * `FORCE_CONFIRM` is a UI-only value — it maps to a NOTIFY_ONLY reschedule
- * followed by a bulk group force-confirm.
- */
-type RescheduleChoice = GroupConfirmationStrategy | 'FORCE_CONFIRM';
 
 interface RescheduleGroupModalProps {
   open: boolean;
@@ -67,11 +59,8 @@ export function RescheduleGroupModal({
   const [scheduledDate, setScheduledDate] = useState(currentDate);
   const [startTime, setStartTime] = useState(currentStart);
   const [endTime, setEndTime] = useState(currentEnd);
-  const [confirmationStrategy, setConfirmationStrategy] = useState<RescheduleChoice | null>(null);
+  const [confirmationStrategy, setConfirmationStrategy] = useState<GroupConfirmationStrategy | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Set just before a NOTIFY_ONLY reschedule when the operator chose FORCE_CONFIRM,
-  // so the reschedule's success handler chains the bulk force-confirm.
-  const pendingForceConfirmRef = useRef(false);
 
   // Prefilled, unlike EditGroupModal's blank change-only fields: you cannot
   // judge a clamp against a window you cannot see.
@@ -140,20 +129,7 @@ export function RescheduleGroupModal({
 
   const requiresChoice = requiresConfirmationChoice || offersForceConfirm;
 
-  const { forceConfirm, isForcing } = useForceConfirmServiceGroup(serviceGroup.id, () => {
-    onSaved();
-    onClose();
-  });
-
   const { reschedule, isRescheduling } = useRescheduleServiceGroup(serviceGroup.id, () => {
-    // When the operator chose "confirm on the tenants' behalf & move", the
-    // NOTIFY_ONLY reschedule is only the first step — chain the bulk force-confirm
-    // as the terminal write (NOTIFY_ONLY never re-PENDINGs, so nothing undoes it).
-    if (pendingForceConfirmRef.current) {
-      pendingForceConfirmRef.current = false;
-      forceConfirm();
-      return;
-    }
     onSaved();
     onClose();
   });
@@ -163,7 +139,6 @@ export function RescheduleGroupModal({
     (dateChanged || windowChanged) &&
     timeRangeOrdered &&
     !isRescheduling &&
-    !isForcing &&
     (!requiresChoice || confirmationStrategy !== null);
 
   const handleSubmit = () => {
@@ -182,27 +157,14 @@ export function RescheduleGroupModal({
     }
     setError(null);
 
-    const dateKeys = {
+    reschedule({
       ...(dateChanged ? { scheduledDate } : {}),
       ...(windowChanged ? { timeWindow: newWindow } : {}),
-    };
-
-    // FORCE_CONFIRM is applied as NOTIFY_ONLY (keeps confirmations) then a bulk
-    // force-confirm of the unconfirmed members, chained in the reschedule success
-    // handler above. Any other choice reschedules directly.
-    if (offersForceConfirm && confirmationStrategy === 'FORCE_CONFIRM') {
-      pendingForceConfirmRef.current = true;
-      reschedule({ ...dateKeys, confirmationStrategy: 'NOTIFY_ONLY' });
-      return;
-    }
-
-    reschedule({
-      ...dateKeys,
-      // Nothing to decide when no confirmation is at stake; the API still
-      // requires the field, so send the non-destructive option.
-      confirmationStrategy: requiresChoice
-        ? (confirmationStrategy as GroupConfirmationStrategy)
-        : 'NOTIFY_ONLY',
+      // One atomic call. FORCE_CONFIRM tells the backend to force-confirm the
+      // unconfirmed members (before the move, same request) then move with
+      // NOTIFY_ONLY semantics. Nothing to decide when no confirmation is at stake;
+      // the API still requires the field, so send the non-destructive option.
+      confirmationStrategy: requiresChoice && confirmationStrategy ? confirmationStrategy : 'NOTIFY_ONLY',
     });
   };
 
@@ -218,7 +180,7 @@ export function RescheduleGroupModal({
             Cancel
           </Button>
           <Button variant="primary" onClick={handleSubmit} disabled={!canSubmit}>
-            {isRescheduling || isForcing ? 'Applying…' : 'Apply changes'}
+            {isRescheduling ? 'Applying…' : 'Apply changes'}
           </Button>
         </>
       }

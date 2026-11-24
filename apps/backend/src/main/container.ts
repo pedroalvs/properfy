@@ -1740,6 +1740,16 @@ export function createContainer(logger: Logger): AppContainer {
     domainEventBus,
   );
 
+  // Force-confirm is folded into the schedule change as the FORCE_CONFIRM strategy
+  // (atomic single call), so this use case is an internal collaborator — no route.
+  const forceConfirmGroupUseCase = new ForceConfirmGroupUseCase(
+    serviceGroupRepo,
+    appointmentRepo,
+    auditService,
+    authorizationService,
+    confirmationCycleService,
+  );
+
   const changeGroupScheduleUseCase = new ChangeGroupScheduleUseCase(
     serviceGroupRepo,
     appointmentRepo,
@@ -1749,16 +1759,9 @@ export function createContainer(logger: Logger): AppContainer {
     sendGroupPortalLinksUseCase,
     confirmationCycleService,
     notifyOnAdminRescheduleHandler,
+    forceConfirmGroupUseCase,
     domainEventBus,
     logger,
-  );
-
-  const forceConfirmGroupUseCase = new ForceConfirmGroupUseCase(
-    serviceGroupRepo,
-    appointmentRepo,
-    auditService,
-    authorizationService,
-    confirmationCycleService,
   );
 
   // Billing use cases (repos + createFinancialEntriesOnDoneUseCase created above)
@@ -2365,7 +2368,6 @@ export function createContainer(logger: Logger): AppContainer {
       sendGroupPortalLinksUseCase,
       changeGroupInspectorUseCase,
       changeGroupScheduleUseCase,
-      forceConfirmGroupUseCase,
       jwtService,
       tenantRepo,
     },

@@ -84,6 +84,9 @@ function setup(options: { group?: ServiceGroupWithAppointments | null; cached?: 
   const sendGroupPortalLinks = { execute: vi.fn().mockResolvedValue({ results: [] }) };
   const confirmationCycleService = { realignActiveCycleSchedule: vi.fn().mockResolvedValue(undefined) };
   const onAdminRescheduleHandler = { execute: vi.fn().mockResolvedValue(undefined) };
+  const forceConfirmGroup = {
+    execute: vi.fn().mockResolvedValue({ groupId: 'group-1', confirmedCount: 0, skippedCount: 0 }),
+  };
   const eventBus = { emit: vi.fn() };
   const logger = { error: vi.fn() };
 
@@ -96,13 +99,14 @@ function setup(options: { group?: ServiceGroupWithAppointments | null; cached?: 
     sendGroupPortalLinks as never,
     confirmationCycleService as never,
     onAdminRescheduleHandler as never,
+    forceConfirmGroup as never,
     eventBus as never,
     logger,
   );
 
   return {
     useCase, serviceGroupRepo, appointmentRepo, auditService, idempotencyService,
-    sendGroupPortalLinks, confirmationCycleService, onAdminRescheduleHandler, eventBus, logger,
+    sendGroupPortalLinks, confirmationCycleService, onAdminRescheduleHandler, forceConfirmGroup, eventBus, logger,
   };
 }
 
@@ -447,5 +451,54 @@ describe('ChangeGroupScheduleUseCase', () => {
       );
       expect(idempotencyService.set).toHaveBeenCalled();
     });
+  });
+});
+
+describe('ChangeGroupScheduleUseCase — FORCE_CONFIRM', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('force-confirms the group BEFORE moving it (atomic "confirm & move")', async () => {
+    const ctx = setup();
+    await ctx.useCase.execute({
+      groupId: 'group-1',
+      scheduledDate: FAR_FUTURE_DATE,
+      confirmationStrategy: 'FORCE_CONFIRM',
+      actor: makeActor(),
+    });
+
+    expect(ctx.forceConfirmGroup.execute).toHaveBeenCalledWith({ groupId: 'group-1', actor: expect.any(Object) });
+    expect(ctx.serviceGroupRepo.update).toHaveBeenCalled();
+    // Ordering is the safety guarantee: confirm must run before the move.
+    const confirmOrder = ctx.forceConfirmGroup.execute.mock.invocationCallOrder[0]!;
+    const moveOrder = (ctx.serviceGroupRepo.update as unknown as { mock: { invocationCallOrder: number[] } }).mock
+      .invocationCallOrder[0]!;
+    expect(confirmOrder).toBeLessThan(moveOrder);
+  });
+
+  it('does NOT move the group when the force-confirm fails (no "moved but unconfirmed" state)', async () => {
+    const ctx = setup();
+    ctx.forceConfirmGroup.execute.mockRejectedValueOnce(new Error('confirm failed'));
+
+    await expect(
+      ctx.useCase.execute({
+        groupId: 'group-1',
+        scheduledDate: FAR_FUTURE_DATE,
+        confirmationStrategy: 'FORCE_CONFIRM',
+        actor: makeActor(),
+      }),
+    ).rejects.toThrow('confirm failed');
+
+    expect(ctx.serviceGroupRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('does not force-confirm for a plain NOTIFY_ONLY change', async () => {
+    const ctx = setup();
+    await ctx.useCase.execute({
+      groupId: 'group-1',
+      scheduledDate: FAR_FUTURE_DATE,
+      confirmationStrategy: 'NOTIFY_ONLY',
+      actor: makeActor(),
+    });
+    expect(ctx.forceConfirmGroup.execute).not.toHaveBeenCalled();
   });
 });

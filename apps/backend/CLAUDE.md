@@ -262,14 +262,11 @@ Body: { targetStatus, reason? }
 
 All state transitions go through this single endpoint.
 
-### Group force-confirm
+### Group date-change force-confirm (PR2)
 
-```text
-POST /v1/service-groups/:groupId/force-confirmation   → 200  bulk force-confirm
-Body: { reason? }   → { groupId, confirmedCount, skippedCount }
-```
+`POST /v1/service-groups/:groupId/schedule` accepts `confirmationStrategy: 'FORCE_CONFIRM'` (alongside `RESEND`/`NOTIFY_ONLY`) — the **atomic** "confirm on the tenants' behalf & move". `ChangeGroupScheduleUseCase` force-confirms every unconfirmed member **before** the move (then moves with `NOTIFY_ONLY` semantics), so a confirm failure aborts the move and **no "moved but still unconfirmed" state can persist** (the limbo the 19:00 sweep would auto-cancel). There is **no separate force-confirm route** — it is one request.
 
-Bulk sibling of the per-appointment `POST /v1/appointments/:id/force-confirmation`. `ForceConfirmGroupUseCase` (`service-group/application/use-cases/`) moves every unconfirmed, non-terminal member of a group to `CONFIRMED` (via `ConfirmationCycleService.confirm(..., 'OPERATOR_FORCED', null)`, same fallback-to-direct-write as the per-appointment use case; one `appointment.force_manual_confirmation` audit per member). Same RBAC as the per-appointment one — `AM`/`OP`/`CL_ADMIN`, or `CL_USER` with `force_confirmation` (enforced in the use case, not the route). A tenant-pinned `CL_*` actor confirms **only its own agency's** members (groups are cross-tenant). Idempotent: already-`CONFIRMED` and terminal members are skipped. It is the **terminal write** of the web date-change "confirm on the tenants' behalf & move" flow — the web calls `…/schedule` with `NOTIFY_ONLY` (keeps confirmations), then this endpoint force-confirms the unconfirmed members, so nothing re-PENDINGs them.
+The force-confirm itself is `ForceConfirmGroupUseCase` (`service-group/application/use-cases/`, an **internal collaborator**, no HTTP route): it moves every unconfirmed, non-terminal member to `CONFIRMED` via `ConfirmationCycleService.confirm(..., 'OPERATOR_FORCED', null)` (same fallback-to-direct-write + one `appointment.force_manual_confirmation` audit per member as the per-appointment `POST /v1/appointments/:id/force-confirmation`). Same RBAC gate (`AM`/`OP`/`CL_ADMIN`, or `CL_USER` with `force_confirmation`), tenant-pinned `CL_*` confirm **only their own agency's** members (groups are cross-tenant); idempotent (already-`CONFIRMED`/terminal skipped). In practice `…/schedule` is AM/OP-only, so only AM/OP reach `FORCE_CONFIRM`.
 
 ### Inspector field events (F03-2)
 
