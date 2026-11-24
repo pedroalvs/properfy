@@ -425,6 +425,71 @@ describe('StartInspectionUseCase', () => {
     );
   });
 
+  it('§7.9: inspection.started + inspection_execution.started audits carry no raw inspector coordinates', async () => {
+    const sut = makeSut();
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointmentWithRelations({}, { propertyLatitude: -33.8568, propertyLongitude: 151.2153 }),
+    );
+
+    await sut.execute({
+      appointmentId: 'appt-1',
+      latitude: -33.891,
+      longitude: 151.277,
+      accuracy: 12,
+      idempotencyKey: 'key-priv-start',
+      actor: inspActor,
+    });
+
+    const byAction = (a: string) =>
+      auditService.log.mock.calls.map((c: any[]) => c[0]).find((x: any) => x.action === a);
+    const started = byAction('inspection.started');
+    const execStarted = byAction('inspection_execution.started');
+
+    for (const entry of [started, execStarted]) {
+      const serialized = JSON.stringify(entry);
+      for (const key of ['"latitude"', '"longitude"', '"startLatitude"', '"startLongitude"', 'inspectorLatitude', 'inspectorLongitude']) {
+        expect(serialized).not.toContain(key);
+      }
+    }
+    // Derived, non-identifying values are retained.
+    expect(started.metadata).toHaveProperty('geolocationDistanceMeters');
+    expect(started.metadata).toHaveProperty('accuracyMeters', 12);
+    expect(started.metadata).toHaveProperty('outOfRadius');
+    expect(execStarted.after).toHaveProperty('geolocationDistanceMeters');
+    expect(execStarted.after).toHaveProperty('accuracyMeters', 12);
+    expect(execStarted.after).toHaveProperty('outOfRadius');
+  });
+
+  it('§7.9: START geolocation_mismatch drops inspector coordinates but keeps property coordinates and distance', async () => {
+    const sut = makeSut();
+    appointmentRepo.findById.mockResolvedValue(
+      makeAppointmentWithRelations({}, { propertyLatitude: -33.8568, propertyLongitude: 151.2153 }),
+    );
+
+    await sut.execute({
+      appointmentId: 'appt-1',
+      latitude: -33.81, // ~5 km away → out of radius
+      longitude: 151.2153,
+      accuracy: 10,
+      idempotencyKey: 'key-priv-mismatch',
+      actor: inspActor,
+    });
+
+    const mismatch = auditService.log.mock.calls
+      .map((c: any[]) => c[0])
+      .find((x: any) => x.action === 'inspection.geolocation_mismatch');
+    expect(mismatch).toBeDefined();
+    const serialized = JSON.stringify(mismatch.metadata);
+    expect(serialized).not.toContain('inspectorLatitude');
+    expect(serialized).not.toContain('inspectorLongitude');
+    // Property coordinates are not inspector GPS and stay for the mismatch record.
+    expect(mismatch.metadata).toHaveProperty('propertyLatitude', -33.8568);
+    expect(mismatch.metadata).toHaveProperty('propertyLongitude', 151.2153);
+    expect(mismatch.metadata.distanceMeters).toBeGreaterThan(500);
+    expect(mismatch.metadata).toHaveProperty('thresholdMeters', 300);
+    expect(mismatch.metadata).toHaveProperty('accuracyMeters', 10);
+  });
+
   it('should store idempotency result after creating execution', async () => {
     const sut = makeSut();
     appointmentRepo.findById.mockResolvedValue(makeAppointmentWithRelations());
