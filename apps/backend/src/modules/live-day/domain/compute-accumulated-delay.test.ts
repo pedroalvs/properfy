@@ -28,12 +28,15 @@ describe('computeAccumulatedDelay (§5, test 4)', () => {
   });
 
   it('measures against the current window, not the frozen published/stored stop windows', () => {
-    // Published for 17:00, rescheduled to 13:00 (stored windows stay frozen at 17:00).
-    // Check-in 13:17 is 17 minutes late against the current window, not ~4h early.
+    // Published for 17:00, rescheduled to a narrow 13:00-13:15 window (stored windows
+    // stay frozen at 17:00). The frozen ETA (17:00) now falls OUTSIDE the current
+    // window, so the guard rejects it. Check-in 13:17 is 17 minutes late against the
+    // current window start, not ~4h early.
     expect(
       computeAccumulatedDelay([
         row({
           timeSlotStart: '13:00',
+          timeSlotEnd: '13:15',
           startedAt: '2026-11-05T13:17:00Z',
           publishedServiceStartAt: '2026-11-05T17:00:00Z',
           serviceStartAt: '2026-11-05T17:00:00Z',
