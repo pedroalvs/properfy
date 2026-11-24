@@ -243,4 +243,25 @@ describe('PlanRouteService', () => {
     expect(fake.directionsCalls).toHaveLength(0);
     expect(result.approximate).toBe(false);
   });
+
+  it('PRESERVE_ORDER recomputes the optimizer suggestion as optimizedOrder (PR-03, D-06)', async () => {
+    const fake = new FakeRouting();
+    // The applied order is the (suboptimal) reversed manual order; the optimizer
+    // suggestion must still be recomputed so the app can show a real
+    // "+N min vs. suggested" instead of comparing the order against itself.
+    const result = await make(fake).compute(
+      baseInput({ mode: { kind: 'PRESERVE_ORDER', order: ['C', 'B', 'A'] }, forceProviderMatrix: true }),
+    );
+    expect(result.order).toEqual(['C', 'B', 'A']); // applied order preserved
+    expect(result.optimizedOrder).toEqual(['A', 'B', 'C']); // suggestion recomputed, never null
+    expect(result.optimizedOrder).not.toEqual(result.order);
+  });
+
+  it('PRESERVE_ORDER with forceProviderMatrix resolves the provider Matrix once (PR-03)', async () => {
+    const fake = new FakeRouting();
+    await make(fake).compute(
+      baseInput({ mode: { kind: 'PRESERVE_ORDER', order: ['A', 'B', 'C'] }, forceProviderMatrix: true }),
+    );
+    expect(fake.matrixCalls).toBe(1);
+  });
 });

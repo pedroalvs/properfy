@@ -63,6 +63,12 @@ export interface PlanRouteInput {
   weights: RouteWeights;
   mode: PlanRouteMode;
   cachedMatrix?: StoredRoutingMatrix;
+  /**
+   * Force the provider travel matrix even outside OPTIMIZE mode. The caller sets it
+   * when it RECOMPUTES the optimizer suggestion in PRESERVE_ORDER (origin or stop-set
+   * change), so `optimizedOrder` is publication-quality rather than straight-line.
+   */
+  forceProviderMatrix?: boolean;
   interactive: boolean;
   strict: boolean;
   now: Date;
@@ -223,7 +229,13 @@ export class PlanRouteService {
     let approximateReason: ApproximateReason = null;
 
     // --- Obtain the travel matrix (provider, cache, or stub) ---
-    const matrixOutcome = await this.resolveMatrix(input, points, coordinateStopCount, maxWaitMs);
+    const matrixOutcome = await this.resolveMatrix(
+      input,
+      points,
+      coordinateStopCount,
+      maxWaitMs,
+      input.forceProviderMatrix ?? false,
+    );
     const travelS = matrixOutcome.travelS;
     let provider: RoutingProviderName = matrixOutcome.provider;
     const matrixProfile: MatrixProfile | null = matrixOutcome.profile;
@@ -254,6 +266,10 @@ export class PlanRouteService {
       const res = insertIntoOrder(optimizerInput, priorOrder, newKeys);
       order = res.order;
       method = res.method;
+      // The applied order stays the preserved manual one, but still expose the
+      // optimizer's recommendation so the caller can keep a real "+N min vs.
+      // suggested" baseline (D-06). Pure, I/O-free — reuses the matrix above.
+      optimizedOrder = optimizeRoute(optimizerInput).order;
     } else {
       const res = optimizeRoute(optimizerInput);
       order = res.order;
