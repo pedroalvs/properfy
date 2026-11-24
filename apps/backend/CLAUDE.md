@@ -229,7 +229,7 @@ When you add a new module, follow this same structure.
 4. Cross-tenant roles (`AM`, `OP`, `SYS`) may read without a tenant predicate or target a tenant explicitly; resolve this with `requireTenantScope(actor, action)`, which throws for pinned roles without a tenant and for `INSP`/`TNT` on tenant-dispatching paths.
 5. Never return or modify data of another tenant in tenant context.
 6. Platform-scoped entities (no `tenant_id`; list in the root `CLAUDE.md` §7.1) are guarded by role and `inspectorId`, never by an absent tenant filter. Add the scoping integration test in the same PR as the entity.
-7. Never return or audit the inspector's raw latitude/longitude to/for `CL_*` roles (root `CLAUDE.md` §7.9): expose distance, accuracy and flags only.
+7. Never return the inspector's raw latitude/longitude to `CL_*` roles, and **never write it to the audit log for anyone** (root `CLAUDE.md` §7.9): expose distance, accuracy and flags only. The check-in/out audit entries (`inspection.started`, `inspection.finished`, START/FINISH `inspection.geolocation_mismatch`, and the `inspection_execution.started`/`.finished` `after` snapshots) carry **no** inspector GPS — only `distanceMeters`/`accuracyMeters`/`outOfRadius`/`outOfWindow` (the START mismatch keeps the non-sensitive `propertyLatitude`/`propertyLongitude`). The raw coordinates live only on `inspection_executions` (AM/OP ops detail). Legacy audit rows that still hold coordinates stay masked on read for `CL_*` via `maskCoordinateKeys` (`modules/audit/domain/mask-coordinate-keys.ts`).
 
 ---
 

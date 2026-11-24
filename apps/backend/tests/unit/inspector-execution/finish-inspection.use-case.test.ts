@@ -310,6 +310,39 @@ describe('FinishInspectionUseCase', () => {
     );
   });
 
+  it('§7.9: inspection.finished + inspection_execution.finished audits carry no raw inspector coordinates', async () => {
+    const sut = makeSut();
+    executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());
+
+    await sut.execute({
+      appointmentId: 'appt-1',
+      latitude: -33.900,
+      longitude: 151.300,
+      accuracy: 8,
+      idempotencyKey: 'key-priv-finish',
+      actor: inspActor,
+    });
+
+    const byAction = (a: string) =>
+      auditService.log.mock.calls.map((c: any[]) => c[0]).find((x: any) => x.action === a);
+    const finished = byAction('inspection.finished');
+    const execFinished = byAction('inspection_execution.finished');
+
+    for (const entry of [finished, execFinished]) {
+      const serialized = JSON.stringify(entry);
+      for (const key of ['"latitude"', '"longitude"', '"finishLatitude"', '"finishLongitude"', 'inspectorLatitude', 'inspectorLongitude']) {
+        expect(serialized).not.toContain(key);
+      }
+    }
+    // Derived, non-identifying values are retained.
+    expect(finished.metadata).toHaveProperty('distanceMeters');
+    expect(finished.metadata).toHaveProperty('accuracyMeters', 8);
+    expect(finished.metadata).toHaveProperty('outOfRadius');
+    expect(execFinished.after).toHaveProperty('finishGeolocationDistanceMeters');
+    expect(execFinished.after).toHaveProperty('accuracyMeters', 8);
+    expect(execFinished.after).toHaveProperty('finishOutOfRadius');
+  });
+
   it('should store idempotency result after finishing', async () => {
     const sut = makeSut();
     executionRepo.findByAppointmentId.mockResolvedValue(makeExecution());

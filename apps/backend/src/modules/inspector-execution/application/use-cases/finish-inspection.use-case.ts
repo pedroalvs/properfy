@@ -149,8 +149,8 @@ export class FinishInspectionUseCase {
       tenantId: appointment.tenantId,
       after: {
         appointmentId,
-        finishLatitude: latitude,
-        finishLongitude: longitude,
+        // §7.9: raw inspector GPS is never stored in the audit — only on
+        // inspection_executions. Distance/accuracy/flags are kept.
         accuracyMeters: accuracy,
         finishGeolocationDistanceMeters: finishDistanceMeters,
         finishOutOfRadius,
@@ -165,8 +165,7 @@ export class FinishInspectionUseCase {
       entityId: appointmentId,
       tenantId: appointment.tenantId,
       metadata: {
-        latitude,
-        longitude,
+        // §7.9: no raw inspector GPS in the audit — distance/accuracy/flags only.
         accuracyMeters: accuracy,
         clientOccurredAt: input.clientOccurredAt ?? null,
         distanceMeters: finishDistanceMeters,
