@@ -75,7 +75,6 @@ const SecuritySettingsPage = Loadable(lazyRetry(() => import('@/features/setting
 const AuditLogListPage = Loadable(lazyRetry(() => import('@/features/audit-logs/pages/AuditLogListPage').then(m => ({ default: m.AuditLogListPage }))));
 const AvailabilitySlotListPage = Loadable(lazyRetry(() => import('@/features/availability-slots/pages/AvailabilitySlotListPage').then(m => ({ default: m.AvailabilitySlotListPage }))));
 const NotificationTemplateListPage = Loadable(lazyRetry(() => import('@/features/notification-templates/pages/NotificationTemplateListPage').then(m => ({ default: m.NotificationTemplateListPage }))));
-const ConsentLookupPage = Loadable(lazyRetry(() => import('@/features/notification-consents/pages/ConsentLookupPage').then(m => ({ default: m.ConsentLookupPage }))));
 const ServiceRegionListPage = Loadable(lazyRetry(() => import('@/features/service-regions/pages/ServiceRegionListPage').then(m => ({ default: m.ServiceRegionListPage }))));
 const PlatformSettingsPage = Loadable(lazyRetry(() => import('@/features/platform-settings/pages/PlatformSettingsPage').then(m => ({ default: m.PlatformSettingsPage }))));
 const AppointmentMapPage = Loadable(lazyRetry(() => import('@/features/appointments/pages/AppointmentMapPage').then(m => ({ default: m.AppointmentMapPage }))));
@@ -543,14 +542,6 @@ export const routes: RouteObject[] = [
             element: (
               <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
                 <PlatformSettingsPage />
-              </AuthGuard>
-            ),
-          },
-          {
-            path: 'notification-consents',
-            element: (
-              <AuthGuard roles={[UserRole.AM, UserRole.OP]}>
-                <ConsentLookupPage />
               </AuthGuard>
             ),
           },

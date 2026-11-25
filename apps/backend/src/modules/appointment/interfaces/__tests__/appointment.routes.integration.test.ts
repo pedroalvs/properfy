@@ -90,8 +90,6 @@ vi.mock('../../../../main/container', () => ({
       pollRetryableNotificationsUseCase: { execute: vi.fn() },
       dispatchRemindersUseCase: { execute: vi.fn() },
       dispatchEscalationsUseCase: { execute: vi.fn() },
-      listConsentsByRecipientUseCase: { execute: vi.fn() },
-      overrideConsentUseCase: { execute: vi.fn() },
       jwtService: { verify: mockJwtVerify },
       tenantRepo: { findById: vi.fn().mockResolvedValue({ isActive: () => true }) },
       webhookSignatureValidator: { validateResend: vi.fn().mockReturnValue(true) },

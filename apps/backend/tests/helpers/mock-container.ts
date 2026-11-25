@@ -308,8 +308,6 @@ export function createMockContainer(
       // Feature 018
       processUnsubscribeUseCase: { execute: vi.fn() },
       renderUnsubscribePageUseCase: { execute: vi.fn() },
-      listConsentsByRecipientUseCase: { execute: vi.fn() },
-      overrideConsentUseCase: { execute: vi.fn() },
       reOptInUseCase: { execute: vi.fn() },
       jwtService: { ...defaultJwt },
       tenantRepo: { ...defaultTenantRepo },

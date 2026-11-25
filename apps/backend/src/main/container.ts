@@ -391,8 +391,6 @@ import { PollRetryableNotificationsUseCase } from '../modules/notification/appli
 import { PollSmsDeliveryUseCase } from '../modules/notification/application/use-cases/poll-sms-delivery.use-case';
 import { DispatchRemindersUseCase } from '../modules/notification/application/use-cases/dispatch-reminders.use-case';
 import { DispatchEscalationsUseCase } from '../modules/notification/application/use-cases/dispatch-escalations.use-case';
-import { ListConsentsByRecipientUseCase } from '../modules/notification/application/use-cases/list-consents-by-recipient.use-case';
-import { OverrideConsentUseCase } from '../modules/notification/application/use-cases/override-consent.use-case';
 import { PrismaTenantEtaPlanReader } from '../modules/tenant-eta/infrastructure/prisma-tenant-eta-plan.reader';
 import type { ITenantEtaPlanReader } from '../modules/tenant-eta/domain/tenant-eta-plan.reader';
 import { PrismaTenantEtaNoticeLog } from '../modules/tenant-eta/infrastructure/prisma-tenant-eta-notice-log';
@@ -1916,15 +1914,6 @@ export function createContainer(logger: Logger): AppContainer {
     buildNotificationPayload, appointmentCodeFormatter,
     createNotificationUseCase, env.TENANT_PORTAL_BASE_URL,
   );
-  const listConsentsByRecipientUseCase = new ListConsentsByRecipientUseCase(
-    consentRepo,
-    authorizationService,
-  );
-  const overrideConsentUseCase = new OverrideConsentUseCase(
-    consentRepo,
-    authorizationService,
-    auditService,
-  );
   // F06 tenant-eta plan reader (consumed by TASK-F06-2; no HTTP route here).
   const tenantEtaPlanReader = new PrismaTenantEtaPlanReader(prisma, inspectorFieldEventRepo);
 
@@ -2525,8 +2514,6 @@ export function createContainer(logger: Logger): AppContainer {
       pollSmsDeliveryUseCase,
       dispatchRemindersUseCase,
       dispatchEscalationsUseCase,
-      listConsentsByRecipientUseCase,
-      overrideConsentUseCase,
       jwtService,
       tenantRepo,
       webhookSignatureValidator,
