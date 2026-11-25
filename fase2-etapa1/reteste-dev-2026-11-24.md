@@ -468,3 +468,190 @@ DEV em `d10bad2b` (release v127 do `properfy-api-dev`, depois do CI verde desse 
 - A coordenada que a North Shore ganhou no caso 2 (-33.842616 / 151.210577), e os campos `city`/`country`, ficam. São o efeito esperado da correção.
 
 **O-9 PASSOU.** A regra final de endereço não foi testada.
+
+## Rodada final — 25/11/2026 (06:05–06:54 UTC; item 35 e Parte 3 depois de 08:30 UTC)
+
+DEV em `0cf910b4` (#1406, regra final de endereço), release v128 do `properfy-api-dev`, publicada depois do CI verde. Roteiro: `fase2-etapa1/roteiro-reteste-final-dev.md`, relido. Pela tela, como usuário: AM no web, Lisa no app. Capturas em `output/smoke-dev/final/`, fora do commit. Contatos fictícios (`@example.invalid`, `+614915701xx`).
+
+### Contagem (parcial)
+
+| Resultado | Itens |
+|---|---|
+| **Passou (44)** | 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48 |
+| **Falhou (1)** | 5 |
+| **Não testável (2)** | 15 e 16 (criação de inspetor exige digitar senha; o coordenador faz) |
+| **Pendente (1)** | 35 (plano de 26/11 só é publicado às 19:30 de Sydney = 08:30 UTC) |
+
+Parte 3: PR-06 parte 2 pendente (depois de 08:30 UTC); P3 em 30/11; texto do Ranking (PR-04) não testável (nenhum inspetor fora do ranking com senha conhecida).
+
+### Falha
+
+**Item 5 — "só latitude": a tela não impede nem explica.** Avisado o coordenador na hora (06:12 UTC).
+1. Novo imóvel com "10 Main Street, Faketown NSW 2999" → Create → recusado (bloco vermelho e "Set location manually").
+2. "Set location manually" → preencher só Latitude (-33.5011) → Create Property.
+3. Obtido: a tela envia o pedido sem coordenada e recebe 422 de endereço (06:11:41 UTC). Continua mostrando só "This address doesn't match a known address closely enough."; nada sobre a longitude. Nada é salvo.
+4. Esperado: a tela impedir o envio, ou dizer que falta a longitude.
+
+Causa: na criação, `apps/web/src/features/properties/hooks/usePropertySave.ts` (linha 122) só envia o par quando os dois campos estão preenchidos; uma latitude sozinha é descartada sem aviso. `PropertyCreatePage.tsx` não passa `error` aos campos Latitude/Longitude. A API sozinha está certa: `POST /v1/properties` só com latitude → 400 `VALIDATION_ERROR` "latitude and longitude must be provided together".
+
+### Resultado por item
+
+**Endereços de teste (tabela do roteiro):**
+- Bom (200 George Street, Sydney NSW 2000): aceito, PROP-0022, pino no lugar.
+- Subúrbio errado (345 Military Road, Newtown NSW 2042): recusado.
+- Inexistente (10 Main Street, Faketown NSW 2999): recusado.
+- Rua sem número (Victoria Avenue, Chatswood NSW 2067): **aceito**, PROP-0025 SUCCESS -33.791125 / 151.200094, pino na Victoria Ave (`tab-rua-sem-numero-aceita-prop0025.jpg`). Bate com a decisão 36.
+
+#### 1.1 Imóvel (web)
+
+| # | Resultado | Evidência |
+|---|---|---|
+| 1 | PASSOU — PROP-0022 criado, detalhe já com "Success" e mapa com pino (-33.862599 / 151.207914), sem "Geocoding in progress." | `01-imovel-bom-prop0022.jpg` |
+| 2 | PASSOU — 345 Military Road, Newtown 2042: bloco "This address doesn't match a known address closely enough. Check the street, number, suburb and postcode.", Street/Suburb/Postcode/State marcados, "Set location manually"; nada salvo | `02-suburbio-errado-bloqueado.jpg` |
+| 3 | PASSOU — na mesma tela, Suburb → Mosman (o bloco some ao editar), CEP 2088 → PROP-0023 criado, SUCCESS -33.82755 / 151.2313 | `03-corrigido-mosman-criado.jpg` |
+| 4 | PASSOU — depois da recusa, "Set location manually" com o par → PROP-0024, "Manual", -33.5011 / 150.6703 | `04-inexistente-recusado.jpg`, `04-manual-salvo.jpg` |
+| 5 | **FALHOU** — ver acima | `05-so-latitude-sem-aviso.jpg` |
+| 6 | PASSOU — PROP-0022, só Notes → "Property updated successfully"; SUCCESS mantido | `06-so-notes-salvo.jpg` |
+| 7 | PASSOU — PROP-0022: endereço ruim (Newtown) recusado com bloco e campos marcados; bom (1 Macquarie Place, Sydney, pela busca) → SUCCESS, pino novo -33.862029 / 151.209859 | `07-endereco-ruim-recusado.jpg`, `07-endereco-bom-pino-novo.jpg` |
+| 8 | PASSOU — SPS-006 (FAILED): faixa amarela "This address couldn't be located. Update it or set the location manually."; só Notes → salvo | `08-antigo-falha-faixa-amarela.jpg`, `08-antigo-falha-notes-salvo.jpg` |
+
+#### 1.2 Imóvel criado dentro do agendamento
+
+| # | Resultado | Evidência |
+|---|---|---|
+| 10 | PASSOU — "Property not listed? Create one" com 345 Military Road, Newtown 2042: mesmo bloco, campos marcados e "Set location manually". Nenhum imóvel Newtown criado; agendamento não criado | `10-agendamento-imovel-ruim-recusado.jpg` |
+| 9 | PASSOU — na mesma gaveta, 1 Bligh Street, Sydney (pela busca) → PROP-0026 criado e já selecionado; agendamento INS-0121 criado (DRAFT, 26/11 10:00–11:00, contato fictício) | `09-imovel-bom-no-agendamento.jpg`, `09-agendamento-criado.jpg` |
+
+#### 1.3 Filial
+
+| # | Resultado | Evidência |
+|---|---|---|
+| 11 | PASSOU — "QA Final Branch" (88 Phillip Street, pela busca) criada; lista "88 Phillip Street, Sydney NSW 2000, AU" (o número fica dentro de Street) | `11-filial-boa-criada.jpg` |
+| 12 | PASSOU — Military Road / 345 / Newtown / 2042: bloco vermelho; Street, **Number**, Suburb e Postcode marcados; sem botão de pino; descartada | `12-filial-ruim-recusada.jpg` |
+| 13 | PASSOU — Inactive Branch: Number "200" preenchido; salvar sem mexer → lista igual, número mantido | `13-number-preenchido.jpg`, `13-salvo-sem-mexer-48-lista-antes.jpg` |
+| 14 | PASSOU — City Office (filial antiga sem localização), só o nome → "Branch updated successfully"; nome revertido pela API | `14-48-city-office-salva-lista-au.jpg` |
+
+#### 1.4 Base do inspetor (web)
+
+| # | Resultado | Evidência |
+|---|---|---|
+| 15, 16 | NÃO TESTÁVEL — criação exige digitar senha; com o coordenador | — |
+| 17 | PASSOU — Mike (base localizada), só telefone → "Inspector updated successfully"; revertido | `17-mike-telefone-salvo.jpg` |
+| 18 | PASSOU — Carlos (sem base), só telefone → salvo sem erro; revertido | `18-carlos-telefone-salvo.jpg` |
+| 19 | PASSOU — Carlos, base Military Road / 345 / Newtown / 2042: a gaveta rolou até o bloco; Street, **Unit / Number**, Suburb, City e State marcados. Mosman 2088 → salvo, e o selo "No base address" sumiu da lista | `19-base-ruim-recusada.jpg`, `19-base-boa-selo-sumiu.jpg` |
+
+#### 1.5 Base do inspetor (app, Lisa)
+
+| # | Resultado | Evidência |
+|---|---|---|
+| 20 | PASSOU — Military Road 345 Newtown 2042 → "This address doesn't match a known address closely enough. Check the street, number, suburb and postcode."; nada salvo | `20-app-base-ruim-recusada.jpg` |
+| 22 | PASSOU — sem conexão (simulada por script: `navigator.onLine` falso, evento `offline`, rede derrubada): faixa "You are offline", "You're offline. Connect to save this address.", "Save address" desabilitado, nenhuma chamada de rede | `22-app-offline-nao-salva.jpg` |
+| 21 | PASSOU — 100 Market Street, Sydney 2000 → salvo (-33.870497 / 151.208903); o aviso "Add your base address" sumiu e o "Today" passou a "Starting from: 100 Market Street, Sydney NSW 2000". Desta vez não apareceu "Saved successfully" (com o Mike, na segunda perna, apareceu) | `21-app-base-boa-salva.jpg`, `21-rota-parte-da-base-nova.jpg` |
+
+#### 1.6 Ponto de partida do dia (app, Lisa, 25/11)
+
+| # | Resultado | Evidência |
+|---|---|---|
+| 23 | PASSOU — Military Road 345 Newtown 2042 → mensagem com o motivo; origem não mudou. Ao editar um campo a mensagem some (O-12 resolvido) | `23-origem-ruim-recusada.jpg`, `23-mensagem-some-ao-editar.jpg` |
+| 24 | PASSOU — 200 George Street → "Route updated. Starting from 200 George Street, Sydney NSW 2000 for this day."; rótulo "Starting from: 200 George Street, Sydney NSW 2000 (this day only)" | `24-origem-boa-rotulo.jpg` |
+| 26 | PASSOU — ordem manual salva (+3 vs. suggested; a prévia mostrava +4) → origem 50 Glebe Point Road → ordem manual mantida e "**+14 min vs. suggested**" → "Reset to suggested order" → "Route reset to the suggested order." (Glebe, Martin, Crown) | `26-ordem-manual-mais3.jpg`, `26-troca-origem-mais14.jpg`, `26-reset-sugerida.jpg` |
+| 25 | PASSOU — "Use my base address" → "Route updated. Starting from your base address." / "Starting from: 100 Market Street, Sydney NSW 2000" | `25-use-my-base.jpg` |
+
+#### 2.1 Importação
+
+| # | Resultado | Evidência |
+|---|---|---|
+| 27 | PASSOU — preview abriu (bucket `s3_app` existe): 346 Military Road, Newtown 2042 "New property · Failed" + "Address was not found by geocoding — the property will be created but flagged for manual location"; 60 Margaret Street "Success"; 2 importáveis, 0 erros | `27-preview-linha-ruim-nao-bloqueia.jpg` |
+| 28 | PASSOU — "Import completed" 2 de 2: INS-0122/INS-0123 (DRAFT, 26/11). PROP-0027 FAILED sem coordenada, faixa amarela na edição; PROP-0028 SUCCESS. Corrigível: a edição para "346 Military Road, Mosman 2088" também foi recusada (o número não bate no mapa); corrigido com coordenada manual → MANUAL -33.8279 / 151.2318 | `28-*.jpg` |
+
+#### 2.2 Mapa
+
+| # | Resultado | Evidência |
+|---|---|---|
+| 29 | PASSOU — marcadores no ponto da coordenada de cada imóvel (cruzado com `/v1/appointments` e `/v1/properties`); os pinos manuais (INS-0116 → PROP-0020, INS-0122 → PROP-0027) no ponto informado | `29-30-mapa-pontos.jpg` |
+| 30 | PASSOU — criei o INS-0124 (PROP-0029, 347 Military Road Newtown, FAILED sem coordenada, por importação): não aparece no mapa; os 8 marcadores são os imóveis com coordenada. SPS-006 e o de Penshurst (FAILED) guardam a coordenada antiga, perto do lugar real | `29-30-mapa-pontos.jpg` |
+| 31 | PASSOU — "Activity density" liga (painel "8 check-ins · 8 areas", 30 dias) e desliga, sem erro no console | `31-density-ligada.jpg`, `31-density-desligada.jpg` |
+
+#### 2.3 Grupos e ofertas
+
+| # | Resultado | Evidência |
+|---|---|---|
+| 32 | PASSOU — web "New Service Group": Sydney / Routine, INS-0121/0122/0123 (26/11), região All australia ("Sydney CBD (2/3)" deixaria Mosman fora) → Group 29 → Publish → "Service group published". App (Lisa) "Offers": "1 available offer", #29, Tomorrow 26/11, $240 | `32-grupo29-*.jpg`, `32-oferta-no-app.jpg` |
+| 33 | PASSOU — mapa da oferta: ponto 2 em Mosman, na Military Rd (manual), 1 e 3 no CBD (Bligh St e Margaret St) | `33-mapa-oferta-pontos.jpg` |
+| 34 | PASSOU — "Accept group" → "You accepted the group!"; "Schedule" quinta 26: 3 serviços (INS-0121…), "3 require tenant confirmation" | `34-schedule-thu26.jpg` |
+
+#### 2.4 Plano do dia e rota (app)
+
+| # | Resultado | Evidência |
+|---|---|---|
+| 35 | PENDENTE — o plano de 26/11 da Lisa (INS-0121/0122/0123, base 100 Market Street) só é publicado às 08:30 UTC. Confirmação dos inquilinos forçada (OP) às 06:37 para entrarem no plano | — |
+| 36 | PASSOU — "Navigate" do cartão: link Google Maps `/maps/dir/` com `destination=-33.868044,151.208821` (PROP-0021, 5 Martin Place), `target=_blank`. Não abri o app de mapas | — |
+| 37 | PASSOU, com observação — INS-0120 com GPS simulado a cerca de 1 km: check-in e check-out sem bloqueio ("1 of 3 done"); o web registra 1002 m (precisão 12 m) e os selos "Outside geofence (300 m)" e "Checked out outside geofence". **Obs.:** no cartão do app não apareceu aviso de distância | `37-*.jpg` |
+
+#### 2.5 Operação (web)
+
+| # | Resultado | Evidência |
+|---|---|---|
+| 38 | PASSOU, com observação — "Live Day" (`/live-day`): Lisa "In transit", 1/3, alertas "INS-0118 not started" e "Checked out 1002 m from the property (limit 300 m) · INS-0120". Linha reta tracejada 5 Martin Place → 88 Crown St → 33 Glebe Point Rd, igual à geometria da API (LineString com os 3 pontos, `approximate: true`). **Obs.:** no primeiro clique na Lisa, vindo da lista, a linha não apareceu por uns 15 s; apareceu depois de recarregar | `38-live-day-lista.jpg`, `38-primeiro-clique-sem-linha.jpg`, `38-apos-recarregar-linha-reta.jpg` |
+| 39 | PASSOU — filtro "No base address" → só Lisa (antes da base) e Tom Retired; Carlos saiu depois do item 19 | `39-filtro-no-base.jpg` |
+| 40 | PASSOU — "Field activity" do INS-0120: AM vê distâncias e selos; CL_ADMIN vê o mesmo, sem coordenada (texto da tela sem números de lat/lng; `/field-activity` para CL sem chaves de lat/lng) | `37-40-field-activity-am.jpg`, `40-field-activity-cl.jpg` |
+
+#### 2.6 Notificações e agência
+
+| # | Resultado | Evidência |
+|---|---|---|
+| 41 | PASSOU — menu "Notification Templates" → "Consent Lookup"; "Search" desabilitado sem agência; nenhum "Record opt-out" | `41-consent-lookup-am.jpg` |
+| 42 | PASSOU, com observação — "Edit Agency" (Melbourne) sem os campos de oferta; salvar → "Agency updated successfully". **Obs. (anterior a esta onda):** o campo "Notes" da gaveta é descartado, porque o schema da agência não tem `notes`; o detalhe continua "—" | `42-agencia-salva-notes-perdida.jpg` |
+
+#### 2.7 Arquivos
+
+| # | Resultado | Evidência |
+|---|---|---|
+| 43 | PASSOU — PROP-0022: PDF (Documents), imagem (Other), nova versão (v2), download (URL assinada → 200, `application/pdf`, 2272 bytes, descartado), apagar (v2 e v1). INS-0121: PDF e imagem enviados, imagem apagada. Todos os PUT no bucket `inspection-assets` deram 200; nenhum 5xx ou `NoSuchBucket` no log | `43-*.jpg` |
+| 44 | PASSOU — issue com foto no web (PROP-0022, "Issue reported"); "Report issue" com foto no app (Lisa, INS-0121, "Inspector · Photo 1"); portal do INS-0123 (link sem envio) "Thanks — your report has been sent to the team." e "Your reports". A confirmação do INS-0123 voltou a PENDING ao gerar o link (O-11) e foi restaurada (OP) | `44-*.jpg` |
+
+#### 2.8 Regra final nos casos reais
+
+**45 — PASSOU.** "Retry Geocoding" pela tela às 06:05–06:08 UTC. Depois do clique o status fica "Pending" ("Geocoding is taking longer than expected…") até o worker processar (~15 s).
+
+| Imóvel | Antes | Depois | Esperado |
+|---|---|---|---|
+| IMP-2A412183A9 (Brighton-le-sands) | FAILED -33.960706 / 151.152431 | SUCCESS, mesma coordenada | aceito ✔ |
+| IMP-748F05CA28 (Carlton) | FAILED -33.970092 / 151.126711 | SUCCESS | aceito ✔ |
+| IMP-90EC930570 (Bexley) | FAILED -33.960694 / 151.12867 | SUCCESS | aceito ✔ |
+| IMP-D3CE99EF20 (Bexley) | já SUCCESS (backfill SYSTEM às 06:00:46), sem botão Retry | SUCCESS | aceito ✔ |
+| IMP-D45E7C3CEF (Hurstville) | FAILED -33.963655 / 151.103743 | SUCCESS | aceito ✔ |
+| IMP-FF4AB720F8 (Hurstville) | FAILED -33.971342 / 151.108435 | SUCCESS | aceito ✔ |
+| IMP-6238CD8E93 (Penshurst) | FAILED -33.960835 / 151.086088 | **FAILED**, `LOW_RELEVANCE` (relevância 0,825), **coordenada antiga mantida** | recusado ✔ |
+| SPS-006 (Chatswood) | FAILED -33.7969 / 151.1803 | **FAILED**, `LOW_RELEVANCE` (0,78), **coordenada antiga mantida** | recusado ✔ |
+
+Capturas: `45-retry-pending.jpg`, `45-brighton-aceito.jpg`, `45-penshurst-recusado-coord-mantida.jpg`. Obs.: Penshurst foi recusado com relevância 0,825, acima do limiar; o motivo real é o subúrbio, mas o código gravado é `LOW_RELEVANCE`.
+
+**46 — PASSOU.** 120 Phillip Street, Sydney 2000: PROP-0030 (sem complemento), PROP-0031 (Line 2 "Unit 5") e PROP-0032 (Line 2 "120 Phillip Street", repetindo a rua). Os três foram criados, SUCCESS, no mesmo ponto (-33.86511 / 151.211571), como imóveis distintos (`46-*.jpg`).
+
+**47 — PASSOU.** PROP-0030, só Line 2 → "Unit 5" (igual ao PROP-0031): aviso "An active property with this exact address already exists in this tenant", sem erro interno; o mesmo PATCH pela API → 409 (`47-line2-duplicado-aviso.jpg`).
+
+**48 — PASSOU, com observação.** Antes de salvar, a City Office aparecia "100 George St, Sydney NSW 2000" (sem ", AU"), e as outras três filiais com ", AU". Depois do save do item 14, as quatro aparecem com ", AU". O ", AU" só aparece depois que a filial é salva.
+
+### Observações novas
+
+- **O-14 — Sugestão da busca verificada pode ser recusada.** "30 Bridge Street, Sydney NSW 2000", escolhido na própria lista da busca, foi recusado (422 `LOW_RELEVANCE`, 06:17:18 UTC; confirmado pela API, também como "30 Bridge St"). O mesmo com "346 Military Road, Mosman 2088" no item 28. O usuário escolhe uma sugestão e recebe "doesn't match a known address".
+- **O-15 — City Office não ganhou coordenada ao salvar.** Depois do save do item 14 continua sem latitude/longitude, enquanto a North Shore Office ganhou às 05:27. Sem erro na tela.
+- **O-16 — Aviso de distância só no web.** No item 37, o cartão do app fez check-in e check-out a 1 km sem nenhum aviso; o desvio só aparece no web e no Live Day.
+- **O-17 — Linha do Live Day no primeiro clique.** Ver item 38.
+- **O-18 — Notes da agência descartado.** Ver item 42 (anterior a esta onda).
+- **O-19 — Ordem dos itens em "Branch" muda com filial nova.** A "QA Final Branch" entrou no topo do seletor de filial do imóvel; quem clica por posição escolhe outra filial. Só nota de uso.
+
+### Alterações em DEV nesta rodada
+
+| O quê | Depois |
+|---|---|
+| Imóveis criados | PROP-0022 (200 George St → 1 Macquarie Place, Notes "QA rodada final item 6"), PROP-0023 (345 Military Rd Mosman), PROP-0024 (10 Main St Faketown, MANUAL), PROP-0025 (Victoria Ave Chatswood), PROP-0026 (1 Bligh St), PROP-0027 (346 Military Rd → Mosman, MANUAL), PROP-0028 (60 Margaret St), PROP-0029 (347 Military Rd Newtown, FAILED sem coordenada), PROP-0030/0031/0032 (120 Phillip St) |
+| Agendamentos | INS-0121 (formulário), INS-0122/0123 (importação), INS-0124 (importação, sem coordenada); 0121–0123 no Group 29 (All australia, 26/11), aceito pela Lisa, confirmação forçada (OP) |
+| Filial nova | "QA Final Branch" (88 Phillip Street), ativa |
+| Filiais | City Office: nome trocado e revertido |
+| Inspetores | Carlos: base 345 Military Road, Mosman (antes sem base); telefone trocado e revertido. Mike: telefone trocado e revertido. Lisa: base 100 Market Street, Sydney (antes sem base) |
+| Plano da Lisa 25/11 | ordem manual → Reset (sugerida); origem de volta à base; INS-0120 check-in/check-out (DONE, pendente de conferência) |
+| Imóveis existentes | SPS-006 Notes "QA rodada final item 8"; 7 "Retry Geocoding" (6 viraram SUCCESS) |
+| Arquivos | PROP-0022: smoke-route.pdf + 1 issue com foto; INS-0121: smoke-route.pdf + 1 issue do app; INS-0123: 1 problema do portal; link de portal do INS-0123 (sem envio) |
+| Agência Melbourne | Notes digitado (não gravado, O-18) |
