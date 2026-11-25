@@ -254,54 +254,34 @@ describe('CreateBranchUseCase', () => {
       expect(branch.geocodedPermanentlyAt).toBeInstanceOf(Date);
     });
 
-    it('2. stores no coordinates and a null marker on a null result (warn)', async () => {
+    it('2. rejects with 422 NOT_FOUND and saves nothing on a null result (V-2)', async () => {
       const geocoder = { geocode: vi.fn().mockResolvedValue(null) };
-      const logger = makeLogger();
-      const uc = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, logger as never);
+      const uc = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
 
-      await uc.execute({ tenantId: 'tenant-1', name: 'B', address: { ...ADDRESS }, actor: makeActor() });
-
-      const branch = savedBranch();
-      expect(branch.addressJson).not.toHaveProperty('latitude');
-      expect(branch.geocodedPermanentlyAt).toBeNull();
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({ tenantId: 'tenant-1', reason: 'no_results' }),
-        'branch.geocode_failed_saved_without_coordinates',
-      );
+      await expect(
+        uc.execute({ tenantId: 'tenant-1', name: 'B', address: { ...ADDRESS }, actor: makeActor() }),
+      ).rejects.toMatchObject({ code: 'ADDRESS_NOT_VERIFIED', statusCode: 422, details: [{ reason: 'NOT_FOUND' }] });
+      expect(branchRepo.save).not.toHaveBeenCalled();
     });
 
-    it('2b. rule A: a coarse (non-address) result stores no coordinates (warn reason=COARSE_RESULT)', async () => {
-      // Real Mapbox probe: 'Tilpa NSW 2840' → place, relevance=0.667.
+    it('2b. rule A: a coarse (non-address) result rejects with 422 COARSE_RESULT, saves nothing (V-2)', async () => {
       const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -30.9, lng: 144.4, placeType: 'place', relevance: 0.667 }) };
-      const logger = makeLogger();
-      const uc = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, logger as never);
+      const uc = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
 
-      await uc.execute({ tenantId: 'tenant-1', name: 'B', address: { ...ADDRESS }, actor: makeActor() });
-
-      const branch = savedBranch();
-      expect(branch.addressJson).not.toHaveProperty('latitude');
-      expect(branch.geocodedPermanentlyAt).toBeNull();
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({ tenantId: 'tenant-1', reason: 'COARSE_RESULT' }),
-        'branch.geocode_failed_saved_without_coordinates',
-      );
+      await expect(
+        uc.execute({ tenantId: 'tenant-1', name: 'B', address: { ...ADDRESS }, actor: makeActor() }),
+      ).rejects.toMatchObject({ code: 'ADDRESS_NOT_VERIFIED', statusCode: 422, details: [{ reason: 'COARSE_RESULT' }] });
+      expect(branchRepo.save).not.toHaveBeenCalled();
     });
 
-    it('2c. rule A: a low-relevance address (<0.8) stores no coordinates (warn reason=LOW_RELEVANCE)', async () => {
-      // Real Mapbox probe: '50 Louth Road, Tilpa NSW 2840' → address, relevance=0.667.
+    it('2c. rule A: a low-relevance address (<0.8) rejects with 422 LOW_RELEVANCE, saves nothing (V-2)', async () => {
       const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -30.9, lng: 144.4, placeType: 'address', relevance: 0.667 }) };
-      const logger = makeLogger();
-      const uc = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, logger as never);
+      const uc = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
 
-      await uc.execute({ tenantId: 'tenant-1', name: 'B', address: { ...ADDRESS }, actor: makeActor() });
-
-      const branch = savedBranch();
-      expect(branch.addressJson).not.toHaveProperty('latitude');
-      expect(branch.geocodedPermanentlyAt).toBeNull();
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.objectContaining({ reason: 'LOW_RELEVANCE' }),
-        'branch.geocode_failed_saved_without_coordinates',
-      );
+      await expect(
+        uc.execute({ tenantId: 'tenant-1', name: 'B', address: { ...ADDRESS }, actor: makeActor() }),
+      ).rejects.toMatchObject({ code: 'ADDRESS_NOT_VERIFIED', statusCode: 422, details: [{ reason: 'LOW_RELEVANCE' }] });
+      expect(branchRepo.save).not.toHaveBeenCalled();
     });
 
     it('2d. rule A: a confident address (>=0.8) still stores coordinates', async () => {

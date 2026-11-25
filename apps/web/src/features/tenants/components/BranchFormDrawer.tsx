@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type { AddressNotVerifiedReason } from '@properfy/shared';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
@@ -10,7 +11,8 @@ import { TextInput } from '@/components/forms/TextInput';
 import { EmailInput } from '@/components/forms/EmailInput';
 import { AddressLookupInput } from '@/components/forms/AddressLookupInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
-import { buildAddressLabel, formatAddressLabel, toAddressSuggestion } from '@/lib/address';
+import { formatAddressLabel, toAddressSuggestion } from '@/lib/address';
+import { AddressNotVerifiedAlert } from '@/features/properties/components/AddressNotVerifiedAlert';
 import { useBranchSave } from '../hooks/useBranchSave';
 import { useBranchById } from '../hooks/useBranchById';
 import type { Branch, BranchFormData, BranchFormErrors } from '../types';
@@ -40,6 +42,9 @@ export function BranchFormDrawer({
   const [initialData, setInitialData] = useState<BranchFormData>(EMPTY_BRANCH_FORM);
   const [errors, setErrors] = useState<BranchFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  // V-2: on-save address verification failure (422). No manual pin for branches.
+  const [addressError, setAddressError] = useState<AddressNotVerifiedReason | null>(null);
+  const streetRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const source = freshBranch ?? branch;
@@ -52,6 +57,7 @@ export function BranchFormDrawer({
       setForm(data);
       setInitialData(data);
       setErrors({});
+      setAddressError(null);
     }
   }, [isEditMode, freshBranch, branch]);
 
@@ -60,10 +66,14 @@ export function BranchFormDrawer({
       setForm(EMPTY_BRANCH_FORM);
       setInitialData(EMPTY_BRANCH_FORM);
       setErrors({});
+      setAddressError(null);
     }
   }, [open, isEditMode]);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
+  // V-2: branches have no manual-pin escape, so the mark is simply "there is an
+  // on-save address error" (mirrors V-1's showAddressError without the pin term).
+  const showAddressError = addressError !== null;
 
   const updateField = useCallback(
     <K extends keyof BranchFormData>(field: K, value: BranchFormData[K]) => {
@@ -76,17 +86,20 @@ export function BranchFormDrawer({
         }
         return prev;
       });
+      if (field === 'address') setAddressError(null);
     },
     [],
   );
 
   const updateAddressField = useCallback(
-    (field: 'street' | 'suburb' | 'postcode' | 'state' | 'country', value: string) => {
+    (field: 'street' | 'number' | 'suburb' | 'postcode' | 'state' | 'country', value: string) => {
+      setAddressError(null);
       setForm((prev) => {
         const nextAddress = {
           ...(prev.address ?? {
             formattedAddress: '',
             street: '',
+            number: '',
             suburb: '',
             postcode: '',
             state: '',
@@ -102,14 +115,12 @@ export function BranchFormDrawer({
           ...prev,
           address: {
             ...nextAddress,
+            // Reuse PR-09's formatAddressLabel so the rebuilt label keeps the house
+            // number (it prepends `number` to the street). Clear the stale
+            // formattedAddress first so the helper recomputes from the parts.
             formattedAddress:
-              buildAddressLabel({
-                street: nextAddress.street,
-                suburb: nextAddress.suburb,
-                postcode: nextAddress.postcode,
-                state: nextAddress.state,
-                country: nextAddress.country,
-              }) ?? nextAddress.formattedAddress,
+              formatAddressLabel({ ...nextAddress, formattedAddress: '' }) ??
+              nextAddress.formattedAddress,
           },
         };
       });
@@ -128,6 +139,10 @@ export function BranchFormDrawer({
     if (result.success) {
       showSuccess(isEditMode ? 'Branch updated successfully' : 'Branch created successfully');
       onSaved();
+    } else if (result.addressNotVerified) {
+      // V-2: keep the drawer open, mark the address fields, show the reason, focus Street.
+      setAddressError(result.addressNotVerified);
+      streetRef.current?.focus();
     } else {
       showError(result.error ?? 'Failed to save');
     }
@@ -171,10 +186,13 @@ export function BranchFormDrawer({
                     aria-label="Name"
                   />
                 </FormField>
+                {addressError && (
+                  <AddressNotVerifiedAlert reason={addressError} />
+                )}
                 <FormField label="Address" error={errors.address}>
                   <AddressLookupInput
                     label="Address"
-                    valueLabel={buildAddressLabel(form.address ?? {}) ?? formatAddressLabel(form.address) ?? ''}
+                    valueLabel={formatAddressLabel(form.address) ?? ''}
                     onSelect={(value) => updateField('address', value)}
                     onClear={() => updateField('address', null)}
                     placeholder="Search verified address"
@@ -185,15 +203,26 @@ export function BranchFormDrawer({
                   <>
                     <FormField label="Street">
                       <TextInput
+                        ref={streetRef}
                         value={form.address.street}
                         onChange={(v) => updateAddressField('street', v)}
+                        error={showAddressError}
                         aria-label="Branch Street"
+                      />
+                    </FormField>
+                    <FormField label="Number">
+                      <TextInput
+                        value={form.address.number ?? ''}
+                        onChange={(v) => updateAddressField('number', v)}
+                        error={showAddressError}
+                        aria-label="Branch Number"
                       />
                     </FormField>
                     <FormField label="Suburb">
                       <TextInput
                         value={form.address.suburb}
                         onChange={(v) => updateAddressField('suburb', v)}
+                        error={showAddressError}
                         aria-label="Branch Suburb"
                       />
                     </FormField>
@@ -201,6 +230,7 @@ export function BranchFormDrawer({
                       <TextInput
                         value={form.address.postcode}
                         onChange={(v) => updateAddressField('postcode', v)}
+                        error={showAddressError}
                         aria-label="Branch Postcode"
                       />
                     </FormField>
@@ -208,6 +238,7 @@ export function BranchFormDrawer({
                       <TextInput
                         value={form.address.state}
                         onChange={(v) => updateAddressField('state', v)}
+                        error={showAddressError}
                         aria-label="Branch State"
                       />
                     </FormField>

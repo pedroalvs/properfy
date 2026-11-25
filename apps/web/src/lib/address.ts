@@ -8,6 +8,12 @@ export interface AddressLookupSuggestion {
   latitude: number;
   longitude: number;
   provider: 'MAPBOX';
+  /**
+   * House/unit number stored as a separate field by API/import (branch addresses).
+   * Mapbox lookups fold the number into `street`, so this is usually absent; it is
+   * preserved on edit so a round-trip doesn't wipe an imported `number` (O-2).
+   */
+  number?: string;
 }
 
 function readString(record: Record<string, unknown>, key: string): string | null {
@@ -68,6 +74,7 @@ export function toAddressSuggestion(address: unknown): AddressLookupSuggestion |
   const country = readString(record, 'country');
   const latitude = typeof record['latitude'] === 'number' ? record['latitude'] : null;
   const longitude = typeof record['longitude'] === 'number' ? record['longitude'] : null;
+  const number = readString(record, 'number');
 
   if (!formattedAddress || !street || !state || !country) {
     return null;
@@ -83,5 +90,6 @@ export function toAddressSuggestion(address: unknown): AddressLookupSuggestion |
     latitude: latitude ?? 0,
     longitude: longitude ?? 0,
     provider: record['provider'] === 'MAPBOX' ? 'MAPBOX' : 'MAPBOX',
+    ...(number ? { number } : {}),
   };
 }

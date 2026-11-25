@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildAddressLabel, formatAddressLabel } from './address';
+import { buildAddressLabel, formatAddressLabel, toAddressSuggestion } from './address';
 
 describe('formatAddressLabel', () => {
   // Defect (D-04 / 00.A5): the inspector base address is captured with the
@@ -99,5 +99,34 @@ describe('buildAddressLabel', () => {
     });
 
     expect(label).toBe('Martin Place, Sydney NSW 2000, AU');
+  });
+});
+
+describe('toAddressSuggestion', () => {
+  it('preserves a separate house number so an edit round-trip does not wipe it (O-2)', () => {
+    const suggestion = toAddressSuggestion({
+      formattedAddress: '123 George St, Sydney NSW 2000, AU',
+      street: 'George St',
+      number: '123',
+      suburb: 'Sydney',
+      postcode: '2000',
+      state: 'NSW',
+      country: 'AU',
+    });
+
+    expect(suggestion?.number).toBe('123');
+  });
+
+  it('omits number when the stored address has none', () => {
+    const suggestion = toAddressSuggestion({
+      formattedAddress: 'Martin Place, Sydney NSW 2000, AU',
+      street: 'Martin Place',
+      suburb: 'Sydney',
+      postcode: '2000',
+      state: 'NSW',
+      country: 'AU',
+    });
+
+    expect(suggestion?.number).toBeUndefined();
   });
 });

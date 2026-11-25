@@ -182,4 +182,37 @@ describe('useBranchSave', () => {
     expect(saveResult?.success).toBe(false);
     expect(saveResult?.error).toBe('Server error');
   });
+
+  it('save preserves a stored house number on edit (O-2)', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useBranchSave(), { wrapper });
+    const withNumber: BranchFormData = {
+      ...VALID_DATA,
+      address: { ...VALID_DATA.address!, number: '42' },
+    };
+
+    await act(async () => {
+      await result.current.save(withNumber, 'ten-01', 'br-01');
+    });
+
+    const body = mockPatch.mock.calls[0]![1].body as { address?: Record<string, unknown> };
+    expect(body.address?.number).toBe('42');
+  });
+
+  it('save surfaces a 422 ADDRESS_NOT_VERIFIED reason instead of throwing (V-2)', async () => {
+    mockPost.mockResolvedValueOnce({
+      data: undefined,
+      error: { error: { code: 'ADDRESS_NOT_VERIFIED', message: 'The address could not be verified.', details: [{ field: 'address', reason: 'COARSE_RESULT' }] } },
+    });
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useBranchSave(), { wrapper });
+
+    let saveResult: { success: boolean; addressNotVerified?: string } | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_DATA, 'ten-01');
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.addressNotVerified).toBe('COARSE_RESULT');
+  });
 });

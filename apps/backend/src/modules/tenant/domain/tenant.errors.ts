@@ -1,4 +1,20 @@
-import { NotFoundError, ConflictError, ValidationError } from '../../../shared/domain/errors';
+import { ADDRESS_NOT_VERIFIED_CODE, type AddressNotVerifiedReason } from '@properfy/shared';
+import { NotFoundError, ConflictError, ValidationError, DomainError } from '../../../shared/domain/errors';
+
+/**
+ * 422 raised on save when a branch address cannot be verified against the
+ * permanent geocoder (rule A, V-2). Nothing is stored. `details[0].reason`
+ * (`NOT_FOUND` / `COARSE_RESULT` / `LOW_RELEVANCE`) lets the client render the
+ * shared `ADDRESS_NOT_VERIFIED_MESSAGES` copy and mark the address fields.
+ * Branches have no manual pin — the escape is correcting the text.
+ */
+export class BranchAddressNotVerifiedError extends DomainError {
+  constructor(reason: AddressNotVerifiedReason) {
+    super(ADDRESS_NOT_VERIFIED_CODE, 'The address could not be verified.', 422, [
+      { field: 'address', reason },
+    ]);
+  }
+}
 
 export class TenantNotFoundError extends NotFoundError {
   constructor() {
