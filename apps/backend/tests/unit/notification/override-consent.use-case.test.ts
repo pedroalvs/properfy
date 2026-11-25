@@ -11,9 +11,10 @@ import { NotificationConsentNotFoundError } from '../../../src/modules/notificat
 const now = new Date('2026-04-01T00:00:00.000Z');
 
 function makeActor(overrides: Partial<AuthContext> = {}): AuthContext {
+  // OP is a cross-agency role: its JWT carries tenantId: null by design.
   return {
     userId: 'user-1',
-    tenantId: 'tenant-1',
+    tenantId: null,
     role: 'OP',
     branchId: null,
     inspectorId: null,
@@ -133,12 +134,23 @@ describe('OverrideConsentUseCase', () => {
     ).rejects.toThrow(ValidationError);
   });
 
-  it('rejects CL_ADMIN with ForbiddenError', async () => {
+  it('rejects CL_ADMIN with ForbiddenError (another agency stays barred)', async () => {
     await expect(
       useCase.execute({
         consentId: 'consent-1',
         reason: 'valid reason',
-        actor: makeActor({ role: 'CL_ADMIN' }),
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(ForbiddenError);
+    expect(consentRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('rejects CL_USER with ForbiddenError (another agency stays barred)', async () => {
+    await expect(
+      useCase.execute({
+        consentId: 'consent-1',
+        reason: 'valid reason',
+        actor: makeActor({ role: 'CL_USER', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(ForbiddenError);
     expect(consentRepo.findById).not.toHaveBeenCalled();
@@ -156,19 +168,32 @@ describe('OverrideConsentUseCase', () => {
     ).rejects.toThrow(NotificationConsentNotFoundError);
   });
 
-  it('blocks OP from overriding another tenants consent', async () => {
+  it('allows OP (platform-wide, tenantId null) to override any agency consent', async () => {
+    // Agency X
     vi.mocked(consentRepo.findById).mockResolvedValue(
-      makeConsent({ tenantId: 'tenant-other' }),
+      makeConsent({ tenantId: 'tenant-x' }),
     );
+    const resultX = await useCase.execute({
+      consentId: 'consent-1',
+      reason: 'OP override X',
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+    expect(resultX.optedOut).toBe(false);
+    expect(resultX.tenantId).toBe('tenant-x');
 
-    await expect(
-      useCase.execute({
-        consentId: 'consent-1',
-        reason: 'test',
-        actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
-      }),
-    ).rejects.toThrow(ForbiddenError);
-    expect(consentRepo.upsert).not.toHaveBeenCalled();
+    // Agency Y — the same OP reaches a different agency
+    vi.mocked(consentRepo.findById).mockResolvedValue(
+      makeConsent({ tenantId: 'tenant-y' }),
+    );
+    const resultY = await useCase.execute({
+      consentId: 'consent-1',
+      reason: 'OP override Y',
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+    expect(resultY.optedOut).toBe(false);
+    expect(resultY.tenantId).toBe('tenant-y');
+
+    expect(consentRepo.upsert).toHaveBeenCalledTimes(2);
   });
 
   it('allows AM to override any tenant', async () => {
