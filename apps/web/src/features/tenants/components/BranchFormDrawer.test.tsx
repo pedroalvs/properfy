@@ -103,6 +103,38 @@ describe('BranchFormDrawer', () => {
     expect(screen.getByLabelText('Branch State')).toHaveValue('SP');
   });
 
+  it('loads a stored house number into the Number field on edit (O-2)', () => {
+    const Wrapper = createWrapper();
+    const branch = {
+      id: 'br-02',
+      tenantId: 'ten-01',
+      name: 'Filial Norte',
+      address: '123 George St',
+      addressJson: {
+        formattedAddress: '123 George St, Sydney NSW 2000, AU',
+        street: 'George St',
+        number: '123',
+        suburb: 'Sydney',
+        postcode: '2000',
+        state: 'NSW',
+        country: 'AU',
+        latitude: -33.86,
+        longitude: 151.2,
+        provider: 'MAPBOX',
+      },
+      contactEmail: 'norte@imob.com',
+      status: 'ACTIVE' as const,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    };
+    render(
+      <Wrapper>
+        <BranchFormDrawer open onClose={vi.fn()} tenantId="ten-01" branch={branch} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+    expect(screen.getByLabelText('Branch Number')).toHaveValue('123');
+  });
+
   it('does not render when open is false', () => {
     const Wrapper = createWrapper();
     render(

@@ -22,6 +22,7 @@ import {
   TenantNotFoundError,
   TenantInactiveError,
   BranchNameConflictError,
+  BranchAddressNotVerifiedError,
 } from '../../domain/tenant.errors';
 import type { DomainEventBus } from '../../../../shared/application/events/domain-event-bus';
 import { BRANCH_EVENTS } from '../../../../shared/application/events/domain-event-bus';
@@ -93,36 +94,39 @@ export class CreateBranchUseCase {
       const { latitude: _lat, longitude: _lng, ...clean } = address;
       addressJson = clean;
       if (this.geocodingService) {
+        let coords: Awaited<ReturnType<typeof geocodeWithTimeout>> | undefined;
+        let transientFailure = false;
         try {
-          const coords = await geocodeWithTimeout(
+          coords = await geocodeWithTimeout(
             this.geocodingService,
             formatGeocodingQuery(clean as unknown as GeocodableAddress),
           );
-          // Rule A (PR-18): only a confident address-level result is stored. A
-          // coarse (non-address) or low-relevance result is saved WITHOUT
-          // coordinates, exactly like a no-result.
-          const decision = coords ? classifyGeocodingResult(coords) : null;
-          if (coords && decision?.accepted) {
-            addressJson = { ...clean, latitude: coords.lat, longitude: coords.lng };
-            geocodedPermanentlyAt = new Date();
-          } else {
-            this.logger?.warn(
-              { branchId: id, tenantId, reason: decision && !decision.accepted ? decision.reason : 'no_results' },
-              'branch.geocode_failed_saved_without_coordinates',
-            );
-          }
         } catch (err) {
+          // V4: timeout / transient error / permanent-unavailable → save WITHOUT
+          // coordinates (as before). A geocoding outage never fails the save.
+          transientFailure = true;
           if (err instanceof MapboxPermanentGeocodingUnavailableError) {
-            this.logger?.error(
-              { branchId: id, tenantId, code: err.code },
-              'branch.geocode_permanent_unavailable',
-            );
+            this.logger?.error({ branchId: id, tenantId, code: err.code }, 'branch.geocode_permanent_unavailable');
           } else {
             this.logger?.warn(
               { branchId: id, tenantId, reason: err instanceof GeocodeTimeoutError ? 'timeout' : 'error' },
               'branch.geocode_failed_saved_without_coordinates',
             );
           }
+        }
+        if (!transientFailure) {
+          // V-2: a definitive geocode that fails rule A is rejected on save (422,
+          // nothing stored) — branches have no manual pin, so the escape is fixing
+          // the text. Only a timeout/transient error falls through to coord-less save.
+          if (coords === null || coords === undefined) {
+            throw new BranchAddressNotVerifiedError('NOT_FOUND');
+          }
+          const decision = classifyGeocodingResult(coords);
+          if (!decision.accepted) {
+            throw new BranchAddressNotVerifiedError(decision.reason);
+          }
+          addressJson = { ...clean, latitude: coords.lat, longitude: coords.lng };
+          geocodedPermanentlyAt = new Date();
         }
       }
     }

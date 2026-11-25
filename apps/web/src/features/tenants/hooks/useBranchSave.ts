@@ -1,5 +1,10 @@
 import { useState, useCallback } from 'react';
-import { getErrorMessage } from '@properfy/shared';
+import {
+  getErrorMessage,
+  ADDRESS_NOT_VERIFIED_CODE,
+  ADDRESS_NOT_VERIFIED_REASONS,
+  type AddressNotVerifiedReason,
+} from '@properfy/shared';
 import { api } from '@/services/api';
 import { isValidEmail } from '@/lib/validation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,6 +34,19 @@ function validateEmail(email: string): string | undefined {
 export interface SaveResult {
   success: boolean;
   error?: string;
+  /** 422 ADDRESS_NOT_VERIFIED (V-2): the reason, so the drawer shows the copy + marks the fields. */
+  addressNotVerified?: AddressNotVerifiedReason;
+}
+
+/** Read a 422 ADDRESS_NOT_VERIFIED reason off the error envelope, if present. */
+function readAddressNotVerified(error: unknown): AddressNotVerifiedReason | undefined {
+  const envelope = (error as { error?: { code?: string; details?: unknown } } | undefined)?.error;
+  if (envelope?.code !== ADDRESS_NOT_VERIFIED_CODE) return undefined;
+  const details = Array.isArray(envelope.details) ? envelope.details : [];
+  const reason = (details[0] as { reason?: string } | undefined)?.reason;
+  return ADDRESS_NOT_VERIFIED_REASONS.includes(reason as AddressNotVerifiedReason)
+    ? (reason as AddressNotVerifiedReason)
+    : undefined;
 }
 
 export interface UseBranchSaveReturn {
@@ -59,6 +77,8 @@ export function useBranchSave(): UseBranchSaveReturn {
         address: data.address
           ? {
               street: data.address.street,
+              // Preserve an imported/API house number so an edit doesn't wipe it (O-2).
+              ...(data.address.number ? { number: data.address.number } : {}),
               suburb: data.address.suburb,
               city: data.address.suburb, // AU addresses have no separate city; suburb is the locality
               state: data.address.state,
@@ -75,13 +95,21 @@ export function useBranchSave(): UseBranchSaveReturn {
           params: { path: { tenantId, branchId } },
           body: payload,
         });
-        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
+        if (error) {
+          const addressNotVerified = readAddressNotVerified(error);
+          if (addressNotVerified) return { success: false, addressNotVerified };
+          throw new Error(getErrorMessage(error, 'Request failed'));
+        }
       } else {
         const { error } = await api.POST('/v1/tenants/{tenantId}/branches', {
           params: { path: { tenantId } },
           body: payload,
         });
-        if (error) throw new Error(getErrorMessage(error, 'Request failed'));
+        if (error) {
+          const addressNotVerified = readAddressNotVerified(error);
+          if (addressNotVerified) return { success: false, addressNotVerified };
+          throw new Error(getErrorMessage(error, 'Request failed'));
+        }
       }
       queryClient.invalidateQueries({ queryKey: ['tenant-admins', tenantId, 'branches'] });
       return { success: true };
