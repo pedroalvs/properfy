@@ -83,3 +83,10 @@ Na regra O-14 (#1409) o campo `GeocodingResult.suburb` passou a guardar SOMENTE 
 ## Nota — retry token-only no SendGroupPortalLinks depende do lock do tenant (25/11)
 
 No caminho de reset do grupo (`send-group-portal-links.use-case.ts:187-188`) o `retryOnUniqueConflict` externo cobre SÓ `TOKEN_HASH_COLUMN`, não os alvos de ciclo (`CYCLE_UNIQUE_CONSTRAINT_COLUMNS`). Isso é correto HOJE **porque** o caminho é serializado por um lock pessimista `SELECT … FROM tenants … FOR UPDATE` (`prepareInTransaction` → `generate-portal-token.use-case.ts:225-226` → `prisma-tenant.repository.ts:75-90`): uma 2ª resend concorrente no mesmo tenant bloqueia, re-lê, re-classifica (deixa de ser `SEND_AFTER_RESET` → SKIP) e nunca chama `rotateOnDateChange` de novo → sem colisão de ciclo. **Caveat (não é gap):** se esse `FOR UPDATE` do tenant for removido um dia, o retry token-only no :187 deixaria de cobrir `appointment_active_cycle_unique`/`cycle_number` e um P2002 vazaria ao operador. Follow-up trivial opcional: comentário de 1 linha no :187 amarrando o retry token-only ao lock do tenant. (Confirmado por V3-inspbase com file:line; CC#3 aceitou 25/11.)
+
+
+## [O-19 Fatia 4 / decisão 42] Remover a flag includePlatformBonus na Fatia 5 (limpeza)
+
+Data: 25/11/2026. Origem: O-19 Fatia 4 (PR #1416), decisão 42 do Pedro + leitura do CC#3.
+
+Após a correção do D8 (OP passou a ser idêntico ao AM na leitura financeira: com agência escolhida vê só as linhas dela, SEM `includePlatformBonus`; sem agência vê tudo), a flag `includePlatformBonus` ficou **sem nenhum setter no código**. Ela permanece no repositório — interface `FinancialEntryFilters.includePlatformBonus` + o ramo OR em `apps/backend/src/modules/billing/infrastructure/persistence/prisma-financial-entry.repository.ts:62`. Remoção **estacionada para a Fatia 5** (limpeza do tipo A), por decisão do CC#3 (25/11) — NÃO apagar antes disso. O requisito do F08-6/DQ10 ("OP vê o bônus de inspetor no ledger") continua atendido pelo caminho SEM escopo (OP sem agência vê a linha tenantless do INSPECTOR_BONUS), provado pelo teste de banco do #1416.
