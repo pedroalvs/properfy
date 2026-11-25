@@ -429,3 +429,23 @@ Bucket `inspection-assets`. Cada envio fez presign → PUT no armazenamento → 
 | Carlos Mendez QA | telefone +61491574632 | trocado e revertido |
 | Mike › base | 1 Martin Place | 2 Martin Place → de volta a 1 Martin Place |
 | Service worker do app neste navegador | pacote antigo | desregistrado e recarregado (O-10) |
+
+## Reteste do V-1 com a correção #1404 — 25/11/2026 (04:40–04:45 UTC)
+
+DEV em `19b3c663` (release v126 do `properfy-api-dev`, publicada depois do CI verde desse commit). Pela tela, logado como AM. Capturas `output/smoke-dev/reteste2/v1b-*`.
+
+| # | Caso | Antes | Depois | Resultado |
+|---|---|---|---|---|
+| 1 | Imóvel antigo com falha (IMP-D3CE99EF20, 9a Carrington St, Bexley): só Notes | FAILED, -33.954873 / 151.122549 | "Property updated successfully", **sem 422**; FAILED, -33.954873 / 151.122549 (igual, em 04:41:42, 04:42:03 e 04:42:43) | PASSOU |
+| 2 | Imóvel localizado (PROP-0018, SUCCESS): só Notes | SUCCESS, -33.867753 / 151.207639 | SUCCESS, -33.867753 / 151.207639 | PASSOU |
+| 3 | Imóvel com pino manual (PROP-0017): só Notes | MANUAL, -33.4521 / 150.6612 | MANUAL, -33.4521 / 150.6612 | PASSOU |
+| 4a | PROP-0018: endereço trocado por inventado (994 Zzyzxqua Fakestreet, Qwertyvale NSW 2999) | — | bloco "This address doesn't match a known address closely enough. Check the street, number, suburb and postcode.", campos marcados, nada salvo | PASSOU |
+| 4b | PROP-0018: endereço trocado por bom (9 Martin Place, Sydney NSW 2000, pela busca verificada) | SUCCESS, -33.867753 / 151.207639 | "Property updated successfully"; SUCCESS, **-33.867478 / 151.207179**, mapa com o pino novo | PASSOU |
+
+Sobre o caso 1: o coordenador perguntou se o imóvel volta para "Geocoding in progress."/pendente. **Não volta.** Como o endereço não mudou, nenhuma localização nova é feita. O status continua FAILED e a coordenada antiga gravada (-33.954873, 151.122549) fica onde estava. O detalhe segue mostrando "Failed", a mensagem "Geocoding failed. Please verify the address or retry." e o botão "Retry Geocoding" (`v1b-antigo-falha-continua-failed.jpg`). Fica para o coordenador decidir se um imóvel FAILED deve manter uma coordenada antiga.
+
+**V-1 agora PASSOU por inteiro.** A regra final de endereço (subúrbio + complemento) não foi testada, como pedido.
+
+**Alterações em DEV:**
+- Notes "QA reteste V-1 #1404" em IMP-D3CE99EF20, PROP-0018 e PROP-0017 (antes vazias).
+- PROP-0018 passou de 1 Martin Place para 9 Martin Place.
