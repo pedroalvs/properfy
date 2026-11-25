@@ -148,9 +148,31 @@ describe('ReactivateUserUseCase', () => {
     expect(userManagementRepo.update).not.toHaveBeenCalled();
   });
 
-  it('should throw AUTH_FORBIDDEN when OP reactivates a tenant user', async () => {
+  it('should allow OP (no agency) to reactivate a tenant user in any agency', async () => {
+    // OP is cross-tenant (root CLAUDE.md §6, DEC-003) and always has a null
+    // tenantId, so it must reactivate agency users across tenants — exactly as
+    // it already deactivates them.
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockImplementation(
+      async (_id, tid) => makeUser({ tenantId: tid }),
+    );
+
+    await useCase.execute({ tenantId: 'tenant-1', userId: 'user-1', actor: opActor });
+    expect(userManagementRepo.update).toHaveBeenCalledWith('user-1', 'tenant-1', {
+      status: 'ACTIVE',
+    });
+
+    await useCase.execute({ tenantId: 'tenant-2', userId: 'user-2', actor: opActor });
+    expect(userManagementRepo.update).toHaveBeenCalledWith('user-2', 'tenant-2', {
+      status: 'ACTIVE',
+    });
+
+    // OP never consults the CL_ADMIN agency-setting gate.
+    expect(tenantRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('should throw AUTH_FORBIDDEN when CL_ADMIN reactivates a user from another tenant', async () => {
     await expect(
-      useCase.execute({ tenantId: 'tenant-1', userId: 'user-1', actor: opActor }),
+      useCase.execute({ tenantId: 'tenant-2', userId: 'user-1', actor: clAdminActor }),
     ).rejects.toThrow('You can only reactivate users from your own tenant');
     expect(userManagementRepo.update).not.toHaveBeenCalled();
   });
