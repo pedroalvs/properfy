@@ -752,3 +752,27 @@ Alterações em DEV:
 | INS-0117 | adicionado ao Group 26 (antes DRAFT 03/12) → SCHEDULED 28/11, CONFIRMED pelo portal |
 | Group 26 | data 27/11 → **28/11** ("Notify only"; 2 avisos aos contatos fictícios); não revertida, para proteger o INS-0105 |
 | INS-0118/0119 | links novos sem envio; continuam CONFIRMED |
+
+### Reteste do O-11 item 5 com a correção #1410 — 25/11/2026 (17:46–17:52 UTC)
+
+DEV (servidor) em `4e81953` (#1410). Links gerados com envio desligado (`notify:false`, OP Sarah Operator); telas como AM, OP e CL_ADMIN da SPS. O único envio real foi o "Send portal link" do grupo no item 3: um link para o contato fictício `smoke.imp.bad@example.invalid`.
+
+| # | Caso | Resultado | Evidência |
+|---|---|---|---|
+| 1 | INS-0105 (SCHEDULED/UNAVAILABLE com ciclo, Group 26, 28/11) → gerar link (17:46:39) | PASSOU — volta a **PENDING**. Auditoria `appointment.rental_tenant_confirmation_reset`, Sarah Operator, `UNAVAILABLE → PENDING`, `cause PORTAL_LINK_GENERATED`. Linha do tempo (AM): "Tenant confirmation reset to Pending (portal link generated) · by Sarah Operator · Changed: Tenant confirmation: UNAVAILABLE → PENDING". Portal do link novo: "CONFIRMATION Pending", com Yes/No → "Yes" + Submit (17:48:14) → "Your response has been recorded." → **CONFIRMED** | `r1410-1-timeline-reset-am.jpg`, `r1410-1-portal-yes.jpg` |
+| 1b | O mesmo registro como CL_ADMIN (James Chen, SPS) | PASSOU, com observação — a tela "Audit Logs" do CL_ADMIN mostra "Appointment Rental Tenant Confirmation Reset · Sarah Operator · #105". **Obs.:** no detalhe do agendamento o CL_ADMIN não tem aba "Timeline" (só Overview/Contact/Portal Activity/Files), e os valores antes/depois vêm `[MASKED]` na API e "—" em "Changed Fields"; ele vê que houve reset e quem fez, mas não `UNAVAILABLE → PENDING` | `r1410-1-cl-sem-aba-timeline.jpg`, `r1410-1-cl-audit-logs.jpg` |
+| 2 | INS-0105 já CONFIRMED → gerar link de novo (17:48:20) | PASSOU — continua CONFIRMED; só `token_generated` + `dispatch_skipped`, sem novo reset | — |
+| 3 | INS-0116 (posto no Group 26, SCHEDULED/PENDING) → portal "No" + comentário + "Mon" → Submit (17:49) | PASSOU — UNAVAILABLE. **Caminho:** auto-rejeição → REJECTED, fora do grupo, sem inspetor. Devolvido ao Group 26 (17:50:21, AM) → SCHEDULED/UNAVAILABLE. Diálogo do grupo: "1 eligible / 3 already confirmed" → "Send portal link" (17:50:59) → "1 sent · 3 skipped" → INS-0116 volta a **PENDING**, com registro de reset (Smoke AM, `UNAVAILABLE → PENDING`). Obs.: o `cause` gravado é `PORTAL_LINK_GENERATED` (classe `SEND`), não "group portal link sent", que fica para o `SEND_AFTER_RESET` | `r1410-3-portal-no-ins0116.jpg`, `r1410-3-grupo-enviado-pending.jpg` |
+| 4 | Regressão: INS-0106 (CONFIRMED com ciclo) → "Copy Portal Link" (17:51:46) | PASSOU — continua CONFIRMED (`link_copied`); o diálogo do Group 26 mostrou os três confirmados (105, 106, 117) como "already confirmed" | `r1410-4-copy-link-ins0106.jpg`, `r1410-3-4-dialogo-grupo26.jpg` |
+| 5 | INS-0116 PENDING com link já gerado → link novo (17:51:55) | PASSOU — continua PENDING, sem registro de reset | — |
+
+**Contagem: 5 de 5 passaram.** Uma observação: o CL_ADMIN vê o registro, mas sem os valores antes/depois e sem a aba Timeline. O item 5 do O-11 está **corrigido pelo #1410**.
+
+Alterações em DEV:
+
+| O quê | Depois |
+|---|---|
+| INS-0105 | CONFIRMED pelo portal, Group 26, 28/11 (antes do O-11: SCHEDULED/PENDING 27/11) |
+| INS-0116 | adicionado ao Group 26 (antes DRAFT 03/12) → SCHEDULED 28/11 **PENDING**. **Risco:** sem confirmação, cai na rotina de véspera (noite de 27/11) |
+| INS-0106 / INS-0117 | CONFIRMED (sem mudança neste reteste; só links copiados ou gerados) |
+| Group 26 | continua em 28/11 (antes 27/11), agora com 4 membros (105, 106, 116, 117) |
