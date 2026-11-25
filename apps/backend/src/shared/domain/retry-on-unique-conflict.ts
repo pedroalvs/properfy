@@ -35,7 +35,13 @@ export async function retryOnUniqueConflict<T>(
   }
 }
 
-function isUniqueConflictOn(error: unknown, column: string | string[]): boolean {
+/**
+ * True when `error` is a Prisma P2002 whose `meta.target` names one of `column`
+ * (array target: any overlap; string target: an exact match). Exported so callers
+ * with bespoke retry loops gate on the SAME target check — never a blanket P2002,
+ * so an unrelated unique violation is never swallowed.
+ */
+export function isUniqueConflictOn(error: unknown, column: string | string[]): boolean {
   if (typeof error !== 'object' || error === null || !('code' in error)) {
     return false;
   }

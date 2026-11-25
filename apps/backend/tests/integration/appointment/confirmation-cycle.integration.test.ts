@@ -29,6 +29,13 @@ import { setupDbHarness, teardownDbHarness, type DbHarness } from '../db/harness
 import { PrismaConfirmationCycleRepository } from '../../../src/modules/appointment/infrastructure/prisma-confirmation-cycle.repository';
 import { PrismaClient } from '@prisma/client';
 import { ConfirmationCycleService } from '../../../src/modules/appointment/application/services/confirmation-cycle.service';
+import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
+import { PrismaTenantRepository } from '../../../src/modules/tenant/infrastructure/prisma-tenant.repository';
+import { GeneratePortalTokenUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
+import { PrismaRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/infrastructure/prisma-rental-tenant-portal-token.repository';
+import { MintPortalTokenService } from '../../../src/modules/rental-tenant-portal/domain/mint-portal-token.service';
+import { TokenService } from '../../../src/modules/rental-tenant-portal/domain/token.service';
+import type { AuthContext } from '@properfy/shared';
 
 let harness: DbHarness;
 let cycleRepo: PrismaConfirmationCycleRepository;
@@ -205,5 +212,203 @@ describe('C1 — confirmation-cycle atomicity (real DB)', () => {
     const tokenSuperseded = token?.status === 'SUPERSEDED';
     expect(cycleSuperseded).toBe(tokenSuperseded);
     expect(cycleSuperseded).toBe(true);
+  });
+});
+
+/**
+ * O-11: generating a portal link / confirming must never silently reset a
+ * confirmation when no cycle exists yet (the normal state for email / forced /
+ * group-join confirmations). These run against a real DB through the real service.
+ */
+// A civil date comfortably in the future (well past the T-1 cutoff) so the real
+// GeneratePortalTokenUseCase does not reject the link as born-expired
+// (PORTAL_APPOINTMENT_DATE_PAST). Mirrors the group integration's civilMidnight(+30).
+const FUTURE_SCHEDULED_DATE = new Date(
+  `${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}T00:00:00.000Z`,
+);
+
+async function seedAppointmentWithoutCycle(prisma: PrismaClient, confirmationStatus: string) {
+  const tenant = await prisma.tenant.create({
+    data: { name: 'O11 Tenant', legal_name: `O11 LLC ${Math.random().toString(36).slice(2)}`, status: 'ACTIVE' },
+  });
+  const branch = await prisma.branch.create({ data: { tenant_id: tenant.id, name: 'O11 Branch', status: 'ACTIVE' } });
+  const property = await prisma.property.create({
+    data: {
+      tenant_id: tenant.id, branch_id: branch.id,
+      property_code: `O11-${Math.random().toString(36).slice(2)}`,
+      type: 'HOUSE', street: '1 Test St', suburb: 'Test', postcode: '2000', state: 'NSW', country: 'AU',
+      geocoding_status: 'SUCCESS',
+    },
+  });
+  const suffix = Math.random().toString(36).slice(2);
+  const serviceType = await prisma.serviceType.create({
+    data: {
+      code: `O11-ST-${suffix}`, name: `O11 Routine ${suffix}`, flow_type: 'ROUTINE',
+      requires_rental_tenant_confirmation: true, status: 'ACTIVE',
+    },
+  });
+  const user = await prisma.user.create({
+    data: {
+      tenant_id: tenant.id, branch_id: branch.id, role: 'OP', name: 'O11 Actor',
+      email: `o11-${Math.random().toString(36).slice(2)}@test.local`,
+      password_hash: '$2a$10$fakehashfakehashfakehashfakehashfake', status: 'ACTIVE',
+    },
+  });
+  // No cycle, no active_confirmation_cycle_id — exactly the vulnerable state.
+  const appointment = await prisma.appointment.create({
+    data: {
+      tenant_id: tenant.id, branch_id: branch.id, property_id: property.id,
+      service_type_id: serviceType.id, status: 'SCHEDULED',
+      scheduled_date: FUTURE_SCHEDULED_DATE, time_slot_start: '09:00', time_slot_end: '12:00',
+      price_amount: '100.00', payout_amount: '80.00',
+      pricing_rule_snapshot_json: {}, rental_tenant_confirmation_status: confirmationStatus as never,
+      created_by_user_id: user.id,
+    },
+  });
+  return { tenantId: tenant.id, appointmentId: appointment.id };
+}
+
+describe('O-11 — portal link/confirm never resets a confirmation without a cycle (real DB)', () => {
+  it('createInitial ADOPTS a CONFIRMED appointment (stays CONFIRMED) instead of resetting it', async () => {
+    const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'CONFIRMED');
+
+    await cycleService.createInitial(appointmentId, tenantId, FUTURE_SCHEDULED_DATE, '09:00-12:00', null);
+
+    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+    expect(appt?.rental_tenant_confirmation_status).toBe('CONFIRMED');
+    const cycle = await harness.prisma.appointmentConfirmationCycle.findFirst({ where: { appointment_id: appointmentId } });
+    expect(cycle?.status).toBe('CONFIRMED');
+    expect(appt?.active_confirmation_cycle_id).toBe(cycle?.id);
+  });
+
+  it('confirm CREATES a CONFIRMED cycle when none exists (durable confirmation)', async () => {
+    const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'PENDING');
+
+    await cycleService.confirm(appointmentId, tenantId, 'RENTAL_TENANT_PORTAL', null);
+
+    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+    expect(appt?.rental_tenant_confirmation_status).toBe('CONFIRMED');
+    const cycle = await harness.prisma.appointmentConfirmationCycle.findFirst({ where: { appointment_id: appointmentId } });
+    expect(cycle?.status).toBe('CONFIRMED');
+  });
+
+  it('markUnavailable CREATES an UNAVAILABLE cycle when none exists', async () => {
+    const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'PENDING');
+
+    await cycleService.markUnavailable(appointmentId, tenantId);
+
+    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+    expect(appt?.rental_tenant_confirmation_status).toBe('UNAVAILABLE');
+    const cycle = await harness.prisma.appointmentConfirmationCycle.findFirst({ where: { appointment_id: appointmentId } });
+    expect(cycle?.status).toBe('UNAVAILABLE');
+  });
+
+  // Repeated to rule out intermittency: the loser of each race hits the partial
+  // `appointment_active_cycle_unique` (one active cycle per appointment) or the
+  // `cycle_number` unique, replays in a fresh transaction, and converges on the
+  // single winning cycle.
+  const CONCURRENCY_ITERATIONS = 25;
+
+  it(`two concurrent confirms converge on ONE CONFIRMED cycle — ${CONCURRENCY_ITERATIONS} iterations`, async () => {
+    for (let i = 0; i < CONCURRENCY_ITERATIONS; i++) {
+      const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'PENDING');
+
+      await Promise.all([
+        cycleService.confirm(appointmentId, tenantId, 'RENTAL_TENANT_PORTAL', null),
+        cycleService.confirm(appointmentId, tenantId, 'RENTAL_TENANT_PORTAL', null),
+      ]);
+
+      const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+      expect(appt?.rental_tenant_confirmation_status, `iteration ${i}`).toBe('CONFIRMED');
+      const cycles = await harness.prisma.appointmentConfirmationCycle.findMany({ where: { appointment_id: appointmentId } });
+      expect(cycles, `iteration ${i}`).toHaveLength(1);
+      expect(cycles[0]?.status).toBe('CONFIRMED');
+    }
+  });
+
+  // Mixed-status race (confirm vs markUnavailable): DEFINED as last-writer-wins —
+  // neither throws, exactly ONE cycle survives, and its status is one of the two
+  // requested (never PENDING, never two cycles), exactly as a sequential run of the
+  // two in whichever order would leave it.
+  it(`concurrent confirm + markUnavailable converge to one of the two statuses — ${CONCURRENCY_ITERATIONS} iterations`, async () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < CONCURRENCY_ITERATIONS; i++) {
+      const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'PENDING');
+
+      // Neither op rejects — both converge on the single active cycle.
+      await Promise.all([
+        cycleService.confirm(appointmentId, tenantId, 'RENTAL_TENANT_PORTAL', null),
+        cycleService.markUnavailable(appointmentId, tenantId),
+      ]);
+
+      const cycles = await harness.prisma.appointmentConfirmationCycle.findMany({ where: { appointment_id: appointmentId } });
+      expect(cycles, `iteration ${i}`).toHaveLength(1);
+      const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+      expect(['CONFIRMED', 'UNAVAILABLE'], `iteration ${i}`).toContain(appt?.rental_tenant_confirmation_status);
+      // The denorm and the cycle never diverge.
+      expect(appt?.rental_tenant_confirmation_status).toBe(cycles[0]?.status);
+      if (appt?.rental_tenant_confirmation_status) seen.add(appt.rental_tenant_confirmation_status);
+    }
+    // Sanity: the defined outcome set is exactly {CONFIRMED, UNAVAILABLE}.
+    for (const s of seen) expect(['CONFIRMED', 'UNAVAILABLE']).toContain(s);
+  });
+});
+
+const AM_ACTOR: AuthContext = { userId: 'user-op', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
+
+/** Real GeneratePortalTokenUseCase wired to the shared cycleService (auditMock). */
+function makeGeneratePortalToken(): GeneratePortalTokenUseCase {
+  const tokenRepo = new PrismaRentalTenantPortalTokenRepository(harness.prisma);
+  const createNotification = { execute: vi.fn().mockResolvedValue({ notificationId: 'n1', created: true }) };
+  return new GeneratePortalTokenUseCase(
+    tokenRepo,
+    new PrismaAppointmentRepository(harness.prisma),
+    new PrismaTenantRepository(harness.prisma),
+    new MintPortalTokenService(tokenRepo, new TokenService()),
+    auditMock as never,
+    'https://portal.test',
+    createNotification as never,
+    cycleService,
+    harness.prisma as PrismaClient,
+  );
+}
+
+/**
+ * O-11 — the single-link triggers (Send Portal Link, Generate and copy, and the
+ * bulk resend, which loops this same use case) must ADOPT a CONFIRMED-without-cycle
+ * appointment through the real GeneratePortalTokenUseCase, never reset it.
+ */
+describe('O-11 — single-link triggers adopt a CONFIRMED-without-cycle appointment (real use case)', () => {
+  it.each([
+    ['Send Portal Link (notify)', true],
+    ['Generate and copy (notify:false)', false],
+  ])('%s stays CONFIRMED, mints a token + CONFIRMED cycle, writes NO reset audit', async (_label, notify) => {
+    const { appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'CONFIRMED');
+    auditMock.log.mockClear();
+
+    await makeGeneratePortalToken().execute({ appointmentId, actor: AM_ACTOR, notify });
+
+    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+    expect(appt?.rental_tenant_confirmation_status).toBe('CONFIRMED');
+    const cycle = await harness.prisma.appointmentConfirmationCycle.findFirst({ where: { appointment_id: appointmentId } });
+    expect(cycle?.status).toBe('CONFIRMED');
+    expect(appt?.active_confirmation_cycle_id).toBe(cycle?.id);
+    expect(await harness.prisma.rentalTenantPortalToken.count({ where: { appointment_id: appointmentId } })).toBe(1);
+    const resetAudits = auditMock.log.mock.calls.filter(
+      ([e]: [{ action: string }]) => e.action === 'appointment.rental_tenant_confirmation_reset',
+    );
+    expect(resetAudits).toHaveLength(0);
+  });
+
+  // Consequence: an adopted CONFIRMED appointment is excluded from the T-1
+  // reject-unconfirmed query (so no TENANT_NO_RESPONSE) and, being CONFIRMED,
+  // reminders/escalations stay suspended — both read the same status.
+  it('is excluded from findUnconfirmedForDate after a link is generated (no T-1 rejection)', async () => {
+    const { appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'CONFIRMED');
+    await makeGeneratePortalToken().execute({ appointmentId, actor: AM_ACTOR, notify: false });
+
+    const apptRepo = new PrismaAppointmentRepository(harness.prisma);
+    const unconfirmed = await apptRepo.findUnconfirmedForDate(FUTURE_SCHEDULED_DATE);
+    expect(unconfirmed.map((a) => a.id)).not.toContain(appointmentId);
   });
 });

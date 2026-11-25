@@ -4,7 +4,6 @@ import {
   type JoinGroupInput,
 } from '../../../src/modules/rental-tenant-portal/application/use-cases/join-group.use-case';
 import { AppointmentEntity } from '../../../src/modules/appointment/domain/appointment.entity';
-import { ConfirmationCycleNotFoundError } from '../../../src/modules/appointment/domain/confirmation-cycle.errors';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
 import {
   PortalAppointmentInactiveError,
@@ -665,13 +664,15 @@ describe('JoinGroupUseCase', () => {
       );
     });
 
-    it('does not fail the join when the cycle is missing', async () => {
-      cycleService.confirm.mockRejectedValue(new ConfirmationCycleNotFoundError());
+    it('does not fail the join for a pre-cycle appointment — confirm creates the cycle (O-11)', async () => {
+      // O-11: confirm() now CREATES a CONFIRMED cycle when none exists (no more
+      // ConfirmationCycleNotFoundError), so a pre-cycle group join just succeeds and
+      // nothing is logged — the confirmation is durable, not silently dropped.
+      cycleService.confirm.mockResolvedValue(undefined);
 
       const result = await useCase.execute(makeInput());
 
       expect(result.appointmentStatus).toBe('SCHEDULED');
-      // Expected for a pre-cycle appointment — not worth logging.
       expect(logger.error).not.toHaveBeenCalled();
     });
 

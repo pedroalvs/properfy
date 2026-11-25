@@ -9,7 +9,6 @@ import { RentalTenantPortalActivityEntity } from '../../domain/rental-tenant-por
 import { AppointmentRestrictionEntity } from '../../../appointment/domain/appointment-restriction.entity';
 import type { AppointmentEntity } from '../../../appointment/domain/appointment.entity';
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
-import { ConfirmationCycleNotFoundError } from '../../../appointment/domain/confirmation-cycle.errors';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import {
   PortalActionBlockedError,
@@ -187,17 +186,10 @@ export class ConfirmAppointmentUseCase {
 
     // 6. Update appointment confirmation status via cycle service (if wired)
     if (this.cycleService) {
-      try {
-        await this.cycleService.confirm(input.appointmentId, appointment.tenantId, 'RENTAL_TENANT_PORTAL', input.tokenId ?? null);
-      } catch (error) {
-        // Only a missing cycle (pre-feature appointment) is a fallback case. A
-        // terminal-cycle violation or a transient DB error must propagate, not
-        // be silently converted into a successful CONFIRMED write.
-        if (!(error instanceof ConfirmationCycleNotFoundError)) throw error;
-        await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
-          rentalTenantConfirmationStatus: 'CONFIRMED',
-        });
-      }
+      // O-11: `confirm` now CREATES a CONFIRMED cycle when none exists, so the
+      // "no cycle → denorm-only" fallback is gone. Terminal-cycle and DB errors
+      // propagate (they never were a fallback case).
+      await this.cycleService.confirm(input.appointmentId, appointment.tenantId, 'RENTAL_TENANT_PORTAL', input.tokenId ?? null);
       if (input.rentalTenantNote !== undefined) {
         await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
           rentalTenantNote: input.rentalTenantNote,

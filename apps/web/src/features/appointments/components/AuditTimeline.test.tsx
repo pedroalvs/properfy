@@ -47,6 +47,37 @@ describe('AuditTimeline', () => {
     expect(screen.getAllByText('Status Changed')).toHaveLength(2);
   });
 
+  // O-11: the confirmation-reset audit reads differently by its metadata cause.
+  it('labels a confirmation reset from a single portal link (O-11)', () => {
+    render(
+      <AuditTimeline
+        entries={[{
+          ...MOCK_ENTRIES[0]!,
+          id: 'reset-1',
+          action: 'appointment.rental_tenant_confirmation_reset',
+          beforeJson: { rentalTenantConfirmationStatus: 'CONFIRMED' },
+          afterJson: { rentalTenantConfirmationStatus: 'PENDING' },
+          metadataJson: { cause: 'PORTAL_LINK_GENERATED' },
+        }]}
+      />,
+    );
+    expect(screen.getByText('Tenant confirmation reset to Pending (portal link generated)')).toBeInTheDocument();
+  });
+
+  it('labels a confirmation reset from a group portal-link send (O-11)', () => {
+    render(
+      <AuditTimeline
+        entries={[{
+          ...MOCK_ENTRIES[0]!,
+          id: 'reset-2',
+          action: 'appointment.rental_tenant_confirmation_reset',
+          metadataJson: { cause: 'GROUP_PORTAL_LINK_RESEND' },
+        }]}
+      />,
+    );
+    expect(screen.getByText('Tenant confirmation reset to Pending (group portal link sent)')).toBeInTheDocument();
+  });
+
   it('renders actor name when available', () => {
     render(<AuditTimeline entries={MOCK_ENTRIES} />);
     expect(screen.getByText(/Jane Operator/)).toBeInTheDocument();
