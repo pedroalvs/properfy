@@ -386,22 +386,54 @@ describe('ListFinancialEntriesUseCase', () => {
     );
   });
 
-  it('should force OP to their own tenantId (CORRECTION-001 close-it)', async () => {
+  // O-19 D8 / DEC-003: OP is cross-tenant and has tenantId: null. It must HONOR
+  // the chosen agency like AM — the old "force OP to its own (null) tenant" code
+  // ignored the filter and showed every agency under the chosen agency's name.
+  it('honors the chosen agency for OP (O-19 D8 fix); OP tenantId is null', async () => {
     vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
     vi.mocked(entryRepo.count).mockResolvedValue(0);
 
-    // Sprint 1 W-4-IMPL: OP is tenant-scoped; any tenantId from the filter
-    // is ignored and replaced with the actor's tenantId from the JWT.
     await useCase.execute({
       ...defaultInput,
-      tenantId: 'tenant-5', // attempted cross-tenant filter — must be ignored
-      actor: makeActor({ role: 'OP', tenantId: 'op-tenant' }),
+      tenantId: 'tenant-5',
+      actor: makeActor({ role: 'OP', tenantId: null }),
     });
 
     expect(entryRepo.findAllEnriched).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'op-tenant' }),
+      expect.objectContaining({ tenantId: 'tenant-5', includePlatformBonus: true }),
       expect.any(Object),
     );
+  });
+
+  it('honors a different agency for OP (sees only that agency)', async () => {
+    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      ...defaultInput,
+      tenantId: 'tenant-9',
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+
+    expect(entryRepo.findAllEnriched).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-9' }),
+      expect.any(Object),
+    );
+  });
+
+  it('lets OP without a chosen agency see every agency (no tenant filter)', async () => {
+    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      ...defaultInput,
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+
+    const filters = vi.mocked(entryRepo.findAllEnriched).mock.calls[0]![0];
+    expect(filters.tenantId).toBeUndefined();
+    // Q12: the platform bonus flag stays on for OP (harmless without a tenantId).
+    expect(filters.includePlatformBonus).toBe(true);
   });
 
   it('should audit log when AM accesses cross-tenant financial data', async () => {
@@ -429,18 +461,57 @@ describe('ListFinancialEntriesUseCase', () => {
     );
   });
 
-  it('should not produce a cross-tenant audit log for OP (CORRECTION-001 close-it)', async () => {
+  it('audits cross-tenant access for OP when an agency is chosen (O-19 D8)', async () => {
     vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
     vi.mocked(entryRepo.count).mockResolvedValue(0);
 
-    // Sprint 1 W-4-IMPL: OP can no longer list cross-tenant financial data,
-    // so the cross_tenant_list audit branch never fires for OP.
     await useCase.execute({
       ...defaultInput,
-      tenantId: 'tenant-5', // ignored — OP is forced to their own tenant
-      actor: makeActor({ role: 'OP', tenantId: 'tenant-1', userId: 'op-1' }),
+      tenantId: 'tenant-5',
+      actor: makeActor({ role: 'OP', tenantId: null, userId: 'op-1' }),
     });
 
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'financial_entry.cross_tenant_list',
+        actorType: 'USER',
+        actorId: 'op-1',
+        entityType: 'FinancialEntry',
+        tenantId: 'tenant-5',
+        metadata: expect.objectContaining({
+          actorRole: 'OP',
+          targetTenantId: 'tenant-5',
+        }),
+      }),
+    );
+  });
+
+  it('does not audit when OP lists without a chosen agency', async () => {
+    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      ...defaultInput,
+      actor: makeActor({ role: 'OP', tenantId: null, userId: 'op-1' }),
+    });
+
+    expect(auditService.log).not.toHaveBeenCalled();
+  });
+
+  it('keeps CL_ADMIN pinned to its own tenant even when another agency is requested', async () => {
+    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({
+      ...defaultInput,
+      tenantId: 'tenant-other', // attempted cross-tenant — must be ignored for CL
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(entryRepo.findAllEnriched).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      expect.any(Object),
+    );
     expect(auditService.log).not.toHaveBeenCalled();
   });
 

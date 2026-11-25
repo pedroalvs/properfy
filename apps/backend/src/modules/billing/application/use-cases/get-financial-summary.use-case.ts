@@ -1,5 +1,6 @@
 import type { AuthContext } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
+import { isCrossTenantRole } from '../../../../shared/domain/require-tenant-scope';
 import { requireAgencyTenantScope } from '../agency-scope';
 import type { IFinancialEntryRepository, FinancialEntrySummary } from '../../domain/financial-entry.repository';
 import type { ITenantRepository } from '../../../tenant/domain/tenant.repository';
@@ -21,13 +22,13 @@ export class GetFinancialSummaryUseCase {
   async execute(input: GetFinancialSummaryInput): Promise<FinancialEntrySummary> {
     const { actor } = input;
 
-    // Only AM is cross-tenant per Sprint 1 W-4-IMPL (CORRECTION-001 close-it).
+    // Cross-tenant roles (AM, OP per DEC-003) honor an explicit tenantId; with
+    // none, the summary is platform-wide. OP must honor the chosen agency like
+    // AM — ignoring it (reading its null JWT tenant as platform-wide) was the
+    // O-19 D8 defect, where the picked agency's totals were replaced by everyone's.
     let tenantId: string | undefined;
-    if (actor.role === 'AM') {
+    if (isCrossTenantRole(actor.role)) {
       tenantId = input.tenantId;
-    } else if (actor.role === 'OP') {
-      // OP is the platform operational team (tenantId is null → platform-wide).
-      tenantId = actor.tenantId ?? undefined;
     } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
       // Fail closed: an agency read must be tenant-scoped. Never fall back to an
       // unscoped (cross-tenant) summary when the JWT lacks a tenant.
