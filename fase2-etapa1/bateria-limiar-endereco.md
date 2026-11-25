@@ -45,58 +45,84 @@ addresses**. Two measured examples:
 - `33 Arcadia St, Penshurst 2034` scored **0.825** and returned **Coogee 2034** —
   the wrong suburb, and it *passes even at 0.8*.
 
-So the decisive signal is whether the **returned** suburb/locality matches the
-**informed** (input) suburb. The probe parses the returned feature's
-locality/suburb (from Mapbox `context`/`place_name`) and compares it
-case-insensitively to the input suburb, then scores three candidate rules:
+So the first decisive signal is whether the **returned** suburb/locality matches
+the **informed** (input) suburb. The probe reads the returned feature's suburb
+from the Mapbox `context` array (`locality`, then `place`) — the fragile
+`place_name` free-text fallback was **removed**: when there is no `context`
+locality/place, the suburb is `null` and the row is rejected.
+
+### The second signal: the result must have a HOUSE NUMBER
+
+A live run showed a second failure mode that confidence does not catch: a query
+that matches only the **street** (a bad house number, a suburb-only / no-number /
+building-name / PO-Box query) still comes back as `place_type: 'address'` with a
+*high* relevance, yet Mapbox returns **no house number**. Measured examples (all
+`expected: REJECT`, all pass at 0.8 on confidence alone):
+
+- `99999 Victoria Avenue, Chatswood` (SPS-A07) → `Victoria Avenue, Chatswood` (no number)
+- `Victoria Avenue, Chatswood` (SPS-A11) → `Victoria Avenue, Chatswood` @0.907 (no number)
+- `Westfield Chatswood` (SPS-A12) / `PO Box 1234, Chatswood` (SPS-A13) → `Chatswood Avenue, Chatswood` (no number)
+
+The signal is the Mapbox v5 feature-level **`address`** field: it carries the civic
+house-number string on an exact `place_type='address'` match and is **absent on a
+street-only match**. The good controls return it; these street-only rows do not.
+The probe captures `feature.address` and adds Rule 4.
+
+### The four candidate rules
 
 - **Rule 1** — `place_type == 'address' && relevance >= 0.8` (today)
 - **Rule 2** — `place_type == 'address' && relevance >= 0.7` (proposed)
 - **Rule 3** — `place_type == 'address' && relevance >= 0.7 && returned-suburb == input-suburb` (proposed+)
+- **Rule 4** — Rule 3 **&& result has a house number** (`feature.address` present/non-empty) (proposed++)
+
+The probe scores all four side by side against this battery's `expected` ground
+truth, counting false-accepts (expected REJECT but the rule accepts — a
+wrong/coarse pin stored) and false-rejects (expected ACCEPT but the rule blocks a
+good address).
 
 **Record sheet (fill during the live/manual run):** for each row, record the
-returned suburb the pin landed in and whether it matches the informed suburb. The
-probe fills this automatically; a path-C tester fills it by eye.
+returned suburb, whether it matches the informed suburb, and whether the pin has a
+house number. The probe fills this automatically; a path-C tester fills it by eye.
 
-| ID | Informed suburb | Returned suburb (record) | Suburb match? (record) |
-|----|-----------------|--------------------------|------------------------|
-| SPS-C01 | Sydney | | |
-| SPS-C02 | Sydney | | |
-| SPS-C03 | North Sydney | | |
-| SPS-C04 | Bondi Beach | | |
-| SPS-C05 | Mosman | | |
-| SPS-C06 | Chatswood | | |
-| SPS-C07 | Redfern | | |
-| SPS-C08 | Newtown | | |
-| SPS-C09 | Surry Hills | | |
-| SPS-C10 | Manly | | |
-| SPS-A01 | Chatswood | | |
-| SPS-A02 | Parramatta | | |
-| SPS-A03 | Newtown | | |
-| SPS-A04 | Parramatta | | |
-| SPS-A05 | Sydney | | |
-| SPS-A06 | North Sydney | | |
-| SPS-A07 | Chatswood | | |
-| SPS-A08 | Newtown | | |
-| SPS-A09 | Newtowm | | |
-| SPS-A10 | Chatswood | | |
-| SPS-A11 | Chatswood | | |
-| SPS-A12 | Chatswood | | |
-| SPS-A13 | Chatswood | | |
-| SPS-A14 | Colo | | |
-| SPS-A15 | Cronulla | | |
-| SPS-A16 | Mosman | | |
-| SPS-A17 | Faketown | | |
-| SPS-A18 | Chatswood | | |
-| SPS-A19 | Chatswood | | |
-| SPS-A20 | Norh Sydney | | |
+| ID | Informed suburb | Returned suburb (record) | Suburb match? (record) | House no.? (record) |
+|----|-----------------|--------------------------|------------------------|---------------------|
+| SPS-C01 | Sydney | | | |
+| SPS-C02 | Sydney | | | |
+| SPS-C03 | North Sydney | | | |
+| SPS-C04 | Bondi Beach | | | |
+| SPS-C05 | Mosman | | | |
+| SPS-C06 | Chatswood | | | |
+| SPS-C07 | Brighton-le-Sands | | | |
+| SPS-C08 | Newtown | | | |
+| SPS-C09 | Woolloomooloo | | | |
+| SPS-C10 | Manly | | | |
+| SPS-A01 | Chatswood | | | |
+| SPS-A02 | Parramatta | | | |
+| SPS-A03 | Newtown | | | |
+| SPS-A04 | Parramatta | | | |
+| SPS-A05 | Sydney | | | |
+| SPS-A06 | North Sydney | | | |
+| SPS-A07 | Chatswood | | | |
+| SPS-A08 | Newtown | | | |
+| SPS-A09 | Newtowm | | | |
+| SPS-A10 | Chatswood | | | |
+| SPS-A11 | Chatswood | | | |
+| SPS-A12 | Chatswood | | | |
+| SPS-A13 | Chatswood | | | |
+| SPS-A14 | Colo | | | |
+| SPS-A15 | Cronulla | | | |
+| SPS-A16 | Mosman | | | |
+| SPS-A17 | Faketown | | | |
+| SPS-A18 | Chatswood | | | |
+| SPS-A19 | Chatswood | | | |
+| SPS-A20 | Norh Sydney | | | |
 
-> Note on ground truth vs. Rule 3: the suburb-typo probe **SPS-A20** is
+> Note on ground truth vs. Rule 3/4: the suburb-typo probe **SPS-A20** is
 > `expected: ACCEPT` (the user meant North Sydney, and the pin should land there),
 > but its informed suburb is the typo `Norh Sydney`, so a strict string compare
-> makes Rule 3 **reject** it. That is a legitimate Rule 3 false-reject and the
-> summary will surface it — a signal that the suburb comparison would need typo
-> tolerance, or that typos are acceptable to reject.
+> makes Rule 3/4 **reject** it. That is a legitimate false-reject the summary will
+> surface — a signal that the suburb comparison would need typo tolerance, or that
+> typos are acceptable to reject.
 
 ## Battery (30 addresses)
 
@@ -108,16 +134,16 @@ probe fills this automatically; a path-C tester fills it by eye.
 | SPS-C04 | 1 Campbell Parade | 1 | — | Bondi Beach | NSW | 2026 | ACCEPT | Iconic beachfront street; exact |
 | SPS-C05 | 345 Military Road | 345 | — | Mosman | NSW | 2088 | ACCEPT | Main Mosman road; exact address |
 | SPS-C06 | 14 Victoria Avenue, Unit 5 | 14 | Unit 5 | Chatswood | NSW | 2067 | ACCEPT | Unit on the main Chatswood street (explicit Line 2) |
-| SPS-C07 | 2/7-11 Regent Street | 2/7-11 | — | Redfern | NSW | 2016 | ACCEPT | Composite unit/number `2/7-11` on a real street |
+| SPS-C07 | 2/7-11 Queens Road | 2/7-11 | — | Brighton-le-Sands | NSW | 2216 | ACCEPT | Composite unit/number `2/7-11` on a verified real multi-unit address (corrects the invalid "7-11 Regent St, Redfern") |
 | SPS-C08 | 32 King Street | 32 | — | Newtown | NSW | 2042 | ACCEPT | Main Newtown street; exact |
-| SPS-C09 | 90 Crown Street | 90 | — | Surry Hills | NSW | 2010 | ACCEPT | Complete address on a real street |
+| SPS-C09 | 90 Crown Street | 90 | — | Woolloomooloo | NSW | 2011 | ACCEPT | Complete address; civic #90 Crown St is in Woolloomooloo 2011, not Surry Hills (corrected) |
 | SPS-C10 | 16 The Corso | 16 | — | Manly | NSW | 2095 | ACCEPT | Well-known Manly street; exact |
 | SPS-A01 | 47 Wobblegong Street | 47 | — | Chatswood | NSW | 2067 | REJECT | Nonexistent street in a real suburb → coarse fallback |
 | SPS-A02 | 12 Zyxwerp Lane | 12 | — | Parramatta | NSW | 2150 | REJECT | Nonexistent street in a real suburb (second case) |
 | SPS-A03 | 345 Military Road | 345 | — | Newtown | NSW | 2042 | REJECT | Real street (Mosman's) placed in the WRONG suburb |
 | SPS-A04 | 1 Campbell Parade | 1 | — | Parramatta | NSW | 2150 | REJECT | Campbell Parade only exists at Bondi Beach; wrong suburb |
-| SPS-A05 | 200 George Street | 200 | — | Sydney | NSW | 3000 | REJECT | Real street with another city's postcode (3000 = Melbourne) |
-| SPS-A06 | 100 Miller Street | 100 | — | North Sydney | NSW | 4000 | REJECT | Real street with another city's postcode (4000 = Brisbane) |
+| SPS-A05 | 200 George Street | 200 | — | Sydney | NSW | 3000 | ACCEPT | Correct address, wrong (Melbourne 3000) postcode; Mapbox ignores it and returns the correct Sydney point — acceptable, correct pin |
+| SPS-A06 | 100 Miller Street | 100 | — | North Sydney | NSW | 4000 | ACCEPT | Correct address, wrong (Brisbane 4000) postcode; Mapbox ignores it and returns the correct North Sydney point — acceptable, correct pin |
 | SPS-A07 | 99999 Victoria Avenue | 99999 | — | Chatswood | NSW | 2067 | REJECT | Street number does not exist → street-level fallback |
 | SPS-A08 | 32 Kng Street | 32 | — | Newtown | NSW | 2042 | ACCEPT | Light (1-char) typo of "King"; the intended address is real and should still resolve |
 | SPS-A09 | 32 Knig Streeet | 32 | — | Newtowm | NSW | 2042 | REJECT | Heavy typo across street AND suburb; too garbled to resolve confidently |
@@ -137,8 +163,11 @@ probe fills this automatically; a path-C tester fills it by eye.
 
 - **Nonexistent street in a real suburb:** SPS-A01, SPS-A02
 - **Real street in the WRONG suburb:** SPS-A03, SPS-A04
-- **Real street with another city's postcode:** SPS-A05, SPS-A06
-- **Street number that doesn't exist:** SPS-A07
+- **Real street with another city's postcode:** SPS-A05, SPS-A06 — *reclassified
+  to ACCEPT after the live run: Mapbox ignores the bad postcode and returns the
+  correct point, so the pin is right (same behaviour as the 7 real imports)*
+- **Street number that doesn't exist:** SPS-A07 — *a key "street-only, no house
+  number" case R4 targets*
 - **Light typo:** SPS-A08 (street), SPS-A20 (suburb)
 - **Heavy typo:** SPS-A09
 - **Suburb + postcode only (no street):** SPS-A10
@@ -149,12 +178,16 @@ probe fills this automatically; a path-C tester fills it by eye.
 - **Homonym street in the wrong suburb:** SPS-A15
 - **Extra edge cases:** wrong local postcode (SPS-A16), nonexistent suburb
   (SPS-A17), coarse highway (SPS-A18), unit-with-no-street (SPS-A19)
+- **Street-only / no-house-number cases (R4 target):** SPS-A07, SPS-A10, SPS-A11,
+  SPS-A12, SPS-A13 — each returns `place_type: address` at high relevance but with
+  no `feature.address`
 - **Good controls (ACCEPT):** SPS-C01…SPS-C10, including a unit with an explicit
-  Line 2 (SPS-C06) and a composite number `2/7-11` (SPS-C07)
+  Line 2 (SPS-C06) and a composite number `2/7-11` (SPS-C07, verified real
+  2/7-11 Queens Road, Brighton-le-Sands)
 
-Expected totals: **13 ACCEPT** (10 controls + SPS-A08, SPS-A16, SPS-A20) and
-**17 REJECT**. The three `ACCEPT` adversarials are deliberate **false-reject
-probes** for the 0.7 threshold.
+Expected totals (after the live-run corrections): **15 ACCEPT** (10 controls +
+SPS-A05, SPS-A06 reclassified + SPS-A08, SPS-A16, SPS-A20) and **15 REJECT**.
+SPS-A08/A16/A20 remain deliberate **false-reject probes**.
 
 ## Machine-readable battery
 
@@ -172,16 +205,16 @@ with the table above.
   { "id": "SPS-C04", "street": "Campbell Parade",  "number": "1",      "unit": null,     "suburb": "Bondi Beach",   "state": "NSW", "postcode": "2026", "country": "AU", "expected": "ACCEPT", "why": "Iconic beachfront street; exact" },
   { "id": "SPS-C05", "street": "Military Road",    "number": "345",    "unit": null,     "suburb": "Mosman",        "state": "NSW", "postcode": "2088", "country": "AU", "expected": "ACCEPT", "why": "Main Mosman road; exact address" },
   { "id": "SPS-C06", "street": "Victoria Avenue",  "number": "14",     "unit": "Unit 5", "suburb": "Chatswood",     "state": "NSW", "postcode": "2067", "country": "AU", "expected": "ACCEPT", "why": "Unit on the main Chatswood street (explicit Line 2)" },
-  { "id": "SPS-C07", "street": "Regent Street",    "number": "2/7-11", "unit": null,     "suburb": "Redfern",       "state": "NSW", "postcode": "2016", "country": "AU", "expected": "ACCEPT", "why": "Composite unit/number 2/7-11 on a real street" },
+  { "id": "SPS-C07", "street": "Queens Road",     "number": "2/7-11", "unit": null,     "suburb": "Brighton-le-Sands", "state": "NSW", "postcode": "2216", "country": "AU", "expected": "ACCEPT", "why": "Composite unit/number 2/7-11 on a verified real multi-unit address (corrects the invalid 7-11 Regent St Redfern)" },
   { "id": "SPS-C08", "street": "King Street",      "number": "32",     "unit": null,     "suburb": "Newtown",       "state": "NSW", "postcode": "2042", "country": "AU", "expected": "ACCEPT", "why": "Main Newtown street; exact" },
-  { "id": "SPS-C09", "street": "Crown Street",     "number": "90",     "unit": null,     "suburb": "Surry Hills",   "state": "NSW", "postcode": "2010", "country": "AU", "expected": "ACCEPT", "why": "Complete address on a real street" },
+  { "id": "SPS-C09", "street": "Crown Street",     "number": "90",     "unit": null,     "suburb": "Woolloomooloo",  "state": "NSW", "postcode": "2011", "country": "AU", "expected": "ACCEPT", "why": "Complete address; civic #90 Crown St is in Woolloomooloo 2011, not Surry Hills (corrected)" },
   { "id": "SPS-C10", "street": "The Corso",        "number": "16",     "unit": null,     "suburb": "Manly",         "state": "NSW", "postcode": "2095", "country": "AU", "expected": "ACCEPT", "why": "Well-known Manly street; exact" },
   { "id": "SPS-A01", "street": "Wobblegong Street","number": "47",     "unit": null,     "suburb": "Chatswood",     "state": "NSW", "postcode": "2067", "country": "AU", "expected": "REJECT", "why": "Nonexistent street in a real suburb -> coarse fallback" },
   { "id": "SPS-A02", "street": "Zyxwerp Lane",     "number": "12",     "unit": null,     "suburb": "Parramatta",    "state": "NSW", "postcode": "2150", "country": "AU", "expected": "REJECT", "why": "Nonexistent street in a real suburb (second case)" },
   { "id": "SPS-A03", "street": "Military Road",    "number": "345",    "unit": null,     "suburb": "Newtown",       "state": "NSW", "postcode": "2042", "country": "AU", "expected": "REJECT", "why": "Real street (Mosman's) placed in the WRONG suburb" },
   { "id": "SPS-A04", "street": "Campbell Parade",  "number": "1",      "unit": null,     "suburb": "Parramatta",    "state": "NSW", "postcode": "2150", "country": "AU", "expected": "REJECT", "why": "Campbell Parade only exists at Bondi Beach; wrong suburb" },
-  { "id": "SPS-A05", "street": "George Street",    "number": "200",    "unit": null,     "suburb": "Sydney",        "state": "NSW", "postcode": "3000", "country": "AU", "expected": "REJECT", "why": "Real street with another city's postcode (3000 = Melbourne)" },
-  { "id": "SPS-A06", "street": "Miller Street",    "number": "100",    "unit": null,     "suburb": "North Sydney",  "state": "NSW", "postcode": "4000", "country": "AU", "expected": "REJECT", "why": "Real street with another city's postcode (4000 = Brisbane)" },
+  { "id": "SPS-A05", "street": "George Street",    "number": "200",    "unit": null,     "suburb": "Sydney",        "state": "NSW", "postcode": "3000", "country": "AU", "expected": "ACCEPT", "why": "Correct address, wrong (Melbourne 3000) postcode; Mapbox ignores it and returns the correct Sydney point -- acceptable, correct pin" },
+  { "id": "SPS-A06", "street": "Miller Street",    "number": "100",    "unit": null,     "suburb": "North Sydney",  "state": "NSW", "postcode": "4000", "country": "AU", "expected": "ACCEPT", "why": "Correct address, wrong (Brisbane 4000) postcode; Mapbox ignores it and returns the correct North Sydney point -- acceptable, correct pin" },
   { "id": "SPS-A07", "street": "Victoria Avenue",  "number": "99999",  "unit": null,     "suburb": "Chatswood",     "state": "NSW", "postcode": "2067", "country": "AU", "expected": "REJECT", "why": "Street number does not exist -> street-level fallback" },
   { "id": "SPS-A08", "street": "Kng Street",       "number": "32",     "unit": null,     "suburb": "Newtown",       "state": "NSW", "postcode": "2042", "country": "AU", "expected": "ACCEPT", "why": "Light 1-char typo of King; intended address is real and should still resolve" },
   { "id": "SPS-A09", "street": "Knig Streeet",     "number": "32",     "unit": null,     "suburb": "Newtowm",       "state": "NSW", "postcode": "2042", "country": "AU", "expected": "REJECT", "why": "Heavy typo across street AND suburb; too garbled to resolve confidently" },
