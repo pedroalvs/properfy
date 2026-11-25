@@ -412,3 +412,111 @@ describe('O-11 — single-link triggers adopt a CONFIRMED-without-cycle appointm
     expect(unconfirmed.map((a) => a.id)).not.toContain(appointmentId);
   });
 });
+
+/**
+ * O-11 regression (decision 2): before option B an UNAVAILABLE appointment had no
+ * cycle, so a new link re-opened it to PENDING via the no-active branch. Option B
+ * made "can't attend" a durable ACTIVE UNAVAILABLE cycle, which routed the link into
+ * the active-cycle branch — which only attached a token and left it UNAVAILABLE. A
+ * new link for someone who said "can't" must REOPEN to PENDING (supersede-and-new,
+ * mirroring rotateOnDateChange / group rule 3) with a reset audit, and reminders
+ * must resume.
+ */
+describe('O-11 — a new link REOPENS an UNAVAILABLE/NO_RESPONSE confirmation (regression, real DB)', () => {
+  it('createInitial reopens an ACTIVE UNAVAILABLE cycle to PENDING, superseding it, with a reset audit', async () => {
+    const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'PENDING');
+    // Option B: "can't attend" opens a durable ACTIVE UNAVAILABLE cycle.
+    await cycleService.markUnavailable(appointmentId, tenantId);
+    auditMock.log.mockClear();
+
+    await cycleService.createInitial(
+      appointmentId, tenantId, FUTURE_SCHEDULED_DATE, '09:00-12:00', 'tok-reopen', undefined, undefined,
+      { actorId: 'op-1', cause: 'PORTAL_LINK_GENERATED' },
+    );
+
+    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+    expect(appt?.rental_tenant_confirmation_status).toBe('PENDING');
+    const cycles = await harness.prisma.appointmentConfirmationCycle.findMany({
+      where: { appointment_id: appointmentId },
+      orderBy: { cycle_number: 'asc' },
+    });
+    expect(cycles).toHaveLength(2);
+    expect(cycles[0]?.status).toBe('SUPERSEDED'); // the UNAVAILABLE cycle preserved as history
+    expect(cycles[1]?.status).toBe('PENDING');
+    expect(appt?.active_confirmation_cycle_id).toBe(cycles[1]?.id);
+    const resetAudits = auditMock.log.mock.calls.filter(
+      ([e]: [{ action: string }]) => e.action === 'appointment.rental_tenant_confirmation_reset',
+    );
+    expect(resetAudits).toHaveLength(1);
+    expect(resetAudits[0]?.[0]).toMatchObject({
+      before: { rentalTenantConfirmationStatus: 'UNAVAILABLE' },
+      after: { rentalTenantConfirmationStatus: 'PENDING' },
+      metadata: { cause: 'PORTAL_LINK_GENERATED' },
+    });
+  });
+
+  it('a generated link reopens UNAVAILABLE to PENDING end-to-end and reminders resume (T-1 includes it)', async () => {
+    const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'PENDING');
+    await cycleService.markUnavailable(appointmentId, tenantId);
+    auditMock.log.mockClear();
+
+    await makeGeneratePortalToken().execute({ appointmentId, actor: AM_ACTOR, notify: false });
+
+    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+    expect(appt?.rental_tenant_confirmation_status).toBe('PENDING');
+    const active = await harness.prisma.appointmentConfirmationCycle.findFirst({
+      where: { appointment_id: appointmentId, status: { not: 'SUPERSEDED' } },
+    });
+    expect(active?.status).toBe('PENDING');
+    const resetAudits = auditMock.log.mock.calls.filter(
+      ([e]: [{ action: string }]) => e.action === 'appointment.rental_tenant_confirmation_reset',
+    );
+    expect(resetAudits).toHaveLength(1);
+    // Consequence: the reopened PENDING appointment is T-1 visible again, so reminders
+    // and the auto-reject sweep resume (the point of decision 2).
+    const apptRepo = new PrismaAppointmentRepository(harness.prisma);
+    const unconfirmed = await apptRepo.findUnconfirmedForDate(FUTURE_SCHEDULED_DATE);
+    expect(unconfirmed.map((a) => a.id)).toContain(appointmentId);
+  });
+
+  it('a generated link reopens a NO_RESPONSE appointment to PENDING (no active cycle: invalidateOnReject cleared it)', async () => {
+    const { appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'NO_RESPONSE');
+    // NO_RESPONSE never carries an active cycle — the reject-unconfirmed worker
+    // supersedes and clears it — so it reopens through the no-active branch.
+    expect(
+      await harness.prisma.appointmentConfirmationCycle.count({ where: { appointment_id: appointmentId } }),
+    ).toBe(0);
+    auditMock.log.mockClear();
+
+    await makeGeneratePortalToken().execute({ appointmentId, actor: AM_ACTOR, notify: false });
+
+    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+    expect(appt?.rental_tenant_confirmation_status).toBe('PENDING');
+    const resetAudits = auditMock.log.mock.calls.filter(
+      ([e]: [{ action: string }]) => e.action === 'appointment.rental_tenant_confirmation_reset',
+    );
+    expect(resetAudits).toHaveLength(1);
+    expect(resetAudits[0]?.[0]).toMatchObject({
+      before: { rentalTenantConfirmationStatus: 'NO_RESPONSE' },
+      after: { rentalTenantConfirmationStatus: 'PENDING' },
+    });
+  });
+
+  it('leaves an ACTIVE CONFIRMED cycle intact when a link is generated (no reopen, no reset)', async () => {
+    const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'PENDING');
+    await cycleService.confirm(appointmentId, tenantId, 'RENTAL_TENANT_PORTAL', null); // active CONFIRMED cycle
+    auditMock.log.mockClear();
+
+    await makeGeneratePortalToken().execute({ appointmentId, actor: AM_ACTOR, notify: false });
+
+    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+    expect(appt?.rental_tenant_confirmation_status).toBe('CONFIRMED');
+    const cycles = await harness.prisma.appointmentConfirmationCycle.findMany({ where: { appointment_id: appointmentId } });
+    expect(cycles).toHaveLength(1); // no supersede, no new cycle
+    expect(cycles[0]?.status).toBe('CONFIRMED');
+    const resetAudits = auditMock.log.mock.calls.filter(
+      ([e]: [{ action: string }]) => e.action === 'appointment.rental_tenant_confirmation_reset',
+    );
+    expect(resetAudits).toHaveLength(0);
+  });
+});
