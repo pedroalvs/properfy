@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
-type SnackbarType = 'success' | 'error' | 'info';
+type SnackbarType = 'success' | 'error' | 'info' | 'warning';
 
 interface SnackbarMessage {
   id: number;
@@ -14,6 +14,12 @@ interface SnackbarContextValue {
   showSuccess: (message: string) => void;
   showError: (message: string) => void;
   showInfo: (message: string) => void;
+  /**
+   * A warning (amber) toast that stays on screen until the inspector closes it
+   * (the app-root <Toaster> renders richColors + a close button). Used for
+   * notices the inspector must not miss, e.g. an out-of-radius check-in.
+   */
+  showWarning: (message: string) => void;
   dismiss: (id?: string | number) => void;
 }
 
@@ -27,6 +33,8 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
       showSuccess: (message: string) => toast.success(message),
       showError: (message: string) => toast.error(message),
       showInfo: (message: string) => toast(message),
+      // duration: Infinity → persists until dismissed (overrides the <Toaster> default).
+      showWarning: (message: string) => toast.warning(message, { duration: Infinity }),
       dismiss: (id?: string | number) => toast.dismiss(id),
     }),
     [],
