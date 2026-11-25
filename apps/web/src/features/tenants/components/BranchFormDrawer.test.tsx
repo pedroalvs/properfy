@@ -194,6 +194,33 @@ describe('BranchFormDrawer', () => {
     }
   });
 
+  it('pre-fills the address fields for a legacy branch with no country/coordinate (O-9)', () => {
+    const Wrapper = createWrapper();
+    const legacyBranch = {
+      id: 'br-legacy',
+      tenantId: 'ten-01',
+      name: 'North Shore Office',
+      address: '45 Pacific Hwy, North Sydney NSW 2060',
+      // Legacy seed shape: no country, no coordinate, no number.
+      addressJson: { street: '45 Pacific Hwy', suburb: 'North Sydney', state: 'NSW', postcode: '2060' },
+      contactEmail: 'ns@imob.com',
+      status: 'ACTIVE' as const,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    };
+    render(
+      <Wrapper>
+        <BranchFormDrawer open onClose={vi.fn()} tenantId="ten-01" branch={legacyBranch} onSaved={vi.fn()} />
+      </Wrapper>,
+    );
+    // The Address search field and the inline fields must be pre-filled, not blank.
+    expect(screen.getByPlaceholderText('Search verified address')).toHaveValue('45 Pacific Hwy, North Sydney NSW 2060');
+    expect(screen.getByLabelText('Branch Street')).toHaveValue('45 Pacific Hwy');
+    expect(screen.getByLabelText('Branch Suburb')).toHaveValue('North Sydney');
+    expect(screen.getByLabelText('Branch State')).toHaveValue('NSW');
+    expect(screen.getByLabelText('Branch Postcode')).toHaveValue('2060');
+  });
+
   it('does not render when open is false', () => {
     const Wrapper = createWrapper();
     render(

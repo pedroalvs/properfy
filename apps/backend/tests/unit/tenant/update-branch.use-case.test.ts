@@ -345,6 +345,40 @@ describe('UpdateBranchUseCase', () => {
       expect(payload.geocodedPermanentlyAt).toBeNull();
     });
 
+    it('3c. O-9: a no-COUNTRY legacy branch re-sent with country AU is unchanged → recovery geocode, no 422', async () => {
+      // Legacy address_json without a country (the real DEV shape). The drawer
+      // re-sends it with country 'AU' (branchAddressSchema default). The fixed
+      // isSameGeocodingAddress treats these as the SAME address, so a coarse
+      // recovery result saves without coordinates instead of 422-ing the edit.
+      vi.mocked(branchRepo.findById).mockResolvedValue(
+        makeBranch({
+          addressJson: { street: '45 Pacific Hwy', suburb: 'North Sydney', state: 'NSW', postcode: '2060' },
+          geocodedPermanentlyAt: null,
+        }),
+      );
+      const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.84, lng: 151.2, placeType: 'place', relevance: 0.6 }) };
+      const uc = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
+
+      await expect(
+        uc.execute({
+          tenantId: 'tenant-1',
+          branchId: 'branch-1',
+          data: {
+            name: 'Renamed',
+            address: { street: '45 Pacific Hwy', suburb: 'North Sydney', city: 'North Sydney', state: 'NSW', postcode: '2060', country: 'AU' },
+          },
+          actor: makeActor(),
+        }),
+      ).resolves.toBeDefined();
+
+      // Recovery still ATTEMPTS to locate (no stored marker), but the unchanged
+      // address is never rejected with a 422.
+      expect(geocoder.geocode).toHaveBeenCalledTimes(1);
+      const payload = updatePayload();
+      expect(payload.addressJson).not.toHaveProperty('latitude');
+      expect(payload.geocodedPermanentlyAt).toBeNull();
+    });
+
     it('4. does not geocode or touch address when only the name changes', async () => {
       vi.mocked(branchRepo.findById).mockResolvedValue(
         makeBranch({ addressJson: { ...OLD_ADDRESS }, geocodedPermanentlyAt: new Date() }),

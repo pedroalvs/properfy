@@ -76,7 +76,14 @@ export function toAddressSuggestion(address: unknown): AddressLookupSuggestion |
   const longitude = typeof record['longitude'] === 'number' ? record['longitude'] : null;
   const number = readString(record, 'number');
 
-  if (!formattedAddress || !street || !state || !country) {
+  // O-9: a stored address only needs a street to be worth pre-filling. Legacy
+  // branch addresses often lack `country` (AU is implied) and have no coordinate;
+  // the old `!state || !country` guard returned null, so the "Edit Branch" drawer
+  // opened with a BLANK Address even though the list showed it — and a user filling
+  // it in silently CHANGED the address. Default the missing country to the AU-only
+  // platform value and keep the other fields as stored (empty when absent) so the
+  // drawer pre-fills the legacy address instead of blanking it.
+  if (!formattedAddress || !street) {
     return null;
   }
 
@@ -85,8 +92,8 @@ export function toAddressSuggestion(address: unknown): AddressLookupSuggestion |
     street,
     suburb: suburb ?? '',
     postcode: postcode ?? '',
-    state,
-    country,
+    state: state ?? '',
+    country: country ?? 'AU',
     latitude: latitude ?? 0,
     longitude: longitude ?? 0,
     provider: record['provider'] === 'MAPBOX' ? 'MAPBOX' : 'MAPBOX',
