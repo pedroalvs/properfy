@@ -65,7 +65,7 @@ describe('UnlockUserUseCase', () => {
 
   const opActor: AuthContext = {
     userId: 'op-1',
-    tenantId: 'tenant-1',
+    tenantId: null,
     role: 'OP',
     branchId: null,
     inspectorId: null,
@@ -110,27 +110,18 @@ describe('UnlockUserUseCase', () => {
     expect(userManagementRepo.unlock).toHaveBeenCalledWith('user-1', 'tenant-1');
   });
 
-  it('should allow OP to unlock a locked user in own tenant', async () => {
-    const lockedUser = makeLockedUser();
-    vi.mocked(userManagementRepo.findByIdAndTenantId).mockResolvedValue(lockedUser);
+  it('should allow OP (no agency) to unlock a locked user in any agency', async () => {
+    // OP is cross-tenant (root CLAUDE.md §6, DEC-003) and always has a null
+    // tenantId, so it must unlock agency users across tenants.
+    vi.mocked(userManagementRepo.findByIdAndTenantId).mockImplementation(
+      async (_id, tid) => makeLockedUser({ tenantId: tid }),
+    );
 
-    await useCase.execute({
-      tenantId: 'tenant-1',
-      userId: 'user-1',
-      actor: opActor,
-    });
-
+    await useCase.execute({ tenantId: 'tenant-1', userId: 'user-1', actor: opActor });
     expect(userManagementRepo.unlock).toHaveBeenCalledWith('user-1', 'tenant-1');
-  });
 
-  it('should throw AUTH_FORBIDDEN when OP tries to unlock user in other tenant', async () => {
-    await expect(
-      useCase.execute({
-        tenantId: 'tenant-2',
-        userId: 'user-1',
-        actor: opActor,
-      }),
-    ).rejects.toThrow(ForbiddenError);
+    await useCase.execute({ tenantId: 'tenant-2', userId: 'user-2', actor: opActor });
+    expect(userManagementRepo.unlock).toHaveBeenCalledWith('user-2', 'tenant-2');
   });
 
   it('should throw AUTH_FORBIDDEN when CL_ADMIN tries to unlock', async () => {
