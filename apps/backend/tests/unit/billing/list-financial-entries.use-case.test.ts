@@ -389,7 +389,7 @@ describe('ListFinancialEntriesUseCase', () => {
   // O-19 D8 / DEC-003: OP is cross-tenant and has tenantId: null. It must HONOR
   // the chosen agency like AM — the old "force OP to its own (null) tenant" code
   // ignored the filter and showed every agency under the chosen agency's name.
-  it('honors the chosen agency for OP (O-19 D8 fix); OP tenantId is null', async () => {
+  it('honors the chosen agency for OP exactly like AM; OP tenantId is null', async () => {
     vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
     vi.mocked(entryRepo.count).mockResolvedValue(0);
 
@@ -399,10 +399,12 @@ describe('ListFinancialEntriesUseCase', () => {
       actor: makeActor({ role: 'OP', tenantId: null }),
     });
 
-    expect(entryRepo.findAllEnriched).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-5', includePlatformBonus: true }),
-      expect.any(Object),
-    );
+    const filters = vi.mocked(entryRepo.findAllEnriched).mock.calls[0]![0];
+    expect(filters.tenantId).toBe('tenant-5');
+    // CC#3: with a chosen agency, OP gets ONLY that agency's rows — no platform
+    // bonus mixed in (that would surface rows that are not the agency's, AM never
+    // does it). So includePlatformBonus must NOT be set.
+    expect(filters.includePlatformBonus).toBeUndefined();
   });
 
   it('honors a different agency for OP (sees only that agency)', async () => {
@@ -432,8 +434,22 @@ describe('ListFinancialEntriesUseCase', () => {
 
     const filters = vi.mocked(entryRepo.findAllEnriched).mock.calls[0]![0];
     expect(filters.tenantId).toBeUndefined();
-    // Q12: the platform bonus flag stays on for OP (harmless without a tenantId).
-    expect(filters.includePlatformBonus).toBe(true);
+    // No tenant filter → every entry, including the tenantless INSPECTOR_BONUS,
+    // via its own row. No includePlatformBonus flag needed (OP == AM).
+    expect(filters.includePlatformBonus).toBeUndefined();
+  });
+
+  it('treats OP identically to AM for an unscoped list (no bonus-only flag)', async () => {
+    vi.mocked(entryRepo.findAllEnriched).mockResolvedValue([]);
+    vi.mocked(entryRepo.count).mockResolvedValue(0);
+
+    await useCase.execute({ ...defaultInput, actor: makeActor({ role: 'AM', tenantId: null }) });
+    const amFilters = vi.mocked(entryRepo.findAllEnriched).mock.calls[0]![0];
+
+    await useCase.execute({ ...defaultInput, actor: makeActor({ role: 'OP', tenantId: null }) });
+    const opFilters = vi.mocked(entryRepo.findAllEnriched).mock.calls[1]![0];
+
+    expect(opFilters).toEqual(amFilters);
   });
 
   it('should audit log when AM accesses cross-tenant financial data', async () => {

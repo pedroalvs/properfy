@@ -82,11 +82,12 @@ export class ListFinancialEntriesUseCase {
       if (input.inspectorId) filters.inspectorId = input.inspectorId;
       if (input.type) filters.entryType = input.type as FinancialEntryFilters['entryType'];
       if (input.status) filters.status = input.status as FinancialEntryFilters['status'];
-      // Q12 (F08-6/DQ10): OP reconciles rewards, so also surface the platform
-      // bonus (tenantless) alongside a chosen agency's rows — never another
-      // agency's. Only meaningful with a tenantId (the repo ORs the two); an
-      // unscoped OP read already sees every entry, bonus included.
-      if (actor.role === 'OP') filters.includePlatformBonus = true;
+      // OP is treated exactly like AM: a chosen agency returns only that agency's
+      // rows, an unscoped read returns every entry — the platform INSPECTOR_BONUS
+      // included, through its own tenantless row. We deliberately do NOT set
+      // includePlatformBonus: ORing the tenantless bonus into a chosen agency's
+      // list would surface rows that are not that agency's (the O-19 D8 shape),
+      // which AM never does. OP still sees the bonus — via the unscoped path.
 
       // Audit cross-tenant access (AM and OP). actor.tenantId is null for both,
       // so any explicit tenantId is cross-tenant.
