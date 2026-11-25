@@ -296,19 +296,54 @@ describe('O-11 — portal link/confirm never resets a confirmation without a cyc
     expect(cycle?.status).toBe('UNAVAILABLE');
   });
 
-  it('two concurrent confirms converge on a single CONFIRMED cycle (cycle_number retry)', async () => {
-    const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'PENDING');
+  // Repeated to rule out intermittency: the loser of each race hits the partial
+  // `appointment_active_cycle_unique` (one active cycle per appointment) or the
+  // `cycle_number` unique, replays in a fresh transaction, and converges on the
+  // single winning cycle.
+  const CONCURRENCY_ITERATIONS = 25;
 
-    await Promise.all([
-      cycleService.confirm(appointmentId, tenantId, 'RENTAL_TENANT_PORTAL', null),
-      cycleService.confirm(appointmentId, tenantId, 'RENTAL_TENANT_PORTAL', null),
-    ]);
+  it(`two concurrent confirms converge on ONE CONFIRMED cycle — ${CONCURRENCY_ITERATIONS} iterations`, async () => {
+    for (let i = 0; i < CONCURRENCY_ITERATIONS; i++) {
+      const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'PENDING');
 
-    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
-    expect(appt?.rental_tenant_confirmation_status).toBe('CONFIRMED');
-    const cycles = await harness.prisma.appointmentConfirmationCycle.findMany({ where: { appointment_id: appointmentId } });
-    expect(cycles).toHaveLength(1);
-    expect(cycles[0]?.status).toBe('CONFIRMED');
+      await Promise.all([
+        cycleService.confirm(appointmentId, tenantId, 'RENTAL_TENANT_PORTAL', null),
+        cycleService.confirm(appointmentId, tenantId, 'RENTAL_TENANT_PORTAL', null),
+      ]);
+
+      const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+      expect(appt?.rental_tenant_confirmation_status, `iteration ${i}`).toBe('CONFIRMED');
+      const cycles = await harness.prisma.appointmentConfirmationCycle.findMany({ where: { appointment_id: appointmentId } });
+      expect(cycles, `iteration ${i}`).toHaveLength(1);
+      expect(cycles[0]?.status).toBe('CONFIRMED');
+    }
+  });
+
+  // Mixed-status race (confirm vs markUnavailable): DEFINED as last-writer-wins —
+  // neither throws, exactly ONE cycle survives, and its status is one of the two
+  // requested (never PENDING, never two cycles), exactly as a sequential run of the
+  // two in whichever order would leave it.
+  it(`concurrent confirm + markUnavailable converge to one of the two statuses — ${CONCURRENCY_ITERATIONS} iterations`, async () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < CONCURRENCY_ITERATIONS; i++) {
+      const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'PENDING');
+
+      // Neither op rejects — both converge on the single active cycle.
+      await Promise.all([
+        cycleService.confirm(appointmentId, tenantId, 'RENTAL_TENANT_PORTAL', null),
+        cycleService.markUnavailable(appointmentId, tenantId),
+      ]);
+
+      const cycles = await harness.prisma.appointmentConfirmationCycle.findMany({ where: { appointment_id: appointmentId } });
+      expect(cycles, `iteration ${i}`).toHaveLength(1);
+      const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+      expect(['CONFIRMED', 'UNAVAILABLE'], `iteration ${i}`).toContain(appt?.rental_tenant_confirmation_status);
+      // The denorm and the cycle never diverge.
+      expect(appt?.rental_tenant_confirmation_status).toBe(cycles[0]?.status);
+      if (appt?.rental_tenant_confirmation_status) seen.add(appt.rental_tenant_confirmation_status);
+    }
+    // Sanity: the defined outcome set is exactly {CONFIRMED, UNAVAILABLE}.
+    for (const s of seen) expect(['CONFIRMED', 'UNAVAILABLE']).toContain(s);
   });
 });
 

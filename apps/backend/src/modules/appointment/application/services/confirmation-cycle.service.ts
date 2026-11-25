@@ -9,7 +9,7 @@ import {
 } from '../../domain/confirmation-cycle.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { TxContext } from '../../../../shared/application/unit-of-work';
-import { retryOnUniqueConflict } from '../../../../shared/domain/retry-on-unique-conflict';
+import { retryOnUniqueConflict, isUniqueConflictOn } from '../../../../shared/domain/retry-on-unique-conflict';
 
 type Tx = Prisma.TransactionClient;
 type Defer = TxContext['defer'];
@@ -130,7 +130,10 @@ export class ConfirmationCycleService {
       if (tx) return await run(tx);
       return await this.prisma.$transaction(run);
     } catch (err: unknown) {
-      if (!this.isUniqueViolation(err)) throw err;
+      // Target-specific: only a cycle uniqueness collision (cycle_number OR the
+      // active-cycle appointment_id index) is recoverable here; any other P2002
+      // propagates so it is never silently swallowed.
+      if (!isUniqueConflictOn(err, CYCLE_UNIQUE_CONSTRAINT_COLUMNS)) throw err;
       // A caller-owned tx is already aborted by the P2002 (Postgres 25P02), so
       // retrying inside it is impossible. Rethrow the original error and let the
       // transaction owner replay the whole transaction in a fresh one.
@@ -577,12 +580,4 @@ export class ConfirmationCycleService {
     });
   }
 
-  private isUniqueViolation(err: unknown): boolean {
-    return (
-      typeof err === 'object' &&
-      err !== null &&
-      'code' in err &&
-      (err as { code: string }).code === 'P2002'
-    );
-  }
 }
