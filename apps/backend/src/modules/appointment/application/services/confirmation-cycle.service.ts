@@ -31,6 +31,21 @@ export interface ConfirmationResetAuditContext {
 /** Audit action for the O-11 appointment-level confirmation-reset record. */
 export const CONFIRMATION_RESET_AUDIT_ACTION = 'appointment.rental_tenant_confirmation_reset';
 
+/**
+ * Every uniqueness invariant two concurrent cycle creators can collide on, so
+ * `retryOnUniqueConflict` replays the whole transaction (the loser re-reads and
+ * adopts the winner's cycle) instead of surfacing a raw P2002. There are TWO:
+ *   - `@@unique([appointment_id, cycle_number])` → target `['appointment_id','cycle_number']`;
+ *   - the partial unique `appointment_active_cycle_unique ON (appointment_id)
+ *     WHERE status <> 'SUPERSEDED'` (one active cycle per appointment) → Prisma may
+ *     report the column (`appointment_id`) or the raw index name, so both are listed.
+ */
+export const CYCLE_UNIQUE_CONSTRAINT_COLUMNS = [
+  'cycle_number',
+  'appointment_id',
+  'appointment_active_cycle_unique',
+];
+
 export class ConfirmationCycleService {
   constructor(
     private readonly cycleRepo: IConfirmationCycleRepository,
@@ -278,7 +293,7 @@ export class ConfirmationCycleService {
     // Self-owned calls (every caller today) replay a concurrent cycle_number race;
     // a caller-owned tx cannot retry in place (Postgres aborts it) so it rethrows.
     if (tx) return await run(tx);
-    return await retryOnUniqueConflict(['cycle_number'], () => this.prisma.$transaction(run));
+    return await retryOnUniqueConflict(CYCLE_UNIQUE_CONSTRAINT_COLUMNS, () => this.prisma.$transaction(run));
   }
 
   /**
@@ -317,7 +332,7 @@ export class ConfirmationCycleService {
       );
     };
     if (tx) return await run(tx);
-    return await retryOnUniqueConflict(['cycle_number'], () => this.prisma.$transaction(run));
+    return await retryOnUniqueConflict(CYCLE_UNIQUE_CONSTRAINT_COLUMNS, () => this.prisma.$transaction(run));
   }
 
   /**

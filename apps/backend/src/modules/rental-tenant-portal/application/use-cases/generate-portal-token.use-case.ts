@@ -11,6 +11,7 @@ import type { MintPortalTokenService } from '../../domain/mint-portal-token.serv
 import { TOKEN_HASH_COLUMN } from '../../domain/mint-portal-token.service';
 import { retryOnUniqueConflict } from '../../../../shared/domain/retry-on-unique-conflict';
 import type { ConfirmationCycleService } from '../../../appointment/application/services/confirmation-cycle.service';
+import { CYCLE_UNIQUE_CONSTRAINT_COLUMNS } from '../../../appointment/application/services/confirmation-cycle.service';
 import type { CreateNotificationUseCase } from '../../../notification/application/use-cases/create-notification.use-case';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import {
@@ -108,12 +109,13 @@ export class GeneratePortalTokenUseCase {
         this.cycleService ? this.prisma : undefined,
         (ctx) => this.executeInTransaction(input, ctx),
       );
-    // Replay the whole transaction on either regenerable/replayable conflict:
-    // the minted token hash, or the confirmation cycle's
-    // @@unique([appointment_id, cycle_number]) that a concurrent createInitial
-    // can lose (createInitial rethrows that P2002 for us to replay here).
+    // Replay the whole transaction on any regenerable/replayable conflict: the
+    // minted token hash, or EITHER confirmation-cycle uniqueness invariant a
+    // concurrent createInitial can lose — `@@unique([appointment_id, cycle_number])`
+    // and the partial `appointment_active_cycle_unique` (one active cycle per
+    // appointment). createInitial rethrows the caller-owned P2002 for us to replay.
     const prepared = this.cycleService && this.prisma
-      ? await retryOnUniqueConflict([TOKEN_HASH_COLUMN, 'cycle_number'], prepare)
+      ? await retryOnUniqueConflict([TOKEN_HASH_COLUMN, ...CYCLE_UNIQUE_CONSTRAINT_COLUMNS], prepare)
       : await prepare();
     return prepared.runAfterCommit();
   }
