@@ -90,3 +90,31 @@ No caminho de reset do grupo (`send-group-portal-links.use-case.ts:187-188`) o `
 Data: 25/11/2026. Origem: O-19 Fatia 4 (PR #1416), decisão 42 do Pedro + leitura do CC#3.
 
 Após a correção do D8 (OP passou a ser idêntico ao AM na leitura financeira: com agência escolhida vê só as linhas dela, SEM `includePlatformBonus`; sem agência vê tudo), a flag `includePlatformBonus` ficou **sem nenhum setter no código**. Ela permanece no repositório — interface `FinancialEntryFilters.includePlatformBonus` + o ramo OR em `apps/backend/src/modules/billing/infrastructure/persistence/prisma-financial-entry.repository.ts:62`. Remoção **estacionada para a Fatia 5** (limpeza do tipo A), por decisão do CC#3 (25/11) — NÃO apagar antes disso. O requisito do F08-6/DQ10 ("OP vê o bônus de inspetor no ledger") continua atendido pelo caminho SEM escopo (OP sem agência vê a linha tenantless do INSPECTOR_BONUS), provado pelo teste de banco do #1416.
+
+
+## [O-19 limpeza] Remover referência a agente pré-existente em apps/backend/CLAUDE.md:641
+
+Data: 25/11/2026. Origem: encontrada pelo B2Build durante a O-19 Fatia 4.
+
+A linha 641 (seção geocoding/O-14/X02, permanent geocoding) traz "A re-reject keeps the legacy coordinate (CC#3): the GeocodeWorker reject path updates only status + code...". É referência a agente em doc versionado (viola a norma "sem referência a agente/Claude/Anthropic em código/docs"), introduzida por um PR anterior já mergeado (PR-18/geocoding). Fora do escopo da Fatia 4; NÃO tocada lá. **Estacionada** para a Fatia 5 (limpeza do tipo A) ou um doc-fix trivial à parte: remover o "(CC#3)" mantendo o texto ("...keeps the legacy coordinate: the GeocodeWorker...").
+
+**ATUALIZAÇÃO (25/11):** NÃO estacionado — CC#3 decidiu remover já, no rebase do #1413 (que toca esse arquivo): substituir "(CC#3)" por texto neutro, sem menção a agente, citando a linha no delta. Sem PR próprio, sem esperar a Fatia 5.
+
+
+## [Decisão 45 / remoção opt-out] PR-3 — apagar tabela e enum (ETAPA DE OPERAÇÃO, só após PR-2 em produção)
+
+Data: 25/11/2026. Origem: decisão 45 do Pedro + fase2-etapa1/investigacao-remocao-opt-out.md (§4). NÃO fazer agora.
+
+Etapa **contract** da remoção da recusa de consentimento: migration que faz `DROP TABLE notification_consents;` + `DROP TYPE "ConsentChangeSource";`, remove o model/enum/relação `User.consent_changes` do schema.prisma, e tira a tabela/enum de docs/database-schema.md (§6/§D6). **Só depois do PR-2 estar EM PRODUÇÃO** (expand/contract: no rolling deploy as máquinas antigas ainda leem a tabela; apagar junto quebraria o envio). Antes do PR-3: rodar a contagem read-only (§3.4) uma última vez; se o Pedro quiser prova histórica de quem recusou, EXPORTAR antes (decisão D2). ~4 arquivos. Atenção: `prisma migrate diff` não pode dropar índice Unsupported() (ver project_prisma_drift_drops_unsupported_indexes).
+
+## [Estacionado sem PR — decisão 45] O-20: aviso "2 confirmation(s) reset" com 1 real
+
+Data: 25/11/2026. Bug de UI/contagem: a mensagem de reset de confirmação (área O-11 / ciclo de confirmação) mostra "2 confirmation(s) reset" quando só 1 foi de fato resetada. Investigar a contagem exibida vs. a real. Sem PR agora.
+
+## [Estacionado sem PR — decisão 45] O-21: botão Reactivate aparece para OP em usuário INTERNO
+
+Data: 25/11/2026. No drawer de usuário interno, o botão "Reactivate" aparece para o OP, mas usuário interno é só-AM (a guarda de backend barra, mas o botão não deveria aparecer p/ OP). Lacuna de UI (esconder/desabilitar o botão p/ OP em alvo interno). Sem PR agora.
+
+## [Estacionado sem PR — decisão 45] O-23: aba do app (PWA) presa na versão antiga até atualizar
+
+Data: 25/11/2026. A aba aberta do PWA fica na versão antiga até o usuário atualizar (service worker / chunk antigo). Investigar estratégia de atualização (skipWaiting/clientsClaim, prompt de nova versão, ou o padrão de retry de chunk — ver project_stale_chunk_retry). Sem PR agora.
