@@ -242,3 +242,190 @@ A ressalva (d) deixou de valer pelo #1389. Os dois casos rodaram em v118 (#1389)
 - Nenhum envio para contato real.
 
 **Capturas:** 42 arquivos em `output/smoke-dev/reteste/`.
+
+## Roteiro da segunda perna (registrado, não executado)
+
+Aguardar o coordenador disparar. Itens já combinados:
+
+1. **PR-06 parte 2.** Depois de 25/11 08:30Z, `GET /v1/inspectors/me/notices` do Mike deve ter **um** "Your route for tomorrow is ready" para Thu 26 Nov.
+2. **P3.** Depois de 30/11 04:45 Sydney.
+3. **PR-04, texto do Ranking.** Precisa de um inspetor não ranqueado com senha conhecida.
+4. **Envio REAL de arquivo fim a fim em DEV.** Pedido de 24/11: o bucket `inspection-assets` foi configurado no S3 de DEV. Usar só arquivos fictícios: imagem e PDF pequenos.
+   - Web › Files do **imóvel** e do **agendamento**:
+     - upload de imagem e de PDF;
+     - baixar;
+     - nova versão;
+     - apagar.
+   - Web: criar issue com foto.
+   - App do inspetor: "Report issue" com foto.
+   - Portal do inquilino: "reportar problema" com foto, usando token sem envio e contato fictício.
+   - Em cada passo, anotar o status HTTP do presign, do PUT no armazenamento e do confirm. Anotar também qualquer 503, "file storage unavailable" ou erro de bucket.
+5. Ao terminar, limpar ou anotar os arquivos de teste. Rever também os PENDING órfãos do O-7.
+
+## Segunda perna — 25/11/2026 (03:17–04:02 UTC)
+
+DEV em `e3cdb956` (#1402). Executor: Batedor, pelo navegador. Capturas em `output/smoke-dev/reteste2/`, fora do commit. Contatos todos fictícios (`@example.invalid`, `+614915701xx`).
+
+### Resumo
+
+| Item | PR | Resultado |
+|---|---|---|
+| 1 | PR-14 #1391 | PASSOU |
+| 2 | PR-16 #1392 | PASSOU (CL_ADMIN sem acesso: ver nota) |
+| 3 | PR-17 #1393 | PASSOU, com observação O-8 |
+| 4 | PR-18 #1390 / PR-18b #1394 | PASSOU, depois que o bucket `s3_app` foi criado (antes: 500) |
+| 5 | PR-03 correção #1395 | PASSOU |
+| 6 | V-1 #1396 (imóvel) | **FALHOU** em um ponto (cadastro antigo com falha não salva outros campos); demais pontos passaram |
+| 7 | V-2 #1400 (filial) | PASSOU, com observação O-9 |
+| 8 | V-3 #1402 (base do inspetor) | PASSOU na edição (web e app); criação no web NÃO DEU PARA TESTAR (exige digitar senha) |
+| 9 | V-4 #1399 (ponto de partida) | PASSOU nos casos inventado, bom, rótulo e "Use my base address"; **rua sem número em área rural foi ACEITA** (ver nota) |
+| 10 | Arquivos fim a fim | PASSOU (nenhum 503 nem erro de bucket em `inspection-assets`) |
+| 11 | Datas | PR-06 parte 2: pendente, conferir depois de 25/11 08:30 UTC. P3: só em 30/11 |
+
+### 1. PR-14 — Consent Lookup sem "Record opt-out" — PASSOU
+
+- OP: tela de Consent Lookup sem o botão "Record opt-out", buscando nas duas agências (`pr14-pr16-op-melbourne-sem-record-optout.jpg`).
+- `POST /v1/notifications/consents/opt-out` → **404** "Route … not found" (03:18 UTC).
+- Limite: nenhum destinatário com registro de consentimento em DEV, então a tabela veio vazia ("No consent records for this recipient."). A ausência do botão vale para a tela inteira.
+
+### 2. PR-16 — Consent Lookup por agência — PASSOU
+
+- Item "Consent Lookup" em Configuration, logo depois de "Notification Templates", para OP (`pr16-op-sem-agencia-search-desabilitado-menu.png`) e AM (`pr16-am-menu-e-tela.jpg`).
+- Sem agência escolhida, "Search" fica desabilitado. Pela API, sem `tenantId` → 400 "tenantId is required: choose an agency to look up" (OP e AM).
+- OP buscou em Sydney Property Services e em Melbourne Real Estate, as duas responderam.
+- **CL_ADMIN:** o pedido dizia "CL_ADMIN vê só a própria". Em DEV, CL_ADMIN não tem acesso à tela: ao abrir `/notification-consents` volta ao Dashboard com o aviso "You do not have permission to access this page"; a API responde 403 "Role CL_ADMIN is not permitted to perform consent.list". Isso bate com o que o plano registra para o #1392 ("rota segue AM/OP"). Conto como PASSOU; se a expectativa é CL_ADMIN ver a própria agência, é escopo novo.
+
+### 3. PR-17 — formulário da agência — PASSOU
+
+- "Edit Agency" (Melbourne) sem "priorityOfferHours" nem "inspectorOfferRadiusKm". Salvar trocando o Legal Name → "Agency updated successfully" (`pr17-melbourne-salvo.jpg`). Revertido pela API.
+- Registro antigo com a chave: gravei `priorityOfferHours: 4` pela API (ver O-8), abri e salvei pela tela de novo → salvou normal (`pr17-melbourne-com-chave-antiga-salvo.jpg`).
+
+### 4. PR-18 / PR-18b — importação com endereço ruim — PASSOU
+
+- **Primeira tentativa (03:24–03:25 UTC): FALHOU por ambiente.** Preview → 500. Log: `NoSuchBucket` "Bucket not found", recurso `s3_app/imports/appointments/<id>/import-endereco-ruim.xlsx`, em `SupabaseReportStorageService.upload` (`pr18-importacao-preview-500-bucket.jpg`). Avisado o coordenador.
+- **Depois do bucket criado (03:37–03:40 UTC):** planilha com uma linha inventada ("995 Zzyzxqua Gardens, Plmkoville NSW 2998") e uma boa ("5 Martin Place, Sydney NSW 2000").
+  - Preview: 2 importáveis, 0 erros. Linha ruim com "New property · Failed" e o aviso "Address was not found by geocoding — the property will be created but flagged for manual location"; linha boa "Success" (`pr18-preview-linha-ruim-nao-bloqueia.jpg`).
+  - Confirmação: "Import completed", 2 de 2 (`pr18-importacao-concluida-2-de-2.jpg`). INS-0116/INS-0117 em DRAFT; PROP-0020 FAILED sem coordenada; PROP-0021 SUCCESS.
+  - Corrigível depois: PROP-0020 abre com a faixa amarela; com latitude/longitude manuais salvou como MANUAL (`pr18-prop0020-faixa-amarela.jpg`, `pr18-prop0020-corrigido-manual.jpg`).
+- Primeira tentativa depois do bucket casou com imóveis que eu tinha criado no V-1 (PROP-0017/0018) e a data em texto "03/12/2026" virou "today (defaulted)". Refeito com endereços novos e data como data de planilha.
+
+### 5. PR-03 correção — PASSOU
+
+Dia montado para a Lisa (sem base): 3 paradas, INS-0118/0119/0120, 25/11 16:00–18:30.
+
+1. Origem "200 George Street, Sydney NSW 2000" → sugestão 5 Martin Pl → 88 Crown St → 33 Glebe Point Rd, término 6:35 pm.
+2. Ordem manual pior salva → "Finish ~6:42 pm · +7 min vs. suggested" (`pr03-ordem-manual-salva-mais7.jpg`).
+3. **Troca de origem** para "50 Glebe Point Road, Glebe NSW 2037" → ordem manual mantida, "**+15 min vs. suggested**"; a sugestão gravada passou a ser 0118 → 0120 → 0119, a ótima a partir de Glebe (`pr03-apos-troca-origem-mais15.jpg`). O "Same finish time as suggested" da primeira perna não voltou.
+4. "Reset to suggested order" → confirma → "Route reset to the suggested order.", ordem 33 Glebe → 5 Martin → 88 Crown, término 6:31 pm (`pr03-reset-ordem-sugerida.jpg`).
+
+### 6. V-1 — imóvel — FALHOU (um ponto)
+
+| Ponto | Resultado | Evidência |
+|---|---|---|
+| Endereço inventado bloqueia com o motivo e marca os campos | PASSOU: "This address doesn't match a known address closely enough. Check the street, number, suburb and postcode."; Street, Suburb, Postcode e State marcados; botão "Set location manually" | `v1-imovel-inventado-bloqueado.png` |
+| Corrigir limpa o erro | PASSOU: ao editar a rua, o bloco e as marcas somem | `v1-editar-limpa-erro.jpg` |
+| "Set location manually" salva como manual | PASSOU: PROP-0017 criado, Geocoding "Manual" (-33.4521, 150.6612) | `v1-manual-salvo-prop0017.jpg` |
+| Endereço bom salva com pino, sem "Geocoding in progress." | PASSOU: PROP-0018 (1 Martin Place), "Success" e mapa com pino logo ao abrir | `v1-endereco-bom-pino-success-prop0018.jpg` |
+| Cadastro antigo com falha abre com a faixa amarela | PASSOU: "This address couldn't be located. Update it or set the location manually." | `v1-cadastro-antigo-faixa-amarela.jpg` |
+| **… e salva outros campos** | **FALHOU** | `v1-cadastro-antigo-salvar-notes-422.jpg` |
+| Mesmo fluxo pelo imóvel criado dentro do agendamento | PASSOU: inventado bloqueado com o mesmo bloco; 2 Martin Place criou PROP-0019 (SUCCESS) e já veio selecionado no agendamento (agendamento não criado, cancelei) | `v1-agendamento-imovel-inventado-bloqueado.jpg`, `v1-agendamento-imovel-bom-prop0019.jpg` |
+
+**Falha — passo a passo:**
+1. Abrir IMP-D3CE99EF20 (9a Carrington St, Bexley, FAILED) e clicar no lápis.
+2. Sem tocar no endereço, escrever em Notes e salvar.
+3. Resultado: bloco vermelho "This address doesn't match a known address closely enough." e campos marcados; `PATCH /v1/properties/:id` → **422** `ADDRESS_NOT_VERIFIED` (`LOW_RELEVANCE`). Nada salvo.
+
+Reproduzido pela API:
+- PATCH só com `notes` → 200.
+- PATCH com o endereço **idêntico** ao gravado + notes → 422, em IMP-D3CE99EF20 e em SPS-006 (14 Miller St, Chatswood, FAILED).
+
+**Causa:** `update-property.use-case.ts` considera "endereço alterado" qualquer campo de endereço presente no corpo (`ADDRESS_FIELDS.some(field => data[field] !== undefined)`), sem comparar com o valor gravado. A gaveta sempre reenvia o endereço. Efeitos:
+- imóvel antigo com falha não salva nenhum outro campo pela tela;
+- toda edição de imóvel pela tela consulta o geocodificador de novo, inclusive em imóvel SUCCESS.
+
+O V-2 e o V-3 já comparam com o gravado ("endereço igual … salva sem erro"); o V-1 não.
+
+### 7. V-2 — filial — PASSOU
+
+- **Criação** ("QA Branch V2"): a filial só aceita endereço vindo de uma sugestão; escolhi "3 Martin Place" e troquei Street/Number/Suburb/Postcode por inventados. Recusada com o mesmo bloco; Street, **Number**, Suburb, Postcode e State marcados; sem botão de pino (`v2-criacao-filial-inventada-recusada.jpg`). Descartada, nada criado.
+- **Edição** (Inactive Branch): campo Number preenchido com 200 e rótulo da busca "200 George Street, Sydney NSW 2000, AU" (`v2-edicao-number-preenchido.jpg`). Trocar rua e subúrbio por inventados → recusada, campos marcados (`v2-edicao-filial-inventada-recusada.jpg`).
+- **Corrigir salva e o Number não some:** voltei ao endereço original, troquei o nome e salvei → "Branch updated successfully"; `addressJson.number` continua "200" (`v2-corrigido-salvo-number-mantido.jpg`).
+- **Filial antiga sem localização** (North Shore Office, sem coordenada): troca de nome salvou e a lista mantém "45 Pacific Hwy, North Sydney NSW 2060" (`v2-filial-antiga-troca-nome-salva.jpg`). Ver O-9.
+- Nomes revertidos pela API.
+
+### 8. V-3 — base do inspetor — PASSOU (edição) / NÃO DEU (criação)
+
+- **Web, criação: NÃO DEU PARA TESTAR.** O formulário "New Inspector" exige Password e Confirm Password, e eu não digito senhas. Precisa de alguém para preencher a senha, ou de um caminho de teste combinado.
+- **Web, edição** (Carlos Mendez QA): base inventada → ao salvar, a gaveta rolou até o bloco "This address doesn't match a known address closely enough." no topo de Base Address; Street, **Unit / Number**, Suburb, City e State marcados (`v3-web-base-inventada-recusada-rolou.jpg`). Descartado.
+- **Web, inspetor antigo sem base localizada** (Carlos, sem base): troca só do telefone → "Inspector updated successfully" (`v3-web-inspetor-sem-base-troca-telefone-salva.jpg`). Telefone revertido pela API.
+- **App, perfil** (Mike › My account › Base address):
+  - base inventada → bloco "This address doesn't match a known address closely enough. / Check the street, number, suburb and postcode." acima de "Save address" (`v3-app-base-inventada-recusada.jpg`); log: 422, `low_relevance`, relevância 0,55; nada gravado.
+  - base boa (2 Martin Place) → "Saved successfully" (`v3-app-base-boa-salva.jpg`); depois voltei para 1 Martin Place (valor original).
+  - Ver O-10: na primeira tentativa o app rodava o pacote antigo do cache e não mostrou mensagem nenhuma.
+
+### 9. V-4 — ponto de partida do dia — PASSOU, com um caso a decidir
+
+Dia da Lisa (o dia do Mike já começou, origem presa na última parada).
+
+| Caso | Resultado | Evidência |
+|---|---|---|
+| Origem inventada (997 Zzyzxqua Fakestreet, Qwertyvale NSW 2999) | Recusada: "This address doesn't match a known address closely enough. Check the street, number, suburb and postcode."; origem não mudou | `v4-origem-inventada-recusada.jpg` |
+| Só subúrbio (Chatswood NSW 2067, sem rua) | A tela não envia: "Street is required" | `v4-so-suburbio-rua-obrigatoria.jpg` |
+| **Rua sem número em área rural** (Bylong Valley Way, Bylong NSW 2849) | **ACEITA** às 03:49 UTC: "Route updated. Starting from Bylong Valley Way, Bylong NSW 2849 for this day.", ponto -32.348206, 150.183032, rota de 345 km | `v4-rua-sem-numero-rural-aceita.jpg` |
+| Origem boa (200 George Street, Sydney NSW 2000) | Rota recalculou; "Starting from: 200 George Street, Sydney NSW 2000 (this day only)" | `v4-origem-boa-recalculou-rotulo-numero.jpg` |
+| "Use my base address" | "Route updated. Starting from your base address."; Lisa não tem base, voltou ao aviso "No base address" | `v4-use-my-base-volta.jpg` |
+
+**Rua sem número:** o coordenador esperava recusa. `classifyGeocodingResult` aceita qualquer resultado `placeType === 'address'` com relevância ≥ 0,8, e o Mapbox devolve uma rua sem número como `address`. Esse resultado depende da decisão pendente sobre exigir número de casa (roteiro final, linha "sem número"). Não conto como falha do V-4 até a decisão. A hora foi anotada por causa do PR do limiar 0,8 → 0,7.
+
+### 10. Arquivos reais fim a fim — PASSOU
+
+Bucket `inspection-assets`. Cada envio fez presign → PUT no armazenamento → confirm; todos os PUT deram 200 e os arquivos ficaram READY. No log não apareceu 5xx, `NoSuchBucket` nem "file storage unavailable" entre 03:52 e 04:00 UTC.
+
+| Onde | Passo | Resultado | Evidência |
+|---|---|---|---|
+| Web › imóvel PROP-0018 › Files | PDF em Documents | "File uploaded"; READY | `arq-web-imovel-pdf-enviado.jpg` |
+| | Imagem em Other | "File uploaded"; READY | `arq-web-imovel-imagem-enviada.jpg` |
+| | Abrir/baixar o PDF | abriu em aba nova pela URL assinada do bucket (`…/inspection-assets/files/…/e0d38a33….pdf`); sem salvar em disco | — |
+| | Nova versão | "New version uploaded", selo v2 | `arq-web-imovel-nova-versao-v2.jpg` |
+| | Apagar | "File deleted" | `arq-web-imovel-apagado.jpg` |
+| | Issue com foto | "Issue reported", com 1 foto | `arq-web-issue-com-foto.jpg` |
+| Web › agendamento INS-0118 › Files | PDF, imagem, nova versão, apagar | os quatro funcionaram | `arq-web-agendamento-pdf.jpg`, `arq-web-agendamento-nova-versao.jpg`, `arq-web-agendamento-apagar-v2-volta-v1.jpg` |
+| App (Lisa) › INS-0118 | "Report issue" com foto | issue "Inspector" com "Photo 1" | `arq-app-report-issue-com-foto.jpg` |
+| Portal do inquilino (INS-0119, link gerado sem envio) | "Report a problem" com foto | "Thanks — your report has been sent to the team."; aparece em "Your reports" | `arq-portal-problema-com-foto.jpg` |
+
+- Apagar um arquivo com duas versões remove só a última, e a v1 volta à lista. Comportamento igual ao do smoke de 23/11. Apaguei a v1 também.
+- A aba do PDF aberto ficou no navegador: a extensão não fecha abas do domínio do armazenamento.
+
+### 11. Itens com data
+
+- **PR-06 parte 2:** pendente. Conferir depois de 25/11 08:30 UTC (19:30 Sydney) que o Mike recebeu **um** "Your route for tomorrow is ready" para Thu 26 Nov (INS-0104).
+- **P3:** pendente até 30/11, depois de 04:45 Sydney.
+- **PR-04 (texto do Ranking):** continua sem inspetor fora do ranking com senha conhecida.
+
+### Observações novas (fora dos critérios)
+
+- **O-8 — Agência aceita gravar a chave removida.** `PATCH /v1/tenants/:id` com `settings.priorityOfferHours: 4` respondeu 200 e gravou a chave em `settingsJson`: o schema de configurações da agência não recusa chave desconhecida. Ninguém lê a chave. Não consigo removê-la pela API; ficou `priorityOfferHours: null` em Melbourne Real Estate. Além disso, o primeiro save pela tela gravou os valores-padrão explícitos (`mapWindowDays: 14`, os três `…Enabled: true`) onde antes havia `{}`.
+- **O-9 — Gaveta da filial antiga mostra o endereço vazio.** North Shore Office (endereço sem número separado e sem coordenada) abre "Edit Branch" com Address em branco, embora a lista mostre "45 Pacific Hwy…". Salvar só o nome manteve o endereço. Mas quem preencher a busca achando que não há endereço vai trocá-lo.
+- **O-10 — App preso no pacote antigo.** No perfil do Mike o app rodava `index-LIvp4cUz.js` vindo do cache do service worker, enquanto o servidor já servia `index-BpJi1aGa.js`. Com o pacote antigo, a base inventada era recusada pelo servidor (422) sem nenhuma mensagem na tela. Só depois de desregistrar o service worker e recarregar apareceu o bloco novo. Inspetores com o app aberto podem ver a versão velha até o service worker atualizar. O rodapé continua "Properfy Inspector v0.1.0+dev".
+- **O-11 — Gerar o link do portal volta a confirmação para PENDING.** Num agendamento CONFIRMED, `POST …/portal-token {"notify":false}` mudou `rentalTenantConfirmationStatus` para PENDING. Reproduzido no INS-0118 e no INS-0119; os outros agendamentos do grupo ficaram CONFIRMED. É o novo ciclo de confirmação (`ConfirmationCycleService`). Mas a auditoria só registra `token_generated`/`dispatch_skipped`, sem a mudança de status, e o portal passa a mostrar "Pending" com "The confirmation deadline has passed". Restaurei as duas confirmações. Fica para decidir se é o esperado.
+- **O-12 — Mensagem do servidor fica na tela depois de mudar o campo.** No "Start this day from", a mensagem da recusa anterior continua abaixo do formulário enquanto se corrige, ao lado do novo "Street is required".
+- **O-13 — Logs de DEV marcados como `env":"staging"`.** Todas as linhas do `properfy-api-dev` trazem `"env":"staging"`.
+
+### Alterações em DEV nesta perna
+
+| O quê | Antes | Depois |
+|---|---|---|
+| Melbourne Real Estate › settingsJson | `{}` | padrões explícitos + `priorityOfferHours: null` (O-8); Legal Name revertido |
+| PROP-0017 (999 Zzyzxqua Fakestreet, Qwertyvale) | — | criado, MANUAL |
+| PROP-0018 (1 Martin Place) | — | criado, SUCCESS; Documents com smoke-doc.pdf v2 (v1 smoke-route.pdf); 1 issue "QA reteste" com foto |
+| PROP-0019 (2 Martin Place) | — | criado pelo formulário do agendamento, SUCCESS |
+| PROP-0020 (995 Zzyzxqua Gardens) e PROP-0021 (5 Martin Place) | — | criados pela importação; PROP-0020 corrigido para MANUAL |
+| INS-0116, INS-0117 | — | importados, DRAFT, 03/12 |
+| INS-0118/0119/0120 + grupo `a3185fa2…` | — | criados (smoke.v4n1-3@example.invalid, +61491570181-183), 25/11 16:00–18:30, grupo atribuído à Lisa, confirmação forçada (OP) duas vezes por causa de O-11 |
+| Plano da Lisa de 25/11 | 0 paradas | 3 paradas; ordem sugerida; origem de volta à base (NONE) |
+| INS-0118 › Files | — | PDF smoke-route.pdf; imagem v1/v2 apagadas; 1 issue do app com foto |
+| INS-0119 | — | 1 problema do portal com foto; link de portal válido até 25/11 13:00 UTC (sem envio) |
+| Inactive Branch, North Shore Office | — | nome trocado e revertido; endereço inalterado |
+| Carlos Mendez QA | telefone +61491574632 | trocado e revertido |
+| Mike › base | 1 Martin Place | 2 Martin Place → de volta a 1 Martin Place |
+| Service worker do app neste navegador | pacote antigo | desregistrado e recarregado (O-10) |
