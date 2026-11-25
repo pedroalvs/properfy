@@ -75,7 +75,7 @@ describe('SetDayPlanOriginUseCase', () => {
   beforeEach(() => { reader = new FakeReader(); repo = new Repo(); audit.log.mockClear(); });
 
   it('geocodes the address and applies it as the OVERRIDE origin (good, address-level result)', async () => {
-    const { getMy, set } = wire(reader, repo, async () => ({ lat: -33.9, lng: 151.18, placeType: 'address', relevance: 0.95 }));
+    const { getMy, set } = wire(reader, repo, async () => ({ lat: -33.9, lng: 151.18, placeType: 'address', relevance: 0.95, suburb: 'Newtown' }));
     await getMy.execute({ inspectorId: I, date: DATE });
     const res = await set.execute({ inspectorId: I, actorUserId: 'u1', date: DATE, address: ADDRESS });
     expect(res.origin.source).toBe('OVERRIDE');
@@ -87,7 +87,7 @@ describe('SetDayPlanOriginUseCase', () => {
 
   it('O-1: the origin label includes street and number when the address has them', async () => {
     const withNumber: InspectorBaseAddress = { street: 'George St', number: '12', city: 'Sydney', suburb: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' };
-    const { getMy, set } = wire(reader, repo, async () => ({ lat: -33.86, lng: 151.2, placeType: 'address', relevance: 0.95 }));
+    const { getMy, set } = wire(reader, repo, async () => ({ lat: -33.86, lng: 151.2, placeType: 'address', relevance: 0.95, suburb: 'Sydney' }));
     await getMy.execute({ inspectorId: I, date: DATE });
     const res = await set.execute({ inspectorId: I, actorUserId: 'u1', date: DATE, address: withNumber });
     expect(res.origin.label).toBe('12 George St, Sydney NSW 2000');
@@ -124,7 +124,7 @@ describe('SetDayPlanOriginUseCase', () => {
   });
 
   it('idempotent: re-saving the same address on a fresh plan does not re-geocode', async () => {
-    const geocode = vi.fn(async () => ({ lat: -33.9, lng: 151.18, placeType: 'address', relevance: 0.95 }));
+    const geocode = vi.fn(async () => ({ lat: -33.9, lng: 151.18, placeType: 'address', relevance: 0.95, suburb: 'Newtown' }));
     const { getMy, set } = wire(reader, repo, geocode);
     await getMy.execute({ inspectorId: I, date: DATE });
     await set.execute({ inspectorId: I, actorUserId: 'u1', date: DATE, address: ADDRESS });

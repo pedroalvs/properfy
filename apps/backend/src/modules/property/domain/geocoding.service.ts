@@ -1,3 +1,5 @@
+import { normEqualSuburb } from '../../../shared/domain/geocoding-address';
+
 export interface GeocodingResult {
   lat: number;
   lng: number;
@@ -14,6 +16,13 @@ export interface GeocodingResult {
    * {@link GeocodingResult.relevance}.
    */
   placeType?: string;
+  /**
+   * The suburb Mapbox returned for the matched feature (from its `context` —
+   * `locality`, falling back to `place`). {@link classifyGeocodingResult} uses
+   * it to confirm the result lands in the informed suburb. Optional: stub/legacy
+   * sources do not report it.
+   */
+  suburb?: string;
 }
 
 export type GeocodingMode = 'permanent' | 'temporary';
@@ -30,30 +39,41 @@ export type GeocodingDecision =
 
 /**
  * Decide whether a non-null geocoding result is precise enough to store
- * (PR-18, DECISION 12 — rule A). Only a confident, address-level result may be
- * stored:
+ * (DECISION 12 — rule A, final form). An `address`-level result is accepted
+ * only when it is confident AND lands in the informed suburb:
  *
- * - `address` with relevance `>= 0.8` → accepted (the only success case);
+ * - `address` with relevance `>= 0.8` AND `normEqualSuburb(result.suburb,
+ *   expectedSuburb)` → accepted (the only success case);
  * - `address` with relevance `< 0.8` → rejected (`LOW_RELEVANCE`);
+ * - `address` whose returned suburb is missing or differs from the informed
+ *   suburb → rejected, REUSING `LOW_RELEVANCE` (no new reason code);
  * - any other place type (`locality`, `place`, `postcode`, `district`,
- *   `region`, `country`, …) → rejected (`COARSE_RESULT`) — rural and coarse
- *   results require a manual pin.
+ *   `region`, `country`, …) → rejected (`COARSE_RESULT`) — rural/coarse results
+ *   require a manual pin.
  *
- * Real Mapbox always reports `place_type` and `relevance`. A result without a
- * place type (a stub/legacy source or a test double) carries no evidence to
- * reject, so it is accepted — this branch is never reached by a real Mapbox
- * geocode.
+ * `expectedSuburb` is the informed suburb (from the address being geocoded) and
+ * is **mandatory** so no caller forgets to thread it. The suburb gate fails
+ * CLOSED: a missing/empty informed suburb, a missing returned suburb, or a
+ * mismatch all reject an `address` result (Pedro's rule: "no suburb → reject").
+ * A result **without a place type** (stub/legacy source or test double — never a
+ * real Mapbox geocode) never enters the address branch and stays accepted.
  */
-export function classifyGeocodingResult(result: GeocodingResult): GeocodingDecision {
+export function classifyGeocodingResult(
+  result: GeocodingResult,
+  expectedSuburb: string | null | undefined,
+): GeocodingDecision {
   if (result.placeType !== undefined && result.placeType !== 'address') {
     return { accepted: false, reason: 'COARSE_RESULT' };
   }
-  if (
-    result.placeType === 'address' &&
-    typeof result.relevance === 'number' &&
-    result.relevance < MIN_ADDRESS_GEOCODING_RELEVANCE
-  ) {
-    return { accepted: false, reason: 'LOW_RELEVANCE' };
+  if (result.placeType === 'address') {
+    if (typeof result.relevance === 'number' && result.relevance < MIN_ADDRESS_GEOCODING_RELEVANCE) {
+      return { accepted: false, reason: 'LOW_RELEVANCE' };
+    }
+    // `normEqualSuburb` is false when EITHER side is missing/empty, so this fails
+    // CLOSED (reuses LOW_RELEVANCE). Only reached for a genuine `address` result.
+    if (!normEqualSuburb(result.suburb, expectedSuburb)) {
+      return { accepted: false, reason: 'LOW_RELEVANCE' };
+    }
   }
   return { accepted: true };
 }

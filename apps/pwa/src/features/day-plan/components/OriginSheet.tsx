@@ -106,6 +106,15 @@ export function OriginSheet({ open, onOpenChange, date, overrideAddress, onSaved
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // O-12: a stale rejection message must not linger while the user fixes the
+  // address — clear it as soon as any field changes (like every other screen).
+  useEffect(() => {
+    const subscription = form.watch(() => {
+      setServerError((prev) => (prev ? null : prev));
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
   const invalidatePlan = () => queryClient.invalidateQueries({ queryKey: dayPlanKeys.byDate(date) });
 
   const close = () => {

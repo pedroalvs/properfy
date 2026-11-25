@@ -286,7 +286,7 @@ describe('CreateBranchUseCase', () => {
 
     it('2d. rule A: a confident address (>=0.8) still stores coordinates', async () => {
       // Real Mapbox probe: '1 Martin Place, Sydney NSW 2000' → address, relevance=0.894.
-      const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.868, lng: 151.209, placeType: 'address', relevance: 0.894 }) };
+      const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.868, lng: 151.209, placeType: 'address', relevance: 0.894, suburb: 'Suburb' }) };
       const uc = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
 
       await uc.execute({ tenantId: 'tenant-1', name: 'B', address: { ...ADDRESS }, actor: makeActor() });

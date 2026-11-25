@@ -29,15 +29,24 @@ function makeProperty(overrides: Partial<PropertyProps> = {}): PropertyEntity {
 }
 
 describe('PropertyEntity.applyGeocodingResult (PR-18 rule A)', () => {
-  it('sets SUCCESS for a high-relevance address result', () => {
+  it('sets SUCCESS for a high-relevance address result in the matching suburb', () => {
     const p = makeProperty();
-    const result: GeocodingResult = { lat: -33.86, lng: 151.2, placeType: 'address', relevance: 0.95 };
+    const result: GeocodingResult = { lat: -33.86, lng: 151.2, placeType: 'address', relevance: 0.95, suburb: 'Sydney' };
     p.applyGeocodingResult(result, { permanent: true });
     expect(p.geocodingStatus).toBe('SUCCESS');
     expect(p.lat).toBe(-33.86);
     expect(p.lng).toBe(151.2);
     expect(p.geocodedPermanentlyAt).toBeInstanceOf(Date);
     expect(p.geocodingFailureCode).toBeNull();
+  });
+
+  it('sets FAILED + LOW_RELEVANCE for an address returned in a different suburb', () => {
+    const p = makeProperty();
+    const result: GeocodingResult = { lat: -33.86, lng: 151.2, placeType: 'address', relevance: 0.95, suburb: 'North Sydney' };
+    p.applyGeocodingResult(result, { permanent: true });
+    expect(p.geocodingStatus).toBe('FAILED');
+    expect(p.lat).toBeNull();
+    expect(p.geocodingFailureCode).toBe('LOW_RELEVANCE');
   });
 
   it('sets FAILED + LOW_RELEVANCE for an address result with relevance < 0.8', () => {

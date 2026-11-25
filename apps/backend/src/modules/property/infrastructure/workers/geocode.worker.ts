@@ -119,11 +119,13 @@ export class GeocodeWorker {
       return;
     }
 
-    // Rule A (PR-18): only a confident address-level result is a usable
-    // coordinate. A non-address (coarse) result or a low-relevance address is
-    // marked FAILED with the reason code and stores no coordinate.
-    const decision = classifyGeocodingResult(result);
+    // Rule A: only a confident address-level result in the informed suburb is a
+    // usable coordinate. A non-address (coarse) result, a low-relevance address,
+    // or a wrong/missing returned suburb is marked FAILED with the reason code.
+    const decision = classifyGeocodingResult(result, property.suburb);
     if (!decision.accepted) {
+      // CC#3: update ONLY status + code — never lat/lng — so a legacy coordinate
+      // the regeocode kept on a FAILED row survives a re-reject.
       await this.propertyRepo.update(propertyId, property.tenantId, {
         geocodingStatus: 'FAILED',
         geocodingFailureCode: decision.reason,

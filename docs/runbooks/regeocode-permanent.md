@@ -27,6 +27,10 @@ pnpm --filter backend build
 node apps/backend/dist/regeocode-permanent.js --rate=0   # prints an arg error, exits 2 → the artifact bundled & boots
 ```
 
+## Address rule (rule A, final)
+
+A geocode is accepted only when it is an **`address`** with **relevance ≥ 0.8** AND its returned suburb (Mapbox `context` `locality`→`place`) matches the informed suburb (exact after normalizing case/accents/hyphens). A wrong/missing suburb is rejected reusing `LOW_RELEVANCE`; a non-address level is `COARSE_RESULT`. The geocoding **query** also drops an Address Line 2 that merely repeats the street (bad-import shape) — query-only, the stored `address_line_2` is unchanged. The report adds two measurement counters: `lineTwoOmitted` (queries where L2 was dropped) and `rejectedSuburbMismatch` (address rejections caused by the suburb), and each rejected entry records the `returnedSuburb`. A re-reject never deletes an existing legacy coordinate.
+
 ## Cost
 
 Permanent geocoding costs **US$ 0.005 per request, no free tier** (reconfirm the current Mapbox price before each rollout). A dry-run fills `estimatedRequests` in the report:

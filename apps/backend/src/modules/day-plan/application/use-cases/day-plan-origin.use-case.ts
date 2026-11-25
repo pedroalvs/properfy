@@ -130,7 +130,7 @@ export class SetDayPlanOriginUseCase extends DayPlanOriginBase {
     // Rule A (V-4): the day origin must resolve to a confident, address-level
     // result — a postcode/suburb/city match is rejected, not accepted as origin.
     if (!coords) throw dayPlanOriginNotFound('NOT_FOUND');
-    const decision = classifyGeocodingResult(coords);
+    const decision = classifyGeocodingResult(coords, input.address.suburb);
     if (!decision.accepted) throw dayPlanOriginNotFound(decision.reason);
 
     const record = await this.compute.execute({

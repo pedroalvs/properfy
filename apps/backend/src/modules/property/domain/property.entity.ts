@@ -1,5 +1,6 @@
 import { BaseEntity } from '../../../shared/domain/entity';
 import { buildNormalizedAddressKey } from '../../../shared/domain/normalize-address';
+import { dropDuplicateLine2 } from '../../../shared/domain/geocoding-address';
 import type { PropertyType, GeocodingStatus, PropertyRules } from '@properfy/shared';
 import { type GeocodingResult, classifyGeocodingResult } from './geocoding.service';
 
@@ -20,7 +21,11 @@ export interface PropertyAddressFields {
  */
 export function propertyFullAddress(f: PropertyAddressFields): string {
   const parts = [f.street];
-  if (f.addressLine2) parts.push(f.addressLine2);
+  // Route L2 through the single shared dedup helper so this query stays
+  // identical to formatGeocodingQuery(entity) (A≡B lock) and drops a Line 2
+  // that merely repeats the street.
+  const line2 = dropDuplicateLine2(f.street, f.addressLine2);
+  if (line2) parts.push(line2);
   parts.push(f.suburb, f.state, f.postcode, f.country);
   return parts.join(', ');
 }
@@ -132,7 +137,7 @@ export class PropertyEntity extends BaseEntity {
    * future non-permanent caller cannot stamp the marker by accident.
    */
   applyGeocodingResult(result: GeocodingResult | null, options?: { permanent?: boolean }): void {
-    const decision = result ? classifyGeocodingResult(result) : null;
+    const decision = result ? classifyGeocodingResult(result, this.suburb) : null;
     if (result && decision?.accepted) {
       this.lat = result.lat;
       this.lng = result.lng;

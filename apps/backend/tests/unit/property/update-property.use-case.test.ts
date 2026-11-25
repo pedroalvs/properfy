@@ -127,7 +127,7 @@ describe('UpdatePropertyUseCase', () => {
   it('geocodes synchronously and stores SUCCESS (not PENDING) when the new address verifies', async () => {
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
     const geocoder = makeGeocodingService();
-    geocoder.geocode.mockResolvedValue({ lat: -33.87, lng: 151.21, placeType: 'address', relevance: 0.95 });
+    geocoder.geocode.mockResolvedValue({ lat: -33.87, lng: 151.21, placeType: 'address', relevance: 0.95, suburb: 'Sydney' });
     const uc = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger as never, geocoder as never);
 
     const result = await uc.execute({
@@ -390,6 +390,30 @@ describe('UpdatePropertyUseCase', () => {
         actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
       }),
     ).rejects.toThrow(PropertyAddressConflictError);
+    expect(propertyRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('runs the uniqueness pre-check on a Line-2-ONLY change even though the dedup makes the geocode query unchanged → clean 409, not a 500', async () => {
+    // street '123 Main St', L2 null → change L2 to a street-prefixed text. The Line-2
+    // dedup drops it from the geocoding query (addressChanged=false, no re-geocode),
+    // but buildNormalizedAddressKey keeps L2 verbatim → the stored key changes, so a
+    // real collision must surface as PropertyAddressConflictError, not a DB P2002/500.
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    vi.mocked(propertyRepo.findByNormalizedAddress).mockResolvedValue(
+      makeProperty({ id: 'prop-other' }),
+    );
+    const geocoder = makeGeocodingService();
+
+    await expect(
+      new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger as never, geocoder as never).execute({
+        propertyId: 'prop-1',
+        data: { addressLine2: '123 Main St, Sydney' },
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toThrow(PropertyAddressConflictError);
+    // The key change triggered the pre-check without re-geocoding the deduped query.
+    expect(propertyRepo.findByNormalizedAddress).toHaveBeenCalled();
+    expect(geocoder.geocode).not.toHaveBeenCalled();
     expect(propertyRepo.update).not.toHaveBeenCalled();
   });
 

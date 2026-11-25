@@ -117,14 +117,27 @@ describe('geocodeInspectorBase', () => {
     expect(logger.warn).toHaveBeenCalled();
   });
 
-  it('accepts a high-relevance address result (relevance >= 0.8)', async () => {
+  it('accepts a high-relevance address result in the matching suburb (relevance >= 0.8)', async () => {
     const geocoder = makeGeocoder(async () => ({
       lat: -33.86,
       lng: 151.2,
       placeType: 'address',
       relevance: 0.92,
+      suburb: 'Sydney',
     }));
     const result = await geocodeInspectorBase(geocoder, ADDRESS, logger as never, clock);
     expect(result).toEqual({ lat: -33.86, lng: 151.2, geocodedAt: FIXED });
+  });
+
+  it('returns low_relevance when the address lands in a different suburb', async () => {
+    const geocoder = makeGeocoder(async () => ({
+      lat: -33.86,
+      lng: 151.2,
+      placeType: 'address',
+      relevance: 0.92,
+      suburb: 'North Sydney',
+    }));
+    const result = await geocodeInspectorBase(geocoder, ADDRESS, logger as never, clock);
+    expect(result).toEqual({ failed: 'low_relevance' });
   });
 });
