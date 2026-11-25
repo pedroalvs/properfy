@@ -137,7 +137,7 @@ export class PropertyEntity extends BaseEntity {
    * future non-permanent caller cannot stamp the marker by accident.
    */
   applyGeocodingResult(result: GeocodingResult | null, options?: { permanent?: boolean }): void {
-    const decision = result ? classifyGeocodingResult(result, this.suburb) : null;
+    const decision = result ? classifyGeocodingResult(result, this.suburb, this.postcode) : null;
     if (result && decision?.accepted) {
       this.lat = result.lat;
       this.lng = result.lng;

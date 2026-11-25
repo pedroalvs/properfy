@@ -19,8 +19,12 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /** Build the verifyMany input: each entry is [key, query, suburb?]. The suburb
  * defaults to 'Sydney'; bare {lat,lng} doubles (no placeType) are accepted via
  * the no-placeType escape, so the suburb is only material for address doubles. */
-function reqs(entries: Array<readonly [string, string, string?]>): Map<string, { query: string; suburb: string }> {
-  return new Map(entries.map(([key, query, suburb = 'Sydney']) => [key, { query, suburb }]));
+function reqs(
+  entries: Array<readonly [string, string, string?, string?]>,
+): Map<string, { query: string; suburb: string; postcode: string }> {
+  return new Map(
+    entries.map(([key, query, suburb = 'Sydney', postcode = '2000']) => [key, { query, suburb, postcode }]),
+  );
 }
 
 describe('ImportGeocodeVerifier', () => {

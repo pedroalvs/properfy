@@ -148,7 +148,11 @@ export class UpdateBranchUseCase {
         }
         if (!transientFailure) {
           const decision = coords
-            ? classifyGeocodingResult(coords, (clean as unknown as GeocodableAddress).suburb)
+            ? classifyGeocodingResult(
+                coords,
+                (clean as unknown as GeocodableAddress).suburb,
+                (clean as unknown as GeocodableAddress).postcode,
+              )
             : null;
           if (coords && decision?.accepted) {
             updateData.addressJson = { ...clean, latitude: coords.lat, longitude: coords.lng };

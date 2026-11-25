@@ -52,7 +52,7 @@ describe('MapboxGeocodingService', () => {
     expect(result).toEqual({ lat: -33.8, lng: 151.2, relevance: 0.6, placeType: 'postcode', suburb: undefined });
   });
 
-  it('1c. extracts the suburb from context — locality preferred over place', async () => {
+  it('1c. carries locality / place / postcode from context SEPARATELY (O-14 — no longer collapsed)', async () => {
     stubFetch(
       OK({
         features: [
@@ -72,20 +72,58 @@ describe('MapboxGeocodingService', () => {
     );
     const svc = new MapboxGeocodingService('tok');
     const result = await svc.geocode('A');
+    // `suburb` now holds ONLY the locality; place and postcode are separate.
     expect(result?.suburb).toBe('Chatswood');
+    expect(result?.place).toBe('Sydney');
+    expect(result?.postcode).toBe('2067');
   });
 
-  it('1d. falls back to place when there is no locality context', async () => {
+  it('1c-CBD. a CBD address whose locality is a sub-area keeps the place + postcode (O-14 accept path)', async () => {
+    // "100 George St, Sydney 2000": Mapbox returns locality "The Rocks", place "Sydney".
     stubFetch(
       OK({
         features: [
-          { center: [151.2, -33.8], relevance: 0.9, place_type: ['address'], context: [{ id: 'place.3', text: 'Tilpa' }] },
+          {
+            center: [151.2, -33.8],
+            relevance: 0.95,
+            place_type: ['address'],
+            context: [
+              { id: 'locality.2', text: 'The Rocks' },
+              { id: 'place.3', text: 'Sydney' },
+              { id: 'postcode.4', text: '2000' },
+            ],
+          },
         ],
       }),
     );
     const svc = new MapboxGeocodingService('tok');
     const result = await svc.geocode('A');
-    expect(result?.suburb).toBe('Tilpa');
+    expect(result?.suburb).toBe('The Rocks');
+    expect(result?.place).toBe('Sydney');
+    expect(result?.postcode).toBe('2000');
+  });
+
+  it('1d. carries place separately (no longer into suburb) when there is no locality context', async () => {
+    stubFetch(
+      OK({
+        features: [
+          {
+            center: [151.2, -33.8],
+            relevance: 0.9,
+            place_type: ['address'],
+            context: [
+              { id: 'place.3', text: 'Tilpa' },
+              { id: 'postcode.4', text: '2840' },
+            ],
+          },
+        ],
+      }),
+    );
+    const svc = new MapboxGeocodingService('tok');
+    const result = await svc.geocode('A');
+    expect(result?.suburb).toBeUndefined();
+    expect(result?.place).toBe('Tilpa');
+    expect(result?.postcode).toBe('2840');
   });
 
   it('2. explicit permanent mode behaves like the default', async () => {
