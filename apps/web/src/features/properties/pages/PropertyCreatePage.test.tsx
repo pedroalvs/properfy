@@ -283,6 +283,21 @@ describe('PropertyCreatePage', () => {
       expect(screen.getByLabelText('Longitude')).toBeInTheDocument();
     });
 
+    it('clears the error block and field marks once a COMPLETE manual pin is entered (polish b)', async () => {
+      mock422('COARSE_RESULT');
+      await fillAndSubmit();
+      await waitFor(() => screen.getByRole('alert'));
+      fireEvent.click(screen.getByText('Set location manually'));
+      // Only latitude (incomplete pin) → the error is still shown.
+      fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '-33.4521' } });
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getByLabelText('Street')).toHaveAttribute('aria-invalid', 'true');
+      // Complete the pair → the error block and the field marks disappear.
+      fireEvent.change(screen.getByLabelText('Longitude'), { target: { value: '150.6612' } });
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Street')).not.toHaveAttribute('aria-invalid', 'true');
+    });
+
     it('clears the error block when an address field is corrected', async () => {
       mock422('COARSE_RESULT');
       await fillAndSubmit();

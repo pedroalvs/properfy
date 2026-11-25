@@ -98,6 +98,16 @@ export function PropertyCreatePage() {
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
 
+  // A complete manual pin means the address text is no longer validated, so the
+  // verification error disappears (reactive — polish b). Clearing a coordinate
+  // brings it back.
+  const manualPinComplete =
+    form.latitude.trim() !== '' &&
+    form.longitude.trim() !== '' &&
+    (form.latitude.trim() !== initialData.latitude.trim() ||
+      form.longitude.trim() !== initialData.longitude.trim());
+  const showAddressError = addressError !== null && !manualPinComplete;
+
   const updateField = useCallback(
     <K extends keyof PropertyFormData>(field: K, value: PropertyFormData[K]) => {
       setForm((prev) => ({ ...prev, [field]: value }));
@@ -269,7 +279,7 @@ export function PropertyCreatePage() {
             </FormSection>
 
             <FormSection title="Address" columns={2}>
-              {addressError && (
+              {addressError && !manualPinComplete && (
                 <div className="md:col-span-2">
                   <AddressNotVerifiedAlert
                     reason={addressError}
@@ -303,7 +313,7 @@ export function PropertyCreatePage() {
                   ref={streetRef}
                   value={form.street}
                   onChange={(v) => updateField('street', v)}
-                  error={!!errors.street || addressError !== null}
+                  error={!!errors.street || showAddressError}
                   aria-label="Street"
                 />
               </FormField>
@@ -318,7 +328,7 @@ export function PropertyCreatePage() {
                 <TextInput
                   value={form.suburb}
                   onChange={(v) => updateField('suburb', v)}
-                  error={!!errors.suburb || addressError !== null}
+                  error={!!errors.suburb || showAddressError}
                   aria-label="Suburb"
                 />
               </FormField>
@@ -326,7 +336,7 @@ export function PropertyCreatePage() {
                 <TextInput
                   value={form.postcode}
                   onChange={(v) => updateField('postcode', v)}
-                  error={!!errors.postcode || addressError !== null}
+                  error={!!errors.postcode || showAddressError}
                   aria-label="Postcode"
                 />
               </FormField>
@@ -336,7 +346,7 @@ export function PropertyCreatePage() {
                   onChange={(v) => updateField('state', v)}
                   options={STATE_OPTIONS}
                   placeholder="Select state"
-                  error={!!errors.state || addressError !== null}
+                  error={!!errors.state || showAddressError}
                   aria-label="State"
                 />
               </FormField>
@@ -350,15 +360,8 @@ export function PropertyCreatePage() {
             </FormSection>
 
             {showManualPin && (
-              <FormSection
-                title="Coordinates"
-                columns={2}
-              >
-                <FormField
-                  label="Latitude"
-                  className="md:col-span-2"
-                  hint="Use only when the address can't be located. The address text is kept as typed and the location is marked as set manually."
-                >
+              <FormSection title="Coordinates" columns={2}>
+                <FormField label="Latitude">
                   <TextInput
                     value={form.latitude}
                     onChange={(v) => updateField('latitude', v)}
@@ -374,6 +377,10 @@ export function PropertyCreatePage() {
                     aria-label="Longitude"
                   />
                 </FormField>
+                <p className="text-sm text-text-muted md:col-span-2">
+                  Use only when the address can&apos;t be located. The address text is kept as typed and the
+                  location is marked as set manually.
+                </p>
               </FormSection>
             )}
 

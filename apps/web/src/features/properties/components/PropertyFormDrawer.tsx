@@ -138,6 +138,15 @@ export function PropertyFormDrawer({
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
 
+  // A complete manual pin stops the address from being validated, so the
+  // verification error disappears (reactive — polish b); clearing a coord returns it.
+  const manualPinComplete =
+    form.latitude.trim() !== '' &&
+    form.longitude.trim() !== '' &&
+    (form.latitude.trim() !== initialData.latitude.trim() ||
+      form.longitude.trim() !== initialData.longitude.trim());
+  const showAddressError = addressError !== null && !manualPinComplete;
+
   const updateField = useCallback(
     <K extends keyof PropertyFormData>(field: K, value: PropertyFormData[K]) => {
       setForm((prev) => ({ ...prev, [field]: value }));
@@ -312,7 +321,7 @@ export function PropertyFormDrawer({
                         <InfoBanner variant="warning">{ADDRESS_LEGACY_UNVERIFIED_MESSAGE}</InfoBanner>
                       </div>
                     )}
-                    {addressError && (
+                    {addressError && !manualPinComplete && (
                       <div className="md:col-span-2">
                         <AddressNotVerifiedAlert
                           reason={addressError}
@@ -346,7 +355,7 @@ export function PropertyFormDrawer({
                         ref={streetRef}
                         value={form.street}
                         onChange={(v) => updateField('street', v)}
-                        error={!!errors.street || addressError !== null}
+                        error={!!errors.street || showAddressError}
                         aria-label="Street"
                       />
                     </FormField>
@@ -361,7 +370,7 @@ export function PropertyFormDrawer({
                       <TextInput
                         value={form.suburb}
                         onChange={(v) => updateField('suburb', v)}
-                        error={!!errors.suburb || addressError !== null}
+                        error={!!errors.suburb || showAddressError}
                         aria-label="Suburb"
                       />
                     </FormField>
@@ -369,7 +378,7 @@ export function PropertyFormDrawer({
                       <TextInput
                         value={form.postcode}
                         onChange={(v) => updateField('postcode', v)}
-                        error={!!errors.postcode || addressError !== null}
+                        error={!!errors.postcode || showAddressError}
                         aria-label="Postcode"
                       />
                     </FormField>
@@ -379,7 +388,7 @@ export function PropertyFormDrawer({
                         onChange={(v) => updateField('state', v)}
                         options={STATE_OPTIONS}
                         placeholder="Select state"
-                        error={!!errors.state || addressError !== null}
+                        error={!!errors.state || showAddressError}
                         aria-label="State"
                       />
                     </FormField>
@@ -439,15 +448,7 @@ export function PropertyFormDrawer({
 
                   {(isEditMode || showManualPin) && (
                     <FormSection title="Coordinates" columns={2}>
-                      <FormField
-                        label="Latitude"
-                        hint={
-                          isEditMode
-                            ? 'Optional. Manually override geocoded coordinates.'
-                            : "Use only when the address can't be located. The address text is kept as typed and the location is marked as set manually."
-                        }
-                        error={errors.latitude}
-                      >
+                      <FormField label="Latitude" error={errors.latitude}>
                         <TextInput
                           value={form.latitude}
                           onChange={(v) => updateField('latitude', v)}
@@ -455,10 +456,7 @@ export function PropertyFormDrawer({
                           aria-label="Latitude"
                         />
                       </FormField>
-                      <FormField
-                        label="Longitude"
-                        error={errors.longitude}
-                      >
+                      <FormField label="Longitude" error={errors.longitude}>
                         <TextInput
                           value={form.longitude}
                           onChange={(v) => updateField('longitude', v)}
@@ -466,6 +464,11 @@ export function PropertyFormDrawer({
                           aria-label="Longitude"
                         />
                       </FormField>
+                      <p className="text-sm text-text-muted md:col-span-2">
+                        {isEditMode
+                          ? 'Optional. Manually override geocoded coordinates.'
+                          : "Use only when the address can't be located. The address text is kept as typed and the location is marked as set manually."}
+                      </p>
                     </FormSection>
                   )}
 
