@@ -167,6 +167,14 @@ export function buildPayload(
   return toSchemaPayload(data, 'edit', undefined, { initial, geocodingStatus }) as Record<string, unknown>;
 }
 
+/**
+ * Reuses the server's exact copy from `createPropertySchema`'s superRefine
+ * (packages/shared/src/schemas/property.ts). `toSchemaPayload` omits an incomplete
+ * manual pin, and `updatePropertySchema` has no such refine, so the schema parse
+ * never flags a lone coordinate — `validate` checks it explicitly for both modes.
+ */
+const LAT_LNG_TOGETHER_MESSAGE = 'latitude and longitude must be provided together';
+
 function isRequiredError(issue: { code?: string; message: string }): boolean {
   return issue.code === 'invalid_type' || issue.message === 'Required';
 }
@@ -236,6 +244,16 @@ export function usePropertySave(): UsePropertySaveReturn {
       if (!data.suburb.trim()) errors.suburb = errors.suburb ?? 'Required field';
       if (!data.postcode.trim()) errors.postcode = errors.postcode ?? 'Required field';
       if (!data.state) errors.state = errors.state ?? 'Required field';
+    }
+    // Manual pin: an INCOMPLETE lat/lng pair must block submission and mark the
+    // MISSING field (otherwise the lone coordinate is silently dropped and the user
+    // only sees the address error again). Out-of-range values are caught by the
+    // schema above when both are filled.
+    const latFilled = data.latitude.trim() !== '';
+    const lngFilled = data.longitude.trim() !== '';
+    if (latFilled !== lngFilled) {
+      const missingField = latFilled ? 'longitude' : 'latitude';
+      errors[missingField] = errors[missingField] ?? LAT_LNG_TOGETHER_MESSAGE;
     }
     return errors;
   }, []);

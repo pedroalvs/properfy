@@ -306,6 +306,26 @@ describe('PropertyCreatePage', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       expect(screen.getByLabelText('Street')).not.toHaveAttribute('aria-invalid', 'true');
     });
+
+    it('blocks the submit and marks the missing coordinate when only latitude is filled (V-1)', async () => {
+      mock422('COARSE_RESULT');
+      await fillAndSubmit();
+      await waitFor(() => screen.getByRole('alert'));
+      fireEvent.click(screen.getByText('Set location manually'));
+      const mockPost = api.POST as ReturnType<typeof vi.fn>;
+      expect(mockPost).toHaveBeenCalledTimes(1); // the initial address-verification submit
+
+      // Fill ONLY latitude, then submit again — the incomplete pair must block.
+      fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '-33.4521' } });
+      fireEvent.click(screen.getByText('Create Property'));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Longitude')).toHaveAttribute('aria-invalid', 'true');
+      });
+      expect(screen.getByText('latitude and longitude must be provided together')).toBeInTheDocument();
+      // No second request: submission was blocked before the POST (no silent drop).
+      expect(mockPost).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('keeps the pre-filled branch under React StrictMode (no reset-effect regression)', async () => {

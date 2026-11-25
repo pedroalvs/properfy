@@ -453,6 +453,7 @@ export function PropertyFormDrawer({
                           value={form.latitude}
                           onChange={(v) => updateField('latitude', v)}
                           placeholder="-33.8688"
+                          error={!!errors.latitude}
                           aria-label="Latitude"
                         />
                       </FormField>
@@ -461,6 +462,7 @@ export function PropertyFormDrawer({
                           value={form.longitude}
                           onChange={(v) => updateField('longitude', v)}
                           placeholder="151.2093"
+                          error={!!errors.longitude}
                           aria-label="Longitude"
                         />
                       </FormField>

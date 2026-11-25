@@ -361,19 +361,21 @@ export function PropertyCreatePage() {
 
             {showManualPin && (
               <FormSection title="Coordinates" columns={2}>
-                <FormField label="Latitude">
+                <FormField label="Latitude" error={errors.latitude}>
                   <TextInput
                     value={form.latitude}
                     onChange={(v) => updateField('latitude', v)}
                     placeholder="-33.4521"
+                    error={!!errors.latitude}
                     aria-label="Latitude"
                   />
                 </FormField>
-                <FormField label="Longitude">
+                <FormField label="Longitude" error={errors.longitude}>
                   <TextInput
                     value={form.longitude}
                     onChange={(v) => updateField('longitude', v)}
                     placeholder="150.6612"
+                    error={!!errors.longitude}
                     aria-label="Longitude"
                   />
                 </FormField>

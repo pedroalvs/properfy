@@ -74,6 +74,37 @@ describe('usePropertySave', () => {
     expect(Object.keys(errors)).toHaveLength(0);
   });
 
+  it('validate blocks an incomplete manual pin (only latitude) and marks the missing longitude (V-1)', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
+    const errors = result.current.validate({ ...VALID_CREATE_DATA, latitude: '-33.8688', longitude: '' }, 'create');
+    expect(errors.longitude).toBe('latitude and longitude must be provided together');
+    expect(errors.latitude).toBeUndefined();
+  });
+
+  it('validate blocks an incomplete manual pin (only longitude) and marks the missing latitude, in edit mode too (V-1)', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
+    const errors = result.current.validate({ ...VALID_CREATE_DATA, latitude: '', longitude: '151.2093' }, 'edit');
+    expect(errors.latitude).toBe('latitude and longitude must be provided together');
+    expect(errors.longitude).toBeUndefined();
+  });
+
+  it('validate marks an out-of-range coordinate when both are filled (V-1)', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
+    const errors = result.current.validate({ ...VALID_CREATE_DATA, latitude: '999', longitude: '151.2' }, 'create');
+    expect(errors.latitude).toBeDefined();
+  });
+
+  it('validate passes a complete, in-range manual pin', () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => usePropertySave(), { wrapper });
+    const errors = result.current.validate({ ...VALID_CREATE_DATA, latitude: '-33.8688', longitude: '151.2093' }, 'create');
+    expect(errors.latitude).toBeUndefined();
+    expect(errors.longitude).toBeUndefined();
+  });
+
   it('create payload sends apartmentNumber only for APARTMENT type', async () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => usePropertySave(), { wrapper });
