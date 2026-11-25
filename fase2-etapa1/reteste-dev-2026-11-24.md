@@ -643,7 +643,7 @@ Capturas: `45-retry-pending.jpg`, `45-brighton-aceito.jpg`, `45-penshurst-recusa
 ### Observações novas
 
 - **O-14 — Sugestão da busca verificada pode ser recusada.** "30 Bridge Street, Sydney NSW 2000", escolhido na própria lista da busca, foi recusado (422 `LOW_RELEVANCE`, 06:17:18 UTC; confirmado pela API, também como "30 Bridge St"). O mesmo com "346 Military Road, Mosman 2088" no item 28. O usuário escolhe uma sugestão e recebe "doesn't match a known address". **Explicada pelo coordenador (07:10 UTC):** corpo exato da tela (07:04:39 UTC, imóvel dentro do agendamento: `street "30 Bridge Street"`, `suburb "Sydney"`, `postcode "2000"`, `state "NSW"`, `country "AU"`, Line 2 omitido) → 422 `ADDRESS_NOT_VERIFIED`/`LOW_RELEVANCE`; reenviado pela API, mesmo resultado. Com esse pedido o mapa devolve "30 Bridge Street" em Rydalmere 2116 (0,99), então a recusa é correta: lacuna do mapa, caminho = "Set location manually". 346 Military Road, Mosman 2088 (PATCH do PROP-0027; reenvio por POST na agência Melbourne às 07:06:19 UTC) → mesmo 422 `LOW_RELEVANCE`.
-- **O-15 — City Office não ganhou coordenada ao salvar.** Depois do save do item 14 continua sem latitude/longitude, enquanto a North Shore Office ganhou às 05:27. Sem erro na tela.
+- **O-15 — City Office não ganhou coordenada ao salvar.** (Resolvida pelo #1409, 14:18 UTC.) Depois do save do item 14 continua sem latitude/longitude, enquanto a North Shore Office ganhou às 05:27. Sem erro na tela.
 - **O-16 — Aviso de distância só no web.** No item 37, o cartão do app fez check-in e check-out a 1 km sem nenhum aviso; o desvio só aparece no web e no Live Day.
 - **O-17 — Linha do Live Day no primeiro clique.** Ver item 38.
 - **O-18 — Notes da agência descartado.** Ver item 42 (anterior a esta onda).
@@ -681,3 +681,29 @@ DEV web em `c1818671` (#1408). Pela tela, como AM. Endereço recusado usado: "12
 Engano meu, sem efeito no resultado: às 07:12:26 cliquei "Save" com a gaveta de edição do PROP-0029 ainda fechada. Foi um PATCH sem nenhuma alteração (200), que disparou nova localização em segundo plano (continua FAILED, sem coordenada). A repetição correta, às 07:13:59, é a linha (e).
 
 Dados criados: PROP-0033 (12 Main Street, Faketown NSW 2999, MANUAL -33.5012 / 150.6713).
+
+### Reteste da regra do subúrbio com a correção #1409 — 25/11/2026 (14:18–14:26 UTC)
+
+DEV servidor em `8a06f538` (#1409, release v130 do `properfy-api-dev`). Pela tela, como AM no web e Lisa no app. Agência Sydney Property Services. Os endereços foram digitados nos campos estruturados.
+
+| # | Caso | Resultado | Evidência |
+|---|---|---|---|
+| 1 | City Office (100 George St, Sydney NSW 2000) → Edit Branch → Save sem mexer | PASSOU — "Branch updated successfully"; **ganhou coordenada** -33.858204 / 151.209379 (antes nula). **O-15 resolvida** | `r1409-1-city-office-salva.jpg` |
+| 2a | Criar "100 George Street, Sydney NSW 2000" | PASSOU — PROP-0034 `SUCCESS` -33.858204 / 151.209379 | `r1409-2-100-george-prop0034.jpg` |
+| 2b | Criar "35 Hickson Road, Sydney NSW 2000" | PASSOU — PROP-0035 `SUCCESS` -33.85561 / 151.209146 | `r1409-2-35-hickson-prop0035.jpg` |
+| 3 | "30 Bridge Street, Sydney NSW 2000" | PASSOU — recusado (bloco vermelho, campos marcados); "Set location manually" -33.8636 / 151.2104 → PROP-0036 `MANUAL` | `r1409-3-30-bridge-recusado.jpg`, `r1409-3-30-bridge-manual-prop0036.jpg` |
+| 4 | "14 Miller Street, Sydney NSW 2000" | PASSOU — recusado, nada salvo | `r1409-4-14-miller-recusado.jpg` |
+| 5 | "200 George Street, Sydney NSW 3000" / com 2000 | PASSOU — 3000 recusado (14:21:41), nada salvo; 2000 aceito, PROP-0037 `SUCCESS` -33.862599 / 151.207914 (14:21:16; a ordem ficou invertida: o caso 2000 foi feito primeiro) | `r1409-5-200-george-3000-recusado.jpg`, `r1409-5-200-george-2000-prop0037.jpg` |
+| 6a | "Retry Geocoding" em IMP-6238CD8E93 (Penshurst) e SPS-006 | PASSOU — os dois continuam `FAILED` `LOW_RELEVANCE` (0,825 às 14:22:13; 0,78 às 14:22:28), coordenadas antigas mantidas (-33.960835 / 151.086088; -33.7969 / 151.1803) | `r1409-6-sps006.jpg` |
+| 6b | Um dos 6 aceitos | PASSOU — IMP-2A412183A9 (Brighton-le-sands) continua `SUCCESS` -33.960706 / 151.152431; sem botão de Retry (status SUCCESS) | `r1409-6-brighton-success.jpg` |
+| 6c | Base do inspetor (web, Carlos) → 35 Hickson Road, Sydney 2000 | PASSOU — "Inspector updated successfully", base -33.85561 / 151.209146 | `r1409-6-base-carlos-salva.jpg` |
+| 6d | "Start this day from" (app, Lisa, 26/11) → 100 George Street, Sydney NSW 2000 | PASSOU — "Starting from: 100 George Street, Sydney NSW 2000 (this day only)", rota recalculada (33 min); depois "Use my base address" → de volta a 100 Market Street | `r1409-6-origem-100-george.jpg` |
+
+**Contagem: 10 de 10 passaram.**
+
+Alterações em DEV:
+- Imóveis criados: PROP-0034 (100 George St), PROP-0035 (35 Hickson Rd), PROP-0036 (30 Bridge St, MANUAL) e PROP-0037 (200 George St).
+- City Office: agora com coordenada.
+- Carlos: base trocada de 345 Military Rd, Mosman para 35 Hickson Road, Sydney (não revertida).
+- Plano da Lisa de 26/11: origem trocada e devolvida à base.
+- Retry em Penshurst e SPS-006: continuam FAILED.
