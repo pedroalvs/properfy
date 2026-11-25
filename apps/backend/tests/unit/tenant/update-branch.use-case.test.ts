@@ -318,6 +318,33 @@ describe('UpdateBranchUseCase', () => {
       expect(updatePayload().geocodedPermanentlyAt).toBeInstanceOf(Date);
     });
 
+    it('3b. V10: editing another field on a legacy branch (null marker, unlocatable address) with the SAME address saves without coords, never 422', async () => {
+      vi.mocked(branchRepo.findById).mockResolvedValue(
+        makeBranch({ name: 'Old Name', addressJson: { ...OLD_ADDRESS }, geocodedPermanentlyAt: null }),
+      );
+      // The drawer resends the address unchanged; the permanent geocoder still can't
+      // locate it (coarse). This must not block a name/email edit.
+      const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.81, lng: 151.0, placeType: 'place', relevance: 0.6 }) };
+      const uc = new UpdateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
+
+      await expect(
+        uc.execute({
+          tenantId: 'tenant-1',
+          branchId: 'branch-1',
+          data: {
+            name: 'New Name',
+            address: { street: '1 Main St', suburb: 'Parramatta', state: 'NSW', postcode: '2150', country: 'AU' },
+          },
+          actor: makeActor(),
+        }),
+      ).resolves.toBeDefined();
+
+      const payload = updatePayload();
+      expect(payload.name).toBe('New Name');
+      expect(payload.addressJson).not.toHaveProperty('latitude');
+      expect(payload.geocodedPermanentlyAt).toBeNull();
+    });
+
     it('4. does not geocode or touch address when only the name changes', async () => {
       vi.mocked(branchRepo.findById).mockResolvedValue(
         makeBranch({ addressJson: { ...OLD_ADDRESS }, geocodedPermanentlyAt: new Date() }),

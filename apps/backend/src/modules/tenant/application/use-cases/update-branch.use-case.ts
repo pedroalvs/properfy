@@ -101,13 +101,18 @@ export class UpdateBranchUseCase {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.contactEmail !== undefined) updateData.contactEmail = data.contactEmail;
 
-    // Address write rules (X02-1, dec. 20):
+    // Address write rules (X02-1 dec. 20, V-2 dec. V10):
     // - address absent: do not touch address_json or the marker.
     // - address unchanged (isSameGeocodingAddress) and marker present: keep the
     //   stored coordinates (copy them into the new JSON) and the marker, no Mapbox.
-    // - address changed, or unchanged with a null marker: geocode in permanent mode.
-    //   On success write coords + marker=now; on null/error/timeout write the JSON
-    //   WITHOUT coords and an explicit null marker. A failure never fails the save.
+    // - address CHANGED: geocode in permanent mode. Accepted (rule A) → write coords
+    //   + marker=now. Rejected (null/coarse/low-relevance) → 422 ADDRESS_NOT_VERIFIED,
+    //   nothing written (V-2; branches have no manual pin). Timeout/transient/account
+    //   error → write the JSON WITHOUT coords and a null marker (V4).
+    // - address unchanged with a NULL marker (legacy / pre-X02 / #1394 saved without
+    //   coords): try to geocode. Accepted → add coords + marker. Rejected/null →
+    //   save WITHOUT coords, NO error, so other fields stay editable (V10). Only an
+    //   address that actually changed can be rejected.
     if (data.address) {
       const { latitude: _lat, longitude: _lng, ...clean } = data.address;
       const oldAddress = (branch.addressJson ?? {}) as unknown as GeocodableAddress;
@@ -142,17 +147,29 @@ export class UpdateBranchUseCase {
           }
         }
         if (!transientFailure) {
-          // V-2: a definitive geocode that fails rule A is rejected on save (422,
-          // nothing stored). Only a timeout/transient error saves without coords.
-          if (coords === null || coords === undefined) {
-            throw new BranchAddressNotVerifiedError('NOT_FOUND');
+          const decision = coords ? classifyGeocodingResult(coords) : null;
+          if (coords && decision?.accepted) {
+            updateData.addressJson = { ...clean, latitude: coords.lat, longitude: coords.lng };
+            updateData.geocodedPermanentlyAt = new Date();
+          } else if (!sameAddress) {
+            // V-2: a CHANGED address that fails rule A is rejected on save (422,
+            // nothing stored) — branches have no manual pin, so the escape is fixing
+            // the text. Only a timeout/transient error saves without coords.
+            throw new BranchAddressNotVerifiedError(
+              decision && !decision.accepted ? decision.reason : 'NOT_FOUND',
+            );
+          } else {
+            // V10: the address did NOT change (a legacy re-geocode of a row with a
+            // null marker — pre-X02, or saved without coords by #1394). A rejected/
+            // null result must never block an edit of other fields, so save WITHOUT
+            // coordinates and no error, exactly as before V-2.
+            updateData.addressJson = clean;
+            updateData.geocodedPermanentlyAt = null;
+            this.logger?.warn(
+              { branchId, tenantId, reason: decision && !decision.accepted ? decision.reason : 'no_results' },
+              'branch.geocode_failed_saved_without_coordinates',
+            );
           }
-          const decision = classifyGeocodingResult(coords);
-          if (!decision.accepted) {
-            throw new BranchAddressNotVerifiedError(decision.reason);
-          }
-          updateData.addressJson = { ...clean, latitude: coords.lat, longitude: coords.lng };
-          updateData.geocodedPermanentlyAt = new Date();
         }
       } else {
         // No geocoder available: store the address without coordinates.
