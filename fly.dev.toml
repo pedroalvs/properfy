@@ -32,11 +32,10 @@ primary_region = 'iad'
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  # Let the DEV machine stop when idle (nights/weekends) so pg-boss polling and
-  # the /ready health check stop too — the main egress saver on the Free plan.
-  # Trade-off: first request after idle cold-starts (~seconds) and scheduled
-  # jobs do not run while stopped (acceptable for DEV). auto_start brings it back.
-  min_machines_running = 0
+  # Idle-shutdown (min_machines_running = 0) deferred until after 2026-11-30:
+  # during the retest window the DEV machine must stay up so scheduled jobs run
+  # (19:30 Sydney publish, morning notice/sweep, rewards & bonus).
+  min_machines_running = 1
   processes = ['app']
 
 [[http_service.checks]]
