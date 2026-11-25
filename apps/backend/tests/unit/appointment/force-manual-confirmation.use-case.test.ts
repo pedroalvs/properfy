@@ -345,3 +345,55 @@ describe('ForceManualTenantConfirmationUseCase – audit log', () => {
     });
   });
 });
+
+// =============================================================================
+// O-11 — cycle-service path: idempotent, and a confirm failure is no longer
+// swallowed. force-manual performs NO status transition, so there is nothing
+// committed to be left inconsistent with a failed confirm; a retry is safe
+// because confirm() is idempotent (already-CONFIRMED is a no-op, a missing cycle
+// is created atomically).
+// =============================================================================
+
+describe('ForceManualTenantConfirmationUseCase – O-11 cycle service', () => {
+  function makeUseCaseWithCycle(confirm: ReturnType<typeof vi.fn>) {
+    return new ForceManualTenantConfirmationUseCase(
+      appointmentRepo as any,
+      auditService as any,
+      new AuthorizationService(auditService as any),
+      { confirm } as any,
+    );
+  }
+
+  const INPUT = {
+    appointmentId: 'appt-1',
+    rentalTenantConfirmationStatus: 'CONFIRMED' as const,
+    reason: 'Tenant confirmed verbally',
+    actor: makeActor('AM'),
+  };
+
+  it('confirms via the cycle service and is safe to repeat (idempotent, no denorm fallback)', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations());
+    const confirm = vi.fn().mockResolvedValue(undefined);
+    const uc = makeUseCaseWithCycle(confirm);
+
+    await uc.execute(INPUT);
+    await uc.execute(INPUT); // repeating is safe — confirm() is idempotent
+
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(confirm).toHaveBeenCalledWith('appt-1', 'tenant-1', 'OPERATOR_FORCED', null);
+    // No denorm-only fallback write when the cycle service is wired (O-11).
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('propagates a confirm failure instead of swallowing it into a fake success', async () => {
+    appointmentRepo.findById.mockResolvedValue(makeWithRelations());
+    const confirm = vi.fn().mockRejectedValue(new Error('db down'));
+    const uc = makeUseCaseWithCycle(confirm);
+
+    await expect(uc.execute(INPUT)).rejects.toThrow('db down');
+    // The old empty catch{} turned this into a success + denorm write; now nothing
+    // is committed (no denorm write, no confirmation audit), so a retry is clean.
+    expect(appointmentRepo.update).not.toHaveBeenCalled();
+    expect(auditService.log).not.toHaveBeenCalled();
+  });
+});

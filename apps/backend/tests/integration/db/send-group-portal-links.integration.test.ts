@@ -690,6 +690,18 @@ describe('group Send portal link — real DB', () => {
       { appointmentId, status: 'DATE_CHANGED_RESENT' },
       36,
     );
+    // O-11 (C): the group resend of a stale CONFIRMED writes an appointment-level
+    // reset audit with the operator + the group cause (the web timeline shows it).
+    const resetAudit = (auditService.log as ReturnType<typeof vi.fn>).mock.calls
+      .map(([entry]) => entry)
+      .find((entry) => entry.action === 'appointment.rental_tenant_confirmation_reset');
+    expect(resetAudit).toMatchObject({
+      entityType: 'Appointment',
+      entityId: appointmentId,
+      before: { rentalTenantConfirmationStatus: 'CONFIRMED' },
+      after: { rentalTenantConfirmationStatus: 'PENDING' },
+      metadata: { cause: 'GROUP_PORTAL_LINK_RESEND' },
+    });
   });
 
   it('serializes concurrent SEND_AFTER_RESET requests against the current cycle before minting', async () => {

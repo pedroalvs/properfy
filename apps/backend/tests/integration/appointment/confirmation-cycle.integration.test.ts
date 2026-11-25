@@ -29,6 +29,13 @@ import { setupDbHarness, teardownDbHarness, type DbHarness } from '../db/harness
 import { PrismaConfirmationCycleRepository } from '../../../src/modules/appointment/infrastructure/prisma-confirmation-cycle.repository';
 import { PrismaClient } from '@prisma/client';
 import { ConfirmationCycleService } from '../../../src/modules/appointment/application/services/confirmation-cycle.service';
+import { PrismaAppointmentRepository } from '../../../src/modules/appointment/infrastructure/prisma-appointment.repository';
+import { PrismaTenantRepository } from '../../../src/modules/tenant/infrastructure/prisma-tenant.repository';
+import { GeneratePortalTokenUseCase } from '../../../src/modules/rental-tenant-portal/application/use-cases/generate-portal-token.use-case';
+import { PrismaRentalTenantPortalTokenRepository } from '../../../src/modules/rental-tenant-portal/infrastructure/prisma-rental-tenant-portal-token.repository';
+import { MintPortalTokenService } from '../../../src/modules/rental-tenant-portal/domain/mint-portal-token.service';
+import { TokenService } from '../../../src/modules/rental-tenant-portal/domain/token.service';
+import type { AuthContext } from '@properfy/shared';
 
 let harness: DbHarness;
 let cycleRepo: PrismaConfirmationCycleRepository;
@@ -302,5 +309,64 @@ describe('O-11 — portal link/confirm never resets a confirmation without a cyc
     const cycles = await harness.prisma.appointmentConfirmationCycle.findMany({ where: { appointment_id: appointmentId } });
     expect(cycles).toHaveLength(1);
     expect(cycles[0]?.status).toBe('CONFIRMED');
+  });
+});
+
+const AM_ACTOR: AuthContext = { userId: 'user-op', tenantId: null, role: 'AM', branchId: null, inspectorId: null };
+
+/** Real GeneratePortalTokenUseCase wired to the shared cycleService (auditMock). */
+function makeGeneratePortalToken(): GeneratePortalTokenUseCase {
+  const tokenRepo = new PrismaRentalTenantPortalTokenRepository(harness.prisma);
+  const createNotification = { execute: vi.fn().mockResolvedValue({ notificationId: 'n1', created: true }) };
+  return new GeneratePortalTokenUseCase(
+    tokenRepo,
+    new PrismaAppointmentRepository(harness.prisma),
+    new PrismaTenantRepository(harness.prisma),
+    new MintPortalTokenService(tokenRepo, new TokenService()),
+    auditMock as never,
+    'https://portal.test',
+    createNotification as never,
+    cycleService,
+    harness.prisma as PrismaClient,
+  );
+}
+
+/**
+ * O-11 — the single-link triggers (Send Portal Link, Generate and copy, and the
+ * bulk resend, which loops this same use case) must ADOPT a CONFIRMED-without-cycle
+ * appointment through the real GeneratePortalTokenUseCase, never reset it.
+ */
+describe('O-11 — single-link triggers adopt a CONFIRMED-without-cycle appointment (real use case)', () => {
+  it.each([
+    ['Send Portal Link (notify)', true],
+    ['Generate and copy (notify:false)', false],
+  ])('%s stays CONFIRMED, mints a token + CONFIRMED cycle, writes NO reset audit', async (_label, notify) => {
+    const { appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'CONFIRMED');
+    auditMock.log.mockClear();
+
+    await makeGeneratePortalToken().execute({ appointmentId, actor: AM_ACTOR, notify });
+
+    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+    expect(appt?.rental_tenant_confirmation_status).toBe('CONFIRMED');
+    const cycle = await harness.prisma.appointmentConfirmationCycle.findFirst({ where: { appointment_id: appointmentId } });
+    expect(cycle?.status).toBe('CONFIRMED');
+    expect(appt?.active_confirmation_cycle_id).toBe(cycle?.id);
+    expect(await harness.prisma.rentalTenantPortalToken.count({ where: { appointment_id: appointmentId } })).toBe(1);
+    const resetAudits = auditMock.log.mock.calls.filter(
+      ([e]: [{ action: string }]) => e.action === 'appointment.rental_tenant_confirmation_reset',
+    );
+    expect(resetAudits).toHaveLength(0);
+  });
+
+  // Consequence: an adopted CONFIRMED appointment is excluded from the T-1
+  // reject-unconfirmed query (so no TENANT_NO_RESPONSE) and, being CONFIRMED,
+  // reminders/escalations stay suspended — both read the same status.
+  it('is excluded from findUnconfirmedForDate after a link is generated (no T-1 rejection)', async () => {
+    const { appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'CONFIRMED');
+    await makeGeneratePortalToken().execute({ appointmentId, actor: AM_ACTOR, notify: false });
+
+    const apptRepo = new PrismaAppointmentRepository(harness.prisma);
+    const unconfirmed = await apptRepo.findUnconfirmedForDate(new Date('2026-07-01'));
+    expect(unconfirmed.map((a) => a.id)).not.toContain(appointmentId);
   });
 });
