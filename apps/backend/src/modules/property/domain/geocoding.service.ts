@@ -17,9 +17,12 @@ export interface GeocodingResult {
    */
   placeType?: string;
   /**
-   * The returned **locality** (Mapbox `context` `locality.*`) — a suburb within a
-   * larger place. Named `suburb` for continuity but now carries ONLY the locality,
-   * SEPARATE from {@link GeocodingResult.place} (no longer collapsed), so the O-14
+   * The returned Mapbox **locality** (`context` `locality.*`) — a suburb within a
+   * larger place. This field holds ONLY the returned locality; it is NOT a
+   * collapsed suburb (O-14 stopped the old `locality ?? place` fallback) — the
+   * place and postcode are now carried SEPARATELY in {@link GeocodingResult.place}
+   * and {@link GeocodingResult.postcode}. Named `suburb` for continuity; the
+   * `suburb` → `locality` rename is a tracked follow-up (estacionamento). The O-14
    * rule can accept a CBD address whose locality is a sub-area (e.g. "The Rocks")
    * when the informed suburb matches the place + postcode. Optional: stub/legacy
    * sources do not report it.
