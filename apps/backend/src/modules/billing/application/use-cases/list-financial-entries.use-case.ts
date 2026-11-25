@@ -6,6 +6,7 @@ import type {
 } from '../../domain/financial-entry.repository';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
+import { isCrossTenantRole } from '../../../../shared/domain/require-tenant-scope';
 import { requireAgencyTenantScope } from '../agency-scope';
 
 export interface ListFinancialEntriesInput {
@@ -72,14 +73,24 @@ export class ListFinancialEntriesUseCase {
       sortOrder: input.sortOrder,
     };
 
-    if (actor.role === 'AM') {
-      // AM only: can filter by any tenantId; if none provided, returns all
+    if (isCrossTenantRole(actor.role)) {
+      // Cross-tenant roles (AM, OP per DEC-003): honor an explicit tenantId
+      // filter; with none, return every tenant's entries. OP must honor the
+      // chosen agency exactly like AM — pinning OP to its (null) JWT tenant was
+      // the O-19 D8 defect, where the picked agency was silently ignored.
       if (input.tenantId) filters.tenantId = input.tenantId;
       if (input.inspectorId) filters.inspectorId = input.inspectorId;
       if (input.type) filters.entryType = input.type as FinancialEntryFilters['entryType'];
       if (input.status) filters.status = input.status as FinancialEntryFilters['status'];
+      // OP is treated exactly like AM: a chosen agency returns only that agency's
+      // rows, an unscoped read returns every entry — the platform INSPECTOR_BONUS
+      // included, through its own tenantless row. We deliberately do NOT set
+      // includePlatformBonus: ORing the tenantless bonus into a chosen agency's
+      // list would surface rows that are not that agency's (the O-19 D8 shape),
+      // which AM never does. OP still sees the bonus — via the unscoped path.
 
-      // Audit cross-tenant access
+      // Audit cross-tenant access (AM and OP). actor.tenantId is null for both,
+      // so any explicit tenantId is cross-tenant.
       const isCrossTenant = input.tenantId && input.tenantId !== actor.tenantId;
       if (isCrossTenant) {
         this.auditService.log({
@@ -95,16 +106,6 @@ export class ListFinancialEntriesUseCase {
           },
         });
       }
-    } else if (actor.role === 'OP') {
-      // OP is tenant-scoped per CORRECTION-001 (2026-04-13). OP is the platform
-      // operational team and sees all entry types (incl. INSPECTOR_PAYOUT).
-      filters.tenantId = actor.tenantId!;
-      // Q12 (F08-6/DQ10): also surface the platform bonus (tenantless) so the role that
-      // reconciles rewards sees them in the ledger; never another agency's rows.
-      filters.includePlatformBonus = true;
-      if (input.inspectorId) filters.inspectorId = input.inspectorId;
-      if (input.type) filters.entryType = input.type as FinancialEntryFilters['entryType'];
-      if (input.status) filters.status = input.status as FinancialEntryFilters['status'];
     } else if (actor.role === 'CL_ADMIN' || actor.role === 'CL_USER') {
       // 031 — Agency read (extrato): own-tenant, restricted to agency-visible
       // entry types. INSPECTOR_PAYOUT is the platform↔inspector leg and must

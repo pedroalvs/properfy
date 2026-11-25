@@ -5,8 +5,9 @@
  *
  * Fixture — agency A: a TENANT_DEBIT (agency-visible) + a platform INSPECTOR_BONUS for an inspector
  * who services A. Agency B: a TENANT_DEBIT control (agency-visible by type). Proves the bonus is
- * invisible to CL (list, detail→404, summary) yet visible to AM (platform-wide), to OP (via the
- * includePlatformBonus predicate) and to the inspector (own leg).
+ * invisible to CL (list, detail→404, summary) yet visible to AM and OP on an unscoped read
+ * (the tenantless bonus row; both are cross-tenant and identical) and to the inspector (own leg).
+ * A chosen agency returns only that agency's rows for AM and OP alike — the bonus is never mixed in.
  *
  * Requires Docker (testcontainers). Run via: `pnpm --filter backend test:integration:db`
  */
@@ -27,7 +28,8 @@ const rnd = () => Math.random().toString(36).slice(2, 10);
 const silentAudit = () => ({ log: () => {} }) as unknown as AuditService;
 const clAdmin = (tenantId: string): AuthContext => ({ userId: 'cl', tenantId, role: 'CL_ADMIN', branchId: null, inspectorId: null });
 const am = (): AuthContext => ({ userId: 'am', tenantId: null, role: 'AM', branchId: null, inspectorId: null });
-const op = (tenantId: string): AuthContext => ({ userId: 'op', tenantId, role: 'OP', branchId: null, inspectorId: null });
+// OP is cross-tenant with a null JWT tenant (DEC-003); it never carries an agency.
+const op = (): AuthContext => ({ userId: 'op', tenantId: null, role: 'OP', branchId: null, inspectorId: null });
 const insp = (inspectorId: string): AuthContext => ({ userId: 'ins', tenantId: null, role: 'INSP', branchId: null, inspectorId });
 const listInput = (actor: AuthContext, extra: Record<string, unknown> = {}) => ({
   page: 1, pageSize: 50, sortBy: 'effective_at', sortOrder: 'desc' as const, actor, ...extra,
@@ -122,10 +124,18 @@ describe('INSPECTOR_BONUS never leaks to an agency (real DB, Q12)', () => {
     expect(scoped.data.some((e) => e.id === bonusEntryId)).toBe(false);
   });
 
-  it('OP sees the platform bonus (includePlatformBonus) but not another agency', async () => {
-    const result = await listUseCase.execute(listInput(op(tenantA)));
+  it('OP unscoped sees the platform bonus (via the tenantless row), like AM', async () => {
+    const result = await listUseCase.execute(listInput(op()));
     expect(result.data.some((e) => e.id === bonusEntryId)).toBe(true);
+  });
+
+  it('OP scoped to an agency sees only that agency — no platform bonus, no other agency (O-19 D8)', async () => {
+    const result = await listUseCase.execute(listInput(op(), { tenantId: tenantA }));
+    // Mirrors AM: the tenantless bonus is NOT mixed into a chosen agency's list…
+    expect(result.data.some((e) => e.id === bonusEntryId)).toBe(false);
+    // …nor is another agency's row (B's 777 debit).
     expect(result.data.some((e) => Number(e.amount) === 777)).toBe(false);
+    expect(result.data.every((e) => e.tenantId === tenantA)).toBe(true);
   });
 
   it('INSP sees their own bonus and payouts; type=INSPECTOR_BONUS narrows to the bonus', async () => {

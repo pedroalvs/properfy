@@ -153,7 +153,7 @@ describe('GetFinancialSummaryUseCase', () => {
     },
   );
 
-  it('keeps totalPayouts visible for AM/OP (backoffice)', async () => {
+  it('keeps totalPayouts visible for AM/OP (backoffice); OP tenantId is null', async () => {
     vi.mocked(entryRepo.getSummary).mockResolvedValue({
       totalDebits: 5000,
       totalPayouts: 3000,
@@ -166,10 +166,70 @@ describe('GetFinancialSummaryUseCase', () => {
 
     const result = await useCase.execute({
       tenantId: 'tenant-1',
-      actor: makeActor({ role: 'OP', tenantId: 'tenant-1' }),
+      actor: makeActor({ role: 'OP', tenantId: null }),
     });
 
     expect(result.totalPayouts).toBe(3000);
+  });
+
+  // O-19 D8 / DEC-003: OP is cross-tenant with tenantId: null. The summary must
+  // scope to the chosen agency like AM — the old code read OP's null tenant as
+  // "platform-wide" and ignored the picked agency.
+  it('honors the chosen agency for OP (O-19 D8 fix)', async () => {
+    vi.mocked(entryRepo.getSummary).mockResolvedValue({
+      totalDebits: 1000,
+      totalPayouts: 0,
+      totalAdjustments: 0,
+      totalRefunds: 0,
+      pendingCount: 0,
+      currency: null,
+    });
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+
+    await useCase.execute({
+      tenantId: 'tenant-7',
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+
+    expect(entryRepo.getSummary).toHaveBeenCalledWith('tenant-7', undefined, undefined);
+  });
+
+  it('gives OP a platform-wide summary when no agency is chosen', async () => {
+    vi.mocked(entryRepo.getSummary).mockResolvedValue({
+      totalDebits: 0,
+      totalPayouts: 0,
+      totalAdjustments: 0,
+      totalRefunds: 0,
+      pendingCount: 0,
+      currency: null,
+    });
+
+    const result = await useCase.execute({
+      actor: makeActor({ role: 'OP', tenantId: null }),
+    });
+
+    expect(entryRepo.getSummary).toHaveBeenCalledWith(undefined, undefined, undefined);
+    expect(result.currency).toBeNull();
+    expect(tenantRepo.findById).not.toHaveBeenCalled();
+  });
+
+  it('keeps CL_ADMIN pinned to its own tenant even when another agency is requested', async () => {
+    vi.mocked(entryRepo.getSummary).mockResolvedValue({
+      totalDebits: 0,
+      totalPayouts: 0,
+      totalAdjustments: 0,
+      totalRefunds: 0,
+      pendingCount: 0,
+      currency: null,
+    });
+    vi.mocked(tenantRepo.findById).mockResolvedValue(makeTenant());
+
+    await useCase.execute({
+      tenantId: 'tenant-other', // attempted cross-tenant — must be ignored for CL
+      actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+    });
+
+    expect(entryRepo.getSummary).toHaveBeenCalledWith('tenant-1', undefined, { agencyScoped: true });
   });
 
   it('keeps currency null when no tenant scope is resolved', async () => {
