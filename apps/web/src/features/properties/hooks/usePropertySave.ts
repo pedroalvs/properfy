@@ -168,12 +168,14 @@ export function buildPayload(
 }
 
 /**
- * Reuses the server's exact copy from `createPropertySchema`'s superRefine
- * (packages/shared/src/schemas/property.ts). `toSchemaPayload` omits an incomplete
- * manual pin, and `updatePropertySchema` has no such refine, so the schema parse
- * never flags a lone coordinate — `validate` checks it explicitly for both modes.
+ * The server's copy from `createPropertySchema`'s superRefine
+ * (packages/shared/src/schemas/property.ts), sentence-cased for display so it
+ * matches the other in-field messages on the screen (the server/shared 422 text
+ * is left unchanged). `toSchemaPayload` omits an incomplete manual pin, and
+ * `updatePropertySchema` has no such refine, so the schema parse never flags a lone
+ * coordinate — `validate` checks it explicitly for both modes.
  */
-const LAT_LNG_TOGETHER_MESSAGE = 'latitude and longitude must be provided together';
+const LAT_LNG_TOGETHER_MESSAGE = 'Latitude and longitude must be provided together';
 
 function isRequiredError(issue: { code?: string; message: string }): boolean {
   return issue.code === 'invalid_type' || issue.message === 'Required';

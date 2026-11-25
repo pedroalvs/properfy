@@ -78,7 +78,7 @@ describe('usePropertySave', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => usePropertySave(), { wrapper });
     const errors = result.current.validate({ ...VALID_CREATE_DATA, latitude: '-33.8688', longitude: '' }, 'create');
-    expect(errors.longitude).toBe('latitude and longitude must be provided together');
+    expect(errors.longitude).toBe('Latitude and longitude must be provided together');
     expect(errors.latitude).toBeUndefined();
   });
 
@@ -86,7 +86,7 @@ describe('usePropertySave', () => {
     const wrapper = createQueryWrapper();
     const { result } = renderHook(() => usePropertySave(), { wrapper });
     const errors = result.current.validate({ ...VALID_CREATE_DATA, latitude: '', longitude: '151.2093' }, 'edit');
-    expect(errors.latitude).toBe('latitude and longitude must be provided together');
+    expect(errors.latitude).toBe('Latitude and longitude must be provided together');
     expect(errors.longitude).toBeUndefined();
   });
 

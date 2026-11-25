@@ -322,7 +322,7 @@ describe('PropertyCreatePage', () => {
       await waitFor(() => {
         expect(screen.getByLabelText('Longitude')).toHaveAttribute('aria-invalid', 'true');
       });
-      expect(screen.getByText('latitude and longitude must be provided together')).toBeInTheDocument();
+      expect(screen.getByText('Latitude and longitude must be provided together')).toBeInTheDocument();
       // No second request: submission was blocked before the POST (no silent drop).
       expect(mockPost).toHaveBeenCalledTimes(1);
     });
