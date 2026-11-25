@@ -11,7 +11,7 @@ import { TextInput } from '@/components/forms/TextInput';
 import { EmailInput } from '@/components/forms/EmailInput';
 import { AddressLookupInput } from '@/components/forms/AddressLookupInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
-import { buildAddressLabel, formatAddressLabel, toAddressSuggestion } from '@/lib/address';
+import { formatAddressLabel, toAddressSuggestion } from '@/lib/address';
 import { AddressNotVerifiedAlert } from '@/features/properties/components/AddressNotVerifiedAlert';
 import { useBranchSave } from '../hooks/useBranchSave';
 import { useBranchById } from '../hooks/useBranchById';
@@ -71,6 +71,9 @@ export function BranchFormDrawer({
   }, [open, isEditMode]);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialData);
+  // V-2: branches have no manual-pin escape, so the mark is simply "there is an
+  // on-save address error" (mirrors V-1's showAddressError without the pin term).
+  const showAddressError = addressError !== null;
 
   const updateField = useCallback(
     <K extends keyof BranchFormData>(field: K, value: BranchFormData[K]) => {
@@ -112,14 +115,12 @@ export function BranchFormDrawer({
           ...prev,
           address: {
             ...nextAddress,
+            // Reuse PR-09's formatAddressLabel so the rebuilt label keeps the house
+            // number (it prepends `number` to the street). Clear the stale
+            // formattedAddress first so the helper recomputes from the parts.
             formattedAddress:
-              buildAddressLabel({
-                street: nextAddress.street,
-                suburb: nextAddress.suburb,
-                postcode: nextAddress.postcode,
-                state: nextAddress.state,
-                country: nextAddress.country,
-              }) ?? nextAddress.formattedAddress,
+              formatAddressLabel({ ...nextAddress, formattedAddress: '' }) ??
+              nextAddress.formattedAddress,
           },
         };
       });
@@ -191,7 +192,7 @@ export function BranchFormDrawer({
                 <FormField label="Address" error={errors.address}>
                   <AddressLookupInput
                     label="Address"
-                    valueLabel={buildAddressLabel(form.address ?? {}) ?? formatAddressLabel(form.address) ?? ''}
+                    valueLabel={formatAddressLabel(form.address) ?? ''}
                     onSelect={(value) => updateField('address', value)}
                     onClear={() => updateField('address', null)}
                     placeholder="Search verified address"
@@ -205,7 +206,7 @@ export function BranchFormDrawer({
                         ref={streetRef}
                         value={form.address.street}
                         onChange={(v) => updateAddressField('street', v)}
-                        error={addressError !== null}
+                        error={showAddressError}
                         aria-label="Branch Street"
                       />
                     </FormField>
@@ -213,6 +214,7 @@ export function BranchFormDrawer({
                       <TextInput
                         value={form.address.number ?? ''}
                         onChange={(v) => updateAddressField('number', v)}
+                        error={showAddressError}
                         aria-label="Branch Number"
                       />
                     </FormField>
@@ -220,7 +222,7 @@ export function BranchFormDrawer({
                       <TextInput
                         value={form.address.suburb}
                         onChange={(v) => updateAddressField('suburb', v)}
-                        error={addressError !== null}
+                        error={showAddressError}
                         aria-label="Branch Suburb"
                       />
                     </FormField>
@@ -228,7 +230,7 @@ export function BranchFormDrawer({
                       <TextInput
                         value={form.address.postcode}
                         onChange={(v) => updateAddressField('postcode', v)}
-                        error={addressError !== null}
+                        error={showAddressError}
                         aria-label="Branch Postcode"
                       />
                     </FormField>
@@ -236,7 +238,7 @@ export function BranchFormDrawer({
                       <TextInput
                         value={form.address.state}
                         onChange={(v) => updateAddressField('state', v)}
-                        error={addressError !== null}
+                        error={showAddressError}
                         aria-label="Branch State"
                       />
                     </FormField>
