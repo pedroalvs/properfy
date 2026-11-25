@@ -40,24 +40,6 @@ export class ProtectedTemplateClassificationError extends ValidationError {
 }
 
 /**
- * Feature 018: thrown when a consent record lookup by id fails.
- */
-export class NotificationConsentNotFoundError extends NotFoundError {
-  constructor() {
-    super('CONSENT_NOT_FOUND', 'Notification consent record not found');
-  }
-}
-
-/**
- * Feature 018: thrown when a consent operator override violates tenant scope.
- */
-export class ConsentTenantScopeError extends ForbiddenError {
-  constructor() {
-    super('TENANT_SCOPE_VIOLATION', 'Operator cannot modify consent records belonging to another tenant');
-  }
-}
-
-/**
  * Thrown when an operator manually retries a notification whose payload secrets
  * were already redacted — resending would deliver "[REDACTED]" links.
  */

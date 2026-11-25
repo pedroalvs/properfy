@@ -77,6 +77,12 @@ describe('Sidebar role-based visibility — Service Types', () => {
     renderMobile('OP');
     expect(screen.queryByText('Time Slots')).not.toBeInTheDocument();
   });
+
+  // The consent opt-out feature was removed (PR-1): no "Consent Lookup" entry.
+  it.each(['AM', 'OP'])('does NOT render the retired "Consent Lookup" entry for %s', (role) => {
+    renderMobile(role);
+    expect(screen.queryByText('Consent Lookup')).not.toBeInTheDocument();
+  });
 });
 
 // Platform Settings (F03) lives in the Configuration group — AM/OP only.

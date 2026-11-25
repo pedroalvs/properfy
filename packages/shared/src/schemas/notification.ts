@@ -3,12 +3,9 @@ import { booleanQueryParam } from './boolean-query';
 import { paginationSchema } from './pagination';
 import { AU_E164_REGEX } from '../constants/phone';
 
-// Feature 018: shared classification and consent enums as Zod schemas
+// Feature 018: shared classification enum as a Zod schema
 export const notificationClassSchema = z.enum(['TRANSACTIONAL', 'OPERATIONAL', 'MARKETING']);
 export type NotificationClassInput = z.infer<typeof notificationClassSchema>;
-
-export const consentChangeSourceSchema = z.enum(['operator_override', 're_opt_in']);
-export type ConsentChangeSourceInput = z.infer<typeof consentChangeSourceSchema>;
 
 export const listNotificationsQuerySchema = paginationSchema.extend({
   tenantId: z.string().uuid().optional(),
@@ -56,40 +53,6 @@ export const listNotificationTemplatesQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 export type ListNotificationTemplatesQuery = z.infer<typeof listNotificationTemplatesQuerySchema>;
-
-// Feature 018: operator consent management
-export const listConsentsQuerySchema = z.object({
-  recipient: z.string().min(1),
-  tenantId: z.string().uuid().optional(),
-  channel: z.enum(['EMAIL', 'SMS']).optional(),
-});
-export type ListConsentsQuery = z.infer<typeof listConsentsQuerySchema>;
-
-export const overrideConsentSchema = z.object({
-  reason: z.string().min(1).max(1000),
-});
-export type OverrideConsentInput = z.infer<typeof overrideConsentSchema>;
-
-export const consentRecordResponseSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  recipient: z.string(),
-  channel: z.enum(['EMAIL', 'SMS']),
-  notificationClass: notificationClassSchema,
-  optedOut: z.boolean(),
-  changedAt: z.string().datetime().nullable(),
-  changeSource: consentChangeSourceSchema.nullable(),
-  reason: z.string().nullable(),
-  changedByUserId: z.string().uuid().nullable(),
-});
-export type ConsentRecordResponse = z.infer<typeof consentRecordResponseSchema>;
-
-export const listConsentsResponseSchema = z.object({
-  recipient: z.string(),
-  entries: z.array(consentRecordResponseSchema),
-  skippedCount: z.number().int().nonnegative(),
-});
-export type ListConsentsResponse = z.infer<typeof listConsentsResponseSchema>;
 
 // ---------------------------------------------------------------------------
 // Template preview schemas

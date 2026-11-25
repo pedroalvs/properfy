@@ -40552,34 +40552,6 @@
         }
       }
     },
-    "/v1/notifications/consents": {
-      "get": {
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/v1/notifications/consents/{consentId}/override": {
-      "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "consentId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
     "/v1/notification-templates/{templateCode}/{channel}/test-send": {
       "post": {
         "requestBody": {

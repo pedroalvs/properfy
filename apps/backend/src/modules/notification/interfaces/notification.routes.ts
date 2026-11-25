@@ -9,8 +9,6 @@ import {
   webhookAckResponseSchema,
   successResponseSchema,
   paginatedResponseSchema,
-  listConsentsQuerySchema,
-  overrideConsentSchema,
   testSendEmailRequestSchema,
   testSendSmsRequestSchema,
   testSendRequestSchema,
@@ -24,8 +22,6 @@ import { createAuthMiddleware } from '../../../shared/interfaces/auth-middleware
 import { ValidationError } from '../../../shared/domain/errors';
 import { success, paginated } from '../../../shared/interfaces/response';
 import type { SendNotificationUseCase } from '../application/use-cases/send-notification.use-case';
-import type { ListConsentsByRecipientUseCase } from '../application/use-cases/list-consents-by-recipient.use-case';
-import type { OverrideConsentUseCase } from '../application/use-cases/override-consent.use-case';
 import type { RetryNotificationUseCase } from '../application/use-cases/retry-notification.use-case';
 import type { HandleProviderWebhookUseCase } from '../application/use-cases/handle-provider-webhook.use-case';
 import type { ListNotificationsUseCase } from '../application/use-cases/list-notifications.use-case';
@@ -76,8 +72,6 @@ export interface NotificationRouteContainer {
   pollSmsDeliveryUseCase: PollSmsDeliveryUseCase;
   dispatchRemindersUseCase: DispatchRemindersUseCase;
   dispatchEscalationsUseCase: DispatchEscalationsUseCase;
-  listConsentsByRecipientUseCase: ListConsentsByRecipientUseCase;
-  overrideConsentUseCase: OverrideConsentUseCase;
   jwtService: JwtService;
   tenantRepo: { findById(id: string): Promise<{ isActive(): boolean } | null> };
   webhookSignatureValidator: WebhookSignatureValidator;
@@ -273,45 +267,6 @@ export async function registerNotificationRoutes(
         actor: request.authContext!,
       });
       return reply.status(200).send(paginated(result.data, result.total, result.page, result.pageSize));
-    },
-  );
-
-  // Feature 018 US3: GET /v1/notifications/consents — operator consent lookup
-  app.get(
-    '/v1/notifications/consents',
-    { preHandler: authenticate },
-    async (request, reply) => {
-      const parsed = listConsentsQuerySchema.safeParse(request.query);
-      if (!parsed.success) {
-        throw new ValidationError('Invalid query parameters', parsed.error.errors);
-      }
-      const result = await container.listConsentsByRecipientUseCase.execute({
-        ...parsed.data,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(success(result));
-    },
-  );
-
-  // Feature 018 US4: POST /v1/notifications/consents/:id/override — operator override
-  app.post(
-    '/v1/notifications/consents/:consentId/override',
-    { preHandler: authenticate },
-    async (request, reply) => {
-      const params = z.object({ consentId: z.string().uuid() }).safeParse(request.params);
-      if (!params.success) {
-        throw new ValidationError('Invalid consent id', params.error.errors);
-      }
-      const body = overrideConsentSchema.safeParse(request.body);
-      if (!body.success) {
-        throw new ValidationError('Request payload is invalid', body.error.errors);
-      }
-      const result = await container.overrideConsentUseCase.execute({
-        consentId: params.data.consentId,
-        reason: body.data.reason,
-        actor: request.authContext!,
-      });
-      return reply.status(200).send(success(result));
     },
   );
 
