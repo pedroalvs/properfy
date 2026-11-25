@@ -82,9 +82,11 @@ function makeAMContext(overrides: Partial<AuthContext> = {}): AuthContext {
 }
 
 function makeOPContext(overrides: Partial<AuthContext> = {}): AuthContext {
+  // OP is cross-tenant and always has tenantId null (the real model: create/update
+  // refuse to assign an internal user to an agency).
   return {
     userId: 'operator-1',
-    tenantId: 'tenant-1',
+    tenantId: null,
     role: 'OP',
     branchId: null,
     inspectorId: null,
@@ -207,7 +209,32 @@ describe('GeneratePortalTokenUseCase', () => {
 
     expect(result.token).toBe(RAW_TOKEN);
     expect(result.expiresAt).toEqual(EXPIRES_AT);
-    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', 'tenant-1');
+    // OP has no agency → cross-tenant lookup (no tenant predicate).
+    expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', null);
+  });
+
+  describe('D4: SEND_AFTER_RESET tenant lock (group resend)', () => {
+    it('lets an OP with no agency resend a link locked to any agency (O-19)', async () => {
+      const ctx = { tx: {} as never, defer: vi.fn() };
+
+      await expect(
+        useCase.prepareInTransaction(makeInput({ actor: makeOPContext() }), ctx, 'tenant-2'),
+      ).resolves.toBeDefined();
+      // The locked tenant wins the lookup; the OP is not confined to an agency.
+      expect(appointmentRepo.findById).toHaveBeenCalledWith('appt-1', 'tenant-2', ctx.tx);
+    });
+
+    it('still blocks a tenant-pinned actor from resending a link locked to another agency', async () => {
+      const ctx = { tx: {} as never, defer: vi.fn() };
+
+      await expect(
+        useCase.prepareInTransaction(
+          makeInput({ actor: { userId: 'cl-1', tenantId: 'tenant-1', role: 'CL_ADMIN', branchId: null, inspectorId: null } }),
+          ctx,
+          'tenant-2',
+        ),
+      ).rejects.toMatchObject({ code: 'APPOINTMENT_NOT_FOUND' });
+    });
   });
 
   it('should call mintPortalTokenService.mint with the loaded appointment and tenant', async () => {

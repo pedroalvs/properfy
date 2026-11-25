@@ -6,9 +6,9 @@
  *     of a (tenant-agnostic) group and correctly maps the active confirmation
  *     cycle's date/slot/status — i.e. the query has no tenant WHERE filter and
  *     the join mapping is right.
- *  2. `SendGroupPortalLinksUseCase` enforces OP tenant isolation through the
- *     REAL repository: an OP only acts on their own tenant's appointments while
- *     AM is cross-tenant.
+ *  2. `SendGroupPortalLinksUseCase` lets the cross-tenant roles (AM and OP, both
+ *     with no agency) act on every agency's appointments in the group through the
+ *     REAL repository (O-19 D2); tenant-pinned CL roles are rejected by the role gate.
  *
  * Requires Docker (testcontainers). Run via: `pnpm --filter backend test:integration:db`
  */
@@ -276,7 +276,7 @@ describe('group Send portal link — real DB', () => {
     expect(b.activeCycle).toBeNull();
   });
 
-  it('SendGroupPortalLinksUseCase: OP acts only on its own tenant; AM is cross-tenant', async () => {
+  it('SendGroupPortalLinksUseCase: OP (no agency) and AM both act across every agency in the group (O-19 D2)', async () => {
     const { tenantId: tenantA, userId: userA } = await seedTenant(harness.prisma, 'Agency A');
     const { tenantId: tenantB, userId: userB } = await seedTenant(harness.prisma, 'Agency B');
     const branchA = await getBranchId(harness.prisma, tenantA);
@@ -301,13 +301,13 @@ describe('group Send portal link — real DB', () => {
       repo, generatePortalToken, cycleService, idempotency, auditService, new AuthorizationService(auditService),
     );
 
-    // OP for tenant A → only A's appointment is dispatched.
-    const opOut = await useCase.execute({ groupId, actor: makeActor({ role: 'OP', tenantId: tenantA }) });
-    expect(opOut.results.map((r) => r.appointmentId)).toEqual([apptA]);
-    expect(generatePortalToken.execute).toHaveBeenCalledTimes(1);
-    expect(generatePortalToken.execute).toHaveBeenCalledWith({ appointmentId: apptA, actor: expect.objectContaining({ tenantId: tenantA }) });
+    // OP has no agency (tenantId null) and is cross-tenant → both agencies'
+    // appointments are dispatched, through the REAL repository.
+    const opOut = await useCase.execute({ groupId, actor: makeActor({ role: 'OP', tenantId: null }) });
+    expect(new Set(opOut.results.map((r) => r.appointmentId))).toEqual(new Set([apptA, apptB]));
+    expect(generatePortalToken.execute).toHaveBeenCalledTimes(2);
 
-    // AM → both appointments are dispatched.
+    // AM → both appointments too.
     (generatePortalToken.execute as ReturnType<typeof vi.fn>).mockClear();
     const amOut = await useCase.execute({ groupId, actor: makeActor({ role: 'AM', tenantId: null }) });
     expect(new Set(amOut.results.map((r) => r.appointmentId))).toEqual(new Set([apptA, apptB]));
