@@ -30,7 +30,7 @@ export function AddressNotVerifiedAlert({ reason, onSetManual }: AddressNotVerif
       </div>
       {onSetManual && (
         <div className="flex items-center gap-2 pl-8">
-          <span className="text-text-secondary">Rural property?</span>
+          <span className="text-text-secondary">Can&apos;t locate this address?</span>
           <Button variant="outlined" onClick={onSetManual}>
             Set location manually
           </Button>
