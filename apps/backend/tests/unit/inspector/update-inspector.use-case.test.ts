@@ -326,6 +326,25 @@ describe('UpdateInspectorUseCase', () => {
       expect(geocoder.geocode).not.toHaveBeenCalled();
     });
 
+    // V-3/V10: a legacy inspector whose base could not be located (parseable
+    // address, null coordinates) must stay editable. A PATCH that resends the SAME
+    // base (as the drawer does when only the phone changes) must NOT geocode and
+    // must NOT 422 — before the fix this re-geocoded the unlocatable base and threw.
+    it('does not geocode or reject when the unchanged base has no coordinates and a non-address field changes (V10)', async () => {
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(
+        makeInspector({ address: BASE_ADDRESS, baseLat: null, baseLng: null, baseGeocodedAt: null }),
+      );
+      geocoder.geocode.mockResolvedValue(null); // would reject (NOT_FOUND) if it ran
+      const result = await geoUseCase.execute({
+        inspectorId: 'inspector-1',
+        data: { phone: '+61400000000', address: BASE_ADDRESS },
+        actor: makeActor(),
+      });
+      expect(geocoder.geocode).not.toHaveBeenCalled();
+      expect(inspectorRepo.update).toHaveBeenCalledTimes(1);
+      expect(result.baseGeocodeFailed).toBe(false);
+    });
+
     it('always geocodes when the current stored address is legacy/unparsable', async () => {
       vi.mocked(inspectorRepo.findById).mockResolvedValue(
         makeInspector({ address: { foo: 1 }, baseLat: 1, baseLng: 2, baseGeocodedAt: new Date() }),

@@ -176,20 +176,24 @@ export class UpdateInspectorUseCase {
       updateData.address = data.address;
       baseChanged = true;
 
-      // "Same address" (D18, L-F01-01): only when the CURRENT stored address parses
-      // under the AU schema (a legacy shape always re-geocodes), the two are equal
-      // for geocoding via the X02 helper, and coordinates already exist.
+      // "Same address" (D18, L-F01-01): the CURRENT stored address parses under the
+      // AU schema (a legacy shape always re-geocodes) and the two are equal for
+      // geocoding via the X02 helper. **V-3/V10:** this is NOT gated on existing
+      // coordinates — an unchanged base must never re-geocode (and so never 422),
+      // even for a legacy row with a null/failed marker. A PATCH that resends the
+      // same base (e.g. editing only the phone, which carries the pre-filled
+      // address) keeps the stored coordinates/marker untouched and skips rule A.
+      // Only a CHANGED base goes through geocode → 422-on-reject.
       const currentParsed = inspectorBaseAddressSchema.safeParse(inspector.address);
       const sameAsStored =
         currentParsed.success &&
-        hadCoordinates &&
         isSameGeocodingAddress(
           currentParsed.data as unknown as GeocodableAddress,
           next as unknown as GeocodableAddress,
         );
 
       if (sameAsStored) {
-        baseChanged = false; // keep the coordinates, call nothing, emit nothing
+        baseChanged = false; // keep the coordinates/marker, call nothing, emit nothing
       } else if (this.geocodingService) {
         const geo = await geocodeInspectorBase(this.geocodingService, next, this.logger, this.clock);
         if ('lat' in geo) {

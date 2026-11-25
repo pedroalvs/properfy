@@ -86,10 +86,12 @@ export class UpdateInspectorSelfProfileUseCase {
       updateData.address = data.address as unknown as Record<string, unknown>;
       baseChanged = true;
 
+      // V-3/V10: NOT gated on existing coordinates — an unchanged base must never
+      // re-geocode (and so never 422), even for a legacy row with a null marker.
+      // Only a CHANGED base goes through geocode → 422-on-reject.
       const currentParsed = inspectorBaseAddressSchema.safeParse(inspector.address);
       const sameAsStored =
         currentParsed.success &&
-        hadCoordinates &&
         isSameGeocodingAddress(
           currentParsed.data as unknown as GeocodableAddress,
           next as unknown as GeocodableAddress,

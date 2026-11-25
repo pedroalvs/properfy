@@ -303,5 +303,22 @@ describe('UpdateInspectorSelfProfileUseCase', () => {
       expect(geocoder.geocode).not.toHaveBeenCalled();
       expect(eventBus.emit).not.toHaveBeenCalled();
     });
+
+    // V-3/V10: a legacy base with no coordinates must stay editable — resending the
+    // SAME base must not re-geocode and must not 422 (before the fix it did both).
+    it('does not geocode or reject when the unchanged base has no coordinates (V10)', async () => {
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(
+        makeInspector({ address: BASE_ADDRESS, baseLat: null, baseLng: null, baseGeocodedAt: null }),
+      );
+      geocoder.geocode.mockResolvedValue(null); // would reject (NOT_FOUND) if it ran
+      const result = await geoUseCase.execute({
+        inspectorId: INSPECTOR_ID,
+        data: { phone: '+61499999999', address: BASE_ADDRESS },
+        actor: makeInspActor(),
+      });
+      expect(geocoder.geocode).not.toHaveBeenCalled();
+      expect(inspectorRepo.update).toHaveBeenCalledTimes(1);
+      expect(result.baseGeocodeFailed).toBe(false);
+    });
   });
 });
