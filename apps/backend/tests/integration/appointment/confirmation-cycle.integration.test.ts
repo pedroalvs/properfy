@@ -429,8 +429,10 @@ describe('O-11 — a new link REOPENS an UNAVAILABLE/NO_RESPONSE confirmation (r
     await cycleService.markUnavailable(appointmentId, tenantId);
     auditMock.log.mockClear();
 
+    // Direct test: pass a null token (pure reopen mechanics). The real newly-minted
+    // token linkage — and that its FK is satisfied — is covered end-to-end below.
     await cycleService.createInitial(
-      appointmentId, tenantId, FUTURE_SCHEDULED_DATE, '09:00-12:00', 'tok-reopen', undefined, undefined,
+      appointmentId, tenantId, FUTURE_SCHEDULED_DATE, '09:00-12:00', null, undefined, undefined,
       { actorId: 'op-1', cause: 'PORTAL_LINK_GENERATED' },
     );
 
@@ -468,6 +470,11 @@ describe('O-11 — a new link REOPENS an UNAVAILABLE/NO_RESPONSE confirmation (r
       where: { appointment_id: appointmentId, status: { not: 'SUPERSEDED' } },
     });
     expect(active?.status).toBe('PENDING');
+    // The reopened cycle references the freshly-minted token (FK satisfied), not the
+    // old UNAVAILABLE cycle's token (markUnavailable created it with no token).
+    const token = await harness.prisma.rentalTenantPortalToken.findFirst({ where: { appointment_id: appointmentId } });
+    expect(token?.id).toBeTruthy();
+    expect(active?.portal_token_id).toBe(token?.id);
     const resetAudits = auditMock.log.mock.calls.filter(
       ([e]: [{ action: string }]) => e.action === 'appointment.rental_tenant_confirmation_reset',
     );
