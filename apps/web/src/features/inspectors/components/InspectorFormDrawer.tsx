@@ -114,6 +114,18 @@ export function InspectorFormDrawer({
   const [addressNotVerified, setAddressNotVerified] = useState<AddressNotVerifiedReason | null>(null);
   const baseInvalid = addressNotVerified !== null;
   const streetRef = useRef<HTMLInputElement>(null);
+  const addressAlertRef = useRef<HTMLDivElement>(null);
+
+  // V-3: on an on-save rejection, scroll the explanation block into view (it sits
+  // ABOVE the marked fields, so focusing a field alone could leave it off-screen)
+  // and move focus to Street for correction WITHOUT re-scrolling (preventScroll),
+  // so the user always sees the reason, not just red borders.
+  useEffect(() => {
+    if (!addressNotVerified) return;
+    // scrollIntoView is optional-chained: jsdom does not implement it.
+    addressAlertRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    streetRef.current?.focus({ preventScroll: true });
+  }, [addressNotVerified]);
 
   useEffect(() => {
     if (isEditMode && inspector) {
@@ -225,10 +237,9 @@ export function InspectorFormDrawer({
       }
       onSaved();
     } else if (result.addressNotVerified) {
-      // V-3: unverifiable base address — show the shared error block, mark the
-      // fields and move focus to the first base-address field.
+      // V-3: unverifiable base address — show the shared error block + mark the
+      // fields. A useEffect scrolls the block into view and focuses Street.
       setAddressNotVerified(result.addressNotVerified);
-      streetRef.current?.focus();
     } else if (result.errorCode === 'INSPECTOR_EMAIL_CONFLICT') {
       setErrors((prev) => ({ ...prev, email: result.error ?? 'Email already in use' }));
     } else {
@@ -325,7 +336,7 @@ export function InspectorFormDrawer({
 
                   <FormSection title="Base Address" columns={2}>
                     {addressNotVerified && (
-                      <div className="md:col-span-2">
+                      <div ref={addressAlertRef} className="md:col-span-2">
                         <AddressNotVerifiedAlert reason={addressNotVerified} />
                       </div>
                     )}
@@ -342,6 +353,7 @@ export function InspectorFormDrawer({
                       <TextInput
                         value={form.addressNumber}
                         onChange={(v) => updateField('addressNumber', v)}
+                        error={!!errors.addressNumber || baseInvalid}
                         aria-label="Unit / Number"
                       />
                     </FormField>

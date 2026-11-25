@@ -199,8 +199,12 @@ describe('InspectorFormDrawer', () => {
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('We could only locate the area, not the exact address.');
     expect(alert).toHaveTextContent('Add the street number, or correct the street name.');
-    // The base-address fields get an error state and the drawer stays open.
+    // The base-address fields get an error state and the drawer stays open —
+    // including Unit / Number, since the copy says "Add the street number".
     expect(screen.getByLabelText('Street')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Unit / Number')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Suburb')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Postcode')).toHaveAttribute('aria-invalid', 'true');
     expect(onSaved).not.toHaveBeenCalled();
 
     // Editing a base-address field clears the block.
