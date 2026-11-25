@@ -125,6 +125,22 @@ describe('OriginSheet', () => {
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false), { timeout: 3000 });
   });
 
+  it('O-12: clears the rejection message as soon as the user edits a field', async () => {
+    const user = userEvent.setup();
+    mockPut.mockResolvedValue({
+      data: undefined,
+      error: { error: { code: 'DAY_PLAN_ORIGIN_NOT_FOUND', message: "We couldn't find this address. Check it and try again." } },
+      response: { status: 422 },
+    });
+    renderWithProviders(<OriginSheet open date={DATE} onOpenChange={vi.fn()} />);
+    await fillValidAddress(user);
+    await user.click(screen.getByRole('button', { name: 'Use this address' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    // Editing any field clears the stale message.
+    await user.type(screen.getByLabelText('Street'), '2');
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
   it('disables submit and explains when offline', () => {
     onlineRef.value = false;
     renderWithProviders(<OriginSheet open date={DATE} onOpenChange={vi.fn()} />);

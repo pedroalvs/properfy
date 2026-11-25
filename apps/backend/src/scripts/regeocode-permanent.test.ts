@@ -222,7 +222,7 @@ describe('regeocodePermanent — property phase', () => {
     expect(repo.applyPermanentBackfill).not.toHaveBeenCalled();
     // Separated by reason — NOT lumped into noResult.
     expect(report.properties.rejectedCoarse).toEqual([
-      { id: 'a', propertyCode: 'P-a', tenantId: 't1', placeType: 'place', relevance: 0.667 },
+      { id: 'a', propertyCode: 'P-a', tenantId: 't1', placeType: 'place', relevance: 0.667, returnedSuburb: null },
     ]);
     expect(report.properties.rejectedLowRelevance).toEqual([]);
     expect(report.properties.noResult).toEqual([]);
@@ -238,7 +238,7 @@ describe('regeocodePermanent — property phase', () => {
     expect(repo.markLegacyNoResult).toHaveBeenCalledWith('a', 't1', { lat: -33.8, lng: 151.2, updatedAt: T });
     expect(repo.applyPermanentBackfill).not.toHaveBeenCalled();
     expect(report.properties.rejectedLowRelevance).toEqual([
-      { id: 'a', propertyCode: 'P-a', tenantId: 't1', placeType: 'address', relevance: 0.667 },
+      { id: 'a', propertyCode: 'P-a', tenantId: 't1', placeType: 'address', relevance: 0.667, returnedSuburb: null },
     ]);
     expect(report.properties.rejectedCoarse).toEqual([]);
     expect(report.properties.noResult).toEqual([]);
@@ -256,12 +256,27 @@ describe('regeocodePermanent — property phase', () => {
   it('case R18b-P3: rule A — a confident address (>=0.8) still backfills SUCCESS, no rejection buckets', async () => {
     // Real Mapbox probe: '1 Martin Place, Sydney NSW 2000' → address, relevance=0.894.
     const repo = makeRepo({ findLegacyCoordinateCandidates: vi.fn().mockResolvedValue([prop('a')]) });
-    const { deps } = makeDeps(repo, async () => ({ lat: -33.8001, lng: 151.2001, placeType: 'address', relevance: 0.894 }));
+    const { deps } = makeDeps(repo, async () => ({ lat: -33.8001, lng: 151.2001, placeType: 'address', relevance: 0.894, suburb: 'Parramatta' }));
     const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['properties'] }));
     expect(repo.applyPermanentBackfill).toHaveBeenCalledTimes(1);
     expect(report.properties.updated).toBe(1);
     expect(report.properties.rejectedCoarse).toEqual([]);
     expect(report.properties.rejectedLowRelevance).toEqual([]);
+  });
+
+  it('PART 3: counts Line-2 omitted and suburb mismatch, with the returned suburb recorded', async () => {
+    // L2 "1 Main St, Parramatta" repeats the street "1 Main St" → dropped from the query.
+    // Returned suburb "Westmead" != informed "Parramatta" (relevance fine) → suburb mismatch.
+    const repo = makeRepo({
+      findLegacyCoordinateCandidates: vi.fn().mockResolvedValue([prop('a', { addressLine2: '1 Main St, Parramatta' })]),
+    });
+    const { deps } = makeDeps(repo, async () => ({ lat: -33.8, lng: 151.2, placeType: 'address', relevance: 0.95, suburb: 'Westmead' }));
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['properties'] }));
+    expect(report.lineTwoOmitted).toBe(1);
+    expect(report.rejectedSuburbMismatch).toBe(1);
+    expect(repo.applyPermanentBackfill).not.toHaveBeenCalled();
+    expect(report.properties.rejectedLowRelevance).toHaveLength(1);
+    expect(report.properties.rejectedLowRelevance[0]!.returnedSuburb).toBe('Westmead');
   });
 
   it('case 8: a generic error is recorded and processing continues', async () => {
@@ -408,7 +423,7 @@ describe('regeocodePermanent — branch phase', () => {
     const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['branches'] }));
     expect(repo.backfillBranchCoordinates).not.toHaveBeenCalled();
     expect(report.branches.rejectedCoarse).toEqual([
-      { id: 'b1', name: 'Branch One', tenantId: 't1', placeType: 'postcode', relevance: 0.522 },
+      { id: 'b1', name: 'Branch One', tenantId: 't1', placeType: 'postcode', relevance: 0.522, returnedSuburb: null },
     ]);
     expect(report.branches.noResult).toEqual([]);
   });
@@ -419,7 +434,7 @@ describe('regeocodePermanent — branch phase', () => {
     const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['branches'] }));
     expect(repo.backfillBranchCoordinates).not.toHaveBeenCalled();
     expect(report.branches.rejectedLowRelevance).toEqual([
-      { id: 'b1', name: 'Branch One', tenantId: 't1', placeType: 'address', relevance: 0.6 },
+      { id: 'b1', name: 'Branch One', tenantId: 't1', placeType: 'address', relevance: 0.6, returnedSuburb: null },
     ]);
     expect(report.branches.rejectedCoarse).toEqual([]);
     expect(report.branches.noResult).toEqual([]);

@@ -49,7 +49,9 @@ export class ImportGeocodeVerifier {
     this.opts = { ...DEFAULTS, ...opts };
   }
 
-  async verifyMany(addresses: Map<string, string>): Promise<Map<string, GeocodeVerification>> {
+  async verifyMany(
+    addresses: Map<string, { query: string; suburb: string }>,
+  ): Promise<Map<string, GeocodeVerification>> {
     const result = new Map<string, GeocodeVerification>();
     const entries = [...addresses.entries()];
     const deadline = Date.now() + this.opts.overallBudgetMs;
@@ -70,7 +72,7 @@ export class ImportGeocodeVerifier {
 
     const runWorker = async (): Promise<void> => {
       while (next < queue.length) {
-        const [key, address] = queue[next]!;
+        const [key, { query: address, suburb }] = queue[next]!;
         next += 1;
         if (permanentUnavailable) {
           result.set(key, UNVERIFIED);
@@ -92,7 +94,7 @@ export class ImportGeocodeVerifier {
           // not a usable coordinate — treat it as not_found so the commit worker
           // persists FAILED (exactly what the async geocode worker would do),
           // never committing a coarse pin as a SUCCESS coordinate.
-          const usable = coords !== null && classifyGeocodingResult(coords).accepted;
+          const usable = coords !== null && classifyGeocodingResult(coords, suburb).accepted;
           result.set(
             key,
             usable

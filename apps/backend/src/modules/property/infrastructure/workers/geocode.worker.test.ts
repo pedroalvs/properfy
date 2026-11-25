@@ -6,26 +6,28 @@ import type { PropertyEntity } from '../../domain/property.entity';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { Logger } from '../../../../shared/infrastructure/logger';
 
-function makeProperty(): PropertyEntity {
+function makeProperty(overrides: Record<string, unknown> = {}): PropertyEntity {
   return {
     id: 'p1',
     tenantId: 't1',
     geocodingStatus: 'PENDING',
+    suburb: 'Sydney',
     fullAddress: '1 George St, Sydney, NSW, 2000, AU',
+    ...overrides,
   } as unknown as PropertyEntity;
 }
 
-function makeRepo(): IPropertyRepository {
+function makeRepo(property: PropertyEntity = makeProperty()): IPropertyRepository {
   return {
-    findById: vi.fn(async () => makeProperty()),
+    findById: vi.fn(async () => property),
     existsById: vi.fn(async () => true),
     update: vi.fn(async () => undefined),
     countFailedGeocoding: vi.fn(async () => 0),
   } as unknown as IPropertyRepository;
 }
 
-function makeDeps(geocode: IGeocodingService['geocode']) {
-  const repo = makeRepo();
+function makeDeps(geocode: IGeocodingService['geocode'], property?: PropertyEntity) {
+  const repo = makeRepo(property);
   const geocoder: IGeocodingService = { geocode: vi.fn(geocode) };
   const audit = { log: vi.fn() } as unknown as AuditService;
   const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as unknown as Logger;
@@ -44,14 +46,42 @@ describe('GeocodeWorker (PR-18 rule A)', () => {
     vi.clearAllMocks();
   });
 
-  it('marks SUCCESS with coordinates for a high-relevance address result', async () => {
-    const { worker, repo } = makeDeps(async () => RESULT({ placeType: 'address', relevance: 0.95 }));
+  it('marks SUCCESS with coordinates for a high-relevance address result in the matching suburb', async () => {
+    const { worker, repo } = makeDeps(async () => RESULT({ placeType: 'address', relevance: 0.95, suburb: 'Sydney' }));
     await worker.execute({ propertyId: 'p1' });
     expect(repo.update).toHaveBeenCalledWith(
       'p1',
       't1',
       expect.objectContaining({ lat: -33.86, lng: 151.2, geocodingStatus: 'SUCCESS', geocodingFailureCode: null }),
     );
+  });
+
+  it('marks FAILED + LOW_RELEVANCE when the address lands in a different suburb', async () => {
+    const { worker, repo } = makeDeps(async () => RESULT({ placeType: 'address', relevance: 0.95, suburb: 'North Sydney' }));
+    await worker.execute({ propertyId: 'p1' });
+    expect(repo.update).toHaveBeenCalledWith('p1', 't1', {
+      geocodingStatus: 'FAILED',
+      geocodingFailureCode: 'LOW_RELEVANCE',
+    });
+  });
+
+  it('CC#3: re-rejecting a PENDING property NEVER wipes an existing legacy coordinate', async () => {
+    // A property the regeocode left FAILED-but-coord-kept, re-queued to PENDING,
+    // re-geocoded and re-rejected: the update must touch only status + code.
+    const withLegacyCoord = makeProperty({ lat: -30.9, lng: 144.4 });
+    const { worker, repo } = makeDeps(
+      async () => RESULT({ placeType: 'address', relevance: 0.95, suburb: 'North Sydney' }),
+      withLegacyCoord,
+    );
+    await worker.execute({ propertyId: 'p1' });
+    // Exact payload — no lat/lng key, so the legacy -30.9/144.4 survives.
+    expect(repo.update).toHaveBeenCalledWith('p1', 't1', {
+      geocodingStatus: 'FAILED',
+      geocodingFailureCode: 'LOW_RELEVANCE',
+    });
+    const payload = (repo.update as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]![2] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty('lat');
+    expect(payload).not.toHaveProperty('lng');
   });
 
   it('marks FAILED + LOW_RELEVANCE for an address result with relevance < 0.8', async () => {

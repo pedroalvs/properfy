@@ -86,7 +86,7 @@ describe('V-1 address validation (real DB)', () => {
     const id = crypto.randomUUID();
     await repo.save(buildProperty({ id, tenantId })); // PENDING, no coordinates
 
-    const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.861, lng: 151.21, placeType: 'address', relevance: 0.95 }) };
+    const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.861, lng: 151.21, placeType: 'address', relevance: 0.95, suburb: 'Kogarah' }) };
     const uc = new UpdatePropertyUseCase(repo, branchRepo, audit, logger, geocoder as never);
 
     await uc.execute({ propertyId: id, data: { street: '99 Verified Rd' }, actor: amActor });

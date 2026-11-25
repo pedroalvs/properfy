@@ -27,7 +27,7 @@ function row(overrides: Partial<GeocodeVerifiableRow> = {}): GeocodeVerifiableRo
 
 function verifierReturning(byKey: Record<string, GeocodeVerification>) {
   return {
-    verifyMany: vi.fn(async (addresses: Map<string, string>) => {
+    verifyMany: vi.fn(async (addresses: Map<string, { query: string; suburb: string }>) => {
       const out = new Map<string, GeocodeVerification>();
       for (const key of addresses.keys()) {
         out.set(key, byKey[key] ?? { status: 'unverified', lat: null, lng: null });
@@ -53,6 +53,18 @@ describe('applyGeocodeVerification', () => {
     expect(rows[0]!.property!.geocode).toBeNull();
   });
 
+  it('builder C: the import fullAddress drops a street-repeating Line 2 (anti-bypass — fails if C skips dropDuplicateLine2)', async () => {
+    const verifier = verifierReturning({});
+    const rows = [
+      row({ property: plan({ street: '3/72 Park Rd,', addressLine2: '3/72 Park Rd, Hurstville', suburb: 'Hurstville', postcode: '2220' }) }),
+    ];
+    await applyGeocodeVerification(rows, verifier);
+    const sent = verifier.verifyMany.mock.calls[0]![0] as Map<string, { query: string; suburb: string }>;
+    const query = [...sent.values()][0]!.query;
+    // The duplicated Line 2 is gone from the query — proving C routes through the helper.
+    expect(query).toBe('3/72 Park Rd,, Hurstville, NSW, 2220, Australia');
+  });
+
   it('sends each unique new address once, skipping duplicates and existing matches', async () => {
     const verifier = verifierReturning({ [KEY]: { status: 'found', lat: -33.8, lng: 151.2 } });
     const rows = [
@@ -62,9 +74,10 @@ describe('applyGeocodeVerification', () => {
     ];
     await applyGeocodeVerification(rows, verifier);
     expect(verifier.verifyMany).toHaveBeenCalledTimes(1);
-    const sent = verifier.verifyMany.mock.calls[0]![0] as Map<string, string>;
+    const sent = verifier.verifyMany.mock.calls[0]![0] as Map<string, { query: string; suburb: string }>;
     expect([...sent.keys()]).toEqual([KEY]);
-    expect(sent.get(KEY)).toBe('1 Test St, Sydney, NSW, 2000, Australia');
+    expect(sent.get(KEY)?.query).toBe('1 Test St, Sydney, NSW, 2000, Australia');
+    expect(sent.get(KEY)?.suburb).toBe('Sydney');
   });
 
   it('writes found verification onto every new row sharing the address, without issues', async () => {

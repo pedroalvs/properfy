@@ -91,7 +91,7 @@ export async function geocodeInspectorBase(
     if (coords) {
       // Rule A (PR-18): only a confident address-level result is stored. A
       // non-address (coarse) result or a low-relevance address is a failure.
-      const decision = classifyGeocodingResult(coords);
+      const decision = classifyGeocodingResult(coords, address.suburb);
       if (!decision.accepted) {
         const reason: GeocodeInspectorBaseFailure =
           decision.reason === 'COARSE_RESULT' ? 'coarse_result' : 'low_relevance';

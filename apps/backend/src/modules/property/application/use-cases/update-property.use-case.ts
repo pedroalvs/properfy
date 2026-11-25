@@ -17,6 +17,7 @@ import { propertyFullAddress } from '../../domain/property.entity';
 import { geocodeWithTimeout, GEOCODE_SYNC_TIMEOUT_MS } from '../services/geocode-with-timeout';
 import { sendJob } from '../../../../shared/infrastructure/queue';
 import { isSameGeocodingAddress, type GeocodableAddress } from '../../../../shared/domain/geocoding-address';
+import { buildNormalizedAddressKey } from '../../../../shared/domain/normalize-address';
 
 export interface UpdatePropertyInput {
   propertyId: string;
@@ -195,18 +196,23 @@ export class UpdatePropertyUseCase {
       (field) => (data as Record<string, unknown>)[field] !== undefined,
     );
 
-    // When the address changes, pre-check uniqueness against the
-    // `properties_normalized_address_active_unique` partial unique index —
-    // excluding this property itself — so a conflict is a clean 409 instead
-    // of an uncaught P2002 surfacing as a 500.
-    if (addressChanged) {
-      const effectiveAddress = {
-        street: data.street ?? property.street,
-        addressLine2: data.addressLine2 !== undefined ? data.addressLine2 : property.addressLine2,
-        suburb: data.suburb ?? property.suburb,
-        state: data.state ?? property.state,
-        postcode: data.postcode ?? property.postcode,
-      };
+    const effectiveAddress = {
+      street: data.street ?? property.street,
+      addressLine2: data.addressLine2 !== undefined ? data.addressLine2 : property.addressLine2,
+      suburb: data.suburb ?? property.suburb,
+      state: data.state ?? property.state,
+      postcode: data.postcode ?? property.postcode,
+    };
+    // Pre-check uniqueness against the `properties_normalized_address_active_unique`
+    // partial unique index — excluding this property itself — so a conflict is a
+    // clean 409 instead of an uncaught P2002/500. Gate on the normalized KEY
+    // changing, NOT on `addressChanged` (the geocoding query): the Line-2 dedup can
+    // drop a street-repeating Line 2 from the query (addressChanged=false) while
+    // `buildNormalizedAddressKey` still includes that Line 2 verbatim, so the stored
+    // key — and thus a possible collision — changes independently of re-geocoding.
+    const keyChanged =
+      buildNormalizedAddressKey(storedAddress) !== buildNormalizedAddressKey(effectiveAddress);
+    if (keyChanged) {
       const existingByAddress = await this.propertyRepo.findByNormalizedAddress(property.tenantId, effectiveAddress);
       if (existingByAddress && existingByAddress.id !== property.id) {
         throw new PropertyAddressConflictError();
@@ -305,7 +311,7 @@ export class UpdatePropertyUseCase {
         throw new PropertyAddressNotVerifiedError('NOT_FOUND');
       }
       if (outcome !== undefined) {
-        const decision = classifyGeocodingResult(outcome);
+        const decision = classifyGeocodingResult(outcome, data.suburb ?? property.suburb);
         if (!decision.accepted) {
           throw new PropertyAddressNotVerifiedError(decision.reason);
         }

@@ -147,7 +147,9 @@ export class UpdateBranchUseCase {
           }
         }
         if (!transientFailure) {
-          const decision = coords ? classifyGeocodingResult(coords) : null;
+          const decision = coords
+            ? classifyGeocodingResult(coords, (clean as unknown as GeocodableAddress).suburb)
+            : null;
           if (coords && decision?.accepted) {
             updateData.addressJson = { ...clean, latitude: coords.lat, longitude: coords.lng };
             updateData.geocodedPermanentlyAt = new Date();

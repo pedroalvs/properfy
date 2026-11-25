@@ -16,6 +16,13 @@ function makeLogger() {
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Build the verifyMany input: each entry is [key, query, suburb?]. The suburb
+ * defaults to 'Sydney'; bare {lat,lng} doubles (no placeType) are accepted via
+ * the no-placeType escape, so the suburb is only material for address doubles. */
+function reqs(entries: Array<readonly [string, string, string?]>): Map<string, { query: string; suburb: string }> {
+  return new Map(entries.map(([key, query, suburb = 'Sydney']) => [key, { query, suburb }]));
+}
+
 describe('ImportGeocodeVerifier', () => {
   it('returns an empty map for empty input without calling the service', async () => {
     const geocoding = service(async () => null);
@@ -31,7 +38,7 @@ describe('ImportGeocodeVerifier', () => {
     );
     const verifier = new ImportGeocodeVerifier(geocoding);
     const result = await verifier.verifyMany(
-      new Map([
+      reqs([
         ['key-a', '1 Real St, Sydney NSW 2000, Australia'],
         ['key-b', '9 Nowhere Rd, Atlantis'],
       ]),
@@ -45,14 +52,14 @@ describe('ImportGeocodeVerifier', () => {
   it('rule A: coarse / low-relevance results are not_found, a confident address is found', async () => {
     // Real Mapbox probe values (place_type, relevance).
     const geocoding = service(async (address) => {
-      if (address.includes('Martin')) return { lat: -33.868, lng: 151.209, placeType: 'address', relevance: 0.894 };
+      if (address.includes('Martin')) return { lat: -33.868, lng: 151.209, placeType: 'address', relevance: 0.894, suburb: 'Sydney' };
       if (address.includes('LouthAddr')) return { lat: -30.9, lng: 144.4, placeType: 'address', relevance: 0.667 };
       if (address.includes('Tilpa')) return { lat: -30.9, lng: 144.4, placeType: 'place', relevance: 0.667 };
       return { lat: -33.8, lng: 151.2, placeType: 'postcode', relevance: 0.522 };
     });
     const verifier = new ImportGeocodeVerifier(geocoding);
     const result = await verifier.verifyMany(
-      new Map([
+      reqs([
         ['ok', '1 Martin Place, Sydney NSW 2000'],
         ['low', '50 Louth Road LouthAddr, Tilpa NSW 2840'],
         ['place', 'Tilpa NSW 2840'],
@@ -73,7 +80,7 @@ describe('ImportGeocodeVerifier', () => {
     });
     const verifier = new ImportGeocodeVerifier(geocoding);
     const result = await verifier.verifyMany(
-      new Map([
+      reqs([
         ['key-err', 'boom street'],
         ['key-ok', 'fine street'],
       ]),
@@ -92,7 +99,7 @@ describe('ImportGeocodeVerifier', () => {
     });
     const verifier = new ImportGeocodeVerifier(geocoding, { perAddressTimeoutMs: 20 });
     const result = await verifier.verifyMany(
-      new Map([
+      reqs([
         ['key-slow', 'slow street'],
         ['key-fast', 'fast street'],
       ]),
@@ -105,7 +112,7 @@ describe('ImportGeocodeVerifier', () => {
     const geocoding = service(async () => ({ lat: 1, lng: 2 }));
     const verifier = new ImportGeocodeVerifier(geocoding, { maxAddresses: 2 });
     const result = await verifier.verifyMany(
-      new Map([
+      reqs([
         ['key-1', 'a'],
         ['key-2', 'b'],
         ['key-3', 'c'],
@@ -128,7 +135,7 @@ describe('ImportGeocodeVerifier', () => {
       perAddressTimeoutMs: 1000,
     });
     const result = await verifier.verifyMany(
-      new Map([
+      reqs([
         ['key-1', 'a'],
         ['key-2', 'b'],
         ['key-3', 'c'],
@@ -149,7 +156,7 @@ describe('ImportGeocodeVerifier', () => {
     });
     const verifier = new ImportGeocodeVerifier(geocoding, { concurrency: 1 }, logger as never);
     const result = await verifier.verifyMany(
-      new Map([
+      reqs([
         ['key-1', 'a'],
         ['key-2', 'b'],
         ['key-3', 'c'],
@@ -177,7 +184,7 @@ describe('ImportGeocodeVerifier', () => {
     });
     const verifier = new ImportGeocodeVerifier(geocoding, { concurrency: 1 }, logger as never);
     const result = await verifier.verifyMany(
-      new Map([
+      reqs([
         ['key-1', 'boom one'],
         ['key-2', 'boom two'],
         ['key-3', 'fine street'],
@@ -204,7 +211,7 @@ describe('ImportGeocodeVerifier', () => {
     });
     const verifier = new ImportGeocodeVerifier(geocoding, { concurrency: 2 });
     await verifier.verifyMany(
-      new Map(Array.from({ length: 8 }, (_, i) => [`key-${i}`, `address ${i}`] as const)),
+      reqs(Array.from({ length: 8 }, (_, i) => [`key-${i}`, `address ${i}`] as const)),
     );
     expect(maxInFlight).toBe(2);
     expect(geocoding.geocode).toHaveBeenCalledTimes(8);
