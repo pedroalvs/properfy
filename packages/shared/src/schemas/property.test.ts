@@ -255,12 +255,29 @@ describe('createPropertySchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should strip client-supplied latitude/longitude (autocomplete coords are never stored)', () => {
-    const result = createPropertySchema.safeParse({ ...validInput, latitude: -33.8, longitude: 151.2 });
+  it('accepts a manual latitude/longitude pair (V-1 rural escape, V2)', () => {
+    const result = createPropertySchema.safeParse({ ...validInput, latitude: -33.4521, longitude: 150.6612 });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect('latitude' in result.data).toBe(false);
-      expect('longitude' in result.data).toBe(false);
+      expect(result.data.latitude).toBe(-33.4521);
+      expect(result.data.longitude).toBe(150.6612);
+    }
+  });
+
+  it('rejects an out-of-range manual coordinate', () => {
+    expect(createPropertySchema.safeParse({ ...validInput, latitude: -999, longitude: 151.2 }).success).toBe(false);
+  });
+
+  it('rejects a lone latitude or longitude (both-or-neither)', () => {
+    const latOnly = createPropertySchema.safeParse({ ...validInput, latitude: -33.4521 });
+    expect(latOnly.success).toBe(false);
+    if (!latOnly.success) {
+      expect(latOnly.error.issues.some((i) => i.path.join('.') === 'longitude')).toBe(true);
+    }
+    const lngOnly = createPropertySchema.safeParse({ ...validInput, longitude: 150.6612 });
+    expect(lngOnly.success).toBe(false);
+    if (!lngOnly.success) {
+      expect(lngOnly.error.issues.some((i) => i.path.join('.') === 'latitude')).toBe(true);
     }
   });
 

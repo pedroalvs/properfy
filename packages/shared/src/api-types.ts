@@ -2554,6 +2554,8 @@ export interface paths {
                         furnished?: boolean;
                         linenProvided?: boolean;
                         rentAmount?: number;
+                        latitude?: number | null;
+                        longitude?: number | null;
                         notes?: string;
                         rulesJson?: {
                             keyRequired?: boolean;

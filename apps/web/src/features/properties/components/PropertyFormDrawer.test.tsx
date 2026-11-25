@@ -1,10 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from '@/hooks/useSnackbar';
 
 vi.mock('@properfy/shared', () => ({
   PropertyType: { APARTMENT: 'APARTMENT', HOUSE: 'HOUSE' },
+  ADDRESS_LEGACY_UNVERIFIED_MESSAGE:
+    "This address couldn't be located. Update it or set the location manually.",
+  ADDRESS_CHECK_DEFERRED_MESSAGE:
+    "We couldn't check this address right now; it will be checked again shortly.",
+  ADDRESS_NOT_VERIFIED_MESSAGES: {
+    NOT_FOUND: { field: "We couldn't find this address.", support: 'Check the street, number, suburb and postcode.' },
+    COARSE_RESULT: {
+      field: 'We could only locate the area, not the exact address.',
+      support: 'Add the street number, or correct the street name.',
+    },
+    LOW_RELEVANCE: {
+      field: "This address doesn't match a known address closely enough.",
+      support: 'Check the street, number, suburb and postcode.',
+    },
+  },
 }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 vi.mock('@/services/api', () => ({
@@ -129,6 +144,37 @@ describe('PropertyFormDrawer', () => {
     propertyDetailPending = false;
     mockSave.mockResolvedValue({ success: true });
     mockValidate.mockReturnValue({});
+    // Reset the shared property fixture (tests mutate geocodingStatus).
+    MOCK_PROPERTY.geocodingStatus = 'SUCCESS';
+  });
+
+  describe('V-1 address verification', () => {
+    it('shows the non-blocking legacy warning when editing a FAILED record', () => {
+      MOCK_PROPERTY.geocodingStatus = 'FAILED';
+      renderDrawer({ propertyId: 'prop-01' });
+      expect(
+        screen.getByText("This address couldn't be located. Update it or set the location manually."),
+      ).toBeInTheDocument();
+    });
+
+    it('saves normally when only Notes change on a FAILED record (address unchanged)', async () => {
+      MOCK_PROPERTY.geocodingStatus = 'FAILED';
+      renderDrawer({ propertyId: 'prop-01' });
+      fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'edited note' } });
+      fireEvent.click(screen.getByText('Save'));
+      await waitFor(() => expect(mockSave).toHaveBeenCalled());
+    });
+
+    it('marks the address fields and shows the reason block on a 422 (COARSE_RESULT)', async () => {
+      mockSave.mockResolvedValue({ success: false, addressNotVerified: 'COARSE_RESULT' });
+      renderDrawer({ propertyId: 'prop-01' });
+      fireEvent.change(screen.getByLabelText('Street'), { target: { value: 'Old Coach Rd' } });
+      fireEvent.click(screen.getByText('Save'));
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent('We could only locate the area, not the exact address.');
+      });
+      expect(screen.getByLabelText('Street')).toHaveAttribute('aria-invalid', 'true');
+    });
   });
 
   it('renders create mode with correct title, form sections, and cancel calls onClose', () => {

@@ -1,4 +1,20 @@
+import { ADDRESS_NOT_VERIFIED_CODE, type AddressNotVerifiedReason } from '@properfy/shared';
 import { NotFoundError, ConflictError, DomainError } from '../../../shared/domain/errors';
+
+/**
+ * 422 raised on save when a property address cannot be verified against the
+ * permanent geocoder (rule A). Nothing is written. `details[0].reason` carries
+ * the machine reason (`NOT_FOUND` / `COARSE_RESULT` / `LOW_RELEVANCE`) so the
+ * client renders the matching `ADDRESS_NOT_VERIFIED_MESSAGES` copy and marks the
+ * address fields. The rural escape (a manual coordinate pair) bypasses this.
+ */
+export class PropertyAddressNotVerifiedError extends DomainError {
+  constructor(reason: AddressNotVerifiedReason) {
+    super(ADDRESS_NOT_VERIFIED_CODE, 'The address could not be verified.', 422, [
+      { field: 'address', reason },
+    ]);
+  }
+}
 
 export class PropertyNotFoundError extends NotFoundError {
   constructor() {

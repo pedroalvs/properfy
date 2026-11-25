@@ -11,6 +11,7 @@ import type { AuthContext } from '@properfy/shared';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 import { BranchEntity } from '../../../src/modules/tenant/domain/branch.entity';
 import { PropertyEntity } from '../../../src/modules/property/domain/property.entity';
+import { PropertyAddressNotVerifiedError } from '../../../src/modules/property/domain/property.errors';
 import { ServiceTypeEntity } from '../../../src/modules/service-type/domain/service-type.entity';
 import { PricingRuleEntity } from '../../../src/modules/pricing-rule/domain/pricing-rule.entity';
 import {
@@ -354,6 +355,37 @@ describe('CreateAppointmentUseCase', () => {
 
     expect(result.propertyId).toBe('new-property-1');
     expect(createPropertyUseCase.execute).toHaveBeenCalled();
+  });
+
+  it('propagates 422 ADDRESS_NOT_VERIFIED from the inline property and saves no appointment (V-1 / V9)', async () => {
+    vi.mocked(branchRepo.findById).mockResolvedValue(makeBranch());
+    vi.mocked(serviceTypeRepo.findById).mockResolvedValue(makeServiceType());
+    vi.mocked(pricingRuleRepo.findAll).mockResolvedValue([makePricingRule()]);
+    vi.mocked(createPropertyUseCase.execute).mockRejectedValue(
+      new PropertyAddressNotVerifiedError('COARSE_RESULT'),
+    );
+
+    await expect(
+      useCase.execute({
+        branchId: 'branch-1',
+        property: {
+          propertyCode: 'PROP-INLINE',
+          type: 'HOUSE',
+          street: 'Old Coach Rd',
+          suburb: 'Kurrajong',
+          postcode: '2758',
+          state: 'NSW',
+          country: 'AU',
+        },
+        serviceTypeId: 'svc-type-1',
+        scheduledDate: futureDateStr(60),
+        timeSlotStart: '09:00', timeSlotEnd: '10:00',
+        contact: { rentalTenantName: 'Jane Doe' },
+        keyRequired: false,
+        actor: makeActor({ role: 'CL_ADMIN', tenantId: 'tenant-1' }),
+      }),
+    ).rejects.toMatchObject({ code: 'ADDRESS_NOT_VERIFIED', statusCode: 422 });
+    expect(appointmentRepo.save).not.toHaveBeenCalled();
   });
 
   it('should fail for INSP role (forbidden)', async () => {
