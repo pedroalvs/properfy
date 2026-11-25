@@ -218,6 +218,9 @@ export class SendGroupPortalLinksUseCase {
                 'DATE_CHANGED',
                 ctx.tx,
                 ctx.defer,
+                // O-11 (option C): a stale CONFIRMED reset by the group resend is
+                // recorded on the appointment with the operator + the group cause.
+                { actorId: input.actor.userId, cause: 'GROUP_PORTAL_LINK_RESEND' },
               );
               return { action: 'SEND_AFTER_RESET', afterCommit: await generation.runWritePhase() };
             }),

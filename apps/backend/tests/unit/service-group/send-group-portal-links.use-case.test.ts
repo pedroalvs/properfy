@@ -255,6 +255,8 @@ describe('SendGroupPortalLinksUseCase', () => {
       'DATE_CHANGED',
       tx,
       expect.any(Function),
+      // O-11: audit context (operator + group cause) for the appointment-level reset audit.
+      { actorId: expect.any(String), cause: 'GROUP_PORTAL_LINK_RESEND' },
     );
     expect(events).toEqual([
       'transaction:start',

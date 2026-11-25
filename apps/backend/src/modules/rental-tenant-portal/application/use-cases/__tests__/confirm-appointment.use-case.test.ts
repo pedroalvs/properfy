@@ -5,7 +5,6 @@ import {
   PortalAppointmentInactiveError,
 } from '../../../domain/rental-tenant-portal.errors';
 import {
-  ConfirmationCycleNotFoundError,
   ConfirmationCycleAlreadyTerminalError,
 } from '../../../../appointment/domain/confirmation-cycle.errors';
 
@@ -146,15 +145,15 @@ describe('ConfirmAppointmentUseCase — WI-B1: narrow the cycle-service fallback
     expect(appointmentRepo.update).not.toHaveBeenCalled();
   });
 
-  it('falls back to the denorm write only for a missing cycle (pre-feature appointment)', async () => {
-    const { uc, appointmentRepo } = makeUseCaseWithCycle(() =>
-      Promise.reject(new ConfirmationCycleNotFoundError()),
-    );
+  // O-11: confirm now CREATES a CONFIRMED cycle when none exists, so the use case no
+  // longer catches ConfirmationCycleNotFoundError nor writes the denorm itself — the
+  // service owns the CONFIRMED write. The old "denorm fallback" path is gone.
+  it('lets the cycle service own the CONFIRMED write — no denorm fallback (O-11)', async () => {
+    const { uc, appointmentRepo } = makeUseCaseWithCycle(() => Promise.resolve());
 
-    const result = await uc.execute(BASE_INPUT);
+    await uc.execute(BASE_INPUT);
 
-    expect(result.rentalTenantConfirmationStatus).toBe('CONFIRMED');
-    expect(appointmentRepo.update).toHaveBeenCalledWith(
+    expect(appointmentRepo.update).not.toHaveBeenCalledWith(
       'appt-1',
       'tenant-1',
       expect.objectContaining({ rentalTenantConfirmationStatus: 'CONFIRMED' }),

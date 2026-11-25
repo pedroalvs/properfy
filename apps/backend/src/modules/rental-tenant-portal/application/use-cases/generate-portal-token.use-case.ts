@@ -173,6 +173,10 @@ export class GeneratePortalTokenUseCase {
         minted.tokenId,
         ctx.tx,
         ctx.defer,
+        // O-11 (option C): record on the appointment if generating the link actually
+        // changes the confirmation status (e.g. re-opening an UNAVAILABLE/NO_RESPONSE).
+        // A CONFIRMED base is adopted, so no reset is recorded for it.
+        { actorId: input.actor.userId, cause: 'PORTAL_LINK_GENERATED' },
       );
     } else {
       const minted = await this.mintPortalTokenService.mint(appointment, tenant);

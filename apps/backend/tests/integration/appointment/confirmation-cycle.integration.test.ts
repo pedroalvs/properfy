@@ -207,3 +207,100 @@ describe('C1 — confirmation-cycle atomicity (real DB)', () => {
     expect(cycleSuperseded).toBe(true);
   });
 });
+
+/**
+ * O-11: generating a portal link / confirming must never silently reset a
+ * confirmation when no cycle exists yet (the normal state for email / forced /
+ * group-join confirmations). These run against a real DB through the real service.
+ */
+async function seedAppointmentWithoutCycle(prisma: PrismaClient, confirmationStatus: string) {
+  const tenant = await prisma.tenant.create({
+    data: { name: 'O11 Tenant', legal_name: `O11 LLC ${Math.random().toString(36).slice(2)}`, status: 'ACTIVE' },
+  });
+  const branch = await prisma.branch.create({ data: { tenant_id: tenant.id, name: 'O11 Branch', status: 'ACTIVE' } });
+  const property = await prisma.property.create({
+    data: {
+      tenant_id: tenant.id, branch_id: branch.id,
+      property_code: `O11-${Math.random().toString(36).slice(2)}`,
+      type: 'HOUSE', street: '1 Test St', suburb: 'Test', postcode: '2000', state: 'NSW', country: 'AU',
+      geocoding_status: 'SUCCESS',
+    },
+  });
+  const suffix = Math.random().toString(36).slice(2);
+  const serviceType = await prisma.serviceType.create({
+    data: {
+      code: `O11-ST-${suffix}`, name: `O11 Routine ${suffix}`, flow_type: 'ROUTINE',
+      requires_rental_tenant_confirmation: true, status: 'ACTIVE',
+    },
+  });
+  const user = await prisma.user.create({
+    data: {
+      tenant_id: tenant.id, branch_id: branch.id, role: 'OP', name: 'O11 Actor',
+      email: `o11-${Math.random().toString(36).slice(2)}@test.local`,
+      password_hash: '$2a$10$fakehashfakehashfakehashfakehashfake', status: 'ACTIVE',
+    },
+  });
+  // No cycle, no active_confirmation_cycle_id — exactly the vulnerable state.
+  const appointment = await prisma.appointment.create({
+    data: {
+      tenant_id: tenant.id, branch_id: branch.id, property_id: property.id,
+      service_type_id: serviceType.id, status: 'SCHEDULED',
+      scheduled_date: new Date('2026-07-01'), time_slot_start: '09:00', time_slot_end: '12:00',
+      price_amount: '100.00', payout_amount: '80.00',
+      pricing_rule_snapshot_json: {}, rental_tenant_confirmation_status: confirmationStatus as never,
+      created_by_user_id: user.id,
+    },
+  });
+  return { tenantId: tenant.id, appointmentId: appointment.id };
+}
+
+describe('O-11 — portal link/confirm never resets a confirmation without a cycle (real DB)', () => {
+  it('createInitial ADOPTS a CONFIRMED appointment (stays CONFIRMED) instead of resetting it', async () => {
+    const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'CONFIRMED');
+
+    await cycleService.createInitial(appointmentId, tenantId, new Date('2026-07-01'), '09:00-12:00', null);
+
+    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+    expect(appt?.rental_tenant_confirmation_status).toBe('CONFIRMED');
+    const cycle = await harness.prisma.appointmentConfirmationCycle.findFirst({ where: { appointment_id: appointmentId } });
+    expect(cycle?.status).toBe('CONFIRMED');
+    expect(appt?.active_confirmation_cycle_id).toBe(cycle?.id);
+  });
+
+  it('confirm CREATES a CONFIRMED cycle when none exists (durable confirmation)', async () => {
+    const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'PENDING');
+
+    await cycleService.confirm(appointmentId, tenantId, 'RENTAL_TENANT_PORTAL', null);
+
+    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+    expect(appt?.rental_tenant_confirmation_status).toBe('CONFIRMED');
+    const cycle = await harness.prisma.appointmentConfirmationCycle.findFirst({ where: { appointment_id: appointmentId } });
+    expect(cycle?.status).toBe('CONFIRMED');
+  });
+
+  it('markUnavailable CREATES an UNAVAILABLE cycle when none exists', async () => {
+    const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'PENDING');
+
+    await cycleService.markUnavailable(appointmentId, tenantId);
+
+    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+    expect(appt?.rental_tenant_confirmation_status).toBe('UNAVAILABLE');
+    const cycle = await harness.prisma.appointmentConfirmationCycle.findFirst({ where: { appointment_id: appointmentId } });
+    expect(cycle?.status).toBe('UNAVAILABLE');
+  });
+
+  it('two concurrent confirms converge on a single CONFIRMED cycle (cycle_number retry)', async () => {
+    const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'PENDING');
+
+    await Promise.all([
+      cycleService.confirm(appointmentId, tenantId, 'RENTAL_TENANT_PORTAL', null),
+      cycleService.confirm(appointmentId, tenantId, 'RENTAL_TENANT_PORTAL', null),
+    ]);
+
+    const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
+    expect(appt?.rental_tenant_confirmation_status).toBe('CONFIRMED');
+    const cycles = await harness.prisma.appointmentConfirmationCycle.findMany({ where: { appointment_id: appointmentId } });
+    expect(cycles).toHaveLength(1);
+    expect(cycles[0]?.status).toBe('CONFIRMED');
+  });
+});

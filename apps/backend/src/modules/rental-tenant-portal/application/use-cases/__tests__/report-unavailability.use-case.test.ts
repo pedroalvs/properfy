@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { ReportUnavailabilityUseCase } from '../report-unavailability.use-case';
 import { PortalAppointmentInactiveError } from '../../../domain/rental-tenant-portal.errors';
 import {
-  ConfirmationCycleNotFoundError,
   ConfirmationCycleAlreadyTerminalError,
 } from '../../../../appointment/domain/confirmation-cycle.errors';
 
@@ -278,15 +277,15 @@ describe('ReportUnavailabilityUseCase — WI-B1: narrow the cycle-service fallba
     );
   });
 
-  it('falls back to the denorm write only for a missing cycle (pre-feature appointment)', async () => {
-    const { uc, appointmentRepo, statusTransition } = makeUseCaseWithCycle(() =>
-      Promise.reject(new ConfirmationCycleNotFoundError()),
-    );
+  // O-11: markUnavailable now CREATES a cycle when none exists, so the use case no
+  // longer catches ConfirmationCycleNotFoundError nor writes the denorm itself — the
+  // service owns the UNAVAILABLE write. The old "denorm fallback" path is gone.
+  it('lets the cycle service own the UNAVAILABLE write — no denorm fallback (O-11)', async () => {
+    const { uc, appointmentRepo, statusTransition } = makeUseCaseWithCycle(() => Promise.resolve());
 
-    const result = await uc.execute(BASE_INPUT);
+    await uc.execute(BASE_INPUT);
 
-    expect(result.rentalTenantConfirmationStatus).toBe('UNAVAILABLE');
-    expect(appointmentRepo.update).toHaveBeenCalledWith(
+    expect(appointmentRepo.update).not.toHaveBeenCalledWith(
       'appt-1',
       'tenant-1',
       expect.objectContaining({ rentalTenantConfirmationStatus: 'UNAVAILABLE' }),

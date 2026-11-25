@@ -53,17 +53,15 @@ export class ForceManualTenantConfirmationUseCase {
       throw new AppointmentNotFoundError();
     }
 
-    // 3. Update tenant confirmation status via ConfirmationCycleService (if wired)
-    // or fall back to direct update for appointments created before this feature.
+    // 3. Update tenant confirmation status via ConfirmationCycleService. O-11:
+    // `confirm` now CREATES a CONFIRMED cycle when none exists (no more
+    // ConfirmationCycleNotFoundError for a pre-cycle appointment), so the old
+    // denorm-only fallback — and the empty `catch {}` that swallowed real DB
+    // errors with it — is gone: a genuine failure must surface, not be masked as a
+    // successful confirmation. The unwired branch stays only for constructions that
+    // omit the optional service (e.g. legacy tests).
     if (this.cycleService) {
-      try {
-        await this.cycleService.confirm(appointmentId, result.appointment.tenantId, 'OPERATOR_FORCED', null);
-      } catch {
-        // No active cycle (pre-feature appointment) — fall back to direct denorm write
-        await this.appointmentRepo.update(appointmentId, result.appointment.tenantId, {
-          rentalTenantConfirmationStatus,
-        });
-      }
+      await this.cycleService.confirm(appointmentId, result.appointment.tenantId, 'OPERATOR_FORCED', null);
     } else {
       await this.appointmentRepo.update(appointmentId, result.appointment.tenantId, {
         rentalTenantConfirmationStatus,

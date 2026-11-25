@@ -53,6 +53,7 @@ const ACTION_STYLES: Record<string, { icon: string; color: string }> = {
   'rental_tenant_portal.appointment_rescheduled': { icon: 'mdi-calendar-sync', color: 'border-info' },
   'rental_tenant_portal.contact_updated': { icon: 'mdi-account-edit', color: 'border-info' },
   'rental_tenant_portal.group_joined': { icon: 'mdi-account-group', color: 'border-success' },
+  'appointment.rental_tenant_confirmation_reset': { icon: 'mdi-account-clock', color: 'border-warning' },
   'inspection.started': { icon: 'mdi-play-circle', color: 'border-success' },
   'inspection.finished': { icon: 'mdi-flag-checkered', color: 'border-success' },
   'inspection.geolocation_mismatch': { icon: 'mdi-map-marker-alert', color: 'border-warning' },
@@ -81,6 +82,35 @@ function formatAction(action: string): string {
   return ACTION_LABELS[normalizeAction(action)] ?? action
     .replace(/[._]/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+/**
+ * O-11: the appointment-level confirmation-reset audit (`appointment
+ * .rental_tenant_confirmation_reset`) reads differently by its `metadata.cause`,
+ * so an operator can tell a single Send-Portal-Link reset from a group resend.
+ * The group wording is pending Pedro's final confirmation — swap
+ * `GROUP_PORTAL_LINK_RESEND` below if it changes; the single label is approved.
+ */
+const CONFIRMATION_RESET_ACTION = 'appointment.rental_tenant_confirmation_reset';
+const CONFIRMATION_RESET_LABELS: Record<string, string> = {
+  PORTAL_LINK_GENERATED: 'Tenant confirmation reset to Pending (portal link generated)',
+  GROUP_PORTAL_LINK_RESEND: 'Tenant confirmation reset to Pending (group portal link sent)',
+};
+const CONFIRMATION_RESET_FALLBACK_LABEL = 'Tenant confirmation reset to Pending';
+
+function readCause(metadataJson: unknown): string | null {
+  if (!metadataJson || typeof metadataJson !== 'object' || Array.isArray(metadataJson)) return null;
+  const cause = (metadataJson as Record<string, unknown>)['cause'];
+  return typeof cause === 'string' ? cause : null;
+}
+
+/** Label for a timeline entry, resolving the cause-specific confirmation-reset copy. */
+function formatActionForEntry(entry: AuditLogEntry): string {
+  if (normalizeAction(entry.action) === CONFIRMATION_RESET_ACTION) {
+    const cause = readCause(entry.metadataJson);
+    return (cause && CONFIRMATION_RESET_LABELS[cause]) || CONFIRMATION_RESET_FALLBACK_LABEL;
+  }
+  return formatAction(entry.action);
 }
 
 function formatActor(entry: AuditLogEntry): string {
@@ -205,7 +235,7 @@ export function AuditTimeline({ entries }: AuditTimelineProps) {
                 <i className={cn('mdi', style.icon, 'text-[10px]')} aria-hidden="true" />
               </div>
               <div className="ml-3">
-                <p className="text-sm font-semibold text-text-primary">{formatAction(entry.action)}</p>
+                <p className="text-sm font-semibold text-text-primary">{formatActionForEntry(entry)}</p>
                 <p className="text-xs text-text-secondary">
                   by {formatActor(entry)} &middot; {formatInstantDateTime(entry.createdAt)}
                 </p>

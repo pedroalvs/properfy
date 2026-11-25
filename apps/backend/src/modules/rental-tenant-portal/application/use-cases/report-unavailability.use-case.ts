@@ -23,7 +23,6 @@ import {
   PortalTokenAlreadyUsedError,
 } from '../../domain/rental-tenant-portal.errors';
 import { NotFoundError } from '../../../../shared/domain/errors';
-import { ConfirmationCycleNotFoundError } from '../../../appointment/domain/confirmation-cycle.errors';
 
 interface IStatusTransitionUseCase {
   execute(input: ExecuteStatusTransitionInput): Promise<ExecuteStatusTransitionOutput>;
@@ -213,19 +212,12 @@ export class ReportUnavailabilityUseCase {
       rentalTenantConfirmationStatus: appointment.rentalTenantConfirmationStatus,
     };
 
-    // 5. Update appointment confirmation status via cycle service (if wired)
+    // 5. Update appointment confirmation status via cycle service (if wired).
+    // O-11: `markUnavailable` now CREATES an UNAVAILABLE cycle when none exists, so
+    // the "no cycle → denorm-only" fallback is gone; terminal-cycle and DB errors
+    // propagate (never a fallback case).
     if (this.cycleService) {
-      try {
-        await this.cycleService.markUnavailable(input.appointmentId, appointment.tenantId);
-      } catch (error) {
-        // Only a missing cycle (pre-feature appointment) is a fallback case. A
-        // terminal-cycle violation or a transient DB error must propagate, not
-        // be silently converted into a successful UNAVAILABLE write.
-        if (!(error instanceof ConfirmationCycleNotFoundError)) throw error;
-        await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
-          rentalTenantConfirmationStatus: 'UNAVAILABLE',
-        });
-      }
+      await this.cycleService.markUnavailable(input.appointmentId, appointment.tenantId);
       if (input.rentalTenantNote !== undefined) {
         await this.appointmentRepo.update(input.appointmentId, appointment.tenantId, {
           rentalTenantNote: input.rentalTenantNote,

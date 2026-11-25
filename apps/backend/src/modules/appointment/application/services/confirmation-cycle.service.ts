@@ -9,9 +9,27 @@ import {
 } from '../../domain/confirmation-cycle.errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { TxContext } from '../../../../shared/application/unit-of-work';
+import { retryOnUniqueConflict } from '../../../../shared/domain/retry-on-unique-conflict';
 
 type Tx = Prisma.TransactionClient;
 type Defer = TxContext['defer'];
+
+/**
+ * O-11: why a portal-link operation changed the appointment's confirmation
+ * status, recorded on the appointment-level audit so the operator (and the web
+ * timeline) can see what reset a confirmation. Backend-internal — stored in the
+ * audit entry's `metadata.cause`, not a shared/api contract value.
+ */
+export type ConfirmationResetCause = 'PORTAL_LINK_GENERATED' | 'GROUP_PORTAL_LINK_RESEND';
+
+/** Who triggered a link operation + why, for the O-11 appointment-level audit. */
+export interface ConfirmationResetAuditContext {
+  actorId: string;
+  cause: ConfirmationResetCause;
+}
+
+/** Audit action for the O-11 appointment-level confirmation-reset record. */
+export const CONFIRMATION_RESET_AUDIT_ACTION = 'appointment.rental_tenant_confirmation_reset';
 
 export class ConfirmationCycleService {
   constructor(
@@ -38,6 +56,7 @@ export class ConfirmationCycleService {
     tokenId: string | null,
     tx?: Tx,
     defer?: Defer,
+    auditContext?: ConfirmationResetAuditContext,
   ): Promise<ConfirmationCycleEntity> {
     const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
       const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, client);
@@ -64,36 +83,30 @@ export class ConfirmationCycleService {
         return linked;
       }
 
-      // No active cycle — create new PENDING one
-      const maxCycleNumber = await this.cycleRepo.findMaxCycleNumber(appointmentId, client);
-      const now = new Date();
-      const cycle = new ConfirmationCycleEntity({
-        id: crypto.randomUUID(),
+      // No active cycle (O-11, option A): adopt an existing confirmation instead of
+      // silently resetting it. Read the appointment's current denorm status in the
+      // same transaction — if it is CONFIRMED, open the first cycle ALREADY
+      // CONFIRMED (source unknown → null) and keep the status, so generating a
+      // portal link no longer undoes a confirmation. Any other status
+      // (PENDING / UNAVAILABLE / NO_RESPONSE) opens a fresh PENDING cycle exactly
+      // as before — a new link re-opens an UNAVAILABLE/NO_RESPONSE confirmation
+      // (decision 2). A real status change is audited on the appointment (option C).
+      const current = await this.readAppointmentConfirmation(appointmentId, client);
+      const beforeStatus = current?.status ?? 'PENDING';
+      const targetStatus = beforeStatus === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING';
+
+      const cycle = await this.createCycleWith(
+        client,
         appointmentId,
-        cycleNumber: maxCycleNumber + 1,
+        tenantId,
+        targetStatus,
+        null,
+        tokenId,
         scheduledDate,
         timeSlot,
-        status: 'PENDING',
-        confirmationSource: null,
-        confirmedAt: null,
-        invalidatedAt: null,
-        invalidatedReason: null,
-        portalTokenId: tokenId,
-        createdAt: now,
-      });
-
-      await this.cycleRepo.save(cycle, client);
-      await this.setAppointmentActiveCycle(appointmentId, tenantId, cycle.id, 'PENDING', client);
-      await this.linkTokenToCycle(tokenId, cycle.id, client);
-
-      this.logAfterCommit(defer, {
-        action: 'appointment_confirmation_cycle.created',
-        actorType: 'SYSTEM',
-        entityType: 'AppointmentConfirmationCycle',
-        entityId: cycle.id,
-        tenantId,
-        after: { cycleNumber: cycle.cycleNumber, status: 'PENDING' },
-      });
+        defer,
+      );
+      this.logAppointmentReset(appointmentId, tenantId, beforeStatus, targetStatus, auditContext, defer);
 
       return cycle;
     };
@@ -132,8 +145,15 @@ export class ConfirmationCycleService {
     reason: 'DATE_CHANGED' | 'TIME_CHANGED',
     tx?: Tx,
     defer?: Defer,
+    auditContext?: ConfirmationResetAuditContext,
   ): Promise<ConfirmationCycleEntity> {
     const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
+      // O-11 (option C): capture the status being reset so the appointment-level
+      // audit records before→after + the operator + the cause (group portal-link
+      // resend). Read before superseding, while the denorm still holds it.
+      const current = await this.readAppointmentConfirmation(appointmentId, client);
+      const beforeStatus = current?.status ?? 'PENDING';
+
       await this.supersedeCurrent(appointmentId, tenantId, reason, client, defer);
 
       const maxCycleNumber = await this.cycleRepo.findMaxCycleNumber(appointmentId, client);
@@ -153,6 +173,7 @@ export class ConfirmationCycleService {
       });
       await this.cycleRepo.save(cycle, client);
       await this.setAppointmentActiveCycle(appointmentId, tenantId, cycle.id, 'PENDING', client);
+      this.logAppointmentReset(appointmentId, tenantId, beforeStatus, 'PENDING', auditContext, defer);
 
       this.logAfterCommit(defer, {
         action: 'appointment_confirmation_cycle.rotated',
@@ -224,18 +245,40 @@ export class ConfirmationCycleService {
   ): Promise<ConfirmationCycleEntity> {
     const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
       const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, client);
-      if (!active) throw new ConfirmationCycleNotFoundError();
-      if (active.status === 'CONFIRMED') return active;
-      if (active.isTerminal()) throw new ConfirmationCycleAlreadyTerminalError();
+      if (active) {
+        if (active.status === 'CONFIRMED') return active;
+        if (active.isTerminal()) throw new ConfirmationCycleAlreadyTerminalError();
 
-      const updated = active.markConfirmed(source as CycleConfirmationSource, tokenId);
-      await this.cycleRepo.update(updated, client);
-      await this.setAppointmentActiveCycle(appointmentId, tenantId, active.id, 'CONFIRMED', client);
-      this.emitCycleAudit(tenantId, active, updated);
-      return updated;
+        const updated = active.markConfirmed(source as CycleConfirmationSource, tokenId);
+        await this.cycleRepo.update(updated, client);
+        await this.setAppointmentActiveCycle(appointmentId, tenantId, active.id, 'CONFIRMED', client);
+        this.emitCycleAudit(tenantId, active, updated);
+        return updated;
+      }
+
+      // O-11 (option B): no cycle yet — the confirmation arrived via the automatic
+      // SCHEDULED email, an admin force-confirm, or a group join, none of which
+      // opened a cycle. CREATE the cycle already CONFIRMED (its real source) instead
+      // of throwing ConfirmationCycleNotFoundError, so the confirmation is durable
+      // and a later portal link adopts it rather than resetting it.
+      const appt = await this.readAppointmentConfirmation(appointmentId, client);
+      if (!appt) throw new ConfirmationCycleNotFoundError();
+      return this.createCycleWith(
+        client,
+        appointmentId,
+        tenantId,
+        'CONFIRMED',
+        source as CycleConfirmationSource,
+        tokenId,
+        appt.scheduledDate,
+        appt.timeSlot,
+        undefined,
+      );
     };
+    // Self-owned calls (every caller today) replay a concurrent cycle_number race;
+    // a caller-owned tx cannot retry in place (Postgres aborts it) so it rethrows.
     if (tx) return await run(tx);
-    return await this.prisma.$transaction(run);
+    return await retryOnUniqueConflict(['cycle_number'], () => this.prisma.$transaction(run));
   }
 
   /**
@@ -245,18 +288,36 @@ export class ConfirmationCycleService {
   async markUnavailable(appointmentId: string, tenantId: string, tx?: Tx): Promise<ConfirmationCycleEntity> {
     const run = async (client: Tx): Promise<ConfirmationCycleEntity> => {
       const active = await this.cycleRepo.findActiveByAppointmentId(appointmentId, client);
-      if (!active) throw new ConfirmationCycleNotFoundError();
-      if (active.status === 'UNAVAILABLE') return active;
-      if (active.isTerminal()) throw new ConfirmationCycleAlreadyTerminalError();
+      if (active) {
+        if (active.status === 'UNAVAILABLE') return active;
+        if (active.isTerminal()) throw new ConfirmationCycleAlreadyTerminalError();
 
-      const updated = active.markUnavailable();
-      await this.cycleRepo.update(updated, client);
-      await this.setAppointmentActiveCycle(appointmentId, tenantId, active.id, 'UNAVAILABLE', client);
-      this.emitCycleAudit(tenantId, active, updated);
-      return updated;
+        const updated = active.markUnavailable();
+        await this.cycleRepo.update(updated, client);
+        await this.setAppointmentActiveCycle(appointmentId, tenantId, active.id, 'UNAVAILABLE', client);
+        this.emitCycleAudit(tenantId, active, updated);
+        return updated;
+      }
+
+      // O-11 (option B): no cycle yet — create it already UNAVAILABLE instead of
+      // throwing, so "can't attend" is durable even when it is the tenant's first
+      // response and no manual link ever opened a cycle.
+      const appt = await this.readAppointmentConfirmation(appointmentId, client);
+      if (!appt) throw new ConfirmationCycleNotFoundError();
+      return this.createCycleWith(
+        client,
+        appointmentId,
+        tenantId,
+        'UNAVAILABLE',
+        null,
+        null,
+        appt.scheduledDate,
+        appt.timeSlot,
+        undefined,
+      );
     };
     if (tx) return await run(tx);
-    return await this.prisma.$transaction(run);
+    return await retryOnUniqueConflict(['cycle_number'], () => this.prisma.$transaction(run));
   }
 
   /**
@@ -297,6 +358,106 @@ export class ConfirmationCycleService {
       return;
     }
     this.auditService.log(entry);
+  }
+
+  /**
+   * Reads the appointment's denorm confirmation status and its current schedule in
+   * the same transaction. Used by createInitial/confirm/markUnavailable to adopt an
+   * existing confirmation (O-11) and to open a cycle pinned to the real date/slot.
+   */
+  private async readAppointmentConfirmation(
+    appointmentId: string,
+    client: Tx,
+  ): Promise<{ status: string; scheduledDate: Date; timeSlot: string } | null> {
+    const row = await (client as unknown as PrismaClient).appointment.findUnique({
+      where: { id: appointmentId },
+      select: {
+        rental_tenant_confirmation_status: true,
+        scheduled_date: true,
+        time_slot_start: true,
+        time_slot_end: true,
+      },
+    });
+    if (!row) return null;
+    return {
+      status: row.rental_tenant_confirmation_status as unknown as string,
+      scheduledDate: row.scheduled_date,
+      timeSlot: `${row.time_slot_start}-${row.time_slot_end}`,
+    };
+  }
+
+  /**
+   * Opens a fresh cycle with the given status and syncs the denorm cache. Shared by
+   * createInitial (PENDING/adopted-CONFIRMED) and confirm/markUnavailable (O-11
+   * option B: a confirmation/unavailability that arrived before any cycle existed).
+   */
+  private async createCycleWith(
+    client: Tx,
+    appointmentId: string,
+    tenantId: string,
+    status: 'PENDING' | 'CONFIRMED' | 'UNAVAILABLE',
+    source: CycleConfirmationSource | null,
+    tokenId: string | null,
+    scheduledDate: Date,
+    timeSlot: string | null,
+    defer: Defer | undefined,
+  ): Promise<ConfirmationCycleEntity> {
+    const maxCycleNumber = await this.cycleRepo.findMaxCycleNumber(appointmentId, client);
+    const now = new Date();
+    const cycle = new ConfirmationCycleEntity({
+      id: crypto.randomUUID(),
+      appointmentId,
+      cycleNumber: maxCycleNumber + 1,
+      scheduledDate,
+      timeSlot,
+      status,
+      confirmationSource: source,
+      confirmedAt: status === 'CONFIRMED' ? now : null,
+      invalidatedAt: null,
+      invalidatedReason: null,
+      portalTokenId: tokenId,
+      createdAt: now,
+    });
+    await this.cycleRepo.save(cycle, client);
+    await this.setAppointmentActiveCycle(appointmentId, tenantId, cycle.id, status, client);
+    await this.linkTokenToCycle(tokenId, cycle.id, client);
+    this.logAfterCommit(defer, {
+      action: 'appointment_confirmation_cycle.created',
+      actorType: 'SYSTEM',
+      entityType: 'AppointmentConfirmationCycle',
+      entityId: cycle.id,
+      tenantId,
+      after: { cycleNumber: cycle.cycleNumber, status },
+    });
+    return cycle;
+  }
+
+  /**
+   * O-11 option C: when a portal-link operation changes the appointment's
+   * confirmation status, record it ON THE APPOINTMENT (entityId = appointment) so
+   * the web timeline shows it, with before/after, the operator and the cause. A
+   * no-op when nothing changed (adoption) or no audit context was supplied.
+   */
+  private logAppointmentReset(
+    appointmentId: string,
+    tenantId: string,
+    before: string,
+    after: string,
+    auditContext: ConfirmationResetAuditContext | undefined,
+    defer: Defer | undefined,
+  ): void {
+    if (!auditContext || before === after) return;
+    this.logAfterCommit(defer, {
+      action: CONFIRMATION_RESET_AUDIT_ACTION,
+      actorType: 'USER',
+      actorId: auditContext.actorId,
+      entityType: 'Appointment',
+      entityId: appointmentId,
+      tenantId,
+      before: { rentalTenantConfirmationStatus: before },
+      after: { rentalTenantConfirmationStatus: after },
+      metadata: { cause: auditContext.cause },
+    });
   }
 
   private async supersedeCurrent(
