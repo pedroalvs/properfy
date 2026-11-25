@@ -16,18 +16,17 @@ type GeocodeOutcome =
   | { kind: 'account-error' };
 
 /**
- * The suburb for a Mapbox feature, from its `context`: the `locality` entry
- * (a suburb within a larger place), falling back to `place` (a standalone
- * town/suburb). Returns `undefined` when neither is present. Context ids look
- * like `locality.123` / `place.456`.
+ * The locality / place / postcode of a Mapbox feature, read SEPARATELY from its
+ * `context` (O-14: no longer collapsed into one suburb). Context ids look like
+ * `locality.123` / `place.456` / `postcode.789`. Each is `undefined` when absent.
  */
-function suburbFromContext(
+function addressContext(
   context: Array<{ id?: string; text?: string }> | undefined,
-): string | undefined {
-  if (!context) return undefined;
+): { locality?: string; place?: string; postcode?: string } {
+  if (!context) return {};
   const byPrefix = (prefix: string): string | undefined =>
     context.find((c) => typeof c.id === 'string' && c.id.startsWith(`${prefix}.`))?.text ?? undefined;
-  return byPrefix('locality') ?? byPrefix('place');
+  return { locality: byPrefix('locality'), place: byPrefix('place'), postcode: byPrefix('postcode') };
 }
 
 export class MapboxGeocodingService implements IGeocodingService {
@@ -71,8 +70,10 @@ export class MapboxGeocodingService implements IGeocodingService {
       const feature = data.features?.[0];
       if (!feature?.center) return { kind: 'result', result: null };
       // Mapbox returns [longitude, latitude]. Carry relevance, the most specific
-      // place type (place_type[0]) and the returned suburb so the consumer can
-      // apply rule A: non-address / low-relevance / wrong-suburb → FAILED.
+      // place type (place_type[0]) and the returned locality / place / postcode
+      // SEPARATELY so the consumer can apply rule A (O-14): non-address /
+      // low-relevance / suburb mismatch → FAILED.
+      const ctx = addressContext(feature.context);
       return {
         kind: 'result',
         result: {
@@ -80,7 +81,9 @@ export class MapboxGeocodingService implements IGeocodingService {
           lat: feature.center[1],
           relevance: feature.relevance,
           placeType: feature.place_type?.[0],
-          suburb: suburbFromContext(feature.context),
+          suburb: ctx.locality,
+          place: ctx.place,
+          postcode: ctx.postcode,
         },
       };
     });

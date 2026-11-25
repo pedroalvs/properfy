@@ -124,6 +124,7 @@ export class CreateBranchUseCase {
           const decision = classifyGeocodingResult(
             coords,
             (clean as unknown as GeocodableAddress).suburb,
+            (clean as unknown as GeocodableAddress).postcode,
           );
           if (!decision.accepted) {
             throw new BranchAddressNotVerifiedError(decision.reason);

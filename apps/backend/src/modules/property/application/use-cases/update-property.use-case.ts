@@ -311,7 +311,11 @@ export class UpdatePropertyUseCase {
         throw new PropertyAddressNotVerifiedError('NOT_FOUND');
       }
       if (outcome !== undefined) {
-        const decision = classifyGeocodingResult(outcome, data.suburb ?? property.suburb);
+        const decision = classifyGeocodingResult(
+          outcome,
+          data.suburb ?? property.suburb,
+          data.postcode ?? property.postcode,
+        );
         if (!decision.accepted) {
           throw new PropertyAddressNotVerifiedError(decision.reason);
         }

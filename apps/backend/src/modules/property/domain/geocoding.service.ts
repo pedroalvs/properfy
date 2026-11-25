@@ -17,12 +17,21 @@ export interface GeocodingResult {
    */
   placeType?: string;
   /**
-   * The suburb Mapbox returned for the matched feature (from its `context` —
-   * `locality`, falling back to `place`). {@link classifyGeocodingResult} uses
-   * it to confirm the result lands in the informed suburb. Optional: stub/legacy
+   * The returned Mapbox **locality** (`context` `locality.*`) — a suburb within a
+   * larger place. This field holds ONLY the returned locality; it is NOT a
+   * collapsed suburb (O-14 stopped the old `locality ?? place` fallback) — the
+   * place and postcode are now carried SEPARATELY in {@link GeocodingResult.place}
+   * and {@link GeocodingResult.postcode}. Named `suburb` for continuity; the
+   * `suburb` → `locality` rename is a tracked follow-up (estacionamento). The O-14
+   * rule can accept a CBD address whose locality is a sub-area (e.g. "The Rocks")
+   * when the informed suburb matches the place + postcode. Optional: stub/legacy
    * sources do not report it.
    */
   suburb?: string;
+  /** The returned **place** (Mapbox `context` `place.*`) — the town/city. */
+  place?: string;
+  /** The returned **postcode** (Mapbox `context` `postcode.*`). */
+  postcode?: string;
 }
 
 export type GeocodingMode = 'permanent' | 'temporary';
@@ -39,28 +48,31 @@ export type GeocodingDecision =
 
 /**
  * Decide whether a non-null geocoding result is precise enough to store
- * (DECISION 12 — rule A, final form). An `address`-level result is accepted
- * only when it is confident AND lands in the informed suburb:
+ * (DECISION 12 — rule A, O-14 form). An `address`-level result with
+ * `relevance >= 0.8` is accepted when it lands in the informed suburb by EITHER:
  *
- * - `address` with relevance `>= 0.8` AND `normEqualSuburb(result.suburb,
- *   expectedSuburb)` → accepted (the only success case);
- * - `address` with relevance `< 0.8` → rejected (`LOW_RELEVANCE`);
- * - `address` whose returned suburb is missing or differs from the informed
- *   suburb → rejected, REUSING `LOW_RELEVANCE` (no new reason code);
- * - any other place type (`locality`, `place`, `postcode`, `district`,
- *   `region`, `country`, …) → rejected (`COARSE_RESULT`) — rural/coarse results
- *   require a manual pin.
+ * - the returned **locality** equals the informed suburb, OR
+ * - the returned **place** equals the informed suburb AND the returned
+ *   **postcode** equals the informed postcode (the CBD case: Mapbox returns a
+ *   finer locality like "The Rocks" while the address is registered at the place
+ *   level "Sydney" — place + postcode confirm it).
  *
- * `expectedSuburb` is the informed suburb (from the address being geocoded) and
- * is **mandatory** so no caller forgets to thread it. The suburb gate fails
- * CLOSED: a missing/empty informed suburb, a missing returned suburb, or a
- * mismatch all reject an `address` result (Pedro's rule: "no suburb → reject").
- * A result **without a place type** (stub/legacy source or test double — never a
- * real Mapbox geocode) never enters the address branch and stays accepted.
+ * Otherwise → rejected `LOW_RELEVANCE` (no new reason code). `address` with
+ * `relevance < 0.8` → `LOW_RELEVANCE`; any non-`address` place type →
+ * `COARSE_RESULT`.
+ *
+ * `expectedSuburb` and `expectedPostcode` are the informed values (from the
+ * address being geocoded) and are **mandatory** so no caller forgets to thread
+ * them. The gate fails CLOSED: suburb match uses `normEqualSuburb` (false when
+ * either side is missing/empty); the place branch additionally needs a non-empty
+ * postcode match, so an empty informed suburb AND postcode rejects. A result
+ * **without a place type** (stub/legacy source or test double — never a real
+ * Mapbox geocode) never enters the address branch and stays accepted.
  */
 export function classifyGeocodingResult(
   result: GeocodingResult,
   expectedSuburb: string | null | undefined,
+  expectedPostcode: string | null | undefined,
 ): GeocodingDecision {
   if (result.placeType !== undefined && result.placeType !== 'address') {
     return { accepted: false, reason: 'COARSE_RESULT' };
@@ -69,13 +81,22 @@ export function classifyGeocodingResult(
     if (typeof result.relevance === 'number' && result.relevance < MIN_ADDRESS_GEOCODING_RELEVANCE) {
       return { accepted: false, reason: 'LOW_RELEVANCE' };
     }
-    // `normEqualSuburb` is false when EITHER side is missing/empty, so this fails
-    // CLOSED (reuses LOW_RELEVANCE). Only reached for a genuine `address` result.
-    if (!normEqualSuburb(result.suburb, expectedSuburb)) {
+    const localityMatch = normEqualSuburb(result.suburb, expectedSuburb);
+    const placeMatch =
+      normEqualSuburb(result.place, expectedSuburb) &&
+      samePostcode(result.postcode, expectedPostcode);
+    // Fails CLOSED (reuses LOW_RELEVANCE). Only reached for a genuine `address`.
+    if (!localityMatch && !placeMatch) {
       return { accepted: false, reason: 'LOW_RELEVANCE' };
     }
   }
   return { accepted: true };
+}
+
+/** Postcode equality: exact, normalized by TRIM only. Empty on either side never matches. */
+function samePostcode(a: string | null | undefined, b: string | null | undefined): boolean {
+  const na = (a ?? '').trim();
+  return na !== '' && na === (b ?? '').trim();
 }
 
 export interface GeocodeOptions {

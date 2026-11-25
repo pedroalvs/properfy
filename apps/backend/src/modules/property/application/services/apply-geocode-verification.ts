@@ -22,6 +22,7 @@ export interface GeocodeVerifiableRow {
 export interface GeocodeVerifyInput {
   query: string;
   suburb: string;
+  postcode: string;
 }
 
 /** The subset of ImportGeocodeVerifier this post-pass depends on. */
@@ -69,7 +70,8 @@ export async function applyGeocodeVerification(
     const plan = row.property;
     if (!plan || plan.resolution !== 'new' || plan.duplicateOfRow !== null) continue;
     const key = planKey(plan);
-    if (!addresses.has(key)) addresses.set(key, { query: fullAddress(plan), suburb: plan.suburb });
+    if (!addresses.has(key))
+      addresses.set(key, { query: fullAddress(plan), suburb: plan.suburb, postcode: plan.postcode });
   }
   if (addresses.size === 0) return;
 

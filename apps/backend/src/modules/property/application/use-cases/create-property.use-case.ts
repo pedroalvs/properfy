@@ -220,7 +220,7 @@ export class CreatePropertyUseCase {
         throw new PropertyAddressNotVerifiedError('NOT_FOUND');
       }
       if (geocodeOutcome !== undefined) {
-        const decision = classifyGeocodingResult(geocodeOutcome, input.suburb);
+        const decision = classifyGeocodingResult(geocodeOutcome, input.suburb, input.postcode);
         if (!decision.accepted) {
           throw new PropertyAddressNotVerifiedError(decision.reason);
         }

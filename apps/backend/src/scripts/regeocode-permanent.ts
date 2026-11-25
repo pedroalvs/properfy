@@ -410,9 +410,12 @@ export async function regeocodePermanent(
     entityId: string,
     kind: 'property' | 'branch' | 'false_manual',
     expectedSuburb: string,
+    expectedPostcode: string,
   ): GeocodeAttempt => {
     if (!result) return { result: null };
-    const decision = classifyGeocodingResult(result, expectedSuburb);
+    const decision = classifyGeocodingResult(result, expectedSuburb, expectedPostcode);
+    // The returned suburb for reporting: the locality, falling back to the place.
+    const returnedSuburb = result.suburb ?? result.place ?? null;
     if (!decision.accepted) {
       logger?.warn(
         {
@@ -422,7 +425,7 @@ export async function regeocodePermanent(
           placeType: result.placeType,
           relevance: result.relevance,
           informedSuburb: expectedSuburb,
-          returnedSuburb: result.suburb,
+          returnedSuburb,
         },
         'regeocode.result_rejected_coarse',
       );
@@ -436,7 +439,7 @@ export async function regeocodePermanent(
         rejected: decision.reason,
         placeType: result.placeType ?? null,
         relevance: result.relevance ?? null,
-        returnedSuburb: result.suburb ?? null,
+        returnedSuburb,
         suburbMismatch,
       };
     }
@@ -449,16 +452,23 @@ export async function regeocodePermanent(
     entityId: string,
     kind: 'property' | 'branch' | 'false_manual',
     expectedSuburb: string,
+    expectedPostcode: string,
   ): Promise<GeocodeAttempt> => {
     try {
-      return gateResult(await geocode(query), entityId, kind, expectedSuburb);
+      return gateResult(await geocode(query), entityId, kind, expectedSuburb, expectedPostcode);
     } catch (err) {
       if (isAccountError(err)) throw new AbortRun(entityId);
       if (isRateLimit(err)) {
         logger?.warn({ entity: kind, id: entityId }, 'regeocode.rate_limited_retry');
         await sleep(60000);
         try {
-          return gateResult(await geocoder.geocode(query, { mode: 'permanent' }), entityId, kind, expectedSuburb);
+          return gateResult(
+            await geocoder.geocode(query, { mode: 'permanent' }),
+            entityId,
+            kind,
+            expectedSuburb,
+            expectedPostcode,
+          );
         } catch (err2) {
           if (isAccountError(err2)) throw new AbortRun(entityId);
           return { error: err2 instanceof Error ? err2 : new Error(String(err2)) };
@@ -546,6 +556,7 @@ type GeocodeWithRetry = (
   entityId: string,
   kind: 'property' | 'branch' | 'false_manual',
   expectedSuburb: string,
+  expectedPostcode: string,
 ) => Promise<GeocodeAttempt>;
 
 async function runStripImportPreviews(
@@ -625,7 +636,7 @@ async function geocodeProperty(
   if (row.addressLine2 && dropDuplicateLine2(row.street, row.addressLine2) === null) {
     report.lineTwoOmitted++;
   }
-  const res = await geocodeWithRetry(propertyQuery(row), row.id, 'property', row.suburb);
+  const res = await geocodeWithRetry(propertyQuery(row), row.id, 'property', row.suburb, row.postcode);
   if ('error' in res) {
     report.properties.errors.push({ id: row.id, propertyCode: row.propertyCode, message: res.error.message });
     return { outcome: 'error', distanceM: null };
@@ -747,7 +758,7 @@ async function geocodeBranch(
   if (branchAddress.addressLine2 && dropDuplicateLine2(branchAddress.street, branchAddress.addressLine2) === null) {
     report.lineTwoOmitted++;
   }
-  const res = await geocodeWithRetry(query, row.id, 'branch', branchAddress.suburb);
+  const res = await geocodeWithRetry(query, row.id, 'branch', branchAddress.suburb, branchAddress.postcode);
   if ('error' in res) {
     report.branches.errors.push({ id: row.id, name: row.name, message: res.error.message });
     return { outcome: 'error', distanceM: null };
@@ -848,7 +859,7 @@ async function runFalseManual(
       if (row.addressLine2 && dropDuplicateLine2(row.street, row.addressLine2) === null) {
         report.lineTwoOmitted++;
       }
-      const res = await geocodeWithRetry(propertyQuery(row), row.id, 'false_manual', row.suburb);
+      const res = await geocodeWithRetry(propertyQuery(row), row.id, 'false_manual', row.suburb, row.postcode);
       if ('error' in res) {
         pushAmbiguous(report, row, 'geocode_error', null);
         logFalseManual(logger, row, 'ambiguous', 'geocode_error', null);

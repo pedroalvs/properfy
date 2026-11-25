@@ -122,7 +122,7 @@ export class GeocodeWorker {
     // Rule A: only a confident address-level result in the informed suburb is a
     // usable coordinate. A non-address (coarse) result, a low-relevance address,
     // or a wrong/missing returned suburb is marked FAILED with the reason code.
-    const decision = classifyGeocodingResult(result, property.suburb);
+    const decision = classifyGeocodingResult(result, property.suburb, property.postcode);
     if (!decision.accepted) {
       // CC#3: update ONLY status + code — never lat/lng — so a legacy coordinate
       // the regeocode kept on a FAILED row survives a re-reject.

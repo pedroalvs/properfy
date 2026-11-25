@@ -279,6 +279,53 @@ describe('regeocodePermanent — property phase', () => {
     expect(report.properties.rejectedLowRelevance[0]!.returnedSuburb).toBe('Westmead');
   });
 
+  it('O-14: a CBD address accepts via the place + postcode branch (locality is a sub-area)', async () => {
+    // "100 George St, Sydney 2000": Mapbox returns locality "The Rocks" but place
+    // "Sydney" + postcode "2000" — the informed suburb + postcode confirm it.
+    const repo = makeRepo({
+      findLegacyCoordinateCandidates: vi
+        .fn()
+        .mockResolvedValue([prop('a', { suburb: 'Sydney', postcode: '2000' })]),
+    });
+    const { deps } = makeDeps(repo, async () => ({
+      lat: -33.8601,
+      lng: 151.2089,
+      placeType: 'address',
+      relevance: 0.95,
+      suburb: 'The Rocks',
+      place: 'Sydney',
+      postcode: '2000',
+    }));
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['properties'] }));
+    expect(repo.applyPermanentBackfill).toHaveBeenCalledTimes(1);
+    expect(report.properties.updated).toBe(1);
+    expect(report.properties.rejectedLowRelevance).toEqual([]);
+  });
+
+  it('O-14: a wrong CBD match rejects and records the returned place as the returned suburb', async () => {
+    // "30 Bridge St, Sydney 2000" → Rydalmere 2116 @0.99: place != informed → reject.
+    const repo = makeRepo({
+      findLegacyCoordinateCandidates: vi
+        .fn()
+        .mockResolvedValue([prop('a', { suburb: 'Sydney', postcode: '2000' })]),
+    });
+    const { deps } = makeDeps(repo, async () => ({
+      lat: -33.8,
+      lng: 151.03,
+      placeType: 'address',
+      relevance: 0.99,
+      suburb: undefined,
+      place: 'Rydalmere',
+      postcode: '2116',
+    }));
+    const report = await regeocodePermanent(deps, opts({ apply: true, entities: ['properties'] }));
+    expect(repo.applyPermanentBackfill).not.toHaveBeenCalled();
+    expect(report.rejectedSuburbMismatch).toBe(1);
+    expect(report.properties.rejectedLowRelevance).toHaveLength(1);
+    // returnedSuburb falls back to the place when no locality is present.
+    expect(report.properties.rejectedLowRelevance[0]!.returnedSuburb).toBe('Rydalmere');
+  });
+
   it('case 8: a generic error is recorded and processing continues', async () => {
     const repo = makeRepo({
       findLegacyCoordinateCandidates: vi.fn().mockResolvedValue([prop('a'), prop('b')]),
