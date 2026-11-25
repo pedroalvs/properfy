@@ -707,3 +707,48 @@ Alterações em DEV:
 - Carlos: base trocada de 345 Military Rd, Mosman para 35 Hickson Road, Sydney (não revertida).
 - Plano da Lisa de 26/11: origem trocada e devolvida à base.
 - Retry em Penshurst e SPS-006: continuam FAILED.
+
+### Reteste do O-11 com a correção #1407 — 25/11/2026 (14:58–15:13 UTC)
+
+DEV em `1ae36e2` (#1407; servidor, web e app). Feito pela tela, com AM e OP (Sarah Operator). A API foi usada para gerar links com envio desligado (`notify:false`) e para ler status e auditoria. Todos os contatos são fictícios (`@example.invalid`, `+614915701xx`/`+614915718xx`/`+614915725xx`).
+
+| # | Caso | Resultado | Evidência |
+|---|---|---|---|
+| 1 | INS-0121 (SCHEDULED, CONFIRMED forçado antes do fix, sem ciclo) → "Send Portal Link" (14:58) | PASSOU — "Email sent to tenant"; continua CONFIRMED; auditoria só `token_generated` (sem reset); a linha do tempo não mostra reset; o portal (link de "Copy Portal Link") mostra "CONFIRMATION Confirmed" | `o11-1-timeline-ins0121.jpg`, `o11-1-portal-confirmed.jpg` |
+| 2 | INS-0122 (CONFIRMED legado) → "Copy Portal Link" (o "gerar e copiar"; 14:59) | PASSOU — continua CONFIRMED; auditoria `link_copied`. Obs.: não gerou `token_generated` e não adotou ciclo (ver item 4) | `o11-2-copy-link-ins0122.jpg` |
+| 3 | Lista → INS-0123 selecionado → "Re-send reminder (1)" (15:00) | PASSOU — "1 sent · 0 no primary · 0 already sent today · 0 errors"; continua CONFIRMED | — |
+| 4 | Group 29 → "Send portal link" (membros CONFIRMED de 26/11) | PASSOU para membros com ciclo (121 e 123 = `SKIP_ALREADY_CONFIRMED`). **Resíduo conhecido** (opção E adiada) para o legado 122: o diálogo mostrou "1 eligible for another send attempt (date changed) / 2 already confirmed" e `GET …/portal-link-plan` deu 122 = `SEND_AFTER_RESET`. **Não cliquei.** Prova: link individual do 122 com envio desligado (15:02:13, continua CONFIRMED, ciclo adotado) → diálogo reaberto: "0 eligible / 3 already confirmed", envio desabilitado | `o11-4-grupo29-legado-date-changed.jpg`, `o11-4-grupo29-tres-confirmados.jpg` |
+| 5 | Agendamento UNAVAILABLE → gerar link novo | **FALHOU** (defeito do #1407, confirmado pelo coordenador) — ver passo a passo abaixo | `o11-5-portal-no.jpg` |
+| 6 | Grupo com a data alterada depois de um membro confirmar → "Send portal link" | **NÃO REPRODUZÍVEL pela tela** — Group 26 de 27/11 → 28/11 com "Notify only" ("2 moved · 2 tenant(s) notified"): a troca re-fixa a confirmação na data nova; o plano dá INS-0106 = `SKIP_ALREADY_CONFIRMED` e o diálogo "1 eligible / 1 already confirmed". Com "Resend confirmation", o reset acontece na própria troca de data, não no envio do grupo. Não enviei | `o11-6-grupo26-notify-only.jpg`, `o11-6-grupo26-skip.jpg` |
+| 7 | INS-0106 (PENDING, nunca teve link, sem ciclo) → "Force Confirm" (15:07:36) | PASSOU — "Tenant confirmation forced" → CONFIRMED. O botão some depois; a repetição pela API (15:08:08) responde 200 CONFIRMED, sem erro; gerar link (15:08:09, envio desligado) → continua CONFIRMED | `o11-7-force-confirm.jpg` |
+| 8 | INS-0117 (posto no Group 26, SCHEDULED/PENDING) → link → portal "Yes" + Submit (15:12:15) → gerar link (15:12:21) | PASSOU — `appointment_confirmed` → CONFIRMED; depois do link novo continua CONFIRMED | `o11-8-portal-confirmado.jpg` |
+| 9 | INS-0118 e INS-0119 (restaurados na segunda perna) → gerar link (15:12:44/46, envio desligado) | PASSOU — os dois continuam CONFIRMED, sem reset. Obs.: como a data (25/11) já passou, o token nasce vencido (`expiresAt` 2026-11-25T13:00Z); não houve erro | — |
+
+**Contagem: 7 passaram (1, 2, 3, 4 com resíduo conhecido no legado, 7, 8, 9), 1 falhou (5), 1 não reproduzível pela tela (6).**
+
+**Item 5 — passo a passo da falha:**
+1. INS-0105 (SPS, Group 26, 27/11, SCHEDULED/PENDING, contato `smoke.grp1@example.invalid`). Gerar link com envio desligado (15:03); isso abre o ciclo PENDING.
+2. No portal: "No" + comentário "QA O-11: nao posso nesse dia (teste ficticio)" + disponibilidade "Mon" → Submit. Resultado: REJECTED/UNAVAILABLE, fora do grupo (esperado: decline auto-rejeita).
+3. Devolver ao Group 26 (`POST /v1/service-groups/…/appointments`, AM, 15:05:39) → SCHEDULED (Lisa), UNAVAILABLE mantido.
+4. Gerar link novo (OP Sarah, envio desligado, 15:05:51). **Obtido:** continua UNAVAILABLE; nenhum `appointment.rental_tenant_confirmation_reset` (só `token_generated` + `dispatch_skipped`); sem erro no log. **Esperado:** volta a PENDING, e a linha do tempo mostra "Tenant confirmation reset to Pending (portal link generated)" com o operador e "UNAVAILABLE → PENDING".
+5. Causa (código em `1ae36e2`, `confirmation-cycle.service.ts` `createInitial`): com ciclo ativo não-PENDING e não-terminal, só liga o token novo ao ciclo existente. A reabertura para PENDING só existia no ramo sem ciclo ativo, e o `markUnavailable` atualiza o ciclo ativo para UNAVAILABLE.
+
+A conferência na linha do tempo como OP e como CL_ADMIN não foi possível, porque não existe registro.
+
+**O-19 — `portal-link-plan` vazio para OP.** Group 29 (SPS, 8d407868…). Com o usuário OP Sarah Operator (`cb4593d2…`, `tenant_id` nulo):
+- `GET /v1/service-groups/:id/portal-link-plan` devolve `items: []`, `total 0`; com AM, os três membros.
+- Na tela do grupo como OP, a lista mostra os 3 membros (o `GET` do grupo também devolve 3), mas o diálogo "Send portal link" diz "0 total / 0 eligible / 0 already confirmed", com o envio desabilitado. O mesmo aconteceu no Group 26.
+- Resultado: o OP não consegue usar o envio de link do grupo de uma agência (`o19-op-grupo29-zero.jpg`).
+
+**Aviso visto no item 6:** o diálogo "Change date" para 27/11 avisou "This date is tomorrow and 1 appointment(s) are still unconfirmed. Unconfirmed routine jobs are automatically cancelled the evening before". Por isso **mantive o Group 26 em 28/11**: em 27/11, o INS-0105 (que deve ficar UNAVAILABLE para o reteste) seria cancelado esta noite (`o11-6-aviso-cancelamento-vespera.jpg`).
+
+Alterações em DEV:
+
+| O quê | Depois |
+|---|---|
+| INS-0121/0122/0123 | links gerados (0121 com e-mail ao contato fictício); todos CONFIRMED, agora com ciclo |
+| INS-0105 | **SCHEDULED/UNAVAILABLE no Group 26, deixado assim de propósito** para o reteste da correção do (5) (antes SCHEDULED/PENDING) |
+| INS-0106 | CONFIRMED (forçado, item 7; antes PENDING) |
+| INS-0117 | adicionado ao Group 26 (antes DRAFT 03/12) → SCHEDULED 28/11, CONFIRMED pelo portal |
+| Group 26 | data 27/11 → **28/11** ("Notify only"; 2 avisos aos contatos fictícios); não revertida, para proteger o INS-0105 |
+| INS-0118/0119 | links novos sem envio; continuam CONFIRMED |
