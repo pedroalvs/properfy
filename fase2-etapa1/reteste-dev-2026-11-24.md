@@ -773,6 +773,6 @@ Alterações em DEV:
 | O quê | Depois |
 |---|---|
 | INS-0105 | CONFIRMED pelo portal, Group 26, 28/11 (antes do O-11: SCHEDULED/PENDING 27/11) |
-| INS-0116 | adicionado ao Group 26 (antes DRAFT 03/12) → SCHEDULED 28/11 **PENDING**. **Risco:** sem confirmação, cai na rotina de véspera (noite de 27/11) |
+| INS-0116 | adicionado ao Group 26 (antes DRAFT 03/12) → SCHEDULED 28/11; depois do reteste, **confirmação forçada** pelo AM às 17:53 UTC ("Tenant confirmation forced"), a pedido do coordenador → SCHEDULED/CONFIRMED, fora da rotina de véspera |
 | INS-0106 / INS-0117 | CONFIRMED (sem mudança neste reteste; só links copiados ou gerados) |
 | Group 26 | continua em 28/11 (antes 27/11), agora com 4 membros (105, 106, 116, 117) |

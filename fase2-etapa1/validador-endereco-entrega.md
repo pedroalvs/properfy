@@ -291,6 +291,15 @@ O-7 (arquivos de teste não confirmados ficaram no imóvel SPS-007). Todas
 - **DEV:** deployado; regeocode rodada 2 verde (0 rejeições sob a regra final).
 - **Reteste final do Batedor:** **concluído — 46 passaram, 0 falharam, 2 não-testáveis**
   (criação de inspetor pelo web exige senha). Os retestes de **#1404, #1405, #1408 e
-  #1409** passaram. **Pendentes:** só o reteste do **O-11** e a rotina agendada de
-  **30/11** (religar o idle-shutdown de DEV, §6).
+  #1409** passaram.
+- **Link do portal (O-11), fora do validador mas na mesma onda:** #1407 (25/11) fez
+  toda confirmação e toda resposta "não posso" criarem o seu ciclo e preservou a
+  confirmação antiga sem ciclo ao gerar link. O reteste em DEV (7 passaram, 1 falhou,
+  1 não reproduzível pela tela) achou uma regressão: link novo para quem respondeu
+  "não posso" deixou de voltar a pendente. Corrigida no #1410 (25/11) e retestada em
+  DEV `4e81953`: **5 de 5**. Resíduo conhecido: confirmação **antiga sem ciclo** ainda
+  é tratada como "date changed" pelo envio do grupo — repetir a contagem de leitura em
+  produção antes da promoção (em 25/11 era zero).
+- **Pendente:** só a conferência da rotina de prêmios em **30/11** (depois de 04:45 de
+  Sydney) e, em seguida, voltar "Minimum services to be ranked" para 10.
 - **Produção:** depende da promoção `develop → staging → main` após esses pendentes.
