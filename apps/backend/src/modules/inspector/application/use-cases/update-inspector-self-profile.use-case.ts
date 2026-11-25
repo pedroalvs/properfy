@@ -85,11 +85,12 @@ export class UpdateInspectorSelfProfileUseCase {
       updateData.address = data.address as unknown as Record<string, unknown>;
       baseChanged = true;
 
-      // V-3/V10: NOT gated on existing coordinates OR on the stored address parsing
-      // the AU schema. `formatGeocodingQuery` reads only known fields and tolerates a
-      // legacy/partial shape, so an unchanged base (incl. a legacy row with a null
-      // marker or a non-AU-schema shape that still normalizes the same) is treated as
-      // unchanged: no re-geocode, no 422. Only a CHANGED base is geocoded → 422-on-reject.
+      // V-3/V10 — mirrors update-branch.use-case / update-inspector. Compared via the
+      // X02 helper on the RAW stored address (parse-tolerant), NOT the AU schema:
+      //   - unchanged + HAS coordinate → skip;
+      //   - unchanged + NO coordinate → geocode as a RECOVERY attempt, but a rejection
+      //     NEVER 422s (save without a coordinate + baseGeocodeFailed, V10);
+      //   - CHANGED → geocode → a rule-A rejection throws 422 (nothing written).
       const sameAsStored =
         inspector.address != null &&
         typeof inspector.address === 'object' &&
@@ -98,7 +99,7 @@ export class UpdateInspectorSelfProfileUseCase {
           next as unknown as GeocodableAddress,
         );
 
-      if (sameAsStored) {
+      if (sameAsStored && hadCoordinates) {
         baseChanged = false;
       } else if (this.geocodingService) {
         const geo = await geocodeInspectorBase(this.geocodingService, next, this.logger, this.clock);
@@ -108,22 +109,26 @@ export class UpdateInspectorSelfProfileUseCase {
           updateData.baseGeocodedAt = geo.geocodedAt;
           hasCoordinates = true;
         } else {
-          // V-3: a rule-A rejection blocks the self-update with a 422 BEFORE the
-          // write below. Only a provider-unavailable failure falls through to
-          // "saved without coordinates" (V4).
           const reason = inspectorBaseRejectionReason(geo.failed);
-          if (reason) throw new InspectorBaseAddressNotVerifiedError(reason);
+          // Only a CHANGED address that fails rule A is rejected (422). A rejection on
+          // an UNCHANGED base (recovery) or a provider-unavailable failure saves
+          // without a coordinate (V4/V10).
+          if (reason && !sameAsStored) {
+            throw new InspectorBaseAddressNotVerifiedError(reason);
+          }
           updateData.baseLat = null;
           updateData.baseLng = null;
           updateData.baseGeocodedAt = null;
           baseGeocodeFailed = true;
           hasCoordinates = false;
+          baseChanged = !sameAsStored;
         }
       } else {
         updateData.baseLat = null;
         updateData.baseLng = null;
         updateData.baseGeocodedAt = null;
         hasCoordinates = false;
+        baseChanged = !sameAsStored;
       }
     }
 

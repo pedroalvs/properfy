@@ -326,43 +326,62 @@ describe('UpdateInspectorUseCase', () => {
       expect(geocoder.geocode).not.toHaveBeenCalled();
     });
 
-    // V-3/V10: a legacy inspector whose base could not be located (parseable
-    // address, null coordinates) must stay editable. A PATCH that resends the SAME
-    // base (as the drawer does when only the phone changes) must NOT geocode and
-    // must NOT 422 — before the fix this re-geocoded the unlocatable base and threw.
-    it('does not geocode or reject when the unchanged base has no coordinates and a non-address field changes (V10)', async () => {
+    // V-3/V10 recovery (mirrors update-branch): an UNCHANGED base with NO coordinate
+    // (legacy row / prior outage / backfill not run) is still geocoded as a recovery
+    // attempt on any PATCH. If it is now locatable, the coordinate is filled.
+    it('recovers the coordinate when an unchanged coord-less base is now locatable (V10)', async () => {
       vi.mocked(inspectorRepo.findById).mockResolvedValue(
         makeInspector({ address: BASE_ADDRESS, baseLat: null, baseLng: null, baseGeocodedAt: null }),
       );
-      geocoder.geocode.mockResolvedValue(null); // would reject (NOT_FOUND) if it ran
+      geocoder.geocode.mockResolvedValue({ lat: -33.86, lng: 151.2 });
       const result = await geoUseCase.execute({
         inspectorId: 'inspector-1',
         data: { phone: '+61400000000', address: BASE_ADDRESS },
         actor: makeActor(),
       });
-      expect(geocoder.geocode).not.toHaveBeenCalled();
-      expect(inspectorRepo.update).toHaveBeenCalledTimes(1);
+      expect(geocoder.geocode).toHaveBeenCalledTimes(1);
+      const d = updateCallData();
+      expect(d.baseLat).toBe(-33.86);
+      expect(d.baseLng).toBe(151.2);
       expect(result.baseGeocodeFailed).toBe(false);
     });
 
-    // V-3/V10 (CC#3): a legacy stored base that does NOT parse the AU schema (here:
-    // no `city`, which is required) but normalizes to the SAME geocoding query must
-    // also be treated as unchanged — compared via the X02 helper, not the AU schema.
-    // Before the fix the parse gate sent this through the geocoder and 422'd.
-    it('does not geocode or reject when the unchanged base is a legacy non-AU-schema shape with the same normalized address (V10)', async () => {
-      const legacyNoCity = { street: '1 George St', suburb: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' };
+    // V-3/V10: if that recovery still fails, a non-address edit must NOT 422 — the
+    // base is saved without a coordinate + baseGeocodeFailed so the row stays editable.
+    it('saves without a coordinate and does NOT 422 when an unchanged coord-less base is still unlocatable (V10)', async () => {
       vi.mocked(inspectorRepo.findById).mockResolvedValue(
-        makeInspector({ address: legacyNoCity, baseLat: null, baseLng: null, baseGeocodedAt: null }),
+        makeInspector({ address: BASE_ADDRESS, baseLat: null, baseLng: null, baseGeocodedAt: null }),
       );
-      geocoder.geocode.mockResolvedValue(null); // would reject (NOT_FOUND) if it ran
+      geocoder.geocode.mockResolvedValue(null); // still NOT_FOUND
       const result = await geoUseCase.execute({
         inspectorId: 'inspector-1',
         data: { phone: '+61400000001', address: BASE_ADDRESS },
         actor: makeActor(),
       });
-      expect(geocoder.geocode).not.toHaveBeenCalled();
+      expect(geocoder.geocode).toHaveBeenCalledTimes(1);
+      const d = updateCallData();
+      expect(d.baseLat).toBeNull();
+      expect(result.baseGeocodeFailed).toBe(true);
       expect(inspectorRepo.update).toHaveBeenCalledTimes(1);
-      expect(result.baseGeocodeFailed).toBe(false);
+    });
+
+    // V-3/V10 (CC#3): the same recovery applies to a legacy stored base that does NOT
+    // parse the AU schema (no `city`) but normalizes to the SAME query — compared via
+    // the X02 helper, not the schema. Still unlocatable → saved without a coord, NO 422.
+    it('recovers/saves without 422 for an unchanged legacy non-AU-schema base with the same normalized address (V10)', async () => {
+      const legacyNoCity = { street: '1 George St', suburb: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' };
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(
+        makeInspector({ address: legacyNoCity, baseLat: null, baseLng: null, baseGeocodedAt: null }),
+      );
+      geocoder.geocode.mockResolvedValue(null); // still NOT_FOUND
+      const result = await geoUseCase.execute({
+        inspectorId: 'inspector-1',
+        data: { phone: '+61400000002', address: BASE_ADDRESS },
+        actor: makeActor(),
+      });
+      expect(geocoder.geocode).toHaveBeenCalledTimes(1);
+      expect(result.baseGeocodeFailed).toBe(true);
+      expect(inspectorRepo.update).toHaveBeenCalledTimes(1);
     });
 
     it('always geocodes when the current stored address is legacy/unparsable', async () => {

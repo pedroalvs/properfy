@@ -12,7 +12,7 @@ import { EmailInput } from '@/components/forms/EmailInput';
 import { AddressLookupInput } from '@/components/forms/AddressLookupInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
 import { formatAddressLabel, toAddressSuggestion } from '@/lib/address';
-import { AddressNotVerifiedAlert } from '@/features/properties/components/AddressNotVerifiedAlert';
+import { AddressNotVerifiedAlert } from '@/components/forms/AddressNotVerifiedAlert';
 import { useBranchSave } from '../hooks/useBranchSave';
 import { useBranchById } from '../hooks/useBranchById';
 import type { Branch, BranchFormData, BranchFormErrors } from '../types';

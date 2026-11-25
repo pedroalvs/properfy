@@ -175,14 +175,16 @@ export class UpdateInspectorUseCase {
       updateData.address = data.address;
       baseChanged = true;
 
-      // "Same address" (D18, L-F01-01, V-3/V10): the stored and submitted bases are
-      // equal for geocoding via the X02 normalized-string helper. Deliberately NOT
-      // gated on (a) existing coordinates or (b) the stored address parsing the AU
-      // schema — `formatGeocodingQuery` reads only the known fields and tolerates a
-      // legacy/partial shape, so an unchanged base (incl. a legacy row with a
-      // null/failed marker or a non-AU-schema shape that still normalizes the same)
-      // is treated as unchanged: no re-geocode, no 422. Only a CHANGED base goes
-      // through geocode → 422-on-reject. "When in doubt, don't block."
+      // "Same address" (D18, L-F01-01, V-3/V10) — mirrors update-branch.use-case.
+      // Compared via the X02 normalized-string helper on the RAW stored address
+      // (`formatGeocodingQuery` reads only known fields, tolerating a legacy/partial
+      // shape), NOT the AU schema. Three cases:
+      //   - unchanged + HAS coordinate → skip (no Mapbox), keep the stored pair;
+      //   - unchanged + NO coordinate (legacy row / prior outage / backfill not run)
+      //     → still geocode as a RECOVERY attempt, but a rejection there NEVER 422s
+      //     — it saves without a coordinate + baseGeocodeFailed so the other fields
+      //     stay editable (V10). Pedro's rule: never remove a real recovery path;
+      //   - CHANGED → geocode → a rule-A rejection throws 422 (nothing written).
       const sameAsStored =
         inspector.address != null &&
         typeof inspector.address === 'object' &&
@@ -191,8 +193,8 @@ export class UpdateInspectorUseCase {
           next as unknown as GeocodableAddress,
         );
 
-      if (sameAsStored) {
-        baseChanged = false; // keep the coordinates/marker, call nothing, emit nothing
+      if (sameAsStored && hadCoordinates) {
+        baseChanged = false; // keep the coordinates, call nothing, emit nothing
       } else if (this.geocodingService) {
         const geo = await geocodeInspectorBase(this.geocodingService, next, this.logger, this.clock);
         if ('lat' in geo) {
@@ -201,22 +203,26 @@ export class UpdateInspectorUseCase {
           updateData.baseGeocodedAt = geo.geocodedAt;
           hasCoordinates = true;
         } else {
-          // V-3: a rule-A rejection blocks the update with a 422 BEFORE the write
-          // below — nothing is persisted. Only a provider-unavailable failure falls
-          // through to "saved without coordinates" (V4).
           const reason = inspectorBaseRejectionReason(geo.failed);
-          if (reason) throw new InspectorBaseAddressNotVerifiedError(reason);
+          // Only a CHANGED address that fails rule A is rejected (422, nothing
+          // written). A rejection on an UNCHANGED base (recovery) or any
+          // provider-unavailable failure saves without a coordinate (V4/V10).
+          if (reason && !sameAsStored) {
+            throw new InspectorBaseAddressNotVerifiedError(reason);
+          }
           updateData.baseLat = null;
           updateData.baseLng = null;
           updateData.baseGeocodedAt = null;
           baseGeocodeFailed = true;
           hasCoordinates = false;
+          baseChanged = !sameAsStored; // no event when nothing actually changed
         }
       } else {
         updateData.baseLat = null;
         updateData.baseLng = null;
         updateData.baseGeocodedAt = null;
         hasCoordinates = false;
+        baseChanged = !sameAsStored;
       }
     }
     if (data.abn !== undefined) updateData.abn = data.abn;
