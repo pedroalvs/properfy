@@ -3,6 +3,7 @@ import type { ClUserPermission } from '@properfy/shared';
 import type { UserRole } from '@properfy/shared';
 import type { AuditService } from './audit';
 import { ForbiddenError } from './errors';
+import { isCrossTenantRole } from './require-tenant-scope';
 
 export interface AuthorizationContext {
   action: string;
@@ -58,15 +59,19 @@ export class AuthorizationService {
 
   /**
    * Asserts the actor can access data in the target tenant.
-   * AM bypasses (global scope). All other roles — including OP per
-   * Sprint 1 W-4-IMPL (CORRECTION-001 close-it, 2026-04-13) — must match.
+   *
+   * Cross-agency roles (AM, OP, SYS — classified by `isCrossTenantRole`, the same
+   * canonical map `requireTenantScope` uses) act platform-wide and pass. Every
+   * other role (CL_ADMIN, CL_USER pinned; INSP, TNT key-scoped) must be in the
+   * target tenant — a key-scoped actor's `tenantId` is null by design, so it can
+   * never match and stays barred.
    */
   assertTenantScope(
     actor: AuthContext,
     targetTenantId: string,
     context: AuthorizationContext,
   ): void {
-    if (actor.role === 'AM') return;
+    if (isCrossTenantRole(actor.role)) return;
     if (actor.tenantId === targetTenantId) return;
 
     this.auditService.log({

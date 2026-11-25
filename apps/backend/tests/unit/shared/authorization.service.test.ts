@@ -78,17 +78,41 @@ describe('AuthorizationService', () => {
       ).not.toThrow();
     });
 
-    it('should pass when actor tenant matches target tenant', () => {
-      const actor = makeAuthContext({ role: 'OP', tenantId: 'tenant-1' });
+    it('should pass for OP (cross-agency, tenantId null) against any target tenant', () => {
+      const actor = makeAuthContext({ role: 'OP', tenantId: null });
+      expect(() =>
+        svc.assertTenantScope(actor, 'tenant-1', { action: 'test', entityType: 'Test' }),
+      ).not.toThrow();
+      expect(() =>
+        svc.assertTenantScope(actor, 'tenant-2', { action: 'test', entityType: 'Test' }),
+      ).not.toThrow();
+    });
+
+    it('should pass when a tenant-pinned actor matches the target tenant', () => {
+      const actor = makeAuthContext({ role: 'CL_ADMIN', tenantId: 'tenant-1' });
       expect(() =>
         svc.assertTenantScope(actor, 'tenant-1', { action: 'test', entityType: 'Test' }),
       ).not.toThrow();
     });
 
-    it('should throw when actor tenant does not match target tenant', () => {
-      const actor = makeAuthContext({ role: 'OP', tenantId: 'tenant-1' });
+    it('should throw for CL_ADMIN against another tenant (pinned roles stay barred)', () => {
+      const actor = makeAuthContext({ role: 'CL_ADMIN', tenantId: 'tenant-1' });
       expect(() =>
         svc.assertTenantScope(actor, 'tenant-2', { action: 'test', entityType: 'Test' }),
+      ).toThrow(expect.objectContaining({ code: 'TENANT_SCOPE_VIOLATION', statusCode: 403 }));
+    });
+
+    it('should throw for CL_USER against another tenant (pinned roles stay barred)', () => {
+      const actor = makeAuthContext({ role: 'CL_USER', tenantId: 'tenant-1' });
+      expect(() =>
+        svc.assertTenantScope(actor, 'tenant-2', { action: 'test', entityType: 'Test' }),
+      ).toThrow(expect.objectContaining({ code: 'TENANT_SCOPE_VIOLATION', statusCode: 403 }));
+    });
+
+    it('should throw for INSP (key-scoped, tenantId null) against any tenant', () => {
+      const actor = makeAuthContext({ role: 'INSP', tenantId: null });
+      expect(() =>
+        svc.assertTenantScope(actor, 'tenant-1', { action: 'test', entityType: 'Test' }),
       ).toThrow(expect.objectContaining({ code: 'TENANT_SCOPE_VIOLATION', statusCode: 403 }));
     });
 

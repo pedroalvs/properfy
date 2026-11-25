@@ -33,6 +33,16 @@ const ROLE_TENANT_SCOPE: Record<UserRole, TenantScopeKind> = {
 };
 
 /**
+ * True for roles that legitimately act across every tenant (AM, OP, SYS) — no
+ * tenant predicate confines them. The single source of truth for "cross-agency",
+ * shared by `requireTenantScope` here and `AuthorizationService.assertTenantScope`
+ * so the two can never classify a role differently.
+ */
+export function isCrossTenantRole(role: UserRole): boolean {
+  return ROLE_TENANT_SCOPE[role] === 'cross-tenant';
+}
+
+/**
  * The tenant an actor is confined to, or a throw when it is missing.
  *
  * For callers that have **already branched on role** and know they are inside a
