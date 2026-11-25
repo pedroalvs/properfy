@@ -50,6 +50,28 @@ export function resolvePgBossSchema(
 }
 
 /**
+ * pg-boss polls each registered queue for new jobs every
+ * `newJobCheckIntervalSeconds` (default 2s). With ~30 queues this constant
+ * polling is the dominant source of Supabase egress on a low-traffic
+ * environment (it runs 24/7 regardless of activity), so DEV/STAGING raise it
+ * via `PGBOSS_NEW_JOB_CHECK_INTERVAL_SECONDS` (e.g. 15).
+ *
+ * Returns the parsed interval (integer ≥ 1 second, pg-boss's own minimum) or
+ * `undefined` when unset/blank/invalid — in which case the constructor omits
+ * the option and pg-boss keeps its 2s default, leaving production responsive.
+ * `env.ts` validates the same variable at boot so a typo fails fast.
+ */
+export function resolveJobPollIntervalSeconds(
+  env: Record<string, string | undefined> = process.env,
+): number | undefined {
+  const raw = env['PGBOSS_NEW_JOB_CHECK_INTERVAL_SECONDS'];
+  if (raw === undefined || raw.trim() === '') return undefined;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1) return undefined;
+  return parsed;
+}
+
+/**
  * Whether two Postgres connection strings point to the same database (same host
  * + same database name), ignoring port — a pooled (:6543) and direct (:5432)
  * URL to the same Supabase project must compare equal. Returns `true` when a URL
@@ -108,6 +130,9 @@ export async function getQueue(): Promise<PgBoss> {
       if (!connectionString) {
         throw new Error('PG_BOSS_URL or DATABASE_URL environment variable is required');
       }
+      // Default queue-poll interval for every worker (overridable per
+      // boss.work). Omitted when unset so pg-boss keeps its 2s default.
+      const jobPollIntervalSeconds = resolveJobPollIntervalSeconds();
       const b = new PgBoss({
         connectionString,
         // Per-environment queue isolation (see resolvePgBossSchema).
@@ -117,6 +142,9 @@ export async function getQueue(): Promise<PgBoss> {
         deleteAfterDays: 30,
         // Supabase session-mode pooler caps at 15 total connections across all instances.
         max: 2,
+        ...(jobPollIntervalSeconds !== undefined
+          ? { newJobCheckIntervalSeconds: jobPollIntervalSeconds }
+          : {}),
       });
       await b.start();
       return b;

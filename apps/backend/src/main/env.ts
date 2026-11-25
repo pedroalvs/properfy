@@ -115,6 +115,16 @@ const envSchema = z.object({
     .regex(/^[a-z_][a-z0-9_]*$/, 'PGBOSS_SCHEMA must be a valid lowercase Postgres identifier')
     .optional(),
 
+  // Non-prod Supabase egress control: pg-boss polls each queue every
+  // `newJobCheckIntervalSeconds` (default 2s). With ~30 queues this constant
+  // 24/7 polling dominates egress on low-traffic DEV/STAGING, which raise it
+  // (e.g. 15). Unset ⇒ pg-boss keeps 2s (production stays responsive). The value
+  // is applied in queue.ts; validated here so a typo fails fast at boot.
+  PGBOSS_NEW_JOB_CHECK_INTERVAL_SECONDS: z.preprocess(
+    (v) => (v === undefined || (typeof v === 'string' && v.trim() === '') ? undefined : v),
+    z.coerce.number().int().min(1).optional(),
+  ),
+
   // F02-1: Web Push (VAPID). Distinct keys per environment; absent ⇒ push disabled and
   // critical inspector notices fall back to SMS (safe degradation).
   VAPID_PUBLIC_KEY: z.string().optional(),
