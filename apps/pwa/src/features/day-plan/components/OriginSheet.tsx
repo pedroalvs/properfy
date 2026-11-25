@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import type { InspectorBaseAddress } from '@properfy/shared';
+import {
+  ADDRESS_NOT_VERIFIED_MESSAGES,
+  ADDRESS_NOT_VERIFIED_REASONS,
+  type AddressNotVerifiedReason,
+  type InspectorBaseAddress,
+} from '@properfy/shared';
+import type { ApiError } from '@/lib/api-error';
 import { Button } from '@/components/ui/Button';
 import { Form } from '@/components/ui/Form';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/Sheet';
@@ -37,6 +43,30 @@ const CLOSE_AND_INVALIDATE = new Set([
 /** How long the ALREADY_STARTED message stays before the sheet auto-closes (L-F04-07). */
 const ALREADY_STARTED_AUTO_CLOSE_MS = 2000;
 
+/** The on-screen error: a headline plus an optional supporting line (V-4). */
+interface OriginError {
+  headline: string;
+  support?: string;
+}
+
+/**
+ * Turn an origin save error into the on-screen copy. A 422
+ * `DAY_PLAN_ORIGIN_NOT_FOUND` carries the geocoding rule-A reason in
+ * `details[0].reason` (V-4); map it to the shared per-reason copy so the sheet
+ * matches every other address screen. Everything else shows the server message.
+ */
+function toOriginError(err: ApiError): OriginError {
+  if (err.code === 'DAY_PLAN_ORIGIN_NOT_FOUND') {
+    const details = Array.isArray(err.details) ? err.details : [];
+    const reason = (details[0] as { reason?: string } | undefined)?.reason;
+    if (ADDRESS_NOT_VERIFIED_REASONS.includes(reason as AddressNotVerifiedReason)) {
+      const copy = ADDRESS_NOT_VERIFIED_MESSAGES[reason as AddressNotVerifiedReason];
+      return { headline: copy.field, support: copy.support };
+    }
+  }
+  return { headline: err.message };
+}
+
 function prefill(address: InspectorBaseAddress | null | undefined): BaseAddressFieldsValues {
   if (!address) return EMPTY_BASE_ADDRESS_FIELDS;
   return {
@@ -59,7 +89,7 @@ export function OriginSheet({ open, onOpenChange, date, overrideAddress, onSaved
   const isOnline = useIsOnline();
   const queryClient = useQueryClient();
   const { setOrigin } = useDayPlanOrigin(date);
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<OriginError | null>(null);
   const submittingRef = useRef(false);
 
   const form = useForm<BaseAddressFieldsValues>({
@@ -94,7 +124,7 @@ export function OriginSheet({ open, onOpenChange, date, overrideAddress, onSaved
       return;
     }
     if (err.code === 'DAY_PLAN_ALREADY_STARTED') {
-      setServerError(err.message);
+      setServerError({ headline: err.message });
       setTimeout(() => {
         void invalidatePlan();
         onOpenChange(false);
@@ -106,7 +136,7 @@ export function OriginSheet({ open, onOpenChange, date, overrideAddress, onSaved
       onOpenChange(false);
       return;
     }
-    setServerError(err.message); // 422 NOT_FOUND / 503 GEOCODER — keep the form open
+    setServerError(toOriginError(err)); // 422 rule-A reason / 503 GEOCODER — keep the form open
   };
 
   const isSubmitting = form.formState.isSubmitting;
@@ -126,9 +156,10 @@ export function OriginSheet({ open, onOpenChange, date, overrideAddress, onSaved
             <BaseAddressFields control={form.control} />
 
             {serverError && (
-              <p role="alert" className="text-sm text-destructive">
-                {serverError}
-              </p>
+              <div role="alert" className="text-sm text-destructive">
+                <p className="font-medium">{serverError.headline}</p>
+                {serverError.support && <p className="mt-0.5">{serverError.support}</p>}
+              </div>
             )}
             {!isOnline && (
               <p className="text-sm text-muted-foreground">

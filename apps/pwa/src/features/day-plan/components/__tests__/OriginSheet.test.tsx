@@ -85,6 +85,29 @@ describe('OriginSheet', () => {
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 
+  it('maps the rule-A reason to the shared per-reason copy (V-4)', async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    mockPut.mockResolvedValue({
+      data: undefined,
+      error: {
+        error: {
+          code: 'DAY_PLAN_ORIGIN_NOT_FOUND',
+          message: 'We could only locate the area, not the exact address.',
+          details: [{ field: 'address', reason: 'COARSE_RESULT' }],
+        },
+      },
+      response: { status: 422 },
+    });
+    renderWithProviders(<OriginSheet open date={DATE} onOpenChange={onOpenChange} />);
+    await fillValidAddress(user);
+    await user.click(screen.getByRole('button', { name: 'Use this address' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('We could only locate the area, not the exact address.');
+    expect(alert).toHaveTextContent('Add the street number, or correct the street name.');
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
   it('DAY_PLAN_ALREADY_STARTED: shows the message, closes after 2s and invalidates (L-F04-07)', async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
