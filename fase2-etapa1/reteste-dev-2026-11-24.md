@@ -478,7 +478,7 @@ DEV em `0cf910b4` (#1406, regra final de endereço), release v128 do `properfy-a
 | Resultado | Itens |
 |---|---|
 | **Passou (44)** | 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48 |
-| **Falhou (1)** | 5 |
+| **Falhou (1)** | 5 (corrigido no #1408 e repassado às 07:15 UTC; ver "Reteste do item 5") |
 | **Não testável (2)** | 15 e 16 (criação de inspetor exige digitar senha; o coordenador faz) |
 | **Pendente (1)** | 35 (plano de 26/11 só é publicado às 19:30 de Sydney = 08:30 UTC) |
 
@@ -635,7 +635,7 @@ Capturas: `45-retry-pending.jpg`, `45-brighton-aceito.jpg`, `45-penshurst-recusa
 
 ### Observações novas
 
-- **O-14 — Sugestão da busca verificada pode ser recusada.** "30 Bridge Street, Sydney NSW 2000", escolhido na própria lista da busca, foi recusado (422 `LOW_RELEVANCE`, 06:17:18 UTC; confirmado pela API, também como "30 Bridge St"). O mesmo com "346 Military Road, Mosman 2088" no item 28. O usuário escolhe uma sugestão e recebe "doesn't match a known address".
+- **O-14 — Sugestão da busca verificada pode ser recusada.** "30 Bridge Street, Sydney NSW 2000", escolhido na própria lista da busca, foi recusado (422 `LOW_RELEVANCE`, 06:17:18 UTC; confirmado pela API, também como "30 Bridge St"). O mesmo com "346 Military Road, Mosman 2088" no item 28. O usuário escolhe uma sugestão e recebe "doesn't match a known address". **Explicada pelo coordenador (07:10 UTC):** corpo exato da tela (07:04:39 UTC, imóvel dentro do agendamento: `street "30 Bridge Street"`, `suburb "Sydney"`, `postcode "2000"`, `state "NSW"`, `country "AU"`, Line 2 omitido) → 422 `ADDRESS_NOT_VERIFIED`/`LOW_RELEVANCE`; reenviado pela API, mesmo resultado. Com esse pedido o mapa devolve "30 Bridge Street" em Rydalmere 2116 (0,99), então a recusa é correta: lacuna do mapa, caminho = "Set location manually". 346 Military Road, Mosman 2088 (PATCH do PROP-0027; reenvio por POST na agência Melbourne às 07:06:19 UTC) → mesmo 422 `LOW_RELEVANCE`.
 - **O-15 — City Office não ganhou coordenada ao salvar.** Depois do save do item 14 continua sem latitude/longitude, enquanto a North Shore Office ganhou às 05:27. Sem erro na tela.
 - **O-16 — Aviso de distância só no web.** No item 37, o cartão do app fez check-in e check-out a 1 km sem nenhum aviso; o desvio só aparece no web e no Live Day.
 - **O-17 — Linha do Live Day no primeiro clique.** Ver item 38.
@@ -655,3 +655,22 @@ Capturas: `45-retry-pending.jpg`, `45-brighton-aceito.jpg`, `45-penshurst-recusa
 | Imóveis existentes | SPS-006 Notes "QA rodada final item 8"; 7 "Retry Geocoding" (6 viraram SUCCESS) |
 | Arquivos | PROP-0022: smoke-route.pdf + 1 issue com foto; INS-0121: smoke-route.pdf + 1 issue do app; INS-0123: 1 problema do portal; link de portal do INS-0123 (sem envio) |
 | Agência Melbourne | Notes digitado (não gravado, O-18) |
+
+### Reteste do item 5 com a correção #1408 — 25/11/2026 (07:10–07:15 UTC)
+
+DEV web em `c1818671` (#1408). Pela tela, como AM. Endereço recusado usado: "12 Main Street, Faketown NSW 2999" (e "14 Main Street" no agendamento). Os pedidos ao servidor foram conferidos no log do `properfy-api-dev`.
+
+| Caso | Resultado | Evidência |
+|---|---|---|
+| (a) criar → recusa (422 às 07:10:52) → "Set location manually" → só Latitude -33.5012 → Create | PASSOU — envio bloqueado (nenhum POST às 07:11:07); Longitude marcada em vermelho com "Latitude and longitude must be provided together" | `05r-a-so-latitude-bloqueado.jpg` |
+| (b) só Longitude 150.6713 | PASSOU — bloqueado (nenhum POST às 07:11:19); Latitude marcada, mesma mensagem | `05r-b-so-longitude-bloqueado.jpg` |
+| (c) Latitude -95 e Longitude 200 | PASSOU — bloqueado (nenhum POST às 07:11:21); "Number must be greater than or equal to -90" e "Number must be less than or equal to 180", campos marcados | `05r-c-fora-da-faixa.jpg` |
+| (d) par válido -33.5012 / 150.6713 | PASSOU — POST 201 às 07:11:31, "Property created.", PROP-0033 `MANUAL` -33.5012 / 150.6713 | `05r-d-par-valido-prop0033.jpg` |
+| (e) edição (PROP-0029, gaveta "Edit Property") só Latitude -33.8975 → Save | PASSOU — bloqueado (nenhum PATCH às 07:13:59); Longitude marcada com a mensagem; fechado sem salvar | `05r-e-edicao-bloqueado.jpg` |
+| (e) imóvel criado dentro do agendamento → recusa (422 às 07:14:43) → manual → só Latitude -33.5014 | PASSOU — bloqueado (nenhum POST às 07:14:54); Longitude marcada com a mensagem; descartado | `05r-e-agendamento-bloqueado.jpg` |
+
+**Item 5: FALHOU → PASSOU com o #1408.**
+
+Engano meu, sem efeito no resultado: às 07:12:26 cliquei "Save" com a gaveta de edição do PROP-0029 ainda fechada. Foi um PATCH sem nenhuma alteração (200), que disparou nova localização em segundo plano (continua FAILED, sem coordenada). A repetição correta, às 07:13:59, é a linha (e).
+
+Dados criados: PROP-0033 (12 Main Street, Faketown NSW 2999, MANUAL -33.5012 / 150.6713).
