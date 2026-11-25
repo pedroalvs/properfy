@@ -57,7 +57,9 @@ const settings = { get: vi.fn(async () => ({ travel: 1, windowWait: 1, baseProxi
 const clock = { now: () => NOW };
 const audit = { log: vi.fn() };
 
-function wire(reader: FakeReader, repo: Repo, geocode: () => Promise<{ lat: number; lng: number } | null>) {
+type GeocodeStubResult = { lat: number; lng: number; placeType?: string; relevance?: number } | null;
+
+function wire(reader: FakeReader, repo: Repo, geocode: () => Promise<GeocodeStubResult>) {
   const stub = new StubRoutingService();
   const planRoute = new PlanRouteService(stub, stub, logger(), new MetricsCollector());
   const compute = new ComputeDayPlanUseCase(reader, repo, planRoute, settings as never, logger(), clock);
@@ -72,19 +74,62 @@ describe('SetDayPlanOriginUseCase', () => {
   let reader: FakeReader; let repo: Repo;
   beforeEach(() => { reader = new FakeReader(); repo = new Repo(); audit.log.mockClear(); });
 
-  it('geocodes the address and applies it as the OVERRIDE origin', async () => {
-    const { getMy, set } = wire(reader, repo, async () => ({ lat: -33.9, lng: 151.18 }));
+  it('geocodes the address and applies it as the OVERRIDE origin (good, address-level result)', async () => {
+    const { getMy, set } = wire(reader, repo, async () => ({ lat: -33.9, lng: 151.18, placeType: 'address', relevance: 0.95 }));
     await getMy.execute({ inspectorId: I, date: DATE });
     const res = await set.execute({ inspectorId: I, actorUserId: 'u1', date: DATE, address: ADDRESS });
     expect(res.origin.source).toBe('OVERRIDE');
     expect(res.originOverride?.address.suburb).toBe('Newtown');
+    // A good address recomputes the route (ORIGIN_CHANGE), stamping an origin coordinate.
+    expect(res.origin.lat).not.toBeNull();
     expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'day_plan.origin_overridden', after: { suburb: 'Newtown', state: 'NSW', postcode: '2042' } }));
   });
 
-  it('422s when geocoding finds nothing', async () => {
+  it('O-1: the origin label includes street and number when the address has them', async () => {
+    const withNumber: InspectorBaseAddress = { street: 'George St', number: '12', city: 'Sydney', suburb: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' };
+    const { getMy, set } = wire(reader, repo, async () => ({ lat: -33.86, lng: 151.2, placeType: 'address', relevance: 0.95 }));
+    await getMy.execute({ inspectorId: I, date: DATE });
+    const res = await set.execute({ inspectorId: I, actorUserId: 'u1', date: DATE, address: withNumber });
+    expect(res.origin.label).toBe('12 George St, Sydney NSW 2000');
+  });
+
+  it('422 NOT_FOUND when geocoding finds nothing (reason in details)', async () => {
     const { getMy, set } = wire(reader, repo, async () => null);
     await getMy.execute({ inspectorId: I, date: DATE });
-    await expect(set.execute({ inspectorId: I, actorUserId: 'u1', date: DATE, address: ADDRESS })).rejects.toMatchObject({ code: 'DAY_PLAN_ORIGIN_NOT_FOUND' });
+    await expect(set.execute({ inspectorId: I, actorUserId: 'u1', date: DATE, address: ADDRESS })).rejects.toMatchObject({
+      code: 'DAY_PLAN_ORIGIN_NOT_FOUND',
+      statusCode: 422,
+      details: [{ field: 'address', reason: 'NOT_FOUND' }],
+    });
+  });
+
+  it('422 COARSE_RESULT when the geocode is only postcode-level (rule A, V-4)', async () => {
+    const { getMy, set } = wire(reader, repo, async () => ({ lat: -33.9, lng: 151.18, placeType: 'postcode', relevance: 0.9 }));
+    await getMy.execute({ inspectorId: I, date: DATE });
+    await expect(set.execute({ inspectorId: I, actorUserId: 'u1', date: DATE, address: ADDRESS })).rejects.toMatchObject({
+      code: 'DAY_PLAN_ORIGIN_NOT_FOUND',
+      details: [{ field: 'address', reason: 'COARSE_RESULT' }],
+    });
+    // Nothing was saved: no plan recompute happened for the rejected origin.
+    expect(audit.log).not.toHaveBeenCalledWith(expect.objectContaining({ action: 'day_plan.origin_overridden' }));
+  });
+
+  it('422 LOW_RELEVANCE when an address result is below the relevance floor', async () => {
+    const { getMy, set } = wire(reader, repo, async () => ({ lat: -33.9, lng: 151.18, placeType: 'address', relevance: 0.5 }));
+    await getMy.execute({ inspectorId: I, date: DATE });
+    await expect(set.execute({ inspectorId: I, actorUserId: 'u1', date: DATE, address: ADDRESS })).rejects.toMatchObject({
+      code: 'DAY_PLAN_ORIGIN_NOT_FOUND',
+      details: [{ field: 'address', reason: 'LOW_RELEVANCE' }],
+    });
+  });
+
+  it('idempotent: re-saving the same address on a fresh plan does not re-geocode', async () => {
+    const geocode = vi.fn(async () => ({ lat: -33.9, lng: 151.18, placeType: 'address', relevance: 0.95 }));
+    const { getMy, set } = wire(reader, repo, geocode);
+    await getMy.execute({ inspectorId: I, date: DATE });
+    await set.execute({ inspectorId: I, actorUserId: 'u1', date: DATE, address: ADDRESS });
+    await set.execute({ inspectorId: I, actorUserId: 'u1', date: DATE, address: ADDRESS });
+    expect(geocode).toHaveBeenCalledTimes(1);
   });
 
   it('503s on any geocoder error (never 500)', async () => {
