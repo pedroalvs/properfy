@@ -81,6 +81,33 @@ export class ConfirmationCycleService {
           throw new ConfirmationCycleAlreadyTerminalError();
         }
 
+        // O-11 (decision 2 regression): a new link for an appointment whose active
+        // cycle records the rental tenant as UNAVAILABLE ("can't attend") must
+        // RE-OPEN the confirmation to PENDING, not merely attach the token to the
+        // UNAVAILABLE cycle. Before option B an UNAVAILABLE appointment had no cycle,
+        // so this reopen happened in the no-active branch below; option B made "can't"
+        // durable as an active UNAVAILABLE cycle, which made that reopen unreachable.
+        // Mirror rotateOnDateChange / group rule 3: supersede the UNAVAILABLE cycle
+        // (preserving it as history) and open a fresh PENDING cycle linked to the new
+        // token, then audit the reset on the appointment. (NO_RESPONSE never carries
+        // an active cycle — invalidateOnReject clears it — so it reopens below.)
+        if (active.status === 'UNAVAILABLE') {
+          await this.supersedeCurrent(appointmentId, tenantId, 'APPOINTMENT_REOPENED', client, defer);
+          const reopened = await this.createCycleWith(
+            client,
+            appointmentId,
+            tenantId,
+            'PENDING',
+            null,
+            tokenId,
+            scheduledDate,
+            timeSlot,
+            defer,
+          );
+          this.logAppointmentReset(appointmentId, tenantId, 'UNAVAILABLE', 'PENDING', auditContext, defer);
+          return reopened;
+        }
+
         if (active.status === 'PENDING') {
           const existingDate = active.scheduledDate.toISOString().slice(0, 10);
           const newDate = scheduledDate.toISOString().slice(0, 10);
