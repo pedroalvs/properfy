@@ -401,9 +401,9 @@ describe('ListFinancialEntriesUseCase', () => {
 
     const filters = vi.mocked(entryRepo.findAllEnriched).mock.calls[0]![0];
     expect(filters.tenantId).toBe('tenant-5');
-    // CC#3: with a chosen agency, OP gets ONLY that agency's rows — no platform
-    // bonus mixed in (that would surface rows that are not the agency's, AM never
-    // does it). So includePlatformBonus must NOT be set.
+    // With a chosen agency, OP gets ONLY that agency's rows — no platform bonus
+    // mixed in (that would surface rows that are not the agency's, which AM never
+    // does). So includePlatformBonus must NOT be set.
     expect(filters.includePlatformBonus).toBeUndefined();
   });
 

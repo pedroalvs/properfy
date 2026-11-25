@@ -129,7 +129,7 @@ describe('INSPECTOR_BONUS never leaks to an agency (real DB, Q12)', () => {
     expect(result.data.some((e) => e.id === bonusEntryId)).toBe(true);
   });
 
-  it('OP scoped to an agency sees only that agency — no platform bonus, no other agency (O-19 D8 / CC#3)', async () => {
+  it('OP scoped to an agency sees only that agency — no platform bonus, no other agency (O-19 D8)', async () => {
     const result = await listUseCase.execute(listInput(op(), { tenantId: tenantA }));
     // Mirrors AM: the tenantless bonus is NOT mixed into a chosen agency's list…
     expect(result.data.some((e) => e.id === bonusEntryId)).toBe(false);
