@@ -228,6 +228,69 @@ describe('UpdatePropertyUseCase', () => {
     expect(propertyRepo.update).toHaveBeenCalled();
   });
 
+  // V10 (fix): the property form always RE-SENDS the pre-filled address, so
+  // "address field present in the body" was true on every screen edit and the
+  // old `addressChanged` re-geocoded (and could 422) an UNCHANGED address.
+  // `addressChanged` now compares the effective address to the STORED one.
+  const SAME_ADDRESS = { street: '123 Main St', suburb: 'Sydney', postcode: '2000', state: 'NSW', country: 'AU' };
+
+  it('V10 (a): identical address re-sent on a FAILED property → 200, no sync geocode, async recovery re-enqueued', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty({ geocodingStatus: 'FAILED', lat: null, lng: null }));
+    const geocoder = makeGeocodingService();
+    const uc = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger as never, geocoder as never);
+
+    const result = await uc.execute({ propertyId: 'prop-1', data: { ...SAME_ADDRESS }, actor: makeActor() });
+
+    // The SYNC geocoder is never called (no 422 risk); pre-V-1 async recovery kept.
+    expect(geocoder.geocode).not.toHaveBeenCalled();
+    expect(result.geocodingStatus).toBe('PENDING');
+    expect(sendJob).toHaveBeenCalledWith('property.geocode', { propertyId: 'prop-1' }, { retryLimit: 6, retryBackoff: true });
+  });
+
+  it('V10 (b): identical address re-sent on a SUCCESS property → 200, coordinate + marker intact, no geocode', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty()); // SUCCESS with coordinates
+    const geocoder = makeGeocodingService();
+    const uc = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger as never, geocoder as never);
+
+    const result = await uc.execute({ propertyId: 'prop-1', data: { ...SAME_ADDRESS, notes: 'edited' }, actor: makeActor() });
+
+    expect(geocoder.geocode).not.toHaveBeenCalled();
+    expect(sendJob).not.toHaveBeenCalled();
+    expect(result.geocodingStatus).toBe('SUCCESS');
+    const payload = vi.mocked(propertyRepo.update).mock.calls[0]![2] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty('geocodingStatus');
+    expect(payload).not.toHaveProperty('lat');
+    expect(payload).not.toHaveProperty('lng');
+  });
+
+  it('V10 (c): a CHANGED address that fails rule A still rejects with 422 and writes nothing', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
+    const geocoder = makeGeocodingService();
+    geocoder.geocode.mockResolvedValue({ lat: -33.8, lng: 151.1, placeType: 'locality', relevance: 0.99 });
+    const uc = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger as never, geocoder as never);
+
+    await expect(
+      uc.execute({ propertyId: 'prop-1', data: { street: '999 Nowhere Rd' }, actor: makeActor() }),
+    ).rejects.toMatchObject({ code: 'ADDRESS_NOT_VERIFIED', statusCode: 422, details: [{ reason: 'COARSE_RESULT' }] });
+    expect(propertyRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('V10 (d): a MANUAL pin re-sent identically stays MANUAL and never geocodes', async () => {
+    vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty({ geocodingStatus: 'MANUAL', lat: -33.8, lng: 151.1 }));
+    const geocoder = makeGeocodingService();
+    const uc = new UpdatePropertyUseCase(propertyRepo, branchRepo, auditService, logger as never, geocoder as never);
+
+    const result = await uc.execute({
+      propertyId: 'prop-1',
+      data: { ...SAME_ADDRESS, latitude: -33.8, longitude: 151.1 },
+      actor: makeActor(),
+    });
+
+    expect(geocoder.geocode).not.toHaveBeenCalled();
+    expect(sendJob).not.toHaveBeenCalled();
+    expect(result.geocodingStatus).toBe('MANUAL');
+  });
+
   it('should not reset geocodingStatus when non-address field changes', async () => {
     vi.mocked(propertyRepo.findById).mockResolvedValue(makeProperty());
 
