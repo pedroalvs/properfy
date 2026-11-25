@@ -449,3 +449,22 @@ Sobre o caso 1: o coordenador perguntou se o imóvel volta para "Geocoding in pr
 **Alterações em DEV:**
 - Notes "QA reteste V-1 #1404" em IMP-D3CE99EF20, PROP-0018 e PROP-0017 (antes vazias).
 - PROP-0018 passou de 1 Martin Place para 9 Martin Place.
+
+## Reteste do O-9 com a correção #1405 — 25/11/2026 (05:26–05:30 UTC)
+
+DEV em `d10bad2b` (release v127 do `properfy-api-dev`, depois do CI verde desse commit). Pela tela, logado como AM, aba "Branches" da agência. O pedido citava "North Shore Office (Acme Realty)"; em DEV essa filial pertence a **Sydney Property Services**. Capturas `output/smoke-dev/reteste2/o9-*`.
+
+| # | Caso | Antes | Depois | Resultado |
+|---|---|---|---|---|
+| 1 | "Edit Branch" da filial antiga North Shore Office | — | Address "45 Pacific Hwy, North Sydney NSW 2060"; Street "45 Pacific Hwy", Suburb "North Sydney", Postcode "2060", State "NSW" preenchidos como na lista. Number vazio porque o número está dentro de Street (`o9-filial-antiga-gaveta-preenchida.jpg`) | PASSOU |
+| 2 | Só o nome trocado ("North Shore Office QA") e salvo | `{street:"45 Pacific Hwy", suburb:"North Sydney", postcode:"2060", state:"NSW"}`, sem coordenada | "Branch updated successfully", sem recusa. A lista mostra "45 Pacific Hwy, North Sydney NSW 2060, AU" (ganhou ", AU"). **A filial ganhou coordenada no próprio save:** -33.842616 / 151.210577, e `city:"North Sydney"` e `country:"AU"` foram acrescentados (conferido às 05:27:24) | PASSOU |
+| 3 | Filial já localizada e com número (Inactive Branch): abrir e salvar sem mexer | 200 George Street, `number:"200"`, -33.862599 / 151.207914 | "Branch updated successfully"; endereço, número e coordenada idênticos (`o9-localizada-salva-sem-mexer.jpg`) | PASSOU |
+| 4a | Inactive Branch: endereço trocado por inventado (Zzyzxqua Fakestreet, Qwertyvale) | — | "This address doesn't match a known address closely enough."; Street, Number, Suburb e Postcode marcados; nada salvo (`o9-troca-inventado-recusado.jpg`) | PASSOU |
+| 4b | Inactive Branch: endereço trocado por bom (300 George Street, Sydney NSW 2000) | — | "Branch updated successfully"; lista "300 George Street, Sydney NSW 2000, AU"; coordenada -33.865718 / 151.207465 (`o9-troca-bom-salvo.jpg`) | PASSOU |
+
+**Desfeito:**
+- Inactive Branch voltou a 200 George Street, com a coordenada de volta exatamente em -33.862599 / 151.207914.
+- North Shore Office voltou ao nome original.
+- A coordenada que a North Shore ganhou no caso 2 (-33.842616 / 151.210577), e os campos `city`/`country`, ficam. São o efeito esperado da correção.
+
+**O-9 PASSOU.** A regra final de endereço não foi testada.
