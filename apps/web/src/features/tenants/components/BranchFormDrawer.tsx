@@ -11,30 +11,12 @@ import { TextInput } from '@/components/forms/TextInput';
 import { EmailInput } from '@/components/forms/EmailInput';
 import { AddressLookupInput } from '@/components/forms/AddressLookupInput';
 import { useSnackbar } from '@/hooks/useSnackbar';
-import { formatAddressLabel, toAddressSuggestion, type AddressLookupSuggestion } from '@/lib/address';
+import { formatAddressLabel, toAddressSuggestion } from '@/lib/address';
 import { AddressNotVerifiedAlert } from '@/components/forms/AddressNotVerifiedAlert';
 import { useBranchSave } from '../hooks/useBranchSave';
 import { useBranchById } from '../hooks/useBranchById';
 import type { Branch, BranchFormData, BranchFormErrors } from '../types';
 import { EMPTY_BRANCH_FORM } from '../types';
-
-/**
- * O-9: whether the address section was actually edited vs the loaded value.
- * Compares only the fields the save sends, so a re-filled-but-unchanged legacy
- * address counts as unchanged and the save omits it (no backend re-geocode).
- */
-function sameFormAddress(a: AddressLookupSuggestion | null, b: AddressLookupSuggestion | null): boolean {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  return (
-    a.street === b.street &&
-    (a.number ?? '') === (b.number ?? '') &&
-    a.suburb === b.suburb &&
-    a.postcode === b.postcode &&
-    a.state === b.state &&
-    a.country === b.country
-  );
-}
 
 interface BranchFormDrawerProps {
   open: boolean;
@@ -153,11 +135,7 @@ export function BranchFormDrawer({
       return;
     }
 
-    // O-9: on an edit, only send the address when it actually changed. A re-sent
-    // legacy address (e.g. one stored without a country) would otherwise differ
-    // from the stored value (backend defaults country to 'AU') and re-geocode.
-    const omitAddress = isEditMode && sameFormAddress(form.address, initialData.address);
-    const result = await save(form, tenantId, branch?.id, { omitAddress });
+    const result = await save(form, tenantId, branch?.id);
     if (result.success) {
       showSuccess(isEditMode ? 'Branch updated successfully' : 'Branch created successfully');
       onSaved();
@@ -168,7 +146,7 @@ export function BranchFormDrawer({
     } else {
       showError(result.error ?? 'Failed to save');
     }
-  }, [isEditMode, form, initialData, validate, save, tenantId, branch, showSuccess, showError, onSaved]);
+  }, [isEditMode, form, validate, save, tenantId, branch, showSuccess, showError, onSaved]);
 
   const handleClose = useCallback(() => {
     if (isDirty) {

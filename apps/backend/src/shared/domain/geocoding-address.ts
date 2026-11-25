@@ -64,8 +64,27 @@ export function formatGeocodingQuery(address: GeocodableAddress): string {
  *
  * Used by the branch update ("same address → don't call Mapbox") now and by
  * F01 later.
+ *
+ * O-9: a missing/empty `country` is treated as the platform default 'AU' on BOTH
+ * sides before comparing. A legacy row stored without a country (e.g. a branch
+ * `address_json` of `{street, suburb, state, postcode}`) must compare EQUAL to the
+ * same address re-sent with `country: 'AU'` (the `branchAddressSchema` default),
+ * so an identical re-send is not mistaken for a change — no needless re-geocode
+ * and no 422, while the server's recovery attempt for a no-coordinate row is
+ * preserved (the caller still geocodes when there is no stored marker). The
+ * platform is AU-only, so this is safe for branch, property (#1404) and inspector
+ * (V-3), which all compare through this helper. It does NOT change the actual
+ * geocoding query string — `formatGeocodingQuery` is called directly where the
+ * Mapbox query is built, and is left untouched here.
  */
 export function isSameGeocodingAddress(a: GeocodableAddress, b: GeocodableAddress): boolean {
+  const withDefaultCountry = (addr: GeocodableAddress): GeocodableAddress => ({
+    ...addr,
+    country: (addr.country ?? '').trim() || 'AU',
+  });
   const normalize = (value: string): string => value.trim().toLowerCase();
-  return normalize(formatGeocodingQuery(a)) === normalize(formatGeocodingQuery(b));
+  return (
+    normalize(formatGeocodingQuery(withDefaultCountry(a))) ===
+    normalize(formatGeocodingQuery(withDefaultCountry(b)))
+  );
 }
