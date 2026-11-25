@@ -151,6 +151,24 @@ describe('backfillInspectorBaseCoords', () => {
     expect(report.geocoded).toBe(0);
   });
 
+  // V-3 regression guard: geocodeInspectorBase keeps RETURNING `{ failed }` for a
+  // rule-A rejection (it never throws), so the backfill must still record it as a
+  // non-fatal `failed` row and keep going — even though the three save use cases
+  // now turn the same rejection into a 422.
+  it('records a rule-A rejection (coarse result) as failed without throwing', async () => {
+    const coarse = (async () => ({
+      lat: 1,
+      lng: 2,
+      placeType: 'postcode',
+      relevance: 0.95,
+    })) as unknown as GeocodeImpl;
+    const { deps, updateMany } = makeDeps([{ id: 'a', address: VALID }], coarse);
+    const report = await backfillInspectorBaseCoords(deps, { apply: true, delayMs: 0 });
+    expect(report.failed).toEqual([{ inspectorId: 'a', reason: 'coarse_result' }]);
+    expect(report.geocoded).toBe(0);
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
   it('counts a thrown geocoder error as failed and continues to the next row', async () => {
     let call = 0;
     const { deps } = makeDeps(

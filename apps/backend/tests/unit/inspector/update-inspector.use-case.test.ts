@@ -3,11 +3,14 @@ import { UpdateInspectorUseCase } from '../../../src/modules/inspector/applicati
 import type { IInspectorRepository } from '../../../src/modules/inspector/domain/inspector.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
+import { ADDRESS_NOT_VERIFIED_CODE } from '@properfy/shared';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
 import {
   InspectorNotFoundError,
   InspectorEmailConflictError,
+  InspectorBaseAddressNotVerifiedError,
 } from '../../../src/modules/inspector/domain/inspector.errors';
+import { MapboxPermanentGeocodingUnavailableError } from '../../../src/modules/property/domain/geocoding.service';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
 import { AuthorizationService } from '../../../src/shared/domain/authorization.service';
 
@@ -233,7 +236,7 @@ describe('UpdateInspectorUseCase', () => {
         undefined,
         geocoder as never,
         eventBus as never,
-        { warn: vi.fn() } as never,
+        { warn: vi.fn(), error: vi.fn() } as never,
       );
     });
 
@@ -256,8 +259,10 @@ describe('UpdateInspectorUseCase', () => {
       expect(result.baseGeocodeFailed).toBe(false);
     });
 
-    it('clears the coordinates when geocoding fails', async () => {
-      geocoder.geocode.mockResolvedValue(null);
+    // V-3: only a provider-unavailable failure still saves without coordinates; a
+    // rule-A rejection throws a 422 (covered below).
+    it('clears the coordinates when the provider is unavailable', async () => {
+      geocoder.geocode.mockRejectedValue(new MapboxPermanentGeocodingUnavailableError());
       vi.mocked(inspectorRepo.findById).mockResolvedValue(
         makeInspector({ address: { ...BASE_ADDRESS, street: 'Old St' }, baseLat: 1, baseLng: 2, baseGeocodedAt: new Date() }),
       );
@@ -271,6 +276,21 @@ describe('UpdateInspectorUseCase', () => {
       expect(d.baseLng).toBeNull();
       expect(d.baseGeocodedAt).toBeNull();
       expect(result.baseGeocodeFailed).toBe(true);
+    });
+
+    // V-3: a rule-A rejection blocks the update with a 422 before the write.
+    it('rejects the update with 422 ADDRESS_NOT_VERIFIED and persists nothing when the new address is unverifiable', async () => {
+      geocoder.geocode.mockResolvedValue(null); // no_results → NOT_FOUND
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(
+        makeInspector({ address: { ...BASE_ADDRESS, street: 'Old St' }, baseLat: 1, baseLng: 2, baseGeocodedAt: new Date() }),
+      );
+      const err = await geoUseCase
+        .execute({ inspectorId: 'inspector-1', data: { address: BASE_ADDRESS }, actor: makeActor() })
+        .catch((e) => e);
+      expect(err).toBeInstanceOf(InspectorBaseAddressNotVerifiedError);
+      expect(err.code).toBe(ADDRESS_NOT_VERIFIED_CODE);
+      expect(err.details?.[0]).toMatchObject({ field: 'address', reason: 'NOT_FOUND' });
+      expect(inspectorRepo.update).not.toHaveBeenCalled();
     });
 
     it('does not touch base fields when address is absent', async () => {

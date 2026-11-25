@@ -3,15 +3,16 @@ import { Button } from '@/components/ui/Button';
 
 interface AddressNotVerifiedAlertProps {
   reason: AddressNotVerifiedReason;
-  /** When provided, renders the "Set location manually" escape (V2 rural pin). */
+  /** When provided, renders the "Set location manually" escape (V2 rural pin, property only). */
   onSetManual?: () => void;
 }
 
 /**
- * The on-save address-validation error block (V-1, §5.3). An assertive alert
- * (`role="alert"`) that names the reason, gives the supporting guidance and —
- * for the property forms — offers the manual-pin escape. The copy is the single
- * shared source (`ADDRESS_NOT_VERIFIED_MESSAGES`), so every screen matches.
+ * The on-save address-validation error block (V-1 §5.3, reused by V-3 for the
+ * inspector base). An assertive alert (`role="alert"`) that names the reason, gives
+ * the supporting guidance and — for the property forms — offers the manual-pin
+ * escape. The copy is the single shared source (`ADDRESS_NOT_VERIFIED_MESSAGES`),
+ * so every screen that validates an address on save matches.
  */
 export function AddressNotVerifiedAlert({ reason, onSetManual }: AddressNotVerifiedAlertProps) {
   const message = ADDRESS_NOT_VERIFIED_MESSAGES[reason];

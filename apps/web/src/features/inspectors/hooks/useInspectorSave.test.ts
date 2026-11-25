@@ -318,6 +318,69 @@ describe('useInspectorSave', () => {
     expect(saveResult?.error).toBe('An inspector with this email already exists');
   });
 
+  it('returns the ADDRESS_NOT_VERIFIED reason on a 422 create (V-3)', async () => {
+    mockPost.mockResolvedValueOnce({
+      error: {
+        error: {
+          code: 'ADDRESS_NOT_VERIFIED',
+          message: 'The address could not be verified.',
+          details: [{ field: 'address', reason: 'COARSE_RESULT' }],
+        },
+      },
+    });
+
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA);
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.addressNotVerified).toBe('COARSE_RESULT');
+    // A rejection is not an email conflict / generic error.
+    expect(saveResult?.errorCode).toBeUndefined();
+  });
+
+  it('returns the ADDRESS_NOT_VERIFIED reason on a 422 edit (V-3)', async () => {
+    mockPatch.mockResolvedValueOnce({
+      error: {
+        error: {
+          code: 'ADDRESS_NOT_VERIFIED',
+          message: 'The address could not be verified.',
+          details: [{ field: 'address', reason: 'NOT_FOUND' }],
+        },
+      },
+    });
+
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA, 'insp-01');
+    });
+
+    expect(saveResult?.success).toBe(false);
+    expect(saveResult?.addressNotVerified).toBe('NOT_FOUND');
+  });
+
+  it('surfaces baseGeocodeFailed from the create response (V4 provider down)', async () => {
+    mockPost.mockResolvedValueOnce({ data: { data: { id: 'new-insp', baseGeocodeFailed: true } } });
+
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useInspectorSave(), { wrapper });
+
+    let saveResult: Awaited<ReturnType<typeof result.current.save>> | undefined;
+    await act(async () => {
+      saveResult = await result.current.save(VALID_CREATE_DATA);
+    });
+
+    expect(saveResult?.success).toBe(true);
+    expect(saveResult?.baseGeocodeFailed).toBe(true);
+  });
+
   it('isSaving is true during save operation', async () => {
     let resolvePost!: (value: unknown) => void;
     mockPost.mockReturnValueOnce(new Promise((resolve) => { resolvePost = resolve; }));

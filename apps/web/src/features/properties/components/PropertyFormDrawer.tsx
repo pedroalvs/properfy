@@ -16,7 +16,7 @@ import { useSnackbar } from '@/hooks/useSnackbar';
 import { useFormOptions } from '@/hooks/useFormOptions';
 import { usePropertyDetail } from '../hooks/usePropertyDetail';
 import { usePropertySave } from '../hooks/usePropertySave';
-import { AddressNotVerifiedAlert } from './AddressNotVerifiedAlert';
+import { AddressNotVerifiedAlert } from '@/components/forms/AddressNotVerifiedAlert';
 import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS, YES_NO_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';

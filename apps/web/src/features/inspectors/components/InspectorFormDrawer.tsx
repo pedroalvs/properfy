@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { DrawerPanel } from '@/components/ui/DrawerPanel';
 import { DrawerHeader } from '@/components/ui/DrawerHeader';
 import { Button } from '@/components/ui/Button';
@@ -24,10 +24,22 @@ import { DocumentUploadField } from './DocumentUploadField';
 import { INSPECTOR_STATUS_OPTIONS } from '../constants/form-options';
 import type { InspectorFormData, InspectorFormErrors } from '../types';
 import { EMPTY_INSPECTOR_FORM } from '../types';
+import { AddressNotVerifiedAlert } from '@/components/forms/AddressNotVerifiedAlert';
 import { formatAuPhone } from '@/lib/phone-mask';
-import { AU_STATES } from '@properfy/shared';
+import { AU_STATES, type AddressNotVerifiedReason } from '@properfy/shared';
 
 const AU_STATE_OPTIONS = AU_STATES.map((s) => ({ value: s, label: s }));
+
+/** Flat form keys that make up the base address (V-3 on-save validation). */
+const BASE_ADDRESS_FIELD_KEYS: (keyof InspectorFormData)[] = [
+  'addressStreet',
+  'addressNumber',
+  'addressComplement',
+  'addressSuburb',
+  'addressCity',
+  'addressState',
+  'addressPostcode',
+];
 
 /**
  * Reads the stored base address (F01-1) into the flat form fields. `address` is
@@ -90,12 +102,18 @@ export function InspectorFormDrawer({
   );
   const { save, isSaving, validate } = useInspectorSave();
   const { upload, isUploading: isDocUploading, uploadError: docUploadError } = useInspectorDocumentUpload();
-  const { showSuccess, showError } = useSnackbar();
+  const { showSuccess, showError, showInfo } = useSnackbar();
 
   const [form, setForm] = useState<InspectorFormData>(EMPTY_INSPECTOR_FORM);
   const [initialData, setInitialData] = useState<InspectorFormData>(EMPTY_INSPECTOR_FORM);
   const [errors, setErrors] = useState<InspectorFormErrors>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  // V-3: the on-save base-address rejection reason. When set, the "Base Address"
+  // section shows the shared error block and its fields get an error border; it is
+  // cleared as soon as any base-address field is edited or the drawer reopens.
+  const [addressNotVerified, setAddressNotVerified] = useState<AddressNotVerifiedReason | null>(null);
+  const baseInvalid = addressNotVerified !== null;
+  const streetRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isEditMode && inspector) {
@@ -122,6 +140,7 @@ export function InspectorFormDrawer({
       setForm(data);
       setInitialData(data);
       setErrors({});
+      setAddressNotVerified(null);
     }
   }, [isEditMode, inspector]);
 
@@ -130,6 +149,7 @@ export function InspectorFormDrawer({
       setForm(EMPTY_INSPECTOR_FORM);
       setInitialData(EMPTY_INSPECTOR_FORM);
       setErrors({});
+      setAddressNotVerified(null);
     }
   }, [open, isEditMode]);
 
@@ -146,6 +166,11 @@ export function InspectorFormDrawer({
         }
         return prev;
       });
+      // Editing any base-address field clears the on-save rejection (§5.3): the
+      // next save re-checks the corrected address.
+      if (BASE_ADDRESS_FIELD_KEYS.includes(field)) {
+        setAddressNotVerified(null);
+      }
     },
     [],
   );
@@ -187,14 +212,29 @@ export function InspectorFormDrawer({
     }
     const result = await save(form, inspectorId ?? undefined);
     if (result.success) {
-      showSuccess(isEditMode ? 'Inspector updated successfully' : 'Inspector created successfully');
+      // V-3/V4: the base address was saved but the provider could not check it
+      // right now — surface that rather than a plain success.
+      if (result.baseGeocodeFailed) {
+        showInfo(
+          isEditMode
+            ? "Inspector updated. We couldn't check the base address right now."
+            : "Inspector saved. We couldn't check the base address right now.",
+        );
+      } else {
+        showSuccess(isEditMode ? 'Inspector updated successfully' : 'Inspector created successfully');
+      }
       onSaved();
+    } else if (result.addressNotVerified) {
+      // V-3: unverifiable base address — show the shared error block, mark the
+      // fields and move focus to the first base-address field.
+      setAddressNotVerified(result.addressNotVerified);
+      streetRef.current?.focus();
     } else if (result.errorCode === 'INSPECTOR_EMAIL_CONFLICT') {
       setErrors((prev) => ({ ...prev, email: result.error ?? 'Email already in use' }));
     } else {
       showError(result.error ?? 'Failed to save');
     }
-  }, [isEditMode, form, validate, save, inspectorId, showSuccess, showError, onSaved]);
+  }, [isEditMode, form, validate, save, inspectorId, showSuccess, showInfo, showError, onSaved]);
 
   const handleClose = useCallback(() => {
     if (isDirty) {
@@ -284,11 +324,17 @@ export function InspectorFormDrawer({
                   </FormSection>
 
                   <FormSection title="Base Address" columns={2}>
+                    {addressNotVerified && (
+                      <div className="md:col-span-2">
+                        <AddressNotVerifiedAlert reason={addressNotVerified} />
+                      </div>
+                    )}
                     <FormField label="Street" required={!isEditMode} error={errors.addressStreet}>
                       <TextInput
+                        ref={streetRef}
                         value={form.addressStreet}
                         onChange={(v) => updateField('addressStreet', v)}
-                        error={!!errors.addressStreet}
+                        error={!!errors.addressStreet || baseInvalid}
                         aria-label="Street"
                       />
                     </FormField>
@@ -310,7 +356,7 @@ export function InspectorFormDrawer({
                       <TextInput
                         value={form.addressSuburb}
                         onChange={(v) => updateField('addressSuburb', v)}
-                        error={!!errors.addressSuburb}
+                        error={!!errors.addressSuburb || baseInvalid}
                         aria-label="Suburb"
                       />
                     </FormField>
@@ -318,7 +364,7 @@ export function InspectorFormDrawer({
                       <TextInput
                         value={form.addressCity}
                         onChange={(v) => updateField('addressCity', v)}
-                        error={!!errors.addressCity}
+                        error={!!errors.addressCity || baseInvalid}
                         aria-label="City"
                       />
                     </FormField>
@@ -328,6 +374,7 @@ export function InspectorFormDrawer({
                         onChange={(v) => updateField('addressState', v)}
                         options={AU_STATE_OPTIONS}
                         placeholder="Select a state"
+                        error={!!errors.addressState || baseInvalid}
                         aria-label="State"
                       />
                     </FormField>
@@ -335,7 +382,7 @@ export function InspectorFormDrawer({
                       <TextInput
                         value={form.addressPostcode}
                         onChange={(v) => updateField('addressPostcode', v)}
-                        error={!!errors.addressPostcode}
+                        error={!!errors.addressPostcode || baseInvalid}
                         aria-label="Postcode"
                       />
                     </FormField>

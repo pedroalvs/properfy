@@ -4,8 +4,13 @@ import type { IInspectorRepository } from '../../../src/modules/inspector/domain
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import type { AuthContext } from '@properfy/shared';
 import { InspectorEntity } from '../../../src/modules/inspector/domain/inspector.entity';
+import { ADDRESS_NOT_VERIFIED_CODE } from '@properfy/shared';
 import { ForbiddenError } from '../../../src/shared/domain/errors';
-import { InspectorNotFoundError } from '../../../src/modules/inspector/domain/inspector.errors';
+import {
+  InspectorNotFoundError,
+  InspectorBaseAddressNotVerifiedError,
+} from '../../../src/modules/inspector/domain/inspector.errors';
+import { MapboxPermanentGeocodingUnavailableError } from '../../../src/modules/property/domain/geocoding.service';
 
 const INSPECTOR_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -233,7 +238,7 @@ describe('UpdateInspectorSelfProfileUseCase', () => {
         auditService,
         geocoder as never,
         eventBus as never,
-        { warn: vi.fn() } as never,
+        { warn: vi.fn(), error: vi.fn() } as never,
       );
     });
 
@@ -263,14 +268,27 @@ describe('UpdateInspectorSelfProfileUseCase', () => {
       ).rejects.toMatchObject({ code: 'AUTH_FORBIDDEN' });
     });
 
-    it('reports baseGeocodeFailed on a geocode failure', async () => {
-      geocoder.geocode.mockResolvedValue(null);
+    // V-3: only a provider-unavailable failure still saves without coordinates.
+    it('reports baseGeocodeFailed when the provider is unavailable', async () => {
+      geocoder.geocode.mockRejectedValue(new MapboxPermanentGeocodingUnavailableError());
       const result = await geoUseCase.execute({
         inspectorId: INSPECTOR_ID,
         data: { address: BASE_ADDRESS },
         actor: makeInspActor(),
       });
       expect(result.baseGeocodeFailed).toBe(true);
+    });
+
+    // V-3: an inspector cannot self-save a base the system can't verify (rule A).
+    it('rejects the self-update with 422 ADDRESS_NOT_VERIFIED and persists nothing when the address is unverifiable', async () => {
+      geocoder.geocode.mockResolvedValue(null); // no_results → NOT_FOUND
+      const err = await geoUseCase
+        .execute({ inspectorId: INSPECTOR_ID, data: { address: BASE_ADDRESS }, actor: makeInspActor() })
+        .catch((e) => e);
+      expect(err).toBeInstanceOf(InspectorBaseAddressNotVerifiedError);
+      expect(err.code).toBe(ADDRESS_NOT_VERIFIED_CODE);
+      expect(err.details?.[0]).toMatchObject({ field: 'address', reason: 'NOT_FOUND' });
+      expect(inspectorRepo.update).not.toHaveBeenCalled();
     });
 
     it('leaves the base untouched when only the phone changes', async () => {

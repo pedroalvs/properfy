@@ -16,8 +16,14 @@ import type { Logger } from '../../../../shared/infrastructure/logger';
 import { type Clock, SystemClock } from '../../../../shared/domain/clock';
 import { InspectorEntity } from '../../domain/inspector.entity';
 import { UserEntity } from '../../../auth/domain/user.entity';
-import { InspectorEmailConflictError } from '../../domain/inspector.errors';
-import { geocodeInspectorBase } from '../services/geocode-inspector-base';
+import {
+  InspectorEmailConflictError,
+  InspectorBaseAddressNotVerifiedError,
+} from '../../domain/inspector.errors';
+import {
+  geocodeInspectorBase,
+  inspectorBaseRejectionReason,
+} from '../services/geocode-inspector-base';
 import { INSPECTOR_EVENTS } from '../../domain/inspector-events';
 import { validatePasswordStrength } from '../../../auth/domain/password-policy';
 import {
@@ -110,8 +116,10 @@ export class CreateInspectorUseCase {
     }
 
     // Geocode the base address BEFORE any write (L-F01-11): an unexpected error
-    // here leaves neither a User nor an Inspector row. A geocode failure is not an
-    // error — the address is saved without coordinates and baseGeocodeFailed = true.
+    // here leaves neither a User nor an Inspector row. V-3: a rule-A rejection
+    // (address does not resolve to a confident point) blocks the create with a 422
+    // before any write. A provider-unavailable failure is not an invalid address —
+    // the address is saved without coordinates and baseGeocodeFailed = true (V4).
     let baseLat: number | null = null;
     let baseLng: number | null = null;
     let baseGeocodedAt: Date | null = null;
@@ -123,6 +131,8 @@ export class CreateInspectorUseCase {
         baseLng = geo.lng;
         baseGeocodedAt = geo.geocodedAt;
       } else {
+        const reason = inspectorBaseRejectionReason(geo.failed);
+        if (reason) throw new InspectorBaseAddressNotVerifiedError(reason);
         baseGeocodeFailed = true;
       }
     }

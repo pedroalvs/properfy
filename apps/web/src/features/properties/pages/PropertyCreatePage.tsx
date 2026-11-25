@@ -16,7 +16,7 @@ import { useFormOptions } from '@/hooks/useFormOptions';
 import { useAuth } from '@/hooks/useAuth';
 import { useGoBack } from '@/hooks/useGoBack';
 import { usePropertySave } from '../hooks/usePropertySave';
-import { AddressNotVerifiedAlert } from '../components/AddressNotVerifiedAlert';
+import { AddressNotVerifiedAlert } from '@/components/forms/AddressNotVerifiedAlert';
 import { PROPERTY_TYPE_OPTIONS, STATE_OPTIONS, YES_NO_OPTIONS } from '../constants/form-options';
 import type { PropertyFormData, PropertyFormErrors } from '../types';
 import { EMPTY_PROPERTY_FORM } from '../types';

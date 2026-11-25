@@ -16,11 +16,15 @@ import type { DomainEventBus } from '../../../../shared/application/events/domai
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import { type Clock, SystemClock } from '../../../../shared/domain/clock';
 import { isSameGeocodingAddress, type GeocodableAddress } from '../../../../shared/domain/geocoding-address';
-import { geocodeInspectorBase } from '../services/geocode-inspector-base';
+import {
+  geocodeInspectorBase,
+  inspectorBaseRejectionReason,
+} from '../services/geocode-inspector-base';
 import { INSPECTOR_EVENTS } from '../../domain/inspector-events';
 import {
   InspectorNotFoundError,
   InspectorEmailConflictError,
+  InspectorBaseAddressNotVerifiedError,
 } from '../../domain/inspector.errors';
 
 export interface UpdateInspectorInput {
@@ -194,6 +198,11 @@ export class UpdateInspectorUseCase {
           updateData.baseGeocodedAt = geo.geocodedAt;
           hasCoordinates = true;
         } else {
+          // V-3: a rule-A rejection blocks the update with a 422 BEFORE the write
+          // below — nothing is persisted. Only a provider-unavailable failure falls
+          // through to "saved without coordinates" (V4).
+          const reason = inspectorBaseRejectionReason(geo.failed);
+          if (reason) throw new InspectorBaseAddressNotVerifiedError(reason);
           updateData.baseLat = null;
           updateData.baseLng = null;
           updateData.baseGeocodedAt = null;
