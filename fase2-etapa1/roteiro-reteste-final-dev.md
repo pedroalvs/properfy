@@ -28,9 +28,8 @@ Usar a tabela de `bateria-limiar-endereco.md`. Para os casos abaixo, três tipos
 |---|---|---|
 | Bom | 200 George Street, Sydney NSW 2000 | Aceito, pino no lugar |
 | Subúrbio errado | 345 Military Road, Newtown NSW 2042 | Recusado |
-| Sem número ou inexistente | Victoria Avenue, Chatswood NSW 2067 (sem número); 10 Main Street, Faketown NSW 2999 | Recusado |
-
-O resultado esperado da linha "sem número" depende da decisão pendente sobre exigir número de casa; o coordenador confirma antes do início.
+| Inexistente | 10 Main Street, Faketown NSW 2999 | Recusado |
+| Rua sem número | Victoria Avenue, Chatswood NSW 2067 | Aceito, com o pino na rua (decisão 36: número de casa não é exigido) |
 
 ## Parte 1 — Telas mexidas
 
