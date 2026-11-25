@@ -6,8 +6,10 @@ import {
   updateInspectorSchema,
   passwordFieldSchema,
   PASSWORD_REQUIREMENTS_MESSAGE,
+  ADDRESS_NOT_VERIFIED_CODE,
+  ADDRESS_NOT_VERIFIED_REASONS,
 } from '@properfy/shared';
-import type { AuState } from '@properfy/shared';
+import type { AuState, AddressNotVerifiedReason } from '@properfy/shared';
 import { api } from '@/services/api';
 import type { InspectorFormData, InspectorFormErrors } from '../types';
 
@@ -104,6 +106,21 @@ export interface SaveResult {
   success: boolean;
   error?: string;
   errorCode?: string;
+  /** 422 ADDRESS_NOT_VERIFIED (V-3): the reason, so the drawer shows the matching copy + marks the base-address fields. */
+  addressNotVerified?: AddressNotVerifiedReason;
+  /** True when the inspector saved but the base address could not be checked (provider down, V4). */
+  baseGeocodeFailed?: boolean;
+}
+
+/** Read a 422 ADDRESS_NOT_VERIFIED reason off the error envelope, if present. */
+function readAddressNotVerified(error: unknown): AddressNotVerifiedReason | undefined {
+  const envelope = (error as { error?: { code?: string; details?: unknown } } | undefined)?.error;
+  if (envelope?.code !== ADDRESS_NOT_VERIFIED_CODE) return undefined;
+  const details = Array.isArray(envelope.details) ? envelope.details : [];
+  const reason = (details[0] as { reason?: string } | undefined)?.reason;
+  return ADDRESS_NOT_VERIFIED_REASONS.includes(reason as AddressNotVerifiedReason)
+    ? (reason as AddressNotVerifiedReason)
+    : undefined;
 }
 
 export interface UseInspectorSaveReturn {
@@ -182,7 +199,9 @@ export function useInspectorSave(): UseInspectorSaveReturn {
       const editAddress = data.addressStreet.trim() ? baseAddress : undefined;
 
       type ApiErrorEnvelope = { error?: { code?: string; message?: string } };
+      type InspectorEnvelope = { data?: { baseGeocodeFailed?: boolean } };
       let apiError: ApiErrorEnvelope | undefined;
+      let baseGeocodeFailed: boolean | undefined;
       if (inspectorId) {
         // Clearing a field must send an explicit `null`, not the `undefined` that
         // `sharedFields` carries: `undefined` is dropped from the JSON body, which
@@ -196,7 +215,7 @@ export function useInspectorSave(): UseInspectorSaveReturn {
         // Deliberately excludes `password`: updateInspectorSchema is a plain
         // z.object, so it would be silently stripped server-side — putting a
         // plaintext password on the wire with no error to signal it.
-        const { error } = await api.PATCH('/v1/inspectors/{inspectorId}', {
+        const { data: responseData, error } = await api.PATCH('/v1/inspectors/{inspectorId}', {
           params: { path: { inspectorId } },
           body: {
             ...sharedFields,
@@ -212,21 +231,25 @@ export function useInspectorSave(): UseInspectorSaveReturn {
           },
         });
         apiError = error as ApiErrorEnvelope | undefined;
+        baseGeocodeFailed = (responseData as InspectorEnvelope | undefined)?.data?.baseGeocodeFailed;
       } else {
-        const { error } = await api.POST('/v1/inspectors', {
+        const { data: responseData, error } = await api.POST('/v1/inspectors', {
           body: { ...sharedFields, password: data.password, address: baseAddress },
         });
         apiError = error as ApiErrorEnvelope | undefined;
+        baseGeocodeFailed = (responseData as InspectorEnvelope | undefined)?.data?.baseGeocodeFailed;
       }
 
       if (apiError) {
+        const addressNotVerified = readAddressNotVerified(apiError);
+        if (addressNotVerified) return { success: false, addressNotVerified };
         const code = apiError?.error?.code ?? 'UNKNOWN';
         const message = apiError?.error?.message ?? 'Request failed';
         return { success: false, error: message, errorCode: code };
       }
 
       await queryClient.invalidateQueries({ queryKey: ['inspectors'] });
-      return { success: true };
+      return { success: true, baseGeocodeFailed };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save';
       return { success: false, error: message };

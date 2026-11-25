@@ -5,7 +5,6 @@ import type {
   UserStatus,
   InspectorBaseAddress,
 } from '@properfy/shared';
-import { inspectorBaseAddressSchema } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
@@ -16,11 +15,15 @@ import type { DomainEventBus } from '../../../../shared/application/events/domai
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import { type Clock, SystemClock } from '../../../../shared/domain/clock';
 import { isSameGeocodingAddress, type GeocodableAddress } from '../../../../shared/domain/geocoding-address';
-import { geocodeInspectorBase } from '../services/geocode-inspector-base';
+import {
+  geocodeInspectorBase,
+  inspectorBaseRejectionReason,
+} from '../services/geocode-inspector-base';
 import { INSPECTOR_EVENTS } from '../../domain/inspector-events';
 import {
   InspectorNotFoundError,
   InspectorEmailConflictError,
+  InspectorBaseAddressNotVerifiedError,
 } from '../../domain/inspector.errors';
 
 export interface UpdateInspectorInput {
@@ -172,19 +175,25 @@ export class UpdateInspectorUseCase {
       updateData.address = data.address;
       baseChanged = true;
 
-      // "Same address" (D18, L-F01-01): only when the CURRENT stored address parses
-      // under the AU schema (a legacy shape always re-geocodes), the two are equal
-      // for geocoding via the X02 helper, and coordinates already exist.
-      const currentParsed = inspectorBaseAddressSchema.safeParse(inspector.address);
+      // "Same address" (D18, L-F01-01, V-3/V10) — mirrors update-branch.use-case.
+      // Compared via the X02 normalized-string helper on the RAW stored address
+      // (`formatGeocodingQuery` reads only known fields, tolerating a legacy/partial
+      // shape), NOT the AU schema. Three cases:
+      //   - unchanged + HAS coordinate → skip (no Mapbox), keep the stored pair;
+      //   - unchanged + NO coordinate (legacy row / prior outage / backfill not run)
+      //     → still geocode as a RECOVERY attempt, but a rejection there NEVER 422s
+      //     — it saves without a coordinate + baseGeocodeFailed so the other fields
+      //     stay editable (V10). Pedro's rule: never remove a real recovery path;
+      //   - CHANGED → geocode → a rule-A rejection throws 422 (nothing written).
       const sameAsStored =
-        currentParsed.success &&
-        hadCoordinates &&
+        inspector.address != null &&
+        typeof inspector.address === 'object' &&
         isSameGeocodingAddress(
-          currentParsed.data as unknown as GeocodableAddress,
+          inspector.address as unknown as GeocodableAddress,
           next as unknown as GeocodableAddress,
         );
 
-      if (sameAsStored) {
+      if (sameAsStored && hadCoordinates) {
         baseChanged = false; // keep the coordinates, call nothing, emit nothing
       } else if (this.geocodingService) {
         const geo = await geocodeInspectorBase(this.geocodingService, next, this.logger, this.clock);
@@ -194,17 +203,26 @@ export class UpdateInspectorUseCase {
           updateData.baseGeocodedAt = geo.geocodedAt;
           hasCoordinates = true;
         } else {
+          const reason = inspectorBaseRejectionReason(geo.failed);
+          // Only a CHANGED address that fails rule A is rejected (422, nothing
+          // written). A rejection on an UNCHANGED base (recovery) or any
+          // provider-unavailable failure saves without a coordinate (V4/V10).
+          if (reason && !sameAsStored) {
+            throw new InspectorBaseAddressNotVerifiedError(reason);
+          }
           updateData.baseLat = null;
           updateData.baseLng = null;
           updateData.baseGeocodedAt = null;
           baseGeocodeFailed = true;
           hasCoordinates = false;
+          baseChanged = !sameAsStored; // no event when nothing actually changed
         }
       } else {
         updateData.baseLat = null;
         updateData.baseLng = null;
         updateData.baseGeocodedAt = null;
         hasCoordinates = false;
+        baseChanged = !sameAsStored;
       }
     }
     if (data.abn !== undefined) updateData.abn = data.abn;

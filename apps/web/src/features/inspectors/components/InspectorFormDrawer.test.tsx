@@ -1,10 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SnackbarProvider } from '@/hooks/useSnackbar';
 
 vi.mock('@properfy/shared', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
+}));
+
+// The SnackbarProvider only stores messages in context (no DOM viewport is
+// rendered here), so mock the hook to spy on the toast calls directly.
+const mockShowSuccess = vi.fn();
+const mockShowError = vi.fn();
+const mockShowInfo = vi.fn();
+vi.mock('@/hooks/useSnackbar', () => ({
+  useSnackbar: () => ({
+    showSuccess: mockShowSuccess,
+    showError: mockShowError,
+    showInfo: mockShowInfo,
+    dismiss: vi.fn(),
+    messages: [],
+  }),
+  SnackbarProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock('@/config/env', () => ({ env: { apiBaseUrl: 'http://localhost:3000' } }));
 vi.mock('@/services/api', () => ({
@@ -58,6 +73,7 @@ vi.mock('../hooks/useInspectorDetail', () => ({
 }));
 
 import { InspectorFormDrawer } from './InspectorFormDrawer';
+import { SnackbarProvider } from '@/hooks/useSnackbar';
 import { api } from '@/services/api';
 
 const mockGet = api.GET as ReturnType<typeof vi.fn>;
@@ -172,6 +188,43 @@ describe('InspectorFormDrawer', () => {
     expect(blockedTenantElements.length).toBeGreaterThanOrEqual(1);
     expect(await screen.findByLabelText('Imobiliaria Alpha')).toBeInTheDocument();
     expect(screen.getByLabelText('Imobiliaria Beta')).toBeInTheDocument();
+  });
+
+  it('shows the address error block and marks the base fields when the address is unverifiable (V-3)', async () => {
+    mockSave.mockResolvedValueOnce({ success: false, addressNotVerified: 'COARSE_RESULT' });
+    const onSaved = vi.fn();
+    renderDrawer({ onSaved });
+    fireEvent.click(screen.getByText('Create Inspector'));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('We could only locate the area, not the exact address.');
+    expect(alert).toHaveTextContent('Add the street number, or correct the street name.');
+    // The base-address fields get an error state and the drawer stays open —
+    // including Unit / Number, since the copy says "Add the street number".
+    expect(screen.getByLabelText('Street')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Unit / Number')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Suburb')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Postcode')).toHaveAttribute('aria-invalid', 'true');
+    expect(onSaved).not.toHaveBeenCalled();
+
+    // Editing a base-address field clears the block.
+    fireEvent.change(screen.getByLabelText('Street'), { target: { value: '2 George St' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('warns (not plain success) when the base address could not be checked (V4)', async () => {
+    mockSave.mockResolvedValueOnce({ success: true, baseGeocodeFailed: true });
+    const onSaved = vi.fn();
+    renderDrawer({ onSaved });
+    fireEvent.click(screen.getByText('Create Inspector'));
+
+    await waitFor(() =>
+      expect(mockShowInfo).toHaveBeenCalledWith(
+        "Inspector saved. We couldn't check the base address right now.",
+      ),
+    );
+    expect(mockShowSuccess).not.toHaveBeenCalled();
+    expect(onSaved).toHaveBeenCalled();
   });
 
   it('renders profile and compliance fields', () => {

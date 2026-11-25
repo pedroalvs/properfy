@@ -1,5 +1,4 @@
 import type { AuthContext, PaymentSettings, InspectorBaseAddress } from '@properfy/shared';
-import { inspectorBaseAddressSchema } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
@@ -8,9 +7,15 @@ import type { DomainEventBus } from '../../../../shared/application/events/domai
 import type { Logger } from '../../../../shared/infrastructure/logger';
 import { type Clock, SystemClock } from '../../../../shared/domain/clock';
 import { isSameGeocodingAddress, type GeocodableAddress } from '../../../../shared/domain/geocoding-address';
-import { geocodeInspectorBase } from '../services/geocode-inspector-base';
+import {
+  geocodeInspectorBase,
+  inspectorBaseRejectionReason,
+} from '../services/geocode-inspector-base';
 import { INSPECTOR_EVENTS } from '../../domain/inspector-events';
-import { InspectorNotFoundError } from '../../domain/inspector.errors';
+import {
+  InspectorNotFoundError,
+  InspectorBaseAddressNotVerifiedError,
+} from '../../domain/inspector.errors';
 
 export interface UpdateInspectorSelfProfileInput {
   inspectorId: string;
@@ -80,16 +85,21 @@ export class UpdateInspectorSelfProfileUseCase {
       updateData.address = data.address as unknown as Record<string, unknown>;
       baseChanged = true;
 
-      const currentParsed = inspectorBaseAddressSchema.safeParse(inspector.address);
+      // V-3/V10 — mirrors update-branch.use-case / update-inspector. Compared via the
+      // X02 helper on the RAW stored address (parse-tolerant), NOT the AU schema:
+      //   - unchanged + HAS coordinate → skip;
+      //   - unchanged + NO coordinate → geocode as a RECOVERY attempt, but a rejection
+      //     NEVER 422s (save without a coordinate + baseGeocodeFailed, V10);
+      //   - CHANGED → geocode → a rule-A rejection throws 422 (nothing written).
       const sameAsStored =
-        currentParsed.success &&
-        hadCoordinates &&
+        inspector.address != null &&
+        typeof inspector.address === 'object' &&
         isSameGeocodingAddress(
-          currentParsed.data as unknown as GeocodableAddress,
+          inspector.address as unknown as GeocodableAddress,
           next as unknown as GeocodableAddress,
         );
 
-      if (sameAsStored) {
+      if (sameAsStored && hadCoordinates) {
         baseChanged = false;
       } else if (this.geocodingService) {
         const geo = await geocodeInspectorBase(this.geocodingService, next, this.logger, this.clock);
@@ -99,17 +109,26 @@ export class UpdateInspectorSelfProfileUseCase {
           updateData.baseGeocodedAt = geo.geocodedAt;
           hasCoordinates = true;
         } else {
+          const reason = inspectorBaseRejectionReason(geo.failed);
+          // Only a CHANGED address that fails rule A is rejected (422). A rejection on
+          // an UNCHANGED base (recovery) or a provider-unavailable failure saves
+          // without a coordinate (V4/V10).
+          if (reason && !sameAsStored) {
+            throw new InspectorBaseAddressNotVerifiedError(reason);
+          }
           updateData.baseLat = null;
           updateData.baseLng = null;
           updateData.baseGeocodedAt = null;
           baseGeocodeFailed = true;
           hasCoordinates = false;
+          baseChanged = !sameAsStored;
         }
       } else {
         updateData.baseLat = null;
         updateData.baseLng = null;
         updateData.baseGeocodedAt = null;
         hasCoordinates = false;
+        baseChanged = !sameAsStored;
       }
     }
 
