@@ -120,6 +120,25 @@ Usar os imóveis, a filial e o inspetor criados na parte 1.
 43. Enviar imagem e PDF em "Files" do imóvel e do agendamento; baixar; nova versão; apagar.
 44. Criar issue com foto no web; "Report issue" com foto no app; reportar problema com foto no portal do inquilino.
 
+### 2.8 Regra final nos casos reais de DEV (web, detalhe do imóvel)
+
+45. Nos imóveis abaixo, recusados na medição anterior, usar "Retry Geocoding" e anotar status, motivo e coordenada antes e depois. A coordenada antiga não pode sumir quando a recusa se repete.
+
+| Imóvel | Subúrbio | Resultado esperado |
+|---|---|---|
+| IMP-2A412183A9 | Brighton-le-sands | Aceito (o complemento repetido deixa de ir ao mapa; hífen no subúrbio não atrapalha) |
+| IMP-748F05CA28 | Carlton | Aceito |
+| IMP-90EC930570 | Bexley | Aceito |
+| IMP-D3CE99EF20 | Bexley | Aceito |
+| IMP-D45E7C3CEF | Hurstville | Aceito |
+| IMP-FF4AB720F8 | Hurstville | Aceito |
+| IMP-6238CD8E93 | Penshurst | Recusado (CEP errado no cadastro: o mapa devolve outro subúrbio) |
+| SPS-006 | Chatswood | Recusado (o mapa devolve a rua em outro subúrbio) |
+
+46. Criar um imóvel com "Address Line 2" legítimo (por exemplo "Unit 5") e outro com o complemento repetindo a rua: os dois são aceitos e continuam sendo imóveis distintos de um terceiro na mesma rua sem complemento.
+47. Editar só o "Address Line 2" de um imóvel para o mesmo texto de outro imóvel da mesma rua: aparece o aviso de endereço duplicado, não um erro interno.
+48. Filial antiga depois de salva: conferir se a lista mostra o endereço com ", AU" no fim e se as outras filiais aparecem do mesmo jeito.
+
 ## Parte 3 — Verificações com data
 
 | Item | Quando | O que conferir |
