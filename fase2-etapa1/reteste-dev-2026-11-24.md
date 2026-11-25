@@ -402,6 +402,14 @@ Bucket `inspection-assets`. Cada envio fez presign → PUT no armazenamento → 
 - **P3:** pendente até 30/11, depois de 04:45 Sydney.
 - **PR-04 (texto do Ranking):** continua sem inspetor fora do ranking com senha conhecida.
 
+### Parte 3
+
+| Item | Resultado | Evidência |
+|---|---|---|
+| PR-06 parte 2 — aviso "Your route for tomorrow is ready" | PASSOU — o Mike (INS-0104) tem **exatamente um** aviso para quinta 26/11, publicado às 08:30:22 UTC: "1 inspection on Thu 26 Nov. First stop at 11:00 in Kogarah; finish around 11:45." (plano 26/11 PUBLISHED, paradas [INS-0104]). Os outros dois avisos de rota dele são de 24/11 e 25/11 (dias anteriores). A Lisa recebeu o seu às 08:30:23 ("3 inspections on Thu 26 Nov. First stop at 10:00 in Sydney; finish around 12:45."), visto na tela "Announcements" com "Critical" | `pr06-lisa-aviso-rota.jpg`; Mike pela API `GET /v1/inspectors/me/notices` |
+| P3 — rotina de prêmios | NÃO TESTÁVEL hoje (só em 30/11, depois de 04:45 de Sydney) | — |
+| PR-04 — texto do ranking | NÃO TESTÁVEL (nenhum inspetor fora do ranking com senha conhecida); "Minimum services to be ranked" continua 1 | — |
+
 ### Observações novas (fora dos critérios)
 
 - **O-8 — Agência aceita gravar a chave removida.** `PATCH /v1/tenants/:id` com `settings.priorityOfferHours: 4` respondeu 200 e gravou a chave em `settingsJson`: o schema de configurações da agência não recusa chave desconhecida. Ninguém lê a chave. Não consigo removê-la pela API; ficou `priorityOfferHours: null` em Melbourne Real Estate. Além disso, o primeiro save pela tela gravou os valores-padrão explícitos (`mapWindowDays: 14`, os três `…Enabled: true`) onde antes havia `{}`.
@@ -469,20 +477,19 @@ DEV em `d10bad2b` (release v127 do `properfy-api-dev`, depois do CI verde desse 
 
 **O-9 PASSOU.** A regra final de endereço não foi testada.
 
-## Rodada final — 25/11/2026 (06:05–06:54 UTC; item 35 e Parte 3 depois de 08:30 UTC)
+## Rodada final — 25/11/2026 (06:05–08:40 UTC)
 
 DEV em `0cf910b4` (#1406, regra final de endereço), release v128 do `properfy-api-dev`, publicada depois do CI verde. Roteiro: `fase2-etapa1/roteiro-reteste-final-dev.md`, relido. Pela tela, como usuário: AM no web, Lisa no app. Capturas em `output/smoke-dev/final/`, fora do commit. Contatos fictícios (`@example.invalid`, `+614915701xx`).
 
-### Contagem (parcial)
+### Contagem final
 
 | Resultado | Itens |
 |---|---|
-| **Passou (44)** | 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48 |
-| **Falhou (1)** | 5 (corrigido no #1408 e repassado às 07:15 UTC; ver "Reteste do item 5") |
+| **Passou (46)** | 1, 2, 3, 4, 5 (com o #1408), 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48 |
+| **Falhou (0)** | — (o item 5 falhou às 06:11 e passou às 07:15 com o #1408; ver "Reteste do item 5") |
 | **Não testável (2)** | 15 e 16 (criação de inspetor exige digitar senha; o coordenador faz) |
-| **Pendente (1)** | 35 (plano de 26/11 só é publicado às 19:30 de Sydney = 08:30 UTC) |
 
-Parte 3: PR-06 parte 2 pendente (depois de 08:30 UTC); P3 em 30/11; texto do Ranking (PR-04) não testável (nenhum inspetor fora do ranking com senha conhecida).
+Parte 3: PR-06 parte 2 **passou** (ver abaixo); P3 só em 30/11 (não testável hoje); texto do Ranking (PR-04) não testável (nenhum inspetor fora do ranking com senha conhecida).
 
 ### Falha
 
@@ -584,7 +591,7 @@ Causa: na criação, `apps/web/src/features/properties/hooks/usePropertySave.ts`
 
 | # | Resultado | Evidência |
 |---|---|---|
-| 35 | PENDENTE — o plano de 26/11 da Lisa (INS-0121/0122/0123, base 100 Market Street) só é publicado às 08:30 UTC. Confirmação dos inquilinos forçada (OP) às 06:37 para entrarem no plano | — |
+| 35 | PASSOU — plano de 26/11 da Lisa publicado às 08:30:21 UTC (19:30 de Sydney), versão 1, origem `BASE` 100 Market Street. App, "Route · Thu 26 Nov" (08:38 UTC): "3 stops · 45 min each", "38 min driving · Finish 12:45 pm", "Starting from: 100 Market Street, Sydney NSW 2000"; lista na ordem sugerida 1 Bligh Street (~10:04), 346 Military Road Mosman (~11:02), 60 Margaret Street (~12:00); mapa com origem, pinos 1 e 3 no CBD e 2 em Mosman e a linha da rota. O "Today" mostra o dia corrente (25/11); o dia 26 abre por "Route" | `35-route-lista-26nov.jpg`, `35-route-mapa-26nov.jpg` |
 | 36 | PASSOU — "Navigate" do cartão: link Google Maps `/maps/dir/` com `destination=-33.868044,151.208821` (PROP-0021, 5 Martin Place), `target=_blank`. Não abri o app de mapas | — |
 | 37 | PASSOU, com observação — INS-0120 com GPS simulado a cerca de 1 km: check-in e check-out sem bloqueio ("1 of 3 done"); o web registra 1002 m (precisão 12 m) e os selos "Outside geofence (300 m)" e "Checked out outside geofence". **Obs.:** no cartão do app não apareceu aviso de distância | `37-*.jpg` |
 
