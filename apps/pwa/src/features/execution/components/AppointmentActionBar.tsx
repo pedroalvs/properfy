@@ -87,7 +87,7 @@ export function AppointmentActionBar({ target, isToday }: AppointmentActionBarPr
   const queryClient = useQueryClient();
   const timeZone = useEffectiveTimezone();
   const isOnline = useIsOnline();
-  const { showSuccess, showError, showInfo } = useSnackbar();
+  const { showSuccess, showError, showInfo, showWarning } = useSnackbar();
   const actions = useExecutionActions(target.id);
   const [busy, setBusy] = useState<Busy>('idle');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -124,7 +124,9 @@ export function AppointmentActionBar({ target, isToday }: AppointmentActionBarPr
       if (!isOnline) {
         showInfo("You're offline. Check-in saved and will sync automatically.");
       } else if (response.outOfRadius) {
-        showInfo(
+        // Persistent amber warning (stays until dismissed) so the inspector does not
+        // miss that the check-in was accepted out of radius (O-16, option 1).
+        showWarning(
           `You're ${Math.round(response.geolocationDistanceMeters ?? 0)} m from the property. Operations will see this check-in.`,
         );
       } else {

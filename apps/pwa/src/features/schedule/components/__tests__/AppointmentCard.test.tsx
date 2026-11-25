@@ -20,8 +20,16 @@ vi.mock('react-router-dom', async () => {
 const mockShowSuccess = vi.fn();
 const mockShowError = vi.fn();
 const mockShowInfo = vi.fn();
+const mockShowWarning = vi.fn();
 vi.mock('@/hooks/useSnackbar', () => ({
-  useSnackbar: () => ({ showSuccess: mockShowSuccess, showError: mockShowError, showInfo: mockShowInfo, dismiss: vi.fn(), messages: [] }),
+  useSnackbar: () => ({
+    showSuccess: mockShowSuccess,
+    showError: mockShowError,
+    showInfo: mockShowInfo,
+    showWarning: mockShowWarning,
+    dismiss: vi.fn(),
+    messages: [],
+  }),
   SnackbarProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
@@ -177,7 +185,7 @@ describe('AppointmentCard — check in / out', () => {
     expect(mockShowSuccess).toHaveBeenCalledWith('Checked in at 09:42');
   });
 
-  it('warns when the check-in is accepted out of radius (FLAG)', async () => {
+  it('warns when the check-in is accepted out of radius (FLAG), via the persistent warning snackbar', async () => {
     const user = userEvent.setup();
     mockCheckIn.mockResolvedValue({ startedAt: '2026-03-18T09:42:00.000+11:00', outOfRadius: true, geolocationDistanceMeters: 640 });
     renderWithProviders(<AppointmentCard appointment={baseAppointment} today={TODAY} />);
@@ -185,9 +193,13 @@ describe('AppointmentCard — check in / out', () => {
     await user.click(screen.getByTestId('card-primary-action'));
 
     await waitFor(() =>
-      expect(mockShowInfo).toHaveBeenCalledWith(
+      expect(mockShowWarning).toHaveBeenCalledWith(
         "You're 640 m from the property. Operations will see this check-in.",
       ),
+    );
+    // The out-of-radius notice is a warning, never the neutral info toast.
+    expect(mockShowInfo).not.toHaveBeenCalledWith(
+      "You're 640 m from the property. Operations will see this check-in.",
     );
   });
 
