@@ -220,6 +220,13 @@ describe('C1 — confirmation-cycle atomicity (real DB)', () => {
  * confirmation when no cycle exists yet (the normal state for email / forced /
  * group-join confirmations). These run against a real DB through the real service.
  */
+// A civil date comfortably in the future (well past the T-1 cutoff) so the real
+// GeneratePortalTokenUseCase does not reject the link as born-expired
+// (PORTAL_APPOINTMENT_DATE_PAST). Mirrors the group integration's civilMidnight(+30).
+const FUTURE_SCHEDULED_DATE = new Date(
+  `${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}T00:00:00.000Z`,
+);
+
 async function seedAppointmentWithoutCycle(prisma: PrismaClient, confirmationStatus: string) {
   const tenant = await prisma.tenant.create({
     data: { name: 'O11 Tenant', legal_name: `O11 LLC ${Math.random().toString(36).slice(2)}`, status: 'ACTIVE' },
@@ -252,7 +259,7 @@ async function seedAppointmentWithoutCycle(prisma: PrismaClient, confirmationSta
     data: {
       tenant_id: tenant.id, branch_id: branch.id, property_id: property.id,
       service_type_id: serviceType.id, status: 'SCHEDULED',
-      scheduled_date: new Date('2026-07-01'), time_slot_start: '09:00', time_slot_end: '12:00',
+      scheduled_date: FUTURE_SCHEDULED_DATE, time_slot_start: '09:00', time_slot_end: '12:00',
       price_amount: '100.00', payout_amount: '80.00',
       pricing_rule_snapshot_json: {}, rental_tenant_confirmation_status: confirmationStatus as never,
       created_by_user_id: user.id,
@@ -265,7 +272,7 @@ describe('O-11 — portal link/confirm never resets a confirmation without a cyc
   it('createInitial ADOPTS a CONFIRMED appointment (stays CONFIRMED) instead of resetting it', async () => {
     const { tenantId, appointmentId } = await seedAppointmentWithoutCycle(harness.prisma as PrismaClient, 'CONFIRMED');
 
-    await cycleService.createInitial(appointmentId, tenantId, new Date('2026-07-01'), '09:00-12:00', null);
+    await cycleService.createInitial(appointmentId, tenantId, FUTURE_SCHEDULED_DATE, '09:00-12:00', null);
 
     const appt = await harness.prisma.appointment.findUnique({ where: { id: appointmentId } });
     expect(appt?.rental_tenant_confirmation_status).toBe('CONFIRMED');
@@ -401,7 +408,7 @@ describe('O-11 — single-link triggers adopt a CONFIRMED-without-cycle appointm
     await makeGeneratePortalToken().execute({ appointmentId, actor: AM_ACTOR, notify: false });
 
     const apptRepo = new PrismaAppointmentRepository(harness.prisma);
-    const unconfirmed = await apptRepo.findUnconfirmedForDate(new Date('2026-07-01'));
+    const unconfirmed = await apptRepo.findUnconfirmedForDate(FUTURE_SCHEDULED_DATE);
     expect(unconfirmed.map((a) => a.id)).not.toContain(appointmentId);
   });
 });
