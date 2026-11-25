@@ -917,11 +917,18 @@ async function main(): Promise<void> {
   const options = parsed.options;
 
   const { default: pino } = await import('pino');
+  const { validateEnv } = await import('../main/env');
   const { createContainer } = await import('../main/container');
   const { sendJob, stopQueue } = await import('../shared/infrastructure/queue');
   const { PrismaPropertyRepository } = await import(
     '../modules/property/infrastructure/prisma-property.repository'
   );
+
+  // Validate the environment before building the container — `createContainer`
+  // calls `getEnv()`, which throws until `validateEnv()` has run (as the server
+  // entrypoint does). This script uses the full container, so it must do the
+  // same or it crashes at startup with "Environment not validated".
+  validateEnv();
 
   const logger = pino({ level: process.env['LOG_LEVEL'] ?? 'info' });
   const container = createContainer(logger);
