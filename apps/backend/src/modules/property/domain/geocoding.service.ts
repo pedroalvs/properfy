@@ -19,7 +19,7 @@ export interface GeocodingResult {
 export type GeocodingMode = 'permanent' | 'temporary';
 
 /** Minimum relevance for an `address`-level result to be accepted (rule A). */
-export const MIN_ADDRESS_GEOCODING_RELEVANCE = 0.8;
+export const MIN_ADDRESS_GEOCODING_RELEVANCE = 0.7;
 
 /** Reason a geocoding result was rejected; stored as `geocoding_failure_code`. */
 export type GeocodingRejectionReason = 'COARSE_RESULT' | 'LOW_RELEVANCE';
@@ -33,8 +33,8 @@ export type GeocodingDecision =
  * (PR-18, DECISION 12 — rule A). Only a confident, address-level result may be
  * stored:
  *
- * - `address` with relevance `>= 0.8` → accepted (the only success case);
- * - `address` with relevance `< 0.8` → rejected (`LOW_RELEVANCE`);
+ * - `address` with relevance `>= 0.7` → accepted (the only success case);
+ * - `address` with relevance `< 0.7` → rejected (`LOW_RELEVANCE`);
  * - any other place type (`locality`, `place`, `postcode`, `district`,
  *   `region`, `country`, …) → rejected (`COARSE_RESULT`) — rural and coarse
  *   results require a manual pin.

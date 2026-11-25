@@ -40,7 +40,7 @@ describe('PropertyEntity.applyGeocodingResult (PR-18 rule A)', () => {
     expect(p.geocodingFailureCode).toBeNull();
   });
 
-  it('sets FAILED + LOW_RELEVANCE for an address result with relevance < 0.8', () => {
+  it('sets FAILED + LOW_RELEVANCE for an address result with relevance < 0.7', () => {
     const p = makeProperty();
     const result: GeocodingResult = { lat: -33.86, lng: 151.2, placeType: 'address', relevance: 0.4 };
     p.applyGeocodingResult(result, { permanent: true });

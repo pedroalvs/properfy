@@ -397,7 +397,7 @@ describe('UpdateBranchUseCase', () => {
       expect(branchRepo.update).not.toHaveBeenCalled();
     });
 
-    it('5c. rule A: a confident address (>=0.8) still stores coordinates', async () => {
+    it('5c. rule A: a confident address (>=0.7) still stores coordinates', async () => {
       vi.mocked(branchRepo.findById).mockResolvedValue(
         makeBranch({ addressJson: { ...OLD_ADDRESS }, geocodedPermanentlyAt: new Date() }),
       );

@@ -25,7 +25,7 @@ export type GeocodeInspectorBaseFailure =
   | 'timeout'
   | 'permanent_unavailable'
   // Rule A (PR-18): the result was too coarse (non-address) or too
-  // low-confidence (address relevance < 0.8) to store.
+  // low-confidence (address relevance < 0.7) to store.
   | 'coarse_result'
   | 'low_relevance';
 

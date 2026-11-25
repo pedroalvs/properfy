@@ -54,7 +54,7 @@ describe('GeocodeWorker (PR-18 rule A)', () => {
     );
   });
 
-  it('marks FAILED + LOW_RELEVANCE for an address result with relevance < 0.8', async () => {
+  it('marks FAILED + LOW_RELEVANCE for an address result with relevance < 0.7', async () => {
     const { worker, repo, audit } = makeDeps(async () => RESULT({ placeType: 'address', relevance: 0.5 }));
     await worker.execute({ propertyId: 'p1' });
     expect(repo.update).toHaveBeenCalledWith('p1', 't1', {

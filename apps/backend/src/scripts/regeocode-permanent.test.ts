@@ -230,7 +230,7 @@ describe('regeocodePermanent — property phase', () => {
     expect(call![0].metadata).toMatchObject({ code: 'COARSE_RESULT', keptLegacyCoordinates: true, placeType: 'place', relevance: 0.667 });
   });
 
-  it('case R18b-P2: rule A — a low-relevance address (<0.8) → rejectedLowRelevance bucket, legacy kept, no backfill', async () => {
+  it('case R18b-P2: rule A — a low-relevance address (<0.7) → rejectedLowRelevance bucket, legacy kept, no backfill', async () => {
     // Real Mapbox probe: '50 Louth Road, Tilpa NSW 2840' → address, relevance=0.667.
     const repo = makeRepo({ findLegacyCoordinateCandidates: vi.fn().mockResolvedValue([prop('a')]) });
     const { deps } = makeDeps(repo, async () => ({ lat: -30.9, lng: 144.4, placeType: 'address', relevance: 0.667 }));
@@ -253,7 +253,7 @@ describe('regeocodePermanent — property phase', () => {
     expect(report.properties.rejectedLowRelevance).toEqual([]);
   });
 
-  it('case R18b-P3: rule A — a confident address (>=0.8) still backfills SUCCESS, no rejection buckets', async () => {
+  it('case R18b-P3: rule A — a confident address (>=0.7) still backfills SUCCESS, no rejection buckets', async () => {
     // Real Mapbox probe: '1 Martin Place, Sydney NSW 2000' → address, relevance=0.894.
     const repo = makeRepo({ findLegacyCoordinateCandidates: vi.fn().mockResolvedValue([prop('a')]) });
     const { deps } = makeDeps(repo, async () => ({ lat: -33.8001, lng: 151.2001, placeType: 'address', relevance: 0.894 }));

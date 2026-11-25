@@ -81,7 +81,7 @@ describe('geocodeInspectorBase', () => {
   });
 
   // PR-18 rule A — applied to the inspector base path.
-  it('returns low_relevance for an address result with relevance < 0.8', async () => {
+  it('returns low_relevance for an address result with relevance < 0.7', async () => {
     const geocoder = makeGeocoder(async () => ({
       lat: -33.86,
       lng: 151.2,
@@ -117,7 +117,7 @@ describe('geocodeInspectorBase', () => {
     expect(logger.warn).toHaveBeenCalled();
   });
 
-  it('accepts a high-relevance address result (relevance >= 0.8)', async () => {
+  it('accepts a high-relevance address result (relevance >= 0.7)', async () => {
     const geocoder = makeGeocoder(async () => ({
       lat: -33.86,
       lng: 151.2,

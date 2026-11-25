@@ -274,7 +274,7 @@ describe('CreateBranchUseCase', () => {
       expect(branchRepo.save).not.toHaveBeenCalled();
     });
 
-    it('2c. rule A: a low-relevance address (<0.8) rejects with 422 LOW_RELEVANCE, saves nothing (V-2)', async () => {
+    it('2c. rule A: a low-relevance address (<0.7) rejects with 422 LOW_RELEVANCE, saves nothing (V-2)', async () => {
       const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -30.9, lng: 144.4, placeType: 'address', relevance: 0.667 }) };
       const uc = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);
 
@@ -284,7 +284,7 @@ describe('CreateBranchUseCase', () => {
       expect(branchRepo.save).not.toHaveBeenCalled();
     });
 
-    it('2d. rule A: a confident address (>=0.8) still stores coordinates', async () => {
+    it('2d. rule A: a confident address (>=0.7) still stores coordinates', async () => {
       // Real Mapbox probe: '1 Martin Place, Sydney NSW 2000' → address, relevance=0.894.
       const geocoder = { geocode: vi.fn().mockResolvedValue({ lat: -33.868, lng: 151.209, placeType: 'address', relevance: 0.894 }) };
       const uc = new CreateBranchUseCase(tenantRepo, branchRepo, auditService, undefined, geocoder as never, makeLogger() as never);

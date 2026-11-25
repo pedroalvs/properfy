@@ -70,7 +70,7 @@ export type AmbiguousReason =
   | 'coordinates_differ'
   | 'no_result'
   // PR-18b: rule-A rejections of the fresh geocode (kept distinct from a genuine
-  // null so a dry/apply run measures how many false-MANUAL rows the 0.8 rule hits).
+  // null so a dry/apply run measures how many false-MANUAL rows the 0.7 rule hits).
   | 'coarse_result'
   | 'low_relevance'
   | 'geocode_error';
@@ -390,7 +390,7 @@ export async function regeocodePermanent(
   // outcome EXACTLY like a no-result — the legacy coordinate is kept, never
   // overwritten with a coarse pin marked SUCCESS — but records it under the
   // reason-specific report bucket (PR-18b) so a dry/apply run measures how many
-  // real addresses the 0.8 rule rejects. Also logged per row.
+  // real addresses the 0.7 rule rejects. Also logged per row.
   const gateResult = (
     result: GeocodingResult | null,
     entityId: string,
