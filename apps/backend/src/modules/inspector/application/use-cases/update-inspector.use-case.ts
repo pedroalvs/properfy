@@ -5,7 +5,6 @@ import type {
   UserStatus,
   InspectorBaseAddress,
 } from '@properfy/shared';
-import { inspectorBaseAddressSchema } from '@properfy/shared';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
@@ -176,19 +175,19 @@ export class UpdateInspectorUseCase {
       updateData.address = data.address;
       baseChanged = true;
 
-      // "Same address" (D18, L-F01-01): the CURRENT stored address parses under the
-      // AU schema (a legacy shape always re-geocodes) and the two are equal for
-      // geocoding via the X02 helper. **V-3/V10:** this is NOT gated on existing
-      // coordinates — an unchanged base must never re-geocode (and so never 422),
-      // even for a legacy row with a null/failed marker. A PATCH that resends the
-      // same base (e.g. editing only the phone, which carries the pre-filled
-      // address) keeps the stored coordinates/marker untouched and skips rule A.
-      // Only a CHANGED base goes through geocode → 422-on-reject.
-      const currentParsed = inspectorBaseAddressSchema.safeParse(inspector.address);
+      // "Same address" (D18, L-F01-01, V-3/V10): the stored and submitted bases are
+      // equal for geocoding via the X02 normalized-string helper. Deliberately NOT
+      // gated on (a) existing coordinates or (b) the stored address parsing the AU
+      // schema — `formatGeocodingQuery` reads only the known fields and tolerates a
+      // legacy/partial shape, so an unchanged base (incl. a legacy row with a
+      // null/failed marker or a non-AU-schema shape that still normalizes the same)
+      // is treated as unchanged: no re-geocode, no 422. Only a CHANGED base goes
+      // through geocode → 422-on-reject. "When in doubt, don't block."
       const sameAsStored =
-        currentParsed.success &&
+        inspector.address != null &&
+        typeof inspector.address === 'object' &&
         isSameGeocodingAddress(
-          currentParsed.data as unknown as GeocodableAddress,
+          inspector.address as unknown as GeocodableAddress,
           next as unknown as GeocodableAddress,
         );
 

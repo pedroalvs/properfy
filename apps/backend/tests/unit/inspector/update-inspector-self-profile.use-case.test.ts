@@ -320,5 +320,23 @@ describe('UpdateInspectorSelfProfileUseCase', () => {
       expect(inspectorRepo.update).toHaveBeenCalledTimes(1);
       expect(result.baseGeocodeFailed).toBe(false);
     });
+
+    // V-3/V10 (CC#3): a legacy stored base that does NOT parse the AU schema (no
+    // `city`) but normalizes to the SAME query is also "unchanged" — no geocode, no 422.
+    it('does not geocode or reject when the unchanged base is a legacy non-AU-schema shape with the same normalized address (V10)', async () => {
+      const legacyNoCity = { street: '1 George St', suburb: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' };
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(
+        makeInspector({ address: legacyNoCity, baseLat: null, baseLng: null, baseGeocodedAt: null }),
+      );
+      geocoder.geocode.mockResolvedValue(null); // would reject (NOT_FOUND) if it ran
+      const result = await geoUseCase.execute({
+        inspectorId: INSPECTOR_ID,
+        data: { phone: '+61499999988', address: BASE_ADDRESS },
+        actor: makeInspActor(),
+      });
+      expect(geocoder.geocode).not.toHaveBeenCalled();
+      expect(inspectorRepo.update).toHaveBeenCalledTimes(1);
+      expect(result.baseGeocodeFailed).toBe(false);
+    });
   });
 });

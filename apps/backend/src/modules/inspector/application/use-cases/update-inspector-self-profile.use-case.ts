@@ -1,5 +1,4 @@
 import type { AuthContext, PaymentSettings, InspectorBaseAddress } from '@properfy/shared';
-import { inspectorBaseAddressSchema } from '@properfy/shared';
 import { ForbiddenError } from '../../../../shared/domain/errors';
 import type { AuditService } from '../../../../shared/infrastructure/audit';
 import type { IInspectorRepository } from '../../domain/inspector.repository';
@@ -86,14 +85,16 @@ export class UpdateInspectorSelfProfileUseCase {
       updateData.address = data.address as unknown as Record<string, unknown>;
       baseChanged = true;
 
-      // V-3/V10: NOT gated on existing coordinates — an unchanged base must never
-      // re-geocode (and so never 422), even for a legacy row with a null marker.
-      // Only a CHANGED base goes through geocode → 422-on-reject.
-      const currentParsed = inspectorBaseAddressSchema.safeParse(inspector.address);
+      // V-3/V10: NOT gated on existing coordinates OR on the stored address parsing
+      // the AU schema. `formatGeocodingQuery` reads only known fields and tolerates a
+      // legacy/partial shape, so an unchanged base (incl. a legacy row with a null
+      // marker or a non-AU-schema shape that still normalizes the same) is treated as
+      // unchanged: no re-geocode, no 422. Only a CHANGED base is geocoded → 422-on-reject.
       const sameAsStored =
-        currentParsed.success &&
+        inspector.address != null &&
+        typeof inspector.address === 'object' &&
         isSameGeocodingAddress(
-          currentParsed.data as unknown as GeocodableAddress,
+          inspector.address as unknown as GeocodableAddress,
           next as unknown as GeocodableAddress,
         );
 

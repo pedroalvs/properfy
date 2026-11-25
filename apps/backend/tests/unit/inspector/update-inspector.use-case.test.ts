@@ -345,6 +345,26 @@ describe('UpdateInspectorUseCase', () => {
       expect(result.baseGeocodeFailed).toBe(false);
     });
 
+    // V-3/V10 (CC#3): a legacy stored base that does NOT parse the AU schema (here:
+    // no `city`, which is required) but normalizes to the SAME geocoding query must
+    // also be treated as unchanged — compared via the X02 helper, not the AU schema.
+    // Before the fix the parse gate sent this through the geocoder and 422'd.
+    it('does not geocode or reject when the unchanged base is a legacy non-AU-schema shape with the same normalized address (V10)', async () => {
+      const legacyNoCity = { street: '1 George St', suburb: 'Sydney', state: 'NSW', postcode: '2000', country: 'AU' };
+      vi.mocked(inspectorRepo.findById).mockResolvedValue(
+        makeInspector({ address: legacyNoCity, baseLat: null, baseLng: null, baseGeocodedAt: null }),
+      );
+      geocoder.geocode.mockResolvedValue(null); // would reject (NOT_FOUND) if it ran
+      const result = await geoUseCase.execute({
+        inspectorId: 'inspector-1',
+        data: { phone: '+61400000001', address: BASE_ADDRESS },
+        actor: makeActor(),
+      });
+      expect(geocoder.geocode).not.toHaveBeenCalled();
+      expect(inspectorRepo.update).toHaveBeenCalledTimes(1);
+      expect(result.baseGeocodeFailed).toBe(false);
+    });
+
     it('always geocodes when the current stored address is legacy/unparsable', async () => {
       vi.mocked(inspectorRepo.findById).mockResolvedValue(
         makeInspector({ address: { foo: 1 }, baseLat: 1, baseLng: 2, baseGeocodedAt: new Date() }),
