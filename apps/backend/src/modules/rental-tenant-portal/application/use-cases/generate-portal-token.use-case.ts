@@ -20,7 +20,9 @@ import {
   type AfterCommitResult,
   type TxContext,
 } from '../../../../shared/application/unit-of-work';
+import type { AuthContext as SharedAuthContext, UserRole } from '@properfy/shared';
 import { ConflictError, ForbiddenError, NotFoundError } from '../../../../shared/domain/errors';
+import { requireTenantScope } from '../../../../shared/domain/require-tenant-scope';
 import { AppointmentCodeFormatter } from '../../../appointment/domain/appointment-code.formatter';
 import { BuildNotificationPayloadService } from '../../../notification/domain/build-notification-payload.service';
 import {
@@ -218,7 +220,18 @@ export class GeneratePortalTokenUseCase {
     // Service-group re-sends know the member's tenant from their scoped snapshot.
     // Lock that tenant before reading the appointment, so a waiter sees the
     // state committed by the prior resend rather than its pre-lock snapshot.
-    if (lockTenantId && input.actor.role !== 'AM' && lockTenantId !== input.actor.tenantId) {
+    // Cross-tenant roles (AM/OP) may resend across agencies, so the lock only
+    // confines tenant-pinned roles (CL_*) to their own tenant. `requireTenantScope`
+    // returns undefined for cross-tenant and the pinned tenant otherwise
+    // (ALLOWED_ROLES above already excludes INSP/TNT).
+    // ALLOWED_ROLES above restricts this to AM/OP/CL_ADMIN, so the actor is never
+    // INSP/TNT; the local AuthContext carries role+tenantId, which is all the helper
+    // reads (role narrowed to UserRole, inspectorId irrelevant here).
+    const actorTenantScope = requireTenantScope(
+      { ...input.actor, role: input.actor.role as UserRole, inspectorId: null } as SharedAuthContext,
+      'generate portal token',
+    );
+    if (lockTenantId && actorTenantScope !== undefined && lockTenantId !== actorTenantScope) {
       throw new NotFoundError('APPOINTMENT_NOT_FOUND', 'Appointment not found');
     }
     const tenantIdForQuery = lockTenantId ?? (input.actor.role === 'AM' ? null : input.actor.tenantId);

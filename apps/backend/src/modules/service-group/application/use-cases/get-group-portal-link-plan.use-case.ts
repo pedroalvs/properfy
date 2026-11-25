@@ -2,6 +2,7 @@ import type { AuthContext, GetGroupPortalLinkPlanResponse } from '@properfy/shar
 import type { IServiceGroupRepository } from '../../domain/service-group.repository';
 import type { AuthorizationService } from '../../../../shared/domain/authorization.service';
 import { NotFoundError } from '../../../../shared/domain/errors';
+import { requireTenantScope } from '../../../../shared/domain/require-tenant-scope';
 import { classifyPortalLinkAction } from '../../../appointment/domain/portal-link-eligibility';
 
 export interface GetGroupPortalLinkPlanInput {
@@ -38,9 +39,12 @@ export class GetGroupPortalLinkPlanUseCase {
     }
 
     const rows = await this.groupRepo.findGroupAppointmentsWithConfirmation(input.groupId);
-    // OP is tenant-scoped: only act on appointments belonging to their tenant.
-    // AM is cross-tenant. Keeps the preview counts honest with what the send does.
-    const inScope = input.actor.role === 'AM' ? rows : rows.filter((r) => r.tenantId === input.actor.tenantId);
+    // Cross-tenant roles (AM/OP) preview every group member; tenant-pinned roles
+    // (CL_*) see only their own agency's members. `requireTenantScope` returns
+    // undefined for cross-tenant and the pinned tenant otherwise (this is an AM/OP
+    // route, so INSP/TNT never reach it). Keeps the preview honest with the send.
+    const tenantScope = requireTenantScope(input.actor, 'read group portal link plan');
+    const inScope = tenantScope === undefined ? rows : rows.filter((r) => r.tenantId === tenantScope);
 
     const items = inScope.map((r) => ({
       appointmentId: r.id,

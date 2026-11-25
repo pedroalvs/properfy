@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ChangeGroupScheduleUseCase } from '../../../src/modules/service-group/application/use-cases/change-group-schedule.use-case';
-import type { IServiceGroupRepository, ServiceGroupWithAppointments } from '../../../src/modules/service-group/domain/service-group.repository';
+import { SendGroupPortalLinksUseCase } from '../../../src/modules/service-group/application/use-cases/send-group-portal-links.use-case';
+import type { IServiceGroupRepository, ServiceGroupWithAppointments, GroupAppointmentConfirmationRow } from '../../../src/modules/service-group/domain/service-group.repository';
 import type { AuditService } from '../../../src/shared/infrastructure/audit';
 import { PLATFORM_TIMEZONE, todayInTzDateString, type AuthContext } from '@properfy/shared';
 import { ServiceGroupEntity } from '../../../src/modules/service-group/domain/service-group.entity';
@@ -322,6 +323,75 @@ describe('ChangeGroupScheduleUseCase', () => {
       expect(sendGroupPortalLinks.execute).toHaveBeenCalledWith(
         expect.objectContaining({ groupId: 'group-1', appointmentIds: ['appt-1'] }),
       );
+    });
+
+    it('D3/O-19: RESEND by an OP with no agency reaches members of every agency through the real send', async () => {
+      // Red→green for Fatia 1: wire the REAL SendGroupPortalLinksUseCase so its
+      // tenant filter is actually exercised. Before the fix, the null-tenant OP's
+      // `r.tenantId === actor.tenantId` dropped every row and the resend sent
+      // NOTHING; after the fix it reaches both agencies' members.
+      const memberX = makeMember({ id: 'm-x', tenantId: 'tenant-1', rentalTenantConfirmationStatus: 'CONFIRMED', activeConfirmationCycleId: 'cyc-x' });
+      const memberY = makeMember({ id: 'm-y', tenantId: 'tenant-2', rentalTenantConfirmationStatus: 'CONFIRMED', activeConfirmationCycleId: 'cyc-y' });
+
+      const sendRow = (id: string, tenantId: string): GroupAppointmentConfirmationRow => ({
+        id,
+        appointmentNumber: 1,
+        tenantId,
+        status: 'AWAITING_INSPECTOR',
+        scheduledDate: new Date('2030-06-15'),
+        timeSlot: '09:00-12:00',
+        rentalTenantConfirmationStatus: 'PENDING',
+        activeCycle: null,
+        propertyCode: 'P-001',
+        propertyAddress: '1 Main St',
+        rentalTenantNotificationsEnabled: true,
+      });
+      const sendGroupRepo = {
+        findById: vi.fn().mockResolvedValue({ primaryTenantId: 'tenant-1' }),
+        findGroupAppointmentsWithConfirmation: vi.fn().mockResolvedValue([sendRow('m-x', 'tenant-1'), sendRow('m-y', 'tenant-2')]),
+        findGroupAppointmentWithConfirmation: vi.fn(),
+      };
+      const generatePortalToken = { execute: vi.fn().mockResolvedValue({ dispatched: true }) };
+      const sendAudit = { log: vi.fn() } as unknown as AuditService;
+      const realSend = new SendGroupPortalLinksUseCase(
+        sendGroupRepo as unknown as IServiceGroupRepository,
+        generatePortalToken as never,
+        { rotateOnDateChange: vi.fn() } as never,
+        { get: vi.fn(), getWithHash: vi.fn().mockResolvedValue(null), set: vi.fn().mockResolvedValue(undefined) } as never,
+        sendAudit,
+        new AuthorizationService(sendAudit),
+      );
+
+      const auditService = { log: vi.fn() } as unknown as AuditService;
+      const serviceGroupRepo = {
+        findById: vi.fn().mockResolvedValue(makeGroupWith({}, [memberX, memberY])),
+        update: vi.fn().mockResolvedValue(undefined),
+      } as unknown as IServiceGroupRepository;
+      const useCase = new ChangeGroupScheduleUseCase(
+        serviceGroupRepo,
+        { update: vi.fn().mockResolvedValue(undefined) } as never,
+        auditService,
+        new AuthorizationService(auditService),
+        { get: vi.fn().mockResolvedValue(null), set: vi.fn().mockResolvedValue(undefined) } as never,
+        realSend,
+        { realignActiveCycleSchedule: vi.fn().mockResolvedValue(undefined) } as never,
+        { execute: vi.fn().mockResolvedValue(undefined) } as never,
+        { execute: vi.fn().mockResolvedValue({ groupId: 'group-1', confirmedCount: 0, skippedCount: 0 }) } as never,
+        { emit: vi.fn() } as never,
+        { error: vi.fn() },
+      );
+
+      await useCase.execute({
+        groupId: 'group-1',
+        scheduledDate: FAR_FUTURE_DATE,
+        confirmationStrategy: 'RESEND',
+        actor: makeActor({ role: 'OP', tenantId: null }),
+      });
+
+      // The OP (no agency) reaches both agencies' members — not an empty list.
+      expect(generatePortalToken.execute).toHaveBeenCalledTimes(2);
+      expect(generatePortalToken.execute).toHaveBeenCalledWith({ appointmentId: 'm-x', actor: expect.any(Object) });
+      expect(generatePortalToken.execute).toHaveBeenCalledWith({ appointmentId: 'm-y', actor: expect.any(Object) });
     });
 
     it('NOTIFY_ONLY realigns the cycle and never resends the link', async () => {
