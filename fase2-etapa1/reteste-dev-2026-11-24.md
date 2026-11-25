@@ -776,3 +776,55 @@ Alterações em DEV:
 | INS-0116 | adicionado ao Group 26 (antes DRAFT 03/12) → SCHEDULED 28/11; depois do reteste, **confirmação forçada** pelo AM às 17:53 UTC ("Tenant confirmation forced"), a pedido do coordenador → SCHEDULED/CONFIRMED, fora da rotina de véspera |
 | INS-0106 / INS-0117 | CONFIRMED (sem mudança neste reteste; só links copiados ou gerados) |
 | Group 26 | continua em 28/11 (antes 27/11), agora com 4 membros (105, 106, 116, 117) |
+
+### Operador entre agências e duas telas — 25/11/2026 (21:52–22:13 UTC)
+
+DEV (servidor, web e app) em `f68ee25`, conferido pelo coordenador nos logs. Telas como OP (Sarah Operator), AM (Smoke AM), CL_ADMIN (James Chen, SPS) e inspetora Lisa Wong (app). Só contatos fictícios (`@example.invalid`, telefones da faixa 0491 570). Os envios reais foram os links de portal do A1 e do A2, sempre para esses contatos.
+
+Preparação: nenhum grupo tinha agendamentos de duas agências. Criei pela API (AM) **INS-0125** (Melbourne Real Estate, 100 St Kilda Rd, Southbank) e **INS-0126** (Sydney Property Services, 5 Martin Place, Sydney), ambos em 03/12. Com eles o OP criou o **Group 30**, sem região, porque grupo com duas agências não aceita região: "A service region cannot be assigned to a group spanning multiple agencies".
+
+#### Parte A — operador
+
+| # | Caso | Resultado | Evidência |
+|---|---|---|---|
+| A1 | Group 30 (Melbourne + Sydney, ambos PENDING) → "Send portal link" | PASSOU — o diálogo mostra "Send the tenant confirmation portal link to the appointments in this group (**2 total**)", "2 eligible for a send attempt", "0 already confirmed — skipped". Enviar → "2 sent" (21:54). Histórico: aba Notifications do INS-0125 com `TENANT_PORTAL_LINK` EMAIL `reteste.duas.mel@example.invalid` e SMS `+61491570181` "Sent"; INS-0126 idem (`reteste.duas.syd@…`, `+61491570182`). Auditoria `rental_tenant_portal.token_generated` nos dois. A aba "Portal Activity" fica vazia, porque ela mostra só interações do inquilino | `f68-a1-dialog.png`, `f68-a1-sent.jpg`, `f68-a1-ins125-notifications.jpg` |
+| A2 | "Change date" do grupo com "Resend confirmation", como OP | PASSOU — a escolha só aparece com o grupo fora de DRAFT e algum membro confirmado. Por isso publiquei o Group 30 e forcei a confirmação do INS-0125 pela tela (OP, 21:57). Change date 03/12 → 04/12 → bloco "Tenant confirmations: The tenant already confirmed the current schedule for: MRE-003" → "Resend confirmation" → "Apply changes" → toast "2 moved · 2 confirmation(s) reset" (21:57:40). O INS-0125 voltou a Pending, com auditoria `appointment.rental_tenant_confirmation_reset` + `token_generated`, e saiu link novo (EMAIL e SMS "Sent", 21:57:40). Ver O-20 | `f68-a2-dialog-resend.png`, `f68-a2-result.jpg` |
+| A3 | Users → Agency Users → Melbourne → Robert Turner (`cl.admin2`): desativar e reativar | PASSOU — "User deactivated successfully" → Inactive; "User reactivated successfully" → Active (22:00), sem 403. Usuário interno: desativei a conta de teste "2FA Wizard Admin" (AM) pela API como AM. Como OP, em Internal Users → Reactivate → "**You are not allowed to reactivate internal users**", e o usuário seguiu Inactive. A auditoria só tem o `user.reactivated` do AM, feito depois para restaurar. Ver O-21 | `f68-a3-deactivated.jpg`, `f68-a3-reactivated.jpg`, `f68-a3-internal-refused.jpg` |
+| A4 | Consent Lookup → "Override" num opt-out de agência | **NÃO APLICÁVEL** — o Pedro decidiu remover por inteiro a recusa de consentimento (decisão comunicada pelo coordenador às 22:13 UTC); não haverá dado semeado. Para registro: DEV não tinha nenhum opt-out (Melbourne, `reteste.duas.mel@example.invalid` → "No consent records for this recipient."), e por isso o botão "Override" não aparecia. A sonda com id inexistente (OP → 404, CL_ADMIN → 403) não conta | — |
+| A5 | Financial como OP, comparado com o AM | PASSOU — na tela, o OP precisa escolher a agência ("Select an agency to view financial entries."), e o AM também. Melbourne: Approved debits $140, payouts $75, adjustments $0, refunds $0, pending 0; 2 lançamentos MRE-003. Sydney: $150 / $80 / $50 / $0 / pending 3; 7 lançamentos, todos SPS. Sem agência, só pela API (mesma chamada da tela, sem `tenantId`): 9 lançamentos (7 SPS + 2 MEL), resumo 290/155/50/0, pending 3. **OP e AM deram resultado idêntico** nos quatro casos (sem agência, Melbourne, Sydney, teste = 0). Nenhum lançamento de outra agência e `totalBonuses` 0 em tudo. Limite: DEV não tem bônus de inspetor, então a exclusão do bônus sem agência não foi exercitada com dado real | `f68-a5-op-melbourne.jpg`, `f68-a5-op-sydney.jpg` |
+
+#### Parte B — negativo, CL_ADMIN (James Chen, SPS)
+
+| # | Caso | Resultado | Evidência |
+|---|---|---|---|
+| B1 | Financial | PASSOU — `/financial` → "You do not have permission to access this page". O menu leva a `/my-financial` (Statement), com 3 lançamentos, todos da SPS: refund SPS-005 pendente $180 e dois ajustes manuais ($50 aprovado, $25 cancelado). Resumo 0/0/50/0, pending 1. Forçar `tenantId` da Melbourne na API devolve os mesmos 3 da SPS. Ver O-22 | `f68-b1-cl-financial-entries-denied.jpg`, `f68-b1-cl-my-financial.jpg` |
+| B2 | Reativar usuário de outra agência | PASSOU — sem caminho na tela (`/users` → "You do not have permission to access this page"). Pela API, com Robert Turner desativado pelo OP só para o teste: `/v1/tenants/<MEL>/users/<id>/reactivate` → 403 "You can only reactivate users from your own tenant"; `/v1/users/<id>/reactivate` → o mesmo 403; pela rota da própria agência → 403 "Client user management is not enabled for this agency". O OP reativou em seguida | `f68-b2-cl-users-denied.jpg` |
+| B3 | Diálogo do grupo com membros de outra agência | PASSOU — o CL_ADMIN não abre grupo nenhum: `/service-groups/<Group 30>` → "You do not have permission to access this page". A API responde 403 `service_group.manage` (detalhe e lista) e 403 "AM or OP role required" (portal-link-plan). Na tela, ele vê só o próprio membro (INS-0126, "Service Group: Group 30", com Send/Copy Portal Link do agendamento). O membro da Melbourne (INS-0125) → 404 `APPOINTMENT_NOT_FOUND` | `f68-b3-cl-group-denied.jpg`, `f68-b3-cl-own-member.jpg` |
+
+#### Parte C — telas
+
+| # | Caso | Resultado | Evidência |
+|---|---|---|---|
+| C1 | App, Lisa, "Schedule" → Check in fora do raio (GPS simulado) e dentro | PASSOU, depois de atualizar o app (ver O-23). INS-0122 com GPS a 18 km: check-in feito e aviso **amarelo** no topo, com ícone de alerta e "X": "You're 18230 m from the property. Operations will see this check-in." O aviso continuou na tela aos 2 s, 12 s e 22 s e só sumiu ao tocar no "X". Nada bloqueou: o card virou "Check out". INS-0123 com GPS no imóvel: toast verde "Checked in at 09:09", sem aviso. Field activity: 0122 `startDistanceMeters 18230, outOfRadius true`; 0123 `0, false`. **Antes da atualização** (pacote antigo, INS-0121 a 13916 m): o aviso saiu num toast comum que sumiu sozinho em poucos segundos. Esse check-in fica como está | `f68-c1-out-radius-t0.jpg`, `f68-c1-out-radius-t10s.jpg`, `f68-c1-out-radius-t20s-zoom.png`, `f68-c1-closed-x.jpg`, `f68-c1-in-radius.jpg`, `f68-c1-old-bundle-zoom.png` |
+| C2 | Web, novo imóvel com endereço inexistente (77 Nowhere Street, Faketown NSW 2999) | PASSOU — bloco vermelho "We could only locate the area, not the exact address. Add the street number, or correct the street name." e, na mesma linha do botão: "**Can't locate this address?** [Set location manually]". "Rural property?" não aparece na página. Campos marcados, nada salvo (POST 422). Obs.: a primeira tentativa usei "10 Main Street", que já existe (PROP manual de rodada anterior) → 409, com o toast "An active property with this exact address already exists in this tenant" | `f68-c2-cant-locate.png` |
+
+**Contagem: 9 passaram, 0 falharam, 1 não aplicável (A4, feature será removida).**
+
+Observações novas:
+
+- **O-20 (A2):** depois de "Change date" com "Resend confirmation", o toast diz "2 moved · **2 confirmation(s) reset**", mas só um membro teve reset de verdade. O INS-0125 (confirmado) ganhou auditoria de reset e link novo. O INS-0126, que já estava PENDING, não teve auditoria de reset nem link novo. A contagem do toast conta os membros pendentes como "reset".
+- **O-21 (A3):** o botão "Reactivate" aparece para o OP no detalhe de usuário interno (AM). O servidor recusa ("You are not allowed to reactivate internal users"), mas a tela oferece uma ação que o papel não pode fazer.
+- **O-22 (B1):** o extrato do CL_ADMIN (`/my-financial`) mostra 3 lançamentos da SPS e "Approved debits $0.00". O OP, com a SPS escolhida, vê 7 lançamentos e "Approved debits $150". Os dois repasses ao inspetor somem para a agência, como devem. Mas também somem os débitos de agência SPS-004 ($150, aprovado) e SPS-003 ($160, pendente), que aparecem com "Entity" = inspetor. Não faz parte desta correção. Registro para o coordenador decidir se é o comportamento esperado do extrato.
+- **O-23 (C1):** a aba do app aberta desde a rodada anterior continuava no pacote antigo (`index-CNbNcdZ6.js`), servido pelo service worker, enquanto o servidor já tinha `index-BVy4Kaav.js`. O aviso antigo saiu como toast comum. Só depois de forçar a atualização do service worker e recarregar apareceu o aviso persistente novo. Um inspetor com o app aberto pode continuar vendo o comportamento velho até recarregar.
+
+Alterações em DEV:
+
+| O quê | Depois |
+|---|---|
+| INS-0125 (novo, Melbourne, 100 St Kilda Rd) | Group 30, 04/12 10:00–11:00, AWAITING_INSPECTOR/PENDING. Confirmação forçada (OP) e depois resetada pelo "Resend". Links enviados a `reteste.duas.mel@example.invalid` / `+61491570181` |
+| INS-0126 (novo, SPS, 5 Martin Place) | Group 30, 04/12 11:00–12:00, AWAITING_INSPECTOR/PENDING. Link enviado a `reteste.duas.syd@example.invalid` / `+61491570182` |
+| Group 30 (novo, OP) | publicado (oferta no marketplace), data 03/12 → 04/12, sem região. Não despublicado |
+| Robert Turner (`cl.admin2`, Melbourne) | desativado e reativado duas vezes (A3 pela tela; B2 pela API, OP) → **Active** |
+| 2FA Wizard Admin (AM) | desativado pelo AM, tentativa do OP recusada, reativado pelo AM → **Active** |
+| INS-0121 / INS-0122 / INS-0123 (Lisa, Group 29, 26/11) | **check-in feito, sem check-out** (0121 a 13916 m com o pacote antigo; 0122 a 18230 m; 0123 no imóvel). Ficam em andamento; não há como desfazer um check-in pela tela |
+| Imóvel "77 Nowhere Street" | não criado (recusado) |
