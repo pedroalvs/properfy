@@ -129,4 +129,22 @@ describe('toAddressSuggestion', () => {
 
     expect(suggestion?.number).toBeUndefined();
   });
+
+  it('pre-fills a legacy address missing country and coordinates instead of returning null (O-9)', () => {
+    // Legacy branch shape (seed): { street, suburb, state, postcode } — no country,
+    // no latitude/longitude, no number. The old guard returned null → blank drawer.
+    const suggestion = toAddressSuggestion({
+      street: '45 Pacific Hwy',
+      suburb: 'North Sydney',
+      state: 'NSW',
+      postcode: '2060',
+    });
+
+    expect(suggestion).not.toBeNull();
+    expect(suggestion?.street).toBe('45 Pacific Hwy');
+    expect(suggestion?.suburb).toBe('North Sydney');
+    expect(suggestion?.state).toBe('NSW');
+    expect(suggestion?.postcode).toBe('2060');
+    expect(suggestion?.country).toBe('AU'); // defaulted on the AU-only platform
+  });
 });

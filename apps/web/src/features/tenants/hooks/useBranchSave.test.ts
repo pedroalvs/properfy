@@ -215,4 +215,17 @@ describe('useBranchSave', () => {
     expect(saveResult?.success).toBe(false);
     expect(saveResult?.addressNotVerified).toBe('COARSE_RESULT');
   });
+
+  it('omits the address from the PATCH when omitAddress is set (O-9)', async () => {
+    const wrapper = createQueryWrapper();
+    const { result } = renderHook(() => useBranchSave(), { wrapper });
+
+    await act(async () => {
+      await result.current.save(VALID_DATA, 'ten-01', 'br-01', { omitAddress: true });
+    });
+
+    const body = mockPatch.mock.calls[0]![1].body as { address?: unknown; name: string };
+    expect(body.address).toBeUndefined();
+    expect(body.name).toBe(VALID_DATA.name);
+  });
 });

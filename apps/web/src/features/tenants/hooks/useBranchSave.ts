@@ -49,8 +49,19 @@ function readAddressNotVerified(error: unknown): AddressNotVerifiedReason | unde
     : undefined;
 }
 
+export interface SaveOptions {
+  /**
+   * O-9: skip the `address` field entirely (edit of a non-address field). The
+   * branch form always re-fills the address, and the backend `branchAddressSchema`
+   * defaults `country` to 'AU'; re-sending a legacy address stored without a
+   * country would differ from the stored value and trigger a re-geocode (and a
+   * possible 422). Omitting `address` leaves `address_json` untouched on the server.
+   */
+  omitAddress?: boolean;
+}
+
 export interface UseBranchSaveReturn {
-  save: (data: BranchFormData, tenantId: string, branchId?: string) => Promise<SaveResult>;
+  save: (data: BranchFormData, tenantId: string, branchId?: string, options?: SaveOptions) => Promise<SaveResult>;
   isSaving: boolean;
   validate: (data: BranchFormData) => BranchFormErrors;
 }
@@ -69,12 +80,12 @@ export function useBranchSave(): UseBranchSaveReturn {
     return errors;
   }, []);
 
-  const save = useCallback(async (data: BranchFormData, tenantId: string, branchId?: string): Promise<SaveResult> => {
+  const save = useCallback(async (data: BranchFormData, tenantId: string, branchId?: string, options?: SaveOptions): Promise<SaveResult> => {
     setIsSaving(true);
     try {
       const payload = {
         name: data.name,
-        address: data.address
+        address: data.address && !options?.omitAddress
           ? {
               street: data.address.street,
               // Preserve an imported/API house number so an edit doesn't wipe it (O-2).
