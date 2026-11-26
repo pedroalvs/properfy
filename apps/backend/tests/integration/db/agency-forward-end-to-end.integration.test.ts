@@ -19,7 +19,6 @@ import { setupDbHarness, teardownDbHarness, type DbHarness } from './harness';
 import { seedTenant } from '../service-region/helpers/service-region-fixtures';
 import { PrismaNotificationRepository } from '../../../src/modules/notification/infrastructure/prisma-notification.repository';
 import { PrismaNotificationTemplateRepository } from '../../../src/modules/notification/infrastructure/prisma-notification-template.repository';
-import { PrismaNotificationConsentRepository } from '../../../src/modules/notification/infrastructure/prisma-notification-consent.repository';
 import { PrismaNotificationAttemptRepository } from '../../../src/modules/notification/infrastructure/prisma-notification-attempt.repository';
 import { createAgencyForwardRecipientReader } from '../../../src/modules/notification/infrastructure/prisma-agency-forward-recipient.reader';
 import { CreateNotificationUseCase } from '../../../src/modules/notification/application/use-cases/create-notification.use-case';
@@ -66,7 +65,6 @@ function buildPipeline(platformSettings: Record<string, unknown> = {}) {
   const sendNotification = new SendNotificationUseCase({
     notificationRepo,
     templateRepo,
-    consentRepo: new PrismaNotificationConsentRepository(harness.prisma),
     attemptRepo: new PrismaNotificationAttemptRepository(harness.prisma),
     emailProvider: emailProvider as never,
     smsProvider: smsProvider as never,

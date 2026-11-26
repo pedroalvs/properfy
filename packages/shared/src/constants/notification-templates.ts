@@ -339,7 +339,7 @@ export function getTemplateTarget(templateCode: string): NotificationTarget | un
 
 /**
  * Template codes whose `notificationClass` is immutable and MUST remain TRANSACTIONAL —
- * recipients must always receive them regardless of any opt-out. Two families:
+ * recipients must always receive them, and they are exempt from the daily sending cap. Two families:
  *
  * - Appointment-action templates (FR-005): the occupant/agency actions a recipient
  *   must always be told about.
@@ -347,7 +347,7 @@ export function getTemplateTarget(templateCode: string): NotificationTarget | un
  *   inspector schedule-change mail. These are seeded TRANSACTIONAL and are now editable
  *   through the templates UI, so they MUST be protected here — otherwise an upsert that
  *   omits (or changes) notificationClass would resolve to OPERATIONAL via getDefaultClass
- *   and silently make a password reset consent-suppressible. `getProtectedClass` returning
+ *   and silently make a password reset count against the daily cap. `getProtectedClass` returning
  *   a value here both pins the seed default and rejects any reclassification in upsert.
  */
 export const PROTECTED_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClass> = {
@@ -357,13 +357,13 @@ export const PROTECTED_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClas
   INSPECTION_CANCELLED_AGENCY: 'TRANSACTIONAL',
   INSPECTION_REJECTED_AGENCY: 'TRANSACTIONAL',
   INSPECTION_UNAVAILABILITY_REPORTED: 'TRANSACTIONAL',
-  // The mirror of a message withheld from the occupant. OPERATIONAL would make it
-  // consent-checked per recipient, so a branch contact's opt-out would suppress it —
-  // and then neither the occupant nor the agency ever learns of the inspection, which
+  // The mirror of a message withheld from the occupant. OPERATIONAL would count it
+  // against the agency's daily cap, so it could be dropped under load — and then
+  // neither the occupant nor the agency ever learns of the inspection, which
   // is precisely the hole this forward exists to close.
   TENANT_NOTICE_FORWARDED_AGENCY: 'TRANSACTIONAL',
   // System / inspector must-deliver codes — seeded TRANSACTIONAL, now editable, so pinned
-  // here to keep them consent-bypassed (matches platform-notification-templates.ts).
+  // here to keep them always-sent and cap-exempt (matches platform-notification-templates.ts).
   PASSWORD_RESET: 'TRANSACTIONAL',
   INSPECTION_STUCK_ALERT: 'TRANSACTIONAL',
   INSPECTOR_UNABLE_ALERT: 'TRANSACTIONAL',
@@ -372,7 +372,7 @@ export const PROTECTED_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClas
   INSPECTOR_GROUP_RESCHEDULED: 'TRANSACTIONAL',
   INSPECTOR_GROUP_JOBS_ADDED: 'TRANSACTIONAL',
   // Critical-notice SMS fallback. MUST be TRANSACTIONAL: it is sent with tenantId = null,
-  // so OPERATIONAL would make the consent lookup and daily budget resolve against a null
+  // so OPERATIONAL would make the daily budget resolve against a null
   // tenant. Pinned here (and declared in platform-notification-templates.ts) so an upsert
   // cannot silently reclassify it.
   INSPECTOR_NOTICE_SMS: 'TRANSACTIONAL',
@@ -398,10 +398,10 @@ export const DEFAULT_TEMPLATE_CLASSIFICATIONS: Record<string, NotificationClass>
   TENANT_PORTAL_LINK: 'OPERATIONAL',
   // Deliberately OPERATIONAL rather than protected/TRANSACTIONAL: a feedback
   // request is not an appointment action the recipient must receive regardless
-  // of opt-out, so it stays consent-checked.
+  // of the daily cap, so it stays OPERATIONAL (counted against the cap).
   INSPECTION_SATISFACTION_SURVEY: 'OPERATIONAL',
-  // Consent-checked per channel by decision Q21; never protected — a protected
-  // (TRANSACTIONAL) class would ignore the tenant's opt-out, against F06 D2.
+  // OPERATIONAL per decision Q21/D4; never protected — a protected (TRANSACTIONAL)
+  // class would exempt it from the daily cap, against F06 D2.
   TENANT_ETA_MORNING: 'OPERATIONAL',
   TENANT_ETA_ON_THE_WAY: 'OPERATIONAL',
   TENANT_ETA_DELAY: 'OPERATIONAL',

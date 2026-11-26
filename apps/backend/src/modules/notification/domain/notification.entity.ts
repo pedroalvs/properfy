@@ -69,14 +69,15 @@ export class NotificationEntity extends BaseEntity {
 
   /**
    * Returns the effective notification class, treating null (legacy rows) as OPERATIONAL.
-   * This is the authoritative accessor for the send-flow consent check.
+   * This is the authoritative accessor for the send-flow class-based suppression.
    */
   getEffectiveClass(): NotificationClass {
     return this.notificationClass ?? 'OPERATIONAL';
   }
 
   /**
-   * True for TRANSACTIONAL notifications that MUST bypass consent checks (FR-013).
+   * True for TRANSACTIONAL notifications, which are always sent and are exempt from
+   * the daily sending cap (FR-013).
    */
   isTransactional(): boolean {
     return this.notificationClass === 'TRANSACTIONAL';

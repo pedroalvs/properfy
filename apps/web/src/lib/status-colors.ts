@@ -186,8 +186,8 @@ export const SLOT_STATUS_MAP: Record<AvailabilitySlotStatus, StatusStyle> = {
  *   - FAILED:           provider rejected or transport error.
  *   - SKIPPED:          dispatch deliberately suppressed (rule, quiet hours,
  *                       missing recipient channel).
- *   - SKIPPED_OPT_OUT:  deliberately not sent (recipient opted out of this class,
- *                       or the agency has email sending disabled).
+ *   - SKIPPED_OPT_OUT:  deliberately not sent (the agency's "do not contact
+ *                       tenants" switch, or a non-notifying flow type).
  * Reuses existing status-color tokens to stay aligned with the rest of
  * the design system; the two SKIPPED states share the "cancelled"
  * palette so they read as terminal-non-failure at a glance.
@@ -198,9 +198,8 @@ export const NOTIFICATION_STATUS_MAP: Record<string, StatusStyle> = {
   DELIVERED:       { bg: 'var(--color-status-done)',      text: 'var(--color-text-primary)', label: 'Delivered' },
   FAILED:          { bg: 'var(--color-status-rejected)',  text: 'var(--color-text-primary)', label: 'Failed' },
   SKIPPED:         { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Skipped' },
-  // Deliberately neutral. This status covers both a recipient's consent opt-out and the
-  // per-agency "do not contact tenants" switch, and the old "(opt-out)" wording sent
-  // operators to the consent screen for rows that are really an agency setting. The
-  // Failure reason column names which one.
+  // Deliberately neutral. This status now covers the per-agency "do not contact tenants"
+  // switch and non-notifying flow types (the consent opt-out that also used it was removed).
+  // The Failure reason column names which one. Legacy CONSENT_OPT_OUT rows keep this status.
   SKIPPED_OPT_OUT: { bg: 'var(--color-status-cancelled)', text: 'var(--color-text-primary)', label: 'Not sent' },
 };

@@ -13,7 +13,6 @@ import { prepareSmsBody } from '../../domain/sms-content';
 import { maskRecipient } from '../../domain/mask-recipient';
 import type { INotificationRepository } from '../../domain/notification.repository';
 import type { INotificationTemplateRepository } from '../../domain/notification-template.repository';
-import type { INotificationConsentRepository } from '../../domain/notification-consent.repository';
 import type { INotificationAttemptRepository } from '../../domain/notification-attempt.repository';
 import type { IEmailProvider, ISmsProvider } from '../../domain/providers';
 import type { TemplateRendererService } from '../../domain/template-renderer.service';
@@ -38,6 +37,7 @@ import {
   AGENCY_FORWARD_TEMPLATE_CODE,
   AGENCY_TENANT_NOTIFICATIONS_DISABLED,
   TEMPLATE_INACTIVE,
+  MARKETING_NOT_SENT,
   AGENCY_FORWARD_FAILURE_REASON_PREFIX,
   getTemplateTarget,
   getTemplateCodeLabel,
@@ -107,7 +107,6 @@ export interface ForwardNotificationInput {
 export interface SendNotificationDeps {
   notificationRepo: INotificationRepository;
   templateRepo: INotificationTemplateRepository;
-  consentRepo: INotificationConsentRepository;
   attemptRepo: INotificationAttemptRepository;
   emailProvider: IEmailProvider;
   smsProvider: ISmsProvider;
@@ -157,7 +156,6 @@ export interface SendNotificationDeps {
 export class SendNotificationUseCase {
   private readonly notificationRepo: INotificationRepository;
   private readonly templateRepo: INotificationTemplateRepository;
-  private readonly consentRepo: INotificationConsentRepository;
   private readonly attemptRepo: INotificationAttemptRepository;
   private readonly emailProvider: IEmailProvider;
   private readonly smsProvider: ISmsProvider;
@@ -179,7 +177,6 @@ export class SendNotificationUseCase {
   constructor(deps: SendNotificationDeps) {
     this.notificationRepo = deps.notificationRepo;
     this.templateRepo = deps.templateRepo;
-    this.consentRepo = deps.consentRepo;
     this.attemptRepo = deps.attemptRepo;
     this.emailProvider = deps.emailProvider;
     this.smsProvider = deps.smsProvider;
@@ -236,8 +233,8 @@ export class SendNotificationUseCase {
   /**
    * Classify a row suppressed by the agency switch for durable mirror recovery.
    *
-   * Scoped to rows this pipeline suppressed itself — a consent opt-out gets no mirror, and
-   * a genuinely terminal row must still raise NotificationInvalidStatusError so real
+   * Scoped to rows this pipeline suppressed itself — a row suppressed for any other reason
+   * gets no mirror, and a genuinely terminal row must still raise NotificationInvalidStatusError so real
    * double-send bugs stay loud.
    *
    * The mirror's deterministic notification ID makes re-running idempotent: pg-boss can
@@ -399,8 +396,8 @@ export class SendNotificationUseCase {
    * terminal state for the row (persisting it and logging), so the orchestrator
    * simply returns. The phase bodies (and their reasoning) live in the private
    * methods below. Order is load-bearing — the flow-type and agency occupant
-   * suppressions run before consent, and the budget cap reuses the tenant
-   * settings the agency switch may already have loaded.
+   * suppressions run first, and the budget cap reuses the tenant settings the
+   * agency switch may already have loaded.
    */
   async execute(input: SendNotificationInput): Promise<void> {
     const notification = await this.notificationRepo.findById(input.notificationId);
@@ -422,7 +419,7 @@ export class SendNotificationUseCase {
     const agencyCheck = await this.checkAgencyOccupantSwitch(notification);
     if (agencyCheck.handled) return;
 
-    if (await this.isBlockedByConsent(notification, effectiveClass)) return;
+    if (await this.suppressMarketing(notification, effectiveClass)) return;
 
     const settings =
       agencyCheck.tenantSettings ?? (await this.getTenantSettings(notification.tenantId));
@@ -484,9 +481,9 @@ export class SendNotificationUseCase {
    * returns null when the row has reached a terminal state (template missing →
    * FAILED; template inactive → SKIPPED).
    *
-   * Feature 018 (classification-aware consent): the stamped class wins so a
-   * template class change does not retroactively affect in-flight notifications;
-   * only a legacy row with no stamped class is promoted to the template's class.
+   * Classification-aware: the stamped class wins so a template class change does
+   * not retroactively affect in-flight notifications; only a legacy row with no
+   * stamped class is promoted to the template's class.
    */
   private async resolveSendableTemplate(
     notification: NotificationEntity,
@@ -606,9 +603,8 @@ export class SendNotificationUseCase {
    * (report-ready, password reset) are untouched. Missing key = enabled.
    *
    * The agency's delivery policy is authoritative for rental-tenant
-   * notifications, so this runs before recipient consent can return early. Only
-   * RENTAL_TENANT targets read settings here, preserving the consent path for
-   * every other recipient. Returns `handled: true` when suppressed; otherwise
+   * notifications. Only RENTAL_TENANT targets read settings here; every other
+   * recipient is unaffected. Returns `handled: true` when suppressed; otherwise
    * returns the tenant settings it loaded (if any) so the budget cap can reuse
    * them without a second fetch.
    */
@@ -655,39 +651,21 @@ export class SendNotificationUseCase {
   }
 
   /**
-   * Feature 018 consent branching. TRANSACTIONAL bypasses consent entirely
-   * (FR-013) — the most important invariant of the feature. OPERATIONAL respects
-   * an explicit opt-out (absence of a record = opted-in). MARKETING has no opt-in
-   * collection in Phase 1, so absence of an opted-in record means blocked.
-   * Returns true when the row was blocked.
+   * Class-based delivery suppression. TRANSACTIONAL and OPERATIONAL are always
+   * dispatched — the consent opt-out feature was removed (decision 45), so there
+   * is no per-recipient opt-out read here any more. MARKETING is never sent (there
+   * is no opt-in collection), so a legacy MARKETING-class row that reaches this
+   * point is recorded as a terminal SKIPPED with a distinct reason (NOT an opt-out).
+   * Returns true when the row was suppressed.
    */
-  private async isBlockedByConsent(
+  private async suppressMarketing(
     notification: NotificationEntity,
     effectiveClass: NotificationClass,
   ): Promise<boolean> {
-    if (effectiveClass === 'TRANSACTIONAL') {
-      this.logger.debug(
-        { notificationId: notification.id, templateCode: notification.templateCode },
-        'notification.consent_bypass_transactional',
-      );
-      return false;
-    }
+    if (effectiveClass !== 'MARKETING') return false;
 
-    const consent = await this.consentRepo.findByScope({
-      tenantId: notification.tenantId,
-      recipient: notification.recipient,
-      channel: notification.channel,
-      notificationClass: effectiveClass,
-    });
-
-    const shouldBlock =
-      (effectiveClass === 'OPERATIONAL' && consent?.isOptedOut() === true) ||
-      (effectiveClass === 'MARKETING' && !(consent && consent.isOptedOut() === false));
-
-    if (!shouldBlock) return false;
-
-    notification.status = 'SKIPPED_OPT_OUT';
-    notification.failureReason = 'CONSENT_OPT_OUT';
+    notification.status = 'SKIPPED';
+    notification.failureReason = MARKETING_NOT_SENT;
     notification.updatedAt = new Date();
     await this.notificationRepo.update(notification);
     this.logger.info(
@@ -696,7 +674,7 @@ export class SendNotificationUseCase {
         channel: notification.channel,
         notificationClass: effectiveClass,
       },
-      'notification.skipped_opt_out',
+      'notification.marketing_not_sent',
     );
     return true;
   }

@@ -372,7 +372,6 @@ import type { ReportRouteContainer } from '../modules/report/interfaces/report.r
 import { PrismaNotificationRepository } from '../modules/notification/infrastructure/prisma-notification.repository';
 import { PrismaNotificationTemplateRepository } from '../modules/notification/infrastructure/prisma-notification-template.repository';
 import { PrismaNotificationAttemptRepository } from '../modules/notification/infrastructure/prisma-notification-attempt.repository';
-import { PrismaNotificationConsentRepository } from '../modules/notification/infrastructure/prisma-notification-consent.repository';
 import { createTenantSettingsReader } from '../modules/notification/infrastructure/prisma-tenant-settings.reader';
 import { createAppointmentFlowTypeReader } from '../modules/notification/infrastructure/prisma-appointment-flow-type.reader';
 import { createAgencyForwardRecipientReader } from '../modules/notification/infrastructure/prisma-agency-forward-recipient.reader';
@@ -1842,7 +1841,6 @@ export function createContainer(logger: Logger): AppContainer {
   const htmlToText = new HtmlToTextService();
 
   // Notification use cases
-  const consentRepo = new PrismaNotificationConsentRepository(prisma);
   const getTenantSettings = createTenantSettingsReader(prisma);
   const getAppointmentFlowType = createAppointmentFlowTypeReader(prisma);
   const getAgencyForwardRecipient = createAgencyForwardRecipientReader(prisma);
@@ -1850,7 +1848,6 @@ export function createContainer(logger: Logger): AppContainer {
   const sendNotificationUseCase = new SendNotificationUseCase({
     notificationRepo,
     templateRepo: notificationTemplateRepo,
-    consentRepo,
     attemptRepo: notificationAttemptRepo,
     emailProvider,
     smsProvider,

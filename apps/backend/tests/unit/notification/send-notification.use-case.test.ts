@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SendNotificationUseCase } from '../../../src/modules/notification/application/use-cases/send-notification.use-case';
 import type { INotificationRepository } from '../../../src/modules/notification/domain/notification.repository';
 import type { INotificationTemplateRepository } from '../../../src/modules/notification/domain/notification-template.repository';
-import type { INotificationConsentRepository } from '../../../src/modules/notification/domain/notification-consent.repository';
 import type { INotificationAttemptRepository } from '../../../src/modules/notification/domain/notification-attempt.repository';
 import type {
   IEmailProvider,
@@ -94,14 +93,6 @@ function makeSut(extraDeps: { properfyLogoUrl?: string } = {}) {
     upsert: vi.fn(),
     delete: vi.fn(),
   };
-  const consentRepo: INotificationConsentRepository = {
-    findByRecipientChannelTenant: vi.fn().mockResolvedValue(null),
-    findByScope: vi.fn().mockResolvedValue(null),
-    listByRecipient: vi.fn().mockResolvedValue([]),
-    countSkippedForRecipient: vi.fn().mockResolvedValue(0),
-    findById: vi.fn().mockResolvedValue(null),
-    upsert: vi.fn(),
-  };
   const attemptRepo: INotificationAttemptRepository = {
     save: vi.fn(),
     update: vi.fn(),
@@ -152,7 +143,6 @@ function makeSut(extraDeps: { properfyLogoUrl?: string } = {}) {
     auditService,
     notificationRepo,
     templateRepo,
-    consentRepo,
     attemptRepo,
     emailProvider,
     smsProvider,
@@ -168,7 +158,6 @@ function makeSut(extraDeps: { properfyLogoUrl?: string } = {}) {
   return {
     notificationRepo,
     templateRepo,
-    consentRepo,
     attemptRepo,
     emailProvider,
     smsProvider,
@@ -747,110 +736,47 @@ describe('SendNotificationUseCase', () => {
     expect(updated.failureReason).toBe('Connection refused');
   });
 
-  // GAP-001: Consent opt-out
-  describe('GAP-001: consent opt-out', () => {
-    it('should skip notification when recipient has opted out', async () => {
-      const notification = makeNotification();
-      const { NotificationConsentEntity: ConsentClass } = await import(
-        '../../../src/modules/notification/domain/notification-consent.entity'
+  // Class-based delivery suppression (the consent opt-out read was removed, decision 45).
+  describe('notificationClass branching', () => {
+    it('OPERATIONAL is sent even when a legacy opt-out would have blocked it (no consent read)', async () => {
+      // Red-first: the old pipeline read this consentRepo and SKIPPED_OPT_OUT; the new
+      // pipeline ignores it entirely and sends. (extraDeps is ignored by the new use case.)
+      const sut = makeSut({
+        consentRepo: { findByScope: vi.fn().mockResolvedValue({ isOptedOut: () => true }) },
+      } as any);
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ notificationClass: 'OPERATIONAL' }),
       );
-      const consent = new ConsentClass({
-        id: 'consent-1',
-        recipient: 'user@example.com',
-        channel: 'EMAIL' as any,
-        tenantId: 'tenant-1',
-        notificationClass: 'OPERATIONAL',
-        optedOut: true,
-        optedOutAt: now,
-        changeSource: 'operator_override',
-        changedAt: now,
-        changedByUserId: null,
-        reason: null,
-        createdAt: now,
-        updatedAt: now,
-      });
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ notificationClass: 'OPERATIONAL' }),
+      );
+      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
 
+      await sut.useCase.execute({ notificationId: 'notif-1' });
+
+      expect(sut.emailProvider.send).toHaveBeenCalledTimes(1);
+      const updated = vi.mocked(sut.notificationRepo.update).mock.calls[0][0];
+      expect(updated.status).toBe('SENT');
+    });
+
+    it('MARKETING is skipped with MARKETING_NOT_SENT (never dispatched)', async () => {
       const sut = makeSut();
-      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(notification);
-      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
-      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(consent);
+      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
+        makeNotification({ notificationClass: 'MARKETING' }),
+      );
+      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
+        makeTemplate({ notificationClass: 'MARKETING' }),
+      );
 
       await sut.useCase.execute({ notificationId: 'notif-1' });
 
       const updated = vi.mocked(sut.notificationRepo.update).mock.calls[0][0];
-      expect(updated.status).toBe('SKIPPED_OPT_OUT');
-      expect(updated.failureReason).toBe('CONSENT_OPT_OUT');
+      expect(updated.status).toBe('SKIPPED');
+      expect(updated.failureReason).toBe('MARKETING_NOT_SENT');
       expect(sut.emailProvider.send).not.toHaveBeenCalled();
     });
 
-    it('should send notification when recipient has not opted out', async () => {
-      const { NotificationConsentEntity: ConsentClass } = await import(
-        '../../../src/modules/notification/domain/notification-consent.entity'
-      );
-      const consent = new ConsentClass({
-        id: 'consent-1',
-        recipient: 'user@example.com',
-        channel: 'EMAIL' as any,
-        tenantId: 'tenant-1',
-        notificationClass: 'OPERATIONAL',
-        optedOut: false,
-        optedOutAt: null,
-        changeSource: null,
-        changedAt: null,
-        changedByUserId: null,
-        reason: null,
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      const sut = makeSut();
-      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification());
-      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(consent);
-      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
-      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
-
-      await sut.useCase.execute({ notificationId: 'notif-1' });
-
-      expect(sut.emailProvider.send).toHaveBeenCalled();
-    });
-
-    it('should send notification when no consent record exists', async () => {
-      const sut = makeSut();
-      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(makeNotification());
-      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(null);
-      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(makeTemplate());
-      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
-
-      await sut.useCase.execute({ notificationId: 'notif-1' });
-
-      expect(sut.emailProvider.send).toHaveBeenCalled();
-    });
-  });
-
-  // Feature 018: classification-aware consent branching
-  describe('feature 018: notificationClass branching', () => {
-    async function optedOutConsent(notificationClass: 'OPERATIONAL' | 'MARKETING' | 'TRANSACTIONAL') {
-      const { NotificationConsentEntity: ConsentClass } = await import(
-        '../../../src/modules/notification/domain/notification-consent.entity'
-      );
-      return new ConsentClass({
-        id: 'consent-1',
-        recipient: 'user@example.com',
-        channel: 'EMAIL' as any,
-        tenantId: 'tenant-1',
-        notificationClass,
-        optedOut: true,
-        optedOutAt: now,
-        changeSource: 'operator_override',
-        changedAt: now,
-        changedByUserId: null,
-        reason: null,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-
-    it('TRANSACTIONAL bypasses consent even when recipient is opted out', async () => {
+    it('TRANSACTIONAL is sent', async () => {
       const sut = makeSut();
       vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
         makeNotification({ notificationClass: 'TRANSACTIONAL', templateCode: 'INSPECTION_CONFIRMED' }),
@@ -858,85 +784,13 @@ describe('SendNotificationUseCase', () => {
       vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
         makeTemplate({ templateCode: 'INSPECTION_CONFIRMED', notificationClass: 'TRANSACTIONAL' }),
       );
-      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(await optedOutConsent('OPERATIONAL'));
       vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
 
       await sut.useCase.execute({ notificationId: 'notif-1' });
 
       expect(sut.emailProvider.send).toHaveBeenCalledTimes(1);
-      // consentRepo.findByScope is NOT called for TRANSACTIONAL
-      expect(sut.consentRepo.findByScope).not.toHaveBeenCalled();
       const updated = vi.mocked(sut.notificationRepo.update).mock.calls[0][0];
       expect(updated.status).toBe('SENT');
-    });
-
-    it('OPERATIONAL with null class on notification falls back to template class and respects opt-out', async () => {
-      const sut = makeSut();
-      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
-        makeNotification({ notificationClass: null }),
-      );
-      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
-        makeTemplate({ notificationClass: 'OPERATIONAL' }),
-      );
-      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(await optedOutConsent('OPERATIONAL'));
-
-      await sut.useCase.execute({ notificationId: 'notif-1' });
-
-      const updated = vi.mocked(sut.notificationRepo.update).mock.calls[0][0];
-      expect(updated.status).toBe('SKIPPED_OPT_OUT');
-      expect(updated.failureReason).toBe('CONSENT_OPT_OUT');
-      expect(sut.emailProvider.send).not.toHaveBeenCalled();
-    });
-
-    it('MARKETING is blocked when no opted-in record exists (Phase 1 dead code)', async () => {
-      const sut = makeSut();
-      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
-        makeNotification({ notificationClass: 'MARKETING' }),
-      );
-      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
-        makeTemplate({ notificationClass: 'MARKETING' }),
-      );
-      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(null);
-
-      await sut.useCase.execute({ notificationId: 'notif-1' });
-
-      const updated = vi.mocked(sut.notificationRepo.update).mock.calls[0][0];
-      expect(updated.status).toBe('SKIPPED_OPT_OUT');
-      expect(sut.emailProvider.send).not.toHaveBeenCalled();
-    });
-
-    it('MARKETING is allowed when recipient has an explicit opted-in record', async () => {
-      const { NotificationConsentEntity: ConsentClass } = await import(
-        '../../../src/modules/notification/domain/notification-consent.entity'
-      );
-      const consent = new ConsentClass({
-        id: 'consent-mkt-1',
-        recipient: 'user@example.com',
-        channel: 'EMAIL' as any,
-        tenantId: 'tenant-1',
-        notificationClass: 'MARKETING',
-        optedOut: false,
-        optedOutAt: null,
-        changeSource: 're_opt_in',
-        changedAt: now,
-        changedByUserId: null,
-        reason: null,
-        createdAt: now,
-        updatedAt: now,
-      });
-      const sut = makeSut();
-      vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
-        makeNotification({ notificationClass: 'MARKETING' }),
-      );
-      vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
-        makeTemplate({ notificationClass: 'MARKETING' }),
-      );
-      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(consent);
-      vi.mocked(sut.emailProvider.send).mockResolvedValue({ messageId: 'msg-1' });
-
-      await sut.useCase.execute({ notificationId: 'notif-1' });
-
-      expect(sut.emailProvider.send).toHaveBeenCalled();
     });
 
     it('still sends EMAIL when rentalTenantNotificationsEnabled is absent (default on)', async () => {
@@ -1078,25 +932,7 @@ describe('SendNotificationUseCase', () => {
       expect(sut.notificationRepo.update).toHaveBeenCalled();
     });
 
-    it('gives a blocked agency policy precedence over an operational recipient opt-out', async () => {
-      const { NotificationConsentEntity: ConsentClass } = await import(
-        '../../../src/modules/notification/domain/notification-consent.entity'
-      );
-      const consent = new ConsentClass({
-        id: 'consent-1',
-        recipient: 'user@example.com',
-        channel: 'EMAIL' as const,
-        tenantId: 'tenant-1',
-        notificationClass: 'OPERATIONAL',
-        optedOut: true,
-        optedOutAt: now,
-        changeSource: 'operator_override',
-        changedAt: now,
-        changedByUserId: null,
-        reason: null,
-        createdAt: now,
-        updatedAt: now,
-      });
+    it('a blocked agency policy suppresses an operational notice and forwards it', async () => {
       const sut = makeSut();
       const notification = makeNotification({
         channel: 'EMAIL',
@@ -1107,7 +943,6 @@ describe('SendNotificationUseCase', () => {
       vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
         makeTemplate({ templateCode: 'INSPECTION_NOTICE', notificationClass: 'OPERATIONAL' }),
       );
-      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue(consent);
       vi.mocked(sut.getTenantSettings).mockResolvedValue(BLOCKED);
 
       await sut.useCase.execute({ notificationId: 'notif-1' });
@@ -2190,7 +2025,7 @@ describe('SendNotificationUseCase', () => {
       );
     });
 
-    it('does not audit an opt-out skip — that is a tenant decision, not an incident', async () => {
+    it('does not audit a MARKETING skip — a suppression is not an incident', async () => {
       const sut = makeSut();
       vi.mocked(sut.notificationRepo.findById).mockResolvedValue(
         makeNotification({ notificationClass: 'MARKETING' }),
@@ -2198,12 +2033,6 @@ describe('SendNotificationUseCase', () => {
       vi.mocked(sut.templateRepo.findByTenantCodeChannel).mockResolvedValue(
         makeTemplate({ notificationClass: 'MARKETING' }),
       );
-      // findByScope is what the use case actually calls; the deprecated
-      // findByRecipientChannelTenant is never reached and stubbing it made this
-      // test pass for the wrong reason.
-      vi.mocked(sut.consentRepo.findByScope).mockResolvedValue({
-        isOptedOut: () => true,
-      } as never);
 
       await sut.useCase.execute({ notificationId: 'notif-1' });
 
