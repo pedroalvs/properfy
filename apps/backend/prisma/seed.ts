@@ -12,6 +12,7 @@ import { PrismaClient } from '@prisma/client';
 import { getDefaultClass } from '@properfy/shared';
 import bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
+import { buildSeedFinancialEntries, seedDebitsNeedingInspectorReset } from './seed-financial-entries';
 
 const prisma = new PrismaClient();
 
@@ -1018,81 +1019,15 @@ async function main() {
 
   // ─── FINANCIAL ENTRIES ────────────────────────────────────────────────────
 
-  const financialEntries = [
-    // apptDone: approved debit + payout
-    {
-      id: IDS.fe1, tenant_id: IDS.tenant, appointment_id: IDS.apptDone, inspector_id: IDS.inspectorLinked,
-      entry_type: 'TENANT_DEBIT' as const, amount: 150.00, currency: 'AUD', status: 'APPROVED' as const,
-      description: 'Routine inspection at 200 Pacific Hwy, Crows Nest',
-      effective_at: pastDate(3), initiated_by_user_id: IDS.userOP,
-      approved_by_user_id: IDS.userAM, approved_at: pastDate(2),
-    },
-    {
-      id: IDS.fe2, tenant_id: IDS.tenant, appointment_id: IDS.apptDone, inspector_id: IDS.inspectorLinked,
-      entry_type: 'INSPECTOR_PAYOUT' as const, amount: 80.00, currency: 'AUD', status: 'APPROVED' as const,
-      description: 'Payout to Mike Inspector — Routine inspection 200 Pacific Hwy',
-      effective_at: pastDate(3), initiated_by_user_id: IDS.userOP,
-      approved_by_user_id: IDS.userAM, approved_at: pastDate(2),
-    },
-    // apptDone2: pending debit + payout
-    {
-      id: IDS.fe3, tenant_id: IDS.tenant, appointment_id: IDS.apptDone2, inspector_id: IDS.inspectorIndep,
-      entry_type: 'TENANT_DEBIT' as const, amount: 160.00, currency: 'AUD', status: 'PENDING' as const,
-      description: 'Routine inspection at 5 Blue St, North Sydney',
-      effective_at: pastDate(7), initiated_by_user_id: IDS.userOP,
-    },
-    {
-      id: IDS.fe4, tenant_id: IDS.tenant, appointment_id: IDS.apptDone2, inspector_id: IDS.inspectorIndep,
-      entry_type: 'INSPECTOR_PAYOUT' as const, amount: 88.00, currency: 'AUD', status: 'PENDING' as const,
-      description: 'Payout to Carlos Mendez — Routine inspection 5 Blue St',
-      effective_at: pastDate(7), initiated_by_user_id: IDS.userOP,
-    },
-    // Manual adjustments
-    {
-      id: IDS.fe5, tenant_id: IDS.tenant, appointment_id: null, inspector_id: null,
-      entry_type: 'MANUAL_ADJUSTMENT' as const, amount: 50.00, currency: 'AUD', status: 'APPROVED' as const,
-      description: 'Adjustment for double-billing error on March invoices',
-      effective_at: pastDate(10), initiated_by_user_id: IDS.userAM,
-      approved_by_user_id: IDS.userAM, approved_at: pastDate(9),
-      reason: 'Billing correction — duplicate charge identified',
-    },
-    {
-      id: IDS.fe6, tenant_id: IDS.tenant, appointment_id: null, inspector_id: null,
-      entry_type: 'MANUAL_ADJUSTMENT' as const, amount: 25.00, currency: 'AUD', status: 'CANCELLED' as const,
-      description: 'Incorrect adjustment — reversed',
-      effective_at: pastDate(15), initiated_by_user_id: IDS.userOP,
-      reason: 'Entry created in error, voided by AM',
-    },
-    // Refund
-    {
-      id: IDS.fe7, tenant_id: IDS.tenant, appointment_id: IDS.apptCancelled, inspector_id: null,
-      entry_type: 'REFUND' as const, amount: 180.00, currency: 'AUD', status: 'PENDING' as const,
-      description: 'Refund for cancelled outgoing inspection',
-      effective_at: pastDate(1), initiated_by_user_id: IDS.userOP,
-      reference_entry_id: null,
-      reason: 'Service not rendered, tenant relocated',
-    },
-    // Tenant 2 approved entries
-    {
-      id: IDS.fe8, tenant_id: IDS.tenant2, appointment_id: IDS.apptDoneT2, inspector_id: IDS.inspectorLinked2,
-      entry_type: 'TENANT_DEBIT' as const, amount: 140.00, currency: 'AUD', status: 'APPROVED' as const,
-      description: 'Routine inspection at 100 St Kilda Rd, Southbank',
-      effective_at: pastDate(4), initiated_by_user_id: IDS.userOP,
-      approved_by_user_id: IDS.userAM, approved_at: pastDate(3),
-    },
-    {
-      id: IDS.fe9, tenant_id: IDS.tenant2, appointment_id: IDS.apptDoneT2, inspector_id: IDS.inspectorLinked2,
-      entry_type: 'INSPECTOR_PAYOUT' as const, amount: 75.00, currency: 'AUD', status: 'APPROVED' as const,
-      description: 'Payout to Lisa Wong — Routine inspection 100 St Kilda Rd',
-      effective_at: pastDate(4), initiated_by_user_id: IDS.userOP,
-      approved_by_user_id: IDS.userAM, approved_at: pastDate(3),
-    },
-  ];
+  const financialEntries = buildSeedFinancialEntries(IDS, pastDate);
+  // O-22: re-seeding clears inspector_id on the agency-leg debits (fe1/fe3/fe8)
+  // so an environment created before this fix is repaired on the next seed run.
+  const debitsToResetInspector = seedDebitsNeedingInspectorReset(IDS);
 
   for (const fe of financialEntries) {
     await prisma.financialEntry.upsert({
       where: { id: fe.id },
-      update: {},
+      update: debitsToResetInspector.has(fe.id) ? { inspector_id: null } : {},
       create: {
         id: fe.id,
         tenant_id: fe.tenant_id,
