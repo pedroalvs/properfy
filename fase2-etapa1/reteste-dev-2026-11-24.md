@@ -828,3 +828,32 @@ Alterações em DEV:
 | 2FA Wizard Admin (AM) | desativado pelo AM, tentativa do OP recusada, reativado pelo AM → **Active** |
 | INS-0121 / INS-0122 / INS-0123 (Lisa, Group 29, 26/11) | **check-in feito, sem check-out** (0121 a 13916 m com o pacote antigo; 0122 a 18230 m; 0123 no imóvel). Ficam em andamento; não há como desfazer um check-in pela tela |
 | Imóvel "77 Nowhere Street" | não criado (recusado) |
+
+### Remoção da recusa de consentimento e extrato — 26/11/2026 (00:56–01:12 UTC)
+
+DEV em `a5531f33` (conferido pelo coordenador nos logs). Contas da nota "Acessos QA Properfy", sessões injetadas no navegador (sem digitar senha). Só contatos fictícios.
+
+| # | O que testei | Resultado | Capturas |
+|---|---|---|---|
+| 1 | Menu Configuration como AM e como OP; `/notification-consents` direto | PASSOU. AM vê Service Types, Service Regions, Pricing Rules, Notification Templates, Integrations, Platform Settings; OP vê Service Regions, Pricing Rules, Notification Templates, Platform Settings. Nenhum "Consent Lookup" nos dois. `/notification-consents` abre "Page Not Found" para AM e OP (não a tela antiga). A rota `POST /v1/notifications/consents/opt-out` responde 404 | `a55-1-am-consents-404.jpg` |
+| 2 | Notification Templates: chips de classe e tooltip da coluna | PASSOU. Chip Transactional: "Always delivered. Not counted against the daily sending cap when sent platform-wide."; chip Operational: "Counts against the agency's daily sending cap.". O tooltip (ícone ⓘ) fica na coluna **Class**, não na Type, e termina em "Marketing messages are not sent.". Nenhum texto da página (38 linhas, títulos, tooltip, HTML) fala em opt-out/opted/recusa. Não há chip Marketing porque não existe template MARKETING | `a55-2-templates-class-tooltip.jpg` |
+| 3 | Envio OPERATIONAL a inquilino fictício | PASSOU. OP, INS-0125 (contato "Reteste Duas Agencias MEL", `reteste.duas.mel@example.invalid`, `+61491570181`), "Send Portal Link" (TENANT_PORTAL_LINK é OPERATIONAL nos dois canais). Aba Notifications: EMAIL **Sent** e SMS **Sent** às 11:59, sem motivo de falha e sem "skipped". **MARKETING: não aplicável** — DEV não tem nenhum template de classe MARKETING (36 templates: TRANSACTIONAL ou OPERATIONAL), então não há como provocar `MARKETING_NOT_SENT` pela tela | `a55-3-op-portal-link-sent.jpg` |
+| 4 | Extrato da agência (`/my-financial`, "Statement") | PASSOU. CL_ADMIN SPS: SPS-004 Agency Debit $150 Approved e SPS-003 Agency Debit $160 Pending, Entity "Sydney Property Services"; "Approved debits **$150.00**", Pending 2 (SPS-003 + SPS-005 refund), 5 lançamentos, nenhum repasse ao inspetor ("Approved payouts $0.00"). CL_ADMIN Melbourne (Robert Turner): MRE-003 Agency Debit $140 Approved, Entity "Melbourne Real Estate", "Approved debits $140.00", 1 lançamento; o repasse de $75 não aparece. O O-22 está resolvido | `a55-4-cl-sps-statement.jpg`, `a55-4-cl-mel-statement.jpg` |
+| 5 | O-19 e as duas telas, conferência rápida | PASSOU. O-19: OP no Group 30 → "Send portal link" mostra "2 total / 2 eligible / 0 already confirmed" (cancelado, sem envio); o resumo do Financial do OP é igual ao do AM nas duas agências (SPS 150/80/50, 3 pendentes; Melbourne 140/75, 0 pendentes). "Can't locate": "77 Nowhere Street, Faketown ACT 2999" → "We could only locate the area, not the exact address." + "Can't locate this address? [Set location manually]", sem "Rural property?"; imóvel não criado. Aviso de distância do PWA: **não refiz o check-in** (irreversível). Nenhum arquivo de `apps/pwa` mudou entre `f68ee25` e `a5531f33`; o pacote servido agora (`index-Ow9RNPoJ.js`, chunk `AppointmentActionBar-kQ2GgpUR.js`) contém o `showWarning` "…m from the property. Operations will see this check-in." | `a55-5-op-group-plan.jpg`, `a55-5-cant-locate.jpg` |
+
+**Contagem: 5 passaram, 0 falharam.** Partes não aplicáveis: MARKETING_NOT_SENT no item 3 (não há template MARKETING); o check-in do PWA no item 5 foi conferido pelo pacote, não por check-in novo.
+
+Observações novas:
+
+- **O-24 (item 3, só no código):** a aba Notifications do agendamento (`AppointmentNotificationsTab.tsx`, `FAILURE_REASON_LABELS`) ainda traduz `CONSENT_OPT_OUT` como "Recipient opted out of this notification class" e não tem tradução para `MARKETING_NOT_SENT` (apareceria o código cru). Hoje nenhuma linha em DEV mostra nenhum dos dois; só aparece em notificação antiga com skip por recusa ou numa futura de classe MARKETING.
+- **O-25 (item 3):** "Send Portal Link" mostrou o toast "Email sent to tenant", mas também saiu o SMS (as duas linhas ficaram Sent). O texto fala só do e-mail.
+- **O-23 de novo (item 5):** a aba do app aberta desde a rodada anterior continuava com o pacote `index-BVy4Kaav.js`, enquanto o servidor já servia `index-Ow9RNPoJ.js`. Desta vez bastou recarregar a página para pegar o pacote novo.
+
+Alterações em DEV:
+
+| O quê | Depois |
+|---|---|
+| INS-0125 | +1 envio de TENANT_PORTAL_LINK (e-mail + SMS) a `reteste.duas.mel@example.invalid` / `+61491570181`. Não dá para desfazer um envio |
+| Group 30 | diálogo "Send portal link" aberto e cancelado, sem envio |
+| Imóvel "77 Nowhere Street, Faketown" | não criado (recusado) |
+| O resto | nada alterado; sem mudança de configuração |

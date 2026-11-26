@@ -118,3 +118,8 @@ Data: 25/11/2026. No drawer de usuário interno, o botão "Reactivate" aparece p
 ## [Estacionado sem PR — decisão 45] O-23: aba do app (PWA) presa na versão antiga até atualizar
 
 Data: 25/11/2026. A aba aberta do PWA fica na versão antiga até o usuário atualizar (service worker / chunk antigo). Investigar estratégia de atualização (skipWaiting/clientsClaim, prompt de nova versão, ou o padrão de retry de chunk — ver project_stale_chunk_retry). Sem PR agora.
+
+
+## [Estacionado — decisão 46 / O-22] Trava contra TENANT_DEBIT/REFUND com inspetor (domínio ou CHECK no banco)
+
+Data: 25/11/2026. Decisão 46 do Pedro: NÃO adicionar agora. O O-22 (débito de agência sumia do extrato por ter inspector_id preenchido) é corrigido SÓ no seed (inspector_id null nos 3 débitos fe1/fe3/fe8 + o upsert passa a atualizar inspector_id p/ nulo nas linhas existentes). A trava OPCIONAL fica ESTACIONADA: (a) no domínio, FinancialEntryEntity recusar TENANT_DEBIT/REFUND com inspectorId preenchido; e/ou (b) CHECK no banco `entry_type NOT IN ('TENANT_DEBIT','REFUND') OR inspector_id IS NULL`. O CHECK só pode entrar DEPOIS da consulta read-only (§3 do investigacao-o22) dar ZERO em staging e produção (senão a migration falha no deploy). Contagem do Pedro: produção 22 débitos de agência, todos SEM inspetor; staging tem os mesmos 3 do seed. Sem PR agora. NÃO mexer no filtro do extrato (excludeInspectorScoped fica).
