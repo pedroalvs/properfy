@@ -116,3 +116,7 @@ O e-mail "relatório pronto" ou "relatório falhou" **não é enviado para relat
 1. **Corrigir o Storage do DEV**: criar o bucket ou corrigir a configuração. Recomendo: sim, e depois "Try again" no relatório de 24/11, para reabrir o reteste do F08-5.
 2. **Checar staging e produção** com a leitura da seção 5. Recomendo: sim, antes da próxima promoção.
 3. **E-mail para relatórios de plataforma** (seção 6): estacionar ou ignorar. Recomendo estacionar.
+
+---
+
+**Atualização (25/11, Claude Code #3 + Pedro):** o bucket `s3_app` (valor de `SUPABASE_STORAGE_BUCKET` em DEV) **já foi criado pelo Pedro em 25/11** e está funcionando — a importação gravou arquivos nele em 25/11 00:36 (prova no painel do Supabase, projeto DEV). A falha registrada era do relatório de **24/11**, anterior à criação do bucket. **Nada mais a mudar no Supabase.** Destrava: regerar o relatório (ou "Try again") agora grava; para o conteúdo não sair vazio, depende do seed de dados do programa do inspetor (em preparação). Fly DEV inalterado: o segredo já aponta para `s3_app`.
