@@ -30,7 +30,7 @@ describe('NotificationClassChip', () => {
   it('has a descriptive title attribute for TRANSACTIONAL', () => {
     render(<NotificationClassChip notificationClass="TRANSACTIONAL" />);
     const chip = screen.getByText('Transactional');
-    expect(chip.getAttribute('title')).toContain('cannot opt out');
+    expect(chip.getAttribute('title')).toContain('Always delivered');
   });
 
   it('accepts custom className prop', () => {

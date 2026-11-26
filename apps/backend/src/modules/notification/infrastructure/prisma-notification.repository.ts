@@ -64,9 +64,10 @@ function buildWhereClause(filters: NotificationFilters): Record<string, unknown>
 /**
  * Rows that never reached the recipient must not satisfy "already sent".
  *
- * `SKIPPED_OPT_OUT` covers both suppression reasons — recipient consent
- * (`CONSENT_OPT_OUT`) and the per-agency occupant switch
- * (`AGENCY_TENANT_NOTIFICATIONS_DISABLED`). Counting them made the dedupe permanent:
+ * `SKIPPED_OPT_OUT` covers the per-agency occupant switch
+ * (`AGENCY_TENANT_NOTIFICATIONS_DISABLED`) and non-notifying flow types, plus any
+ * legacy `CONSENT_OPT_OUT` rows (the consent opt-out read was removed — decision 45).
+ * Counting them made the dedupe permanent:
  * an agency that blocks tenant notifications and later re-enables them would never get
  * the initial notice or the reminders re-dispatched, and `RetryNotificationUseCase`
  * cannot replay them either (`canBeRetried()` accepts FAILED only).
