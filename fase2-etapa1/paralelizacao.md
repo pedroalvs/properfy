@@ -1,6 +1,6 @@
 # Fase 2 · Etapa 1 — Paralelização do time (6 pessoas)
 
-**Base:** dependências entre tarefas (bloco "Dependências de execução" no topo de cada tarefa em `tarefas/*-tarefas.md`) e estimativas em dias-dev, versão de 2026-10-29. A F10 está em espera e é **independente**; quando o cliente validar, ela entra na pista E.
+**Base:** dependências entre tarefas (bloco "Dependências de execução" no topo de cada tarefa em `tarefas/*-tarefas.md`) e estimativas em dias-dev, versão de 2026-10-29. A F10 (arquivos + aditivo de issues, 13,5 dias, decisões fechadas em 2026-10-30) fica na pista E, depois da F03-2 e da X01.
 
 ## Resumo
 
@@ -9,7 +9,7 @@
 | 1 pessoa | ~118 dias (~24 semanas) |
 | 3 pessoas | ~52 dias (~10,5 semanas) |
 | 4 pessoas | ~45 dias (~9 semanas) |
-| **6 pessoas (este plano)** | **~35 dias (~7 semanas)** |
+| **6 pessoas (este plano)** | **~36 dias (~7 semanas)** |
 
 Somar a homologação com o cliente (~15%) e as pausas de deploy entre as ondas.
 
@@ -17,7 +17,7 @@ Somar a homologação com o cliente (~15%) e as pausas de deploy entre as ondas.
 
 **Caminho crítico com par:**
 
-`X00 → F03-1 → [F03-2 → F04-1] → (espera F02-1) → [F04-2 → F07-1] → F07-2 → [F08-1] → F08-3 → F08-4`
+`X00 → F03-1 → [F03-2 → F04-1] → (espera F02-1) → [F04-2 → F07-1] → F07-2 → [F08-1] → F08-3 → F08-6 → (F08-4 ‖ F08-5)`
 
 `[ ]` = em par (A + A2).
 
@@ -30,7 +30,7 @@ Somar a homologação com o cliente (~15%) e as pausas de deploy entre as ondas.
 | **B · Backend de integração** | Backend | Geocodificação, inspetor, avisos/push, previsão de horário, API do Dia ao Vivo |
 | **C · PWA** | Frontend mobile | E2E do PWA, app do inspetor, Tela do Dia, mapa, tour, Challenges |
 | **D · Web** | Frontend web | Navegação, janela do mapa, telas admin, desempenho, metas |
-| **E · Full-stack / QA** | Full-stack | Densidade (ponta a ponta), tela do Dia ao Vivo, **F10 quando liberada**, QA ponta a ponta das ondas |
+| **E · Full-stack / QA** | Full-stack | Densidade (ponta a ponta), tela do Dia ao Vivo, **F10 (arquivos + issues)**, QA ponta a ponta das ondas |
 
 ## Sequência por pista (dia de início → fim)
 
@@ -48,6 +48,7 @@ Somar a homologação com o cliente (~15%) e as pausas de deploy entre as ondas.
 | F07-2 · Snapshot e API do índice | 21,7 → 24,1 |
 | F08-1 · Metas e prêmios (backend) *(em par com A2)* | 24,1 → 28,7 |
 | F08-2 · Acesso antecipado | 28,7 → 30,5 |
+| F08-6 · Bônus no financeiro (aditivo Q12) | 31,0 → 34,5 |
 
 **A2 · Backend em par**
 
@@ -80,7 +81,7 @@ Somar a homologação com o cliente (~15%) e as pausas de deploy entre as ondas.
 | F04-3 · Navegação, Tela do Dia, base do dia | 19,5 → 23,25 |
 | F04-4 · Mapa do roteiro + reordenação | 23,25 → 26,5 |
 | F04-3b · Tour do app + E2E | 26,5 → 28,75 |
-| F08-4 · Challenges no PWA + mensagens | 31,2 → 34,7 |
+| F08-4 · Challenges no PWA + mensagens *(merge depois da F08-6, por causa da copy do bônus)* | 31,0 → 34,5 (merge ~34,7) |
 
 **D · Web**
 
@@ -93,8 +94,8 @@ Somar a homologação com o cliente (~15%) e as pausas de deploy entre as ondas.
 | F03-4 · Bloco de execução, alerta do motivo, Platform settings | 14,75 → 16,75 |
 | F04-5 · Duração do tipo de serviço + pesos da rota | 19,2 → 20,4 |
 | F07-3 · Página "Inspector performance" | 24,1 → 26,4 |
-| F08-3 · Metas e prêmios (web) | 28,7 → 31,2 |
-| F08-5 · Relatório do programa | 31,2 → 32,5 |
+| F08-3 · Metas e prêmios (web) | 28,7 → 31,0 |
+| F08-5 · Relatório do programa *(depende da F08-6)* | 34,5 → 35,8 |
 
 **E · Full-stack / QA**
 
@@ -102,8 +103,8 @@ Somar a homologação com o cliente (~15%) e as pausas de deploy entre as ondas.
 |---|---|
 | F09-1 · API de densidade | 7,5 → 9,2 |
 | F09-2 · Camada de densidade no `/map` | 9,2 → 10,9 |
-| **F10 · Anexos e mídias** (10 dias), **se o cliente liberar** | 10,9 → ~21 |
-| *(sem F10: QA ponta a ponta das ondas 1–3 em iOS/Android/web, revisão de PRs)* | 10,9 → 27,9 |
+| **F10 · Arquivos do imóvel e issues** (13,5 dias: 6,5 C + 7 aditivo) | 10,9 → 24,4 |
+| *(QA ponta a ponta das ondas 1–3 em iOS/Android/web, revisão de PRs)* | 24,4 → 27,9 |
 | F05-2 · Tela Dia ao Vivo | 27,9 → 33,7 |
 | F05-3 · Locked time + limites de alerta | 33,7 → 34,9 |
 
@@ -119,7 +120,8 @@ Somar a homologação com o cliente (~15%) e as pausas de deploy entre as ondas.
 | 13,0 | **F02-1** | **F04-2**, F02-2/3, lembrete da F03 |
 | 19,2 | **F04-2** (plano do dia) | F04-3/4/5, F05, F06, F07 |
 | 24,1 | **F07-2** | F07-3, F08-1 |
-| 28,7 | **F08-1** | F08-2/3/4/5 |
+| 28,7 | **F08-1** | F08-2/3/4 |
+| 34,5 | **F08-6** (bônus no financeiro) | F08-5 e o merge da F08-4 |
 
 ## Atenção especial
 
@@ -147,7 +149,7 @@ Somar a homologação com o cliente (~15%) e as pausas de deploy entre as ondas.
 3. **Onda 2:** F03-2 → (F09-1 → F09-2) ‖ F02-1 → (F02-2 ‖ F02-3 ‖ F03-3 ‖ F03-4 ‖ X02-2)
 4. **Onda 3:** F04-1 → F04-2 → (F04-5 ‖ F04-3 → F04-4 → F04-3b)
 5. **Onda 4:** F06-1 → (F05-1 → F05-2 → F05-3) ‖ F06-2
-6. **Onda 5:** F07-1 → F07-2 → (F07-3 ‖ F08-1) → F08-2 ‖ F08-3 → (F08-4 ‖ F08-5)
+6. **Onda 5:** F07-1 → F07-2 → (F07-3 ‖ F08-1) → F08-2 ‖ F08-3 → F08-6 → (F08-4 ‖ F08-5)
 
 `‖` = em paralelo.
 
