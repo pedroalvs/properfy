@@ -123,3 +123,12 @@ Data: 25/11/2026. A aba aberta do PWA fica na versão antiga até o usuário atu
 ## [Estacionado — decisão 46 / O-22] Trava contra TENANT_DEBIT/REFUND com inspetor (domínio ou CHECK no banco)
 
 Data: 25/11/2026. Decisão 46 do Pedro: NÃO adicionar agora. O O-22 (débito de agência sumia do extrato por ter inspector_id preenchido) é corrigido SÓ no seed (inspector_id null nos 3 débitos fe1/fe3/fe8 + o upsert passa a atualizar inspector_id p/ nulo nas linhas existentes). A trava OPCIONAL fica ESTACIONADA: (a) no domínio, FinancialEntryEntity recusar TENANT_DEBIT/REFUND com inspectorId preenchido; e/ou (b) CHECK no banco `entry_type NOT IN ('TENANT_DEBIT','REFUND') OR inspector_id IS NULL`. O CHECK só pode entrar DEPOIS da consulta read-only (§3 do investigacao-o22) dar ZERO em staging e produção (senão a migration falha no deploy). Contagem do Pedro: produção 22 débitos de agência, todos SEM inspetor; staging tem os mesmos 3 do seed. Sem PR agora. NÃO mexer no filtro do extrato (excludeInspectorScoped fica).
+
+
+## [Estacionado sem PR — onda pos-validacao] O-24: aba Notifications traduz CONSENT_OPT_OUT e nao traduz MARKETING_NOT_SENT
+
+Data: 26/11/2026. SO CODIGO, nada visivel hoje. A aba Notifications do agendamento ainda tem rotulo/traducao para o motivo CONSENT_OPT_OUT (historico, linhas antigas) e NAO tem rotulo para o novo MARKETING_NOT_SENT (introduzido no PR-2 da remocao da recusa, #1419). Como nenhuma linha MARKETING_NOT_SENT aparece hoje (marketing bloqueado na criacao; so chegaria por linha legada), nada visivel ao usuario. Follow-up: manter o rotulo historico de CONSENT_OPT_OUT e acrescentar rotulo p/ MARKETING_NOT_SENT (regra no raw ids in UI). Sem PR agora.
+
+## [Estacionado sem PR — onda pos-validacao] O-25: toast "Email sent to tenant" quando sai e-mail E SMS
+
+Data: 26/11/2026. Quando o envio dispara e-mail E SMS ao inquilino, o toast diz so "Email sent to tenant", sem mencionar o SMS. Ajustar a copy do toast p/ refletir os dois canais (ex. "Notification sent to tenant" ou mencionar e-mail + SMS). Sem PR agora.
