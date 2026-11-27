@@ -43,6 +43,7 @@ function makeStop(overrides: Partial<DayPlanStop> = {}): DayPlanStop {
     keyRequired: false,
     meetingLocation: null,
     rentalTenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantNote: null,
     primaryContact: { name: 'Jane Doe', phone: '+61412345678', role: 'RENTAL_TENANT' },
     ...overrides,
   };
@@ -89,7 +90,7 @@ function makeRenderer(pdf?: IDayPlanSheetPdfGenerator): DayPlanSheetRenderer {
 }
 
 describe('buildDayPlanSheetRows', () => {
-  it('maps a stop to the seven route-sheet columns', () => {
+  it('maps a stop to the route-sheet columns', () => {
     const [row] = buildDayPlanSheetRows(makePlan());
     expect(row!).toMatchObject({
       seq: 1,
@@ -97,9 +98,25 @@ describe('buildDayPlanSheetRows', () => {
       eta: '08:00',
       address: '12 King St, Surry Hills NSW 2010',
       service: 'Routine',
+      agency: 'Acme Realty',
       contact: 'Jane Doe · 0412 345 678',
       key: 'No',
+      notes: '—',
     });
+  });
+
+  it('renders the tenant observation in the notes column', () => {
+    const [row] = buildDayPlanSheetRows(
+      makePlan({ stops: [makeStop({ rentalTenantNote: 'Call 30 minutes before' })] }),
+    );
+    expect(row!.notes).toBe('Call 30 minutes before');
+  });
+
+  it('shows an em dash when there is no tenant note', () => {
+    const [row] = buildDayPlanSheetRows(
+      makePlan({ stops: [makeStop({ rentalTenantNote: null })] }),
+    );
+    expect(row!.notes).toBe('—');
   });
 
   it('renders a key requirement with the meeting location', () => {
@@ -202,15 +219,27 @@ describe('DayPlanSheetRenderer — XLSX', () => {
     expect(ws).toBeDefined();
     const headerRow = findHeaderRow(ws!);
     expect(headerRow).toBeGreaterThan(0);
-    expect(cellStrings(ws!, headerRow)).toEqual(['#', 'Window', 'ETA', 'Address', 'Service', 'Contact', 'Key']);
+    expect(cellStrings(ws!, headerRow)).toEqual([
+      '#',
+      'Window',
+      'ETA',
+      'Address',
+      'Service',
+      'Agency',
+      'Contact',
+      'Key',
+      'Notes',
+    ]);
     expect(cellStrings(ws!, headerRow + 1)).toEqual([
       '1',
       '08:00–17:00',
       '08:00',
       '12 King St, Surry Hills NSW 2010',
       'Routine',
+      'Acme Realty',
       'Jane Doe · 0412 345 678',
       'No',
+      '—',
     ]);
   });
 

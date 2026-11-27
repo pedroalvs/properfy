@@ -114,6 +114,7 @@ function cand(appointmentId: string, suburb: string, over: Partial<DayPlanCandid
     keyRequired: true,
     meetingLocation: 'Lockbox 4321',
     rentalTenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantNote: null,
     contacts: [],
     startedAt: null,
     finishedAt: null,

@@ -83,6 +83,23 @@ describe('StopCard', () => {
     expect(screen.getByText('Location not found for this address')).toBeInTheDocument();
   });
 
+  it('shows the tenant observation when present, in both variants', () => {
+    const note = 'Call 30 minutes before arriving';
+    const { rerender } = renderWithProviders(
+      <StopCard variant="next" stop={buildStop({ rentalTenantNote: note })} />,
+    );
+    expect(screen.getByText('Tenant note:')).toBeInTheDocument();
+    expect(screen.getByText(note)).toBeInTheDocument();
+
+    rerender(<StopCard variant="row" stop={buildStop({ rentalTenantNote: note })} />);
+    expect(screen.getByText(note)).toBeInTheDocument();
+  });
+
+  it('omits the tenant note line when there is no note', () => {
+    renderWithProviders(<StopCard variant="next" stop={buildStop({ rentalTenantNote: null })} />);
+    expect(screen.queryByText('Tenant note:')).not.toBeInTheDocument();
+  });
+
   it('never nests an interactive element inside the body link', () => {
     const { container } = renderWithProviders(
       <StopCard variant="next" stop={buildStop()} />,

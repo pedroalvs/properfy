@@ -45,6 +45,7 @@ function candidate(id: string, lat: number, lng: number): DayPlanCandidate {
     keyRequired: false,
     meetingLocation: null,
     rentalTenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantNote: null,
     contacts: [{ name: 'Sam Lee', phone: '+61412345678', isPrimary: true, role: 'RENTAL_TENANT', createdAt: new Date('2026-11-01T00:00:00Z') }],
     startedAt: null,
     finishedAt: null,
@@ -209,6 +210,17 @@ describe('GetMyDayPlanUseCase', () => {
     expect(res.publishedAt).not.toBeNull();
     expect(res.inspectorName).toBe('Jane Doe');
     expect(res.stops[0]!.primaryContact).toMatchObject({ name: 'Sam Lee', role: 'RENTAL_TENANT' });
+  });
+
+  it('surfaces the rental tenant note on the stop (null when absent)', async () => {
+    reader.candidates = [
+      { ...candidate(A, -33.88, 151.1), rentalTenantNote: 'Call 30 minutes before' },
+      candidate(B, -33.9, 151.2),
+    ];
+    const res = await makeUseCase(reader, repo).execute({ inspectorId: INSPECTOR_ID, date: DATE });
+    const byId = new Map(res.stops.map((s) => [s.appointmentId, s] as const));
+    expect(byId.get(A)!.rentalTenantNote).toBe('Call 30 minutes before');
+    expect(byId.get(B)!.rentalTenantNote).toBeNull();
   });
 
   it('returns a fresh plan on the second open without recomputing', async () => {

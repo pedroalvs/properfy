@@ -54,6 +54,7 @@ function candidate(id: string, lat: number, lng: number): DayPlanCandidate {
     keyRequired: false,
     meetingLocation: null,
     rentalTenantConfirmationStatus: 'CONFIRMED',
+    rentalTenantNote: null,
     contacts: [
       { name: 'Sam Lee', phone: '+61412345678', isPrimary: true, role: 'RENTAL_TENANT', createdAt: new Date('2026-11-01T00:00:00Z') },
     ],

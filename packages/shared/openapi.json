@@ -26510,6 +26510,10 @@
                               "rentalTenantConfirmationStatus": {
                                 "type": "string"
                               },
+                              "rentalTenantNote": {
+                                "type": "string",
+                                "nullable": true
+                              },
                               "primaryContact": {
                                 "type": "object",
                                 "properties": {
@@ -26573,6 +26577,7 @@
                               "keyRequired",
                               "meetingLocation",
                               "rentalTenantConfirmationStatus",
+                              "rentalTenantNote",
                               "primaryContact"
                             ],
                             "additionalProperties": false
@@ -27247,6 +27252,10 @@
                               "rentalTenantConfirmationStatus": {
                                 "type": "string"
                               },
+                              "rentalTenantNote": {
+                                "type": "string",
+                                "nullable": true
+                              },
                               "primaryContact": {
                                 "type": "object",
                                 "properties": {
@@ -27310,6 +27319,7 @@
                               "keyRequired",
                               "meetingLocation",
                               "rentalTenantConfirmationStatus",
+                              "rentalTenantNote",
                               "primaryContact"
                             ],
                             "additionalProperties": false
@@ -28259,6 +28269,10 @@
                               "rentalTenantConfirmationStatus": {
                                 "type": "string"
                               },
+                              "rentalTenantNote": {
+                                "type": "string",
+                                "nullable": true
+                              },
                               "primaryContact": {
                                 "type": "object",
                                 "properties": {
@@ -28322,6 +28336,7 @@
                               "keyRequired",
                               "meetingLocation",
                               "rentalTenantConfirmationStatus",
+                              "rentalTenantNote",
                               "primaryContact"
                             ],
                             "additionalProperties": false
@@ -28964,6 +28979,10 @@
                               "rentalTenantConfirmationStatus": {
                                 "type": "string"
                               },
+                              "rentalTenantNote": {
+                                "type": "string",
+                                "nullable": true
+                              },
                               "primaryContact": {
                                 "type": "object",
                                 "properties": {
@@ -29027,6 +29046,7 @@
                               "keyRequired",
                               "meetingLocation",
                               "rentalTenantConfirmationStatus",
+                              "rentalTenantNote",
                               "primaryContact"
                             ],
                             "additionalProperties": false
@@ -29671,6 +29691,10 @@
                               "rentalTenantConfirmationStatus": {
                                 "type": "string"
                               },
+                              "rentalTenantNote": {
+                                "type": "string",
+                                "nullable": true
+                              },
                               "primaryContact": {
                                 "type": "object",
                                 "properties": {
@@ -29734,6 +29758,7 @@
                               "keyRequired",
                               "meetingLocation",
                               "rentalTenantConfirmationStatus",
+                              "rentalTenantNote",
                               "primaryContact"
                             ],
                             "additionalProperties": false
