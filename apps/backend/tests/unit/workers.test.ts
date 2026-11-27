@@ -78,7 +78,6 @@ describe('registerWorkers', () => {
   const mockCancelEmptyGroupsWorker = {
     execute: vi.fn().mockResolvedValue({ checkedCount: 0, cancelledCount: 0, failedCount: 0 }),
   } as any;
-  const mockFyWebhookDispatcher = { deliver: vi.fn().mockResolvedValue(undefined) } as any;
   const mockLogger = {
     info: vi.fn(),
     error: vi.fn(),
@@ -110,7 +109,6 @@ describe('registerWorkers', () => {
       mockAuditRetentionWorker,
       mockRejectUnconfirmedWorker,
       mockCancelEmptyGroupsWorker,
-      mockFyWebhookDispatcher,
       { execute: vi.fn().mockResolvedValue(undefined) } as any, // deliverInspectorNoticeUseCase
       { execute: vi.fn().mockResolvedValue(undefined) } as any, // sweepUndeliveredInspectorNoticesUseCase
       { execute: vi.fn().mockResolvedValue(undefined) } as any, // autoArchiveInspectorNoticesUseCase
@@ -135,13 +133,12 @@ describe('registerWorkers', () => {
   it('registers all workers and schedules', async () => {
     await callRegister();
 
-    expect(mockWork).toHaveBeenCalledTimes(33);
+    expect(mockWork).toHaveBeenCalledTimes(32);
     expect(mockWork).toHaveBeenCalledWith('inspector-program.daily', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('day-plan.publish', { teamSize: 1, teamConcurrency: 1 }, expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('tenant-eta.morning', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('tenant-eta.evaluate', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('tenant-eta.sweep-delays', { teamSize: 1, teamConcurrency: 1 }, expect.any(Function));
-    expect(mockWork).toHaveBeenCalledWith('fy.webhook.deliver', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('inspector-notice.deliver', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('report.generate', expect.any(Function));
     expect(mockWork).toHaveBeenCalledWith('notification.send', expect.any(Function));

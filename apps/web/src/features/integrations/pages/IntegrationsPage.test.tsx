@@ -49,7 +49,6 @@ describe('IntegrationsPage', () => {
         makeDetail('resend'),
         makeDetail('mobile_message'),
         makeDetail('mapbox', 'env'),
-        makeDetail('fy_webhook', 'none'),
       ],
       isLoading: false,
       isError: false,
@@ -70,14 +69,12 @@ describe('IntegrationsPage', () => {
     expect(screen.getByRole('link', { name: /Resend/ })).toHaveAttribute('href', '/integrations/resend');
     expect(screen.getByRole('link', { name: /MobileMessage/ })).toHaveAttribute('href', '/integrations/mobile-message');
     expect(screen.getByRole('link', { name: /Mapbox/ })).toHaveAttribute('href', '/integrations/mapbox');
-    expect(screen.getByRole('link', { name: /Fy Agent Webhook/ })).toHaveAttribute('href', '/integrations/fy-webhook');
   });
 
   it('shows the configuration status on each tile', () => {
     renderPage();
     expect(screen.getAllByText('Configured (hub)')).toHaveLength(2);
     expect(screen.getByText('Configured (environment)')).toBeInTheDocument();
-    expect(screen.getByText('Not configured')).toBeInTheDocument();
   });
 
   it('shows the Fy integration tile with the active key count on the API Keys tab', async () => {
