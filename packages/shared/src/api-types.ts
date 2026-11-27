@@ -18025,7 +18025,7 @@ export interface paths {
                          */
                         role?: "AM" | "OP";
                         /** @default [] */
-                        scopes?: "bot:fy"[];
+                        scopes?: ("bot:fy" | "bot:mail")[];
                         /** Format: date-time */
                         expiresAt?: string | null;
                     };

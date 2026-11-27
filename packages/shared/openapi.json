@@ -44734,7 +44734,8 @@
                     "items": {
                       "type": "string",
                       "enum": [
-                        "bot:fy"
+                        "bot:fy",
+                        "bot:mail"
                       ]
                     },
                     "maxItems": 10,

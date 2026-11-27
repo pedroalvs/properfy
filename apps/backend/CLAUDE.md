@@ -221,6 +221,14 @@ When you add a new module, follow this same structure.
 - Audit: login, failure, lock, revoke, refresh, password change.
 - Rate limiting on auth endpoints: per-route `rateLimit` config in `auth/interfaces/auth.routes.ts` (see `docs/runbooks/auth-and-sessions.md`).
 
+### Inbound API keys & scopes
+
+Inbound machine access uses the `api_keys` table + the `X-API-Key` header (`createApiKeyAuthMiddleware`, `shared/interfaces/`), which builds a machine `AuthContext` (`userId: 'api-key:<id>'`, cross-tenant `role` AM/OP, `tenantId: null`, `scopes`). Scopes are the shared `apiKeyScopeSchema` enum (`packages/shared/src/schemas/api-key.ts`): `bot:fy` (Fy agent) and `bot:mail` (Mail Bot - AutoLabs). `POST /v1/api-keys` (AM-only) passes `scopes` straight through — no per-route restriction.
+
+Two scope-gate styles:
+- **`requireScope(scope)`** — unconditional, so the route is **machine-only** (JWT principals never carry scopes). Used by the Fy routes (`/v1/integrations/fy/*`).
+- **`requireScopeIfMachine(scope)`** (`shared/interfaces/require-scope-if-machine.ts`) — enforces the scope **only for machine principals**, so a human JWT keeps its normal RBAC. Used to let the **Mail Bot** key read the existing human GET routes **`GET /v1/appointments`**, **`GET /v1/contacts`** and **`GET /v1/contacts/:contactId`** (read-only). Those routes compose `createApiKeyAuthMiddleware(apiKeyRepo, authenticate)` + `requireScopeIfMachine(MAIL_BOT_SCOPE)` only when `apiKeyRepo` is wired into the route container (optional field, so JWT-only route tests need not provide it). The Mail Bot key is confined to those three GETs by construction — every other route is plain-JWT and 401s an `X-API-Key`-only request.
+
 ### Multi-tenant enforcement
 
 1. Extract `tenantId` from JWT in middleware.

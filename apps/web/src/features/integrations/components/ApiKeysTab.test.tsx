@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { ApiKeysTab } from './ApiKeysTab';
+import { MAIL_KEY_TYPE } from './machineKeyType';
 
 // The component resolves "today"/instants in the user's effective timezone;
 // pin it to the platform default so these tests stay deterministic.
@@ -119,5 +120,41 @@ describe('ApiKeysTab', () => {
     expect(await screen.findByText('Revoke API key')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Revoke' }));
     expect(mockRevokeMutateAsync).toHaveBeenCalledWith(activeKey.id);
+  });
+});
+
+describe('ApiKeysTab — Mail Bot key type', () => {
+  const mailKey = {
+    ...activeKey,
+    id: 'mail-1',
+    name: 'Mail Bot production',
+    prefix: 'pfy_mail1234',
+    scopes: ['bot:mail'],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // A Fy key and a Mail Bot key coexist in the shared /v1/api-keys list.
+    mockUseApiKeys.mockReturnValue({ data: [activeKey, mailKey], isLoading: false });
+  });
+
+  it('lists only the Mail Bot keys, not the Fy ones', () => {
+    render(<ApiKeysTab keyType={MAIL_KEY_TYPE} />);
+    expect(screen.getByText('Mail Bot production')).toBeInTheDocument();
+    expect(screen.queryByText('Fy production')).not.toBeInTheDocument();
+  });
+
+  it('creates keys with the bot:mail scope via the "New Mail Bot key" button', async () => {
+    const user = userEvent.setup();
+    mockCreateMutateAsync.mockResolvedValue({ ...mailKey, key: 'pfy_onetimesecret' });
+    render(<ApiKeysTab keyType={MAIL_KEY_TYPE} />);
+
+    await user.click(screen.getByRole('button', { name: 'New Mail Bot key' }));
+    fireEvent.change(screen.getByLabelText('API key name'), { target: { value: 'Mail Bot production' } });
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Mail Bot production', role: 'OP', scopes: ['bot:mail'], expiresAt: null }),
+    );
   });
 });

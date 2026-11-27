@@ -6,7 +6,16 @@ import {
   apiKeyCreatedSchema,
   apiKeyListSchema,
   apiKeyResponseSchema,
+  FY_AGENT_SCOPE,
+  MAIL_BOT_SCOPE,
 } from './api-key';
+
+describe('scope constants', () => {
+  it('expose the canonical scope strings', () => {
+    expect(FY_AGENT_SCOPE).toBe('bot:fy');
+    expect(MAIL_BOT_SCOPE).toBe('bot:mail');
+  });
+});
 
 describe('apiKeyCreateSchema', () => {
   it('defaults role to OP', () => {
@@ -31,6 +40,7 @@ describe('apiKeyCreateSchema', () => {
   it('defaults scopes to empty and rejects unknown scopes', () => {
     expect(apiKeyCreateSchema.parse({ name: 'n8n' }).scopes).toEqual([]);
     expect(apiKeyCreateSchema.parse({ name: 'fy', scopes: ['bot:fy'] }).scopes).toEqual(['bot:fy']);
+    expect(apiKeyCreateSchema.parse({ name: 'mail', scopes: ['bot:mail'] }).scopes).toEqual(['bot:mail']);
     expect(apiKeyCreateSchema.safeParse({ name: 'x', scopes: ['bot:other'] }).success).toBe(false);
   });
 
