@@ -119,6 +119,13 @@ describe('buildDayPlanSheetRows', () => {
     expect(row!.notes).toBe('—');
   });
 
+  it('treats an empty-string note as no note (em dash, not a blank cell)', () => {
+    const [row] = buildDayPlanSheetRows(
+      makePlan({ stops: [makeStop({ rentalTenantNote: '' })] }),
+    );
+    expect(row!.notes).toBe('—');
+  });
+
   it('renders a key requirement with the meeting location', () => {
     const [row] = buildDayPlanSheetRows(
       makePlan({ stops: [makeStop({ keyRequired: true, meetingLocation: 'Front desk' })] }),

@@ -120,7 +120,7 @@ export function buildDayPlanSheetRows(plan: DayPlanResponse): Record<string, unk
       agency: stop.agencyName,
       contact,
       key,
-      notes: stop.rentalTenantNote ?? EM_DASH,
+      notes: stop.rentalTenantNote || EM_DASH,
     };
   });
 }
