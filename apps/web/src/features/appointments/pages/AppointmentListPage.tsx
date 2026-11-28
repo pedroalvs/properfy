@@ -10,6 +10,7 @@ import { AppointmentTable } from '../components/AppointmentTable';
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { AppointmentBulkActionBar } from '../components/AppointmentBulkActionBar';
 import { BulkEditModal } from '../components/BulkEditModal';
+import { MoveToGroupModal } from '../components/MoveToGroupModal';
 import { useAppointmentList } from '../hooks/useAppointmentList';
 import {
   useServiceTypeFilterOptions,
@@ -48,6 +49,7 @@ export function AppointmentListPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [moveToGroupOpen, setMoveToGroupOpen] = useState(false);
   // View preference, not a filter — deliberately local rather than in the URL,
   // so a shared link carries the data selection without the reader's layout.
   const [showExtraColumns, setShowExtraColumns] = useState(false);
@@ -157,6 +159,8 @@ export function AppointmentListPage() {
           canBulkResend={canBulkResend}
           onBulkResend={bulkResend.resend}
           resendPending={bulkResend.isPending}
+          canMoveToGroup={canPerform('appointment.move_to_group')}
+          onMoveToGroup={() => setMoveToGroupOpen(true)}
         />
       )}
       <BulkEditModal
@@ -165,6 +169,18 @@ export function AppointmentListPage() {
         onClose={() => setBulkEditOpen(false)}
         onSuccess={() => {
           setBulkEditOpen(false);
+          setSelectedIds([]);
+          refetch();
+        }}
+      />
+      <MoveToGroupModal
+        open={moveToGroupOpen}
+        onClose={() => setMoveToGroupOpen(false)}
+        appointments={data
+          .filter((a) => selectedIds.includes(a.id))
+          .map((a) => ({ id: a.id, code: String(a.appointmentNumber), scheduledDate: a.scheduledDate }))}
+        onSuccess={() => {
+          setMoveToGroupOpen(false);
           setSelectedIds([]);
           refetch();
         }}

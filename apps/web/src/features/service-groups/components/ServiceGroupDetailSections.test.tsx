@@ -11,6 +11,14 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+// The member-row "Move" action reads the shared role matrix via usePermissions
+// (→ useAuth, which needs an AuthProvider). Mock it so these component-level tests
+// render without the full auth context.
+const mockCanPerform = vi.fn().mockReturnValue(false);
+vi.mock('@/hooks/usePermissions', () => ({
+  usePermissions: () => ({ canPerform: mockCanPerform, hasRole: () => false, hasClUserFlag: () => false }),
+}));
+
 function makeAppointment(overrides: Partial<ServiceGroupAppointment> = {}): ServiceGroupAppointment {
   return {
     id: 'apt-01',

@@ -38,6 +38,7 @@ import { AppointmentTransitionActions } from '../components/AppointmentTransitio
 import { AppointmentFormDrawer } from '../components/AppointmentFormDrawer';
 import { AssignInspectorModal } from '../components/AssignInspectorModal';
 import { ForceConfirmDialog } from '../components/ForceConfirmDialog';
+import { MoveToGroupModal } from '../components/MoveToGroupModal';
 import { TenantAvailabilityDialog } from '../components/TenantAvailabilityDialog';
 import { AppointmentPortalActivityTab } from '../components/AppointmentPortalActivityTab';
 import { AppointmentSatisfactionSection } from '../components/AppointmentSatisfactionSection';
@@ -84,6 +85,7 @@ export function AppointmentDetailPage() {
   const [assignInspectorOpen, setAssignInspectorOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [forceConfirmOpen, setForceConfirmOpen] = useState(false);
+  const [moveToGroupOpen, setMoveToGroupOpen] = useState(false);
   const [tenantAvailabilityOpen, setTenantAvailabilityOpen] = useState(false);
   const { remove, isDeleting } = useDeleteAppointment(id ?? null, () => navigate('/appointments'));
   const { forceConfirm } = useForceConfirmation(id ?? null, refetch);
@@ -182,6 +184,15 @@ export function AppointmentDetailPage() {
     appointment.status !== 'DONE' &&
     appointment.status !== 'CANCELLED' &&
     appointment.status !== 'REJECTED';
+
+  // Move to another group — only for an appointment already in a group, in a movable
+  // status, by an operator. The backend rejects a non-active source group.
+  const canMoveToGroup = !!appointment &&
+    canPerform('appointment.move_to_group') &&
+    !!appointment.serviceGroupId &&
+    (appointment.status === 'DRAFT' ||
+      appointment.status === 'AWAITING_INSPECTOR' ||
+      appointment.status === 'SCHEDULED');
 
   // Recording what the tenant said is data entry, so the agency admin may do it
   // too. Declining on their behalf is not: every `→ REJECTED` edge in the state
@@ -420,6 +431,16 @@ export function AppointmentDetailPage() {
               Force Confirm
             </Button>
           )}
+          {canMoveToGroup && (
+            <Button
+              variant="outlined"
+              onClick={() => setMoveToGroupOpen(true)}
+              data-testid="move-to-group-button"
+            >
+              <i className="mdi mdi-folder-move-outline text-base" aria-hidden="true" />
+              Move to group
+            </Button>
+          )}
           {canSetTenantAvailability && (
             <Button
               variant="outlined"
@@ -581,6 +602,21 @@ export function AppointmentDetailPage() {
           onClose={() => setTenantAvailabilityOpen(false)}
           onSaved={() => {
             setTenantAvailabilityOpen(false);
+            refetch();
+          }}
+        />
+      )}
+      {appointment && (
+        <MoveToGroupModal
+          open={moveToGroupOpen}
+          onClose={() => setMoveToGroupOpen(false)}
+          appointments={[{
+            id: appointment.id,
+            code: String(appointment.appointmentNumber),
+            scheduledDate: appointment.scheduledDate,
+          }]}
+          onSuccess={() => {
+            setMoveToGroupOpen(false);
             refetch();
           }}
         />
