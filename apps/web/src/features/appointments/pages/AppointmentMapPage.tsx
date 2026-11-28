@@ -32,6 +32,7 @@ import { MapLassoToggleButton } from '@/components/map/MapLassoToggleButton';
 import { ExecutionDensityControl } from '../components/ExecutionDensityControl';
 import { MapBulkActionModal } from '../components/MapBulkActionModal';
 import { MapAddToGroupSubModal } from '../components/MapAddToGroupSubModal';
+import { MoveToGroupModal } from '../components/MoveToGroupModal';
 import { AppointmentMapDetailPanel } from '../components/AppointmentMapDetailPanel';
 import { MapUnplottableWarning, type UnplottableEntry } from '../components/MapUnplottableWarning';
 import { GroupMapDetailPanel } from '../components/GroupMapDetailPanel';
@@ -288,7 +289,7 @@ export function AppointmentMapPage() {
 
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { hasRole } = usePermissions();
+  const { hasRole, canPerform } = usePermissions();
   const tenantId = user?.tenantId ?? null;
   const isGlobalRole = hasRole('AM', 'OP');
 
@@ -336,6 +337,8 @@ export function AppointmentMapPage() {
   // 026 §FR-510 — Add-to-group sub-modal seeded from the bulk modal footer.
   const [addToGroupOpen, setAddToGroupOpen] = useState(false);
   const [addToGroupSeedIds, setAddToGroupSeedIds] = useState<string[]>([]);
+  // Group drill-down "Move to another group" seed ids (empty = closed).
+  const [moveToGroupSeedIds, setMoveToGroupSeedIds] = useState<string[]>([]);
   // T-C4-4 — tracks bulk modal width so flyTo can pad right by modalWidth+32
   // to keep the focused marker visible beside the modal.
   const [bulkModalWidth, setBulkModalWidth] = useState(() => Math.round(window.innerWidth * 0.6));
@@ -1461,6 +1464,9 @@ export function AppointmentMapPage() {
         // Hidden in this context, but the props are required.
         onAddToGroup={() => {}}
         onCreateGroup={() => {}}
+        // Group drill-down: members already belong to this group, so offer moving
+        // the selected ones to a different active group (AM/OP only).
+        onMoveToGroup={canPerform('appointment.move_to_group') ? (ids) => setMoveToGroupSeedIds(ids) : undefined}
         onOpenDetailPanel={(id) => {
           const item = groupAppointments.find((a) => a.id === id) ?? null;
           if (!item) return;
@@ -1498,6 +1504,23 @@ export function AppointmentMapPage() {
           queryClient.invalidateQueries({ queryKey: ['service-groups'] });
           setLassoSelectedIds([]);
           setLassoState('idle');
+        }}
+      />
+
+      {/* Move members of the drilled-in group to a different active group. */}
+      <MoveToGroupModal
+        open={moveToGroupSeedIds.length > 0}
+        onClose={() => setMoveToGroupSeedIds([])}
+        appointments={moveToGroupSeedIds
+          .map((id) => groupAppointments.find((a) => a.id === id))
+          .filter(Boolean)
+          .map((a) => ({ id: a!.id, code: a!.code, scheduledDate: a!.scheduledDate }))}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['appointments-by-group'] });
+          queryClient.invalidateQueries({ queryKey: ['service-groups-map'] });
+          queryClient.invalidateQueries({ queryKey: ['service-groups'] });
+          queryClient.invalidateQueries({ queryKey: ['appointments-map'] });
+          void refetchGroupAppointments();
         }}
       />
 

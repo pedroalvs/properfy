@@ -63,6 +63,8 @@ interface MapBulkActionModalProps {
   /** Launchers for the two group sub-modals. The page owns those modals so map state stays consolidated. */
   onAddToGroup: (selectedIds: string[]) => void;
   onCreateGroup: (selectedIds: string[]) => void;
+  /** When provided, shows a "Move to another group" footer button (the group drill-down). */
+  onMoveToGroup?: (selectedIds: string[]) => void;
   /** 026 §FR-560 — click an appointment code pill → open detail panel for that id. */
   onOpenDetailPanel?: (appointmentId: string) => void;
   /** Optional callback after a bulk action finishes; useful for the page to invalidate queries / drop the polygon. */
@@ -149,6 +151,7 @@ export function MapBulkActionModal({
   clUserFlags,
   onAddToGroup,
   onCreateGroup,
+  onMoveToGroup,
   onOpenDetailPanel,
   onActionComplete,
   onResize,
@@ -646,6 +649,18 @@ export function MapBulkActionModal({
                           Create group ({checkedIds.size})
                         </button>
                       </>
+                    )}
+                    {/* Group drill-down: rows already belong to a group, so instead of
+                        add/create we offer moving them to a different active group. */}
+                    {onMoveToGroup && (
+                      <button
+                        type="button"
+                        onClick={() => onMoveToGroup(Array.from(checkedIds))}
+                        className="rounded border border-real-estate px-4 py-2 text-sm font-semibold text-real-estate hover:bg-real-estate/5"
+                        data-testid="bulk-modal-footer-move-to-group"
+                      >
+                        Move to another group
+                      </button>
                     )}
                   </>
                 )}

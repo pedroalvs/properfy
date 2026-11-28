@@ -6,6 +6,9 @@ interface AppointmentBulkActionBarProps {
   canBulkResend?: boolean;
   onBulkResend?: () => void;
   resendPending?: boolean;
+  /** Show a "Move to group" action (AM/OP). Omit to hide it. */
+  canMoveToGroup?: boolean;
+  onMoveToGroup?: () => void;
 }
 
 /**
@@ -25,6 +28,8 @@ export function AppointmentBulkActionBar({
   canBulkResend = false,
   onBulkResend,
   resendPending = false,
+  canMoveToGroup = false,
+  onMoveToGroup,
 }: AppointmentBulkActionBarProps) {
   if (selectedCount === 0) return null;
 
@@ -48,6 +53,16 @@ export function AppointmentBulkActionBar({
           >
             <i className="mdi mdi-email-send-outline text-base" />
             Re-send reminder ({selectedCount})
+          </button>
+        ) : null}
+        {canMoveToGroup && onMoveToGroup ? (
+          <button
+            onClick={onMoveToGroup}
+            className="inline-flex h-9 items-center gap-2 rounded border border-real-estate px-4 text-sm font-semibold text-real-estate hover:bg-real-estate/10"
+            data-testid="bulk-move-to-group"
+          >
+            <i className="mdi mdi-folder-move-outline text-base" />
+            Move to group ({selectedCount})
           </button>
         ) : null}
         <button
