@@ -37,6 +37,15 @@ import type { ContactSearchResult } from '../hooks/useContactSearch';
 import { formatAuPhone } from '@/lib/phone-mask';
 import { PropertyFormDrawer } from '@/features/properties/components/PropertyFormDrawer';
 import { usePropertyCreated } from '../hooks/usePropertyCreated';
+import { useAccessLocationPresets } from '../hooks/useAccessLocationPresets';
+
+type MeetingLocationMode = 'CUSTOM' | 'PROPERTY' | 'AGENCY';
+
+const MEETING_LOCATION_LABELS: Record<MeetingLocationMode, string> = {
+  PROPERTY: 'At the property',
+  AGENCY: 'At the agency office',
+  CUSTOM: 'Custom address',
+};
 
 const CONTACT_ROLE_OPTIONS = [
   { value: AppointmentContactRole.RENTAL_TENANT, label: 'Tenant' },
@@ -143,13 +152,23 @@ export function AppointmentFormDrawer({
   const [showConfirm, setShowConfirm] = useState(false);
   const [propertyDrawerOpen, setPropertyDrawerOpen] = useState(false);
   const [showCrossCheckConfirm, setShowCrossCheckConfirm] = useState(false);
+  // UI-only: which "Meeting Location" source the operator picked. Never sent to
+  // the API — `meetingLocation` is persisted as a plain string snapshot (a
+  // preset writes the resolved address text). Edit mode cannot recover the
+  // original mode from a stored string, so it always opens as CUSTOM with the
+  // stored text preserved (see apps/web/CLAUDE.md §12).
+  const [meetingLocationMode, setMeetingLocationMode] = useState<MeetingLocationMode>('CUSTOM');
 
   // In edit mode, derive tenantId from the loaded appointment so branch/property options load
   const effectiveTenantId = isGlobalRole
     ? (selectedTenantId || (isEditMode && appointment?.tenantId) || '')
     : undefined;
 
-  const { options: branchApiOptions } = useFormOptions<{ id: string; name: string }>(
+  const { options: branchApiOptions, items: branchItems } = useFormOptions<{
+    id: string;
+    name: string;
+    addressJson: unknown;
+  }>(
     ['branches', 'form-options', effectiveTenantId ?? ''],
     '/v1/branches',
     (item) => ({ value: item.id, label: item.name }),
@@ -168,7 +187,15 @@ export function AppointmentFormDrawer({
     { status: 'ACTIVE' },
     { enabled: canAssignRole },
   );
-  const { options: propertyApiOptions } = useFormOptions<{ id: string; street: string; propertyCode: string }>(
+  const { options: propertyApiOptions, items: propertyItems } = useFormOptions<{
+    id: string;
+    street: string;
+    propertyCode: string;
+    suburb?: string;
+    state?: string;
+    postcode?: string;
+    country?: string;
+  }>(
     ['properties', 'form-options', effectiveTenantId ?? '', 'branch', form.branchId],
     '/v1/properties',
     (item) => ({ value: item.id, label: `${item.propertyCode} - ${item.street}` }),
@@ -273,6 +300,7 @@ export function AppointmentFormDrawer({
       setForm(data);
       setInitialData(data);
       setSelectedInspectorId(appointment.inspectorId ?? '');
+      setMeetingLocationMode('CUSTOM');
       setErrors({});
     }
   }, [isEditMode, appointment]);
@@ -285,6 +313,7 @@ export function AppointmentFormDrawer({
       setErrors({});
       setSelectedTenantId('');
       setSelectedInspectorId('');
+      setMeetingLocationMode('CUSTOM');
     }
   }, [open, isEditMode]);
 
@@ -404,6 +433,71 @@ export function AppointmentFormDrawer({
     },
     [],
   );
+
+  // ─── Meeting Location presets (Access & Key) ───────────────────────────────
+  // Resolve the agency (branch) and property addresses from the rows already
+  // fetched for the branch/property pickers — no extra request. Each is null
+  // when that preset cannot be offered.
+  const { agencyAddress: meetingAgencyAddress, propertyAddress: meetingPropertyAddress } =
+    useAccessLocationPresets({
+      branchItems,
+      propertyItems,
+      branchId: form.branchId,
+      propertyId: form.propertyId,
+      fallbackPropertyAddress: isEditMode ? appointment?.propertyAddress : null,
+    });
+
+  // Only offer a preset when its address resolves; CUSTOM is always available.
+  const meetingLocationOptions = useMemo<SelectOption[]>(() => {
+    const opts: SelectOption[] = [];
+    if (meetingPropertyAddress) {
+      opts.push({ value: 'PROPERTY', label: MEETING_LOCATION_LABELS.PROPERTY });
+    }
+    if (meetingAgencyAddress) {
+      opts.push({ value: 'AGENCY', label: MEETING_LOCATION_LABELS.AGENCY });
+    }
+    opts.push({ value: 'CUSTOM', label: MEETING_LOCATION_LABELS.CUSTOM });
+    return opts;
+  }, [meetingPropertyAddress, meetingAgencyAddress]);
+
+  // A preset whose address disappeared (property cleared, or a branch with no
+  // office address) degrades to CUSTOM so the stored text stays editable rather
+  // than leaving the select on an option that is no longer listed.
+  const effectiveMeetingMode: MeetingLocationMode = meetingLocationOptions.some(
+    (o) => o.value === meetingLocationMode,
+  )
+    ? meetingLocationMode
+    : 'CUSTOM';
+  const resolvedPresetAddress =
+    effectiveMeetingMode === 'PROPERTY'
+      ? meetingPropertyAddress
+      : effectiveMeetingMode === 'AGENCY'
+        ? meetingAgencyAddress
+        : null;
+
+  // Keep the persisted snapshot in step with the chosen preset as the selected
+  // property/branch (and so its address) changes, until the operator switches
+  // to CUSTOM. Guarded to write only when the value actually differs.
+  useEffect(() => {
+    if (resolvedPresetAddress == null) return;
+    setForm((prev) =>
+      prev.meetingLocation === resolvedPresetAddress
+        ? prev
+        : { ...prev, meetingLocation: resolvedPresetAddress },
+    );
+  }, [resolvedPresetAddress]);
+
+  const handleMeetingModeChange = useCallback((mode: string) => {
+    setMeetingLocationMode(mode as MeetingLocationMode);
+    setErrors((prev) => {
+      if (prev.meetingLocation) {
+        const next = { ...prev };
+        delete next.meetingLocation;
+        return next;
+      }
+      return prev;
+    });
+  }, []);
 
   const addContact = useCallback(() => {
     setForm((prev) => {
@@ -1067,12 +1161,29 @@ export function AppointmentFormDrawer({
                     </div>
                     <div />
                     <FormField label="Meeting Location" error={errors.meetingLocation}>
-                      <TextInput
-                        value={form.meetingLocation}
-                        onChange={(v) => updateField('meetingLocation', v)}
-                        placeholder="Where to meet"
-                        aria-label="Meeting Location"
-                      />
+                      <div className="space-y-2">
+                        <SelectInput
+                          value={effectiveMeetingMode}
+                          onChange={handleMeetingModeChange}
+                          options={meetingLocationOptions}
+                          aria-label="Meeting location source"
+                        />
+                        {effectiveMeetingMode === 'CUSTOM' ? (
+                          <TextInput
+                            value={form.meetingLocation}
+                            onChange={(v) => updateField('meetingLocation', v)}
+                            placeholder="Where to meet"
+                            aria-label="Meeting Location"
+                          />
+                        ) : (
+                          <p
+                            className="text-sm text-text-secondary"
+                            data-testid="meeting-location-preview"
+                          >
+                            {resolvedPresetAddress}
+                          </p>
+                        )}
+                      </div>
                     </FormField>
                     <FormField label="Key Location" error={errors.keyLocation}>
                       <TextInput
