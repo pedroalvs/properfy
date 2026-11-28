@@ -1,7 +1,10 @@
-import { Phone } from 'lucide-react';
+import { useState } from 'react';
+import { MessageSquare, Phone } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { useAuth } from '@/hooks/useAuth';
 import type { ContactChannel, JobDetailsTenantContact } from '../types';
+import { SmsTemplateSheet } from './SmsTemplateSheet';
 
 const ROLE_LABELS: Record<string, string> = {
   RENTAL_TENANT: 'Tenant',
@@ -31,7 +34,14 @@ interface ContactsSectionProps {
  * extras: company and additional channels. Emails are never shown to inspectors.
  */
 export function ContactsSection({ contacts }: ContactsSectionProps) {
+  const { user } = useAuth();
+  // Same first-name derivation the Today greeting uses (TodayPage.tsx).
+  const firstName = (user?.name ?? '').trim().split(/\s+/)[0] || undefined;
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
   if (contacts.length === 0) return null;
+
+  const activeContact = activeIndex !== null ? contacts[activeIndex] : null;
 
   return (
     <Card className="overflow-hidden p-0" data-testid="contacts-section">
@@ -71,14 +81,25 @@ export function ContactsSection({ contacts }: ContactsSectionProps) {
               {hasDetails && (
                 <div className="divide-y divide-border">
                   {contact.phone && (
-                    <a
-                      href={`tel:${contact.phone}`}
-                      className="flex min-h-touch items-center gap-2 px-4 py-2.5 text-sm font-semibold text-success"
-                      data-testid={`contact-phone-link-${index}`}
-                    >
-                      <Phone className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      {contact.phone}
-                    </a>
+                    <>
+                      <a
+                        href={`tel:${contact.phone}`}
+                        className="flex min-h-touch items-center gap-2 px-4 py-2.5 text-sm font-semibold text-success"
+                        data-testid={`contact-phone-link-${index}`}
+                      >
+                        <Phone className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        {contact.phone}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setActiveIndex(index)}
+                        className="flex min-h-touch w-full items-center gap-2 px-4 py-2.5 text-sm font-semibold text-success"
+                        data-testid={`contact-sms-button-${index}`}
+                      >
+                        <MessageSquare className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        Message
+                      </button>
+                    </>
                   )}
                   {extraChannels.map((channel, channelIndex) => {
                     const href = channelHref(channel);
@@ -120,6 +141,18 @@ export function ContactsSection({ contacts }: ContactsSectionProps) {
           );
         })}
       </ul>
+
+      {activeContact?.phone && (
+        <SmsTemplateSheet
+          open={activeIndex !== null}
+          onOpenChange={(open) => {
+            if (!open) setActiveIndex(null);
+          }}
+          contactName={activeContact.name}
+          phone={activeContact.phone}
+          firstName={firstName}
+        />
+      )}
     </Card>
   );
 }

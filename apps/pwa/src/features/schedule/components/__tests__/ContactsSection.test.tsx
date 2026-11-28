@@ -1,7 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ContactsSection } from '../ContactsSection';
 import type { JobDetailsTenantContact } from '../../types';
+
+// ContactsSection reads the logged-in inspector's name via useAuth to sign SMS
+// templates. Mock it so the component renders without an AuthProvider.
+let mockUser: { name: string } | null = { name: 'John Smith' };
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({ user: mockUser }),
+}));
 
 const primary: JobDetailsTenantContact = {
   name: 'John Smith',
@@ -25,6 +33,10 @@ const rep: JobDetailsTenantContact = {
   isPrimary: false,
   company: 'Acme Realty',
 };
+
+beforeEach(() => {
+  mockUser = { name: 'Carlos Mendes' };
+});
 
 describe('ContactsSection', () => {
   it('renders nothing when there are no contacts', () => {
@@ -88,5 +100,35 @@ describe('ContactsSection', () => {
     expect(screen.getByText('No contact details available.')).toBeInTheDocument();
     expect(screen.queryByText('only@example.com')).not.toBeInTheDocument();
     expect(screen.queryByText('extra@example.com')).not.toBeInTheDocument();
+  });
+
+  it('shows a Message button for a contact with a phone', () => {
+    render(<ContactsSection contacts={[primary]} />);
+    expect(screen.getByTestId('contact-sms-button-0')).toBeInTheDocument();
+  });
+
+  it('does not show a Message button for a contact without a phone', () => {
+    render(
+      <ContactsSection contacts={[{ name: 'Silent Sam', email: null, phone: null, role: 'OTHER', isPrimary: false }]} />,
+    );
+    expect(screen.queryByTestId('contact-sms-button-0')).not.toBeInTheDocument();
+  });
+
+  it('opens the SMS template sheet, addressed to the tapped contact and signed with the inspector first name', async () => {
+    const user = userEvent.setup();
+    render(<ContactsSection contacts={[primary]} />);
+
+    expect(screen.queryByTestId('sms-template-on-my-way')).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId('contact-sms-button-0'));
+
+    expect(screen.getByText('Message John Smith')).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^sms-template-/)).toHaveLength(5);
+
+    const onMyWay = screen.getByTestId('sms-template-on-my-way');
+    const href = onMyWay.getAttribute('href') ?? '';
+    expect(href.startsWith('sms:+61400000000')).toBe(true);
+    // Signed with the inspector's first name (encodeURIComponent leaves letters intact).
+    expect(href).toContain('Carlos');
   });
 });
