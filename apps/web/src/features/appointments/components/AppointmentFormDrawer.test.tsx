@@ -1031,4 +1031,59 @@ describe('AppointmentFormDrawer — Meeting Location presets (Access & Key)', ()
     expect(screen.getByLabelText('Key Location')).toHaveValue('Portaria');
     expect(screen.queryByLabelText('Key location source')).not.toBeInTheDocument();
   });
+
+  // Regression: a preset that degrades to Custom (its option disappears) must stick,
+  // so a later re-appearance of that preset never silently overwrites text the operator
+  // typed while in Custom. Branch A has an office address, Branch B does not.
+  it('does not overwrite typed Custom text when a degraded preset becomes available again', async () => {
+    mockUseFormOptions.mockImplementation((...args: unknown[]) => {
+      if (args[1] === '/v1/tenants') {
+        return { options: [{ value: 't-1', label: 'Agency One' }], isLoading: false, items: [] };
+      }
+      if (args[1] === '/v1/branches') {
+        return {
+          options: [
+            { value: 'branch-a', label: 'Branch A' },
+            { value: 'branch-b', label: 'Branch B' },
+          ],
+          isLoading: false,
+          items: [
+            {
+              id: 'branch-a',
+              name: 'Branch A',
+              addressJson: { street: '1 Help St', suburb: 'Chatswood', state: 'NSW', postcode: '2067' },
+            },
+            { id: 'branch-b', name: 'Branch B', addressJson: null },
+          ],
+        };
+      }
+      return { options: [], isLoading: false, items: [] };
+    });
+
+    renderDrawer();
+
+    fireEvent.click(screen.getByLabelText('Agency'));
+    fireEvent.click(screen.getByText('Agency One'));
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(screen.getByText('Branch A'));
+
+    // Pick the agency-office preset (snapshots Branch A's address).
+    fireEvent.click(screen.getByLabelText('Meeting location source'));
+    fireEvent.click(screen.getByText('At the agency office'));
+    expect(await screen.findByTestId('meeting-location-preview')).toHaveTextContent('1 Help St');
+
+    // Switch to Branch B (no office address) → the preset degrades to Custom.
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(screen.getByText('Branch B'));
+
+    const input = screen.getByLabelText('Meeting Location');
+    fireEvent.change(input, { target: { value: 'front gate' } });
+
+    // Branch A again makes the agency preset available — the typed text must survive.
+    fireEvent.click(screen.getByLabelText('Branch'));
+    fireEvent.click(screen.getByText('Branch A'));
+
+    expect(screen.getByLabelText('Meeting Location')).toHaveValue('front gate');
+    expect(screen.getByLabelText('Meeting location source')).toHaveTextContent('Custom address');
+  });
 });

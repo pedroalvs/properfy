@@ -487,6 +487,19 @@ export function AppointmentFormDrawer({
     );
   }, [resolvedPresetAddress]);
 
+  // Commit the degrade-to-CUSTOM to state (not just the derived `effectiveMeetingMode`).
+  // When the active preset's option disappears (e.g. the branch is changed, clearing the
+  // property, or a branch without an office address), the field already shows an editable
+  // Custom box. Without this, `meetingLocationMode` stays PROPERTY/AGENCY, so if that preset
+  // later becomes available again the sync effect would silently overwrite text the operator
+  // typed in the meantime. Resetting to CUSTOM makes the switch durable; a mere property swap
+  // (option still listed) does not trigger it, so the intended re-sync still works.
+  useEffect(() => {
+    if (!meetingLocationOptions.some((o) => o.value === meetingLocationMode)) {
+      setMeetingLocationMode('CUSTOM');
+    }
+  }, [meetingLocationOptions, meetingLocationMode]);
+
   const handleMeetingModeChange = useCallback((mode: string) => {
     setMeetingLocationMode(mode as MeetingLocationMode);
     setErrors((prev) => {
