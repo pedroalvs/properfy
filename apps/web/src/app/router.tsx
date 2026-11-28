@@ -69,6 +69,7 @@ const ServiceTypeListPage = Loadable(lazyRetry(() => import('@/features/service-
 const IntegrationsPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/IntegrationsPage').then(m => ({ default: m.IntegrationsPage }))));
 const IntegrationDetailPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/IntegrationDetailPage').then(m => ({ default: m.IntegrationDetailPage }))));
 const FyIntegrationPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/FyIntegrationPage').then(m => ({ default: m.FyIntegrationPage }))));
+const MailBotIntegrationPage = Loadable(lazyRetry(() => import('@/features/integrations/pages/MailBotIntegrationPage').then(m => ({ default: m.MailBotIntegrationPage }))));
 const PricingRuleListPage = Loadable(lazyRetry(() => import('@/features/pricing-rules/pages/PricingRuleListPage').then(m => ({ default: m.PricingRuleListPage }))));
 const AccountSettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/AccountSettingsPage').then(m => ({ default: m.AccountSettingsPage }))));
 const SecuritySettingsPage = Loadable(lazyRetry(() => import('@/features/settings/pages/SecuritySettingsPage').then(m => ({ default: m.SecuritySettingsPage }))));
@@ -502,6 +503,15 @@ export const routes: RouteObject[] = [
             element: (
               <AuthGuard roles={[UserRole.AM]}>
                 <FyIntegrationPage />
+              </AuthGuard>
+            ),
+          },
+          {
+            // Literal route declared before ':provider' so it is not captured as a slug.
+            path: 'integrations/mail-bot',
+            element: (
+              <AuthGuard roles={[UserRole.AM]}>
+                <MailBotIntegrationPage />
               </AuthGuard>
             ),
           },

@@ -2287,6 +2287,7 @@ export function createContainer(logger: Logger): AppContainer {
       tenantRepo,
       idempotencyService,
       getPortalLinkUseCase,
+      apiKeyRepo,
     },
     audit: {
       listAuditLogsUseCase,
@@ -2538,6 +2539,7 @@ export function createContainer(logger: Logger): AppContainer {
       listContactsUseCase,
       jwtService,
       tenantRepo,
+      apiKeyRepo,
     },
     appCredential: {
       createAppCredentialUseCase,

@@ -13,7 +13,7 @@ import { PROVIDER_META } from '../providerMeta';
 import { IntegrationTile } from '../components/IntegrationTile';
 import { ProviderLogo } from '../components/ProviderLogo';
 import { keyStatus } from '../components/ApiKeysTab';
-import { isFyKey } from '../components/fyKey';
+import { MACHINE_KEY_TYPES } from '../components/machineKeyType';
 import { sourceBadge } from '../components/sourceBadge';
 
 const TABS = [
@@ -33,26 +33,30 @@ export function IntegrationsPage() {
   const { data: integrations, isLoading, isError, error, refetch } = useIntegrations();
   const { data: apiKeys, isLoading: keysLoading, isError: keysError } = useApiKeys();
 
-  // Legacy unscoped keys are not Fy keys — never count them on the Fy tile.
-  const activeKeyCount = (apiKeys ?? []).filter(
-    (key) => isFyKey(key) && keyStatus(key).label === 'Active',
-  ).length;
+  // Active-key count per integration (exact-contract match only, never legacy keys).
+  const machineKeyTiles = MACHINE_KEY_TYPES.map((keyType) => {
+    const activeKeyCount = (apiKeys ?? []).filter(
+      (key) => keyType.isKeyOfType(key) && keyStatus(key).label === 'Active',
+    ).length;
 
-  const fyTileCaption = keysLoading
-    ? 'Loading keys…'
-    : keysError
-      ? 'Key count unavailable'
-      : activeKeyCount === 1
-        ? '1 active key'
-        : `${activeKeyCount} active keys`;
+    const caption = keysLoading
+      ? 'Loading keys…'
+      : keysError
+        ? 'Key count unavailable'
+        : activeKeyCount === 1
+          ? '1 active key'
+          : `${activeKeyCount} active keys`;
 
-  const fyTileBadge = keysLoading
-    ? { label: 'Loading', className: 'bg-info/10 text-info' }
-    : keysError
-      ? { label: 'Unknown', className: 'bg-warning/10 text-warning' }
-      : activeKeyCount > 0
-        ? { label: 'Active', className: 'bg-success/10 text-success' }
-        : { label: 'No active keys', className: 'bg-warning/10 text-warning' };
+    const badge = keysLoading
+      ? { label: 'Loading', className: 'bg-info/10 text-info' }
+      : keysError
+        ? { label: 'Unknown', className: 'bg-warning/10 text-warning' }
+        : activeKeyCount > 0
+          ? { label: 'Active', className: 'bg-success/10 text-success' }
+          : { label: 'No active keys', className: 'bg-warning/10 text-warning' };
+
+    return { keyType, caption, badge };
+  });
 
   const handleTabChange = (tabId: string) => {
     setSearchParams(tabId === 'api-keys' ? { tab: 'api-keys' } : {}, { replace: true });
@@ -103,18 +107,21 @@ export function IntegrationsPage() {
       {activeTab === 'api-keys' && (
         <div className="space-y-4">
           <InfoBanner>
-            Inbound API access is restricted to the Fy agent — every key carries the{' '}
-            <code className="font-mono text-xs">bot:fy</code> scope. Open the Fy integration to
-            create and manage keys.
+            Inbound API access is granted per integration — each key carries a fixed scope and only
+            reaches that integration&apos;s surface. Open an integration to create and manage its
+            keys.
           </InfoBanner>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            <IntegrationTile
-              to="/integrations/fy-api"
-              name="Fy Integration"
-              caption={fyTileCaption}
-              badge={fyTileBadge}
-              logo={<ProviderLogo logoKey="fy_webhook" brandColor="#25D366" />}
-            />
+            {machineKeyTiles.map(({ keyType, caption, badge }) => (
+              <IntegrationTile
+                key={keyType.id}
+                to={`/integrations/${keyType.slug}`}
+                name={keyType.label}
+                caption={caption}
+                badge={badge}
+                logo={<ProviderLogo logoKey={keyType.logoKey} brandColor={keyType.brandColor} />}
+              />
+            ))}
           </div>
         </div>
       )}

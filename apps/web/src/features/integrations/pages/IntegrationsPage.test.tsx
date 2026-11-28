@@ -88,6 +88,16 @@ describe('IntegrationsPage', () => {
     expect(screen.getByText(/1 active key/)).toBeInTheDocument();
   });
 
+  it('shows the Mail Bot - AutoLabs integration tile on the API Keys tab', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole('tab', { name: 'API Keys' }));
+
+    const mailTile = screen.getByRole('link', { name: /Mail Bot - AutoLabs/ });
+    expect(mailTile).toHaveAttribute('href', '/integrations/mail-bot');
+  });
+
   it('opens directly on the API Keys tab via the tab query param', () => {
     renderPage('/integrations?tab=api-keys');
     expect(screen.getByRole('link', { name: /Fy Integration/ })).toBeInTheDocument();
@@ -123,14 +133,15 @@ describe('IntegrationsPage', () => {
     expect(screen.getByText('1 active key')).toBeInTheDocument();
   });
 
-  it('surfaces API-key query loading and error states on the Fy tile', async () => {
+  it('surfaces API-key query error state on every machine-key tile', async () => {
     const user = userEvent.setup();
     mockUseApiKeys.mockReturnValue({ data: undefined, isLoading: false, isError: true });
     renderPage();
 
     await user.click(screen.getByRole('tab', { name: 'API Keys' }));
-    expect(screen.getByText('Key count unavailable')).toBeInTheDocument();
-    expect(screen.getByText('Unknown')).toBeInTheDocument();
+    // One per machine-key integration tile (Fy + Mail Bot).
+    expect(screen.getAllByText('Key count unavailable')).toHaveLength(2);
+    expect(screen.getAllByText('Unknown')).toHaveLength(2);
   });
 
   it('shows an empty state when the API returns no integrations', () => {
