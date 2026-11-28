@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { MessageSquare, Phone } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -38,10 +38,15 @@ export function ContactsSection({ contacts }: ContactsSectionProps) {
   // Same first-name derivation the Today greeting uses (TodayPage.tsx).
   const firstName = (user?.name ?? '').trim().split(/\s+/)[0] || undefined;
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  // Remember the last contact shown so the sheet can animate closed (open=false)
+  // before it unmounts, rather than vanishing the instant activeIndex clears.
+  const lastSmsContact = useRef<JobDetailsTenantContact | null>(null);
 
   if (contacts.length === 0) return null;
 
   const activeContact = activeIndex !== null ? contacts[activeIndex] : null;
+  if (activeContact) lastSmsContact.current = activeContact;
+  const smsContact = activeContact ?? lastSmsContact.current;
 
   return (
     <Card className="overflow-hidden p-0" data-testid="contacts-section">
@@ -142,14 +147,14 @@ export function ContactsSection({ contacts }: ContactsSectionProps) {
         })}
       </ul>
 
-      {activeContact?.phone && (
+      {smsContact?.phone && (
         <SmsTemplateSheet
           open={activeIndex !== null}
           onOpenChange={(open) => {
             if (!open) setActiveIndex(null);
           }}
-          contactName={activeContact.name}
-          phone={activeContact.phone}
+          contactName={smsContact.name}
+          phone={smsContact.phone}
           firstName={firstName}
         />
       )}

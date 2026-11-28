@@ -1,4 +1,8 @@
-import { isApplePlatform, type NavigationEnv } from '@/features/day-plan/lib/navigation-url';
+import {
+  isApplePlatform,
+  resolveEnv,
+  type NavigationEnv,
+} from '@/features/day-plan/lib/navigation-url';
 
 /**
  * Builds an `sms:` deep link that opens the native messaging app with the
@@ -7,17 +11,9 @@ import { isApplePlatform, type NavigationEnv } from '@/features/day-plan/lib/nav
  *
  * The body separator differs by platform — iOS/iPadOS expects
  * `sms:<number>&body=…` while Android (and desktop) expect `sms:<number>?body=…`.
- * We reuse the day-plan `isApplePlatform` detection so both deep-link builders
- * agree on what "Apple" means.
+ * We reuse the day-plan `isApplePlatform`/`resolveEnv` detection so both
+ * deep-link builders agree on what "Apple" means.
  */
-
-function resolveEnv(env?: Partial<NavigationEnv>): NavigationEnv {
-  return {
-    userAgent: env?.userAgent ?? (typeof navigator !== 'undefined' ? navigator.userAgent : ''),
-    maxTouchPoints:
-      env?.maxTouchPoints ?? (typeof navigator !== 'undefined' ? navigator.maxTouchPoints : 0),
-  };
-}
 
 /** Keep only a leading `+` and digits; `sms:` hrefs break on spaces/parens. */
 function sanitizePhone(phone: string): string {
